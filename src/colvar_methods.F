@@ -19,7 +19,7 @@ MODULE colvar_methods
        colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
        coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
        distance_from_path_colvar_id, eval_point_der, eval_point_mass, &
-       eval_point_pos, gyration_colvar_id, hydronium_colvar_id, &
+       eval_point_pos, gyration_colvar_id, hydronium_colvar_id, mindist_colvar_id,&
        plane_distance_colvar_id, plane_plane_angle_colvar_id, &
        population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
        ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
@@ -144,7 +144,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure, &
                                                 use_mixed_energy
-    LOGICAL, DIMENSION(22)                   :: my_subsection
+    LOGICAL, DIMENSION(23)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
@@ -157,7 +157,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
       combine_section, coordination_section, dfunct_section, &
       distance_from_path_section, distance_section, frame_section, &
-      gyration_section, HBP_section, hydronium_section, path_section, &
+      gyration_section, HBP_section, hydronium_section, mindist_section, path_section, &
       plane_dist_section, plane_plane_angle_section, plane_sections, &
       point_section, population_section, qparm_section, &
       reaction_path_section, ring_puckering_section, rmsd_section, &
@@ -204,6 +204,7 @@ CONTAINS
     HBP_section           => section_vals_get_subs_vals(colvar_section,"HBP",i_rep_section=icol,error=error)
     ring_puckering_section&
                           => section_vals_get_subs_vals(colvar_section,"RING_PUCKERING",i_rep_section=icol,error=error)
+    mindist_section       => section_vals_get_subs_vals(colvar_section,"CONDITIONED_DISTANCE",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -238,6 +239,8 @@ CONTAINS
     CALL section_vals_get(HBP_section,          explicit=my_subsection(21), error=error)
     CALL section_vals_get(ring_puckering_section,&
                                                 explicit=my_subsection(22), error=error)
+    CALL section_vals_get(mindist_section,      explicit=my_subsection(23), error=error)
+
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -1000,6 +1003,84 @@ CPSourceFileRef)
             cp_fatal_level,cp_assertion_failed,routineP,&
             "CV Ring Puckering: Invalid coordinate number. "//&
             CPSourceFileRef)
+    ELSE IF (my_subsection(23)) THEN
+       ! Minimum Distance
+       wrk_section => mindist_section
+       CALL colvar_create(colvar, mindist_colvar_id, error)
+       CALL colvar_check_points(colvar, mindist_section, error)
+       NULLIFY(colvar%mindist_param%i_dist_from,colvar%mindist_param%i_coord_from,&
+               colvar%mindist_param%k_coord_from,colvar%mindist_param%i_coord_to,&
+               colvar%mindist_param%k_coord_to)
+       CALL section_vals_val_get(mindist_section,"ATOMS_DISTANCE",i_vals=iatms,error=error)
+       colvar%mindist_param%n_dist_from = SIZE(iatms)
+       ALLOCATE(colvar%mindist_param%i_dist_from(SIZE(iatms)),stat=stat)
+       colvar%mindist_param%i_dist_from = iatms
+       CALL section_vals_val_get(mindist_section,"ATOMS_FROM",n_rep_val=n_var,error=error)
+       ndim = 0 
+       IF (n_var /= 0) THEN
+         ! INDEX LIST
+         DO k = 1, n_var
+           CALL section_vals_val_get(mindist_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
+           CALL reallocate(colvar%mindist_param%i_coord_from,1, ndim+SIZE(iatms))
+           colvar%mindist_param%i_coord_from(ndim+1:ndim+SIZE(iatms)) = iatms
+           ndim = ndim + SIZE(iatms)
+         END DO
+         colvar%mindist_param%n_coord_from = ndim
+         colvar%mindist_param%use_kinds_from = .FALSE.
+       ELSE
+         !KINDS
+          CALL section_vals_val_get(mindist_section,"KINDS_FROM",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(mindist_section,"KINDS_FROM",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%mindist_param%k_coord_from,1, ndim+SIZE(c_kinds))
+             colvar%mindist_param%k_coord_from(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%mindist_param%n_coord_from = 0
+          colvar%mindist_param%use_kinds_from = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%mindist_param%k_coord_from(k))
+          END DO
+       END IF
+
+
+       CALL section_vals_val_get(mindist_section,"ATOMS_TO",n_rep_val=n_var,error=error)
+       ndim = 0
+       IF (n_var /= 0) THEN
+          ! INDEX LIST
+         DO k = 1, n_var
+           CALL section_vals_val_get(mindist_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
+           CALL reallocate(colvar%mindist_param%i_coord_to,1, ndim+SIZE(iatms))
+           colvar%mindist_param%i_coord_to(ndim+1:ndim+SIZE(iatms)) = iatms
+           ndim = ndim + SIZE(iatms)
+         END DO
+         colvar%mindist_param%n_coord_to = ndim
+         colvar%mindist_param%use_kinds_to = .FALSE.
+       ELSE
+         !KINDS
+          CALL section_vals_val_get(mindist_section,"KINDS_TO",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(mindist_section,"KINDS_TO",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%mindist_param%k_coord_to,1, ndim+SIZE(c_kinds))
+             colvar%mindist_param%k_coord_to(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%mindist_param%n_coord_to = 0
+          colvar%mindist_param%use_kinds_to = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%mindist_param%k_coord_to(k))
+          END DO
+       END IF
+
+       CALL section_vals_val_get(mindist_section,"R0",r_val=colvar%mindist_param%r_cut,error=error)
+       CALL section_vals_val_get(mindist_section,"NN",i_val=colvar%mindist_param%p_exp,error=error)
+       CALL section_vals_val_get(mindist_section,"ND",i_val=colvar%mindist_param%q_exp,error=error)
+!       CALL section_vals_val_get(mindist_section,"NC",r_val=colvar%mindist_param%n_cut,error=error)
+       CALL section_vals_val_get(mindist_section,"LAMBDA",r_val=colvar%mindist_param%lambda,error=error)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -1231,6 +1312,34 @@ CPSourceFileRef)
                                           ' Puckering Angle',&
                colvar%ring_puckering_param%iq
           END IF
+       CASE(mindist_colvar_id)
+          WRITE ( iw, '( A)' ) ' COLVARS| CONDITIONED DISTANCE>> '
+          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COND.DISTANCE  >>> DISTANCE FROM '//tag,&
+                colvar%mindist_param%i_dist_from(kk),&
+                kk=1,SIZE(colvar%mindist_param%i_dist_from))
+          IF (colvar%mindist_param%use_kinds_from) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COND.DIST.  >>> COORDINATION FROM KINDS ',&
+                  ADJUSTR(colvar%mindist_param%k_coord_from(kk)(1:10)),&
+                  kk=1,SIZE(colvar%mindist_param%k_coord_from))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COND.DIST.  >>> COORDINATION FROM '//tag,&
+                  colvar%mindist_param%i_coord_from(kk),&
+                  kk=1,SIZE(colvar%mindist_param%i_coord_from))
+          END IF
+          IF (colvar%mindist_param%use_kinds_to) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COND.DIST.  >>> COORDINATION TO KINDS ',&
+                  ADJUSTR(colvar%mindist_param%k_coord_to(kk)(1:10)),&
+                  kk=1,SIZE(colvar%mindist_param%k_coord_to))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COND.DIST.  >>> COORDINATION TO '//tag,&
+                  colvar%mindist_param%i_coord_to(kk),&
+                  kk=1,SIZE(colvar%mindist_param%i_coord_to))
+          END IF
+          WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',colvar%mindist_param%r_cut
+          WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',colvar%mindist_param%p_exp
+          WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',colvar%mindist_param%q_exp
+          WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| LAMBDA',colvar%mindist_param%lambda
+
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -1338,6 +1447,8 @@ CPSourceFileRef)
           CALL xyz_outerdiag_colvar(colvar,cell,particles=particles, error=error)
        CASE (ring_puckering_colvar_id)
           CALL ring_puckering_colvar(colvar,cell,particles=particles, error=error)
+       CASE (mindist_colvar_id)
+          CALL mindist_colvar(colvar,cell,particles=particles, error=error)
        CASE (u_colvar_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="need force_env!", error=error, error_level=cp_failure_level)
@@ -1435,6 +1546,8 @@ CPSourceFileRef)
           CALL HBP_colvar(colvar,cell,subsys=subsys, qs_env=qs_env, error=error)
        CASE (ring_puckering_colvar_id)
           CALL ring_puckering_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (mindist_colvar_id)
+          CALL mindist_colvar(colvar,cell,subsys=subsys , error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1503,6 +1616,8 @@ CPSourceFileRef)
           CALL xyz_outerdiag_colvar(colvar,cell,particles=particles, error=error)
        CASE (ring_puckering_colvar_id)
           CALL ring_puckering_colvar(colvar,cell,particles=particles, error=error)
+       CASE (mindist_colvar_id)
+          CALL mindist_colvar(colvar,cell,particles=particles, error=error)
        CASE (u_colvar_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="need force_env!", error=error, error_level=cp_failure_level)
@@ -3214,6 +3329,188 @@ CPSourceFileRef)
     colvar%ss=ncoord*inv_n_atoms_from
     colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
   END SUBROUTINE coord_colvar
+
+  SUBROUTINE mindist_colvar(colvar,cell, subsys, particles, error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mindist_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, j, jj, k, kk, &
+                                                n_dist_from, n_coord_from, &
+                                                n_coord_to, p, q, stat
+    LOGICAL                                  :: failure
+
+    REAL(dp) :: Qfunc, lambda, r_cut, num_Q, den_Q, fscalar, inv_den_n, inv_den_Q, num_n, den_n , r12, rfact
+    REAL(dp) :: rij(3),rpi(3),rpj(3),ftemp_i(3)
+    REAL(dp), DIMENSION(:), POINTER          :: dqfunc_dnL, expnL, nLcoord, sum_rij
+    REAL(dp), DIMENSION(:,:,:), POINTER      :: dnLcoord,  dqfunc_dr
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    ! If we defined the coordination number with KINDS then we have still
+    ! to fill few missing informations...
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==mindist_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    n_dist_from=colvar%mindist_param%n_dist_from
+    n_coord_from=colvar%mindist_param%n_coord_from
+    n_coord_to=colvar%mindist_param%n_coord_to
+    p=colvar%mindist_param%p_exp
+    q=colvar%mindist_param%q_exp
+    r_cut=colvar%mindist_param%r_cut
+    lambda=colvar%mindist_param%lambda
+
+
+    NULLIFY(nLcoord,dnLcoord,dqfunc_dr,dqfunc_dnL,expnL,sum_rij)
+    ALLOCATE (nLcoord(n_coord_from),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE (dnLcoord(3,n_coord_from,n_coord_to),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE (expnL(n_coord_from),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE (sum_rij(n_coord_from),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE (dqfunc_dr(3,n_dist_from,n_coord_from),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE (dqfunc_dnL(n_coord_from),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    ! coordination numbers
+    nLcoord = 0.0_dp
+    dnLcoord = 0.0_dp 
+    expnL = 0.0_dp
+    den_Q = 0.0_dp
+    DO i = 1,n_coord_from
+      ii = colvar%mindist_param%i_coord_from(i)
+      rpi=my_particles(ii)%r(1:3)
+      DO j = 1,n_coord_to
+         jj = colvar%mindist_param%i_coord_to(j)
+         rpj=my_particles(jj)%r(1:3)
+         rij = pbc(rpj,rpi,cell)
+         r12 = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+         rfact=r12/r_cut
+         num_n = 1.0_dp-rfact**p
+         den_n = 1.0_dp-rfact**q
+         inv_den_n = 1.0_dp/den_n
+         IF(ABS(inv_den_n)<1.e-10_dp ) THEN
+             inv_den_n=1.e-10_dp
+             num_n = ABS(num_n)
+         END IF
+
+         fscalar = (-p*rfact**(p-1)+num_n*q*rfact**(q-1)*inv_den_n)*inv_den_n/(r_cut*r12)
+
+         dnLcoord(1,i,j) = rij(1)*fscalar
+         dnLcoord(2,i,j) = rij(2)*fscalar
+         dnLcoord(3,i,j) = rij(3)*fscalar
+
+         nLcoord(i) =  nLcoord(i)  + num_n*inv_den_n
+      END DO
+      expnL(i) =  exp(lambda*nLcoord(i)) 
+!dbg
+! write(*,*) ii,nLcoord(i),expnL(i) 
+!dbg
+      den_Q = den_Q +  expnL(i)
+    END DO
+    inv_den_Q = 1.0_dp/den_Q
+
+    qfunc = 0.0_dp
+    dqfunc_dr = 0.0_dp
+    dqfunc_dnL = 0.0_dp
+    num_Q = 0.0_dp
+    sum_rij = 0.0_dp
+    DO i = 1,n_dist_from
+      ii =  colvar%mindist_param%i_dist_from(i)
+      rpi=my_particles(ii)%r(1:3)
+      DO j = 1,n_coord_from
+         jj =  colvar%mindist_param%i_coord_from(j)
+         rpj=my_particles(jj)%r(1:3)
+         rij = pbc(rpj,rpi,cell)
+         r12 = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+
+!dbg
+! write(*,*) ii,jj,rpi(1:3),rpj(1:3),rij(1:3),r12
+!dbg
+         num_Q = num_Q +  r12 *  expnL(j)
+
+         sum_rij(j) = sum_rij(j) + r12
+         dqfunc_dr(1,i,j) = expnL(j)* rij(1)/r12
+         dqfunc_dr(2,i,j) = expnL(j)* rij(2)/r12
+         dqfunc_dr(3,i,j) = expnL(j)* rij(3)/r12
+
+      END DO
+
+    END DO
+
+    ! Function and derivatives
+    qfunc = num_Q * inv_den_Q
+    dqfunc_dr = dqfunc_dr  * inv_den_Q
+    colvar%ss=qfunc
+!dbg
+!      write(*,*) ' ss ',  colvar%ss
+! stop
+!dbg
+
+    DO i = 1,n_coord_from
+      dqfunc_dnL(i) = lambda * expnL(i) * inv_den_Q*( sum_rij(i) - num_Q * inv_den_Q)
+    END DO 
+
+    !Compute Forces
+    DO i = 1,n_dist_from
+      DO j = 1,n_coord_from
+        ftemp_i(1) =  dqfunc_dr(1,i,j)
+        ftemp_i(2) =  dqfunc_dr(2,i,j)
+        ftemp_i(3) =  dqfunc_dr(3,i,j)
+
+        CALL put_derivative(colvar,i,ftemp_i)
+        CALL put_derivative(colvar,j+n_dist_from,-ftemp_i)
+
+      END DO
+    END DO
+    DO i = 1,n_coord_from
+      DO j = 1,n_coord_to
+        ftemp_i(1) =  dqfunc_dnL(i)*dnLcoord(1,i,j)
+        ftemp_i(2) =  dqfunc_dnL(i)*dnLcoord(2,i,j)
+        ftemp_i(3) =  dqfunc_dnL(i)*dnLcoord(3,i,j)
+
+        CALL put_derivative(colvar,i+n_dist_from,ftemp_i)
+        CALL put_derivative(colvar,j+n_dist_from+n_coord_from,-ftemp_i)
+
+      END DO
+    END DO
+
+
+
+
+    DEALLOCATE(nLcoord,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(dnLcoord,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE (expnL,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE (dqfunc_dr,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE (sum_rij,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE (dqfunc_dnL,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+  END SUBROUTINE mindist_colvar
 
 ! *****************************************************************************
 !> \brief  evaluates function and forces due to a combination of COLVARs

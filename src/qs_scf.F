@@ -754,7 +754,6 @@ CONTAINS
              END IF
 
              CALL section_vals_val_get(harris_section, "HARRIS_ENERGY",l_val=harris_energy,error=error)
-!             IF ((globenv%run_type_id == debug_run) .OR. (harris_energy)) THEN
              IF ((harris_energy)) THEN
                 energy%total = harris_env%harris_energy%Eharris
              END IF

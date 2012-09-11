@@ -98,7 +98,8 @@ MODULE colvar_types
                                 u_colvar_id                   = 19,&
                                 Wc_colvar_id                  = 20,&
                                 hbp_colvar_id                 = 21,&
-                                ring_puckering_colvar_id      = 22
+                                ring_puckering_colvar_id      = 22,&
+                                mindist_colvar_id             = 23
 
 
 ! *****************************************************************************
@@ -307,6 +308,22 @@ MODULE colvar_types
   END TYPE ring_puckering_colvar_type
 
 ! *****************************************************************************
+  TYPE mindist_colvar_type
+     LOGICAL                    :: use_kinds_from, use_kinds_to
+     INTEGER                         :: n_coord_to,&
+                                        n_coord_from,&
+                                        n_dist_from,&
+                                        p_exp,&
+                                        q_exp 
+     INTEGER, POINTER, DIMENSION (:) :: i_coord_from,&
+                                        i_coord_to,&
+                                        i_dist_from
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: k_coord_from,&
+                                                                    k_coord_to
+     REAL(KIND=dp)                   :: lambda, r_cut
+  END TYPE mindist_colvar_type
+
+! *****************************************************************************
 !> \brief parameters for a collective variable
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
@@ -340,6 +357,7 @@ MODULE colvar_types
      TYPE(Wc_colvar_type), POINTER               :: Wc
      TYPE(HBP_colvar_type), POINTER              :: HBP
      TYPE(ring_puckering_colvar_type), POINTER   :: ring_puckering_param
+     TYPE(mindist_colvar_type), POINTER          :: mindist_param
   END TYPE colvar_type
 
 ! *****************************************************************************
@@ -422,6 +440,7 @@ CONTAINS
     NULLIFY(colvar%i_atom)
     NULLIFY(colvar%Wc)
     NULLIFY(colvar%ring_puckering_param)
+    NULLIFY(colvar%mindist_param)
     IF (.NOT.failure) THEN
        colvar%type_id    = colvar_id
        colvar%use_points = .FALSE.
@@ -497,6 +516,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(ring_puckering_colvar_id)
           ALLOCATE(colvar%ring_puckering_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(mindist_colvar_id)
+          ALLOCATE(colvar%mindist_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -589,7 +611,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Finalize the setup of the collective variable
-!> \param colvar the colvat to initialize
+!> \param colvar the colvar to initialize
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino, [teo] 09.03.2006
@@ -1037,6 +1059,43 @@ CPSourceFileRef)
              list(idum) = i
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(mindist_colvar_id)
+          np =colvar%mindist_param%n_dist_from +&
+              colvar%mindist_param%n_coord_from+colvar%mindist_param%n_coord_to
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%mindist_param%n_dist_from
+               i = colvar%mindist_param%i_dist_from(ii)
+               colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          DO ii=1,colvar%mindist_param%n_coord_from
+             i = colvar%mindist_param%i_coord_from(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          DO ii=1,colvar%mindist_param%n_coord_to
+             i = colvar%mindist_param%i_coord_to(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%mindist_param%n_dist_from
+             idum = idum + 1
+             i = colvar%mindist_param%i_dist_from(ii)
+             list(idum) = i
+          ENDDO
+          DO ii=1,colvar%mindist_param%n_coord_from
+             idum = idum + 1
+             i = colvar%mindist_param%i_coord_from(ii)
+             list(idum) = i
+          ENDDO
+          DO ii=1,colvar%mindist_param%n_coord_to
+             idum = idum + 1
+             i = colvar%mindist_param%i_coord_to(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(combine_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1304,6 +1363,29 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(colvar%ring_puckering_param, stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    CASE (mindist_colvar_id)
+       IF (ASSOCIATED(colvar%mindist_param%i_dist_from)) THEN
+          DEALLOCATE(colvar%mindist_param%i_dist_from, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%mindist_param%i_coord_from)) THEN
+          DEALLOCATE(colvar%mindist_param%i_coord_from, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%mindist_param%i_coord_to)) THEN
+          DEALLOCATE(colvar%mindist_param%i_coord_to,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%mindist_param%k_coord_from)) THEN
+          DEALLOCATE(colvar%mindist_param%k_coord_from, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%mindist_param%k_coord_to)) THEN
+          DEALLOCATE(colvar%mindist_param%k_coord_to,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+       DEALLOCATE(colvar%mindist_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
@@ -1644,6 +1726,51 @@ CPSourceFileRef)
        ALLOCATE(colvar_out%ring_puckering_param%atoms(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%ring_puckering_param%atoms = colvar_in%ring_puckering_param%atoms + my_offset
+    CASE(mindist_colvar_id)
+       colvar_out%mindist_param%n_dist_from   = colvar_in%mindist_param%n_dist_from
+       colvar_out%mindist_param%n_coord_to   = colvar_in%mindist_param%n_coord_to
+       colvar_out%mindist_param%n_coord_from = colvar_in%mindist_param%n_coord_from
+       colvar_out%mindist_param%p_exp        = colvar_in%mindist_param%p_exp
+       colvar_out%mindist_param%q_exp        = colvar_in%mindist_param%q_exp
+       colvar_out%mindist_param%r_cut          = colvar_in%mindist_param%r_cut
+       colvar_out%mindist_param%lambda          = colvar_in%mindist_param%lambda
+       colvar_out%mindist_param%use_kinds_from  = colvar_in%mindist_param%use_kinds_from
+       colvar_out%mindist_param%use_kinds_to    = colvar_in%mindist_param%use_kinds_to
+       NULLIFY(colvar_out%mindist_param%k_coord_from, colvar_out%mindist_param%i_coord_from)
+       NULLIFY(colvar_out%mindist_param%k_coord_to, colvar_out%mindist_param%i_coord_to)
+       NULLIFY(colvar_out%mindist_param%i_dist_from)
+       ! INDEX
+       ndim = SIZE(colvar_in%mindist_param%i_dist_from)
+       ALLOCATE(colvar_out%mindist_param%i_dist_from(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%mindist_param%i_dist_from    = colvar_in%mindist_param%i_dist_from + my_offset
+       IF(colvar_in%mindist_param%use_kinds_from) THEN
+          ! KINDS
+          ndim = SIZE(colvar_in%mindist_param%k_coord_from)
+          ALLOCATE(colvar_out%mindist_param%k_coord_from(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%mindist_param%k_coord_from    = colvar_in%mindist_param%k_coord_from
+       ELSE
+          ! INDEX
+          ndim = SIZE(colvar_in%mindist_param%i_coord_from)
+          ALLOCATE(colvar_out%mindist_param%i_coord_from(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%mindist_param%i_coord_from    = colvar_in%mindist_param%i_coord_from + my_offset
+       END IF
+       IF(colvar_in%mindist_param%use_kinds_to) THEN
+          ! KINDS
+          ndim = SIZE(colvar_in%mindist_param%k_coord_to)
+          ALLOCATE(colvar_out%mindist_param%k_coord_to(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%mindist_param%k_coord_to    = colvar_in%mindist_param%k_coord_to
+       ELSE
+          ! INDEX
+          ndim = SIZE(colvar_in%mindist_param%i_coord_to)
+          ALLOCATE(colvar_out%mindist_param%i_coord_to(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%mindist_param%i_coord_to      = colvar_in%mindist_param%i_coord_to + my_offset
+       END IF
+
     END SELECT
     CALL colvar_setup(colvar_out, error)
   END SUBROUTINE colvar_clone
@@ -1923,6 +2050,48 @@ CPSourceFileRef)
        END IF
     END IF
 
+    IF (colvar%type_id == mindist_colvar_id) THEN
+       IF (colvar%mindist_param%use_kinds_from.OR.colvar%mindist_param%use_kinds_to) THEN
+          ! Atoms from
+          IF (colvar%mindist_param%use_kinds_from) THEN
+             colvar%mindist_param%use_kinds_from = .FALSE.
+             nkinds = SIZE(colvar%mindist_param%k_coord_from)
+             DO i = 1, natoms
+                DO j = 1 , nkinds
+                  name_kind = TRIM(particles(i)%atomic_kind%name)
+                  CALL uppercase(name_kind)
+                   IF (TRIM(colvar%mindist_param%k_coord_from(j))==name_kind) THEN
+                      CALL reallocate(colvar%mindist_param%i_coord_from, 1, colvar%mindist_param%n_coord_from+1)
+                      colvar%mindist_param%n_coord_from = colvar%mindist_param%n_coord_from + 1
+                      colvar%mindist_param%i_coord_from(colvar%mindist_param%n_coord_from) = i
+                   END IF
+                END DO
+             END DO
+             stat=colvar%mindist_param%n_coord_from
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+          END IF
+          ! Atoms to
+          IF (colvar%mindist_param%use_kinds_to) THEN
+             colvar%mindist_param%use_kinds_to = .FALSE.
+             nkinds = SIZE(colvar%mindist_param%k_coord_to)
+             DO i = 1, natoms
+                DO j = 1 , nkinds
+                   name_kind = TRIM(particles(i)%atomic_kind%name)
+                   CALL uppercase(name_kind)
+                   IF (TRIM(colvar%mindist_param%k_coord_to(j))==name_kind) THEN
+                      CALL reallocate(colvar%mindist_param%i_coord_to, 1, colvar%mindist_param%n_coord_to+1)
+                      colvar%mindist_param%n_coord_to = colvar%mindist_param%n_coord_to + 1
+                      colvar%mindist_param%i_coord_to(colvar%mindist_param%n_coord_to) = i
+                   END IF
+                END DO
+             END DO
+             stat=colvar%mindist_param%n_coord_to
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+          END IF
+          ! Setup the colvar
+          CALL colvar_setup(colvar, error)
+       END IF
+    END IF
 
     IF (colvar%type_id == population_colvar_id) THEN
 
