@@ -3,6 +3,27 @@
 !   Copyright (C) 2006 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+#if defined(__HAS_NO_OMP_3)
+#define __COLLAPSE3
+#else
+#define __COLLAPSE3 collapse(3)
+#endif
+
+#if defined(__SGL) || defined(__FFTSGL)
+#define XFFTW_PLAN_WITH_NTHREADS sfftw_plan_with_nthreads
+#define XFFTW_PLAN_DFT_3D sfftw_plan_dft_3d
+#define XFFTW_PLAN_GURU_DFT sfftw_plan_guru_dft
+#define XFFTW_EXECUTE_DFT sfftw_execute_dft
+#define XFFTW_DESTROY_PLAN sfftw_destroy_plan
+#else
+#define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
+#define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d
+#define XFFTW_PLAN_GURU_DFT dfftw_plan_guru_dft
+#define XFFTW_EXECUTE_DFT dfftw_execute_dft
+#define XFFTW_DESTROY_PLAN dfftw_destroy_plan
+#endif
+
+
 ! *****************************************************************************
 !> \par History
 !>      JGH 23-Jan-2006 : initial version
@@ -11,6 +32,7 @@
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !>      IAB 09-Oct-2009 : Added OpenMP directives to 1D FFT, and planning routines
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 11-Sep-2012 : OpenMP parallel 3D FFT (Ruyman Reyes, PRACE)
 !> \author JGH
 ! *****************************************************************************
 SUBROUTINE fftw3_get_lengths ( DATA, max_length )
@@ -29,7 +51,7 @@ SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
 !------------------------------------------------------------------------------
 ! compute ndata
-!! FFTW can do arbitrary(?) lenghts, maybe you want to limit them to some
+!! FFTW can do arbitrary(?) lengths, maybe you want to limit them to some
 !!    powers of small prime numbers though...
 
   maxn_twos = 15
@@ -101,6 +123,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
 
   USE fft_plan,                           ONLY : fft_plan_type
   USE fft_kinds,                          ONLY : dp
+!$  USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -110,6 +133,13 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
   INTEGER                                            :: plan_style
   LOGICAL                                            :: aligned
   INTEGER                                            :: n1,n2,n3
+  INTEGER                                            :: nt
+
+  INTEGER                                            :: fft_direction
+  COMPLEX(KIND=dp), ALLOCATABLE        :: tmp(:)
+  ! GURU Interface
+  INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
+             howmany_n(2), howmany_istride(2), howmany_ostride(2)
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
@@ -126,38 +156,150 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
   CASE DEFAULT
    STOP "fftw3_create_plan_3d"
   END SELECT
+ 
+  ! This information will be needed later  to execute the plan
+  plan%plan_style = plan_style
 
   IF ( .NOT. aligned ) THEN
     fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
   END IF
 
+  IF ( plan%fsign == +1 ) THEN
+    fft_direction = FFTW_FORWARD
+  ELSE
+    fft_direction = FFTW_BACKWARD
+  END IF
+
   n1 = plan%n_3d(1)
   n2 = plan%n_3d(2)
   n3 = plan%n_3d(3)
+ 
 
-#if defined(__SGL) || defined(__FFTSGL)
-  IF ( plan%fft_in_place .AND. plan%fsign == +1 ) THEN
-    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( plan%fft_in_place .AND. plan%fsign == -1 ) THEN
-    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
-  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == +1 ) THEN
-    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == -1 ) THEN
-    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
-  END IF
-#else
-  IF ( plan%fft_in_place .AND. plan%fsign == +1 ) THEN
-    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( plan%fft_in_place .AND. plan%fsign == -1 ) THEN
-    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
-  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == +1 ) THEN
-    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == -1 ) THEN
-    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
-  END IF
+  nt = 1
+!$OMP PARALLEL shared(nt)
+!$OMP MASTER
+!$ nt = omp_get_num_threads()
+!$OMP END MASTER
+!$OMP END PARALLEL
+
+  IF (.NOT. plan%plan_style == FFTW_ESTIMATE ) THEN
+    ! FFTW3 do a better job with MEASURE, PATIENT and EXHAUSTIVE than handmade optimization
+    ! So plan a single 3D FFT which will execute using all the threads
+
+    plan%separated_plans = .FALSE.
+!$  CALL XFFTW_PLAN_WITH_NTHREADS(nt)
+
+    IF ( plan%fft_in_place) THEN
+      CALL XFFTW_PLAN_DFT_3D(plan%fftw_plan,n1,n2,n3,zin,zin,fft_direction,fftw_plan_type)
+    ELSE
+      CALL XFFTW_PLAN_DFT_3D(plan%fftw_plan,n1,n2,n3,zin,zout,fft_direction,fftw_plan_type)
+    ENDIF
+  ELSE
+    ALLOCATE(tmp(n1*n2*n3))
+    ! ************************* PLANS WITH TRANSPOSITIONS ****************************
+    !  If using FFTW_ESTIMATE, the planner does a poor job for multiple threads, so
+    !  manually thread each stage of the 3D FFT. 
+    ! 
+    !  The following plans replace the 3D FFT call by running 1D FFTW across all 
+    !  3 directions of the array.
+    !
+    !  Output of FFTW is transposed to ensure that the next round of FFTW access 
+    !  contiguous information.
+    !    
+    !  Assuming the input matrix is M(n3,n2,n1), FFTW/Transp are :
+    !  M(n3,n2,n1) -> fftw(x) -> M(n3,n1,n2) -> fftw(y) -> M(n1,n2,n3) -> fftw(z) -> M(n1,n2,n3)
+    !  Notice that last matrix is transposed in the Z axis. A DO-loop in the execute routine
+    !  will perform the final transposition. Performance evaluation showed that using an external
+    !  DO loop to do the final transposition performed better than directly transposing the output.
+    !  However, this might vary depending on the compiler/platform, so a potential tuning spot 
+    !  is to perform the final transposition within the fftw library rather than using the external loop
+    !  See comments below in Z-FFT for how to tranpose the output to avoid the final DO loop.
+    !
+    !  Doc. for the Guru interface is in http://www.fftw.org/doc/Guru-Interface.html
+    !
+    !  OpenMP : Work is distributed on the Z plane. If dim/nt not exact, remaining plane(s) will be seq.
+    !           All transpositions are out-of-place to facilitate multi-threading
+    !
+    !!!! Plan for X : M(n3,n2,n1) -> fftw(x) -> M(n3,n1,n2)
+    dim_n(1) = n1
+    dim_istride(1) = 1
+    dim_ostride(1) = n2
+    howmany_n(1) = n2 
+    howmany_n(2) = n3/nt
+    howmany_istride(1) = n1
+    howmany_istride(2) = n1*n2
+    howmany_ostride(1) = 1
+    howmany_ostride(2) = n1*n2
+    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nx,1, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 2,howmany_n,howmany_istride,howmany_ostride, &
+                                 zin, tmp, &
+                                 fft_direction, fftw_plan_type)
+    !!!! Remainder
+    howmany_n(2) = MOD(n3,nt)
+    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nx_r,1, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 2,howmany_n,howmany_istride,howmany_ostride, &
+                                 zin, tmp, &
+                                 fft_direction, fftw_plan_type)
+
+    !!!! Plan for Y : M(n3,n1,n2) -> fftw(y) -> M(n1,n2,n3)
+    dim_n(1) = n2
+    dim_istride(1) = 1
+    dim_ostride(1) = n3
+    howmany_n(1) = n1 
+    howmany_n(2) = n3/nt
+    howmany_istride(1) = n2
+    howmany_istride(2) = n1*n2
+    !!! transposed Z axis on output
+    howmany_ostride(1) = n2*n3 
+    howmany_ostride(2) = 1 
+    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_ny,1, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 2,howmany_n,howmany_istride,howmany_ostride, &
+                                 tmp, zin, &
+                                 fft_direction, fftw_plan_type)
+
+    !!!! Remainder
+    howmany_n(2) = MOD(n3,nt)
+    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_ny_r,1, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 2,howmany_n,howmany_istride,howmany_ostride, &
+                                 tmp, zin, &
+                                 fft_direction, fftw_plan_type)
+
+    !!!! Plan for Z : M(n1,n2,n3) -> fftw(z) -> M(n1,n2,n3)
+    dim_n(1) = n3
+    dim_istride(1) = 1
+    dim_ostride(1) = 1  ! To transpose: n2*n1
+    howmany_n(1) = n2 
+    howmany_n(2) = n1/nt
+    howmany_istride(1) = n3 
+    howmany_istride(2) = n2*n3 
+    howmany_ostride(1) = n3 ! To transpose: n1 
+    howmany_ostride(2) = n2*n3  ! To transpose: 1
+    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nz,1, &
+                 dim_n,dim_istride,dim_ostride, &
+                 2,howmany_n,howmany_istride,howmany_ostride, &
+                 zin, tmp, &
+                 fft_direction, fftw_plan_type)
+
+    !!!! Remainder 
+    howmany_n(2) = MOD(n1,nt)
+    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nz_r,1, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 2,howmany_n,howmany_istride,howmany_ostride, &
+                                 tmp, zin, &
+                                 fft_direction, fftw_plan_type)
+
+    plan%separated_plans = .TRUE.
+
+    DEALLOCATE(tmp)
+  ENDIF
+
+
 #endif
 
-#endif
 
 END SUBROUTINE fftw3_create_plan_3d
 
@@ -165,6 +307,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 
   USE fft_plan,                           ONLY : fft_plan_type
   USE fft_kinds,                          ONLY : dp
+!$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -172,32 +315,163 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
   REAL(KIND=dp), INTENT(IN)                            :: scale
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
+  COMPLEX(KIND=dp), ALLOCATABLE                        :: tmp1(:)
   INTEGER, INTENT(OUT)                                 :: stat
-
-  INTEGER                                  :: n1, n2, n3
+  COMPLEX(KIND=dp)                                     :: t
+  INTEGER                                              :: n1, n2, n3
+  INTEGER                                              :: tid, nt
+  INTEGER                                              :: i,j,k
 
 !------------------------------------------------------------------------------
+
+#if defined ( __FFTW3 )
+#include "fftw3.f"
 
   n1 = plan%n_3d(1)
   n2 = plan%n_3d(2)
   n3 = plan%n_3d(3)
 
-#if defined ( __FFTW3 )
   stat = 1
 
-#if defined(__SGL) || defined(__FFTSGL)
-  IF ( plan%fft_in_place ) THEN
-    CALL sfftw_execute_dft(plan%fftw_plan, zin, zin)
+  ! If not using FFTW_ESTIMATE, compute the full 3D FFT using a multithreaded plan
+  IF (.NOT. plan%plan_style == FFTW_ESTIMATE) THEN
+    IF ( plan%fft_in_place) THEN
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan,zin,zin)
+    ELSE
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan,zin,zout)
+    ENDIF
   ELSE
-    CALL sfftw_execute_dft(plan%fftw_plan, zin, zout)
-  END IF
-#else
-  IF ( plan%fft_in_place ) THEN
-    CALL dfftw_execute_dft(plan%fftw_plan, zin, zin)
-  ELSE
-    CALL dfftw_execute_dft(plan%fftw_plan, zin, zout)
-  END IF
-#endif
+  ! Use the 3 stage FFT scheme described in fftw3_create_plan_3d
+  ALLOCATE(tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
+    IF ( plan%fft_in_place ) THEN
+      ! ****** In Place FFT 
+      !$OMP PARALLEL PRIVATE(tid,nt) SHARED(zin,tmp1,n1,n2,n3,plan)
+      tid = 0
+      nt = 1
+
+!$    tid = omp_get_thread_num()
+!$    nt = omp_get_num_threads()
+               
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nx, &
+                                 zin((tid)*(n1*n2*(n3/nt)) + 1), &
+                                 tmp1((tid)*(n1*n2*(n3/nt)) + 1))
+
+      IF (.NOT. (MOD(n3,nt) .EQ. 0)) THEN
+        !$OMP BARRIER
+        !$OMP SINGLE
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nx_r, &
+                                   zin((nt)*n1*n2*(n3/nt) + 1), &
+                                   tmp1((nt)*n1*n2*(n3/nt) + 1))
+        !$OMP END SINGLE
+      ENDIF 
+      !$OMP BARRIER
+
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_ny, &
+                                 tmp1((tid)*(n2*(n3/nt))*n1 + 1), &
+                                 zin((tid)*(n3/nt) + 1))
+
+      IF (.NOT. (MOD(n3,nt) .EQ. 0)) THEN
+        !$OMP BARRIER
+        !$OMP SINGLE
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_ny_r, &
+                                   tmp1((nt)*(n2*(n3/nt))*n1 + 1), &
+                                   zin((nt)*(n3/nt) + 1))
+        !$OMP END SINGLE
+      ENDIF
+        !$OMP BARRIER
+
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nz, & 
+                                   zin((tid)*n2*(n1/nt)*n3 + 1), &
+                                   tmp1((tid)*n2*(n1/nt)*n3 + 1))
+  
+      IF (.NOT. (MOD(n1,nt) .EQ. 0)) THEN
+        !$OMP BARRIER
+        !$OMP SINGLE
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nz_r, &
+                                   zin((nt)*n2*(n1/nt)*n3 + 1), &
+                                   tmp1((nt)*n2*(n1/nt)*n3 + 1))
+        !$OMP END SINGLE
+      ENDIF 
+      !$OMP BARRIER
+
+      !$OMP DO __COLLAPSE3 
+      DO i = 1,n1
+        DO j = 1,n2
+          DO k = 1,n3
+            zin((i-1) + (j-1) * n1 + (k-1) * n1 * n2 + 1) = & 
+                    tmp1((k-1) + (j-1) * n3 + (i-1) * n3 * n2 + 1)
+          ENDDO
+        ENDDO
+      ENDDO
+      !$OMP END DO
+
+      !$OMP END PARALLEL
+    ELSE
+      ! ****** Out of place FFT
+      !$OMP PARALLEL PRIVATE(tid,t,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,zout)
+      tid = 0
+      nt = 1
+!$    tid = omp_get_thread_num()
+!$    nt = omp_get_num_threads()
+
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nx, &
+                                 zin((tid)*n2*n1*(n3/nt) + 1), &
+                                 tmp1((tid)*n2*n1*(n3/nt) + 1))
+ 
+      IF (.NOT. (MOD(n3,nt) .EQ. 0)) THEN
+        !$OMP BARRIER
+        !$OMP SINGLE
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nx_r, &
+                                   zin((nt)*n2*n1*(n3/nt) + 1), &
+                                   tmp1((nt)*n2*n1*(n3/nt) + 1))
+        !$OMP END SINGLE
+      ENDIF
+      !$OMP BARRIER
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_ny, &
+                                 tmp1((tid)*n2*(n3/nt)*n1 + 1), &
+                                 zout((tid)*(n3/nt) + 1))
+
+      IF (.NOT. (MOD(n3,nt) .EQ. 0)) THEN
+        !$OMP BARRIER
+        !$OMP SINGLE
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_ny_r, &
+                                   tmp1((nt)*n2*(n3/nt)*n1 + 1), &
+                                   zout((nt)*(n3/nt) + 1))
+
+        !$OMP END SINGLE
+      ENDIF
+      !$OMP BARRIER
+
+      CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nz, & 
+                                 zout((tid)*n2*(n1/nt)*n3 + 1), &
+                                 tmp1((tid)*n2*(n1/nt)*n3 + 1))
+
+      IF (.NOT. (MOD(n1,nt) .EQ. 0)) THEN
+        !$OMP BARRIER
+        !$OMP SINGLE
+        CALL XFFTW_EXECUTE_DFT(plan%fftw_plan_nz_r, & 
+                                   zout((nt)*n2*(n1/nt)*n3 + 1), &
+                                   tmp1((nt)*n2*(n1/nt)*n3 + 1))
+
+        !$OMP END SINGLE
+      ENDIF
+      !$OMP BARRIER
+
+      !$OMP DO __COLLAPSE3 
+      DO i = 1,n1
+        DO j = 1,n2
+          DO k = 1,n3
+            zout((i-1) + (j-1) * n1 + (k-1) * n1 * n2 + 1) = & 
+                    tmp1((k-1) + (j-1) * n3 + (i-1) * n3 * n2 + 1)
+          ENDDO
+        ENDDO
+      ENDDO
+      !$OMP END DO
+      !$OMP END PARALLEL
+    ENDIF
+
+    DEALLOCATE(tmp1)
+  ENDIF
 
   IF ( scale /= 1.0_dp ) THEN
 #if defined(__SGL) || defined(__FFTSGL)
@@ -214,6 +488,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
     END IF
 #endif
   END IF
+
 
 #else
 
@@ -261,6 +536,7 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
   END IF
 
 num_threads = 1
+plan%separated_plans = .FALSE.
 !$omp parallel default(none), &
 !$omp          shared(num_threads)
 !$OMP MASTER
@@ -353,17 +629,26 @@ SUBROUTINE fftw3_destroy_plan ( plan )
   TYPE(fft_plan_type), INTENT (INOUT)   :: plan
 
 #if defined ( __FFTW3 )
-#if defined(__SGL) || defined(__FFTSGL)
-  CALL sfftw_destroy_plan(plan%fftw_plan)
 !$  IF (plan%need_alt_plan) THEN
 !$    CALL sfftw_destroy_plan(plan%alt_fftw_plan)
 !$  END IF
 #else
-  CALL dfftw_destroy_plan(plan%fftw_plan)
+
+#ifdef SEQ_FFTW
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
+#else
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny)
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz)
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx_r)
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny_r)
+   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz_r)
+#endif
+
 !$  IF (plan%need_alt_plan) THEN
 !$    CALL dfftw_destroy_plan(plan%alt_fftw_plan)
 !$  END IF
-#endif
 #endif
 
 END SUBROUTINE fftw3_destroy_plan
