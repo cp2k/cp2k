@@ -133,28 +133,6 @@ CONTAINS
 
   END SUBROUTINE
 
-  SUBROUTINE printout(graph)
-    TYPE(vertex_p_type), DIMENSION(:), &
-      POINTER                                :: graph
-
-    INTEGER                                  :: i, nnodes
-
-    nnodes=SIZE(graph)
-
-    DO i=nnodes,nnodes-30,-1
-      WRITE(*,'(I3,1X)',ADVANCE='NO') graph(i)%vertex%color
-!      WRITE(*,'(A,1X,I1,1X,A)') 'Node number', i, 'has neighbors'
-!      DO j=1,SIZE(graph(i)%vertex%neighbors)
-!        WRITE(*,*) '    ', graph(i)%vertex%neighbors(j)%vertex%id
-!      END DO
-!      WRITE(*,*) '...degree', graph(i)%vertex%degree
-!      WRITE(*,*) '...and color', graph(i)%vertex%color
- !     WRITE(*,*) '...and degree of saturation', graph(i)%vertex%dsat
-    END DO
-    WRITE(*,*)
-
-  END SUBROUTINE
-
   SUBROUTINE color_graph(graph, maxdegree, ncolors)
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
@@ -207,30 +185,37 @@ CONTAINS
 
   ! prints the subset info to the screen - useful for vmd visualization
   ! note that the index starts with '0' and not with '1'
-  SUBROUTINE print_subsets(graph, ncolors)
+  SUBROUTINE print_subsets(graph, ncolors, unit_nr, error)
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
-    INTEGER, INTENT(IN)                      :: ncolors
+    INTEGER, INTENT(IN)                      :: ncolors, unit_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER                                  :: i, j, nnodes, counter
 
-    INTEGER                                  :: i, j, nnodes
+    IF (unit_nr>0) THEN
 
-    nnodes = SIZE(graph)
+      WRITE(unit_nr,'(T2,A,T10,A)'), "Color |", "Molecules in this subset (IDs start from 0)"
 
-    DO i=1,ncolors
-      IF (MOD(i,10).EQ.1) THEN
-        WRITE(*,'(A,I3,A,1X)', ADVANCE='NO') 'SUBSET of', i,'st color'
-      ELSE IF (MOD(i,10).EQ.2) THEN
-        WRITE(*,'(A,I3,A,1X)', ADVANCE='NO') 'SUBSET of', i,'nd color'
-      ELSE IF (MOD(i,10).EQ.3) THEN
-        WRITE(*,'(A,I3,A,1X)', ADVANCE='NO') 'SUBSET of', i,'rd color'
-      ELSE
-        WRITE(*,'(A,I3,A,1X)', ADVANCE='NO') 'SUBSET of', i,'th color'
-      END IF
-      DO j=1, nnodes
-        IF (graph(j)%vertex%color.EQ.i) WRITE(*,'(I8,1X)', ADVANCE='NO') graph(j)%vertex%id-1
+      nnodes = SIZE(graph)
+ 
+      DO i=1,ncolors
+        WRITE(unit_nr,'(T2,I5,1X,A)', ADVANCE='NO'), i,"|"
+        counter=0
+        DO j=1, nnodes
+          IF (graph(j)%vertex%color.EQ.i) THEN
+            counter=counter+1
+            IF (MOD(counter, 13).EQ.0) THEN
+              counter=counter+1
+              WRITE(unit_nr,'()') ! line break
+              WRITE(unit_nr,'(6X,A)', ADVANCE='NO') " |" ! indent next line
+            END IF
+            WRITE(unit_nr, '(I5,1X)', ADVANCE='NO') graph(j)%vertex%id-1
+          END IF
+        END DO
+        WRITE(unit_nr,'()')
       END DO
-      WRITE(*,*) 
-    END DO
+
+    END IF 
 
   END SUBROUTINE
 
@@ -517,9 +502,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_vertex_coloring', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, handle, i, nnodes
+    INTEGER                                  :: color, handle, i, nnodes, unit_nr
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    ! get a useful output_unit
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     CALL timeset(routineN, handle)
 
@@ -538,9 +532,21 @@ CONTAINS
       color_of_node(i) = color
     END DO
 
-    CALL deallocate_graph(graph)
+    IF (unit_nr>0) THEN
 
-    !WRITE(*,'(A27,40X,I6,1X,A6)') ' KG| Vertex coloring result', ncolors, 'colors'
+      WRITE(unit_nr,'()')
+      WRITE(unit_nr,'(T2,A,A,A)') REPEAT("-",30)," KG coloring result ",REPEAT("-",29)
+      !WRITE(unit_nr,'()')
+      !CALL print_subsets(graph, ncolors, unit_nr, error)
+      !WRITE(unit_nr,'()')
+      WRITE(unit_nr,'(T2, A16,50X,I6,1X,A6)') 'Number of colors', ncolors, 'colors'
+
+      WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
+      WRITE(unit_nr,'()')
+
+    END IF
+
+    CALL deallocate_graph(graph)
 
     CALL timestop(handle)
 
