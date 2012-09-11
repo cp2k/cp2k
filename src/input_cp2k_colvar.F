@@ -400,7 +400,8 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_cond_dist_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_cond_dist_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

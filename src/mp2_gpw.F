@@ -155,18 +155,18 @@ MODULE mp2_gpw
       handle, homo, homo_beta, i, i_multigrid, local_unit_nr, n_multigrid, &
       nao, natom, nelectron, nelectron_beta, nkind, nmo, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
-      sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_B_virtual_beta, &
-      sizes_B_virtual_beta, starts_B_virtual_beta
+      ends_B_virtual_beta, sizes_array, sizes_B_virtual, &
+      sizes_B_virtual_beta, starts_array, starts_B_virtual, &
+      starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: blacs_repeatable, failure, &
                                                 skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
-    REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, &
-      eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
-      progression_factor, relative_cutoff_old, subcells, Emp2_d_AB, Emp2_d2_AB
+    REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, &
+      Emp2_d_AB, Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, &
+      eps_rho_rspace_old, progression_factor, relative_cutoff_old, subcells
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
     REAL(KIND=dp), ALLOCATABLE, &

@@ -190,7 +190,8 @@ CONTAINS
       POINTER                                :: graph
     INTEGER, INTENT(IN)                      :: ncolors, unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER                                  :: i, j, nnodes, counter
+
+    INTEGER                                  :: counter, i, j, nnodes
 
     IF (unit_nr>0) THEN
 
@@ -244,7 +245,7 @@ CONTAINS
       END IF
     END DO
 
-    If (ASSOCIATED(maxnode)) THEN
+    IF (ASSOCIATED(maxnode)) THEN
 
       ! first node in the todolist has max degree
       list%next => maxnode
@@ -531,12 +532,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_vertex_coloring', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, handle, i, nnodes, unit_nr
+    INTEGER                                  :: color, handle, i, nnodes, &
+                                                unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    ! get a useful output_unit
+! get a useful output_unit
+
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)

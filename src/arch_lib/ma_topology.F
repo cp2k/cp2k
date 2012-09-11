@@ -187,7 +187,7 @@ CONTAINS
   CALL mp_environ(numtask,source,mp_group)
 
 #ifdef __DEBUG_HWTOPO
-   if(source==0) write(*,*) 'Extracting CRAY machine topology - accessing xtdb2proc'   
+   IF(source==0) WRITE(*,*) 'Extracting CRAY machine topology - accessing xtdb2proc'   
 #endif 
 
   IF (source==0) THEN
@@ -335,7 +335,7 @@ CONTAINS
 #if defined __GEMINI || __SEASTAR
 
 #ifdef __DEBUG_HWTOPO
-   if(source==0) write(*,*) 'Obtaining allocated nodes on the machine'  
+   IF(source==0) WRITE(*,*) 'Obtaining allocated nodes on the machine'  
 #endif
 
  CALL mp_proc_name(host_name)
@@ -344,7 +344,7 @@ CONTAINS
  CALL mp_sum(allocated_topology,mp_group) 
 
 #ifdef __DEBUG_HWTOPO
-   if(source==0) write(*,*) 'Allocated nodes on the machine: ', allocated_topology              
+   IF(source==0) WRITE(*,*) 'Allocated nodes on the machine: ', allocated_topology              
 #endif
 
 #elif defined __NET
@@ -697,7 +697,7 @@ END SUBROUTINE ma_comm_pattern_alltoall
  CALL mp_environ(numtask,source,mp_group)
 
 #ifdef __DEBUG_HWTOPO
-   if(source==0) write(*,*) 'Generating the communication graph'
+   IF(source==0) WRITE(*,*) 'Generating the communication graph'
 #endif
 
  IF (.NOT. ASSOCIATED(comm_graph))THEN

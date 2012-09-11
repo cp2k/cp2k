@@ -150,10 +150,12 @@ MODULE mp2_ri_gpw
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
-    REAL(KIND=dp), OPTIONAL, ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C_beta
-    INTEGER, OPTIONAL, ALLOCATABLE, &
-      DIMENSION(:) :: ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta 
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :), OPTIONAL           :: BIb_C_beta
+    INTEGER, ALLOCATABLE, DIMENSION(:), &
+      OPTIONAL                               :: ends_B_virtual_beta, &
+                                                sizes_B_virtual_beta, &
+                                                starts_B_virtual_beta
     INTEGER, OPTIONAL                        :: homo_beta
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: mo_coeff_o_beta, &
                                                 mo_coeff_v_beta
@@ -163,11 +165,11 @@ MODULE mp2_ri_gpw
 
     INTEGER :: a, comm_exchange, handle, handle2, handle3, i, i_counter, &
       iproc, itmp(2), LLL, max_row_col_local, max_row_col_local_beta, &
-      my_B_size, my_B_virtual_end, &
-      my_B_virtual_start, my_group_L_end, my_group_L_size, my_group_L_start, &
-      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, stat, &
-      sub_sub_color, virtual, virtual_beta, my_B_size_beta, my_B_virtual_end_beta, &
-      my_B_virtual_start_beta
+      my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
+      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
+      my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
+      nfullrows_total, ngroup, nrow_local, stat, sub_sub_color, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta
@@ -184,8 +186,8 @@ MODULE mp2_ri_gpw
                                                 matrix_ia_jnu, &
                                                 matrix_ia_jnu_beta
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb, &
-                                                fm_BIb_jb_beta, fm_matrix_L
+    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb, fm_BIb_jb_beta, &
+                                                fm_matrix_L
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(pw_p_type)                          :: psi_L
@@ -1146,9 +1148,10 @@ MODULE mp2_ri_gpw
       DIMENSION(:, :, :), OPTIONAL           :: BIb_C_beta
     INTEGER, OPTIONAL                        :: homo_beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
-    INTEGER, OPTIONAL, ALLOCATABLE, & 
-      DIMENSION(:) :: ends_B_virtual_beta, sizes_B_virtual_beta,&
-                      starts_B_virtual_beta
+    INTEGER, ALLOCATABLE, DIMENSION(:), &
+      OPTIONAL                               :: ends_B_virtual_beta, &
+                                                sizes_B_virtual_beta, &
+                                                starts_B_virtual_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en', &
       routineP = moduleN//':'//routineN
@@ -1158,22 +1161,23 @@ MODULE mp2_ri_gpw
       handle2, handle3, i, i_B_size, iiB, ij_counter, ij_counter_send, &
       ij_index, integ_group_size, irep, jjB, Lend_pos, Lstart_pos, &
       max_ij_block, max_ij_pairs, min_ij_block, min_integ_group_size, &
-      my_B_size, my_B_virtual_end, my_B_virtual_start, &
-      my_B_size_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, my_group_L_end, &
-      my_group_L_size, my_group_L_start, my_i, my_ij_pairs, my_j, &
-      my_new_group_L_size, ngroup, num_integ_group, pos_integ_group, &
-      proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
-      rec_B_virtual_start, rec_L_size, send_B_size
-    INTEGER :: send_B_virtual_end, send_B_virtual_start, send_i, &
-      send_ij_index, send_j, start_point, stat, sub_sub_color, &
-      total_ij_block, total_ij_pairs, virtual, virtual_beta, my_homo_beta
+      my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
+      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
+      my_group_L_size, my_group_L_start, my_homo_beta, my_i, my_ij_pairs, &
+      my_j, my_new_group_L_size, ngroup, num_integ_group, pos_integ_group, &
+      proc_receive, proc_send, proc_shift
+    INTEGER :: rec_B_size, rec_B_virtual_end, rec_B_virtual_start, &
+      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
+      send_i, send_ij_index, send_j, start_point, stat, sub_sub_color, &
+      total_ij_block, total_ij_pairs, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: integ_group_pos2color_sub, &
                                                 new_sizes_array, &
                                                 num_ij_pairs, proc_map, &
                                                 sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_alpha_beta_case, &
+                                                my_open_shell_SS
     REAL(KIND=dp) :: best_comm, best_load_bal, comm_var, load_bal_var, &
       mem_for_aK, mem_for_iaK, mem_min, mem_per_group, mem_real, &
       null_mat_rec(2,2,2), null_mat_send(2,2,2), sym_fac
@@ -1184,8 +1188,6 @@ MODULE mp2_ri_gpw
       DIMENSION(:, :, :)                     :: BI_C_rec, local_i_aL, &
                                                 local_j_aL
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
-    LOGICAL                                  :: my_open_shell_SS,&
-                                                my_alpha_beta_case
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

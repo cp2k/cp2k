@@ -19,12 +19,12 @@ MODULE colvar_methods
        colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
        coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
        distance_from_path_colvar_id, eval_point_der, eval_point_mass, &
-       eval_point_pos, gyration_colvar_id, hydronium_colvar_id, mindist_colvar_id,&
-       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
-       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
-       ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
-       torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
-       xyz_outerdiag_colvar_id
+       eval_point_pos, gyration_colvar_id, hydronium_colvar_id, &
+       mindist_colvar_id, plane_distance_colvar_id, &
+       plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
+       reaction_path_colvar_id, ring_puckering_colvar_id, rmsd_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id, u_colvar_id, &
+       xyz_diag_colvar_id, xyz_outerdiag_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -157,9 +157,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
       combine_section, coordination_section, dfunct_section, &
       distance_from_path_section, distance_section, frame_section, &
-      gyration_section, HBP_section, hydronium_section, mindist_section, path_section, &
-      plane_dist_section, plane_plane_angle_section, plane_sections, &
-      point_section, population_section, qparm_section, &
+      gyration_section, HBP_section, hydronium_section, mindist_section, &
+      path_section, plane_dist_section, plane_plane_angle_section, &
+      plane_sections, point_section, population_section, qparm_section, &
       reaction_path_section, ring_puckering_section, rmsd_section, &
       rotation_section, torsion_section, u_section, Wc_section, wrk_section, &
       xyz_diag_section, xyz_outerdiag_section
@@ -3342,15 +3342,15 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'mindist_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, jj, k, kk, &
-                                                n_dist_from, n_coord_from, &
-                                                n_coord_to, p, q, stat
+    INTEGER                                  :: i, ii, j, jj, n_coord_from, &
+                                                n_coord_to, n_dist_from, p, &
+                                                q, stat
     LOGICAL                                  :: failure
-
-    REAL(dp) :: Qfunc, lambda, r_cut, num_Q, den_Q, fscalar, inv_den_n, inv_den_Q, num_n, den_n , r12, rfact
-    REAL(dp) :: rij(3),rpi(3),rpj(3),ftemp_i(3)
-    REAL(dp), DIMENSION(:), POINTER          :: dqfunc_dnL, expnL, nLcoord, sum_rij
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: dnLcoord,  dqfunc_dr
+    REAL(dp) :: den_n, den_Q, fscalar, ftemp_i(3), inv_den_n, inv_den_Q, &
+      lambda, num_n, num_Q, Qfunc, r12, r_cut, rfact, rij(3), rpi(3), rpj(3)
+    REAL(dp), DIMENSION(:), POINTER          :: dqfunc_dnL, expnL, nLcoord, &
+                                                sum_rij
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: dnLcoord, dqfunc_dr
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -3421,7 +3421,7 @@ CPSourceFileRef)
 
          nLcoord(i) =  nLcoord(i)  + num_n*inv_den_n
       END DO
-      expnL(i) =  exp(lambda*nLcoord(i)) 
+      expnL(i) =  EXP(lambda*nLcoord(i)) 
 !dbg
 ! write(*,*) ii,nLcoord(i),expnL(i) 
 !dbg
