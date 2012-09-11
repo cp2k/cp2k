@@ -630,25 +630,21 @@ SUBROUTINE fftw3_destroy_plan ( plan )
 
 #if defined ( __FFTW3 )
 !$  IF (plan%need_alt_plan) THEN
-!$    CALL sfftw_destroy_plan(plan%alt_fftw_plan)
+!$    CALL XFFTW_DESTROY_PLAN(plan%alt_fftw_plan)
 !$  END IF
-#else
 
-#ifdef SEQ_FFTW
+  IF (.NOT. plan%plan_style == 1) THEN
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
-#else
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny)
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz)
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx_r)
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny_r)
-   CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz_r)
-#endif
+  ELSE
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny)
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz)
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx_r)
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny_r)
+    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz_r)
+  ENDIF
 
-!$  IF (plan%need_alt_plan) THEN
-!$    CALL dfftw_destroy_plan(plan%alt_fftw_plan)
-!$  END IF
 #endif
 
 END SUBROUTINE fftw3_destroy_plan
