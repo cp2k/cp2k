@@ -244,18 +244,33 @@ CONTAINS
       END IF
     END DO
 
-    ! first node in the todolist
-    list%next => maxnode
+    If (ASSOCIATED(maxnode)) THEN
 
-    this => maxnode
+      ! first node in the todolist has max degree
+      list%next => maxnode
 
-    ! add all OTHER nodes in arbitrary order...
-    DO i=1, nnodes
-      IF (graph(i)%vertex%id.NE.maxnode%id) THEN
+      this => maxnode
+ 
+      ! add all OTHER nodes in arbitrary order...
+      DO i=1, nnodes
+        IF (graph(i)%vertex%id.NE.maxnode%id) THEN
+          this%next => graph(i)%vertex
+          this => graph(i)%vertex
+        END IF
+      END DO
+
+    ELSE
+      ! no node with degree > 0
+
+      this => list
+
+      ! add all nodes in arbitrary order
+      DO i=1, nnodes
         this%next => graph(i)%vertex
         this => graph(i)%vertex
-      END IF
-    END DO
+      END DO
+
+    END IF
 
   END SUBROUTINE
 
@@ -421,53 +436,67 @@ CONTAINS
 
     nnodes=SIZE(graph)
 
-    ALLOCATE(color_present(nnodes))
+    IF (kg_env%maxdegree.EQ.0) THEN
+      ! all nodes are disconnected
 
-    DO WHILE (ASSOCIATED(list%next))
+      ncolors=1
 
-      this => list%next
-
-      color_present(:)=.FALSE.
-
-      IF (ASSOCIATED(this%neighbors)) THEN
-        nneighbors=SIZE(this%neighbors)
-        DO i=1,nneighbors
-          color = this%neighbors(i)%vertex%color
-          IF (color.NE.0) color_present(color)=.TRUE.
+      DO i=1,nnodes
+        ! only one color needed to color the graph
+        graph(i)%vertex%color=1
+      END DO
+      
+    ELSE
+  
+      ALLOCATE(color_present(nnodes))
+  
+      DO WHILE (ASSOCIATED(list%next))
+  
+        this => list%next
+  
+        color_present(:)=.FALSE.
+  
+        IF (ASSOCIATED(this%neighbors)) THEN
+          nneighbors=SIZE(this%neighbors)
+          DO i=1,nneighbors
+            color = this%neighbors(i)%vertex%color
+            IF (color.NE.0) color_present(color)=.TRUE.
+          END DO
+        END IF 
+        DO i=1,kg_env%maxdegree+1 !nnodes
+          IF (color_present(i).EQV..FALSE.) THEN
+            newcolor=i
+            EXIT
+          END IF
         END DO
-      END IF 
-      DO i=1,kg_env%maxdegree+1 !nnodes
-        IF (color_present(i).EQV..FALSE.) THEN
-          newcolor=i
-          EXIT
-        END IF
+        this%color = newcolor ! smallest possible
+        IF (newcolor.GT.ncolors) ncolors=newcolor
+  
+        ! remove current node from the todolist
+        CALL remove(this, list, stat)
+  
+        ! update all neighboring nodes
+        DO i=1,nneighbors
+  
+          neighbor => this%neighbors(i)%vertex
+  
+          CALL calculate_dsat(graph, neighbor, dsat)
+          IF (neighbor%dsat.NE.dsat) THEN
+  
+            ! update dsat
+            neighbor%dsat = dsat
+  
+            ! update position of this neighbor in the todolist
+            CALL update_todo(graph, list, neighbor)
+  
+          END IF
+        END DO
       END DO
-      this%color = newcolor ! smallest possible
-      IF (newcolor.GT.ncolors) ncolors=newcolor
+  
+      DEALLOCATE(color_present)   
+      DEALLOCATE(list)
 
-      ! remove current node from the todolist
-      CALL remove(this, list, stat)
-
-      ! update all neighboring nodes
-      DO i=1,nneighbors
-
-        neighbor => this%neighbors(i)%vertex
-
-        CALL calculate_dsat(graph, neighbor, dsat)
-        IF (neighbor%dsat.NE.dsat) THEN
-
-          ! update dsat
-          neighbor%dsat = dsat
-
-          ! update position of this neighbor in the todolist
-          CALL update_todo(graph, list, neighbor)
-
-        END IF
-      END DO
-    END DO
-
-    DEALLOCATE(color_present)   
-    DEALLOCATE(list)
+    END IF
 
     CALL timestop(handle)
 
