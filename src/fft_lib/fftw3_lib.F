@@ -157,8 +157,8 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
    STOP "fftw3_create_plan_3d"
   END SELECT
  
-  ! This information will be needed later  to execute the plan
-  plan%plan_style = plan_style
+  ! This information will be needed later to execute the plan
+  plan%plan_style = fftw_plan_type
 
   IF ( .NOT. aligned ) THEN
     fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
@@ -629,14 +629,14 @@ SUBROUTINE fftw3_destroy_plan ( plan )
   TYPE(fft_plan_type), INTENT (INOUT)   :: plan
 
 #if defined ( __FFTW3 )
+#include "fftw3.f"
 !$  IF (plan%need_alt_plan) THEN
 !$    CALL XFFTW_DESTROY_PLAN(plan%alt_fftw_plan)
 !$  END IF
 
-  IF (.NOT. plan%plan_style == 1) THEN
+  IF (.NOT. plan%plan_style == FFTW_ESTIMATE) THEN
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
   ELSE
-    CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny)
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz)
