@@ -71,9 +71,13 @@ IMPLICIT NONE
   PUBLIC :: net_topology
   PUBLIC :: comm_graph
   PUBLIC :: allocated_topology 
-  PUBLIC :: max_nodes
+  PUBLIC :: max_nodes, max_x, max_y, max_z
 
   TYPE(net_topo),DIMENSION(:),POINTER      :: net_topology
+  INTEGER                                  :: max_x
+  INTEGER                                  :: max_y
+  INTEGER                                  :: max_z
+
   INTEGER, DIMENSION(:), POINTER           :: allocated_topology
   INTEGER, DIMENSION(:,:), POINTER         :: comm_graph
   INTEGER                                  :: max_nodes
@@ -209,6 +213,9 @@ CONTAINS
      x(:)   = 0
      y(:)   = 0
      z(:)   = 0
+     max_x  = 0
+     max_y  = 0
+     max_z  = 0
 
   ALLOCATE(net_topology(nfields),STAT=istat)
   IF (istat /= 0) THEN
@@ -228,7 +235,7 @@ CONTAINS
   net_topology(:)%nid = nid(:)
   net_topology(:)%coord_x = x(:)
   net_topology(:)%coord_y = y(:)
-  net_topology(:)%coord_z = z(:) 
+  net_topology(:)%coord_z = z(:)   
 
   ENDIF
   IF(ASSOCIATED(nid))DEALLOCATE(nid,x,y,z,STAT=istat)
@@ -247,6 +254,10 @@ CONTAINS
   CALL mp_sum(net_topology(:)%coord_x,mp_group)
   CALL mp_sum(net_topology(:)%coord_y,mp_group)
   CALL mp_sum(net_topology(:)%coord_z,mp_group)
+
+  max_x = MAXVAL(net_topology(:)%coord_x)+1
+  max_y = MAXVAL(net_topology(:)%coord_y)+1
+  max_z = MAXVAL(net_topology(:)%coord_z)+1
 
 #elif defined __NET && __parallel
 
@@ -420,26 +431,26 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Get the maximum number of nodes for a 3D Torus in X direction
 ! *****************************************************************************
- FUNCTION ma_nodes_x() RESULT (max_x)
-  INTEGER               ::         max_x
+ FUNCTION ma_nodes_x() RESULT (maxx)
+  INTEGER               ::         maxx
 
 #if defined __GEMINI || __SEASTAR
-  max_x = MAXVAL(net_topology(:)%coord_x)+1
+  maxx = max_x 
 #else
-  max_x = 0
+  maxx = 0
 #endif
  END FUNCTION ma_nodes_x 
 
 ! *****************************************************************************
 !> \brief Get the maximum number of nodes for a 3D Torus in Y direction
 ! *****************************************************************************
- FUNCTION ma_nodes_y() RESULT (max_y)
-  INTEGER  ::         max_y
+ FUNCTION ma_nodes_y() RESULT (maxy)
+  INTEGER  ::         maxy
 
 #if defined __GEMINI || __SEASTAR
-  max_y = MAXVAL(net_topology(:)%coord_y)+1
+  maxy = max_y
 #else
-  max_y = 0
+  maxy = 0
 #endif
 
  END FUNCTION ma_nodes_y
@@ -447,13 +458,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Get the maximum number of nodes for a 3D Torus in Z direction
 ! *****************************************************************************
- FUNCTION ma_nodes_z() RESULT (max_z)
-  INTEGER  ::         max_z
+ FUNCTION ma_nodes_z() RESULT (maxz)
+  INTEGER  ::         maxz
 
 #if defined __GEMINI || __SEASTAR
-  max_z = MAXVAL(net_topology(:)%coord_z)+1
+  maxz = max_z
 #else
-  max_z = 0
+  maxz = 0
 #endif
 
  END FUNCTION ma_nodes_z
