@@ -74,7 +74,8 @@ MODULE colvar_types
             Wc_colvar_type,&
             HBP_colvar_type,&
             ring_puckering_colvar_type,&
-            u_colvar_type
+            u_colvar_type,&
+            mindist_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
                                 dist_colvar_id                =  1,&

@@ -51,7 +51,7 @@ MODULE kg_vertex_coloring_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_vertex_coloring_methods'
 
-  PUBLIC :: kg_create_graph, kg_vertex_coloring
+  PUBLIC :: kg_create_graph, kg_vertex_coloring, vertex_p_type, vertex, node_type, node_p_type
 
 CONTAINS
 

@@ -28,7 +28,7 @@ MODULE kg_environment_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
 
-  PUBLIC :: kg_environment_type, kg_env_release
+  PUBLIC :: kg_environment_type, kg_env_release, block_list_type, subset_type
 
   ! all blocks belonging to one molecule
   TYPE block_list_type
