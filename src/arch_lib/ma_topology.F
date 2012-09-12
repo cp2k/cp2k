@@ -165,6 +165,9 @@ CONTAINS
   net_topology(:)%coord_x = 0
   net_topology(:)%coord_y = 0
   net_topology(:)%coord_z = 0
+  max_x  = 0
+  max_y  = 0
+  max_z  = 0
 
   IF (source == 0 ) THEN
    DO i=1, nfields
@@ -181,6 +184,10 @@ CONTAINS
   CALL mp_sum(net_topology(:)%coord_x,mp_group)
   CALL mp_sum(net_topology(:)%coord_y,mp_group)
   CALL mp_sum(net_topology(:)%coord_z,mp_group)
+
+  max_x = MAXVAL(net_topology(:)%coord_x)+1
+  max_y = MAXVAL(net_topology(:)%coord_y)+1
+  max_z = MAXVAL(net_topology(:)%coord_z)+1
 
 !if it is Gemini, then we have to take into account the two nodes connect to one 
 !gemini connection 
