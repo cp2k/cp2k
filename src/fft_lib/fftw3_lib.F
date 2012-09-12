@@ -634,9 +634,11 @@ SUBROUTINE fftw3_destroy_plan ( plan )
 !$    CALL XFFTW_DESTROY_PLAN(plan%alt_fftw_plan)
 !$  END IF
 
-  IF (.NOT. plan%plan_style == FFTW_ESTIMATE) THEN
+  IF (.NOT. plan%separated_plans) THEN
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
   ELSE
+    ! If it is a separated plan then we have to destroy
+    ! each dim plan individually
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny)
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz)
