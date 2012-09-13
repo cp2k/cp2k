@@ -68,8 +68,8 @@ How to compile CP2K code
      to use g95).
      Note that on machines and compilers which support SSE you can configure
      FFTW3 with --enable-sse2.  Compilers/systems that do not align memory
-     (NAG f95) should either not use '--enable-sse2' or otherwise set the flag
-     FFTW_ARRAYS_ALIGNED to false in the CP2K input file. 
+     (NAG f95, Intel IA32/gfortran) should either not use '--enable-sse2'
+     or otherwise set the define -D__FFTW3_UNALIGNED in the arch file.
      When building an OpenMP parallel version of CP2K (ssmp or psmp), the
      FFTW3 threading library libfftw3_threads is required.
 

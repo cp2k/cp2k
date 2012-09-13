@@ -119,7 +119,7 @@ END SUBROUTINE fftw3_get_lengths
 
 ! *****************************************************************************
 
-SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
+SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 
   USE fft_plan,                           ONLY : fft_plan_type
   USE fft_kinds,                          ONLY : dp
@@ -131,7 +131,6 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
   INTEGER                                            :: plan_style
-  LOGICAL                                            :: aligned
   INTEGER                                            :: n1,n2,n3
   INTEGER                                            :: nt
 
@@ -160,9 +159,9 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
   ! This information will be needed later to execute the plan
   plan%plan_style = fftw_plan_type
 
-  IF ( .NOT. aligned ) THEN
-    fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
-  END IF
+#if defined (__FFTW3_UNALIGNED)
+  fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
+#endif
 
   IF ( plan%fsign == +1 ) THEN
     fft_direction = FFTW_FORWARD
@@ -500,7 +499,7 @@ END SUBROUTINE fftw33d
 
 ! *****************************************************************************
 
-SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
+SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
 
   USE fft_plan,                           ONLY : fft_plan_type
   USE fft_kinds,                          ONLY : dp
@@ -512,7 +511,6 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
   INTEGER                                            :: plan_style
-  LOGICAL                                            :: aligned
   INTEGER                                            :: ii,di,io,DO, num_threads, num_rows
 
 #if defined ( __FFTW3 )
@@ -531,10 +529,9 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
    STOP "fftw3_create_plan_1dm"
   END SELECT
 
-  IF ( .NOT. aligned ) THEN
-    fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
-  END IF
-
+#if defined (__FFTW3_UNALIGNED)
+  fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
+#endif
 num_threads = 1
 plan%separated_plans = .FALSE.
 !$omp parallel default(none), &

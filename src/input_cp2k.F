@@ -289,7 +289,7 @@ CONTAINS
          enum_c_vals=s2a("FFTSG","FFTW","FFTESSL","FFTACML","FFTMKL","FFTSCI","FFTCU"),&
          enum_desc=s2a("Stefan Goedecker FFT, always available, will be used in case a FFT lib is specified and not available",&
                        "a fast portable FFT library. Recommended. This will use either FFTW2 or FFTW3, as available"//&
-                       "See also the FFTW_ARRAYS_ALIGNED, FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.",&
+                       "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.",&
                        "available/tuned for IBM machines",&
                        "available/tuned for AMD machines (buggy & untested)",&
                        "available/tuned for INTEL machines (untested in parallel)",&
@@ -330,20 +330,6 @@ CONTAINS
                        "Quick measurement, somewhat faster FFTs.",&
                        "Measurements trying a wider range of possibilities.",&
                        "Measurements trying all possibilities - use with caution."),&
-         error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-   CALL keyword_create(keyword, name="FFTW_ARRAYS_ALIGNED",&
-         description="FFTW3 can make use of SIMD (e.g SSE/AltiVec) instructions for improved performance "//&
-                     "provided the FFT arrays are aligned correctly.  There is no "//&
-                     "platform-independent way to achieve this, although most modern"//&
-                     "compilers will align the arrays correctly.  This flag is used to"//&
-                     "tell FFTW3 if it can generate plans with SIMD instructions.",&
-         usage="FFTW_ARRAYS_ALIGNED NO",&
-         citations=(/Frigo2005/),&
-         default_l_val=.TRUE., &
-         lone_keyword_l_val=.TRUE., &
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
