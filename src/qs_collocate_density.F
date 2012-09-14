@@ -1295,7 +1295,7 @@ END SUBROUTINE calculate_rho_metal
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, error)
+       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, task_list_external, error)
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
@@ -1304,6 +1304,7 @@ END SUBROUTINE calculate_rho_metal
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau, &
                                                 compute_grad
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type, idir
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_external
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
@@ -1349,8 +1350,6 @@ END SUBROUTINE calculate_rho_metal
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(lgrid_type), POINTER                :: lgrid
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1365,7 +1364,7 @@ END SUBROUTINE calculate_rho_metal
 
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &
-         atomic_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_descs, &
+         atomic_kind_set, particle_set, rs_rho, pw_env, rs_descs, &
          para_env, dist_ab, la_max, la_min, &
          lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
@@ -1421,7 +1420,6 @@ END SUBROUTINE calculate_rho_metal
            cell=cell,&
            dft_control=dft_control,&
            particle_set=particle_set,&
-           sab_orb=sab_orb,&
            para_env=para_env,&
            task_list=task_list,&
            task_list_soft=task_list_soft,&
@@ -1433,13 +1431,14 @@ END SUBROUTINE calculate_rho_metal
            cell=cell,&
            dft_control=dft_control,&
            particle_set=particle_set,&
-           sab_aux_fit=sab_orb,&
            para_env=para_env,&
            task_list_aux_fit=task_list,&
            task_list_soft=task_list_soft,&
            input=input,&
            pw_env=pw_env,error=error)
     END SELECT
+
+    IF (PRESENT(task_list_external)) task_list=>task_list_external
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info

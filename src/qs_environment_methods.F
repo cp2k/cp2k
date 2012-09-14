@@ -448,9 +448,12 @@ SUBROUTINE qs_create_task_list(qs_env, error)
 
         CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
 
+        ! generate the subset task list from the neighborlist
         CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
-             reorder_rs_grid_ranks=.TRUE., soft_valid = soft_valid, &
-             skip_load_balance_distributed=skip_load_balance_distributed, error=error)
+             reorder_rs_grid_ranks=.FALSE., soft_valid = soft_valid, &
+             skip_load_balance_distributed=skip_load_balance_distributed, &
+             sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb, &
+             error=error)
 
       END DO
 

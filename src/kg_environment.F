@@ -13,11 +13,6 @@ MODULE kg_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -53,7 +48,6 @@ MODULE kg_environment
                                              local_atoms_type,&
                                              pair_radius_setup,&
                                              write_neighbor_lists
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE task_list_types,                 ONLY: deallocate_task_list
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -66,7 +60,7 @@ MODULE kg_environment
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment'
 
-  PUBLIC :: kg_env_create, kg_env_init_mol_blocks, kg_build_neighborlist, kg_build_subsets
+  PUBLIC :: kg_env_create, kg_build_neighborlist, kg_build_subsets
 
 CONTAINS
 
@@ -125,7 +119,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    NULLIFY(kg_env%molecular_blocks)
     NULLIFY(kg_env%sab_orb_full)
     NULLIFY(kg_env%subset_of_mol)
     NULLIFY(kg_env%subset)
@@ -205,95 +198,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE init_kg_env
-
-! *****************************************************************************
-!> \brief Creates and fills list of molecular blocks  
-!> \par History
-!>       2012.07 created [Martin Haeufel]
-!> \author Martin Haeufel
-! *****************************************************************************
-  SUBROUTINE kg_env_init_mol_blocks(kg_env, qs_env, error)
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_env_init_mol_blocks', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: block, col, handle, iblock, &
-                                                imol, natom, nmols, row
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(qs_rho_type), POINTER               :: rho
-
-! atom_to_molecule 
-
-    CALL timeset(routineN, handle)
-
-    ! Are the molecular blocks already present?
-    IF (.NOT.ASSOCIATED(kg_env%molecular_blocks)) THEN
-
-      ! get number of spins
-      kg_env%nspins = qs_env%dft_control%nspins
-
-      ! get the set of molecules
-      molecule_set => kg_env%molecule_set
-  
-      ! get rho, the set of molecules, natom
-      CALL get_qs_env(qs_env, rho=rho, natom=natom, molecule_set=molecule_set, error=error)
-  
-      !ALLOCATE(atom_to_molecule(natom)
-      ALLOCATE(rows(natom), cols(natom))
-  
-      !! get the mapping from atoms to molecules
-      !CALL molecule_of_atom(molecule_set, atom_to_mol=atom_to_molecule, error=error)
-
-      nmols=SIZE(molecule_set)
-  
-      ALLOCATE(kg_env%molecular_blocks(nmols))
-  
-      ! loop over molecular blocks
-      DO imol=1,nmols
-  
-        CALL cp_dbcsr_iterator_start(iter, qs_env%matrix_s(1)%matrix)
-  
-        iblock=0
-    
-        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-     
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, block)
-  
-          IF (kg_env%atom_to_molecule(row).EQ.imol .AND. kg_env%atom_to_molecule(col).EQ.imol) THEN 
-            ! block is part of the current molecule, therefore add block to the list
-     
-            iblock=iblock+1
-    
-            rows(iblock) = row
-            cols(iblock) = col
-  
-          END IF
-     
-        END DO
-    
-        CALL cp_dbcsr_iterator_stop(iter)
-  
-        ALLOCATE(kg_env%molecular_blocks(imol)%rows(iblock), kg_env%molecular_blocks(imol)%cols(iblock))
-  
-        kg_env%molecular_blocks(imol)%rows(1:iblock)=rows(1:iblock)
-        kg_env%molecular_blocks(imol)%cols(1:iblock)=cols(1:iblock)
-  
-      END DO
-  
-      ! DEALLOCATE(atom_to_molecule)
-      DEALLOCATE(rows, cols)
-
-    END IF
- 
-    CALL timestop(handle)
-
-  END SUBROUTINE kg_env_init_mol_blocks
 
 ! *****************************************************************************
 !> \brief builds either the full neighborlist or neighborlists of molecular

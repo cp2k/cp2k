@@ -35,8 +35,7 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_environment,                  ONLY: kg_build_neighborlist,&
-                                             kg_build_subsets,&
-                                             kg_env_init_mol_blocks
+                                             kg_build_subsets
   USE kinds,                           ONLY: dp
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
@@ -265,12 +264,6 @@ CONTAINS
        END IF
 
     END IF
-
-
-    IF (qs_env%dft_control%qs_control%do_kg) THEN
-      ! create list of molecular blocks if needed
-      CALL kg_env_init_mol_blocks(qs_env%kg_env, qs_env, error)
-    ENDIF
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,&
          dft_control=dft_control, has_unit_metric=has_unit_metric, error=error)

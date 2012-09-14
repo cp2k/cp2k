@@ -28,12 +28,7 @@ MODULE kg_environment_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
 
-  PUBLIC :: kg_environment_type, kg_env_release, block_list_type, subset_type
-
-  ! all blocks belonging to one molecule
-  TYPE block_list_type
-    INTEGER, DIMENSION(:), ALLOCATABLE :: rows, cols
-  END TYPE block_list_type
+  PUBLIC :: kg_environment_type, kg_env_release, subset_type
 
   TYPE subset_type
     INTEGER, DIMENSION(:), POINTER :: molecules
@@ -45,9 +40,8 @@ MODULE kg_environment_types
 !> \brief Contains all the info needed for KG runs... 
 !> \param xc_section_kg:    XC section with only the KE functional
 !> \param molecule_set:     set of molecular entities as in qs_env
-!> \param molecular_blocks: ith entry contains all sparse matrix blocks that
-!>                          belong to the ith molecule
-!> \param sab_orb_full:     the full neighborlist (build with molecular=.FALSE.)
+!> \param sab_orb_full:     full neighborlist (build with molecular=.FALSE.)
+!>                          needed for the coloring
 !> \param subset_of_mol:    ith entry contains the index of the subset, the ith
 !>                          molecule belongs to
 !> \param subset: the list of molecules, the task list and the neighbor list of
@@ -63,7 +57,6 @@ MODULE kg_environment_types
     TYPE(section_vals_type), POINTER              :: xc_section_kg
     INTEGER, ALLOCATABLE, DIMENSION(:)            :: atom_to_molecule 
     TYPE(molecule_type), DIMENSION(:), POINTER    :: molecule_set
-    TYPE(block_list_type), DIMENSION(:), POINTER  :: molecular_blocks
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), POINTER                       :: sab_orb_full
     INTEGER, DIMENSION(:), POINTER                :: subset_of_mol
@@ -81,7 +74,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iab, imol, isub, stat
+    INTEGER                                  :: handle, iab, isub, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -89,15 +82,6 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     CPPostcondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
-
-    DO imol=1,SIZE(kg_env%molecular_blocks)
-
-      DEALLOCATE(kg_env%molecular_blocks(imol)%rows)
-      DEALLOCATE(kg_env%molecular_blocks(imol)%cols)
-
-    END DO
-
-    DEALLOCATE(kg_env%molecular_blocks)
 
     CALL section_vals_release(kg_env%xc_section_kg, error=error)
 

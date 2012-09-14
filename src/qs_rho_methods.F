@@ -47,6 +47,7 @@ MODULE qs_rho_methods
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
+  USE task_list_types,                 ONLY: task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -347,10 +348,11 @@ END SUBROUTINE qs_rho_rebuild
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
+SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_external, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(local_rho_type), OPTIONAL, POINTER  :: local_rho_set
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_external
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
@@ -361,6 +363,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
     REAL(KIND=dp)                            :: dum
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho_xc
+    TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
 
@@ -372,7 +375,9 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-      CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
+      CALL get_qs_env(qs_env,dft_control=dft_control, task_list=task_list, error=error)
+      IF (PRESENT(task_list_external)) task_list => task_list_external 
+
       nspins=dft_control%nspins
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
@@ -390,7 +395,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
                 rho=rho_struct%rho_r(ispin),&
                 rho_gspace=rho_struct%rho_g(ispin),&
                 total_rho=rho_struct%tot_rho_r(ispin),&
-                qs_env=qs_env,soft_valid=gapw,error=error)
+                qs_env=qs_env,soft_valid=gapw,&
+                task_list_external=task_list, error=error)
         END DO
       END IF
       rho_struct%rho_r_valid=.TRUE.
@@ -399,6 +405,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
          DO ispin=1,nspins
+           CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
            CALL calculate_drho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
              drho=rho_struct%drho_r(3*(ispin-1)+1:3*ispin),&
              drho_gspace=rho_struct%drho_g(3*(ispin-1)+1:3*ispin),&
@@ -411,12 +418,14 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
       ! if needed compute also the kinetic energy density
       IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
+            CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
             CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful
                  qs_env=qs_env, soft_valid=gapw, &
-                 compute_tau=.TRUE., error=error)
+                 compute_tau=.TRUE.,&
+                 error=error)
          END DO
          rho_struct%tau_r_valid=.TRUE.
          rho_struct%tau_g_valid=.TRUE.
@@ -424,6 +433,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
 
      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF(gapw ) THEN
+         CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
          IF(PRESENT(local_rho_set)) THEN
             CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,local_rho_set%rho_atom_set,error=error)
          ELSE
@@ -431,6 +441,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
          ENDIF
       ENDIF
       IF(gapw_xc ) THEN
+         CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
          CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc,error=error)
          CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,error=error)
          DO ispin=1,nspins
