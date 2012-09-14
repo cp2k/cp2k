@@ -137,11 +137,16 @@ SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
 
   INTEGER                                            :: plan_style
  
+  plan = 0
+
+#if defined ( __FFTW3 )
   CALL XFFTW_PLAN_GURU_DFT(plan,fft_rank, &
                                  dim_n,dim_istride,dim_ostride, &
                                  hm_rank,hm_n,hm_istride,hm_ostride, &
                                  zin, zout, &
                                  fft_direction, fftw_plan_type)
+
+#endif
 
   IF (plan .EQ. 0) THEN
      valid = .FALSE.
