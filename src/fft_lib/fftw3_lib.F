@@ -23,7 +23,6 @@
 #define XFFTW_DESTROY_PLAN dfftw_destroy_plan
 #endif
 
-
 ! *****************************************************************************
 !> \par History
 !>      JGH 23-Jan-2006 : initial version
@@ -117,6 +116,43 @@ SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftw3_get_lengths
 
+SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
+                                  dim_istride, dim_ostride, hm_rank, &
+                                  hm_n, hm_istride, hm_ostride, &
+                                  zin, zout, fft_direction, fftw_plan_type, &
+                                  valid)
+
+  USE fft_kinds,                          ONLY : dp, integer8_kind
+
+  IMPLICIT NONE
+
+  INTEGER(KIND=integer8_kind), INTENT ( INOUT )              :: plan
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
+  INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
+             hm_n(2), hm_istride(2), hm_ostride(2), fft_rank, &
+             fft_direction, fftw_plan_type, hm_rank
+  LOGICAL, INTENT(OUT) :: valid
+
+
+  INTEGER                                            :: plan_style
+ 
+  CALL XFFTW_PLAN_GURU_DFT(plan,fft_rank, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 hm_rank,hm_n,hm_istride,hm_ostride, &
+                                 zin, zout, &
+                                 fft_direction, fftw_plan_type)
+
+  IF (plan .EQ. 0) THEN
+     valid = .FALSE.
+  ELSE
+     valid = .TRUE.
+  ENDIF
+
+END SUBROUTINE 
+
+
+
 ! *****************************************************************************
 
 SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
@@ -133,6 +169,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   INTEGER                                            :: plan_style
   INTEGER                                            :: n1,n2,n3
   INTEGER                                            :: nt
+  LOGICAL                                            :: guru_supported, valid
 
   INTEGER                                            :: fft_direction
   COMPLEX(KIND=dp), ALLOCATABLE        :: tmp(:)
@@ -172,7 +209,6 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   n1 = plan%n_3d(1)
   n2 = plan%n_3d(2)
   n3 = plan%n_3d(3)
- 
 
   nt = 1
 !$OMP PARALLEL shared(nt)
@@ -181,7 +217,26 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 !$OMP END MASTER
 !$OMP END PARALLEL
 
-  IF (.NOT. plan%plan_style == FFTW_ESTIMATE ) THEN
+    dim_n(1) = 1
+    dim_istride(1) = 1
+    dim_ostride(1) = 1
+    howmany_n(1) = 1 
+    howmany_n(2) = 1
+    howmany_istride(1) = 1
+    howmany_istride(2) = 1
+    howmany_ostride(1) = 1
+    howmany_ostride(2) = 1
+    CALL fftw3_create_guru_plan(plan%fftw_plan_nx,1, &
+                                 dim_n,dim_istride,dim_ostride, &
+                                 2,howmany_n,howmany_istride,howmany_ostride, &
+                                 zin, zin, &
+                                 fft_direction, fftw_plan_type, guru_supported)
+
+    IF (guru_supported) THEN
+       CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
+    ENDIF
+    
+    IF (.NOT. plan%plan_style == FFTW_ESTIMATE .OR. .NOT. guru_supported) THEN
     ! FFTW3 do a better job with MEASURE, PATIENT and EXHAUSTIVE than handmade optimization
     ! So plan a single 3D FFT which will execute using all the threads
 
@@ -229,19 +284,26 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
     howmany_istride(2) = n1*n2
     howmany_ostride(1) = 1
     howmany_ostride(2) = n1*n2
-    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nx,1, &
+    CALL fftw3_create_guru_plan(plan%fftw_plan_nx,1, &
                                  dim_n,dim_istride,dim_ostride, &
                                  2,howmany_n,howmany_istride,howmany_ostride, &
                                  zin, tmp, &
-                                 fft_direction, fftw_plan_type)
+                                 fft_direction, fftw_plan_type, valid)
+
+    IF (.NOT. valid) THEN
+         STOP "fftw3_create_plan NX"
+    ENDIF
+
     !!!! Remainder
     howmany_n(2) = MOD(n3,nt)
-    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nx_r,1, &
+    CALL fftw3_create_guru_plan(plan%fftw_plan_nx_r,1, &
                                  dim_n,dim_istride,dim_ostride, &
                                  2,howmany_n,howmany_istride,howmany_ostride, &
                                  zin, tmp, &
-                                 fft_direction, fftw_plan_type)
-
+                                 fft_direction, fftw_plan_type, valid)
+    IF (.NOT. valid) THEN
+         STOP "fftw3_create_plan NX_r"
+    ENDIF
     !!!! Plan for Y : M(n3,n1,n2) -> fftw(y) -> M(n1,n2,n3)
     dim_n(1) = n2
     dim_istride(1) = 1
@@ -253,19 +315,24 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
     !!! transposed Z axis on output
     howmany_ostride(1) = n2*n3 
     howmany_ostride(2) = 1 
-    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_ny,1, &
+    CALL fftw3_create_guru_plan(plan%fftw_plan_ny,1, &
                                  dim_n,dim_istride,dim_ostride, &
                                  2,howmany_n,howmany_istride,howmany_ostride, &
                                  tmp, zin, &
-                                 fft_direction, fftw_plan_type)
-
+                                 fft_direction, fftw_plan_type, valid)
+    IF (.NOT. valid) THEN
+         STOP "fftw3_create_plan NY"
+    ENDIF
     !!!! Remainder
     howmany_n(2) = MOD(n3,nt)
-    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_ny_r,1, &
+    CALL fftw3_create_guru_plan(plan%fftw_plan_ny_r,1, &
                                  dim_n,dim_istride,dim_ostride, &
                                  2,howmany_n,howmany_istride,howmany_ostride, &
                                  tmp, zin, &
-                                 fft_direction, fftw_plan_type)
+                                 fft_direction, fftw_plan_type, valid)
+    IF (.NOT. valid) THEN
+         STOP "fftw3_create_plan NY_r"
+    ENDIF
 
     !!!! Plan for Z : M(n1,n2,n3) -> fftw(z) -> M(n1,n2,n3)
     dim_n(1) = n3
@@ -277,19 +344,27 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
     howmany_istride(2) = n2*n3 
     howmany_ostride(1) = n3 ! To transpose: n1 
     howmany_ostride(2) = n2*n3  ! To transpose: 1
-    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nz,1, &
+    CALL fftw3_create_guru_plan(plan%fftw_plan_nz,1, &
                  dim_n,dim_istride,dim_ostride, &
                  2,howmany_n,howmany_istride,howmany_ostride, &
                  zin, tmp, &
-                 fft_direction, fftw_plan_type)
+                 fft_direction, fftw_plan_type, valid)
+
+    IF (.NOT. valid) THEN
+         STOP "fftw3_create_plan NZ"
+    ENDIF
 
     !!!! Remainder 
     howmany_n(2) = MOD(n1,nt)
-    CALL XFFTW_PLAN_GURU_DFT(plan%fftw_plan_nz_r,1, &
+    CALL fftw3_create_guru_plan(plan%fftw_plan_nz_r,1, &
                                  dim_n,dim_istride,dim_ostride, &
                                  2,howmany_n,howmany_istride,howmany_ostride, &
                                  tmp, zin, &
-                                 fft_direction, fftw_plan_type)
+                                 fft_direction, fftw_plan_type, valid)
+
+    IF (.NOT. valid) THEN
+         STOP "fftw3_create_plan NZ_r"
+    ENDIF
 
     plan%separated_plans = .TRUE.
 
@@ -324,7 +399,6 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 !------------------------------------------------------------------------------
 
 #if defined ( __FFTW3 )
-#include "fftw3.f"
 
   n1 = plan%n_3d(1)
   n2 = plan%n_3d(2)
@@ -332,8 +406,9 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 
   stat = 1
 
-  ! If not using FFTW_ESTIMATE, compute the full 3D FFT using a multithreaded plan
-  IF (.NOT. plan%plan_style == FFTW_ESTIMATE) THEN
+  ! If optimized separated plans for each dimension are not available
+  ! use the default call with a single plan
+  IF (.NOT. plan%separated_plans) THEN
     IF ( plan%fft_in_place) THEN
       CALL XFFTW_EXECUTE_DFT(plan%fftw_plan,zin,zin)
     ELSE
