@@ -5,17 +5,19 @@ How to compile CP2K code
  1) Acquire the code:
 
     see
-        http://cp2k.berlios.de/
-    The preferred method is to download it from the CVS
-    (just use <Enter> if a password is asked for).
+        http://www.cp2k.org/
+    The preferred method is to download it from the SVN
 
-    cd $HOME
-    touch $HOME/.cvspass
-    cvs -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k login
-    cvs -z3 -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k co cp2k
+    For the trunk (development) version:
 
-    If cvs is not installed on your system get it at
-        http://www.nongnu.org/cvs/
+    svn co https://cp2k.svn.sourceforge.net/svnroot/cp2k/trunk cp2k
+
+    For released branch versions:
+
+    svn co https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch cp2k
+
+    If SVN is not installed on your system get it at
+       http://subversion.apache.org/
 
  2a) GNU make should be on your system (gmake or make on linux) and used for
      the build, go to
@@ -24,7 +26,7 @@ How to compile CP2K code
          http://ftp.gnu.org/pub/gnu/make/
 
  2b) A Fortran 95 compiler should be installed on your system. We have good
-     experience with gfortran 4.4.X and 4.5.X.  Be aware that some compilers
+     experience with gfortran 4.4.X and above.  Be aware that some compilers
      have bugs that might cause them to fail (internal compiler errors,
      segfaults) or, worse, yield a miscompiled CP2K. Report bugs to compiler
      vendors; they (and we) have an interest in fixing them.
@@ -281,23 +283,24 @@ How to compile CP2K code
     > ~/cp2k/exe/YOURMACHINE/cp2k.sopt C.inp
 
     systematic testing can be done following the description on regtesting:
-    http://cp2k.berlios.de/regtest.html
+
+    http://www.cp2k.org/index.php/for-developers
+    http://people.web.psi.ch/krack/cp2k/regtest/regtest.html
 
  7) In any case please tell us your comments, praise, criticism, thanks, ...
 
-    you can sent email to the people in the team :
+    you can send email to the people in the team :
 
-    http://developer.berlios.de/project/memberlist.php?group_id=129
+    http://sourceforge.net/project/memberlist.php?group_id=614853
 
  8) A reference manual of CP2K can be found on the web:
 
-    http://cp2k.berlios.de/input/
+    http://manual.cp2k.org/
 
     or can be generated using the cp2k executable, see
 
-    http://cp2k.berlios.de/manual/generate_manual_howto.html
-
+    http://manual.cp2k.org/trunk/generate_manual_howto.html
 
  9) Happy computing!
 
- the CP2K team.
+ The CP2K team.
