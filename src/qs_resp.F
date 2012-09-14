@@ -26,7 +26,10 @@ MODULE qs_resp
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
-  USE input_constants,                 ONLY: do_resp_x_dir,&
+  USE input_constants,                 ONLY: do_resp_minus_x_dir,&
+                                             do_resp_minus_y_dir,&
+                                             do_resp_minus_z_dir,&
+                                             do_resp_x_dir,&
                                              do_resp_y_dir,&
                                              do_resp_z_dir,&
                                              use_perd_none,&
@@ -92,11 +95,15 @@ MODULE qs_resp
    REAL(KIND=dp)                          :: rheavies_strength,&
                                              rmax, rmin,&
                                              length, eta
-   REAL(KIND=dp),DIMENSION(3)             :: box_hi, box_low
-   REAL(KIND=dp),DIMENSION(:),POINTER     :: range_surf 
-   REAL(KIND=dp), DIMENSION(:),POINTER    :: rhs
+   REAL(KIND=dp), DIMENSION(3)            :: box_hi, box_low
+   REAL(KIND=dp), DIMENSION(:), POINTER   :: range_surf 
+   REAL(KIND=dp), DIMENSION(:), POINTER   :: rhs
    REAL(KIND=dp), DIMENSION(:, :),POINTER :: matrix
   END TYPE resp_type
+
+  TYPE resp_p_type
+   TYPE (resp_type), POINTER              ::  p_resp 
+  END TYPE resp_p_type
 
 CONTAINS
 
@@ -118,6 +125,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
                                                 poisson_section, &
@@ -126,7 +134,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(logger,cell,subsys,particles,particle_set,input,resp_section,&
-            cons_section,rest_section,poisson_section,resp_env)
+            cons_section,rest_section,poisson_section,resp_env,rep_sys)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -143,13 +151,13 @@ CONTAINS
        logger => cp_error_get_logger(error)
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
-       CALL create_resp_type(resp_env,error) 
+       CALL create_resp_type(resp_env, rep_sys, error) 
        !initialize the RESP fitting, get all the keywords
-       CALL init_resp(qs_env,resp_env,input,subsys,particle_set,cell,&
+       CALL init_resp(qs_env,resp_env,rep_sys,input,subsys,particle_set,cell,&
             resp_section,cons_section,rest_section,error)
        
        !print info
-       CALL print_resp_parameter_info(qs_env,resp_env,my_per,error)
+       CALL print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
        
        CALL cp_subsys_get(subsys,particles=particles,error=error)
        natom=particles%n_els
@@ -175,7 +183,7 @@ CONTAINS
         CALL calc_resp_matrix_nonper(qs_env,resp_env,particles,cell,resp_env%matrix,&
                               resp_env%rhs,natom,error)   
        CASE(use_perd_xyz)
-        CALL calc_resp_matrix_periodic(qs_env,resp_env,particles,cell,natom, error)
+        CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
        CASE DEFAULT
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="RESP charges only implemented for nonperiodic systems"//&
@@ -206,7 +214,7 @@ CONTAINS
 
        DEALLOCATE(ipiv, stat=stat)
        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-       CALL resp_dealloc(resp_env,error)
+       CALL resp_dealloc(resp_env,rep_sys,error)
        CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
 
@@ -220,8 +228,9 @@ CONTAINS
 !\param error variable to control error logging, stopping,...
 !       see module cp_error_handling
 !****************************************************************************
-  SUBROUTINE create_resp_type(resp_env,error)
+  SUBROUTINE create_resp_type(resp_env, rep_sys, error)
     TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_resp_type', &
@@ -231,14 +240,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env,error)
+    IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env,rep_sys,error)
     ALLOCATE(resp_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
     IF (.NOT. failure) THEN
-       NULLIFY(resp_env%atom_surf_list,&
-               resp_env%range_surf,&
-               resp_env%matrix,&
+       NULLIFY(resp_env%matrix,&
                resp_env%fitpoints,&
                resp_env%rhs)
 
@@ -264,20 +271,17 @@ CONTAINS
 !\param error variable to control error logging, stopping,...
 !       see module cp_error_handling
 !****************************************************************************
-  SUBROUTINE resp_dealloc(resp_env, error)
+  SUBROUTINE resp_dealloc(resp_env,rep_sys, error)
     TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'resp_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
 
     IF (ASSOCIATED(resp_env)) THEN
-     IF (ASSOCIATED(resp_env%atom_surf_list)) THEN
-      DEALLOCATE(resp_env%atom_surf_list, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-     ENDIF
      IF (ASSOCIATED(resp_env%matrix)) THEN
       DEALLOCATE(resp_env%matrix, stat=stat)
       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -293,15 +297,27 @@ CONTAINS
      DEALLOCATE(resp_env, stat=stat)
      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     ENDIF
+    IF (ASSOCIATED(rep_sys)) THEN
+     DO i=1, SIZE(rep_sys)
+      DEALLOCATE(rep_sys(i)%p_resp%atom_surf_list, stat=stat)
+      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+      DEALLOCATE(rep_sys(i)%p_resp, stat=stat)
+      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+     ENDDO
+     DEALLOCATE(rep_sys, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+    ENDIF
+
   END SUBROUTINE resp_dealloc
 !****************************************************************************
 !\brief intializes the resp fit. Getting the parameters
 !****************************************************************************
-  SUBROUTINE init_resp(qs_env,resp_env,input,subsys,particle_set,cell,resp_section,&
-              cons_section,rest_section,error)
+  SUBROUTINE init_resp(qs_env,resp_env,rep_sys,input,subsys,particle_set,cell,&
+             resp_section,cons_section,rest_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_type), DIMENSION(:), &
@@ -314,7 +330,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_resp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, my_stride
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: nonperiodic_section, &
@@ -322,7 +338,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atom_list_cons, my_stride, nonperiodic_section, periodic_section)
+    NULLIFY(atom_list_cons, my_stride, nonperiodic_section, &
+         periodic_section)
     failure=.FALSE.
 
     ! get the subsections
@@ -365,25 +382,33 @@ CONTAINS
     ENDIF
 
     ! get the parameter for periodic/surface systems
-    CALL section_vals_get(periodic_section, explicit=explicit, error=error)
+    CALL section_vals_get(periodic_section, explicit=explicit, n_repetition=nrep, error=error)
     IF(explicit) THEN
-      CALL section_vals_val_get(periodic_section,"RANGE",r_vals=resp_env%range_surf,&
-                                                                         error=error)
-      CALL section_vals_val_get(periodic_section,"LENGTH", r_val=resp_env%length,&
-                                                                      error=error)
+     ALLOCATE(rep_sys(nrep), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     DO i=1, nrep
+      ALLOCATE(rep_sys(i)%p_resp, stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+      NULLIFY(rep_sys(i)%p_resp%range_surf, rep_sys(i)%p_resp%atom_surf_list)
+      CALL section_vals_val_get(periodic_section,"RANGE",r_vals=rep_sys(i)%p_resp%range_surf,&
+                                i_rep_section=i, error=error)
+      CALL section_vals_val_get(periodic_section,"LENGTH", r_val=rep_sys(i)%p_resp%length,&
+                                i_rep_section=i, error=error)
       CALL section_vals_val_get(periodic_section,"SURF_DIRECTION",&
-                                      i_val=resp_env%my_fit,error=error)
-      IF(ANY(resp_env%range_surf<0.0_dp)) THEN
+                                i_rep_section=i, i_val=rep_sys(i)%p_resp%my_fit,error=error)
+      IF(ANY(rep_sys(i)%p_resp%range_surf<0.0_dp)) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
              "Numbers in RANGE in PERIODIC_SYS cannot be negative.")
       ENDIF
-      IF(resp_env%length<=EPSILON(0.0_dp)) THEN
+      IF(rep_sys(i)%p_resp%length<=EPSILON(0.0_dp)) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
              "Parameter LENGTH in PERIODIC_SYS has to be larger than zero.")
       ENDIF
       !list of atoms specifing the surface
-      CALL build_atom_list(periodic_section,subsys,resp_env%atom_surf_list,error=error)
+      CALL build_atom_list(periodic_section,subsys,rep_sys(i)%p_resp%atom_surf_list,rep=i,error=error)
+     ENDDO
     ENDIF
+     
 
     ! get the parameters for the constraint and restraint sections    
     CALL section_vals_get(cons_section, explicit=explicit, error=error)
@@ -617,10 +642,12 @@ CPSourceFileRef,&
 !****************************************************************************
 !\brief build matrix and vector for periodic RESP fitting
 !****************************************************************************
-  SUBROUTINE calc_resp_matrix_periodic(qs_env,resp_env,particles,cell,natom,error)
+  SUBROUTINE calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,&
+                                       natom,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: natom
@@ -674,7 +701,8 @@ CPSourceFileRef,&
                              error=error)
 
     !get fitting points and store them in resp_env%fitpoints
-    CALL get_fitting_points(qs_env,resp_env,particles=particles,cell=cell,error=error)
+    CALL get_fitting_points(qs_env,resp_env,rep_sys,particles=particles,&
+         cell=cell,error=error)
     ALLOCATE(vpot(resp_env%npoints,natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
     normalize_factor=SQRT((resp_env%eta/pi)**3)
@@ -727,10 +755,11 @@ CPSourceFileRef,&
 !****************************************************************************
 !\brief get RESP fitting points for the periodic fitting
 !****************************************************************************
-  SUBROUTINE get_fitting_points(qs_env,resp_env,particles,cell,error)
+  SUBROUTINE get_fitting_points(qs_env,resp_env,rep_sys,particles,cell,error)
  
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -738,11 +767,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fitting_points', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2,3), gbo(2,3), handle, iatom, in_x, in_y, in_z, jx, jy, &
-      jz, k, l, m, natom, now, np(3), output_unit, p, stat
+    INTEGER                                  :: bo(2,3), gbo(2,3), handle, i, &
+                                                iatom, in_x, in_y, in_z, jx, &
+                                                jy, jz, k, l, m, natom, now, &
+                                                output_unit, p, stat
     LOGICAL                                  :: failure, my_write
-    REAL(KIND=dp)                            :: dh(3,3), dvol, r(3), &
-                                                vec_pbc(3)
+    REAL(KIND=dp)                            :: dh(3,3), r(3), vec_pbc(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -771,9 +801,7 @@ CPSourceFileRef,&
     v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
     bo=v_hartree_pw%pw_grid%bounds_local
     gbo=v_hartree_pw%pw_grid%bounds
-    np=v_hartree_pw%pw_grid%npts
     dh=v_hartree_pw%pw_grid%dh
-    dvol=v_hartree_pw%pw_grid%dvol
     natom=SIZE(particles%els)
 
     IF(.NOT.ASSOCIATED(resp_env%fitpoints)) THEN
@@ -809,31 +837,39 @@ CPSourceFileRef,&
          ENDDO
          IF (ALL(dist>resp_env%rmax-1.0E-13_dp).OR.ANY(dist<resp_env%rmin+1.0E-13_dp)) CYCLE
        ELSE
-         DO m=1,SIZE(resp_env%atom_surf_list)
-            in_z=0
-            in_y=0
-            in_x=0
-            iatom=resp_env%atom_surf_list(m)
-            vec_pbc = pbc(particles%els(iatom)%r,r,cell)
-            SELECT CASE(resp_env%my_fit)
-            !subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
-            CASE(do_resp_x_dir)
-             IF(ABS(vec_pbc(3))<resp_env%length-1.0E-13_dp)       in_z=1
-             IF(ABS(vec_pbc(2))<resp_env%length-1.0E-13_dp)       in_y=1
-             IF(vec_pbc(1)>resp_env%range_surf(1)+1.0E-13_dp.AND.&              
-                 vec_pbc(1)<resp_env%range_surf(2)-1.0E-13_dp)    in_x=1 
-            CASE(do_resp_y_dir)
-             IF(ABS(vec_pbc(3))<resp_env%length-1.0E-13_dp)       in_z=1
-             IF(vec_pbc(2)>resp_env%range_surf(1)+1.0E-13_dp.AND.&              
-                 vec_pbc(2)<resp_env%range_surf(2)-1.0E-13_dp)    in_y=1 
-             IF(ABS(vec_pbc(1))<resp_env%length-1.0E-13_dp)       in_x=1
-            CASE(do_resp_z_dir)
-             IF(vec_pbc(3)>resp_env%range_surf(1)+1.0E-13_dp.AND.&              
-                 vec_pbc(3)<resp_env%range_surf(2)-1.0E-13_dp)    in_z=1 
-             IF(ABS(vec_pbc(2))<resp_env%length-1.0E-13_dp)       in_y=1
-             IF(ABS(vec_pbc(1))<resp_env%length-1.0E-13_dp)       in_x=1
-            END SELECT
-            IF(in_z*in_y*in_x==1) EXIT
+         DO i=1,SIZE(rep_sys)
+          DO m=1,SIZE(rep_sys(i)%p_resp%atom_surf_list)
+             in_z=0
+             in_y=0
+             in_x=0
+             iatom=rep_sys(i)%p_resp%atom_surf_list(m)
+             SELECT CASE(rep_sys(i)%p_resp%my_fit)
+             CASE(do_resp_x_dir, do_resp_y_dir, do_resp_z_dir)
+              vec_pbc = pbc(particles%els(iatom)%r,r,cell)
+             CASE(do_resp_minus_x_dir, do_resp_minus_y_dir, do_resp_minus_z_dir)
+              vec_pbc = pbc(r,particles%els(iatom)%r,cell)
+             END SELECT
+             SELECT CASE(rep_sys(i)%p_resp%my_fit)
+             !subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
+             CASE(do_resp_x_dir, do_resp_minus_x_dir)
+              IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_z=1
+              IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_y=1
+              IF(vec_pbc(1)>rep_sys(i)%p_resp%range_surf(1)+1.0E-13_dp.AND.&              
+                  vec_pbc(1)<rep_sys(i)%p_resp%range_surf(2)-1.0E-13_dp)    in_x=1 
+             CASE(do_resp_y_dir,do_resp_minus_y_dir)
+              IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_z=1
+              IF(vec_pbc(2)>rep_sys(i)%p_resp%range_surf(1)+1.0E-13_dp.AND.&              
+                  vec_pbc(2)<rep_sys(i)%p_resp%range_surf(2)-1.0E-13_dp)    in_y=1 
+              IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_x=1
+             CASE(do_resp_z_dir, do_resp_minus_z_dir)
+              IF(vec_pbc(3)>rep_sys(i)%p_resp%range_surf(1)+1.0E-13_dp.AND.&              
+                  vec_pbc(3)<rep_sys(i)%p_resp%range_surf(2)-1.0E-13_dp)    in_z=1 
+              IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_y=1
+              IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_x=1
+             END SELECT
+             IF(in_z*in_y*in_x==1) EXIT
+          ENDDO
+          IF(in_z*in_y*in_x==1) EXIT
          ENDDO
          IF(in_z*in_y*in_x==0) CYCLE
        ENDIF
@@ -845,7 +881,6 @@ CPSourceFileRef,&
        resp_env%fitpoints(1,resp_env%npoints) = jx
        resp_env%fitpoints(2,resp_env%npoints) = jy
        resp_env%fitpoints(3,resp_env%npoints) = jz
-
       ENDDO
      ENDDO
     ENDDO
@@ -1051,17 +1086,18 @@ CPSourceFileRef,&
 !****************************************************************************
 !\brief print input information
 !****************************************************************************
-  SUBROUTINE print_resp_parameter_info(qs_env,resp_env,my_per,error)
+  SUBROUTINE print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     INTEGER, INTENT(IN)                      :: my_per
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_resp_parameter_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, output_unit
+    INTEGER                                  :: handle, i, output_unit
     REAL(KIND=dp)                            :: conv, eta_conv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input, resp_section
@@ -1101,22 +1137,31 @@ CPSourceFileRef,&
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
      IF(resp_env%nonperiodic_sys) THEN
-       WRITE(output_unit,'(T3,A,T71,F10.5)')  "Rmin [angstrom]: " ,resp_env%rmin*conv
+       WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin*conv
        WRITE(output_unit,'(T3,A,T71F10.5)')  "Rmax [angstrom]: ",resp_env%rmax*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
      ELSE
        WRITE(output_unit,'(2X,A,F10.5)')  "Index of atoms defining the surface: "
-       WRITE(output_unit,'(7X,10I6)')  resp_env%atom_surf_list
-       WRITE(output_unit,'(T3,A,T61,2F10.5)')&
-                          "Range for sampling above the surface [angstrom]:",&
-                           resp_env%range_surf(1:2)*conv
-       WRITE(output_unit,'(T3,A,T71,F10.5)')  "Length of sampling box above each"//&
-                                              " surface atom [angstrom]: ",resp_env%length*conv
+       DO i=1, SIZE(rep_sys)
+        IF(i>1.AND.ALL(rep_sys(i)%p_resp%atom_surf_list==rep_sys(1)%p_resp%atom_surf_list)) EXIT
+        WRITE(output_unit,'(7X,10I6)')  rep_sys(i)%p_resp%atom_surf_list
+       ENDDO
+       DO i=1, SIZE(rep_sys)
+        IF(i>1.AND.ALL(rep_sys(i)%p_resp%range_surf==rep_sys(1)%p_resp%range_surf)) EXIT
+        WRITE(output_unit,'(T3,A,T61,2F10.5)')&
+                           "Range for sampling above the surface [angstrom]:",&
+                            rep_sys(i)%p_resp%range_surf(1:2)*conv
+       ENDDO
+       DO i=1, SIZE(rep_sys)
+        IF(i>1.AND.rep_sys(i)%p_resp%length==rep_sys(1)%p_resp%length) EXIT
+        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Length of sampling box above each"//&
+                           " surface atom [angstrom]: ",rep_sys(i)%p_resp%length*conv
+       ENDDO
      ENDIF
      IF(.NOT.my_per==use_perd_none) THEN
        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Width of Gaussian charge"//&
-                                                " distribution [angstrom^-2]: ", eta_conv
+                                              " distribution [angstrom^-2]: ", eta_conv
      ENDIF
      CALL m_flush(output_unit)
     ENDIF

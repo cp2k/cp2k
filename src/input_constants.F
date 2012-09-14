@@ -886,6 +886,9 @@ MODULE input_constants
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&
                                               do_resp_y_dir=1,&
-                                              do_resp_z_dir=2 
+                                              do_resp_z_dir=2,& 
+                                              do_resp_minus_x_dir=3,&
+                                              do_resp_minus_y_dir=4,& 
+                                              do_resp_minus_z_dir=5 
 
 END MODULE input_constants

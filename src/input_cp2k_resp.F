@@ -299,7 +299,7 @@ CONTAINS
                         "Poisson solvers, it only affects the sampling of grid points. "//&
                         "All grid points in the shell defined by rmin and rmax are accepted "//&
                         "for fitting.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -427,11 +427,15 @@ CONTAINS
        CALL keyword_create(keyword, name="SURF_DIRECTION",&
             description="Specifies what above the surface means. Defines the direction.",&
             usage="SURF_DIRECTION Z",&
-            enum_c_vals=s2a( "X", "Y", "Z"),&
-            enum_i_vals=(/ do_resp_x_dir, do_resp_y_dir, do_resp_z_dir /),&
+            enum_c_vals=s2a( "X", "Y", "Z", "-X", "-Y", "-Z"),&
+            enum_i_vals=(/ do_resp_x_dir, do_resp_y_dir, do_resp_z_dir,&
+                           do_resp_minus_x_dir, do_resp_minus_y_dir, do_resp_minus_z_dir /),&
             enum_desc=s2a("surface layers are piled up in x-direction", &
                           "surface layers are piled up in y-direction",&
-                          "surface layers are piled up in z-direction"),&
+                          "surface layers are piled up in z-direction",&
+                          "surface layers are piled up in -x-direction",&
+                          "surface layers are piled up in -y-direction",&
+                          "surface layers are piled up in -z-direction"),&
             default_i_val=do_resp_z_dir, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -475,9 +479,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"COORD_FIT_POINTS",&
             description="Controls the printing of the coordinates of the "// &
-            "grid points used for periodic RESP fitting. If coordinates of "//&
-            "atoms are outside the box, use CENTER_COODINATES in TOPOLOGY. "//&
-            "Otherwise it is still correct, but might look weird. This section "//&
+            "grid points used for periodic RESP fitting. This section "//&
             "is intended to be only used for testing (you can get large files).",&
             print_level=high_print_level,add_last=add_last_numeric,&
             filename="RESP_FIT_POINTS",&
