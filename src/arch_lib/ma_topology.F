@@ -536,10 +536,11 @@ CONTAINS
                                               ipe,jpe,x,y,z, src_x, src_y,&
                                               src_z,dest_x, dest_y, dest_z, &
                                               src,dest,sum_hb, sum_hb_ngb
+  REAL                                     :: tmp
 
   CALL mp_environ(numtask,source,mp_group)
 
-
+  tmp = 0
   sum_hb = 0
   sum_hb_ngb = 0
 
@@ -550,13 +551,12 @@ CONTAINS
     IF (src .NE. dest) THEN
      CALL ma_get_host_coordinates(src,src_x, src_y, src_z)
      CALL ma_get_host_coordinates(dest,dest_x, dest_y, dest_z)
-     x = ABS(src_x-dest_x);
-     IF(x == ma_nodes_x()) x = 1;
-     y = ABS(src_y-dest_y);
-     IF(y == ma_nodes_y()) y = 1;
-     z = ABS(src_z-dest_z);
-     IF(z == ma_nodes_z()) z = 1;
-
+     tmp = REAL(src_x-dest_x)/REAL(ma_nodes_x())
+     x=NINT((tmp-NINT(tmp))*REAL(ma_nodes_x()))
+     tmp = REAL(src_y-dest_y)/REAL(ma_nodes_y())
+     y=NINT((tmp-NINT(tmp))*REAL(ma_nodes_y()))
+     tmp = REAL(src_z-dest_z)/REAL(ma_nodes_z())
+     z=NINT((tmp-NINT(tmp))*REAL(ma_nodes_z()))
      sum_hb_ngb = sum_hb_ngb + x + y + z
     ENDIF
    ENDDO
@@ -582,7 +582,7 @@ CONTAINS
                                               ipe,jpe,x,y,z, src_x, src_y,&
                                               src_z,dest_x, dest_y, dest_z, &
                                               src,dest,sum_hb,sum_comm
-
+  REAL                                     :: tmp
   CALL mp_environ(numtask,source,mp_group)
 
 
@@ -596,12 +596,12 @@ CONTAINS
     IF ( src .NE. dest ) THEN
      CALL ma_get_host_coordinates(src,src_x, src_y, src_z)
      CALL ma_get_host_coordinates(dest,dest_x, dest_y, dest_z)
-     x = ABS(src_x-dest_x);
-     IF(x == ma_nodes_x()) x = 1;
-     y = ABS(src_y-dest_y);
-     IF(y == ma_nodes_y()) y = 1;
-     z = ABS(src_z-dest_z);
-     IF(z == ma_nodes_z()) z = 1;
+     tmp = REAL(src_x-dest_x)/REAL(ma_nodes_x())
+     x=NINT((tmp-NINT(tmp))*REAL(ma_nodes_x()))
+     tmp = REAL(src_y-dest_y)/REAL(ma_nodes_y())
+     y=NINT((tmp-NINT(tmp))*REAL(ma_nodes_y()))
+     tmp = REAL(src_z-dest_z)/REAL(ma_nodes_z())
+     z=NINT((tmp-NINT(tmp))*REAL(ma_nodes_z()))
      sum_hb = sum_hb + x + (y*6) + (z*4)
      sum_comm = sum_comm + 1
     ENDIF
