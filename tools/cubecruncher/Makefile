@@ -18,6 +18,9 @@ FCFLAGS=-O2
 FC=g95
 FCFLAGS=-O2 
 
+FC=gfortran
+FCFLAGS=-O2 
+
 EXE=-o cubecruncher.x
 
 #

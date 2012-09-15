@@ -527,10 +527,10 @@ CONTAINS
         input%iso_current = .TRUE.
         CALL getarg(I+1,nextarg)
         READ(nextarg,*) input%bwidth
-        WRITE(6,'(A,f10.5))') "Correct the iso-density surface to a better approx. of iso-current, W= ",input%bwidth
+        WRITE(6,'(A,f10.5)') "Correct the iso-density surface to a better approx. of iso-current, W= ",input%bwidth
       CASE("-espot")
         input%espot_over_iso=.TRUE.
-        WRITE(6,'(A))') "Assign the ES-pot values to the iso-surface"
+        WRITE(6,'(A)') "Assign the ES-pot values to the iso-surface"
       CASE("-espot_cube")
         input%have_espot_cube=.TRUE.
         CALL getarg(I+1,input%cube_name_espot)
