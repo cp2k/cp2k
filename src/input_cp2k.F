@@ -275,25 +275,23 @@ CONTAINS
 
     CALL keyword_create(keyword, name="PREFERRED_FFT_LIBRARY",&
          description="Specifies the FFT library which should be preferred. "//&
-                     "If it is not available, use FFTW if this is linked in, if FFTW is not available use FFTSG. "//&
-                     "Improved performance with FFTW can be obtained specifying a proper value for FFTW_PLAN_TYPE. "//&
+                     "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "//&
+                     "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "//&
                      "Contrary to earlier CP2K versions, all libraries will result in the same grids, "//&
                      "i.e. the subset of grids which all FFT libraries can transform. "//&
                      "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "//&
                      "or older results need to be reproduced. "//&
-                     "FFTW is often (close to) optimal, and well tested with CP2K.",&
-         usage="PREFERRED_FFT_LIBRARY FFTW",&
+                     "FFTW3 is often (close to) optimal, and well tested with CP2K.",&
+         usage="PREFERRED_FFT_LIBRARY FFTW3",&
          citations=(/Frigo2005/),&
-         default_i_val=do_fft_fftw, &
-         enum_i_vals=(/do_fft_sg,do_fft_fftw,do_fft_essl,do_fft_acml,do_fft_mkl,do_fft_sci,do_fft_cu/),&
-         enum_c_vals=s2a("FFTSG","FFTW","FFTESSL","FFTACML","FFTMKL","FFTSCI","FFTCU"),&
-         enum_desc=s2a("Stefan Goedecker FFT, always available, will be used in case a FFT lib is specified and not available",&
-                       "a fast portable FFT library. Recommended. This will use either FFTW2 or FFTW3, as available"//&
+         default_i_val=do_fft_fftw3, &
+         enum_i_vals=(/do_fft_sg,do_fft_fftw3,do_fft_fftw3,do_fft_cu/),&
+         enum_c_vals=s2a("FFTSG","FFTW3","FFTW","FFTCU"),&
+         enum_desc=s2a("Stefan Goedecker''s FFT (FFTSG), always available,"//&
+                       "will be used in case a FFT lib is specified and not available",&
+                       "a fast portable FFT library. Recommended."//&
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.",&
-                       "available/tuned for IBM machines",&
-                       "available/tuned for AMD machines (buggy & untested)",&
-                       "available/tuned for INTEL machines (untested in parallel)",&
-                       "available/tuned for SGI machines (untested)",&
+                       "Same as FFTW3 (for compatability with CP2K 2.3)",&
                        "available/tuned for NVIDIA GPUs (single precision only, untested)"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)

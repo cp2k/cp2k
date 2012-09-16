@@ -20,18 +20,8 @@
       flib = -1
     CASE ( "FFTSG" )
       flib = 1
-    CASE ( "FFTW2" )
-      flib = 2
     CASE ( "FFTW3" )
       flib = 3
-    CASE ( "FFTESSL" )
-      flib = 4
-    CASE ( "FFTACML" )
-      flib = 5
-    CASE ( "FFTMKL" )
-      flib = 6
-    CASE ( "FFTSCI" )
-      flib = 7
     CASE ( "FFTCU" )
       flib = 8
   END SELECT
@@ -50,18 +40,8 @@ SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
       STOP "fft_get_lengths"
     CASE ( 1 )
       CALL fftsg_get_lengths ( DATA, max_length )
-    CASE ( 2 )
-      CALL fftw2_get_lengths ( DATA, max_length )
     CASE ( 3 )
       CALL fftw3_get_lengths ( DATA, max_length )
-    CASE ( 4 )
-      CALL fftessl_get_lengths ( DATA, max_length )
-    CASE ( 5 )
-      CALL fftacml_get_lengths ( DATA, max_length )
-    CASE ( 6 )
-      CALL fftmkl_get_lengths ( DATA, max_length )
-    CASE ( 7 )
-      CALL fftsci_get_lengths ( DATA, max_length )
     CASE ( 8 )
       CALL fftcu_get_lengths ( DATA, max_length )
   END SELECT
@@ -93,12 +73,10 @@ IMPLICIT NONE
   plan % n_3d = n
 !$ plan % need_alt_plan = .FALSE.
 
-  SELECT CASE ( fft_type )
-    CASE ( 2 )
-      CALL fftw2_create_plan_3d ( plan, plan_style )
-    CASE ( 3 )
-      CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style, aligned )
-  END SELECT
+  ! Planning only needed for FFTW3
+  IF (fft_type .eq. 3) THEN 
+    CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style, aligned )
+  END IF
 
   plan % valid = .TRUE.
 
@@ -129,18 +107,8 @@ SUBROUTINE fft_3d ( plan, scale, zin, zout, stat )
         STOP "fft_3d"
       CASE ( 1 )
         CALL fftsg3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
-      CASE ( 2 )
-        CALL fftw23d ( plan, scale, zin, zout ,stat )
       CASE ( 3 )
         CALL fftw33d ( plan, scale, zin, zout ,stat )
-      CASE ( 4 )
-        CALL fftessl3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
-      CASE ( 5 )
-        CALL fftacml3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
-      CASE ( 6 )
-        CALL fftmkl3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
-      CASE ( 7 )
-        CALL fftsci3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
       CASE ( 8 )
         CALL fftcu3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
     END SELECT
@@ -181,13 +149,10 @@ IMPLICIT NONE
   plan % m = m
 !$ plan % need_alt_plan = .FALSE.
 
-  SELECT CASE ( fft_type )
-    CASE ( 2 )
-      CALL fftw2_create_plan_1dm ( plan, plan_style )
-    CASE ( 3 )
-      CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style, aligned )
-  END SELECT
-
+  ! Planning only needed for FFTW3
+  IF (fft_type .eq. 3) THEN
+    CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style, aligned )
+  END IF
   plan % valid = .TRUE.
 
 END SUBROUTINE fft_create_plan_1dm
@@ -202,13 +167,9 @@ SUBROUTINE fft_destroy_plan ( plan )
 ! Arguments
   TYPE (fft_plan_type), INTENT (INOUT)          :: plan
 
-  IF (plan % valid) THEN
-    SELECT CASE ( plan % fft_type )
-      CASE ( 2 )
-        CALL fftw2_destroy_plan ( plan )
-      CASE ( 3 )
-        CALL fftw3_destroy_plan ( plan )
-    END SELECT
+  ! Planning only needed for FFTW3
+  IF (plan % valid .and. plan % fft_type .eq. 3) THEN
+    CALL fftw3_destroy_plan ( plan )
     plan % valid = .FALSE.
   END IF
 
@@ -235,20 +196,10 @@ SUBROUTINE fft_1dm ( plan, zin, zout, scale, stat)
         STOP "fft_1dm"
       CASE ( 1 )
         CALL fftsg1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
-      CASE ( 2 )
-        CALL fftw21dm ( plan, zin, zout, scale, stat )
       CASE ( 3 )
         CALL fftw31dm ( plan, zin, zout, scale, stat )
-      CASE ( 4 )
-        CALL fftessl1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
-      CASE ( 5 )
-        CALL fftacml1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
-      CASE ( 6 )
-        CALL fftmkl1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
-      CASE ( 7 )
-        CALL fftsci1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 8 )
-        CALL fftmkl1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
+        CALL fftcu1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
     END SELECT
   END IF
   ! stat is set to zero on error, -1,+1 are OK

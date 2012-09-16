@@ -2,16 +2,11 @@ LIB2_OBJECTS = ctrig.o\
                fft_kinds.o\
                fft_lib.o\
                fft_plan.o\
-               fftacml_lib.o\
                fftcu_lib.o\
-               fftessl_lib.o\
-               fftmkl_lib.o\
                fftpre.o\
                fftrot.o\
-               fftsci_lib.o\
                fftsg_lib.o\
                fftstp.o\
-               fftw2_lib.o\
                fftw3_lib.o\
                mltfftsg_tools.o\
                mltfftsg.o

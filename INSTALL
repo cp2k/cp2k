@@ -61,9 +61,9 @@ How to compile CP2K code
      that makes installingScaLAPACK easier:
          http://www.netlib.org/scalapack/scalapack_installer.tgz
 
- 2e) FFTW can be used to improve FFT speed (depending on architecture).
+ 2e) FFTW can be used to improve FFT speed on a wide range of architectures.
      It is strongly recommended to install and use FFTW3.  The current version
-     of CP2K works with FFTW 2.X or FFTW 3.X (use -D__FFTW2 *or* -D__FFTW3).
+     of CP2K works with FFTW 3.X (use -D__FFTW3).
          http://www.fftw.org/
      Note that FFTW must know the Fortran compiler you will use in order to
      install properly (e.g., 'export F77=g95' before configure if you intend
@@ -165,10 +165,7 @@ How to compile CP2K code
      various FFTs (use __FFTW3 if possible) :
      -D__FFTSG: Stefan Goedecker FFT (should always be there)
      -D__FFTW3: FFTW version 3
-     -D__FFTW2: FFTW version 2
-     -D__FFTESSL: ESSL
-     -D__FFTMKL: mkl
-     -D__FFTACML: acml (interface known to be buggy)
+     -D__FFTCU: CUDA FFT
      various compilers/architectures needing their own machine_* file
      -D__G95
      -D__NAG

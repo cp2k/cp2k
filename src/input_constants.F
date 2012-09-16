@@ -817,24 +817,12 @@ MODULE input_constants
   ! FFT library
   ! these might need sync with fft_lib.F
   INTEGER, PARAMETER, PUBLIC               :: do_fft_sg=1,&
-                                              do_fft_fftw2=2,&
                                               do_fft_fftw3=3,&
-                                              do_fft_essl=4,&
-                                              do_fft_acml=5,&
-                                              do_fft_mkl=6,&
-                                              do_fft_sci=7,&
                                               do_fft_cu=8
   INTEGER, PARAMETER, PUBLIC               :: fftw_plan_estimate=1, &
                                               fftw_plan_measure=2, &
                                               fftw_plan_patient=3, &
                                               fftw_plan_exhaustive=4
-
-  ! fftw will automatically be either FFTW2 or FFTW3
-#if defined ( __FFTW2 )
-  INTEGER, PARAMETER, PUBLIC               :: do_fft_fftw=do_fft_fftw2
-#else
-  INTEGER, PARAMETER, PUBLIC               :: do_fft_fftw=do_fft_fftw3
-#endif
 
   ! SCP-DFT
   INTEGER, PARAMETER, PUBLIC               :: copy_coeff=1,  &

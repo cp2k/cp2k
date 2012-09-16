@@ -41,9 +41,9 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       debug_print_level, do_cp2k, do_eip, do_farming, do_fft_acml, &
-       do_fft_cu, do_fft_essl, do_fft_fftw, do_fft_fftw2, do_fft_fftw3, &
-       do_fft_mkl, do_fft_sci, do_fft_sg, do_fist, do_qs, do_test, &
+       debug_print_level, do_cp2k, do_eip, do_farming, &
+       do_fft_cu, do_fft_fftw3, &
+       do_fft_sg, do_fist, do_qs, do_test, &
        energy_run, high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
   USE input_cp2k,                      ONLY: create_global_section
@@ -553,20 +553,9 @@ CONTAINS
     SELECT CASE(i_fft)
     CASE(do_fft_sg)
        globenv%default_fft_library="FFTSG"
-    CASE(do_fft_fftw2)
-       globenv%default_fft_library="FFTW2"
-       CALL cite_reference(Frigo2005)
     CASE(do_fft_fftw3)
        globenv%default_fft_library="FFTW3"
        CALL cite_reference(Frigo2005)
-    CASE(do_fft_essl)
-       globenv%default_fft_library="FFTESSL"
-    CASE(do_fft_acml)
-       globenv%default_fft_library="FFTACML"
-    CASE(do_fft_mkl)
-       globenv%default_fft_library="FFTMKL"
-    CASE(do_fft_sci)
-       globenv%default_fft_library="FFTSCI"
     CASE(do_fft_cu)
        globenv%default_fft_library="FFTCU"
     CASE DEFAULT
@@ -834,7 +823,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cp2k_section', &
       routineP = moduleN//':'//routineN, start_section_label = "CP2K"
 
-    CHARACTER(LEN=10)                        :: fftw_name
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     INTEGER                                  :: output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
@@ -853,23 +841,14 @@ CONTAINS
 
     !
     ! Setup the FFT library
-    ! If the user has specified PREFERRED_FFT_LIBRARY try that first (default FFTW)
-    ! If that one is not available, try FFTW (unless it has been tried already)
-    ! If FFTW is not available use FFTSG
+    ! If the user has specified PREFERRED_FFT_LIBRARY try that first (default FFTW3)
+    ! If that one is not available, try FFTW3 (unless it has been tried already)
+    ! If FFTW3 is not available use FFTSG
     !
-    IF (globenv%default_fft_library.EQ."FFTW2" .OR. globenv%default_fft_library.EQ."FFTW3") THEN
+    IF (globenv%default_fft_library.EQ."FFTW3") THEN
        try_fftw=.FALSE.
     ELSE
        try_fftw=.TRUE.
-       SELECT CASE(do_fft_fftw)
-       CASE(do_fft_fftw2)
-          fftw_name="FFTW2"
-       CASE(do_fft_fftw3)
-          fftw_name="FFTW3"
-       CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Unknown FFT type",para_env)
-       END SELECT
     ENDIF
 
     !   *** Initialize FFT library with the user's prefered FFT library ***
@@ -889,9 +868,9 @@ CONTAINS
           IF (output_unit > 0) THEN
              WRITE(output_unit,'(A,A,T55,A)') &
                   " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
-                  " is not available "," Trying "//TRIM(fftw_name)
+                  " is not available "," Trying FFTW3"
           ENDIF
-          globenv%default_fft_library=fftw_name
+          globenv%default_fft_library="FFTW3"
           CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
                alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
                fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
