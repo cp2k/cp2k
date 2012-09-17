@@ -210,61 +210,56 @@ CONTAINS
   ENDIF
 
   CALL mp_sum(nfields,mp_group)
-
-  ALLOCATE(nid(nfields),x(nfields),y(nfields),z(nfields),STAT=istat)
-  IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-  END IF
-
-     nid(:) = 0
-     x(:)   = 0
-     y(:)   = 0
-     z(:)   = 0
-     max_x  = 0
-     max_y  = 0
-     max_z  = 0
-
   ALLOCATE(net_topology(nfields),STAT=istat)
   IF (istat /= 0) THEN
         CALL ma_error_stop(ma_error_allocation)
   END IF
 
   IF (source == 0) THEN
-   DO i=1, nfields
+   ALLOCATE(nid(nfields),x(nfields),y(nfields),z(nfields),STAT=istat)
+    IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+    END IF
+
+    DO i=1, nfields
      READ(rst_unit,*) nid(i),x(i),y(i),z(i)
      y(i) = 2*y(i)+MOD(i,2) 
-   ENDDO
-   CLOSE(rst_unit)
+    ENDDO
+    CLOSE(rst_unit)
 
-  istat =  ma_remove_topology()
-  IF (istat /= 0) CALL ma_error_stop(ma_error_remove)
+    istat =  ma_remove_topology()
+    IF (istat /= 0) CALL ma_error_stop(ma_error_remove)
 
-  net_topology(:)%nid = nid(:)
-  net_topology(:)%coord_x = x(:)
-  net_topology(:)%coord_y = y(:)
-  net_topology(:)%coord_z = z(:)   
+    net_topology(:)%nid = nid(:)
+    net_topology(:)%coord_x = x(:)
+    net_topology(:)%coord_y = y(:)
+    net_topology(:)%coord_z = z(:)   
 
-  ENDIF
-  IF(ASSOCIATED(nid))DEALLOCATE(nid,x,y,z,STAT=istat)
-  IF (istat /= 0) THEN
+    IF(ASSOCIATED(nid))DEALLOCATE(nid,x,y,z,STAT=istat)
+    IF (istat /= 0) THEN
         CALL ma_error_stop(ma_error_allocation)
-  END IF
-
-  IF ( source .NE. 0) THEN
-    net_topology(:)%nid     = 0
-    net_topology(:)%coord_x = 0
-    net_topology(:)%coord_y = 0
-    net_topology(:)%coord_z = 0
+    END IF
   ENDIF
 
-  CALL mp_sum(net_topology(:)%nid,mp_group)
-  CALL mp_sum(net_topology(:)%coord_x,mp_group)
-  CALL mp_sum(net_topology(:)%coord_y,mp_group)
-  CALL mp_sum(net_topology(:)%coord_z,mp_group)
+   max_x  = 0
+   max_y  = 0
+   max_z  = 0
 
-  max_x = MAXVAL(net_topology(:)%coord_x)+1
-  max_y = MAXVAL(net_topology(:)%coord_y)+1
-  max_z = MAXVAL(net_topology(:)%coord_z)+1
+   IF ( source .NE. 0) THEN
+     net_topology(:)%nid     = 0
+     net_topology(:)%coord_x = 0
+     net_topology(:)%coord_y = 0
+     net_topology(:)%coord_z = 0
+   ENDIF
+
+   CALL mp_sum(net_topology(:)%nid,mp_group)
+   CALL mp_sum(net_topology(:)%coord_x,mp_group)
+   CALL mp_sum(net_topology(:)%coord_y,mp_group)
+   CALL mp_sum(net_topology(:)%coord_z,mp_group)
+
+   max_x = MAXVAL(net_topology(:)%coord_x)+1
+   max_y = MAXVAL(net_topology(:)%coord_y)+1
+   max_z = MAXVAL(net_topology(:)%coord_z)+1
 
 #elif defined __NET && __parallel
 
@@ -411,7 +406,7 @@ CONTAINS
     INTEGER                                  :: istat
 
 #if defined __NET
-  IF(ASSOCIATED(dist_nodes))DEALLOCATE(dist_nodes,STAT=istat)
+   IF(ASSOCIATED(dist_nodes))DEALLOCATE(dist_nodes,STAT=istat)
   IF (istat /= 0) THEN
         CALL ma_error_stop(ma_error_allocation)
   END IF
@@ -551,13 +546,18 @@ CONTAINS
     IF (src .NE. dest) THEN
      CALL ma_get_host_coordinates(src,src_x, src_y, src_z)
      CALL ma_get_host_coordinates(dest,dest_x, dest_y, dest_z)
+!     if(source == 0) write(*,*) 'src ', src_x,i src_y, src_z,' dest ', dest_x, dest_y, dest_z
+
      tmp = REAL(src_x-dest_x)/REAL(ma_nodes_x())
      x=NINT((tmp-NINT(tmp))*REAL(ma_nodes_x()))
      tmp = REAL(src_y-dest_y)/REAL(ma_nodes_y())
      y=NINT((tmp-NINT(tmp))*REAL(ma_nodes_y()))
      tmp = REAL(src_z-dest_z)/REAL(ma_nodes_z())
      z=NINT((tmp-NINT(tmp))*REAL(ma_nodes_z()))
-     sum_hb_ngb = sum_hb_ngb + x + y + z
+
+ !    if(source == 0) write(*,*) ABS(x),ABS(y),ABS(z)
+
+     sum_hb_ngb = sum_hb_ngb + ABS(x) + ABS(y) + ABS(z)
     ENDIF
    ENDDO
     sum_hb = sum_hb + sum_hb_ngb
@@ -565,6 +565,8 @@ CONTAINS
   ENDDO
  
   hopsbyte = sum_hb/2
+
+  IF(hopsbyte .LT. 0) hopsbyte = 0
 #else
   hopsbyte = 0  
 #endif 
@@ -602,7 +604,7 @@ CONTAINS
      y=NINT((tmp-NINT(tmp))*REAL(ma_nodes_y()))
      tmp = REAL(src_z-dest_z)/REAL(ma_nodes_z())
      z=NINT((tmp-NINT(tmp))*REAL(ma_nodes_z()))
-     sum_hb = sum_hb + x + (y*6) + (z*4)
+     sum_hb = sum_hb + ABS(x) + ABS(y*6) + ABS(z*4)
      sum_comm = sum_comm + 1
     ENDIF
    ENDDO
@@ -714,11 +716,12 @@ END SUBROUTINE ma_comm_pattern_alltoall
 #if defined(__parallel)
  CALL mp_environ(numtask,source,mp_group)
 
+
+ IF (.NOT. ASSOCIATED(comm_graph))THEN
+
 #ifdef __DEBUG_HWTOPO
    IF(source==0) WRITE(*,*) 'Generating the communication graph'
 #endif
-
- IF (.NOT. ASSOCIATED(comm_graph))THEN
 
  !Cannon algorithm - each MPI has only for neighbors 
  ALLOCATE (comm_graph(0:numtask-1,0:3),STAT=istat)

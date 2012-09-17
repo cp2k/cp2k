@@ -59,6 +59,7 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_net_affinity
   PUBLIC :: cp_ma_mpi_reorder_strategy
   PUBLIC :: cp_ma_mpi_reordering
+  PUBLIC :: cp_ma_print_strategy
 
 CONTAINS
 
@@ -607,6 +608,49 @@ END SUBROUTINE cp_ma_net_affinity
      ENDIF
     ENDIF
   END SUBROUTINE cp_ma_verify_place
+
+  SUBROUTINE cp_ma_print_strategy(mpi_reorder,unit_nr, error)
+    CHARACTER, INTENT(IN)      :: mpi_reorder
+    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
+    INTEGER                                  :: unit_num        
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_print_strategy', &
+      routineP = moduleN//':'//routineN
+    
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+
+    IF(PRESENT (unit_nr)) THEN
+      unit_num = unit_nr
+    ELSE
+      unit_num = cp_logger_get_default_io_unit(logger)
+    ENDIF
+
+    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
+      WRITE(unit_num,'(A)')
+      IF (mpi_reorder .EQ. 'H' .OR. mpi_reorder .EQ. 'h') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Hilbert curve"
+      ELSE IF (mpi_reorder .EQ. 'P' .OR. mpi_reorder .EQ. 'p') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Peano curve"
+      ELSE IF (mpi_reorder .EQ. 'D' .OR. mpi_reorder .EQ. 'd') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Default"
+      ELSE IF (mpi_reorder .EQ. 'R' .OR. mpi_reorder .EQ. 'r') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Round-robin"
+      ELSE IF (mpi_reorder .EQ. 'F' .OR. mpi_reorder .EQ. 'f') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Hilbert-Peano"
+      ELSE IF (mpi_reorder .EQ. 'C' .OR. mpi_reorder .EQ. 'c') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Cannon Heuristic"
+      ELSE IF (mpi_reorder .EQ. 'O' .OR. mpi_reorder .EQ. 'o') THEN
+        WRITE(unit_num,'(A)') " MPI REORDERING| Own"
+      ELSE
+        WRITE(unit_num,'(A)') " MPI REORDERING| No strategy selected"
+      ENDIF
+        WRITE(unit_num,'(A)')
+    ENDIF
+
+  END SUBROUTINE cp_ma_print_strategy
 
   SUBROUTINE cp_ma_mpi_reorder_strategy(strategy)
    CHARACTER, INTENT(OUT)      :: strategy

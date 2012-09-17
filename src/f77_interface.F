@@ -30,7 +30,8 @@ MODULE f77_interface
                                              cp_ma_mpi_reorder_strategy,&
                                              cp_ma_mpi_reordering,&
                                              has_ma,&
-                                             has_ma_topology
+                                             has_ma_topology, &
+ 	                                     cp_ma_print_strategy
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -251,6 +252,10 @@ CONTAINS
        CPPostconditionNoErr(stat==0,cp_fatal_level,routineP)
        module_initialized=.TRUE.
        ierr=0
+
+#ifdef __MAP_POL
+     CALL cp_ma_print_strategy(strategy,unit_nr, error)
+#endif
 
        ! Initialize the MA_ARCH configuration
        IF (has_ma) THEN

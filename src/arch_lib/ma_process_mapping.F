@@ -1264,8 +1264,14 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
    !In the case that there is not a communication graph, we assume 
    ! that all tasks communicate with each other. 
    IF ( .NOT. PRESENT(kernel)) THEN
+#ifdef __DEBUG_HWTOPO
+   IF(taskid==0) WRITE(*,*) 'Complete graph'
+#endif
     CALL ma_comm_graph (mp_comm,complete_graph)
    ELSE
+#ifdef __DEBUG_HWTOPO
+   IF(taskid==0) WRITE(*,*) 'Cannon graph'
+#endif
    !Create the comm graph
     CALL ma_comm_graph (mp_comm,kernel)
    ENDIF
@@ -1280,6 +1286,8 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
    !Make the switch between each pair of MPI and compute the new contention
    !The computed contention take into account the communication graph 
    !in the ma_topology
+
+IF(old_contention .GT. 0) THEN
    new_contention = 0
    DO ipe=1,numtask
      DO jpe=ipe, ipe+jump
@@ -1291,8 +1299,16 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
        allocated_topology(jpe) = allocated_topology(jpe+1)
        allocated_topology(jpe+1) = tmp_order    
 
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Exchanged ',ordering(jpe+1), ' with ', ordering(jpe)
+#endif
+
        CALL ma_compute_contention(contention,mp_comm)
        new_contention = SUM(contention)
+
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'New contention ', new_contention
+#endif
 
        !we just change if the new contention is at least 10% better than 
        IF ( new_contention .LT. old_contention) THEN
@@ -1307,11 +1323,15 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
          allocated_topology(jpe) = tmp_order
 
          not_exchange = not_exchange + 1
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Exchanged back ',ordering(jpe), ' with ', ordering(jpe+1)
+#endif
       ENDIF
      ENDDO
 
        IF (( ipe .GE. numtask/2) .OR. (not_exchange .GE. numtask/2) ) EXIT 
    ENDDO
+ENDIF
 
 #ifdef __DEBUG_HWTOPO
    IF(taskid==0) WRITE(*,*) 'Finishing switch - have changed ', (numtask*4)-not_exchange
@@ -1549,6 +1569,11 @@ ENDIF
 
 #if defined __GEMINI || __SEASTAR
 
+
+#ifdef __DEBUG_HWTOPO
+   IF(taskid==0) WRITE(*,*) 'Contention with Hilbert curve ', contention_hp, ' Contention with packed ', contention_packed
+#endif  
+
   IF( contention_hp .LT. contention_packed) THEN
 
 #ifdef __DEBUG_HWTOPO
@@ -1640,6 +1665,9 @@ ENDIF
 
   allocated_topology(:) = tmp_order(:)
 
+#ifdef __DEBUG_HWTOPO
+   IF(taskid==0) WRITE(*,*) 'Contention: ', contention_X,contention_Y,contention_Z
+#endif
  
   IF ( (contention_X .LE. contention_Y+0.4*contention_Y) .AND. &
        (contention_X .LE. contention_Z+0.2*contention_Z)) THEN
@@ -1679,6 +1707,9 @@ ENDIF
 
   !hilbert does not improve the overall bw
   IF( contention_hp .GT. contention_packed) THEN
+#ifdef __DEBUG_HWTOPO
+   IF(taskid==0) WRITE(*,*) 'Back to packed! Hilbert is not improving contention'
+#endif
     DO ipe=1, numtask
         ranks_order(ipe) = ipe - 1
     ENDDO
