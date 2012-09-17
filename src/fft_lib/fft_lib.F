@@ -74,7 +74,7 @@ IMPLICIT NONE
 !$ plan % need_alt_plan = .FALSE.
 
   ! Planning only needed for FFTW3
-  IF (fft_type .eq. 3) THEN 
+  IF (fft_type .EQ. 3) THEN 
     CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style, aligned )
   END IF
 
@@ -150,7 +150,7 @@ IMPLICIT NONE
 !$ plan % need_alt_plan = .FALSE.
 
   ! Planning only needed for FFTW3
-  IF (fft_type .eq. 3) THEN
+  IF (fft_type .EQ. 3) THEN
     CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style, aligned )
   END IF
   plan % valid = .TRUE.
@@ -168,7 +168,7 @@ SUBROUTINE fft_destroy_plan ( plan )
   TYPE (fft_plan_type), INTENT (INOUT)          :: plan
 
   ! Planning only needed for FFTW3
-  IF (plan % valid .and. plan % fft_type .eq. 3) THEN
+  IF (plan % valid .AND. plan % fft_type .EQ. 3) THEN
     CALL fftw3_destroy_plan ( plan )
     plan % valid = .FALSE.
   END IF
