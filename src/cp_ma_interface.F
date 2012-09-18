@@ -610,14 +610,14 @@ END SUBROUTINE cp_ma_net_affinity
   END SUBROUTINE cp_ma_verify_place
 
   SUBROUTINE cp_ma_print_strategy(mpi_reorder,unit_nr, error)
-    CHARACTER, INTENT(IN)      :: mpi_reorder
+    CHARACTER, INTENT(IN)                    :: mpi_reorder
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
-    INTEGER                                  :: unit_num        
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_print_strategy', &
       routineP = moduleN//':'//routineN
-    
+
+    INTEGER                                  :: unit_num
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)

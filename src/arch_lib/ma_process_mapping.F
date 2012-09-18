@@ -1300,14 +1300,14 @@ IF(old_contention .GT. 0) THEN
        allocated_topology(jpe+1) = tmp_order    
 
 #ifdef __DEBUG_HWTOPO
-   if(taskid==0) write(*,*) 'Exchanged ',ordering(jpe+1), ' with ', ordering(jpe)
+   IF(taskid==0) WRITE(*,*) 'Exchanged ',ordering(jpe+1), ' with ', ordering(jpe)
 #endif
 
        CALL ma_compute_contention(contention,mp_comm)
        new_contention = SUM(contention)
 
 #ifdef __DEBUG_HWTOPO
-   if(taskid==0) write(*,*) 'New contention ', new_contention
+   IF(taskid==0) WRITE(*,*) 'New contention ', new_contention
 #endif
 
        !we just change if the new contention is at least 10% better than 
@@ -1324,7 +1324,7 @@ IF(old_contention .GT. 0) THEN
 
          not_exchange = not_exchange + 1
 #ifdef __DEBUG_HWTOPO
-   if(taskid==0) write(*,*) 'Exchanged back ',ordering(jpe), ' with ', ordering(jpe+1)
+   IF(taskid==0) WRITE(*,*) 'Exchanged back ',ordering(jpe), ' with ', ordering(jpe+1)
 #endif
       ENDIF
      ENDDO
