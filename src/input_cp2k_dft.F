@@ -2844,6 +2844,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="do_scp",&
+            description="Use SCP method. Can be used to switch off SCP to get a SCC-DFTB method",&
+            usage="DO_SCP",default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_scptb_control_section

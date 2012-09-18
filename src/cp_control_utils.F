@@ -864,7 +864,7 @@ CPSourceFileRef,&
        IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
     END IF
 
-    ! DFTB code
+    ! SCP-TB code
     IF (qs_control%scptb) THEN
        CALL section_vals_val_get(scptb_section,"DISPERSION",&
             l_val=qs_control%scptb_control%dispersion,error=error)
@@ -886,6 +886,8 @@ CPSourceFileRef,&
             r_val=qs_control%scptb_control%epspair,error=error)
        CALL section_vals_val_get(scptb_section,"DO_EWALD",&
             l_val=qs_control%scptb_control%do_ewald,error=error)
+       CALL section_vals_val_get(scptb_section,"DO_SCP",&
+            l_val=qs_control%scptb_control%do_scp,error=error)
     END IF
 
     CALL timestop(handle)

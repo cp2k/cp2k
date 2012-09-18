@@ -4,3 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 H2.inp    1
+h2.inp    1
+he.inp    1

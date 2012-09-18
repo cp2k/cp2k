@@ -11,9 +11,12 @@ MODULE scptb_ks_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              scptb_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_iterator_blocks_left,&
                                              cp_dbcsr_iterator_next_block,&
@@ -26,10 +29,14 @@ MODULE scptb_ks_matrix
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
+  USE gamma,                           ONLY: fgamma_0
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
   USE particle_types,                  ONLY: particle_type
@@ -51,6 +58,7 @@ MODULE scptb_ks_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_scp_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -91,11 +99,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_scptb_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                ispin, istat, natom, &
-                                                natom_kind, nkind, nspins, &
-                                                output_unit
-    LOGICAL                                  :: failure
+    INTEGER :: atom_a, handle, iatom, ikind, ispin, istat, lmaxscp, natom, &
+      natom_kind, nkind, nspins, output_unit
+    LOGICAL                                  :: do_es, do_scp, failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -114,6 +120,7 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(section_vals_type), POINTER         :: scf_section
 
@@ -142,47 +149,69 @@ CONTAINS
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
+       do_es = .FALSE.
+       do_scp = .FALSE.
+       nkind = SIZE(atomic_kind_set)
+       DO ikind=1,nkind
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
+         CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp)
+         IF(lmaxscp > 0) do_scp = .TRUE.
+         IF(lmaxscp >= 0) do_es = .TRUE.
+       END DO
+       scptb_control => dft_control%qs_control%scptb_control
+       IF(.NOT.scptb_control%do_scp) do_scp = .FALSE.
+
        DO ispin=1,nspins
          ! copy the core matrix into the fock matrix
           CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
-      ! Mulliken charges
-      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,matrix_s=matrix_s,error=error)
-      matrix_p => rho%rho_ao
-      natom=SIZE(particle_set)
-      ALLOCATE(charges(natom,nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(mcharge(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      IF(calculate_forces) THEN
-         ALLOCATE(dmcharge(natom,3),STAT=istat)
+       IF (do_es) THEN
+         ! Mulliken charges
+         CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,matrix_s=matrix_s,error=error)
+         matrix_p => rho%rho_ao
+         natom=SIZE(particle_set)
+         ALLOCATE(charges(natom,nspins),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,dmcharge,error=error)
-      ELSE
-         NULLIFY(dmcharge)
-         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
-      END IF
-      nkind = SIZE(atomic_kind_set)
-      DO ikind=1,nkind
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
-         CALL get_scptb_parameter(scptb_kind,zeff=zeff)
-         DO iatom=1,natom_kind
-           atom_a = atomic_kind%atom_list(iatom)
-           mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
+         ALLOCATE(mcharge(natom),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         IF(calculate_forces) THEN
+            ALLOCATE(dmcharge(natom,3),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,dmcharge,error=error)
+         ELSE
+            NULLIFY(dmcharge)
+            CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+         END IF
+         nkind = SIZE(atomic_kind_set)
+         DO ikind=1,nkind
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
+            CALL get_scptb_parameter(scptb_kind,zeff=zeff)
+            DO iatom=1,natom_kind
+              atom_a = atomic_kind%atom_list(iatom)
+              mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
+            END DO
          END DO
-      END DO
-      DEALLOCATE(charges,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      CALL scp_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
-
-      DEALLOCATE(mcharge,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      IF(calculate_forces) THEN
-         DEALLOCATE(dmcharge,STAT=istat)
+         DEALLOCATE(charges,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+         IF (do_scp) THEN
+            CALL scp_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
+         ELSE
+            CALL tb_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
+         END IF
+
+         DEALLOCATE(mcharge,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         IF(calculate_forces) THEN
+            DEALLOCATE(dmcharge,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         END IF
+      ELSE
+         energy%hartree = 0._dp
+         energy%core_self = 0._dp
       END IF
 
       energy%total = energy%core + energy%hartree + energy%qmmm_el + energy%repulsive + &
@@ -224,6 +253,210 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_scptb_ks_matrix
+
+! *****************************************************************************
+  SUBROUTINE tb_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,&
+             calculate_forces,just_energy,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_s
+    TYPE(qs_rho_type), POINTER               :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: mcharge
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: dmcharge
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tb_coulomb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, i, ia, iat, iatom, &
+                                                ikind, is, istat, ja, jat, &
+                                                jatom, jkind, jmax, lmaxscp, &
+                                                natom, nkind, nsize
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    LOGICAL                                  :: defined, failure, found
+    REAL(KIND=dp)                            :: alpha, beta, chabs, dq, dr2, &
+                                                eta, f0, ff, fi, noa, nob, t
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: qcharge
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: drcharge
+    REAL(KIND=dp), DIMENSION(0:1)            :: f
+    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, ksblock, pblock, &
+                                                sblock
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(scptb_control_type), POINTER        :: scptb_control
+    TYPE(scptb_parameter_type), POINTER      :: scptb_kind
+
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+         energy=energy,para_env=para_env,&
+         particle_set=particle_set,cell=cell,error=error)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+                    local_particles=local_particles,natom=natom,error=error)
+    IF (calculate_forces) THEN
+       CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+    END IF
+
+    energy%hartree = 0._dp
+    energy%core_self = 0._dp
+
+    chabs = SUM(ABS(mcharge))
+    IF ( chabs > 1.e-8_dp ) THEN
+       scptb_control => dft_control%qs_control%scptb_control
+       IF(scptb_control%do_ewald) THEN
+          CALL cp_unimplemented_error(routineP,"No Ewald possible",error)
+       ELSE
+         ! direct sum
+         IF(.NOT.just_energy .OR. calculate_forces) THEN
+            ALLOCATE(qcharge(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            qcharge = 0._dp
+         END IF
+         IF (calculate_forces) THEN
+            ALLOCATE(drcharge(3,natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            drcharge = 0._dp
+         END IF
+         nkind = SIZE(atomic_kind_set)
+         DO ikind=1,nkind
+           atomic_kind => atomic_kind_set(ikind)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+           CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
+           IF (.NOT.defined) CYCLE
+           IF (lmaxscp < 0) CYCLE
+           noa = 4._dp*SQRT(alpha/pi)
+           DO jkind=1,ikind
+             atomic_kind => atomic_kind_set(jkind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+             CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
+             eta = alpha*beta/(alpha+beta)
+             f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
+             IF (.NOT.defined) CYCLE
+             IF (lmaxscp < 0) CYCLE
+             nob = 4._dp*SQRT(beta/pi)
+             DO ia=1,local_particles%n_el(ikind)
+               iatom=local_particles%list(ikind)%array(ia)
+               IF(ikind==jkind) THEN
+                 jmax = ia - 1
+               ELSE
+                 jmax = local_particles%n_el(jkind)
+               END IF
+               DO ja=1,jmax
+                 jatom=local_particles%list(jkind)%array(ja)
+                 rij = particle_set(iatom)%r - particle_set(jatom)%r
+                 rij = pbc(rij,cell)
+                 dr2 = SUM(rij(:)**2)
+                 t = eta*dr2
+                 CALL fgamma_0(0,t,f)
+                 ff = noa*nob*f(0)*f0
+                 energy%hartree = energy%hartree + mcharge(iatom)*mcharge(jatom)*ff
+                 IF (.NOT.just_energy .OR. calculate_forces) THEN
+                    qcharge(iatom) = qcharge(iatom) + mcharge(jatom)*ff
+                    qcharge(jatom) = qcharge(jatom) + mcharge(iatom)*ff
+                 END IF
+                 IF ( calculate_forces ) THEN
+                    ff = noa*nob*f0*(EXP(-t)-f(0))/dr2
+                    drcharge(:,iatom) = drcharge(:,iatom) + ff*rij(:)*mcharge(iatom)*mcharge(jatom)
+                    drcharge(:,jatom) = drcharge(:,jatom) - ff*rij(:)*mcharge(iatom)*mcharge(jatom)
+                 END IF
+               END DO
+             END DO
+           END DO
+         END DO
+         IF(.NOT.just_energy.OR.calculate_forces) THEN
+            CALL mp_sum(qcharge,para_env%group)
+            ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                                     kind_of=kind_of, atom_of_kind=atom_of_kind)
+            IF ( calculate_forces ) THEN
+               matrix_p => rho%rho_ao
+               IF (SIZE(matrix_p) == 2) THEN
+                  CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                       alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+               END IF
+            END IF
+
+            ! calculate KS matrix
+            nsize = SIZE(ks_matrix)
+            CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
+            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+               dq = qcharge(iatom)+qcharge(jatom)
+               IF(.NOT.just_energy) THEN
+                  DO is=1,nsize
+                     NULLIFY(ksblock)
+                     CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is)%matrix,&
+                          row=iatom,col=jatom,block=ksblock,found=found)
+                     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                     ksblock = ksblock - 0.5_dp*dq*sblock
+                  END DO
+               END IF
+               IF ( calculate_forces ) THEN
+                  ikind = kind_of(iatom)
+                  iat   = atom_of_kind(iatom)
+                  jkind = kind_of(jatom)
+                  jat   = atom_of_kind(jatom)
+                  NULLIFY(pblock)
+                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                       row=iatom,col=jatom,block=pblock,found=found)
+                  CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                  DO i=1,3
+                     NULLIFY(dsblock)
+                     CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                          row=iatom,col=jatom,block=dsblock,found=found)
+                     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                     fi = dq*SUM(pblock*dsblock)
+                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
+                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
+                  END DO
+               END IF
+            END DO
+            CALL cp_dbcsr_iterator_stop(iter)
+
+            IF ( calculate_forces ) THEN
+               CALL mp_sum(drcharge,para_env%group)
+               DO iatom=1,natom
+                  ikind  = kind_of(iatom)
+                  iat = atom_of_kind(iatom)
+                  force(ikind)%rho_elec(1,iat) = force(ikind)%rho_elec(1,iat) + drcharge(1,iatom)
+                  force(ikind)%rho_elec(2,iat) = force(ikind)%rho_elec(2,iat) + drcharge(2,iatom)
+                  force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) + drcharge(3,iatom)
+               END DO
+               DEALLOCATE(drcharge,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               IF (SIZE(matrix_p) == 2) THEN
+                  CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                                 alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+               END IF
+            END IF
+ 
+            DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(qcharge,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         END IF
+
+       END IF
+    END IF
+
+  END SUBROUTINE tb_coulomb
 
 ! *****************************************************************************
   SUBROUTINE scp_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,&

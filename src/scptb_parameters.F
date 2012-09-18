@@ -73,7 +73,7 @@ CONTAINS
        param%occupation(1,0)       = 1
        param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
        param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%ag                    = 1.0_dp
+       param%ag                    = 4.0_dp
        param%energy                = -0.5_dp
 !   CASE (2)
 !      !Helium
@@ -104,8 +104,23 @@ CONTAINS
        param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
        param%ag                    = 1.0_dp
        param%energy                = -0.5_dp
-!   CASE (9)
-!      !Fluorine
+    CASE ("F")
+       !Fluorine
+       param%defined               = .TRUE.
+       param%key                   = "F"
+       param%z                     = 9
+       param%zeff                  = 7
+       param%lmaxorb               = 1
+       param%lmaxscp               = 2
+       param%norb(0:3)             = (/1,1,0,0/)
+       param%nqm(1,0:1)            = (/2,2/)
+       param%zeta(1,0:1)           = (/1.8_dp,1.8_dp/)
+       param%hcore(1,0:1)          = (/1.0_dp,1.0_dp/)
+       param%occupation(1,0:1)     = (/2,5/)
+       param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
+       param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
+       param%ag                    = 4.0_dp
+       param%energy                = -0.5_dp
 !   CASE (10)
 !      !Neon
 !   CASE (11)

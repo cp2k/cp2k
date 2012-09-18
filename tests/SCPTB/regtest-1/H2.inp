@@ -5,6 +5,8 @@
       METHOD SCPTB
       &SCPTB
          DISPERSION F
+         DO_EWALD F
+         DO_SCP F
       &END SCPTB
     &END QS
     &SCF
