@@ -4784,17 +4784,17 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'ring_puckering_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, jj, istat, m, nring
+    INTEGER                                  :: i, ii, istat, j, jj, m, nring
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, b, da, db, ds, kr, svar, &
-                                                rpxpp, at
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: z, cosj, sinj
+    REAL(KIND=dp)                            :: a, at, b, da, db, ds, kr, &
+                                                rpxpp, svar
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosj, sinj, z
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: nforce, zforce
     REAL(KIND=dp), DIMENSION(3)              :: ftmp, nv, r0, rp, rpp, uv
-    REAL(KIND=dp), DIMENSION(3,3)            :: dnvp, dnvpp
+    REAL(KIND=dp), DIMENSION(3, 3)           :: dnvp, dnvpp
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
