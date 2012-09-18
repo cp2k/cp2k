@@ -4784,13 +4784,17 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'ring_puckering_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, istat, m, nring
+    INTEGER                                  :: i, ii, j, jj, istat, m, nring
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, b, da, db, ds, kr, svar
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: z
+    REAL(KIND=dp)                            :: a, b, da, db, ds, kr, svar, &
+                                                rpxpp, at
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: z, cosj, sinj
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
-    REAL(KIND=dp), DIMENSION(3)              :: ftmp, nv, r0, rp, rpp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: nforce, zforce
+    REAL(KIND=dp), DIMENSION(3)              :: ftmp, nv, r0, rp, rpp, uv
+    REAL(KIND=dp), DIMENSION(3,3)            :: dnvp, dnvpp
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -4807,7 +4811,9 @@ CPSourceFileRef,&
     END IF
 
     nring = colvar%ring_puckering_param%nring 
-    ALLOCATE (r(3,nring),z(nring),STAT=istat)
+    ALLOCATE (r(3,nring),z(nring),cosj(nring),sinj(nring),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (nforce(3,3,nring),zforce(nring,nring,3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ii = 1,nring
        i=colvar%ring_puckering_param%atoms(ii)
@@ -4832,21 +4838,60 @@ CPSourceFileRef,&
     rp = 0._dp
     rpp = 0._dp
     DO ii = 1,nring
-       rp(:) = rp(:) + r(:,ii)*SIN(twopi*(ii-1)*kr)
-       rpp(:) = rpp(:) + r(:,ii)*COS(twopi*(ii-1)*kr)
+       cosj(ii) = COS(twopi*(ii-1)*kr)
+       sinj(ii) = SIN(twopi*(ii-1)*kr)
+       rp(:) = rp(:) + r(:,ii)*sinj(ii)
+       rpp(:) = rpp(:) + r(:,ii)*cosj(ii)
     END DO
     nv = vector_product(rp,rpp)
     nv = nv/SQRT(SUM(nv**2))
+
+    ! derivatives of normal
+    uv = vector_product(rp,rpp)
+    rpxpp = SQRT(SUM(uv**2))
+    DO i=1,3
+      uv = 0._dp
+      uv(i) = 1._dp
+      uv = vector_product(uv,rpp)/rpxpp
+      dnvp(:,i) = uv - nv * SUM(uv*nv)
+      uv = 0._dp
+      uv(i) = 1._dp
+      uv = vector_product(rp,uv)/rpxpp
+      dnvpp(:,i) = uv - nv * SUM(uv*nv)
+    END DO
+    DO ii = 1,nring
+      nforce(:,:,ii) = dnvp(:,:)*sinj(ii) + dnvpp(:,:)*cosj(ii)
+    END DO
+
     ! molecular z-coordinate
     DO ii = 1,nring
        z(ii) = SUM(r(:,ii)*nv(:))
+    END DO
+    ! z-force
+    DO ii = 1,nring
+      DO jj = 1,nring
+         IF(ii==jj) THEN
+            zforce(ii,jj,:) = nv
+         ELSE
+            zforce(ii,jj,:) = 0._dp
+         END IF
+         DO i=1,3
+           DO j=1,3
+             zforce(ii,jj,i) = zforce(ii,jj,i) + r(j,ii)*nforce(j,i,jj)
+           END DO
+         END DO
+      END DO
     END DO
 
     IF(colvar%ring_puckering_param%iq == 0) THEN
        ! total puckering amplitude
        svar = SQRT(SUM(z**2))
        DO ii = 1,nring
-          ftmp(:) = z(ii)/svar*nv(:)
+          ftmp = 0._dp
+          DO jj = 1,nring
+             ftmp(:) = ftmp(:) + zforce(jj,ii,:)*z(jj)
+          END DO
+          ftmp = ftmp/svar
           CALL put_derivative(colvar, ii, ftmp)
        END DO
     ELSE
@@ -4858,14 +4903,22 @@ CPSourceFileRef,&
           DO ii = 1,nring
              IF(MOD(ii,2)==0) THEN
                 svar = svar - z(ii)
-                ftmp(:) = -nv(:)*SQRT(kr)
              ELSE
                 svar = svar + z(ii)
-                ftmp(:) = nv(:)*SQRT(kr)
              END IF
-             CALL put_derivative(colvar, ii, ftmp)
           END DO
           svar = svar*SQRT(kr)
+          DO ii = 1,nring
+             ftmp = 0._dp
+             DO jj=1,nring
+                IF(MOD(jj,2)==0) THEN
+                  ftmp(:) = ftmp(:) - zforce(jj,ii,:)*SQRT(kr)
+                ELSE
+                  ftmp(:) = ftmp(:) + zforce(jj,ii,:)*SQRT(kr)
+                END IF
+             END DO
+             CALL put_derivative(colvar, ii, -ftmp)
+          END DO
        ELSE
           CPPrecondition(m<=(nring-1)/2,cp_failure_level,routineP,error,failure)
           a = 0._dp
@@ -4883,22 +4936,30 @@ CPSourceFileRef,&
              db = b/svar 
           ELSE 
              ! puckering phase angle
-             svar = ATAN2(b,a) + pi
-             da = b/(a*a+b*b)
-             db = -a/(a*a+b*b)
+             at = ATAN2(a,b)
+             IF(at>pi/2._dp) THEN
+               svar = 2.5_dp*pi - at
+             ELSE
+               svar = 0.5_dp*pi - at
+             END IF
+             da = -b/(a*a+b*b)
+             db = a/(a*a+b*b)
           END IF
-          DO ii = 1,nring
-             ds = da*COS(twopi*m*(ii-1)*kr)
-             ds = ds - db*SIN(twopi*m*(ii-1)*kr)
-             ftmp(:) = nv(:)*ds*SQRT(2._dp*kr)
-             CALL put_derivative(colvar, ii, ftmp)
+          DO jj = 1,nring
+             ftmp = 0._dp
+             DO ii = 1,nring
+                ds = da*COS(twopi*m*(ii-1)*kr)
+                ds = ds - db*SIN(twopi*m*(ii-1)*kr)
+                ftmp(:) = ftmp(:) + ds*SQRT(2._dp*kr)*zforce(ii,jj,:)
+             END DO
+             CALL put_derivative(colvar, jj, ftmp)
           END DO
        END IF
     END IF
 
     colvar%ss=svar
 
-    DEALLOCATE (r,z,STAT=istat)
+    DEALLOCATE (r,z,cosj,sinj,nforce,zforce,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE  ring_puckering_colvar
