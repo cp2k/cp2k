@@ -443,7 +443,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rho, eps_rho, r13, fact, e_rho_rho) &
-    !$omp             shared(e_rho_ndrho, fs, sfac, tact, s) &
+    !$omp             shared(e_rho_ndrho, e_ndrho_ndrho, fs, sfac, tact, s) &
     !$omp             private(ip,a0,a1,a2,sx,sy,sxx,sxy)
 
     DO ip = 1, npoints
