@@ -96,8 +96,8 @@ CONTAINS
                                                 p_gem, p_orb, p_paw, p_ppl, &
                                                 p_ppnl, p_soft, paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
-      core_charge_radius, eps_reduce, gcca, kind_radius, ppl_radius, &
-      ppnl_radius, rcprj, short_radius, zab, zd, zeta
+      core_charge_radius, gcca, kg_radius, kind_radius, ppl_radius, &
+      ppnl_radius, rcprj, zab, zd, zeta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
                                                 alpha_ppnl, cexp_ppl, &
                                                 set_radius
@@ -134,7 +134,6 @@ CONTAINS
     p_paw  = .FALSE.
     p_gem  = .FALSE.
 
-    eps_reduce = qs_control%gapw_control%eps_3c_reduce
     nkind = SIZE(atomic_kind_set)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxnset=maxnset)
@@ -174,7 +173,7 @@ CONTAINS
                                set_radius=set_radius)
 
         kind_radius = 0.0_dp
-        short_radius = 0.0_dp
+        kg_radius = 0.0_dp
 
         DO iset=1,nset
           set_radius(iset) = 0.0_dp
@@ -188,9 +187,9 @@ CONTAINS
                                           exp_radius(l,zeta,&
                                                      qs_control%eps_pgf_orb,&
                                                      gcca))
-              short_radius = MAX(short_radius,&
+              kg_radius = MAX(kg_radius,&
                              exp_radius(l,zeta,&
-                             qs_control%eps_pgf_orb*eps_reduce,&
+                             qs_control%eps_kg_orb,&
                              gcca))
             END DO
             set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
@@ -202,7 +201,7 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius,&
                                kind_radius=kind_radius,&
-                               short_kind_radius=short_radius)
+                               short_kind_radius=kg_radius)
 
       END IF
 
@@ -327,7 +326,7 @@ CONTAINS
                                set_radius=set_radius)
 
         kind_radius = 0.0_dp
-        short_radius = 0.0_dp
+        kg_radius = 0.0_dp
 
         DO iset=1,nset
           set_radius(iset) = 0.0_dp
@@ -341,9 +340,9 @@ CONTAINS
                                           exp_radius(l,zeta,&
                                           qs_control%eps_pgf_orb,&
                                           gcca))
-              short_radius = MAX(short_radius,&
+              kg_radius = MAX(kg_radius,&
                              exp_radius(l,zeta,&
-                             qs_control%eps_pgf_orb*eps_reduce,&
+                             qs_control%eps_kg_orb,&
                              gcca))
             END DO
             set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
@@ -355,7 +354,7 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius,&
                                kind_radius=kind_radius,&
-                               short_kind_radius=short_radius)
+                               short_kind_radius=kg_radius)
 
       END IF
 

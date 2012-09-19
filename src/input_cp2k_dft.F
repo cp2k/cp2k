@@ -2286,6 +2286,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_KG_ORB",&
+            description="Sets precision used in coloring the subsets. Overrides SQRT(EPS_DEFAULT) value",&
+            usage="EPS_KG_ORB 1.0E-8",&
+            type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EPS_3C_REDUCE",&
             description="GAPW: Factor to reduce the precision in the construction"//&
             " of the 3 center lists for the calculation of the OCE coefficients.",&

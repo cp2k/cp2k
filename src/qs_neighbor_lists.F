@@ -156,7 +156,7 @@ CONTAINS
 !> \author  JH
 ! *****************************************************************************
   SUBROUTINE atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                          atomic_kind_set,molecule_set,molecule_only,dftb,particle_set,error)
+                          atomic_kind_set,molecule_set,molecule_only,kg,dftb,particle_set,error)
     TYPE(local_atoms_type), DIMENSION(:)     :: atom2d
     REAL(dp), DIMENSION(:)                   :: orb_radius
     LOGICAL, DIMENSION(:)                    :: orb_present
@@ -166,7 +166,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    LOGICAL                                  :: molecule_only, dftb
+    LOGICAL                                  :: molecule_only
+    LOGICAL, OPTIONAL                        :: kg
+    LOGICAL                                  :: dftb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -180,7 +182,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
                                                 local_cols_array, &
                                                 local_rows_array
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_kg, failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
@@ -188,7 +190,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-
+    do_kg=.FALSE.
+    IF(PRESENT(kg)) do_kg=kg
 
     nkind=SIZE(atomic_kind_set)
     natom=SIZE(particle_set)
@@ -228,7 +231,11 @@ CONTAINS
 
        IF (ASSOCIATED(orb_basis_set)) THEN
           orb_present(ikind) = .TRUE.
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,kind_radius=orb_radius(ikind))
+          IF (do_kg) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,short_kind_radius=orb_radius(ikind))
+          ELSE
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,kind_radius=orb_radius(ikind))
+          END IF
        ELSE IF (dftb) THEN
           ! Set the interaction radius for the neighbor lists (DFTB case)
           ! This includes all interactions (orbitals and short range pair potential) except vdW
@@ -493,7 +500,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                      atomic_kind_set,molecule_set,molecule_only,dftb,particle_set,error)
+                      atomic_kind_set,molecule_set,molecule_only,&
+                      dftb=dftb,particle_set=particle_set,error=error)
 
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)

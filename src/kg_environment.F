@@ -280,8 +280,16 @@ CONTAINS
     ALLOCATE (atom2d(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                      atomic_kind_set,molecule_set,molecule_only,dftb,particle_set,error)
+
+    IF (PRESENT(subset_of_mol)) THEN
+      CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
+                        atomic_kind_set,molecule_set,molecule_only,kg=.FALSE.,&
+                        dftb=dftb,particle_set=particle_set,error=error)
+    ELSE
+      CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
+                        atomic_kind_set,molecule_set,molecule_only,kg=.TRUE.,&
+                        dftb=dftb,particle_set=particle_set,error=error)
+    END IF
 
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)

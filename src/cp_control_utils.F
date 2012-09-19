@@ -452,7 +452,7 @@ CPSourceFileRef,&
                                                 n_rep, n_var, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: explicit, failure, was_present
-    REAL(dp)                                 :: tmpsqrt, value
+    REAL(dp)                                 :: tmp, tmpsqrt, value
     REAL(dp), POINTER                        :: scal(:)
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
@@ -486,6 +486,7 @@ CPSourceFileRef,&
     ! correct if all Gaussians would have the same radius (overlap will be smaller than eps_pgf_orb**2).
     ! Can be significantly in error if not... requires fully new screening/pairlist procedures
     qs_control%eps_pgf_orb     = tmpsqrt
+    qs_control%eps_kg_orb = qs_control%eps_pgf_orb
     ! consistent since also a kind of overlap
     qs_control%eps_ppnl        = qs_control%eps_pgf_orb/100.0_dp
     ! accuracy is basically set by the overlap, this sets an empirical shift
@@ -509,6 +510,11 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",r_val=qs_control%eps_pgf_orb,error=error)
+    END IF
+    CALL section_vals_val_get(qs_section,"EPS_KG_ORB",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN
+       CALL section_vals_val_get(qs_section,"EPS_KG_ORB",r_val=tmp,error=error)
+       qs_control%eps_kg_orb=SQRT(tmp)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_PPL",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN

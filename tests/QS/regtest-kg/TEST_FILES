@@ -2,3 +2,4 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 H2_MD.inp 11
+H2_MD-2.inp 11
