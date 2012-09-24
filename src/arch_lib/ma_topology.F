@@ -169,12 +169,17 @@ CONTAINS
   max_x  = 0
   max_y  = 0
   max_z  = 0
+  i = 1
 
   IF (source == 0 ) THEN
-   DO WHILE ( endoffile .EQ. 0)
-     READ(rst_unit,*, IOSTAT=endoffile) net_topology(i)%nid,&
-     net_topology(i)%coord_x,net_topology(i)%coord_y,&
-     net_topology(i)%coord_y     
+   DO 
+     READ(rst_unit,*, IOSTAT=endoffile) fnid,fx,fy,fz
+     IF (endoffile .NE. 0) EXIT
+     net_topology(i)%nid = fnid
+     net_topology(i)%coord_x = fx
+     net_topology(i)%coord_y = fy
+     net_topology(i)%coord_z = fz
+     i = i + 1   
    ENDDO
    CLOSE(rst_unit)
    istat =  ma_remove_topology()
@@ -211,6 +216,7 @@ CONTAINS
   ENDIF
 
   CALL mp_sum(nfields,mp_group)
+  nfields = nfields + 1
   ALLOCATE(net_topology(nfields),STAT=istat)
   IF (istat /= 0) THEN
         CALL ma_error_stop(ma_error_allocation)
@@ -228,8 +234,9 @@ CONTAINS
     z(:) = 0 
     endoffile = 0
     
-    DO WHILE (endoffile .EQ. 0)
+    DO 
      READ(rst_unit,*,IOSTAT=endoffile) fnid,fx,fy,fz
+     IF (endoffile .NE. 0) EXIT
      nid(fnid+1) = fnid
      x(fnid+1) = fx
      z(fnid+1) = fz
@@ -489,9 +496,9 @@ CONTAINS
   INTEGER, INTENT(OUT)              :: x,y,z
 
 #if defined __GEMINI || __SEASTAR
-   x = net_topology(nid)%coord_x
-   y = net_topology(nid)%coord_y
-   z = net_topology(nid)%coord_z
+   x = net_topology(nid+1)%coord_x
+   y = net_topology(nid+1)%coord_y
+   z = net_topology(nid+1)%coord_z
 #else
   x = 0 
   y = 0 
