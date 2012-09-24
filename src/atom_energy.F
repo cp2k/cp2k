@@ -623,9 +623,9 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     CALL atom_local_potential(locpot,pot,atom%basis%grid%rad,error)
     IF(up) THEN
-       WRITE(iw,'(T8,4E25.14)') (locpot(i),i=1,nr)
+       WRITE(iw,'(T8,4E25.14)') (2._dp*locpot(i),i=1,nr)
     ELSE
-       WRITE(iw,'(T8,4E25.14)') (locpot(i),i=nr,1,-1)
+       WRITE(iw,'(T8,4E25.14)') (2._dp*locpot(i),i=nr,1,-1)
     END IF
     DEALLOCATE(locpot,STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -655,6 +655,7 @@ CONTAINS
           CALL compose(string,"size",ival=nr)
           WRITE(iw,'(T12,A)') TRIM(string)
           WRITE(iw,'(T12,A)') 'columns="4">'
+          beta = beta*rp
           IF(up) THEN
              WRITE(iw,'(T12,4E25.14)') (beta(j),j=1,nr)
           ELSE
@@ -678,7 +679,7 @@ CONTAINS
     END DO
     WRITE(iw,'(T8,A)') '<PP_DIJ type="real"'
     WRITE(iw,'(T12,A)') 'columns="4">'
-    WRITE(iw,'(T12,4E25.14)') ((dij(i,j),j=1,nbeta),i=1,nbeta)
+    WRITE(iw,'(T12,4E25.14)') ((2._dp*dij(i,j),j=1,nbeta),i=1,nbeta)
     WRITE(iw,'(T8,A)') '</PP_DIJ>'
     DEALLOCATE(dij,STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -706,6 +707,7 @@ CONTAINS
           DO k=1,atom%basis%nbas(l)
              beta(:) = beta(:) + atom%orbitals%wfn(k,i,l)*atom%basis%bf(:,k,l)
           END DO
+          beta = beta*atom%basis%grid%rad
           IF(up) THEN
              WRITE(iw,'(T12,4E25.14)') (beta(j),j=1,nr)
           ELSE
