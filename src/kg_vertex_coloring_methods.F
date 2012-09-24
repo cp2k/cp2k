@@ -83,6 +83,7 @@ CONTAINS
       graph(i)%vertex%id = i   ! id = imol (molecular index)
       graph(i)%vertex%color=0  ! means vertex is not colored yet
       graph(i)%vertex%dsat=0   ! no colored neighbors yet
+      graph(i)%vertex%degree=0 ! as needed for maxdegree....
     END DO
 
     ! allocate the neighbor lists
@@ -456,7 +457,10 @@ CONTAINS
         this => list%next
   
         color_present(:)=.FALSE.
-  
+ 
+        newcolor=0
+        nneighbors=0
+
         IF (ASSOCIATED(this%neighbors)) THEN
           nneighbors=SIZE(this%neighbors)
           DO i=1,nneighbors
