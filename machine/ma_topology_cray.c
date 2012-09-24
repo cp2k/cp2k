@@ -25,7 +25,7 @@ int extract_topology()
   fprintf (fpexec,"sed -e '/#/d' processor > processor_tmp\n");
   fprintf (fpexec,"cat processor_tmp | awk '{print $30\"\t\"$14\"\t\"$16\"\t\"$18}' > processor\n");
   fprintf (fpexec,"rm processor_tmp\n");
-  fprintf (fpexec,"N=`cat processor |wc -l`\n");
+  fprintf (fpexec,"N=`cat processor | awk 'BEGIN{max=0}{if($1>max)max=$1}END{print max}'`\n");
   fprintf (fpexec,"echo $N > topology\n");
   fprintf (fpexec,"cat processor >> topology\n");
   fprintf (fpexec,"rm processor\n");
