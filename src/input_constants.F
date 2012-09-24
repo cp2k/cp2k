@@ -574,7 +574,9 @@ MODULE input_constants
                                               xgga_tpss=109,&
                                               xalpha=110,&
                                               xgga_pbe=111,&
-                                              xgga_opt=112
+                                              xgga_opt=112,&
+                                              xgga_ev93=113
+
   INTEGER, PARAMETER, PUBLIC               :: cgga_lyp=201,&
                                               c_pade=202,&
                                               cgga_hcth93=203,&

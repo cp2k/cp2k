@@ -16,6 +16,7 @@ MODULE xc_exchange_gga
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_constants,                 ONLY: xgga_b88,&
+                                             xgga_ev93,&
                                              xgga_opt,&
                                              xgga_pbe,&
                                              xgga_pw86,&
@@ -95,6 +96,8 @@ CONTAINS
           reference = "Y. Zang et al., PRL, 80, 890 (1998) (Revised PBEX)"
        CASE(xgga_opt)
           reference = "Wee-Meng Hoe, A.J. Cohen, N.C. Handy, CPL, 341, 319 (2001)"
+       CASE(xgga_ev93)
+          reference = "E. Engel and S.H. Vosko, Phys. Rev. B, 47, 13164 (1993)"
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Invalid functional requested ("//cp_to_string(functional)//")",&
@@ -120,6 +123,8 @@ CONTAINS
           shortform = "Revised PBEX by Zang et al."
        CASE(xgga_opt)
           shortform = "OPTX exchange energy functional"
+       CASE(xgga_ev93)
+          shortform = "Engel-Vosko exchange energy from virial relation"
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Invalid functional requested ("//cp_to_string(functional)//")",&
@@ -264,6 +269,10 @@ CONTAINS
              IF (lsd) tact = 1.0_dp
           CASE (xgga_opt)
              CALL efactor_optx ( s, fs, m )
+          CASE (xgga_ev93)
+             tact = t13
+             CALL efactor_ev93 ( s, fs, m )
+             IF (lsd) tact = 1.0_dp
           CASE DEFAULT
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -704,6 +713,91 @@ CONTAINS
     !$omp end parallel do
 
   END SUBROUTINE efactor_pw86
+! *****************************************************************************
+  SUBROUTINE efactor_ev93 ( s, fs, m )
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: fs
+    INTEGER, INTENT(IN)                      :: m
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_ev93', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip
+    REAL(KIND=dp)                            :: a1, a2, a3, b1, b2, b3, d0, &
+                                                d1, d2, d3, f0, f1, f2, n0, &
+                                                n1, n2, n3, s2, s4, s6, &
+                                                scale_s, ss
+
+    a1 = 1.647127_dp
+    a2 = 0.980118_dp
+    a3 = 0.017399_dp
+    b1 = 1.523671_dp
+    b2 = 0.367229_dp
+    b3 = 0.011282_dp
+    scale_s=1._dp/tact
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, fs, m, a1, a2, a3, b1, b2, b3, scale_s) &
+    !$omp             private(ip,ss,s2,s4,s6) &
+    !$omp             private(n0,n1,n2,n3,d0,d1,d2,d3,f0,f1,f2)
+
+    DO ip=1,SIZE(s)
+!     ss = s(ip)
+!
+      ss = scale_s*s(ip)
+      s2 = ss*ss
+      s4 = s2*s2
+      s6 = s2*s4
+      SELECT CASE (m)
+      CASE (0)
+         n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+         d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+         fs(ip,1) = n0/d0
+      CASE (1)
+         n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+         d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+         n1 = ss*(2._dp*a1 + 4._dp*a2*s2 + 6._dp*a3*s4)
+         d1 = ss*(2._dp*b1 + 4._dp*b2*s2 + 6._dp*b3*s4)
+         f0 = n0/d0
+         fs(ip,1) = f0
+         fs(ip,2) = (n1-f0*d1)/d0 * scale_s
+      CASE (2)
+         n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+         d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+         n1 = ss*(2._dp*a1 + 4._dp*a2*s2 + 6._dp*a3*s4)
+         d1 = ss*(2._dp*b1 + 4._dp*b2*s2 + 6._dp*b3*s4)
+         n2 = 2._dp*a1 + 12._dp*a2*s2 + 30._dp*a3*s4
+         d2 = 2._dp*b1 + 12._dp*b2*s2 + 30._dp*b3*s4
+         f0 = n0/d0
+         f1 = (n1-f0*d1)/d0
+         fs(ip,1) = f0
+         fs(ip,2) = f1 * scale_s
+         fs(ip,3) = (n2-f0*d2-2._dp*f1*d1)/d0 * scale_s * scale_s
+      CASE (3)
+         n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+         d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+         n1 = ss*(2._dp*a1 + 4._dp*a2*s2 + 6._dp*a3*s4)
+         d1 = ss*(2._dp*b1 + 4._dp*b2*s2 + 6._dp*b3*s4)
+         n2 = 2._dp*a1 + 12._dp*a2*s2 + 30._dp*a3*s4
+         d2 = 2._dp*b1 + 12._dp*b2*s2 + 30._dp*b3*s4
+         n3 = ss*(24._dp*a2 + 120._dp*a3*s2)
+         d3 = ss*(24._dp*b2 + 120._dp*b3*s2)
+         f0 = n0/d0
+         f1 = (n1-f0*d1)/d0
+         f2 = (n2-f0*d2-2._dp*f1*d1)/d0
+         fs(ip,1) = f0
+         fs(ip,2) = f1 * scale_s
+         fs(ip,3) = f2 * scale_s * scale_s
+         fs(ip,4) = (n3-f0*d3-3._dp*f2*d1-3._dp*f1*d2)/d0 * scale_s * scale_s * scale_s
+      CASE DEFAULT
+         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
+      END SELECT
+    END DO
+
+    !$omp end parallel do
+
+  END SUBROUTINE efactor_ev93
 ! *****************************************************************************
   SUBROUTINE efactor_optx ( s, fs, m )
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s

@@ -60,3 +60,9 @@ h4.t4.inp 1
 h4.t5.inp 1
 h2.t1.inp 1
 h2.t2.inp 1
+# EV93 xc functional
+Li2-0-SCF-PBE.inp 53
+Li2-1-nSCF-EV.inp 53
+Li2-2-nSCF-EV93.inp 53
+Li2-3-nSCF-EV93.inp 52
+Li2-4-nSCF-EV93.inp 48

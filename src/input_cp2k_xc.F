@@ -273,8 +273,9 @@ CONTAINS
             "PW91X   ",&
             "PBEX    ",&
             "REV_PBEX",&
-            "OPTX    "/),&
-            enum_i_vals=(/xgga_b88x,xgga_pw86,xgga_pw91,xgga_pbex,xgga_revpbe,xgga_opt/),&
+            "OPTX    ",&
+            "EV93    "/),&
+            enum_i_vals=(/xgga_b88x,xgga_pw86,xgga_pw91,xgga_pbex,xgga_revpbe,xgga_opt,xgga_ev93/),&
             default_i_val=xgga_b88x,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
