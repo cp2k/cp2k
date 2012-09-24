@@ -133,6 +133,7 @@ CONTAINS
  SUBROUTINE ma_net_topology (mp_group)
   INTEGER                                  :: rst_unit,istat,i,j,nfields  
   INTEGER,DIMENSION(:), POINTER            :: nid,x,y,z
+  INTEGER                                  :: fnid,fx,fy,fz,endoffile
   INTEGER                                  :: mp_group,source, numtask, req(2)
   CHARACTER(LEN=default_string_length)     :: host_name
   CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_net_topology', &
@@ -170,10 +171,10 @@ CONTAINS
   max_z  = 0
 
   IF (source == 0 ) THEN
-   DO i=1, nfields
-     READ(rst_unit,*) net_topology(i)%nid,net_topology(i)%coord_x,&
-                      net_topology(i)%coord_y,net_topology(i)%coord_y    
-      
+   DO WHILE ( endoffile .EQ. 0)
+     READ(rst_unit,*, IOSTAT=endoffile) net_topology(i)%nid,&
+     net_topology(i)%coord_x,net_topology(i)%coord_y,&
+     net_topology(i)%coord_y     
    ENDDO
    CLOSE(rst_unit)
    istat =  ma_remove_topology()
@@ -221,9 +222,18 @@ CONTAINS
          CALL ma_error_stop(ma_error_allocation)
     END IF
 
-    DO i=1, nfields
-     READ(rst_unit,*) nid(i),x(i),y(i),z(i)
-     y(i) = 2*y(i)+MOD(i,2) 
+    nid(:) = 0
+    x(:) = 0
+    y(:) = 0
+    z(:) = 0 
+    endoffile = 0
+    
+    DO WHILE (endoffile .EQ. 0)
+     READ(rst_unit,*,IOSTAT=endoffile) fnid,fx,fy,fz
+     nid(fnid+1) = fnid
+     x(fnid+1) = fx
+     z(fnid+1) = fz
+     y(fnid+1) = 2*fy+MOD(fnid+1,2) 
     ENDDO
     CLOSE(rst_unit)
 
@@ -286,7 +296,7 @@ CONTAINS
  ! the nodes
  DO j=0, numtask-1
   startTime = m_walltime ( )
-  CALL mp_isendrecv(msgin,source,msgout,source,mp_group,req(1),req(2))
+  CALL mp_isendrecv(msgin,source,msgout,j,mp_group,req(1),req(2))
   CALL mp_waitall(req)
   endTime = m_walltime ( ) - startTime
   dist_nodes(source+1,j+1) = endTime
