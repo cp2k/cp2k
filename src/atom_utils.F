@@ -47,7 +47,7 @@ MODULE atom_utils
   PUBLIC :: coulomb_potential_numeric, coulomb_potential_analytic
   PUBLIC :: exchange_numeric, exchange_semi_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
-  PUBLIC :: slater_density, wigner_slater_functional
+  PUBLIC :: slater_density, wigner_slater_functional, atom_local_potential
   PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
   PUBLIC :: atom_orbital_max, atom_wfnr0
 
@@ -438,6 +438,49 @@ CONTAINS
     END IF
 
   END SUBROUTINE atom_core_density
+! *****************************************************************************
+  SUBROUTINE atom_local_potential(locpot,gthpot,rr,error)
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: locpot
+    TYPE(atom_gthpot_type), INTENT(IN)       :: gthpot
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_local_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, j, m, n
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: a
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
+
+    m = SIZE(locpot)
+    ALLOCATE(fe(m),rc(m),STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    rc(:)=rr(:)/gthpot%rc
+    DO i=1,m
+       locpot(i) = -gthpot%zion*erf(rc(i)/SQRT(2._dp))
+    END DO
+    n=gthpot%ncl
+    fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
+    DO i=1,n
+       locpot(:) = locpot(:) + fe(:)*rc**(2*i-2)*gthpot%cl(i)
+    END DO
+    IF(gthpot%lpotextended) THEN
+       DO j=1,gthpot%nexp_lpot
+          a = gthpot%alpha_lpot(j) 
+          rc(:)=rr(:)/a
+          fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
+          n = gthpot%nct_lpot(j)
+          DO i=1,n
+             locpot(:) = locpot(:) + fe(:)*rc**(2*i-2)*gthpot%cval_lpot(i,j)
+          END DO
+       END DO
+    END IF
+    DEALLOCATE(fe,rc,STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE atom_local_potential
 ! *****************************************************************************
   SUBROUTINE atom_orbital_max(rmax,wfn,rcov,l,basis,error)
     REAL(KIND=dp), INTENT(OUT)               :: rmax

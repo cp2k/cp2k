@@ -15,7 +15,8 @@ MODULE atom_fit
                                              atom_relint_release,&
                                              atom_relint_setup
   USE atom_output,                     ONLY: atom_print_basis,&
-                                             atom_print_basis_file
+                                             atom_print_basis_file,&
+                                             atom_write_pseudo_param
   USE atom_types,                      ONLY: &
        GTO_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
        atom_integrals, atom_p_type, atom_potential_type, atom_type, &
@@ -732,7 +733,7 @@ CONTAINS
         WRITE(iunit,'(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &
               INT(REAL(ostate%nf,dp)/REAL(ostate%maxfun,dp)*100._dp), fopt
         CALL put_pseudo_param(ostate%xopt,ppot%gth_pot,error)
-        CALL write_pseudo_param(ppot%gth_pot,error)
+        CALL atom_write_pseudo_param(ppot%gth_pot,error=error)
       END IF
 
       WRITE(iw,*) ostate%nf,ostate%f,x(1:ostate%nvar)
@@ -742,7 +743,7 @@ CONTAINS
     ostate%state = 8
     CALL powell_optimize (ostate%nvar, x, ostate)
     CALL put_pseudo_param(x,ppot%gth_pot,error)
-    CALL write_pseudo_param(ppot%gth_pot,error)
+    CALL atom_write_pseudo_param(ppot%gth_pot,error=error)
 
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
@@ -1276,58 +1277,6 @@ CONTAINS
       STOP "rcpro"
     END IF
   END FUNCTION rcpro
-
-  SUBROUTINE write_pseudo_param (gthpot,error)
-    TYPE(atom_gthpot_type), INTENT(inout)    :: gthpot
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_pseudo_param', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iw, j, k, n
-
-    CALL open_file(file_name="GTH-PARAMETER",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
-    WRITE(iw,'(A2,A)') gthpot%symbol,ADJUSTL(TRIM(gthpot%pname))
-    WRITE(iw,'(4I5)') gthpot%econf
-    WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rc,gthpot%ncl,(gthpot%cl(i),i=1,gthpot%ncl)
-    IF(gthpot%lpotextended) THEN
-      WRITE(iw,'(A,I5)') "  LPOT",gthpot%nexp_lpot
-      DO i=1,gthpot%nexp_lpot
-        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_lpot(i),gthpot%nct_lpot(i),&
-                           (gthpot%cval_lpot(j,i),j=1,gthpot%nct_lpot(i))
-      END DO
-    END IF
-    IF(gthpot%lsdpot) THEN
-      WRITE(iw,'(A,I5)') "  LSD ",gthpot%nexp_lsd
-      DO i=1,gthpot%nexp_lsd
-        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_lsd(i),gthpot%nct_lsd(i),&
-                           (gthpot%cval_lsd(j,i),j=1,gthpot%nct_lsd(i))
-      END DO
-    END IF
-    IF(gthpot%nlcc) THEN
-      WRITE(iw,'(A,I5)') " NLCC ",gthpot%nexp_nlcc
-      DO i=1,gthpot%nexp_nlcc
-        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_nlcc(i),gthpot%nct_nlcc(i),&
-                           (gthpot%cval_nlcc(j,i),j=1,gthpot%nct_nlcc(i))
-      END DO
-    END IF
-    n = 0
-    DO i=3,0,-1
-      IF ( gthpot%nl(i) > 0 ) THEN
-         n = i+1
-         EXIT
-      END IF
-    END DO
-    WRITE(iw,'(I8)') n
-    DO i=0,n-1
-      WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rcnl(i),gthpot%nl(i),(gthpot%hnl(1,k,i),k=1,gthpot%nl(i))
-      DO j=2,gthpot%nl(i)
-        WRITE(iw,'(T20,5F18.12)') (gthpot%hnl(j,k,i),k=j,gthpot%nl(i))
-      END DO
-    END DO
-    CALL close_file(unit_number=iw)
-
-  END SUBROUTINE write_pseudo_param
 
 ! *****************************************************************************
 

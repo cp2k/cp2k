@@ -10,7 +10,7 @@
 MODULE atom_output
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
-       atom_basis_type, atom_potential_type, atom_state, atom_type
+       atom_basis_type, atom_potential_type, atom_state, atom_type, atom_gthpot_type
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
   USE cp_files,                        ONLY: close_file,&
@@ -39,7 +39,7 @@ MODULE atom_output
 
   PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration, &
             atom_print_basis, atom_print_method, atom_print_info, atom_print_potential, &
-            atom_print_basis_file
+            atom_print_basis_file, atom_write_pseudo_param
 
 ! *****************************************************************************
 
@@ -552,6 +552,66 @@ CONTAINS
     WRITE(iw,'(" ",79("*"))')
 
   END SUBROUTINE atom_print_potential
+
+! *****************************************************************************
+
+  SUBROUTINE atom_write_pseudo_param (gthpot,iunit,error)
+    TYPE(atom_gthpot_type), INTENT(INOUT)    :: gthpot
+    INTEGER, INTENT(IN), OPTIONAL            :: iunit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_pseudo_param', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iw, j, k, n
+
+    IF(PRESENT(iunit)) THEN
+       iw = iunit
+    ELSE
+       CALL open_file(file_name="GTH-PARAMETER",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
+    END IF
+    WRITE(iw,'(A2,A)') gthpot%symbol,ADJUSTL(TRIM(gthpot%pname))
+    WRITE(iw,'(4I5)') gthpot%econf
+    WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rc,gthpot%ncl,(gthpot%cl(i),i=1,gthpot%ncl)
+    IF(gthpot%lpotextended) THEN
+      WRITE(iw,'(A,I5)') "  LPOT",gthpot%nexp_lpot
+      DO i=1,gthpot%nexp_lpot
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_lpot(i),gthpot%nct_lpot(i),&
+                           (gthpot%cval_lpot(j,i),j=1,gthpot%nct_lpot(i))
+      END DO
+    END IF
+    IF(gthpot%lsdpot) THEN
+      WRITE(iw,'(A,I5)') "  LSD ",gthpot%nexp_lsd
+      DO i=1,gthpot%nexp_lsd
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_lsd(i),gthpot%nct_lsd(i),&
+                           (gthpot%cval_lsd(j,i),j=1,gthpot%nct_lsd(i))
+      END DO
+    END IF
+    IF(gthpot%nlcc) THEN
+      WRITE(iw,'(A,I5)') " NLCC ",gthpot%nexp_nlcc
+      DO i=1,gthpot%nexp_nlcc
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_nlcc(i),gthpot%nct_nlcc(i),&
+                           (gthpot%cval_nlcc(j,i),j=1,gthpot%nct_nlcc(i))
+      END DO
+    END IF
+    n = 0
+    DO i=3,0,-1
+      IF ( gthpot%nl(i) > 0 ) THEN
+         n = i+1
+         EXIT
+      END IF
+    END DO
+    WRITE(iw,'(I8)') n
+    DO i=0,n-1
+      WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rcnl(i),gthpot%nl(i),(gthpot%hnl(1,k,i),k=1,gthpot%nl(i))
+      DO j=2,gthpot%nl(i)
+        WRITE(iw,'(T20,5F18.12)') (gthpot%hnl(j,k,i),k=j,gthpot%nl(i))
+      END DO
+    END DO
+    IF (.NOT. PRESENT(iunit)) CALL close_file(unit_number=iw)
+
+  END SUBROUTINE atom_write_pseudo_param
+
 ! *****************************************************************************
 
 END MODULE atom_output
