@@ -434,8 +434,6 @@ CONTAINS
 
     ncolors=0
 
-    CALL init_todo(graph, list)
-
     nnodes=SIZE(graph)
 
     IF (kg_env%maxdegree.EQ.0) THEN
@@ -449,7 +447,9 @@ CONTAINS
       END DO
       
     ELSE
-  
+ 
+      CALL init_todo(graph, list)
+ 
       ALLOCATE(color_present(nnodes))
   
       DO WHILE (ASSOCIATED(list%next))
