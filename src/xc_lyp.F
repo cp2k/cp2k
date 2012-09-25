@@ -1254,7 +1254,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
         e_ndrb_ra(ii) =e_ndrb_ra(ii)&
              - ( t15 * t21 * (my_rhob * t198 - 0.4e1_dp * my_rhoa *&
              & my_ndrhob) + t483 + t487 - t490 + t505 ) * sc
-        e_ndrb_ra(ii)=e_ndrb_ra(ii)&
+        e_ndrb_rb(ii)=e_ndrb_rb(ii)&
              - ( t15 * t21 * (my_rhoa * t198 - 0.2e1_dp / 0.9e1_dp * t7&
              & * t75 * my_ndrhob) + t483 + t487 - t490 + t505 ) * sc
      END IF

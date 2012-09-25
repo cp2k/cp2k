@@ -2321,7 +2321,7 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
                           e_lsda_c_abrhoa * gc_abrhob + e_lsda_c_abrhob * gc_abrhoa + &
                           e_lsda_c_ab * (u_c_abrhoarhob * t170 + 0.2e1_dp * u_c_abrhoa * &
                           u_c_abrhob * c_cab_2 + u_c_ab * u_c_abrhoarhob * c_cab_2))
-                     e_r_r(ii)=e_r_r(ii)+0.5_dp*0.5_dp*exc_rhoa_rhob
+                     e_r_r(ii)=e_r_r(ii)+0.5_dp*exc_rhoa_rhob
                  END IF
 
                  t1152 = t20 ** 2
@@ -2564,7 +2564,7 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
                           u_c_abnorm_drhoanorm_drhob * t170 + 0.2e1_dp * u_c_abnorm_drhoa * &
                           u_c_abnorm_drhob * c_cab_2 + u_c_ab * u_c_abnorm_drhoanorm_drhob * &
                           c_cab_2)
-                     e_ndr_ndr(ii)=e_ndr_ndr(ii)+0.5_dp*0.5_dp*exc_norm_drhoa_norm_drhob
+                     e_ndr_ndr(ii)=e_ndr_ndr(ii)+0.5_dp*exc_norm_drhoa_norm_drhob
                  END IF
 
                  t1719 = s_bnorm_drhob ** 2
