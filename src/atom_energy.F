@@ -19,17 +19,17 @@ MODULE atom_energy
                                              atom_print_potential,&
                                              atom_write_pseudo_param
   USE atom_types,                      ONLY: &
-       atom_basis_type, atom_integrals, atom_optimization_type, &
-       atom_orbitals, atom_p_type, atom_potential_type, atom_state, &
-       atom_type, create_atom_orbs, create_atom_type, init_atom_basis, &
-       init_atom_potential, read_atom_opt_section, release_atom_basis, &
-       release_atom_potential, release_atom_type, set_atom, atom_gthpot_type,&
-       GTH_PSEUDO
+       GTH_PSEUDO, atom_basis_type, atom_gthpot_type, atom_integrals, &
+       atom_optimization_type, atom_orbitals, atom_p_type, &
+       atom_potential_type, atom_state, atom_type, create_atom_orbs, &
+       create_atom_type, init_atom_basis, init_atom_potential, &
+       read_atom_opt_section, release_atom_basis, release_atom_potential, &
+       release_atom_type, set_atom
   USE atom_utils,                      ONLY: atom_consistent_method,&
-                                             atom_density,&
-                                             atom_set_occupation,&
                                              atom_core_density,&
+                                             atom_density,&
                                              atom_local_potential,&
+                                             atom_set_occupation,&
                                              get_maxl_occ,&
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -44,7 +44,8 @@ MODULE atom_energy
                                              dp
   USE lapack
   USE mathconstants,                   ONLY: dfac,&
-                                             pi, gamma1
+                                             gamma1,&
+                                             pi
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
   USE timings,                         ONLY: timeset,&
@@ -490,14 +491,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_upf', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, up
-    INTEGER                                  :: i, j, k, l, lmax, nbeta, nr, nwfc,&
-                                                ierr, ibeta, nwfn
-    REAL(KIND=dp)                            :: rmax, rl, pf
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: corden, locpot, rp, beta, ef, dens
-    REAL(KIND=dp), DIMENSION(:,:), &
-       ALLOCATABLE                           :: dij
     CHARACTER(len=default_string_length)     :: string
+    INTEGER                                  :: i, ibeta, ierr, j, k, l, &
+                                                lmax, nbeta, nr, nwfc, nwfn
+    LOGICAL                                  :: failure, up
+    REAL(KIND=dp)                            :: pf, rl, rmax
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta, corden, dens, ef, &
+                                                locpot, rp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dij
     TYPE(atom_gthpot_type), POINTER          :: pot
 
     failure = .FALSE.
@@ -640,7 +642,7 @@ CONTAINS
        IF(pot%nl(l) == 0) CYCLE
        rl = pot%rcnl(l)
        rp = atom%basis%grid%rad
-       ef = exp(-0.5_dp*rp*rp/(rl*rl))
+       ef = EXP(-0.5_dp*rp*rp/(rl*rl))
        DO i=1,pot%nl(l)
           pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
           j = l + 2*i - 1
@@ -743,16 +745,15 @@ CONTAINS
 
   END SUBROUTINE atom_write_upf
   SUBROUTINE compose(string,tag,counter,rval,ival,cval,isfinal)
-     CHARACTER(len=*)                :: string
-     CHARACTER(len=*)                :: tag
-     INTEGER,OPTIONAL                :: counter
-     REAL(KIND=dp),OPTIONAL          :: rval
-     INTEGER,OPTIONAL                :: ival
-     CHARACTER(len=*),OPTIONAL       :: cval
-     LOGICAL,OPTIONAL                :: isfinal
+    CHARACTER(len=*)                         :: string, tag
+    INTEGER, OPTIONAL                        :: counter
+    REAL(KIND=dp), OPTIONAL                  :: rval
+    INTEGER, OPTIONAL                        :: ival
+    CHARACTER(len=*), OPTIONAL               :: cval
+    LOGICAL, OPTIONAL                        :: isfinal
 
-     LOGICAL                                  :: fin
-     CHARACTER(len=default_string_length)     :: str
+    CHARACTER(len=default_string_length)     :: str
+    LOGICAL                                  :: fin
 
      IF(PRESENT(counter)) THEN
         WRITE(str,"(I12)") counter

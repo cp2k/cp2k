@@ -10,7 +10,8 @@
 MODULE atom_output
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
-       atom_basis_type, atom_potential_type, atom_state, atom_type, atom_gthpot_type
+       atom_basis_type, atom_gthpot_type, atom_potential_type, atom_state, &
+       atom_type
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
   USE cp_files,                        ONLY: close_file,&
