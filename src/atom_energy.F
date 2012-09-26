@@ -529,7 +529,7 @@ CONTAINS
     WRITE(iw,'(T8,A)') 'is_paw="F"'
     WRITE(iw,'(T8,A)') 'is_coulomb="F"'
     WRITE(iw,'(T8,A)') 'has_so="F"'
-    WRITE(iw,'(T8,A)') 'has_wfc="T"'
+    WRITE(iw,'(T8,A)') 'has_wfc="F"'
     WRITE(iw,'(T8,A)') 'has_gipaw="F"'
     WRITE(iw,'(T8,A)') 'paw_as_gipaw="F"'
     IF(pot%nlcc) THEN
@@ -538,9 +538,9 @@ CONTAINS
        WRITE(iw,'(T8,A)') 'core_correction="F"'
     END IF
     WRITE(iw,'(T8,A)') 'functional="DFT"'
-    CALL compose(string,"Z_valence",rval=pot%zion)
+    CALL compose(string,"z_valence",rval=pot%zion)
     WRITE(iw,'(T8,A)') TRIM(string)
-    CALL compose(string,"total_psenergy",rval=atom%energy%etot)
+    CALL compose(string,"total_psenergy",rval=2._dp*atom%energy%etot)
     WRITE(iw,'(T8,A)') TRIM(string)
     WRITE(iw,'(T8,A)') 'wfc_cutoff="0.0E+00"'
     WRITE(iw,'(T8,A)') 'rho_cutoff="0.0E+00"'
@@ -560,9 +560,7 @@ CONTAINS
     WRITE(iw,'(T8,A)') TRIM(string)
     nbeta = SUM(pot%nl)
     CALL compose(string,"number_of_proj",ival=nbeta)
-    WRITE(iw,'(T8,A)') TRIM(string)//'>'
-    WRITE(iw,'(T8,A)') 'number_of_proj="valueN">'
-    WRITE(iw,'(T4,A)') '</PP_HEADER>'
+    WRITE(iw,'(T8,A)') TRIM(string)//'/>'
 
     ! Mesh
     up = atom%basis%grid%rad(1) < atom%basis%grid%rad(nr)
@@ -580,9 +578,9 @@ CONTAINS
     WRITE(iw,'(T12,A)') TRIM(string)
     WRITE(iw,'(T12,A)') 'columns="4">'
     IF(up) THEN
-       WRITE(iw,'(T12,4E25.14)') (atom%basis%grid%rad(i),i=1,nr)
+       WRITE(iw,'(T12,4ES25.12E3)') (atom%basis%grid%rad(i),i=1,nr)
     ELSE
-       WRITE(iw,'(T12,4E25.14)') (atom%basis%grid%rad(i),i=nr,1,-1)
+       WRITE(iw,'(T12,4ES25.12E3)') (atom%basis%grid%rad(i),i=nr,1,-1)
     END IF
     WRITE(iw,'(T8,A)') '</PP_R>'
     WRITE(iw,'(T8,A)') '<PP_RAB type="real"'
@@ -590,9 +588,9 @@ CONTAINS
     WRITE(iw,'(T12,A)') TRIM(string)
     WRITE(iw,'(T12,A)') 'columns="4">'
     IF(up) THEN
-       WRITE(iw,'(T12,4E25.14)') (atom%basis%grid%wr(i),i=1,nr)
+       WRITE(iw,'(T12,4ES25.12E3)') (atom%basis%grid%wr(i)/atom%basis%grid%rad2(i),i=1,nr)
     ELSE
-       WRITE(iw,'(T12,4E25.14)') (atom%basis%grid%wr(i),i=nr,1,-1)
+       WRITE(iw,'(T12,4ES25.12E3)') (atom%basis%grid%wr(i)/atom%basis%grid%rad2(i),i=nr,1,-1)
     END IF
     WRITE(iw,'(T8,A)') '</PP_RAB>'
     WRITE(iw,'(T4,A)') '</PP_MESH>'
@@ -607,9 +605,9 @@ CONTAINS
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
        CALL atom_core_density(corden,pot,"RHO",atom%basis%grid%rad,error)
        IF(up) THEN
-          WRITE(iw,'(T8,4E25.14)') (corden(i),i=1,nr)
+          WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=1,nr)
        ELSE
-          WRITE(iw,'(T8,4E25.14)') (corden(i),i=nr,1,-1)
+          WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=nr,1,-1)
        END IF
        DEALLOCATE(corden,STAT=ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -625,9 +623,9 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     CALL atom_local_potential(locpot,pot,atom%basis%grid%rad,error)
     IF(up) THEN
-       WRITE(iw,'(T8,4E25.14)') (2._dp*locpot(i),i=1,nr)
+       WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=1,nr)
     ELSE
-       WRITE(iw,'(T8,4E25.14)') (2._dp*locpot(i),i=nr,1,-1)
+       WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=nr,1,-1)
     END IF
     DEALLOCATE(locpot,STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -659,9 +657,9 @@ CONTAINS
           WRITE(iw,'(T12,A)') 'columns="4">'
           beta = beta*rp
           IF(up) THEN
-             WRITE(iw,'(T12,4E25.14)') (beta(j),j=1,nr)
+             WRITE(iw,'(T12,4ES25.12E3)') (2._dp*beta(j),j=1,nr)
           ELSE
-             WRITE(iw,'(T12,4E25.14)') (beta(j),j=nr,1,-1)
+             WRITE(iw,'(T12,4ES25.12E3)') (2._dp*beta(j),j=nr,1,-1)
           END IF
           CALL compose(string,"</PP_BETA",counter=ibeta,isfinal=.TRUE.)
           WRITE(iw,'(T8,A)') TRIM(string)
@@ -681,7 +679,7 @@ CONTAINS
     END DO
     WRITE(iw,'(T8,A)') '<PP_DIJ type="real"'
     WRITE(iw,'(T12,A)') 'columns="4">'
-    WRITE(iw,'(T12,4E25.14)') ((2._dp*dij(i,j),j=1,nbeta),i=1,nbeta)
+    WRITE(iw,'(T12,4ES25.12E3)') ((0.5_dp*dij(i,j),j=1,nbeta),i=1,nbeta)
     WRITE(iw,'(T8,A)') '</PP_DIJ>'
     DEALLOCATE(dij,STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -702,7 +700,7 @@ CONTAINS
           WRITE(iw,'(T12,A)') TRIM(string)
           CALL compose(string,"occupation",rval=atom%state%occupation(l,i))
           WRITE(iw,'(T12,A)') TRIM(string)
-          CALL compose(string,"pseudo_energy",rval=atom%orbitals%ener(i,l))
+          CALL compose(string,"pseudo_energy",rval=2._dp*atom%orbitals%ener(i,l))
           WRITE(iw,'(T12,A)') TRIM(string)
           WRITE(iw,'(T12,A)') 'columns="4">'
           beta = 0._dp
@@ -711,9 +709,9 @@ CONTAINS
           END DO
           beta = beta*atom%basis%grid%rad
           IF(up) THEN
-             WRITE(iw,'(T12,4E25.14)') (beta(j),j=1,nr)
+             WRITE(iw,'(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j),j=1,nr)
           ELSE
-             WRITE(iw,'(T12,4E25.14)') (beta(j),j=nr,1,-1)
+             WRITE(iw,'(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j),j=nr,1,-1)
           END IF
           CALL compose(string,"</PP_CHI",counter=nwfn,isfinal=.TRUE.)
           WRITE(iw,'(T8,A)') TRIM(string)
@@ -733,11 +731,11 @@ CONTAINS
     CALL atom_density(dens,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
          "RHO",atom%basis%grid%rad,error)
     IF(up) THEN
-       WRITE(iw,'(T8,4E25.14)') (dens(j),j=1,nr)
+       WRITE(iw,'(T8,4ES25.12E3)') (4._dp*pi*dens(j)*atom%basis%grid%rad2(j),j=1,nr)
     ELSE
-       WRITE(iw,'(T8,4E25.14)') (dens(j),j=nr,1,-1)
+       WRITE(iw,'(T8,4ES25.12E3)') (4._dp*pi*dens(j)*atom%basis%grid%rad2(j),j=nr,1,-1)
     END IF
-    WRITE(iw,'(T4,A)') '<\PP_RHOATOM>'
+    WRITE(iw,'(T4,A)') '</PP_RHOATOM>'
     DEALLOCATE(dens,STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 

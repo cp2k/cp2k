@@ -459,7 +459,7 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     rc(:)=rr(:)/gthpot%rc
     DO i=1,m
-       locpot(i) = -gthpot%zion*erf(rc(i)/SQRT(2._dp))
+       locpot(i) = -gthpot%zion*erf(rc(i)/SQRT(2._dp))/rr(i)
     END DO
     n=gthpot%ncl
     fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
