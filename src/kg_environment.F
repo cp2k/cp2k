@@ -548,8 +548,6 @@ CONTAINS
           DEALLOCATE(kg_env%subset(isub)%sab_orb)
      
           CALL deallocate_task_list(kg_env%subset(isub)%task_list, error)
- 
-          DEALLOCATE(kg_env%subset(isub)%molecules)
 
         END DO
 
@@ -567,10 +565,8 @@ CONTAINS
       ALLOCATE(kg_env%subset(ncolors))
 
         DO i=1,ncolors
-
           NULLIFY(kg_env%subset(i)%sab_orb)
           NULLIFY(kg_env%subset(i)%task_list)
-          NULLIFY(kg_env%subset(i)%molecules)
         END DO
     END IF
 
@@ -586,11 +582,6 @@ CONTAINS
       nnodes_of_color(color)=nnodes_of_color(color)+1
     END DO
 
-    DO i=1, ncolors
-     IF (.NOT.ASSOCIATED(kg_env%subset(i)%molecules)) &
-        ALLOCATE(kg_env%subset(i)%molecules(nnodes_of_color(i)))
-    END DO
-
     DEALLOCATE(nnodes_of_color) 
 
     ! store the subset information
@@ -600,7 +591,6 @@ CONTAINS
     DO i=1,nmol
       color=color_of_node(i)
       index_of_color(color)=index_of_color(color)+1
-      kg_env%subset(color)%molecules(index_of_color(color))=i
     END DO 
     DEALLOCATE(index_of_color)
 

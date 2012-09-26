@@ -31,7 +31,6 @@ MODULE kg_environment_types
   PUBLIC :: kg_environment_type, kg_env_release, subset_type
 
   TYPE subset_type
-    INTEGER, DIMENSION(:), POINTER :: molecules
     TYPE (neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb 
     TYPE (task_list_type), POINTER :: task_list
   END TYPE subset_type
@@ -44,8 +43,7 @@ MODULE kg_environment_types
 !>                          needed for the coloring
 !> \param subset_of_mol:    ith entry contains the index of the subset, the ith
 !>                          molecule belongs to
-!> \param subset: the list of molecules, the task list and the neighbor list of
-!>                each subset of molecules
+!> \param subset:   task list and neighbor list of each subset of molecules
 !> \param nsubsets: number of subsets
 !> \par History
 !>       2012.07 created [Martin Haeufel]
@@ -101,8 +99,6 @@ CONTAINS
       DEALLOCATE(kg_env%subset(isub)%sab_orb)
 
       CALL deallocate_task_list(kg_env%subset(isub)%task_list, error)
-
-      DEALLOCATE(kg_env%subset(isub)%molecules)
 
     END DO
 
