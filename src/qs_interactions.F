@@ -58,7 +58,8 @@ MODULE qs_interactions
 
 ! *** Public subroutines ***
 
-  PUBLIC :: init_interaction_radii, init_se_nlradius
+  PUBLIC :: init_interaction_radii, init_se_nlradius, &
+            init_interaction_radii_orb_basis
 
   PUBLIC :: write_paw_radii, write_ppnl_radii, write_ppl_radii, write_core_charge_radii, &
             write_pgf_orb_radii, write_geminal_radii
@@ -96,8 +97,8 @@ CONTAINS
                                                 p_gem, p_orb, p_paw, p_ppl, &
                                                 p_ppnl, p_soft, paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
-      core_charge_radius, gcca, kg_radius, kind_radius, ppl_radius, &
-      ppnl_radius, rcprj, zab, zd, zeta
+      core_charge_radius, gcca, kind_radius, ppl_radius, ppnl_radius, rcprj, &
+      zab, zd, zeta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
                                                 alpha_ppnl, cexp_ppl, &
                                                 set_radius
@@ -162,46 +163,8 @@ CONTAINS
       IF (ASSOCIATED(orb_basis_set)) THEN
 
         p_orb = .TRUE.
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               npgf=npgf,&
-                               l=lshell,&
-                               zet=zet,&
-                               gcc=gcc,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius)
-
-        kind_radius = 0.0_dp
-        kg_radius = 0.0_dp
-
-        DO iset=1,nset
-          set_radius(iset) = 0.0_dp
-          DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_dp
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              gcca = gcc(ipgf,ishell,iset)
-              zeta = zet(ipgf,iset)
-              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
-                                          exp_radius(l,zeta,&
-                                                     qs_control%eps_pgf_orb,&
-                                                     gcca))
-              kg_radius = MAX(kg_radius,&
-                             exp_radius(l,zeta,&
-                             qs_control%eps_kg_orb,&
-                             gcca))
-            END DO
-            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
-          END DO
-          kind_radius = MAX(kind_radius,set_radius(iset))
-        END DO
-
-        CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius,&
-                               kind_radius=kind_radius,&
-                               short_kind_radius=kg_radius)
+        CALL init_interaction_radii_orb_basis(orb_basis_set,qs_control%eps_pgf_orb,&
+             qs_control%eps_kg_orb,error=error)
 
       END IF
 
@@ -315,46 +278,8 @@ CONTAINS
       IF (ASSOCIATED(aux_fit_basis_set)) THEN
 
         p_orb = .TRUE.
-        CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               npgf=npgf,&
-                               l=lshell,&
-                               zet=zet,&
-                               gcc=gcc,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius)
-
-        kind_radius = 0.0_dp
-        kg_radius = 0.0_dp
-
-        DO iset=1,nset
-          set_radius(iset) = 0.0_dp
-          DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_dp
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              gcca = gcc(ipgf,ishell,iset)
-              zeta = zet(ipgf,iset)
-              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
-                                          exp_radius(l,zeta,&
-                                          qs_control%eps_pgf_orb,&
-                                          gcca))
-              kg_radius = MAX(kg_radius,&
-                             exp_radius(l,zeta,&
-                             qs_control%eps_kg_orb,&
-                             gcca))
-            END DO
-            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
-          END DO
-          kind_radius = MAX(kind_radius,set_radius(iset))
-        END DO
-
-        CALL set_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius,&
-                               kind_radius=kind_radius,&
-                               short_kind_radius=kg_radius)
+        CALL init_interaction_radii_orb_basis(aux_fit_basis_set,qs_control%eps_pgf_orb,&
+             qs_control%eps_kg_orb,error=error)
 
       END IF
 
@@ -362,40 +287,7 @@ CONTAINS
 
       IF (ASSOCIATED(aux_basis_set)) THEN
 
-        CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               npgf=npgf,&
-                               l=lshell,&
-                               zet=zet,&
-                               gcc=gcc,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius)
-
-        kind_radius = 0.0_dp
-
-        DO iset=1,nset
-          set_radius(iset) = 0.0_dp
-          DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_dp
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              gcca = gcc(ipgf,ishell,iset)
-              zeta = zet(ipgf,iset)
-              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
-                                          exp_radius(l,zeta,&
-                                                     qs_control%eps_pgf_orb,&
-                                                     gcca))
-            END DO
-            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
-          END DO
-          kind_radius = MAX(kind_radius,set_radius(iset))
-        END DO
-
-        CALL set_gto_basis_set(gto_basis_set=aux_basis_set,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius,&
-                               kind_radius=kind_radius)
+        CALL init_interaction_radii_orb_basis(aux_basis_set,qs_control%eps_pgf_orb,error=error)
 
       END IF
 
@@ -448,40 +340,7 @@ CONTAINS
 
         IF(paw_atom) THEN
           p_soft = .TRUE.
-          CALL get_gto_basis_set(gto_basis_set=soft_basis,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               npgf=npgf,&
-                               l=lshell,&
-                               zet=zet,&
-                               gcc=gcc,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius)
-
-          kind_radius = 0.0_dp
-
-          DO iset=1,nset
-            set_radius(iset) = 0.0_dp
-            DO ipgf=1,npgf(iset)
-              pgf_radius(ipgf,iset) = 0.0_dp
-              DO ishell=1,nshell(iset)
-                l = lshell(ishell,iset)
-                gcca = gcc(ipgf,ishell,iset)
-                zeta = zet(ipgf,iset)
-                pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
-                                          exp_radius(l,zeta,&
-                                                     qs_control%eps_pgf_orb,&
-                                                     gcca))
-              END DO
-              set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
-            END DO
-            kind_radius = MAX(kind_radius,set_radius(iset))
-          END DO
-
-          CALL set_gto_basis_set(gto_basis_set=soft_basis,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius,&
-                               kind_radius=kind_radius)
+          CALL init_interaction_radii_orb_basis(soft_basis,qs_control%eps_pgf_orb,error=error)
 
         END IF
       END IF
@@ -517,6 +376,81 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE init_interaction_radii
+
+! *****************************************************************************
+  SUBROUTINE init_interaction_radii_orb_basis(orb_basis_set,eps_pgf_orb,eps_pgf_short,error)
+
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    REAL(KIND=dp), INTENT(IN)                :: eps_pgf_orb
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_pgf_short
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'init_interaction_radii_orb_basis', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ipgf, iset, ishell, l, nset
+    INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: lshell
+    REAL(KIND=dp)                            :: eps_short, gcca, kind_radius, &
+                                                short_radius, zeta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius, zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc
+
+    IF (ASSOCIATED(orb_basis_set)) THEN
+
+       IF(PRESENT(eps_pgf_short)) THEN
+          eps_short = eps_pgf_short
+       ELSE
+          eps_short = eps_pgf_orb
+       END IF
+          
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                              nset=nset,&
+                              nshell=nshell,&
+                              npgf=npgf,&
+                              l=lshell,&
+                              zet=zet,&
+                              gcc=gcc,&
+                              pgf_radius=pgf_radius,&
+                              set_radius=set_radius)
+
+       kind_radius = 0.0_dp
+       short_radius = 0.0_dp
+
+       DO iset=1,nset
+         set_radius(iset) = 0.0_dp
+         DO ipgf=1,npgf(iset)
+           pgf_radius(ipgf,iset) = 0.0_dp
+           DO ishell=1,nshell(iset)
+             l = lshell(ishell,iset)
+             gcca = gcc(ipgf,ishell,iset)
+             zeta = zet(ipgf,iset)
+             pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                         exp_radius(l,zeta,&
+                                                    eps_pgf_orb,&
+                                                    gcca))
+             short_radius = MAX(short_radius,&
+                             exp_radius(l,zeta,&
+                             eps_short,&
+                             gcca))
+           END DO
+           set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+         END DO
+         kind_radius = MAX(kind_radius,set_radius(iset))
+       END DO
+
+       CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
+                              pgf_radius=pgf_radius,&
+                              set_radius=set_radius,&
+                              kind_radius=kind_radius,&
+                              short_kind_radius=short_radius)
+
+     END IF
+
+  END SUBROUTINE init_interaction_radii_orb_basis
 
 ! *****************************************************************************
   SUBROUTINE init_se_nlradius(se_control,atomic_kind_set,&
