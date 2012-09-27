@@ -6,8 +6,8 @@ FC       = ftn
 LD       = ftn 
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__parallel -D__SCALAPACK -D__BLACS -U__FFTW3 -D__MAX_CONTR=3 -D__HAS_NO_GETLOG -D__DBCSR_CUDA 
-FCFLAGS  = -fopenmp -O2 -march=bdver1 -ffree-form -ftree-vectorize $(DFLAGS)
+DFLAGS   = -D__GFORTRAN -D__GEMINI -D__MAP_POL=7 -D__FFTSG -D__parallel -D__SCALAPACK -D__BLACS -U__FFTW3 -D__MAX_CONTR=3 -D__HAS_NO_GETLOG -D__DBCSR_CUDA 
+FCFLAGS  = -fopenmp -O2 -march=bdver1 -ffree-form -ftree-vectorize $(DFLAGS) -ffree-line-length-512
 CFLAGS   = $(FCFLAGS) 
 LDFLAGS  = $(FCFLAGS) -mkl=sequential
 NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_20
