@@ -691,7 +691,8 @@ CONTAINS
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="SCHED_THREAD",&
          description="Enable thread scheduling on the compute node.", &
-         usage="SCHED_THREAD type (N=none L=linear I=interleaved, G=group,M=manual)",&
+         usage="SCHED_THREAD type (N=none, L=linear, I=interleaved, "//&
+          "G=group,M=manual,D=default)",&
          default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -699,7 +700,8 @@ CONTAINS
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="SCHED_MPI",&
          description="Enable process scheduling on the compute node.", &
-         usage="SCHED_MPI type (N=none L=linear I=interleaved, G=group, M=manual)",&
+         usage="SCHED_MPI type (N=none, L=linear, I=interleaved, G=group,"//&
+         " M=manual, D=Default)",&
          default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

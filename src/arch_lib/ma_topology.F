@@ -517,17 +517,18 @@ CONTAINS
    INTEGER                      :: x,y,z,nhops
    INTEGER                      :: src_x, src_y, src_z,&
                                    dest_x, dest_y, dest_z
+   REAL                         :: tmp
 
 #if defined __GEMINI || __SEASTAR  
    CALL ma_get_host_coordinates(src,src_x, src_y, src_z)
    CALL ma_get_host_coordinates(dest,dest_x, dest_y, dest_z)   
 
-   x = ABS(src_x-dest_x);
-   IF(x == ma_nodes_x()) x = 1;
-   y = ABS(src_y-dest_y);
-   IF(y == ma_nodes_y()) y = 1;
-   z = ABS(src_z-dest_z);
-   IF(z == ma_nodes_z()) z = 1;
+   tmp = REAL(src_x-dest_x)/REAL(ma_nodes_x())
+   x=NINT((tmp-NINT(tmp))*REAL(ma_nodes_x()))
+   tmp = REAL(src_y-dest_y)/REAL(ma_nodes_y())
+   y=NINT((tmp-NINT(tmp))*REAL(ma_nodes_y()))
+   tmp = REAL(src_z-dest_z)/REAL(ma_nodes_z())
+   z=NINT((tmp-NINT(tmp))*REAL(ma_nodes_z()))
   
    nhops = x+y+z 
 #else

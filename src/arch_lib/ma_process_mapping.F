@@ -1224,7 +1224,8 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
 #if defined __GEMINI || __SEASTAR || __NET
    INTEGER                                    :: numtask, taskid,i, &
                                                  ipe,jpe, tmp_order, &
-                                                 not_exchange, stat, jump
+                                                 not_exchange, stat, jump,&
+                                                 exchange
    REAL, DIMENSION(3)                         :: contention
    INTEGER, DIMENSION(:), POINTER             :: tmp_topology, tmp_topo
    REAL                                       :: old_contention, new_contention 
@@ -1237,6 +1238,7 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
 #endif
 
    not_exchange = 0
+   exchange = 0
    jump = numtask-1
 
    ALLOCATE(ordering(numtask),stat=stat)
@@ -1313,6 +1315,7 @@ IF(old_contention .GT. 0) THEN
        !we just change if the new contention is at least 10% better than 
        IF ( new_contention .LT. old_contention) THEN
           old_contention = new_contention
+          exchange = exchange + 1
        ELSE
          tmp_order = ordering(jpe+1)
          ordering(jpe+1) = ordering(jpe)
@@ -1334,7 +1337,7 @@ IF(old_contention .GT. 0) THEN
 ENDIF
 
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Finishing switch - have changed ', (numtask*4)-not_exchange
+   IF(taskid==0) WRITE(*,*) 'Finishing switch - have changed ', exchange
 #endif
 
  ! Create the new communicator
