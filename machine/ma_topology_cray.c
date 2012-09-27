@@ -16,8 +16,21 @@ int extract_topology()
   //get information form database - not the best way to do it 
   // but it is the simplest one 
   FILE *fpexec;
+  int pid;
+  char name[24];
+  char pidstr[12];
 
-  fpexec = fopen("topo_cray.sh", "w");
+  name[0] = pidstr[0] = '\0';
+
+  pid = getpid();
+  sprintf(pidstr,"%d",pid);  
+
+  strcpy(name,"topo_cray");
+  strcat(name,"_");
+  strcat(name,pidstr);
+  strcat(name,".sh\0");
+
+  fpexec = fopen(name, "w");
   fprintf (fpexec, "#!/bin/bash\n");
   fprintf (fpexec, "xtdb2proc\n");
   fprintf (fpexec, "tr ',' ' ' < processor > processor_tmp\n");
@@ -31,7 +44,14 @@ int extract_topology()
   fprintf (fpexec,"rm processor\n");
   fclose(fpexec);
 
-  char command[]="chmod +x topo_cray.sh; ./topo_cray.sh; rm topo_cray.sh";
+  char command[256];
+  strcpy(command,"chmod +x ");
+  strcat(command,name);
+  strcat(command,"; ./");
+  strcat(command,name);
+  strcat(command,"; rm ");
+  strcat(command,name);
+
   int ret = system(command);
   return ret;
 }

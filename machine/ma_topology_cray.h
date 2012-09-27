@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #if defined __SEASTAR || __GEMINI
 
