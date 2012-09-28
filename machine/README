@@ -94,10 +94,8 @@ The necessary modifications are:
 
 3) Add the interconnection information libraries (e.g. rca) to LIBS
 
-4) If you want to use a specific strategy set the -D__MAP_POL flag to
-   X, where X=1...7
-
 Then, compile as normal.
 
-
-
+If you want to use a specific strategy modify the command line 
+to run CP2K with -mpi-mapping X, where X=1...7
+   Example: ./cp2k.popt -mpi-mapping X ...

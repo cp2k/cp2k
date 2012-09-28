@@ -50,20 +50,23 @@ PROGRAM cp2k
   USE kinds,           ONLY: default_path_length,&
                              default_string_length
   USE f77_interface,   ONLY: init_cp2k, finalize_cp2k, &
-                             check_input, default_para_env
+                             check_input, default_para_env, &
+			     init_f77_default
   USE f77_blas
+  USE string_utilities, ONLY: string_to_ascii
 #include "cp_common_uses.h"
   IMPLICIT NONE
 #if defined(__USE_PAT)
 #include "pat_apif.h"
 #endif
 
-  CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,arg_att
+  CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,&
+  					  arg_att, mpi_mapping
   CHARACTER(LEN=default_string_length) :: dev_flag
-  INTEGER                              :: output_unit,istat
+  INTEGER                              :: output_unit,istat,mpi_mapping_method
   INTEGER                              :: ierr, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
-                                          permissive
+                                          permissive,has_mpi_mapping
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
   TYPE(cp_error_type)                  :: error
 
@@ -73,51 +76,36 @@ PROGRAM cp2k
   ! initialize with a default error (a proper error will be initialized later)
   CALL cp_error_init(error)
 
-  ! do the initial setup of cp2k, provides a default_para_env
-  CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
+  ! set default behaviour for the command line switches
+  check      =.FALSE.
+  manual     =.FALSE.
+  usage      =.FALSE.
+  echo_input =.FALSE.
+  has_input  =.FALSE.
+  has_mpi_mapping =.FALSE.
+  run_it     =.TRUE.
+  force_run  =.FALSE.
+  permissive =.FALSE.
+  print_version =.FALSE.
+  print_license =.FALSE.
+  command_line_error=.FALSE.
+  xml = .FALSE.
+  mpi_mapping = "-1"
+  mpi_mapping_method = -1 
+  input_file_name  = "Missing input file name"   ! no default
+  output_file_name = "__STD_OUT__"               ! by default we go to std_out
 
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
-#endif
+  ! parsing of command line arguments
+  n_arg=m_iargc()
 
-  IF (ierr==0) THEN
-#if defined(__HMD)
-     DO i=0,default_para_env%num_pe-1
-        IF (default_para_env%mepos==i) THEN
-           PRINT *, "***** proc ",i
-           CALL _dump_allocated(%VAL(0))
-        END IF
-        CALL mp_sync(default_para_env%group)
-     END DO
-#endif
-
-     ! set default behaviour for the command line switches
-     check      =.FALSE.
-     manual     =.FALSE.
-     usage      =.FALSE.
-     echo_input =.FALSE.
-     has_input  =.FALSE.
-     run_it     =.TRUE.
-     force_run  =.FALSE.
-     permissive =.FALSE.
-     print_version =.FALSE.
-     print_license =.FALSE.
-     command_line_error=.FALSE.
-     xml = .FALSE.
-     input_file_name  = "Missing input file name"   ! no default
-     output_file_name = "__STD_OUT__"               ! by default we go to std_out
-
-     ! parsing of command line arguments
-     n_arg=m_iargc()
-
-     ! this is an error condition, provide usage information
-     IF (n_arg<1) THEN
-         WRITE (output_unit,"(a)") ""
-         WRITE (output_unit,"(a)") "ERROR: At least one command line argument must be specified"
+  ! this is an error condition, provide usage information
+  IF (n_arg<1) THEN
+     WRITE (output_unit,"(a)") ""
+     WRITE (output_unit,"(a)") "ERROR: At least one command line argument must be specified"
          command_line_error=.TRUE.
-     ENDIF
+  ENDIF
 
-     i_arg=0
+  i_arg=0
 arg_loop: DO WHILE (i_arg<n_arg)
         i_arg=i_arg+1
         CALL m_getarg(i_arg,arg_att)
@@ -146,6 +134,19 @@ arg_loop: DO WHILE (i_arg<n_arg)
         CASE("-help","--help","-h")
            usage=.TRUE.
            run_it=.FALSE.
+	CASE("-mpi-mapping","--mpi-mapping")
+	   i_arg=i_arg+1
+           CALL m_getarg(i_arg,arg_att)
+           ! argument does not start with a - it is a reordering
+           IF (.NOT. arg_att(1:1)=="-") THEN
+              mpi_mapping=arg_att
+              has_mpi_mapping=.TRUE.
+           ELSE
+              WRITE (output_unit,"(a)") ""
+              WRITE (output_unit,"(a)") "ERROR: the mpi mapping"//TRIM(arg_att)//" starts with -"
+              command_line_error=.TRUE.
+              EXIT arg_loop
+           ENDIF
         CASE("-i")
            i_arg=i_arg+1
            CALL m_getarg(i_arg,arg_att)
@@ -197,6 +198,30 @@ arg_loop: DO WHILE (i_arg<n_arg)
        command_line_error = .TRUE.
      END IF
 
+  ! do the initial setup of cp2k, provides a default_para_env
+  IF (has_mpi_mapping) THEN
+    READ(mpi_mapping(1:1),*) mpi_mapping_method
+  ENDIF
+    CALL init_f77_default(mapping_method=mpi_mapping_method) 
+    CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
+
+
+#if defined(__USE_PAT)
+  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
+#endif
+
+  IF (ierr==0) THEN
+#if defined(__HMD)
+     DO i=0,default_para_env%num_pe-1
+        IF (default_para_env%mepos==i) THEN
+           PRINT *, "***** proc ",i
+           CALL _dump_allocated(%VAL(0))
+        END IF
+        CALL mp_sync(default_para_env%group)
+     END DO
+#endif
+
+
      ! some first info concerning how to run CP2K
 
      IF (usage.OR.command_line_error) THEN
@@ -207,6 +232,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
                           " [--html-manual] [--xml] [-r|-run]"//&
                           " [-o ouput_file] [--permissive-echo]"//&
                           " [[-i] input_file]",&
+                          " [[-mpi-mapping|--mpi-mapping] method]",&
            "Starts the CP2K program, see <http://www.cp2k.org/>",&
            "The easiest way is "//TRIM(arg_att)//" input_file",&
            "The following options can be used:",&
@@ -229,7 +255,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
            "                    and echoes it, you cannot run, you have to run the",&
            "                    dumped input",&
            "--xml             : dumps the whole CP2K input structure as a XML file",&
-           "                    xml2htm generates a HTML manual from this XML file"
+           "                    xml2htm generates a HTML manual from this XML file", &
+           "--mpi-mapping     : applies a given MPI reordering to CP2K"
        END IF
      END IF
 

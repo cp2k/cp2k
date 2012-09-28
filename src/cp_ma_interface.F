@@ -652,29 +652,28 @@ END SUBROUTINE cp_ma_net_affinity
 
   END SUBROUTINE cp_ma_print_strategy
 
-  SUBROUTINE cp_ma_mpi_reorder_strategy(strategy)
+  SUBROUTINE cp_ma_mpi_reorder_strategy(mapping_method,strategy)
    CHARACTER, INTENT(OUT)      :: strategy
+   INTEGER, INTENT(IN)         :: mapping_method
 
-#if defined __MAP_POL
-#if __MAP_POL == 1
-   strategy = 'D'
-#elif __MAP_POL == 2
-   strategy = 'O'
-#elif __MAP_POL == 3
-   strategy = 'H'
-#elif __MAP_POL == 4
-   strategy = 'P'
-#elif __MAP_POL == 5
-   strategy = 'R'
-#elif __MAP_POL == 6
-   strategy = 'F'
-#else
-   strategy = 'C' 
-#endif
-#else
-   strategy = 'X'
-#endif
-
+   SELECT CASE(mapping_method)
+     CASE(1)
+       strategy = 'D'
+     CASE(2)
+       strategy = 'O'
+     CASE(3)
+      strategy = 'H'
+     CASE(4)
+      strategy = 'P'
+     CASE(5)
+      strategy = 'R'
+     CASE(6)
+      strategy = 'F'
+     CASE(7)
+      strategy = 'C'
+     CASE default
+      strategy = 'X'
+   END SELECT
   END SUBROUTINE cp_ma_mpi_reorder_strategy
 
   SUBROUTINE cp_ma_mpi_reordering (mp_comm,mp_reorder,error)

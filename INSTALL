@@ -118,8 +118,8 @@ How to compile CP2K code
 
  2j) Process mapping support (optional, under development):
      * Use the target machine flag (see 3b) to compile with topology support.
-     * You can also define the strategy to be used using the flag -D__MAP_POL=X, 
-       with X=1,2,3,4,5,6,7. 1=SMP-style rank ordering, 2=file based rank ordering,
+     * You can also define the strategy to be used using as a command line, 
+       with -mpi-mapping [1,2,3,4,5,6,7]. 1=SMP-style rank ordering, 2=file based rank ordering,
        3=hilbert space-filling curve, 4=peano space-fillinng curve,
        5=round-robin rank ordering, 6=hilbert-peano, 7=cannon pattern mapping  
      * The compiler must support ISO_C_BINDING.

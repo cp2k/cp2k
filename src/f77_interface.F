@@ -140,8 +140,10 @@ MODULE f77_interface
   TYPE(cp_para_env_type), POINTER, SAVE :: default_para_env
   LOGICAL, SAVE :: module_initialized=.FALSE.
   INTEGER, SAVE :: last_f_env_id=0, n_f_envs=0
+  INTEGER       :: mpi_mapping_method
 
   PUBLIC :: default_para_env
+  PUBLIC :: init_f77_default
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
             get_force, calc_energy_force, get_energy, &
@@ -149,6 +151,16 @@ MODULE f77_interface
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
             set_vel, get_vel, do_shake, set_cell, get_cell, get_result_r1
 CONTAINS
+
+!- ****************************************************************************
+!> \brief set the default mpi reordering method
+!> \param mpi_mapping_method the selected method
+!> \author Christiane Pousa Ribeiro
+!- ****************************************************************************
+ SUBROUTINE init_f77_default(mapping_method)
+   INTEGER, INTENT(IN)    :: mapping_method
+   mpi_mapping_method = mapping_method
+ END SUBROUTINE init_f77_default
 
 ! *****************************************************************************
 !> \brief returns the position of the force env corresponding to the given id
@@ -226,8 +238,8 @@ CONTAINS
        CALL add_mp_perf_env()
        CALL add_timer_env()
        
-#ifdef __MAP_POL
-       CALL cp_ma_mpi_reorder_strategy(strategy)
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
+       CALL cp_ma_mpi_reorder_strategy(mpi_mapping_method,strategy)
        CALL cp_ma_mpi_reordering(mpi_comm_default,mp_reorder=strategy, error=error)
 #endif
 
@@ -253,7 +265,7 @@ CONTAINS
        module_initialized=.TRUE.
        ierr=0
 
-#ifdef __MAP_POL
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
      CALL cp_ma_print_strategy(strategy,unit_nr, error)
 #endif
 

@@ -78,7 +78,7 @@ SUBROUTINE ma_mpi_reordering(reorder,mp_comm)
     CALL mp_environ(numtask,taskid,mp_comm)
     CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
    IF ((ncol .LT. 4) .OR. (nrow .LT. 4)) THEN   
-    CALL ma_switch(new_comm,mp_comm)  
+    CALL ma_packed(new_comm,mp_comm)  
    ELSE
     CALL ma_hilbert_peano(new_comm,mp_comm)
    ENDIF
