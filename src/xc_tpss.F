@@ -1139,7 +1139,7 @@ CONTAINS
              ! enforce 8*rho*tau >= norm_drho^2 (also each spin separately)
 
              t1 = my_norm_drhoa ** 2
-             mean_tmp=8._dp*my_rhoa*my_tau_b
+             mean_tmp=8._dp*my_rhoa*my_tau_a
              IF (mean_tmp<t1) THEN
                 mean_tmp=0.5_dp*(mean_tmp+t1)
                 t1=mean_tmp

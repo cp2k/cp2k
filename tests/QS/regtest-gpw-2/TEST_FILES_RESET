@@ -794,3 +794,5 @@ hcn_meta_chaincoord_kind.inp
 Au12_rmsd_mtd.inp
 #
 Au12_rmsd_mtd.inp
+#  
+H2O-tpss_lsd.inp
