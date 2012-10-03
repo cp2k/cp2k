@@ -12,8 +12,8 @@
 MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
-       Grimme2010, Heyd2004, Lee1988, Ortiz1994, Perdew1981, Perdew1996, &
-       Proynov2007, Tao2003, Vosko1980, Zhang1998
+       Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
+       Perdew1996, Proynov2007, Tao2003, Vosko1980, Zhang1998
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -246,7 +246,7 @@ CONTAINS
        CALL section_create(subsection,name="LIBXC",&
             description="Uses functionals from LIBXC",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            citations=(/Marques2012/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)

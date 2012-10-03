@@ -34,6 +34,8 @@
 ! *****************************************************************************
 MODULE xc_libxc
 #if defined (__LIBXC)
+  USE bibliography,                    ONLY: Marques2012,&
+                                             cite_reference
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -96,6 +98,8 @@ CONTAINS
 
     CALL section_vals_val_get(libxc_params,"functional",c_vals=func_name,error=error)
     CALL section_vals_val_get(libxc_params,"scale",r_vals=scale,error=error)
+
+    CALL cite_reference(Marques2012)
 
     IF ((SIZE(scale) == 1) .AND. (ABS(SCALE(1)-1.0_dp) < 1.0e-10_dp)) THEN
       sc = 1.0_dp
@@ -193,6 +197,8 @@ CONTAINS
 
     CALL section_vals_val_get(libxc_params,"functional",c_vals=func_name,error=error)
     CALL section_vals_val_get(libxc_params,"scale",r_vals=scale,error=error)
+
+    CALL cite_reference(Marques2012)
 
     IF ((SIZE(scale) == 1) .AND. (ABS(SCALE(1)-1.0_dp) < 1.0e-10_dp)) THEN
       sc = 1.0_dp

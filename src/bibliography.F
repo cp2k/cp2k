@@ -56,7 +56,8 @@ MODULE bibliography
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010
+             Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
+             Marques2012
 
 CONTAINS
 
@@ -1890,6 +1891,28 @@ CONTAINS
          "UT ISI:000280661600009",&
          "ER"),&
          DOI="10.1021/ct1002225")
+
+    CALL add_reference(key=Marques2012, ISI_record=s2a(&
+         "AU Marques, MAL",&
+         "   Oliveira, MJT",&
+         "   Burnus, T",&
+         "AF Marques, Miguel A. L.",&
+         "   Oliveira, Micael J. T.",&
+         "   Burnus, Tobias",&
+         "TI LIBXC: A library of exchange and correlation functionals for density",&
+         "   functional theory",&
+         "SO COMPUTER PHYSICS COMMUNICATIONS",&
+         "SN 0010-4655",&
+         "PD OCT",&
+         "PY 2012",&
+         "VL 183",&
+         "IS 10",&
+         "BP 2272",&
+         "EP 2281",&
+         "DI 10.1016/j.cpc.2012.05.007",&
+         "UT WOS:000306771900024",&
+         "ER"),&
+         DOI="10.1016/j.cpc.2012.05.007")
 
   END SUBROUTINE add_all_references
 
