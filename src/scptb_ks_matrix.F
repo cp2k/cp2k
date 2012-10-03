@@ -12,6 +12,7 @@ MODULE scptb_ks_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              scptb_control_type
@@ -30,8 +31,15 @@ MODULE scptb_ks_matrix
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE f77_blas
   USE gamma,                           ONLY: fgamma_0
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -137,37 +145,37 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
 
-       CALL get_qs_env(qs_env=qs_env,&
-            dft_control=dft_control,&
-            atomic_kind_set=atomic_kind_set,&
-            matrix_h=matrix_h,&
-            para_env=para_env,error=error)
+      CALL get_qs_env(qs_env=qs_env,&
+           dft_control=dft_control,&
+           atomic_kind_set=atomic_kind_set,&
+           matrix_h=matrix_h,&
+           para_env=para_env,error=error)
 
-       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       nspins=dft_control%nspins
-       CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+      scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
+      nspins=dft_control%nspins
+      CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+      CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
-       do_es = .FALSE.
-       do_scp = .FALSE.
-       nkind = SIZE(atomic_kind_set)
-       DO ikind=1,nkind
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
-         CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp)
-         IF(lmaxscp > 0) do_scp = .TRUE.
-         IF(lmaxscp >= 0) do_es = .TRUE.
-       END DO
-       scptb_control => dft_control%qs_control%scptb_control
-       IF(.NOT.scptb_control%do_scp) do_scp = .FALSE.
+      do_es = .FALSE.
+      do_scp = .FALSE.
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
+        CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp)
+        IF(lmaxscp > 0) do_scp = .TRUE.
+        IF(lmaxscp >= 0) do_es = .TRUE.
+      END DO
+      scptb_control => dft_control%qs_control%scptb_control
+      IF(.NOT.scptb_control%do_scp) do_scp = .FALSE.
 
-       DO ispin=1,nspins
-         ! copy the core matrix into the fock matrix
-          CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
-       END DO
+      DO ispin=1,nspins
+        ! copy the core matrix into the fock matrix
+         CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+      END DO
 
-       IF (do_es) THEN
+      IF (do_es) THEN
          ! Mulliken charges
          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,matrix_s=matrix_s,error=error)
          matrix_p => rho%rho_ao
@@ -271,14 +279,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tb_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, i, ia, iat, iatom, &
-                                                ikind, is, istat, ja, jat, &
-                                                jatom, jkind, jmax, lmaxscp, &
-                                                natom, nkind, nsize
+    INTEGER :: blk, ewald_type, i, ia, iat, iatom, ikind, is, istat, ja, jat, &
+      jatom, jkind, jmax, lmaxscp, natom, nkind, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: defined, failure, found
-    REAL(KIND=dp)                            :: alpha, beta, chabs, dq, dr2, &
-                                                eta, f0, ff, fi, noa, nob, t
+    REAL(KIND=dp)                            :: alpha, beta, chabs, deth, dq, &
+                                                dr2, eta, f0, ff, fi, noa, &
+                                                nob, t
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: qcharge
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drcharge
@@ -296,6 +304,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -321,6 +331,32 @@ CONTAINS
        scptb_control => dft_control%qs_control%scptb_control
        IF(scptb_control%do_ewald) THEN
           CALL cp_unimplemented_error(routineP,"No Ewald possible",error)
+          ! Ewald sum
+          NULLIFY(ewald_env,ewald_pw)
+          CALL get_qs_env(qs_env=qs_env,&
+                          ewald_env=ewald_env,ewald_pw=ewald_pw,&
+                          error=error)
+          CALL get_cell(cell=cell,periodic=periodic,deth=deth)
+          CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
+!         CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
+!         CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
+!                                 virial,use_virial,qs_env%atprop,error=error)
+          SELECT CASE(ewald_type)
+          CASE DEFAULT
+            CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
+          CASE(do_ewald_none)
+            CPErrorMessage(cp_failure_level,routineP,"Not allowed with SCPTB",error)
+            CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CASE(do_ewald_ewald)
+            CALL cp_unimplemented_error(routineP,&
+                 "Standard Ewald not implemented in SCPTB",error)
+          CASE(do_ewald_pme)
+            CALL cp_unimplemented_error(routineP,&
+                 "PME not implemented in SCPTB",error)
+          CASE(do_ewald_spme)
+!           CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
+!             gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
+          END SELECT
        ELSE
          ! direct sum
          IF(.NOT.just_energy .OR. calculate_forces) THEN
