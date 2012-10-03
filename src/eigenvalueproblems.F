@@ -29,18 +29,13 @@ MODULE eigenvalueproblems
 
   PRIVATE
 
-  PUBLIC :: diagonalise, diagonalise_general_packed, singular_values
+  PUBLIC :: diagonalise, singular_values
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eigenvalueproblems'
 
   INTERFACE diagonalise
      MODULE PROCEDURE diagonalise_ssyev
      MODULE PROCEDURE diagonalise_chpev
-  END INTERFACE
-
-  INTERFACE diagonalise_general_packed
-     MODULE PROCEDURE diagonalise_sspgv
-     MODULE PROCEDURE diagonalise_chpgv
   END INTERFACE
 
   INTERFACE singular_values
@@ -129,81 +124,6 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
   END IF
 
 END SUBROUTINE diagonalise_chpev
-
-! *****************************************************************************
-SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
-                               eigenvalues, eigenvectors )
-
-    REAL(KIND=dp), INTENT(INOUT)             :: matrix( : ), overlap( : )
-    INTEGER, INTENT(IN)                      :: mysize, TYPE
-    CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
-                                                eigenvectors( :, : )
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_sspgv', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: jobz = "V", uplo
-    INTEGER                                  :: info
-    REAL(KIND=dp)                            :: work( 2 * mysize - 1 )
-
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) THEN
-     uplo = "U"
-  ELSE
-     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
-  END IF
-
-  CALL lapack_sspgv ( TYPE, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
-       eigenvectors, mysize, work, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,"Error in diagonalisation")
-  END IF
-
-END SUBROUTINE diagonalise_sspgv
-
-! *****************************************************************************
-SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
-                               eigenvalues, eigenvectors )
-
-    COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : ), overlap( : )
-    INTEGER, INTENT(IN)                      :: mysize, TYPE
-    CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
-    COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_chpgv', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: jobz = "V", uplo
-    INTEGER                                  :: info
-    COMPLEX(KIND=dp)                         :: work( 2 * mysize - 1 )
-    REAL(KIND=dp)                            :: rwork( 3 * mysize - 2 )
-
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) THEN
-     uplo = "U"
-  ELSE
-     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage.")
-  END IF
-
-  CALL lapack_chpgv ( TYPE, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
-       eigenvectors, mysize, work, rwork, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,"Error in diagonalisation.")
-  END IF
-
-END SUBROUTINE diagonalise_chpgv
 
 ! *****************************************************************************
 SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
