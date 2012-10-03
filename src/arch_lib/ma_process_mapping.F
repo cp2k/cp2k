@@ -283,9 +283,10 @@ RECURSIVE SUBROUTINE peano_curve (tmp, original_grid,grid_level_t, &
 END SUBROUTINE peano_curve
 
 FUNCTION is_power_three(numtask) RESULT(ispower)
-   INTEGER,INTENT(IN)           :: numtask
-   LOGICAL                      :: ispower
-   INTEGER                      :: n
+    INTEGER, INTENT(IN)                      :: numtask
+    LOGICAL                                  :: ispower
+
+    INTEGER                                  :: n
 
    n = numtask
 
@@ -1039,9 +1040,10 @@ END FUNCTION has_more_2dgrid
 !>      10.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
 FUNCTION square_grid(numtask) RESULT(square)
-  LOGICAL                  :: square
-  INTEGER,INTENT(IN)       :: numtask
-  INTEGER                  :: grid_dim
+    INTEGER, INTENT(IN)                      :: numtask
+    LOGICAL                                  :: square
+
+    INTEGER                                  :: grid_dim
 
   grid_dim = INT(SQRT(REAL(numtask,KIND=dp)))
   IF (grid_dim*grid_dim .EQ. numtask) THEN
