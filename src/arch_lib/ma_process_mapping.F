@@ -282,6 +282,25 @@ RECURSIVE SUBROUTINE peano_curve (tmp, original_grid,grid_level_t, &
 
 END SUBROUTINE peano_curve
 
+FUNCTION is_power_three(numtask) RESULT(ispower)
+   INTEGER,INTENT(IN)           :: numtask
+   LOGICAL                      :: ispower
+   INTEGER                      :: n
+
+   n = numtask
+
+   DO WHILE(MOD(n,9) .EQ. 0)
+     n = n/9
+   ENDDO
+
+   IF((n .EQ. 1) .OR. (n .EQ. 3)) THEN
+     ispower = .TRUE.
+   ELSE
+     ispower = .FALSE.
+   ENDIF
+
+END FUNCTION is_power_three
+
 ! *****************************************************************************
 !> \brief Create the peano curve for a two dimensional grid 
 !> \param mp_comm [output] : handle of the default communicator
@@ -305,7 +324,8 @@ SUBROUTINE ma_peano_curve(mp_new_comm,mp_comm)
     ! Get a new MPI rank ordering, reduce comm costs
     
   CALL mp_environ(numtask,taskid,mp_comm)
-  IF ( numtask .GE. 3**2) THEN ! the smallest grid for peano
+
+IF (is_power_three(numtask) .AND. ( numtask .GE. 3**2)) THEN ! the smallest grid for peano
     grid_level = ma_find_grid_level(numtask)
     grid_dim = 3**grid_level
 
@@ -547,6 +567,8 @@ SUBROUTINE ma_hilbert_curve(mp_new_comm,mp_comm)
     ! Get a new MPI rank ordering, reduce comm costs
     CALL mp_environ(numtask,taskid,mp_comm)
 
+  IF(square_grid(numtask) .OR. (IAND(numtask,numtask-1) .EQ. 0)) THEN
+  
     ALLOCATE(ranks_order(numtask),stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
  
@@ -559,6 +581,9 @@ SUBROUTINE ma_hilbert_curve(mp_new_comm,mp_comm)
 
     IF(ASSOCIATED(ranks_order)) DEALLOCATE(ranks_order,stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+  ELSE
+    mp_new_comm = mp_comm
+  ENDIF
 #endif
 
 END SUBROUTINE ma_hilbert_curve
@@ -1008,6 +1033,26 @@ FUNCTION has_more_2dgrid(ncol,nrow,numtask) RESULT(has_2d)
 END FUNCTION has_more_2dgrid
 
 ! *****************************************************************************
+!> \brief Verify if the number of tasks is square
+!> \param numtask [input] : number of tasks
+!> return square true if it is square
+!>      10.2012 created [ Christiane Pousa ]
+! *****************************************************************************
+FUNCTION square_grid(numtask) RESULT(square)
+  LOGICAL                  :: square
+  INTEGER,INTENT(IN)       :: numtask
+  INTEGER                  :: grid_dim
+
+  grid_dim = INT(SQRT(REAL(numtask,KIND=dp)))
+  IF (grid_dim*grid_dim .EQ. numtask) THEN
+    square = .TRUE.
+  ELSE
+    square = .FALSE.
+  ENDIF
+   
+END FUNCTION  square_grid
+
+! *****************************************************************************
 !> \brief Create the hilbert curve for a two dimensional grid
 !> \param mp_comm [input] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
@@ -1032,162 +1077,166 @@ SUBROUTINE ma_hilbert_peano(mp_new_comm,mp_comm)
   ! Get a new MPI rank ordering, reduce comm costs
   CALL mp_environ(numtask,taskid,mp_comm)
 
-  ALLOCATE(ranks_order(numtask),stat=stat)
-  IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-  ranks_order(:) = 0
+  IF(square_grid(numtask) .OR. (IAND(numtask,numtask-1) .EQ. 0)) THEN  
 
-  CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
-  has_2dgrid = has_more_2dgrid(ncol,nrow,numtask)
-
-  IF( numtask .GT. 4) THEN  !smallest grid
-   h_grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
-
-   ! perfect hilbert grid
-   IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN 
-    CALL ma_hilbert_order(ranks_order,h_grid_dim)
-   ! there are other sub grids
-   ELSE IF ( has_2dgrid .GT. 0 ) THEN
-    CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
-                              current_numtask=numtask, current_nrow=nrow, &
-                              current_ncol=ncol, start_grid=0, &
-                              working_col=.TRUE.,mp_comm=mp_comm)
-
-    CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
-                              current_numtask=numtask, current_nrow=nrow, &
-                              current_ncol=ncol, start_grid=0, &
-                              working_col=.FALSE.,mp_comm=mp_comm)
-
-   DO ipe=2,numtask
-    IF( ranks_order(ipe) == 0 ) ranks_order(ipe) = ipe-1
-   ENDDO
-
-   IF(taskid==0) THEN
-     ALLOCATE(tmp(numtask),stat=stat)
-     DO ipe=1,numtask
-      tmp(ranks_order(ipe)+1) = ipe -1
-     ENDDO
-   ENDIF
-   !no perfect hilbert grids, use peano
-   ELSE
-   ALLOCATE(tmp_order(h_grid_dim*h_grid_dim),stat=stat)
-   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)   
-   ALLOCATE(coord_order(h_grid_dim*h_grid_dim),stat=stat)
-   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)   
-
-    coord_order(:) = 0
-    tmp_order(:) = 0 
- 
-    CALL ma_hilbert_order(coord_order,h_grid_dim)
-    
-    done = 1
-    DO ipe=1,h_grid_dim
-     DO jpe=0,h_grid_dim-1
-       tmp_order(jpe*h_grid_dim+ipe) = coord_order(done)
-       done = done + 1
-     ENDDO
-    ENDDO
-
-    coord_order(:) = tmp_order(:)
- 
-    DEALLOCATE(tmp_order,stat=stat)
-    ALLOCATE(tmp_order(numtask),stat=stat)
+    ALLOCATE(ranks_order(numtask),stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-    tmp_order(:) = 0    
-
-    !Now include the column ranks that were not in the Hilbert grid
-    rest_col = ncol-h_grid_dim
-    rest_row = nrow-h_grid_dim
-    index_order = 1
-    grid_dim = SQRT(REAL(numtask,KIND=dp))
-
-    DO ipe=0,nrow-1
-     DO jpe=ipe*ncol+h_grid_dim, ipe*ncol+h_grid_dim+rest_col-1
-      tmp_order(index_order) = jpe
-      index_order = index_order + 1
+    ranks_order(:) = 0
+  
+    CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
+    has_2dgrid = has_more_2dgrid(ncol,nrow,numtask)
+  
+    IF( numtask .GT. 4) THEN  !smallest grid
+     h_grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
+  
+     ! perfect hilbert grid
+     IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN 
+      CALL ma_hilbert_order(ranks_order,h_grid_dim)
+     ! there are other sub grids
+     ELSE IF ( has_2dgrid .GT. 0 ) THEN
+      CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
+                                current_numtask=numtask, current_nrow=nrow, &
+                                current_ncol=ncol, start_grid=0, &
+                                working_col=.TRUE.,mp_comm=mp_comm)
+  
+      CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
+                                current_numtask=numtask, current_nrow=nrow, &
+                                current_ncol=ncol, start_grid=0, &
+                                working_col=.FALSE.,mp_comm=mp_comm)
+  
+     DO ipe=2,numtask
+      IF( ranks_order(ipe) == 0 ) ranks_order(ipe) = ipe-1
      ENDDO
-    ENDDO
-
-    end_col = index_order
-    start_row = index_order 
-
-    !Now include de row ranks that were not in the Hilbert grid
-    DO ipe=0,rest_row-1
-!      DO jpe=numtask-rest_col-(ipe*nrow)-1,ncol*h_grid_dim, -1
-      DO jpe=numtask-rest_col-(ipe*nrow)-1,(numtask-rest_col-(ipe*nrow))-h_grid_dim, -1
+  
+     IF(taskid==0) THEN
+       ALLOCATE(tmp(numtask),stat=stat)
+       DO ipe=1,numtask
+        tmp(ranks_order(ipe)+1) = ipe -1
+       ENDDO
+     ENDIF
+     !no perfect hilbert grids, use peano
+     ELSE
+     ALLOCATE(tmp_order(h_grid_dim*h_grid_dim),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)   
+     ALLOCATE(coord_order(h_grid_dim*h_grid_dim),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)   
+  
+      coord_order(:) = 0
+      tmp_order(:) = 0 
+   
+      CALL ma_hilbert_order(coord_order,h_grid_dim)
+      
+      done = 1
+      DO ipe=1,h_grid_dim
+       DO jpe=0,h_grid_dim-1
+         tmp_order(jpe*h_grid_dim+ipe) = coord_order(done)
+         done = done + 1
+       ENDDO
+      ENDDO
+  
+      coord_order(:) = tmp_order(:)
+   
+      DEALLOCATE(tmp_order,stat=stat)
+      ALLOCATE(tmp_order(numtask),stat=stat)
+      IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+      tmp_order(:) = 0    
+  
+      !Now include the column ranks that were not in the Hilbert grid
+      rest_col = ncol-h_grid_dim
+      rest_row = nrow-h_grid_dim
+      index_order = 1
+      grid_dim = SQRT(REAL(numtask,KIND=dp))
+  
+      DO ipe=0,nrow-1
+       DO jpe=ipe*ncol+h_grid_dim, ipe*ncol+h_grid_dim+rest_col-1
         tmp_order(index_order) = jpe
         index_order = index_order + 1
-      ENDDO
-    ENDDO
-
-    end_row = index_order
-
-    !And now copy all them to the rank_order array
-    index_order = 1
-    jpe = 0 
-    kpe = 1    
-    DO ipe=1,numtask
-     IF ( (ipe .GT. jpe*ncol) .AND. (ipe .LT. jpe*ncol+h_grid_dim+1) .AND. &
-           (index_order .LE. SIZE(coord_order))) THEN
-         ranks_order(ipe) = coord_order(index_order)
-         index_order = index_order + 1
-      ENDIF
-     IF (ipe == h_grid_dim+jpe*ncol) jpe = jpe + 1
-    ENDDO
-
-    jpe = 0
-    kpe = 1        
-    index_order = index_order - 1 
-    DO ipe=1,numtask+1
-     IF ( (ipe .GE. jpe*ncol+nrow) .AND. (ipe .LT. jpe*ncol+nrow+rest_col)) THEN
-         ranks_order(tmp_order(kpe)+1) = index_order 
-         kpe = kpe + 1
-         index_order = index_order + 1
-     ENDIF
-     IF (ipe == (jpe+1)*ncol+1) jpe = jpe + 1
-    ENDDO
-
-    IF ( rest_row == 1) THEN
-       DO ipe=kpe,kpe+h_grid_dim-1
-        ranks_order(tmp_order(ipe)+1) = index_order
-        index_order = index_order + 1
        ENDDO
-    ELSE
-      
-      DO WHILE ( index_order .LT. numtask)
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1           
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe + h_grid_dim
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe + 1
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe - h_grid_dim
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe + 1      
       ENDDO
-    ENDIF
-
-   ENDIF
-  ! Create the new communicator
-   CALL mp_reordering(mp_comm,mp_new_comm,ranks_order)
-  ELSE
-   CALL ma_packed(mp_new_comm,mp_comm)   
-  ENDIF  
-
+  
+      end_col = index_order
+      start_row = index_order 
+  
+      !Now include de row ranks that were not in the Hilbert grid
+      DO ipe=0,rest_row-1
+  !      DO jpe=numtask-rest_col-(ipe*nrow)-1,ncol*h_grid_dim, -1
+        DO jpe=numtask-rest_col-(ipe*nrow)-1,(numtask-rest_col-(ipe*nrow))-h_grid_dim, -1
+          tmp_order(index_order) = jpe
+          index_order = index_order + 1
+        ENDDO
+      ENDDO
+  
+      end_row = index_order
+  
+      !And now copy all them to the rank_order array
+      index_order = 1
+      jpe = 0 
+      kpe = 1    
+      DO ipe=1,numtask
+       IF ( (ipe .GT. jpe*ncol) .AND. (ipe .LT. jpe*ncol+h_grid_dim+1) .AND. &
+             (index_order .LE. SIZE(coord_order))) THEN
+           ranks_order(ipe) = coord_order(index_order)
+           index_order = index_order + 1
+        ENDIF
+       IF (ipe == h_grid_dim+jpe*ncol) jpe = jpe + 1
+      ENDDO
+  
+      jpe = 0
+      kpe = 1        
+      index_order = index_order - 1 
+      DO ipe=1,numtask+1
+       IF ( (ipe .GE. jpe*ncol+nrow) .AND. (ipe .LT. jpe*ncol+nrow+rest_col)) THEN
+           ranks_order(tmp_order(kpe)+1) = index_order 
+           kpe = kpe + 1
+           index_order = index_order + 1
+       ENDIF
+       IF (ipe == (jpe+1)*ncol+1) jpe = jpe + 1
+      ENDDO
+  
+      IF ( rest_row == 1) THEN
+         DO ipe=kpe,kpe+h_grid_dim-1
+          ranks_order(tmp_order(ipe)+1) = index_order
+          index_order = index_order + 1
+         ENDDO
+      ELSE
+        
+        DO WHILE ( index_order .LT. numtask)
+          IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+            ranks_order(tmp_order(kpe)+1) = index_order
+            index_order = index_order + 1           
+            tmp_order(kpe) = 0
+          ENDIF
+          kpe = kpe + h_grid_dim
+          IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+            ranks_order(tmp_order(kpe)+1) = index_order
+            index_order = index_order + 1
+            tmp_order(kpe) = 0
+          ENDIF
+          kpe = kpe + 1
+          IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+            ranks_order(tmp_order(kpe)+1) = index_order
+            index_order = index_order + 1
+            tmp_order(kpe) = 0
+          ENDIF
+          kpe = kpe - h_grid_dim
+          IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+            ranks_order(tmp_order(kpe)+1) = index_order
+            index_order = index_order + 1
+            tmp_order(kpe) = 0
+          ENDIF
+          kpe = kpe + 1      
+        ENDDO
+      ENDIF
+  
+     ENDIF
+    ! Create the new communicator
+     CALL mp_reordering(mp_comm,mp_new_comm,ranks_order)
+    ELSE
+     CALL ma_packed(mp_new_comm,mp_comm)   
+    ENDIF  
+  ELSE ! for now we just copy the old ordering
+    mp_new_comm = mp_comm
+  ENDIF !perfect square and power of two
 
   IF(ASSOCIATED(tmp_order))DEALLOCATE(tmp_order,stat=stat)
   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
@@ -1388,341 +1437,340 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
 #ifdef __DEBUG_HWTOPO
    IF(taskid==0) WRITE(*,*) 'Starting Cannon heuristic'
 #endif
-
-  !create the cannon graph
-  CALL ma_comm_graph (mp_comm,cannon_graph)
-
-  ALLOCATE(ranks_order(numtask),stat=stat)
-  IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-  ranks_order(:) = 0
-
-  CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
-  has_2dgrid = has_more_2dgrid(ncol,nrow,numtask)
-
-  CALL ma_compute_contention(contention,mp_comm)
-  contention_packed = SUM (contention)
-  contention_packed = contention_packed+contention_packed/10
- 
-   h_grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
-
-   IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN
-    CALL ma_hilbert_order(ranks_order,h_grid_dim)
-
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - Only one curve is required'
-#endif
+  IF(square_grid(numtask) .OR. (IAND(numtask,numtask-1) .EQ. 0)) THEN
+   
+     !create the cannon graph
+     CALL ma_comm_graph (mp_comm,cannon_graph)
+   
+     ALLOCATE(ranks_order(numtask),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+     ranks_order(:) = 0
+   
+     CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
+     has_2dgrid = has_more_2dgrid(ncol,nrow,numtask)
+   
+     CALL ma_compute_contention(contention,mp_comm)
+     contention_packed = SUM (contention)
+     contention_packed = contention_packed+contention_packed/10
     
-   ! there are other sub grids
-   ELSE IF ( has_2dgrid .GT. 0 ) THEN
-    CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
-                              current_numtask=numtask, current_nrow=nrow, &
-                              current_ncol=ncol, start_grid=0, &
-                              working_col=.TRUE.,mp_comm=mp_comm)
-
-    CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
-                              current_numtask=numtask, current_nrow=nrow, &
-                              current_ncol=ncol, start_grid=0, &
-                              working_col=.FALSE.,mp_comm=mp_comm)
-
-   DO ipe=2,numtask
-    IF( ranks_order(ipe) == 0 ) ranks_order(ipe) = ipe-1
-   ENDDO
-
+      h_grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
+   
+      IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN
+       CALL ma_hilbert_order(ranks_order,h_grid_dim)
+   
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - More than one curve is required'
+    IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - Only one curve is required'
 #endif
-
-  !no perfect hilbert grids, use peano
-   ELSE
-
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Computing Hilbert-peano curve'
-#endif
-
-    ALLOCATE(tmp_order(h_grid_dim*h_grid_dim),stat=stat)
-    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-
-    ALLOCATE(coord_order(h_grid_dim*h_grid_dim),stat=stat)
-    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-
-    coord_order(:) = 0
-    tmp_order(:) = 0
-
-    CALL ma_hilbert_order(coord_order,h_grid_dim)
-
-   done = 1
-   DO ipe=1,h_grid_dim
-    DO jpe=0,h_grid_dim-1
-      tmp_order(jpe*h_grid_dim+ipe) = coord_order(done)
-      done = done + 1
-    ENDDO
-   ENDDO
-
-    coord_order(:) = tmp_order(:)
-
-    DEALLOCATE(tmp_order,stat=stat)
-    ALLOCATE(tmp_order(numtask),stat=stat)
-    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-    tmp_order(:) = 0
-
-    !Now include the column ranks that were not in the Hilbert grid
-    CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
-    rest_col = ncol-h_grid_dim
-    rest_row = nrow-h_grid_dim
-    index_order = 1
-    grid_dim = SQRT(REAL(numtask,KIND=dp))
-
-    DO ipe=0,nrow-1
-     DO jpe=ipe*ncol+h_grid_dim, ipe*ncol+h_grid_dim+rest_col-1
-      tmp_order(index_order) = jpe
-      index_order = index_order + 1
-     ENDDO
-    ENDDO
-
-    end_col = index_order
-    start_row = index_order
-
-    !Now include de row ranks that were not in the Hilbert grid
-    DO ipe=0,rest_row-1
-!      DO jpe=numtask-rest_col-(ipe*nrow)-1,ncol*h_grid_dim, -1
-      DO jpe=numtask-rest_col-(ipe*nrow)-1,(numtask-rest_col-(ipe*nrow))-h_grid_dim, -1
-        tmp_order(index_order) = jpe
-        index_order = index_order + 1
+       
+      ! there are other sub grids
+      ELSE IF ( has_2dgrid .GT. 0 ) THEN
+       CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
+                                 current_numtask=numtask, current_nrow=nrow, &
+                                 current_ncol=ncol, start_grid=0, &
+                                 working_col=.TRUE.,mp_comm=mp_comm)
+   
+       CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
+                                 current_numtask=numtask, current_nrow=nrow, &
+                                 current_ncol=ncol, start_grid=0, &
+                                 working_col=.FALSE.,mp_comm=mp_comm)
+   
+      DO ipe=2,numtask
+       IF( ranks_order(ipe) == 0 ) ranks_order(ipe) = ipe-1
       ENDDO
-    ENDDO
-
-    end_row = index_order
-
-    !And now copy all them to the rank_order array
-    index_order = 1
-    jpe = 0
-    kpe = 1
-    DO ipe=1,numtask
-     IF ( (ipe .GT. jpe*ncol) .AND. (ipe .LT. jpe*ncol+h_grid_dim+1) .AND. &
-           (index_order .LE. SIZE(coord_order))) THEN
-         ranks_order(ipe) = coord_order(index_order)
-         index_order = index_order + 1
-     ENDIF
-     IF (ipe == h_grid_dim+jpe*ncol) jpe = jpe + 1
-    ENDDO
-
-    jpe = 0
-    kpe = 1
-    index_order = index_order - 1
-    DO ipe=1,numtask+1
-     IF ( (ipe .GE. jpe*ncol+nrow) .AND. (ipe .LT. jpe*ncol+nrow+rest_col)) THEN
-         ranks_order(tmp_order(kpe)+1) = index_order
-         kpe = kpe + 1
-         index_order = index_order + 1
-     ENDIF
-     IF (ipe == (jpe+1)*ncol+1) jpe = jpe + 1
-    ENDDO
-
-    IF ( rest_row == 1) THEN
-       DO ipe=kpe,kpe+h_grid_dim-1
-        ranks_order(tmp_order(ipe)+1) = index_order
-        index_order = index_order + 1
-       ENDDO
-    ELSE
-
-      DO WHILE ( index_order .LT. numtask)
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe + h_grid_dim
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe + 1
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe - h_grid_dim
-        IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
-          ranks_order(tmp_order(kpe)+1) = index_order
-          index_order = index_order + 1
-          tmp_order(kpe) = 0
-        ENDIF
-        kpe = kpe + 1
-      ENDDO
-    ENDIF
-
-ENDIF
-
-  ALLOCATE(tmp_order(numtask),stat=stat)
-  IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-  tmp_order(:) = 0
- 
-  tmp_order(:) = allocated_topology(:)
-
-  DO ipe=1, numtask
-    allocated_topology(ranks_order(ipe)+1) = tmp_order(ipe)
-  ENDDO
-  
-  CALL ma_compute_contention(contention,mp_comm)
-  contention_hp = SUM (contention)
-
-  allocated_topology(:) = tmp_order(:)
-
-#if defined __GEMINI || __SEASTAR
-
-
+   
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Contention with Hilbert curve ', contention_hp, ' Contention with packed ', contention_packed
-#endif  
-
-  IF( contention_hp .LT. contention_packed) THEN
-
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Contention is smaller with Hilbert curve'
-#endif
-
-  ALLOCATE(orderX(numtask),stat=stat)
-  IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-  orderX(:) = 0
-  
-  ALLOCATE(orderY(numtask),stat=stat)
-  IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-  orderY(:) = 0
-
-  ALLOCATE(orderZ(numtask),stat=stat)
-  IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
-  orderZ(:) = 0
-
- !Project hilbert-peano in each direction and check for contention
-  ipe = 1
-  kpe = 0
-  DO WHILE (ipe .LE. numtask)
-    DO jpe=1, numtask
-      processor = allocated_topology(jpe)
-      IF (net_topology(processor+1)%coord_x .EQ. kpe) THEN
-        orderX(jpe) = ranks_order(ipe)
-        ipe = ipe + 1
-      ENDIF
-    ENDDO
-   kpe = kpe + 1
-  ENDDO 
-
-  tmp_order(:) = allocated_topology(:)
-
-  DO ipe=1, numtask
-    allocated_topology(orderX(ipe)+1) = tmp_order(ipe)
-  ENDDO
-
-  CALL ma_compute_contention(contention,mp_comm)
-  contention_X = SUM (contention)
-
-   allocated_topology(:) = tmp_order(:)
-
-  ipe = 1
-  kpe = 0
-  DO WHILE (ipe .LE. numtask)
-    DO jpe=1, numtask
-      processor = allocated_topology(jpe)
-      IF (net_topology(processor+1)%coord_y .EQ. kpe) THEN
-        orderY(jpe) = ranks_order(ipe)
-        ipe = ipe + 1
-      ENDIF
-    ENDDO
-    kpe = kpe + 1
-  ENDDO
-
-  tmp_order(:) = allocated_topology(:)
-
-  DO ipe=1, numtask
-    allocated_topology(orderY(ipe)+1) = tmp_order(ipe)
-  ENDDO
-
-  CALL ma_compute_contention(contention,mp_comm)
-  contention_Y = SUM (contention)
-
-  allocated_topology(:) = tmp_order(:)
-
-  ipe = 1
-  kpe = 0
-  DO WHILE (ipe .LE. numtask)
-    DO jpe=1, numtask
-      processor = allocated_topology(jpe)
-      IF (net_topology(processor+1)%coord_z .EQ. kpe) THEN
-        orderZ(jpe) = ranks_order(ipe)
-        ipe = ipe + 1
-      ENDIF
-    ENDDO
-    kpe = kpe + 1
-  ENDDO
-
-  tmp_order(:) = allocated_topology(:)
- 
-  DO ipe=1, numtask
-    allocated_topology(orderZ(ipe)+1) = tmp_order(ipe)
-  ENDDO
-
-  CALL ma_compute_contention(contention,mp_comm)
-  contention_Z = SUM (contention)
-
-  allocated_topology(:) = tmp_order(:)
-
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Contention: ', contention_X,contention_Y,contention_Z
-#endif
- 
-  IF ( (contention_X .LE. contention_Y+0.4*contention_Y) .AND. &
-       (contention_X .LE. contention_Z+0.2*contention_Z)) THEN
-     ranks_order(:) = orderX(:)
-     tmp_order(:) = allocated_topology(:)
-
-     DO ipe=1, numtask
-        allocated_topology(orderX(ipe)+1) = tmp_order(ipe)
-     ENDDO
-
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Use hilbert curve in X direction'
+     IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - More than one curve is required'
 #endif
    
-  ELSE IF ( (contention_Y .LE. contention_X) .AND. &
-       (contention_Y .LE. contention_Z)) THEN
-      ranks_order(:) = orderY(:)
-      tmp_order(:) = allocated_topology(:)
-      DO ipe=1, numtask
-        allocated_topology(orderY(ipe)+1) = tmp_order(ipe)
-     ENDDO
+     !no perfect hilbert grids, use peano
+      ELSE
+   
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Y direction'
+      IF(taskid==0) WRITE(*,*) 'Computing Hilbert-peano curve'
 #endif
-  ELSE 
-     ranks_order(:) = orderZ(:)
+   
+       ALLOCATE(tmp_order(h_grid_dim*h_grid_dim),stat=stat)
+       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+   
+       ALLOCATE(coord_order(h_grid_dim*h_grid_dim),stat=stat)
+       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+   
+       coord_order(:) = 0
+       tmp_order(:) = 0
+   
+       CALL ma_hilbert_order(coord_order,h_grid_dim)
+   
+      done = 1
+      DO ipe=1,h_grid_dim
+       DO jpe=0,h_grid_dim-1
+         tmp_order(jpe*h_grid_dim+ipe) = coord_order(done)
+         done = done + 1
+       ENDDO
+      ENDDO
+   
+       coord_order(:) = tmp_order(:)
+   
+       DEALLOCATE(tmp_order,stat=stat)
+       ALLOCATE(tmp_order(numtask),stat=stat)
+       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+       tmp_order(:) = 0
+   
+       !Now include the column ranks that were not in the Hilbert grid
+       CALL ma_2dgrid_dimensions(ncol,nrow,numtask)
+       rest_col = ncol-h_grid_dim
+       rest_row = nrow-h_grid_dim
+       index_order = 1
+       grid_dim = SQRT(REAL(numtask,KIND=dp))
+   
+       DO ipe=0,nrow-1
+        DO jpe=ipe*ncol+h_grid_dim, ipe*ncol+h_grid_dim+rest_col-1
+         tmp_order(index_order) = jpe
+         index_order = index_order + 1
+        ENDDO
+       ENDDO
+   
+       end_col = index_order
+       start_row = index_order
+   
+       !Now include de row ranks that were not in the Hilbert grid
+       DO ipe=0,rest_row-1
+   !      DO jpe=numtask-rest_col-(ipe*nrow)-1,ncol*h_grid_dim, -1
+         DO jpe=numtask-rest_col-(ipe*nrow)-1,(numtask-rest_col-(ipe*nrow))-h_grid_dim, -1
+           tmp_order(index_order) = jpe
+           index_order = index_order + 1
+         ENDDO
+       ENDDO
+   
+       end_row = index_order
+   
+       !And now copy all them to the rank_order array
+       index_order = 1
+       jpe = 0
+       kpe = 1
+       DO ipe=1,numtask
+        IF ( (ipe .GT. jpe*ncol) .AND. (ipe .LT. jpe*ncol+h_grid_dim+1) .AND. &
+              (index_order .LE. SIZE(coord_order))) THEN
+            ranks_order(ipe) = coord_order(index_order)
+            index_order = index_order + 1
+        ENDIF
+        IF (ipe == h_grid_dim+jpe*ncol) jpe = jpe + 1
+       ENDDO
+   
+       jpe = 0
+       kpe = 1
+       index_order = index_order - 1
+       DO ipe=1,numtask+1
+        IF ( (ipe .GE. jpe*ncol+nrow) .AND. (ipe .LT. jpe*ncol+nrow+rest_col)) THEN
+            ranks_order(tmp_order(kpe)+1) = index_order
+            kpe = kpe + 1
+            index_order = index_order + 1
+        ENDIF
+        IF (ipe == (jpe+1)*ncol+1) jpe = jpe + 1
+       ENDDO
+   
+       IF ( rest_row == 1) THEN
+          DO ipe=kpe,kpe+h_grid_dim-1
+           ranks_order(tmp_order(ipe)+1) = index_order
+           index_order = index_order + 1
+          ENDDO
+       ELSE
+   
+         DO WHILE ( index_order .LT. numtask)
+           IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+             ranks_order(tmp_order(kpe)+1) = index_order
+             index_order = index_order + 1
+             tmp_order(kpe) = 0
+           ENDIF
+           kpe = kpe + h_grid_dim
+           IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+             ranks_order(tmp_order(kpe)+1) = index_order
+             index_order = index_order + 1
+             tmp_order(kpe) = 0
+           ENDIF
+           kpe = kpe + 1
+           IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+             ranks_order(tmp_order(kpe)+1) = index_order
+             index_order = index_order + 1
+             tmp_order(kpe) = 0
+           ENDIF
+           kpe = kpe - h_grid_dim
+           IF (kpe .LT. SIZE(tmp_order) .AND. tmp_order(kpe) .NE. 0) THEN
+             ranks_order(tmp_order(kpe)+1) = index_order
+             index_order = index_order + 1
+             tmp_order(kpe) = 0
+           ENDIF
+           kpe = kpe + 1
+         ENDDO
+       ENDIF
+   
+   ENDIF
+   
+     ALLOCATE(tmp_order(numtask),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+     tmp_order(:) = 0
+    
      tmp_order(:) = allocated_topology(:)
+   
      DO ipe=1, numtask
-        allocated_topology(orderZ(ipe)+1) = tmp_order(ipe)
+       allocated_topology(ranks_order(ipe)+1) = tmp_order(ipe)
      ENDDO
+     
+     CALL ma_compute_contention(contention,mp_comm)
+     contention_hp = SUM (contention)
+   
+     allocated_topology(:) = tmp_order(:)
+   
+#if defined __GEMINI || __SEASTAR
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Z direction'
-#endif
- ENDIF
-ENDIF
-#endif
-
-  !hilbert does not improve the overall bw
-  IF( contention_hp .GT. contention_packed) THEN
+      IF(taskid==0) WRITE(*,*) 'Contention with Hilbert curve ', contention_hp, ' Contention with packed ', contention_packed
+#endif  
+   
+     IF( contention_hp .LT. contention_packed) THEN
+   
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Back to packed! Hilbert is not improving contention'
+      IF(taskid==0) WRITE(*,*) 'Contention is smaller with Hilbert curve'
 #endif
-    DO ipe=1, numtask
-        ranks_order(ipe) = ipe - 1
-    ENDDO
-    CALL ma_switch(mp_new_comm,mp_comm,ranks_order,complete_graph)
-  ELSE
-    CALL ma_switch(mp_new_comm,mp_comm,ranks_order,cannon_graph)
-  ENDIF
-
+   
+     ALLOCATE(orderX(numtask),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+     orderX(:) = 0
+     
+     ALLOCATE(orderY(numtask),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+     orderY(:) = 0
+   
+     ALLOCATE(orderZ(numtask),stat=stat)
+     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+     orderZ(:) = 0
+   
+    !Project hilbert-peano in each direction and check for contention
+     ipe = 1
+     kpe = 0
+     DO WHILE (ipe .LE. numtask)
+       DO jpe=1, numtask
+         processor = allocated_topology(jpe)
+         IF (net_topology(processor+1)%coord_x .EQ. kpe) THEN
+           orderX(jpe) = ranks_order(ipe)
+           ipe = ipe + 1
+         ENDIF
+       ENDDO
+      kpe = kpe + 1
+     ENDDO 
+   
+     tmp_order(:) = allocated_topology(:)
+   
+     DO ipe=1, numtask
+       allocated_topology(orderX(ipe)+1) = tmp_order(ipe)
+     ENDDO
+   
+     CALL ma_compute_contention(contention,mp_comm)
+     contention_X = SUM (contention)
+   
+      allocated_topology(:) = tmp_order(:)
+   
+     ipe = 1
+     kpe = 0
+     DO WHILE (ipe .LE. numtask)
+       DO jpe=1, numtask
+         processor = allocated_topology(jpe)
+         IF (net_topology(processor+1)%coord_y .EQ. kpe) THEN
+           orderY(jpe) = ranks_order(ipe)
+           ipe = ipe + 1
+         ENDIF
+       ENDDO
+       kpe = kpe + 1
+     ENDDO
+   
+     tmp_order(:) = allocated_topology(:)
+   
+     DO ipe=1, numtask
+       allocated_topology(orderY(ipe)+1) = tmp_order(ipe)
+     ENDDO
+   
+     CALL ma_compute_contention(contention,mp_comm)
+     contention_Y = SUM (contention)
+   
+     allocated_topology(:) = tmp_order(:)
+   
+     ipe = 1
+     kpe = 0
+     DO WHILE (ipe .LE. numtask)
+       DO jpe=1, numtask
+         processor = allocated_topology(jpe)
+         IF (net_topology(processor+1)%coord_z .EQ. kpe) THEN
+           orderZ(jpe) = ranks_order(ipe)
+           ipe = ipe + 1
+         ENDIF
+       ENDDO
+       kpe = kpe + 1
+     ENDDO
+   
+     tmp_order(:) = allocated_topology(:)
+    
+     DO ipe=1, numtask
+       allocated_topology(orderZ(ipe)+1) = tmp_order(ipe)
+     ENDDO
+   
+     CALL ma_compute_contention(contention,mp_comm)
+     contention_Z = SUM (contention)
+   
+     allocated_topology(:) = tmp_order(:)
+   
 #ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'New communicator generated'
+      IF(taskid==0) WRITE(*,*) 'Contention: ', contention_X,contention_Y,contention_Z
+#endif
+    
+     IF ( (contention_X .LE. contention_Y+0.4*contention_Y) .AND. &
+          (contention_X .LE. contention_Z+0.2*contention_Z)) THEN
+        ranks_order(:) = orderX(:)
+        tmp_order(:) = allocated_topology(:)
+   
+        DO ipe=1, numtask
+           allocated_topology(orderX(ipe)+1) = tmp_order(ipe)
+        ENDDO
+   
+#ifdef __DEBUG_HWTOPO
+      IF(taskid==0) WRITE(*,*) 'Use hilbert curve in X direction'
+#endif
+      
+     ELSE IF ( (contention_Y .LE. contention_X) .AND. &
+          (contention_Y .LE. contention_Z)) THEN
+         ranks_order(:) = orderY(:)
+         tmp_order(:) = allocated_topology(:)
+         DO ipe=1, numtask
+           allocated_topology(orderY(ipe)+1) = tmp_order(ipe)
+        ENDDO
+#ifdef __DEBUG_HWTOPO
+     IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Y direction'
+#endif
+     ELSE 
+        ranks_order(:) = orderZ(:)
+        tmp_order(:) = allocated_topology(:)
+        DO ipe=1, numtask
+           allocated_topology(orderZ(ipe)+1) = tmp_order(ipe)
+        ENDDO
+#ifdef __DEBUG_HWTOPO
+      IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Z direction'
+#endif
+    ENDIF
+   ENDIF
+#endif
+   
+     !hilbert does not improve the overall bw
+     IF( contention_hp .GT. contention_packed) THEN
+#ifdef __DEBUG_HWTOPO
+      IF(taskid==0) WRITE(*,*) 'Back to packed! Hilbert is not improving contention'
+#endif
+       DO ipe=1, numtask
+           ranks_order(ipe) = ipe - 1
+       ENDDO
+       CALL ma_switch(mp_new_comm,mp_comm,ranks_order,complete_graph)
+     ELSE
+       CALL ma_switch(mp_new_comm,mp_comm,ranks_order,cannon_graph)
+     ENDIF
+   
+#ifdef __DEBUG_HWTOPO
+      IF(taskid==0) WRITE(*,*) 'New communicator generated'
 #endif
 
   IF(ASSOCIATED(coord_order))DEALLOCATE(coord_order,stat=stat)
@@ -1742,6 +1790,10 @@ ENDIF
 
   IF(ASSOCIATED(ranks_order))DEALLOCATE(ranks_order,stat=stat)
   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
+ ELSE
+   mp_new_comm = mp_comm
+ ENDIF ! end power of two and square
+
 #else
  mp_new_comm = mp_comm 
 #endif
