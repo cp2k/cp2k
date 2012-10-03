@@ -18,9 +18,7 @@ MODULE eigenvalueproblems
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_cgesvd,&
                                              lapack_chpev,&
-                                             lapack_chpgv,&
                                              lapack_sgesvd,&
-                                             lapack_sspgv,&
                                              lapack_ssyev
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"

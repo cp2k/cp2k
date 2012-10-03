@@ -41,6 +41,12 @@ MODULE xc_derivatives
                                              optx_lda_info,&
                                              optx_lsd_eval,&
                                              optx_lsd_info
+#if defined (__LIBXC)
+  USE xc_libxc,                        ONLY: libxc_lda_eval,&
+                                             libxc_lda_info,&
+                                             libxc_lsd_eval,&
+                                             libxc_lsd_info
+#endif
   USE xc_pade,                         ONLY: pade,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
@@ -137,13 +143,14 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
-     needs, max_deriv, error)
+     needs, max_deriv, ifunc_name, error)
     TYPE(section_vals_type), POINTER         :: functional
     LOGICAL, INTENT(in)                      :: lsd
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    INTEGER, INTENT(in), OPTIONAL            :: ifunc_name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
@@ -219,6 +226,16 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         ELSE
            CALL optx_lda_info(reference,shortform,needs,max_deriv,error=error)
         ENDIF
+#if defined (__LIBXC)
+     CASE("LIBXC")
+        IF (lsd) THEN
+           CALL libxc_lsd_info(functional,reference,shortform,needs,max_deriv,&
+                ifunc_name,error=error)
+        ELSE
+           CALL libxc_lda_info(functional,reference,shortform,needs,max_deriv,&
+                ifunc_name,error=error)
+        ENDIF
+#endif
      CASE("CS1")
         IF (lsd) THEN
            CALL cs1_lsd_info(reference,shortform,needs,max_deriv,error=error)
@@ -359,13 +376,14 @@ END SUBROUTINE xc_functional_get_info
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
-     deriv_order, error)
+     deriv_order, ifunc_name, error)
 
     TYPE(section_vals_type), POINTER         :: functional
     LOGICAL, INTENT(in)                      :: lsd
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: deriv_order
+    INTEGER, INTENT(in), OPTIONAL            :: ifunc_name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
@@ -443,6 +461,14 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL optx_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ENDIF
+#if defined (__LIBXC)
+     CASE("LIBXC")
+        IF (lsd) THEN
+           CALL libxc_lsd_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
+        ELSE
+           CALL libxc_lda_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
+        ENDIF
+#endif
      CASE("CS1")
         IF (lsd) THEN
            CALL cs1_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
@@ -599,7 +625,8 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ifun
+    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    INTEGER                                  :: ifun, ifunc_name
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun
 
@@ -617,7 +644,20 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
                                 rho_set=rho_set, &
                                 deriv_set=deriv_set,&
                                 deriv_order=deriv_order, &
+                                ifunc_name=1, &
                                 error=error)
+        IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
+           CALL section_vals_val_get(xc_fun,"functional",c_vals=func_name,error=error)
+           DO ifunc_name=2, SIZE(func_name)
+              CALL xc_functional_eval(xc_fun, &
+                                      lsd=lsd,&
+                                      rho_set=rho_set, &
+                                      deriv_set=deriv_set,&
+                                      deriv_order=deriv_order, &
+                                      ifunc_name=ifunc_name, &
+                                      error=error)
+           END DO
+        END IF
      END DO
   END IF
 END SUBROUTINE xc_functionals_eval
@@ -644,7 +684,8 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_get_needs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ifun
+    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    INTEGER                                  :: ifun, ifunc_name
     LOGICAL                                  :: failure, &
                                                 my_add_basic_components
     TYPE(section_vals_type), POINTER         :: xc_fun
@@ -661,7 +702,13 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
         ifun=ifun+1
         xc_fun => section_vals_get_subs_vals2(functionals,i_section=ifun,error=error)
         IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        CALL xc_functional_get_info(xc_fun,lsd=lsd,needs=needs, error=error)
+        CALL xc_functional_get_info(xc_fun,lsd=lsd,needs=needs,ifunc_name=1,error=error)
+        IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
+          CALL section_vals_val_get(xc_fun,"functional",c_vals=func_name,error=error)
+          DO ifunc_name=2, SIZE(func_name)
+            CALL xc_functional_get_info(xc_fun,lsd=lsd,needs=needs,ifunc_name=ifunc_name,error=error)
+          END DO
+        END IF
      END DO
      IF (my_add_basic_components) THEN
         IF (lsd) THEN

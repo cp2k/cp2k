@@ -949,10 +949,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_dft_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=160)                       :: reference
+    CHARACTER(len=160)                       :: reference, shortform
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: handle, ifun, il, myfun, &
-                                                output_unit
+    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    INTEGER                                  :: handle, ifun, ifunc_name, il, &
+                                                myfun, output_unit
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -1082,19 +1083,59 @@ CPSourceFileRef,&
              CALL xc_functional_get_info(xc_fun,&
                                          lsd=dft_control%lsd,&
                                          reference=reference,&
+                                         shortform=shortform,&
+                                         ifunc_name=1,&
                                          error=error)
-             WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
-                  TRIM(xc_fun%section%name)
-             il = LEN_TRIM(reference)
-             IF (il < 67) THEN
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
-             ELSE IF (il < 134) THEN
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+             IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
+               WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
+               il = LEN_TRIM(reference)
+               IF (il < 67) THEN
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+               ELSE IF (il < 134) THEN
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+               ELSE
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+               END IF
+               CALL section_vals_val_get(xc_fun,"functional",c_vals=func_name,error=error)
+               DO ifunc_name=2, SIZE(func_name)
+                 CALL xc_functional_get_info(xc_fun,&
+                                             lsd=dft_control%lsd,&
+                                             reference=reference,&
+                                             shortform=shortform,&
+                                             ifunc_name=ifunc_name,&
+                                             error=error)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
+                 il = LEN_TRIM(reference)
+                 IF (il < 67) THEN
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+                 ELSE IF (il < 134) THEN
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+                 ELSE
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+                 END IF
+               END DO
              ELSE
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
+                    TRIM(xc_fun%section%name)
+               il = LEN_TRIM(reference)
+               IF (il < 67) THEN
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+               ELSE IF (il < 134) THEN
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+               ELSE
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+               END IF
              END IF
           END DO
        ELSE

@@ -386,9 +386,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_method', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=160)                       :: reference
+    CHARACTER(len=160)                       :: reference, shortform
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, il, meth, myfun, reltyp
+    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    INTEGER                                  :: ifun, ifunc_name, il, meth, &
+                                                myfun, reltyp
     LOGICAL                                  :: failure = .FALSE., lsd
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
@@ -470,18 +472,54 @@ CONTAINS
           ifun=ifun+1
           xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
           IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-          CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, error=error)
-          WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(xc_fun%section%name)
-          il = LEN_TRIM(reference)
-          IF (il < 67) THEN
-            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
-          ELSE IF (il < 134) THEN
-            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
-            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+          CALL xc_functional_get_info(xc_fun,lsd=lsd,reference=reference,&
+            shortform=shortform,ifunc_name=1,error=error)
+          IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
+            WRITE (iw, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
+            il = LEN_TRIM(reference)
+            IF (il < 67) THEN
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+            ELSE IF (il < 134) THEN
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+            ELSE
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+            END IF
+            CALL section_vals_val_get(xc_fun,"functional",c_vals=func_name,error=error)
+            DO ifunc_name=2, SIZE(func_name)
+              CALL xc_functional_get_info(xc_fun,lsd=lsd,reference=reference,&
+                shortform=shortform,ifunc_name=ifunc_name,error=error)
+              WRITE (iw, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
+              il = LEN_TRIM(reference)
+              IF (il < 67) THEN
+                WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+              ELSE IF (il < 134) THEN
+                WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+              ELSE
+                WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+                WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+                WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+              END IF
+            END DO
           ELSE
-            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
-            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
-            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')")&
+                 TRIM(xc_fun%section%name)
+            il = LEN_TRIM(reference)
+            IF (il < 67) THEN
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+            ELSE IF (il < 134) THEN
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+            ELSE
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+              WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+            END IF
           END IF
         END DO
       END IF

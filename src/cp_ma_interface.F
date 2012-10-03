@@ -653,8 +653,8 @@ END SUBROUTINE cp_ma_net_affinity
   END SUBROUTINE cp_ma_print_strategy
 
   SUBROUTINE cp_ma_mpi_reorder_strategy(mapping_method,strategy)
-   CHARACTER, INTENT(OUT)      :: strategy
-   INTEGER, INTENT(IN)         :: mapping_method
+    INTEGER, INTENT(IN)                      :: mapping_method
+    CHARACTER, INTENT(OUT)                   :: strategy
 
    SELECT CASE(mapping_method)
      CASE(1)

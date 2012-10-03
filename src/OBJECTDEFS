@@ -728,6 +728,7 @@ OBJECTS_GENERIC =\
  xc_functionals_utilities.o\
  xc_hcth.o\
  xc_ke_gga.o\
+ xc_libxc.o\
  xc_lyp_adiabatic.o\
  xc_lyp.o\
  xc.o\

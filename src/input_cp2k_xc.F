@@ -27,7 +27,8 @@ MODULE input_cp2k_xc
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: char_t
+  USE input_val_types,                 ONLY: char_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
@@ -237,6 +238,35 @@ CONTAINS
        CALL keyword_create(keyword,"scale_x",&
             description="scales the exchange part of the functional",&
             default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="LIBXC",&
+            description="Uses functionals from LIBXC",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="FUNCTIONAL",&
+            description="names of the functionals",&
+            usage="FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE",&
+            type_of_var=char_t,n_var=-1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="SCALE",&
+            description="scaling factors of the functionals",&
+            usage="SCALE 1.0 1.0",type_of_var=real_t,&
+            default_r_vals=(/1.0_dp/),n_var=-1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="PARAMETERS",&
+            description="parameters of the functionals",&
+            type_of_var=real_t,default_r_vals=(/1e20_dp/),n_var=-1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)

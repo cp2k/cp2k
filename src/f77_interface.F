@@ -158,7 +158,8 @@ CONTAINS
 !> \author Christiane Pousa Ribeiro
 !- ****************************************************************************
  SUBROUTINE init_f77_default(mapping_method)
-   INTEGER, INTENT(IN)    :: mapping_method
+    INTEGER, INTENT(IN)                      :: mapping_method
+
    mpi_mapping_method = mapping_method
  END SUBROUTINE init_f77_default
 
