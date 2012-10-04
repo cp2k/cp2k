@@ -256,7 +256,7 @@ CONTAINS
             description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
                         "The precise list of available functionals depends on the version of libxc interfaced (currently 1.2.0).",&
             usage="FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE",&
-            type_of_var=char_t,n_var=-1,error=error)
+            required=.TRUE.,type_of_var=char_t,n_var=-1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="SCALE",&

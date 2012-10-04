@@ -125,6 +125,14 @@ How to compile CP2K code
      * The compiler must support ISO_C_BINDING.
      * Consult machine/README for more information.
 
+ 2k) Library of exchange-correlation functionals libxc (optional, v1.2.0):
+     * The version 1.2.0 (ONLY this one) of libxc needs to be downloaded
+       (http://www.tddft.org/programs/octopus/wiki/index.php/Libxc) and installed.
+       During the installation, the directories $(LIBXC_DIR)/include and
+       $(LIBXC_DIR)/lib are created.
+     * Add -D__LIBXC to DFLAGS, -I$(LIBXC_DIR)/include to FCFLAGS and
+       -L$(LIBXC_DIR)/lib -lxc to LIBS.
+
  3) To compile the code:
 
  3a) The location of compiler and libraries needs to be specified.  Examples
@@ -162,6 +170,7 @@ How to compile CP2K code
      (see also 3c, next)
      -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
      -D__LIBINT: use libint (needed for HF exchange)
+     -D__LIBXC: use libxc
      various FFTs (use __FFTW3 if possible) :
      -D__FFTSG: Stefan Goedecker FFT (should always be there)
      -D__FFTW3: FFTW version 3
