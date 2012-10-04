@@ -244,7 +244,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,name="LIBXC",&
-            description="Uses functionals from LIBXC",&
+            description="Uses functionals from LIBXC, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             citations=(/Marques2012/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -253,7 +253,8 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="FUNCTIONAL",&
-            description="names of the functionals",&
+            description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
+                        "The precise list of available functionals depends on the version of libxc interfaced (currently 1.2.0).",&
             usage="FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE",&
             type_of_var=char_t,n_var=-1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
