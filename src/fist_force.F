@@ -534,9 +534,9 @@ CONTAINS
        END IF
        IF(shell_present .AND. shell_model_ad .AND. ALLOCATED(fgshell_coulomb))THEN
           WRITE(iw,'(A)')" FIST:: SHELL NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
-          WRITE(iw,'(3f15.9)')((fgshell_coulomb(j,i),j=1,3),i = 1, SIZE(fg_coulomb,2))
+          WRITE(iw,'(3f15.9)')((fgshell_coulomb(j,i),j=1,3),i = 1, SIZE(fgshell_coulomb,2))
           WRITE(iw,'(A)')" FIST:: CORE NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
-          WRITE(iw,'(3f15.9)')((fgcore_coulomb(j,i),j=1,3),i = 1, SIZE(fg_coulomb,2))
+          WRITE(iw,'(3f15.9)')((fgcore_coulomb(j,i),j=1,3),i = 1, SIZE(fgcore_coulomb,2))
        END IF
     END IF
 
