@@ -765,3 +765,29 @@ ch2o_pm6.inp
 hcn_pm6.inp
 # Improve numerical stability
 h2o_gks_p.inp
+# stabilize BFGS with model Hessian 
+ch2o.inp
+# stabilize BFGS with model Hessian 
+h2o.inp
+# stabilize BFGS with model Hessian 
+h2o_lsd.inp
+# stabilize BFGS with model Hessian 
+hf.inp
+# stabilize BFGS with model Hessian 
+nh4.inp
+# stabilize BFGS with model Hessian 
+st.inp
+# stabilize BFGS with model Hessian 
+h2o_lsd-ot.inp
+# stabilize BFGS with model Hessian 
+O2-ROKS.inp
+# stabilize BFGS with model Hessian 
+NO2-ROKS.inp
+# stabilize BFGS with model Hessian 
+geom.inp
+# stabilize BFGS with model Hessian 
+b2h6_pm6.inp
+# stabilize BFGS with model Hessian 
+ch2o_pm6.inp
+# stabilize BFGS with model Hessian 
+hcn_pm6.inp

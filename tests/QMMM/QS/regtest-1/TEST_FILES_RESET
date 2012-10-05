@@ -433,3 +433,11 @@ H2O-qmmm-gauss-11.inp
 H2O-qmmm-none-1.inp
 # improved BFGS and CELL_OPT, new defaults
 H2O-qmmm-gauss-15.inp
+# stabilize BFGS with model Hessian 
+H2O-qmmm-gauss-4.inp
+# stabilize BFGS with model Hessian 
+H2O-qmmm-gauss-11.inp
+# stabilize BFGS with model Hessian 
+H2O-qmmm-none-1.inp
+# stabilize BFGS with model Hessian 
+H2O-qmmm-gauss-15.inp

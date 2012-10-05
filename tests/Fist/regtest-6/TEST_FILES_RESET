@@ -144,3 +144,7 @@ cubane_15.inp
 cubane_15.inp
 # improved BFGS and CELL_OPT, new defaults
 cubane_0.inp
+# stabilize BFGS with model Hessian 
+cubane_15.inp
+# stabilize BFGS with model Hessian 
+cubane_0.inp

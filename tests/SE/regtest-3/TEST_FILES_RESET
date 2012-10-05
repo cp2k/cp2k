@@ -457,3 +457,9 @@ LM-KSDO.inp
 LM-KSDO-D.inp
 #
 wfn_ex2.inp
+# stabilize BFGS with model Hessian 
+N3-rp_colvar.inp
+# stabilize BFGS with model Hessian 
+LM-KSDO.inp
+# stabilize BFGS with model Hessian 
+LM-KSDO-D.inp

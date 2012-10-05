@@ -105,3 +105,5 @@ NO2-ROKS.inp
 C-levelshift.inp
 # improved BFGS and CELL_OPT, new defaults
 NO2-ROKS.inp
+# stabilize BFGS with model Hessian 
+NO2-ROKS.inp

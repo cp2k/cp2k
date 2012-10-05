@@ -173,15 +173,28 @@ CONTAINS
     CALL cp_fm_struct_create(fm_struct_hes,para_env=para_env,context=blacs_env, &
          nrow_global=ndf,ncol_global=ndf,error=error)
     CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat",error=error)
+    CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp",error=error)
+    CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat",error=error)
+    ALLOCATE (eigval(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    eigval(:) = 0.0_dp
+
+
     IF(use_mod_hes)THEN
-       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.04_dp,error=error)
+       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp,error=error)
        CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
+       CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
+       CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
+       DO its=1,SIZE(eigval)
+         IF(eigval(its).lt.0.100_dp)eigval(its)=0.10_dp
+       END DO
+       CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
+       CALL cp_fm_column_scale(eigvec_mat,eigval)
+       CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
+
     ELSE
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
     END IF
-
-    CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp",error=error)
-    CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat",error=error)
 
     ALLOCATE (xold(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -202,10 +215,6 @@ CONTAINS
     ALLOCATE (dg(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dg(:) = 0.0_dp
-
-    ALLOCATE (eigval(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    eigval(:) = 0.0_dp
 
     ALLOCATE (work(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1023,9 +1032,9 @@ CONTAINS
               rsst1=DOT_PRODUCT(r12,r23);rsst2=DOT_PRODUCT(r23,r31);rsst3=DOT_PRODUCT(r31,r12)
               denom1=1.0_dp-rsst1**2/(d12**2*d23**2); denom2=1.0_dp-rsst2**2/(d23**2*d31**2)
               denom3=1.0_dp-rsst3**2/(d31**2*d12**2)
-              denom1=SIGN(1.0_dp,denom1)*MAX(ABS(denom1),0.0001_dp)
-              denom2=SIGN(1.0_dp,denom2)*MAX(ABS(denom2),0.0001_dp)
-              denom3=SIGN(1.0_dp,denom3)*MAX(ABS(denom3),0.0001_dp)
+              denom1=SIGN(1.0_dp,denom1)*MAX(ABS(denom1),0.01_dp)
+              denom2=SIGN(1.0_dp,denom2)*MAX(ABS(denom2),0.01_dp)
+              denom3=SIGN(1.0_dp,denom3)*MAX(ABS(denom3),0.01_dp)
               D_mat(1,1)=r23(idir)/(d12*d23)-rsst1*r12(idir)/(d12**3*d23)
               D_mat(1,2)=r23(jdir)/(d12*d23)-rsst1*r12(jdir)/(d12**3*d23)
               D_mat(2,1)=-r23(idir)/(d23*d31)+rsst2*r31(idir)/(d23*d31**3)
@@ -1034,6 +1043,9 @@ CONTAINS
                                                          rsst3*r12(idir)/(d31*d12**3)
               D_mat(3,2)=(r31(jdir)-r12(jdir))/(d31*d12)+rsst3*r31(jdir)/(d31**3*d12)-&
                                                          rsst3*r12(jdir)/(d31*d12**3)
+              IF(denom1.le.0.011_dp)D_mat(1,1)=0.0_dp
+              IF(denom2.le.0.011_dp)D_mat(2,1)=0.0_dp
+              IF(denom3.le.0.011_dp)D_mat(3,1)=0.0_dp
               deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
                     ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
                     ka3*D_mat(3,1)*D_mat(3,2)/denom3
@@ -1061,9 +1073,9 @@ CONTAINS
            rsst1=DOT_PRODUCT(r12,r23);rsst2=DOT_PRODUCT(r23,r31);rsst3=DOT_PRODUCT(r31,r12)
            denom1=1.0_dp-rsst1**2/(d12**2*d23**2); denom2=1.0_dp-rsst2**2/(d23**2*d31**2)
            denom3=1.0_dp-rsst3**2/(d31**2*d12**2)
-           denom1=SIGN(1.0_dp,denom1)*MAX(ABS(denom1),0.0001_dp)
-           denom2=SIGN(1.0_dp,denom2)*MAX(ABS(denom2),0.0001_dp)
-           denom3=SIGN(1.0_dp,denom3)*MAX(ABS(denom3),0.0001_dp)
+           denom1=SIGN(1.0_dp,denom1)*MAX(ABS(denom1),0.01_dp)
+           denom2=SIGN(1.0_dp,denom2)*MAX(ABS(denom2),0.01_dp)
+           denom3=SIGN(1.0_dp,denom3)*MAX(ABS(denom3),0.01_dp)
            D_mat(1,1)=r23(idr)/(d12*d23)-rsst1*r12(idr)/(d12**3*d23)
            D_mat(2,1)=-r23(idr)/(d23*d31)+rsst2*r31(idr)/(d23*d31**3)
            D_mat(3,1)=(r31(idr)-r12(idr))/(d31*d12)+rsst3*r31(idr)/(d31**3*d12)-&
@@ -1079,6 +1091,10 @@ CONTAINS
                                                        rsst2*r31(jdr)/(d23*d31**3)
               D_mat(3,2)=r12(jdr)/(d31*d12)-rsst3*r31(jdr)/(d31**3*d12)
            END IF
+           IF(denom1.le.0.011_dp)D_mat(1,1)=0.0_dp
+           IF(denom2.le.0.011_dp)D_mat(2,1)=0.0_dp
+           IF(denom3.le.0.011_dp)D_mat(3,1)=0.0_dp
+
            deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
                  ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
                  ka3*D_mat(3,1)*D_mat(3,2)/denom3

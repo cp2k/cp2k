@@ -547,3 +547,15 @@ C4H10-qmmm-gauss-11.inp
 C11H24-qmmm-gauss-0.inp
 # improved BFGS and CELL_OPT, new defaults
 constr.inp
+# stabilize BFGS with model Hessian 
+C4H10-qmmm-gauss-2.inp
+# stabilize BFGS with model Hessian 
+C4H10-qmmm-gauss-9.inp
+# stabilize BFGS with model Hessian 
+C4H10-qmmm-gauss-10.inp
+# stabilize BFGS with model Hessian 
+C4H10-qmmm-gauss-11.inp
+# stabilize BFGS with model Hessian 
+C11H24-qmmm-gauss-0.inp
+# stabilize BFGS with model Hessian 
+constr.inp

@@ -5,8 +5,12 @@
 &END GLOBAL
 &MOTION
  &GEO_OPT
+  &BFGS
+    USE_MODEL_HESSIAN FALSE
+    USE_RAT_FUN_OPT FALSE
+  &END
   OPTIMIZER BFGS
-  MAX_ITER  1
+  MAX_ITER  100
   MAX_DR    0.01
   RMS_DR    0.005
   MAX_FORCE 0.0015
@@ -26,8 +30,8 @@
       &END
     &END QS
     &SCF
-      MAX_SCF 20
-      EPS_SCF 1.0E-4
+      MAX_SCF 5000
+      EPS_SCF 1.0E-7
       SCF_GUESS atomic
       &OT
         MINIMIZER DIIS

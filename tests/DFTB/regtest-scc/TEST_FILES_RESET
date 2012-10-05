@@ -214,3 +214,13 @@ ch2o.inp
 ch2o-r.inp
 # improved BFGS and CELL_OPT, new defaults
 fa_atprop.inp
+# stabilize BFGS with model Hessian 
+ch2o-1.inp
+# stabilize BFGS with model Hessian 
+ch2o-3.inp
+# stabilize BFGS with model Hessian 
+ch2o-5.inp
+# stabilize BFGS with model Hessian 
+ch2o.inp
+# stabilize BFGS with model Hessian 
+fa_atprop.inp

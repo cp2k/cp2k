@@ -243,3 +243,9 @@ N3dye_vib_bfgs2.inp
 # Numerics 
 N3dye_vib_bfgs.inp
 N3dye_vib_bfgs2.inp
+# stabilize BFGS with model Hessian 
+N3dye_geoopt.inp
+# stabilize BFGS with model Hessian 
+N3dye_vib_bfgs.inp
+# stabilize BFGS with model Hessian 
+N3dye_vib_bfgs2.inp

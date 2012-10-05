@@ -435,3 +435,5 @@ UO2-4x4x4-core-shell-debug.inp
 UO2-4x4x4-autofit.inp
 # improved BFGS and CELL_OPT, new defaults
 UO2-2x2x2-genpot_units.inp
+# stabilize BFGS with model Hessian 
+UO2-2x2x2-genpot_units.inp

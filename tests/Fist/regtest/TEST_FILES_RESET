@@ -609,3 +609,9 @@ h2.inp
 h2_parse.inp
 # improved BFGS and CELL_OPT, new defaults
 TNF2.inp
+# stabilize BFGS with model Hessian 
+h2.inp
+# stabilize BFGS with model Hessian 
+h2_parse.inp
+# stabilize BFGS with model Hessian 
+TNF2.inp

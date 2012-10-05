@@ -342,3 +342,13 @@ nh3-meta-walks_1r.inp
 nh3-meta-walks_2r.inp
 # Numerics 
 ethene_colv2_npt.inp
+# stabilize BFGS with model Hessian 
+nh3-restraint-fixd-2.inp
+# stabilize BFGS with model Hessian 
+nh3_wat-restraint-fixd-3.inp
+# stabilize BFGS with model Hessian 
+nh3_wat-restraint-fixd-4.inp
+# stabilize BFGS with model Hessian 
+nh3_bfgs.inp
+# stabilize BFGS with model Hessian 
+nh3_bfgs_r.inp

@@ -86,3 +86,11 @@ ch2o-r.inp
 n2.inp
 # improved BFGS and CELL_OPT, new defaults
 s2.inp
+# stabilize BFGS with model Hessian 
+ch2o-2.inp
+# stabilize BFGS with model Hessian 
+ch2o-3.inp
+# stabilize BFGS with model Hessian 
+ch2o-r.inp
+# stabilize BFGS with model Hessian 
+n2.inp

@@ -512,3 +512,35 @@ Pt-cis-2xpet3Cl2-si.inp
 Pt-cis-2xpet3Cl2-si-noc.inp
 # improved BFGS and CELL_OPT, new defaults
 O2-UKS-MNDO-relax_multip.inp
+# stabilize BFGS with model Hessian 
+ch2o.inp
+# stabilize BFGS with model Hessian 
+h2o.inp
+# stabilize BFGS with model Hessian 
+h2o_lsd.inp
+# stabilize BFGS with model Hessian 
+hf.inp
+# stabilize BFGS with model Hessian 
+nh4.inp
+# stabilize BFGS with model Hessian 
+st.inp
+# stabilize BFGS with model Hessian 
+h2o_lsd-ot.inp
+# stabilize BFGS with model Hessian 
+O2-ROKS.inp
+# stabilize BFGS with model Hessian 
+NO2-ROKS.inp
+# stabilize BFGS with model Hessian 
+b2h6_pm6.inp
+# stabilize BFGS with model Hessian 
+ch2o_pm6.inp
+# stabilize BFGS with model Hessian 
+hcn_pm6.inp
+# stabilize BFGS with model Hessian 
+Pt-cis-2xpet3Cl2.inp
+# stabilize BFGS with model Hessian 
+Pt-cis-2xpet3Cl2-si.inp
+# stabilize BFGS with model Hessian 
+Pt-cis-2xpet3Cl2-si-noc.inp
+# stabilize BFGS with model Hessian 
+O2-UKS-MNDO-relax_multip.inp

@@ -471,3 +471,7 @@ Ne_nlcc_md.inp
 c8_broy_gop.inp
 # improved BFGS and CELL_OPT, new defaults
 c8_broy_gapw_gop.inp
+# stabilize BFGS with model Hessian 
+c8_broy_gop.inp
+# stabilize BFGS with model Hessian 
+c8_broy_gapw_gop.inp

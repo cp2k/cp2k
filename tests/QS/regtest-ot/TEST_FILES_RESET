@@ -935,3 +935,17 @@ H2O-geo-pdos_comp.inp
 H2O-geo-ot-pdos-lumo-comp.inp
 # improved BFGS and CELL_OPT, new defaults
 H2O-geo-pdos_comp_list.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-ot-evals.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-ot-mols.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-ot-pdos.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-pdos.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-pdos_comp.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-ot-pdos-lumo-comp.inp
+# stabilize BFGS with model Hessian 
+H2O-geo-pdos_comp_list.inp

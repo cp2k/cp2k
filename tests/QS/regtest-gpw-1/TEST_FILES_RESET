@@ -517,3 +517,13 @@ H2O-fixed.inp
 h2.t1.inp
 # improved BFGS and CELL_OPT, new defaults
 h2.t2.inp
+# stabilize BFGS with model Hessian 
+H2O-harris.inp
+# stabilize BFGS with model Hessian 
+H2O-geoopt.inp
+# stabilize BFGS with model Hessian 
+H2O-fixed.inp
+# stabilize BFGS with model Hessian 
+h2.t1.inp
+# stabilize BFGS with model Hessian 
+h2.t2.inp

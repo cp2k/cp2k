@@ -186,3 +186,9 @@ argon_opt_cell_ks.inp
 Si_tersoff.inp
 # Numerics 
 Si_tersoff.inp
+# stabilize BFGS with model Hessian 
+argon_opt_cell.inp
+# stabilize BFGS with model Hessian 
+argon_opt_cell_ks.inp
+# stabilize BFGS with model Hessian 
+Si_tersoff.inp

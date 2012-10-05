@@ -18,3 +18,7 @@ H2O-field-lsd.inp
 H2O-field-gopt.inp
 # improved BFGS and CELL_OPT, new defaults
 H2O-field-gopt-lsd.inp
+# stabilize BFGS with model Hessian 
+H2O-field-gopt.inp
+# stabilize BFGS with model Hessian 
+H2O-field-gopt-lsd.inp

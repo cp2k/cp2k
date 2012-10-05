@@ -342,3 +342,7 @@ HF_gapw_all_LB.inp
 H2S-gapw-gop.inp
 # improved BFGS and CELL_OPT, new defaults
 H2S-gapw-gop-ot.inp
+# stabilize BFGS with model Hessian 
+H2S-gapw-gop.inp
+# stabilize BFGS with model Hessian 
+H2S-gapw-gop-ot.inp
