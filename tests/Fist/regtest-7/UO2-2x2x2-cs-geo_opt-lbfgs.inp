@@ -1,0 +1,221 @@
+&GLOBAL
+  PROJECT UO2-2x2x2-cs-geo_opt-lbfgs
+ PRINT_LEVEL low
+ RUN_TYPE geo_opt
+ WALLTIME 300
+&END GLOBAL
+&MOTION
+ &GEO_OPT
+  OPTIMIZER LBFGS
+  MAX_ITER  4
+  MAX_DR    0.001
+  RMS_DR    0.0003
+  MAX_FORCE 0.001
+  RMS_FORCE 0.0003
+ &END GEO_OPT
+ &PRINT
+  &RESTART
+   BACKUP_COPIES 0
+  &END RESTART
+  &RESTART_HISTORY OFF
+  &END RESTART_HISTORY
+  &STRUCTURE_DATA
+   POSITION 1
+   POSITION 2
+   POSITION 3
+   POSITION 4
+   POSITION 5
+   POSITION 6
+  &END STRUCTURE_DATA
+ &END PRINT
+&END MOTION
+&FORCE_EVAL
+ METHOD Fist
+ STRESS_TENSOR analytical
+ &MM
+  &FORCEFIELD
+   &SHELL O
+    CORE_CHARGE  +1.186267
+    SHELL_CHARGE -3.186267
+    MASS_FRACTION 0.1
+    SPRING [eV*angstrom^-2] 70.824
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &SHELL U
+    CORE_CHARGE  -2.84
+    SHELL_CHARGE +6.84
+    MASS_FRACTION 0.01
+    SPRING [eV*angstrom^-2] 171.556
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &NONBONDED
+    &BUCK4RANGES
+     ATOMS O O
+     A [eV] 20908.03
+     B [angstrom^-1] 1/0.129629
+     C [eV*angstrom^6] 229.04
+     R1 [angstrom] 1.17
+     R2 [angstrom] 1.62
+     R3 [angstrom] 2.84
+     RCUT [angstrom] 10.4
+    &END BUCK4RANGES
+    &WILLIAMS
+     ATOMS O U
+     A [eV] 844.41
+     B [angstrom^-1] 1/0.425243
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS U U
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_SPLINE [hartree] 1.0E3
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.3
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX 32 32 32
+    &RS_GRID
+     DISTRIBUTION_TYPE replicated
+    &END RS_GRID
+   &END EWALD
+  &END POISSON
+ &END MM
+ &PRINT
+  &FORCES on
+   NDIGITS 6
+  &END FORCES
+  &STRESS_TENSOR
+   NDIGITS 3
+  &END STRESS_TENSOR
+ &END PRINT
+ &SUBSYS
+  &CELL
+   A     10.93998835     -0.16409983      0.00000000
+   B     -0.16409983     10.93998835      0.00000000
+   C      0.00000000      0.00000000     10.94245040 # V = 1309.3344, x = -0.03
+  &END CELL
+  &COORD
+   SCALED
+   U       0.000000    0.000000    0.000000  UO2  1
+   U       0.000000    0.250000    0.250000  UO2  1
+   U       0.250000    0.000000    0.250000  UO2  1
+   U       0.250000    0.250000    0.000000  UO2  1
+   O       0.125000    0.125000    0.125000  UO2  1
+   O       0.125000    0.125000    0.375000  UO2  1
+   O       0.125000    0.375000    0.125000  UO2  1
+   O       0.375000    0.125000    0.125000  UO2  1
+   O       0.125000    0.375000    0.375000  UO2  1
+   O       0.375000    0.125000    0.375000  UO2  1
+   O       0.375000    0.375000    0.125000  UO2  1
+   O       0.375000    0.375000    0.375000  UO2  1
+   U       0.000000    0.000000    0.500000  UO2  2
+   U       0.000000    0.250000    0.750000  UO2  2
+   U       0.250000    0.000000    0.750000  UO2  2
+   U       0.250000    0.250000    0.500000  UO2  2
+   O       0.125000    0.125000    0.625000  UO2  2
+   O       0.125000    0.125000    0.875000  UO2  2
+   O       0.125000    0.375000    0.625000  UO2  2
+   O       0.375000    0.125000    0.625000  UO2  2
+   O       0.125000    0.375000    0.875000  UO2  2
+   O       0.375000    0.125000    0.875000  UO2  2
+   O       0.375000    0.375000    0.625000  UO2  2
+   O       0.375000    0.375000    0.875000  UO2  2
+   U       0.000000    0.500000    0.000000  UO2  3
+   U       0.000000    0.750000    0.250000  UO2  3
+   U       0.250000    0.500000    0.250000  UO2  3
+   U       0.250000    0.750000    0.000000  UO2  3
+   O       0.125000    0.625000    0.125000  UO2  3
+   O       0.125000    0.625000    0.375000  UO2  3
+   O       0.125000    0.875000    0.125000  UO2  3
+   O       0.375000    0.625000    0.125000  UO2  3
+   O       0.125000    0.875000    0.375000  UO2  3
+   O       0.375000    0.625000    0.375000  UO2  3
+   O       0.375000    0.875000    0.125000  UO2  3
+   O       0.375000    0.875000    0.375000  UO2  3
+   U       0.000000    0.500000    0.500000  UO2  4
+   U       0.000000    0.750000    0.750000  UO2  4
+   U       0.250000    0.500000    0.750000  UO2  4
+   U       0.250000    0.750000    0.500000  UO2  4
+   O       0.125000    0.625000    0.625000  UO2  4
+   O       0.125000    0.625000    0.875000  UO2  4
+   O       0.125000    0.875000    0.625000  UO2  4
+   O       0.375000    0.625000    0.625000  UO2  4
+   O       0.125000    0.875000    0.875000  UO2  4
+   O       0.375000    0.625000    0.875000  UO2  4
+   O       0.375000    0.875000    0.625000  UO2  4
+   O       0.375000    0.875000    0.875000  UO2  4
+   U       0.500000    0.000000    0.000000  UO2  5
+   U       0.500000    0.250000    0.250000  UO2  5
+   U       0.750000    0.000000    0.250000  UO2  5
+   U       0.750000    0.250000    0.000000  UO2  5
+   O       0.625000    0.125000    0.125000  UO2  5
+   O       0.625000    0.125000    0.375000  UO2  5
+   O       0.625000    0.375000    0.125000  UO2  5
+   O       0.875000    0.125000    0.125000  UO2  5
+   O       0.625000    0.375000    0.375000  UO2  5
+   O       0.875000    0.125000    0.375000  UO2  5
+   O       0.875000    0.375000    0.125000  UO2  5
+   O       0.875000    0.375000    0.375000  UO2  5
+   U       0.500000    0.000000    0.500000  UO2  6
+   U       0.500000    0.250000    0.750000  UO2  6
+   U       0.750000    0.000000    0.750000  UO2  6
+   U       0.750000    0.250000    0.500000  UO2  6
+   O       0.625000    0.125000    0.625000  UO2  6
+   O       0.625000    0.125000    0.875000  UO2  6
+   O       0.625000    0.375000    0.625000  UO2  6
+   O       0.875000    0.125000    0.625000  UO2  6
+   O       0.625000    0.375000    0.875000  UO2  6
+   O       0.875000    0.125000    0.875000  UO2  6
+   O       0.875000    0.375000    0.625000  UO2  6
+   O       0.875000    0.375000    0.875000  UO2  6
+   U       0.500000    0.500000    0.000000  UO2  7
+   U       0.500000    0.750000    0.250000  UO2  7
+   U       0.750000    0.500000    0.250000  UO2  7
+   U       0.750000    0.750000    0.000000  UO2  7
+   O       0.625000    0.625000    0.125000  UO2  7
+   O       0.625000    0.625000    0.375000  UO2  7
+   O       0.625000    0.875000    0.125000  UO2  7
+   O       0.875000    0.625000    0.125000  UO2  7
+   O       0.625000    0.875000    0.375000  UO2  7
+   O       0.875000    0.625000    0.375000  UO2  7
+   O       0.875000    0.875000    0.125000  UO2  7
+   O       0.875000    0.875000    0.375000  UO2  7
+   U       0.500000    0.500000    0.500000  UO2  8
+   U       0.500000    0.750000    0.750000  UO2  8
+   U       0.750000    0.500000    0.750000  UO2  8
+   U       0.750000    0.750000    0.500000  UO2  8
+   O       0.625000    0.625000    0.625000  UO2  8
+   O       0.625000    0.625000    0.875000  UO2  8
+   O       0.625000    0.875000    0.625000  UO2  8
+   O       0.875000    0.625000    0.625000  UO2  8
+   O       0.625000    0.875000    0.875000  UO2  8
+   O       0.875000    0.625000    0.875000  UO2  8
+   O       0.875000    0.875000    0.625000  UO2  8
+   O       0.875000    0.875000    0.875000  UO2  8
+  &END COORD
+  &KIND U
+  &END KIND
+  &KIND O
+  &END KIND
+  &PRINT
+   &CELL
+   &END CELL
+  &END PRINT
+  &TOPOLOGY
+   CONNECTIVITY user
+   DISABLE_EXCLUSION_LISTS
+   PARA_RES off
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

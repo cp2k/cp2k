@@ -122,3 +122,10 @@ UO2-2x2x2-nocs2cs-npt-3.inp 11
 UO2-2x2x2-nocs2cs-nvt2nve-1.inp 11
 UO2-2x2x2-nocs2cs-nvt2nve-2.inp 11
 UO2-2x2x2-nocs2cs-nvt2nve-3.inp 11
+# Fix (BFGS) geometry optimisation for shell models
+UO2-2x2x2-geo_opt-bfgs.inp 11
+UO2-2x2x2-geo_opt-cg.inp 11
+UO2-2x2x2-geo_opt-lbfgs.inp 11
+UO2-2x2x2-cs-geo_opt-bfgs.inp 11
+UO2-2x2x2-cs-geo_opt-cg.inp 11
+UO2-2x2x2-cs-geo_opt-lbfgs.inp 11

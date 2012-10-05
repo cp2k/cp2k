@@ -7,7 +7,10 @@
 !> \brief Routines for Geometry optimization using BFGS algorithm
 ! *****************************************************************************
 MODULE bfgs_optimizer
-  USE atomic_kind_types,               ONLY: get_atomic_kind
+
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: get_atomic_kind,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_copy,&
                                              cell_create,&
                                              cell_release,&
@@ -110,7 +113,8 @@ CONTAINS
                                                 iter_nr, its, maxiter, ndf, &
                                                 nfree, output_unit, stat
     LOGICAL                                  :: conv, do_cell, failure, &
-                                                hesrest, ionode, should_stop, &
+                                                hesrest, ionode, &
+                                                shell_present, should_stop, &
                                                 use_mod_hes, use_rfo
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step, t_diff, &
@@ -118,12 +122,14 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
                                                 work, xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_hes
     TYPE(cp_fm_type), POINTER                :: eigvec_mat, hess_mat, hess_tmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: print_key, root_section
 
     failure = .FALSE.
@@ -179,8 +185,18 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     eigval(:) = 0.0_dp
 
+    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
+    CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,error=error)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
+    IF (shell_present) THEN
+      use_mod_hes = .FALSE.
+      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                     "No model Hessian available for core-shell models. "//&
+                     "An unit matrix is used for the initial Hessian.",&
+                      error,failure)
+    END IF
 
-    IF(use_mod_hes)THEN
+    IF (use_mod_hes) THEN
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp,error=error)
        CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
@@ -191,7 +207,6 @@ CONTAINS
        CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
        CALL cp_fm_column_scale(eigvec_mat,eigval)
        CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
-
     ELSE
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
     END IF
