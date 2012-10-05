@@ -757,7 +757,7 @@ CONTAINS
                                     i_vals=atomic_indices,&
                                     error=error)
           string = ""
-          WRITE (UNIT=string,FMT="(A,2(I6,A))")&
+          WRITE (UNIT=string,FMT="(A,2(I8,A))")&
             "(",atomic_indices(1),",",atomic_indices(2),")"
           CALL compress(string,full=.TRUE.)
           wrk2=atomic_indices
