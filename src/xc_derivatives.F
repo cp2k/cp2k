@@ -226,8 +226,8 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         ELSE
            CALL optx_lda_info(reference,shortform,needs,max_deriv,error=error)
         ENDIF
-#if defined (__LIBXC)
      CASE("LIBXC")
+#if defined (__LIBXC)
         IF (lsd) THEN
            CALL libxc_lsd_info(functional,reference,shortform,needs,max_deriv,&
                 ifunc_name,error=error)
@@ -235,6 +235,9 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL libxc_lda_info(functional,reference,shortform,needs,max_deriv,&
                 ifunc_name,error=error)
         ENDIF
+#else
+        CALL stop_program(routineN,moduleN,__LINE__,&
+           "In order to use libxc you need to download and install it")
 #endif
      CASE("CS1")
         IF (lsd) THEN
@@ -461,13 +464,16 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL optx_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ENDIF
-#if defined (__LIBXC)
      CASE("LIBXC")
+#if defined (__LIBXC)
         IF (lsd) THEN
            CALL libxc_lsd_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
         ELSE
            CALL libxc_lda_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
         ENDIF
+#else
+        CALL stop_program(routineN,moduleN,__LINE__,&
+           "In order to use libxc you need to download and install it")
 #endif
      CASE("CS1")
         IF (lsd) THEN
