@@ -569,12 +569,11 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
            DO i=1,SIZE(val%i_val)
-              IF (MODULO(i,8)==0) THEN
+              IF (MODULO(i,12) == 0) THEN
                  WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
-              WRITE(unit=unit_nr,fmt="(' ',i14)",advance="NO")&
-                   val%i_val(i)
+              WRITE (UNIT=unit_nr,FMT="(1X,I0)",ADVANCE="NO") val%i_val(i)
            END DO
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

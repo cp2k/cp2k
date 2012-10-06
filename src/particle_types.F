@@ -41,7 +41,6 @@ MODULE particle_types
   USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -725,9 +724,8 @@ CONTAINS
                                     i_vals=atomic_indices,&
                                     error=error)
           string = ""
-          WRITE (UNIT=string,FMT="(A,I6,A)")&
+          WRITE (UNIT=string,FMT="(A,I0,A)")&
             "(",atomic_indices(1),")"
-          CALL compress(string,full=.TRUE.)
           wrk1=atomic_indices
           CALL sort_unique(wrk1, unique)
           IF (((wrk1(1)>=1).AND.(wrk1(SIZE(wrk1))<=natom)).AND.unique) THEN
@@ -757,9 +755,8 @@ CONTAINS
                                     i_vals=atomic_indices,&
                                     error=error)
           string = ""
-          WRITE (UNIT=string,FMT="(A,2(I8,A))")&
+          WRITE (UNIT=string,FMT="(A,2(I0,A))")&
             "(",atomic_indices(1),",",atomic_indices(2),")"
-          CALL compress(string,full=.TRUE.)
           wrk2=atomic_indices
           CALL sort_unique(wrk2, unique)
           IF (((wrk2(1)>=1).AND.(wrk2(SIZE(wrk2))<=natom)).AND.unique) THEN
@@ -792,9 +789,8 @@ CONTAINS
                                     i_vals=atomic_indices,&
                                     error=error)
           string = ""
-          WRITE (UNIT=string,FMT="(A,3(I6,A))")&
+          WRITE (UNIT=string,FMT="(A,3(I0,A))")&
             "(",atomic_indices(1),",",atomic_indices(2),",",atomic_indices(3),")"
-          CALL compress(string,full=.TRUE.)
           wrk3=atomic_indices
           CALL sort_unique(wrk3, unique)
           IF (((wrk3(1)>=1).AND.(wrk3(SIZE(wrk3))<=natom)).AND.unique) THEN
@@ -827,10 +823,9 @@ CONTAINS
                                     i_vals=atomic_indices,&
                                     error=error)
           string = ""
-          WRITE (UNIT=string,FMT="(A,4(I6,A))")&
+          WRITE (UNIT=string,FMT="(A,4(I0,A))")&
             "(",atomic_indices(1),",",atomic_indices(2),",",&
                 atomic_indices(3),",",atomic_indices(4),")"
-          CALL compress(string,full=.TRUE.)
           wrk4=atomic_indices
           CALL sort_unique(wrk4, unique)
           IF (((wrk4(1)>=1).AND.(wrk4(SIZE(wrk4))<=natom)).AND.unique) THEN
