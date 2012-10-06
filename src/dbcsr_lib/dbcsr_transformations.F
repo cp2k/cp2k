@@ -1017,7 +1017,7 @@ CONTAINS
 !$omp         sd_disp, sm_disp, rd_disp, rm_disp, &
 !$omp         send_meta, recv_meta, send_data_area, &
 !$omp         recv_data_area, received_data_area, &
-!$omp         blk_ps, blks, nsymmetries, scale_neg_one)
+!$omp         blk_ps, blks, nsymmetries, scale_neg_one, error_handler2)
 !$  ithread = omp_get_thread_num()
 !$  IF (release_td) THEN !@@@
 !$     CALL dbcsr_assert (.NOT.release_td, dbcsr_fatal_level, dbcsr_internal_error,&
