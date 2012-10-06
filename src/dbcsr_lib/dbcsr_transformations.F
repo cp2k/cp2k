@@ -855,10 +855,11 @@ CONTAINS
 
     CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, data_p, &
-      data_type, dst_p, error_handler, i, icol, irow, ithread, j, mp_group, &
-      ncol_images, nrow_images, nsymmetries, nthreads, numproc, nze, pcol, &
-      prev_blk_p, prev_dst_p, prow, row, row_img, row_size, sd_pos, sm_pos, &
-      src_p, stored_blk_p, stored_col, stored_row, symmetry_i, t, vcol, vrow
+      data_type, dst_p, error_handler, error_handler2, i, icol, irow, &
+      ithread, j, mp_group, ncol_images, nrow_images, nsymmetries, nthreads, &
+      numproc, nze, pcol, prev_blk_p, prev_dst_p, prow, row, row_img, &
+      row_size, sd_pos, sm_pos, src_p, stored_blk_p, stored_col, stored_row, &
+      symmetry_i, t, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
@@ -1096,8 +1097,10 @@ CONTAINS
     DEALLOCATE (myt_send_count)
 !$omp barrier
 !$omp master
+    CALL dbcsr_error_set(routineN//"_sizes", error_handler2, dbcsr_error)
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
+    CALL dbcsr_error_stop(error_handler2, dbcsr_error)
     ! Fill in the meta data structures and copy the data.
     DO dst_p = 0, numproc-1
        total_send_count(1, dst_p) = SUM (send_count (1, :, :, dst_p))
@@ -1335,6 +1338,7 @@ CONTAINS
     ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same),
     ! there are only very few processors that need to exchange data.
     ! The hybrid_alltoall deals with this by doing point to point communication
+    CALL dbcsr_error_set(routineN//"_data", error_handler2, dbcsr_error)
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
@@ -1370,6 +1374,7 @@ CONTAINS
          recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1,&
          most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
          mp_env = mp_obj)
+    CALL dbcsr_error_stop(error_handler2, dbcsr_error)
 
     ! Now create the work index and/or copy the relevant data from the
     ! receive buffer into the local indices.

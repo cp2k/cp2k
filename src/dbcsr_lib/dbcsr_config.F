@@ -187,7 +187,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handle, error)
-    use_subcommunicators = .FALSE.
+    ! subcomm are crucial for make_images for large (>4096) number of MPI tasks
+    use_subcommunicators = .TRUE.
     use_combined_types = .FALSE.
     use_MPI_memory = has_MPI
     use_CUDA_host_pinned_memory = .FALSE.
