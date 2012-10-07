@@ -536,7 +536,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: c_string, myfmt, rcval
-    INTEGER                                  :: i, l
+    INTEGER                                  :: i, iend, item, j, l
     LOGICAL                                  :: failure
     TYPE(cp_unit_type), POINTER              :: my_unit
 
@@ -568,13 +568,32 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
         END IF
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
-           DO i=1,SIZE(val%i_val)
-              IF (MODULO(i,12) == 0) THEN
-                 WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
-                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
-              END IF
-              WRITE (UNIT=unit_nr,FMT="(1X,I0)",ADVANCE="NO") val%i_val(i)
-           END DO
+           item = 0
+           i = 1
+           loop_i: DO WHILE (i <= SIZE(val%i_val))
+             item = item + 1
+             IF (MODULO(item,10) == 0) THEN
+               WRITE (UNIT=unit_nr,FMT="(1X,A)") default_continuation_character
+               WRITE (UNIT=unit_nr,FMT="("//TRIM(myfmt)//")",ADVANCE="NO")
+             END IF
+             iend = i
+             loop_j: DO j=i+1,SIZE(val%i_val)
+               IF (val%i_val(j-1) + 1 == val%i_val(j)) THEN
+                 iend = iend + 1
+               ELSE
+                 EXIT loop_j
+               END IF
+             END DO loop_j
+             IF ((iend - i) > 1) THEN
+               WRITE (UNIT=unit_nr,FMT="(1X,I0,A2,I0)",ADVANCE="NO")&
+                val%i_val(i),"..",val%i_val(iend)
+               i = iend
+             ELSE
+               WRITE (UNIT=unit_nr,FMT="(1X,I0)",ADVANCE="NO")&
+                val%i_val(i)
+             END IF
+             i = i + 1
+           END DO loop_i
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
