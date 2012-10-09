@@ -9,6 +9,6 @@ H2O_lda_libxc_tddfpt-s.inp            1
 H2O_pbe_libxc_tddfpt-t_uks.inp        1
 H2O-hybrid-b3lyp_libxc.inp            1
 H2O_lda_libxc_tddfpt-t_uks.inp        1
-H2O-tpss_libxc.inp                    1
+H2O-tpssx_libxc.inp                   1
 diamond_br89_libxc_uks.inp            1
 diamond_br89_libxc.inp                1

@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief calculates a functional from libxc and its derivatives
 !> \note
-!>      This was created for the first time for version v.1.2.0 (2012-03-22)
+!>      This was created for the first time for v1.2.0 (2012-03-22)
 !>      of libxc (Marques, Oliveira, Burnus, CPC 183, 2272 (2012)).
 !>      For subsequent versions of libxc, the following should be updated
 !>      if necessary:
@@ -26,8 +26,8 @@
 !>         (in libxc_lda_calc and libxc_lsd_calc). This seems to be a bug in
 !>         libxc since this multiplication by 2 is necessary for BR89, but
 !>         not for TPSS.
-!>      6) Activate the correlation part of TPSS for spin-polarized
-!>         calculations when it will work correctly (in libxc_lsd_info).
+!>      6) Reactivate the functionals which are working correctly
+!>         (in libxc_lda_info and libxc_lsd_info).
 !> \par History
 !>      10.2012 created [F. Tran]
 !> \author F. Tran
@@ -111,6 +111,11 @@ CONTAINS
     IF (func_id == -1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
           TRIM(func_name(ifunc_name))//": wrong functional name")
+    END IF
+    IF ((func_id == 207) .OR. (func_id == 208) .OR. &
+        (func_id == 209) .OR. (func_id == 231)) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+          TRIM(func_name(ifunc_name))//": desactivated since probably buggy in v1.2.0 of libxc")
     END IF
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
 
@@ -211,9 +216,10 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
           TRIM(func_name(ifunc_name))//": wrong functional name")
     END IF
-    IF (func_id == 231) THEN
+    IF ((func_id == 207) .OR. (func_id == 208) .OR. &
+        (func_id == 209) .OR. (func_id == 231)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name(ifunc_name))//": buggy for spin-polarized calculations")
+          TRIM(func_name(ifunc_name))//": desactivated since probably buggy in v1.2.0 of libxc")
     END IF
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_POLARIZED)
 
