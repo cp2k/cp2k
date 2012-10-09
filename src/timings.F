@@ -440,9 +440,10 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timeprint(iw,r_timings,para_env)
+  SUBROUTINE timeprint(iw,r_timings,sort_by_self_time,para_env)
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: r_timings
+    LOGICAL, INTENT(IN)                      :: sort_by_self_time
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
     CHARACTER(LEN=80)                        :: fmt
@@ -452,14 +453,18 @@ CONTAINS
     REAL(KIND=dp)                            :: asd, imax_ewall, imax_iwall, &
                                                 isum_ewall, isum_iwall, &
                                                 maxtime, mintime
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: max_ewalltime, max_iwalltime, &
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:), TARGET                   :: max_ewalltime, max_iwalltime, &
                                                 sum_ewalltime, sum_iwalltime
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: max_walltime
     TYPE(timer_env_type), POINTER            :: timer_env
 
     IF (stack_pointer<1) THEN
        PRINT*,'no timer env available in time_set'
        STOP 1
     ENDIF
+
+    NULLIFY (max_walltime)
 
     timer_env => timer_env_stack(stack_pointer)%timer_env
 
@@ -505,11 +510,17 @@ CONTAINS
        sum_ewalltime(i)=isum_ewall
     ENDDO
 
-    IF (num_timer > 0 .AND. iw>0) THEN
+    IF ((num_timer > 0).AND.(iw > 0)) THEN
 
-       CALL sort(max_iwalltime,num_timer,index)
+       IF (sort_by_self_time) THEN
+          max_walltime => max_ewalltime
+       ELSE
+          max_walltime => max_iwalltime
+       END IF
 
-       maxtime = max_iwalltime(num_timer)
+       CALL sort(max_walltime,num_timer,index)
+
+       maxtime = max_walltime(num_timer)
        mintime = maxtime*r_timings
 
        WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
@@ -528,9 +539,9 @@ CONTAINS
        IF (num_timer > 0) THEN
          i = num_timer
          decimals = 3
-         IF (max_iwalltime(i) >= 10000)   decimals = 2
-         IF (max_iwalltime(i) >= 100000)  decimals = 1
-         IF (max_iwalltime(i) >= 1000000) decimals = 0
+         IF (max_walltime(i) >= 10000)   decimals = 2
+         IF (max_walltime(i) >= 100000)  decimals = 1
+         IF (max_walltime(i) >= 1000000) decimals = 0
          WRITE (UNIT=fmt,FMT="(A,I0,A)")&
            "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
        END IF
@@ -539,25 +550,38 @@ CONTAINS
 
           j = INDEX(i)
 
-          IF (max_iwalltime(i) > mintime) THEN
+          IF (max_walltime(i) > mintime) THEN
 
              ! average stack depth
-             asd=REAL(timer_env%routine_stack_depth(j),KIND=dp)/ &
-                  REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
+             asd = REAL(timer_env%routine_stack_depth(j),KIND=dp)/ &
+                   REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
 
-             WRITE (UNIT=iw,FMT=fmt) &
-                          ADJUSTL(timer_env%clock_name(j)(1:31)),&
-                          timer_env%routine_calls(j),&
-                          ASD,&
-                          sum_ewalltime(j)/para_env%num_pe,&
-                          max_ewalltime(j),&
-                          sum_iwalltime(j)/para_env%num_pe,&
-                          max_iwalltime(i)
+             IF (sort_by_self_time) THEN
+                WRITE (UNIT=iw,FMT=fmt) &
+                 ADJUSTL(timer_env%clock_name(j)(1:31)),&
+                 timer_env%routine_calls(j),&
+                 ASD,&
+                 sum_ewalltime(j)/para_env%num_pe,&
+                 max_ewalltime(i),&
+                 sum_iwalltime(j)/para_env%num_pe,&
+                 max_iwalltime(j)
+             ELSE
+                WRITE (UNIT=iw,FMT=fmt) &
+                 ADJUSTL(timer_env%clock_name(j)(1:31)),&
+                 timer_env%routine_calls(j),&
+                 ASD,&
+                 sum_ewalltime(j)/para_env%num_pe,&
+                 max_ewalltime(j),&
+                 sum_iwalltime(j)/para_env%num_pe,&
+                 max_iwalltime(i)
+             END IF
           END IF
 
        END DO
        WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",79)
     END IF
+
+    NULLIFY (max_walltime)
 
   END SUBROUTINE timeprint
 

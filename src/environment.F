@@ -938,7 +938,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: dev_flag
     INTEGER                                  :: iw, unit_exit
-    LOGICAL                                  :: delete_it, failure
+    LOGICAL                                  :: delete_it,failure,&
+                                                sort_by_self_time
     REAL(KIND=dp)                            :: r_timings
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -948,7 +949,7 @@ CONTAINS
 ! look if we inherited a failure, more care is needed if so
 ! i.e. the input is most likely not available
 
-    failure=.FALSE.
+    failure = .FALSE.
     CALL cp_error_check(error,failure)
 
     ! Set flag if this is a development version
@@ -1006,16 +1007,15 @@ CONTAINS
 
     CALL timestop(globenv%handle) ! corresponding the "CP2K" in cp2k_init
 
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
        iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&
             extension=".Log",error=error)
-
        r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
-       CALL timeprint(iw,r_timings,para_env)
-
+       sort_by_self_time = section_get_lval(root_section,"GLOBAL%TIMINGS%SORT_BY_SELF_TIME",error)
+       CALL timeprint(iw,r_timings,sort_by_self_time,para_env)
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%TIMINGS",error=error)
-    ENDIF
+    END IF
 
     CALL rm_mp_perf_env()
     CALL rm_timer_env()
