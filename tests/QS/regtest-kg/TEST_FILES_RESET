@@ -2,3 +2,5 @@
 # add files to be reset here
 #
 H2_MD.inp
+# redefine libxc interface
+H2-libxc.inp

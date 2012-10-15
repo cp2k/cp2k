@@ -338,6 +338,11 @@ CONTAINS
        func_id = get_func_id(func_name(ifunc_name))
        CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
 
+       SELECT CASE(xc_f90_info_kind(xc_info))
+       CASE (XC_KINETIC)
+          sc = 0.5_dp*sc
+       END SELECT
+
        SELECT CASE (xc_f90_info_family(xc_info))
        CASE(XC_FAMILY_LDA)
           CALL xc_rho_set_get(rho_set,rho=rho,local_bounds=bo,&
@@ -619,6 +624,11 @@ CONTAINS
 
        func_id = get_func_id(func_name(ifunc_name))
        CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_POLARIZED)
+
+       SELECT CASE(xc_f90_info_kind(xc_info))
+       CASE (XC_KINETIC)
+          sc = 0.5_dp*sc
+       END SELECT
 
        SELECT CASE (xc_f90_info_family(xc_info))
        CASE(XC_FAMILY_LDA)
