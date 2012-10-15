@@ -4,3 +4,5 @@
 H2_MD.inp
 # redefine libxc interface
 H2-libxc.inp
+# faster testcase
+H2-libxc.inp
