@@ -118,6 +118,7 @@ MODULE hfx_pair_list_methods
           Q = (Zeta_C*C11 + Zeta_D*tmp_D)*EtaInv
           rpq2 = (P(1)-Q(1))**2+(P(2)-Q(2))**2+(P(3)-Q(3))**2
           IF( potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
+              potential_parameter%potential_type == do_hfx_potential_short .OR. &
               potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
             IF( rpq2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) CYCLE
           END IF

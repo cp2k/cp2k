@@ -53,6 +53,7 @@ MODULE hfx_types
                                              int_8
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
+  USE mathconstants,                   ONLY: pi
   USE orbital_pointers
   USE string_utilities,                ONLY: compress
   USE t_c_g0,                          ONLY: free
@@ -564,6 +565,11 @@ MODULE hfx_types
             actual_x_data%potential_parameter%filename = char_val
           END IF
         END IF
+        IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_short) THEN
+            CALL erfc_cutoff(actual_x_data%screening_parameter%eps_schwarz,&
+                           actual_x_data%potential_parameter%omega,&
+                           actual_x_data%potential_parameter%cutoff_radius, error)
+        END IF
 
         !! LOAD_BALANCE section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
@@ -860,6 +866,56 @@ MODULE hfx_types
     CALL timestop(handle)
   END SUBROUTINE hfx_create
 
+! *****************************************************************************
+!> \brief - compute a truncation radius for the shortrange operator
+!> \param eps target accuracy
+!> \param omega screening parameter
+!> \param r_cutoff cutoff radius 
+!> \par History
+!>      10.2012 created [Hossein Banihashemian]
+!> \author Hossein Banihashemian
+! *****************************************************************************
+  SUBROUTINE erfc_cutoff(eps,omg,r_cutoff,error)
+    IMPLICIT NONE
+
+    REAL(dp), INTENT(in)  :: eps, omg
+    REAL(dp), INTENT(out) :: r_cutoff
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'erfc_cutoff', &
+      routineP = moduleN//':'//routineN
+
+    REAL(dp), PARAMETER :: abstol=1E-10_dp, soltol=1E-16_dp
+    REAL(dp) :: r0, f0, fprime0, delta_r
+    INTEGER :: iter,handle
+    INTEGER, PARAMETER :: iterMAX = 1000
+    LOGICAL :: failure
+
+    CALL timeset(routineN,handle)
+
+    ! initial guess assuming that we are in the asymptotic regime of the erf, and the solution is about 10.
+    r0 = SQRT(-LOG(eps*omg*10**2))/omg
+    CALL eval_transc_func(r0,eps,omg,f0,fprime0)
+
+    DO iter = 1,iterMAX
+        delta_r = f0/fprime0
+        r0 = r0-delta_r
+        CALL eval_transc_func(r0,eps,omg,f0,fprime0)
+        IF (ABS(delta_r) .LT. abstol .OR. ABS(f0) .LT. soltol) EXIT
+    END DO
+    CPPostcondition(iter<=itermax,cp_failure_level,routineP,error,failure)
+    r_cutoff = r0
+
+    CALL timestop(handle)
+  CONTAINS
+    SUBROUTINE eval_transc_func(r,eps,omega,fn,df)
+    REAL(dp), INTENT(in)                     :: r, eps, omega
+    REAL(dp), INTENT(out)                    :: fn, df
+
+      fn = erfc(omega*r) - r*eps
+      df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi) - eps
+    END SUBROUTINE eval_transc_func
+  END SUBROUTINE erfc_cutoff
 ! *****************************************************************************
 !> \brief - This routine allocates and initializes the basis_info and basis_parameter types
 !> \par History
@@ -1340,10 +1396,11 @@ MODULE hfx_types
     ! ** Check some settings
     IF( i_thread == 1 ) THEN
       IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated .AND. &
+          x_data%potential_parameter%potential_type /= do_hfx_potential_short .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_mix_cl_trunc) THEN
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                    "Periodic Hartree Fock calculation requested without use "//&
-                   "of a truncated potential. This may lead to unphysical total energies. "//&
+                   "of a truncated or shortrange potential. This may lead to unphysical total energies. "//&
                    "Use a truncated  potential to avoid possible problems. "//&
                    CPSourceFileRef,&
                    only_ionode=.TRUE.)
@@ -1355,7 +1412,7 @@ MODULE hfx_types
         IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                    "Periodic Hartree Fock calculation requested with use "//&
-                   "of a truncated potential. The cutoff radius is larger than half "//&
+                   "of a truncated or shortrange potential. The cutoff radius is larger than half "//&
                    "the minimal cell dimension. This may lead to unphysical "//&
                    "total energies. Reduce the cutoff radius in order to avoid "//&
                    "possible problems. "//&
@@ -1366,7 +1423,7 @@ MODULE hfx_types
     END IF
 
     SELECT CASE(x_data%potential_parameter%potential_type)
-    CASE( do_hfx_potential_truncated, do_hfx_potential_mix_cl_trunc )
+    CASE( do_hfx_potential_truncated, do_hfx_potential_mix_cl_trunc, do_hfx_potential_short )
       R_max = 0.0_dp
       DO ikind=1,SIZE(x_data%basis_parameter)
         la_max => x_data%basis_parameter(ikind)%lmax
@@ -1976,6 +2033,9 @@ MODULE hfx_types
             "HFX_INFO| Interaction Potential:    ", "SHORTRANGE"
           WRITE(iw,'(T3,A,T61,F20.10)') &
             "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
+          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom",error=error)
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
         CASE(do_hfx_potential_long)
           WRITE (UNIT=iw,FMT="((T3,A,T72,A))")&
             "HFX_INFO| Interaction Potential:     ", "LONGRANGE"

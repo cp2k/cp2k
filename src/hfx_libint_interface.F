@@ -125,6 +125,12 @@ MODULE hfx_libint_interface
         CALL fgamma(m_max,T,prim%F(1))
         factor = 2.0_dp*Pi*RhoInv
       CASE(do_hfx_potential_short)
+        R = potential_parameter%cutoff_radius * SQRT(rho)
+        R1 = R11
+        R2 = R22
+        IF( PQ2 > (R1+R2+potential_parameter%cutoff_radius)**2 ) THEN
+          RETURN
+        END IF
         CALL fgamma(m_max,T,prim%F(1))
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
