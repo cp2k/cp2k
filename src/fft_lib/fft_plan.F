@@ -21,20 +21,26 @@ MODULE fft_plan
   PUBLIC :: fft_plan_type
 
   TYPE fft_plan_type
+
     INTEGER                             :: fft_type
     INTEGER                             :: fsign
     LOGICAL                             :: trans, fft_in_place, valid, separated_plans
-    INTEGER                             :: n, m, plan_style
+    INTEGER                             :: n, m
     INTEGER, DIMENSION(3)               :: n_3d
+
+!   Handle for the FFTW plan
     INTEGER (KIND=integer8_kind)        :: fftw_plan
-! Individual plans
-    INTEGER (KIND=integer8_kind)        :: fftw_plan_nx, fftw_plan_ny, fftw_plan_nz
-! Plans for the remaining rows (when n%nt .NEQ. 0 with n a dimension and nt number of threads)
-    INTEGER (KIND=integer8_kind)        :: fftw_plan_nx_r, fftw_plan_ny_r, fftw_plan_nz_r
-!   Needed for OpenMP case where not all threads have the same number of rows
+
+!   Plan for the remaining rows for 1D FFT when number of threads does not divide the number of rows exactly
 !$  INTEGER (KIND=integer8_kind)        :: alt_fftw_plan
 !$  LOGICAL                             :: need_alt_plan
 !$  INTEGER                             :: num_threads_needed, num_rows, alt_num_rows
+
+!   Individual plans (used by hand-optimised 3D FFT)
+    INTEGER (KIND=integer8_kind)        :: fftw_plan_nx, fftw_plan_ny, fftw_plan_nz
+!   Plans for the remaining rows (when the number of threads does not divide the number of rows exactly)
+    INTEGER (KIND=integer8_kind)        :: fftw_plan_nx_r, fftw_plan_ny_r, fftw_plan_nz_r
+
   END TYPE fft_plan_type
 
 END MODULE fft_plan
