@@ -133,7 +133,7 @@ CONTAINS
 
     CALL section_vals_duplicate(xc_section, xc_section_kg, error=error)
 
-    ! test for TF, TFW, and KE_GGA sections in turn
+    ! test for TF, TFW, KE_GGA, and KE_LIBXC sections in turn
     ke_sections = 0
     NULLIFY(kef_section)
     kef_section => section_vals_get_subs_vals(xc_fun_section,"TF",error=error)
@@ -183,11 +183,27 @@ CONTAINS
       ke_sections = ke_sections + 1
     END IF
 
+    NULLIFY(kef_section)
+    kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_LIBXC",error=error)
+    CALL section_vals_get(kef_section, explicit=is_set, error=error)
+    IF(is_set) THEN
+      NULLIFY(xc_fun_section_kg)
+      CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
+           error=error)
+      CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
+           i_val=xc_funct_no_shortcut,error=error)
+      CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_LIBXC",&
+           kef_section,error=error)
+      CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
+           xc_fun_section_kg,error=error)
+      ke_sections = ke_sections + 1
+    END IF
+
     ! stop if there is more than one kinetic energy functional section present
     !CPPostcondition(ke_sections==1,cp_failure_level,routineP,error,failure)
     CALL cp_assert(ke_sections==1, cp_fatal_level, cp_assertion_failed, routineP, &
        "KG runs require a kinetic energy functional. Exactly one of the following "// &
-       "subsections of XC_FUNCTIONAL needs to be present: KE_GGA, TF, or TFW.") 
+       "subsections of XC_FUNCTIONAL needs to be present: KE_GGA, TF, TFW, or KE_LIBXC.") 
 
     kg_env%xc_section_kg => xc_section_kg
 

@@ -226,7 +226,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         ELSE
            CALL optx_lda_info(reference,shortform,needs,max_deriv,error=error)
         ENDIF
-     CASE("LIBXC")
+     CASE("LIBXC","KE_LIBXC")
 #if defined (__LIBXC)
         IF (lsd) THEN
            CALL libxc_lsd_info(functional,reference,shortform,needs,max_deriv,&
@@ -464,7 +464,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL optx_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ENDIF
-     CASE("LIBXC")
+     CASE("LIBXC","KE_LIBXC")
 #if defined (__LIBXC)
         IF (lsd) THEN
            CALL libxc_lsd_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)

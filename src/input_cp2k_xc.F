@@ -243,33 +243,11 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,name="LIBXC",&
-            description="Uses functionals from LIBXC, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            citations=(/Marques2012/), error=error)
-       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
-            description="activates the functional",&
-            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,name="FUNCTIONAL",&
-            description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
-                        "The precise list of available functionals depends on the version of libxc interfaced (currently 1.2.0).",&
-            usage="FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE",&
-            required=.TRUE.,type_of_var=char_t,n_var=-1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,name="SCALE",&
-            description="scaling factors of the functionals",&
-            usage="SCALE 1.0 1.0",type_of_var=real_t,&
-            default_r_vals=(/1.0_dp/),n_var=-1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,name="PARAMETERS",&
-            description="parameters of the functionals",&
-            type_of_var=real_t,default_r_vals=(/1e20_dp/),n_var=-1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL create_libxc_section(subsection,"LIBXC",error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_libxc_section(subsection,"KE_LIBXC",error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -700,6 +678,64 @@ CONTAINS
        CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_xc_fun_section
+
+  SUBROUTINE create_libxc_section(section,name,error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*), INTENT(in)             :: name
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_libxc_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       SELECT CASE(name)
+         CASE("LIBXC")
+           CALL section_create(section,name,&
+                description="Uses functionals from LIBXC, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
+                n_keywords=4, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+                citations=(/Marques2012/), error=error)
+         CASE("KE_LIBXC")
+           CALL section_create(section,name,&
+                description="To be used for KG runs. Uses kinetic energy functionals from LIBXC, "//&
+                " see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
+                n_keywords=4, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+                citations=(/Marques2012/), error=error)
+         CASE DEFAULT
+           ! incorrect use of this subroutine
+           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       NULLIFY(keyword)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="FUNCTIONAL",&
+            description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
+                        "The precise list of available functionals depends on the version of libxc interfaced (currently 1.2.0).",&
+            usage="FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE",&
+            required=.TRUE.,type_of_var=char_t,n_var=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="SCALE",&
+            description="scaling factors of the functionals",&
+            usage="SCALE 1.0 1.0",type_of_var=real_t,&
+            default_r_vals=(/1.0_dp/),n_var=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="PARAMETERS",&
+            description="parameters of the functionals",&
+            type_of_var=real_t,default_r_vals=(/1e20_dp/),n_var=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE 
 
 ! *****************************************************************************
 !> \brief creates the structure of the section needed to select an xc potential
