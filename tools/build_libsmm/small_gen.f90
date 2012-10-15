@@ -98,7 +98,7 @@ PROGRAM small_gen
    write(6,*)                    "          best_loop=iloop"
    write(6,*)                    "       ENDIF"
    write(6,*)                    "    ENDDO"
-   write(6,*)                    '    write(6,''(1I4,F12.6,F12.3)'') '//&
+   write(6,'(A200)')             '    write(6,''(1I4,F12.6,F12.3)'') '//&
                    'best_loop, best_time, (flops*Niter/best_time)/gflop'
    write(6,*)                    "END PROGRAM small_find"
 
