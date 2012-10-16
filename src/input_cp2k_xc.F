@@ -243,11 +243,17 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_libxc_section(subsection,"LIBXC",error)
+       CALL create_libxc_section(subsection, "LIBXC",&
+            "Uses functionals from LIBXC, see also "//&
+            "http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
+            "FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE", error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_libxc_section(subsection,"KE_LIBXC",error)
+       CALL create_libxc_section(subsection, "KE_LIBXC",&
+            "To be used for KG runs. Uses kinetic energy functionals from LIBXC, "//&
+            "see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
+            "FUNCTIONAL XC_GGA_K_LLP", error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -679,9 +685,9 @@ CONTAINS
     END IF
   END SUBROUTINE create_xc_fun_section
 
-  SUBROUTINE create_libxc_section(section,name,error)
+  SUBROUTINE create_libxc_section(section,name,description,usage,error)
     TYPE(section_type), POINTER              :: section
-    CHARACTER(len=*), INTENT(in)             :: name
+    CHARACTER(len=*), INTENT(in)             :: name, description, usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_libxc_section', &
@@ -693,24 +699,12 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(name == "LIBXC" .OR. name == "KE_LIBXC",cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       SELECT CASE(name)
-         CASE("LIBXC")
-           CALL section_create(section,name,&
-                description="Uses functionals from LIBXC, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
-                n_keywords=4, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-                citations=(/Marques2012/), error=error)
-         CASE("KE_LIBXC")
-           CALL section_create(section,name,&
-                description="To be used for KG runs. Uses kinetic energy functionals from LIBXC, "//&
-                " see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
-                n_keywords=4, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-                citations=(/Marques2012/), error=error)
-         CASE DEFAULT
-           ! incorrect use of this subroutine
-           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
        NULLIFY(keyword)
+       CALL section_create(section, name, description,&
+                           n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Marques2012/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
@@ -719,7 +713,7 @@ CONTAINS
        CALL keyword_create(keyword,name="FUNCTIONAL",&
             description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
                         "The precise list of available functionals depends on the version of libxc interfaced (currently 1.2.0).",&
-            usage="FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE",&
+            usage=usage,&
             required=.TRUE.,type_of_var=char_t,n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
