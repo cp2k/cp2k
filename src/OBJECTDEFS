@@ -327,6 +327,7 @@ OBJECTS_GENERIC =\
  lebedev.o\
  lgrid_types.o\
  library_tests.o\
+ libxc_funcs_m.o\
  linear_systems.o\
  machine.o\
  manybody_eam.o\
@@ -725,6 +726,8 @@ OBJECTS_GENERIC =\
  xc_derivatives.o\
  xc_derivative_types.o\
  xc_exchange_gga.o\
+ xc_f90_lib_m.o\
+ xc_f90_types_m.o\
  xc_functionals_utilities.o\
  xc_hcth.o\
  xc_ke_gga.o\

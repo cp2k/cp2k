@@ -128,10 +128,8 @@ How to compile CP2K code
  2k) Library of exchange-correlation functionals libxc (optional, v1.2.0):
      * The version 1.2.0 (ONLY this one) of libxc needs to be downloaded
        (http://www.tddft.org/programs/octopus/wiki/index.php/Libxc) and installed.
-       During the installation, the directories $(LIBXC_DIR)/include and
-       $(LIBXC_DIR)/lib are created.
-     * Add -D__LIBXC to DFLAGS, -I$(LIBXC_DIR)/include to FCFLAGS and
-       -L$(LIBXC_DIR)/lib -lxc to LIBS.
+       During the installation, the directory $(LIBXC_DIR)/lib is created.
+     * Add -D__LIBXC to DFLAGS and -L$(LIBXC_DIR)/lib -lxc to LIBS.
 
  3) To compile the code:
 
