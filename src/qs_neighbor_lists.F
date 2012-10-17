@@ -793,6 +793,16 @@ CONTAINS
        CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
        CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_CORE","sab_core","CORE INTERACTIONS",error)
+       ! Build the neighbor lists for the SCPTB Ewald methods
+       IF ( qs_env%dft_control%qs_control%scptb_control%do_ewald ) THEN
+          CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
+          CALL ewald_env_get ( ewald_env, alpha=alpha )
+          c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+          CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
+          CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,&
+               subcells=subcells,name="sab_tbe",error=error)
+          CALL set_qs_env(qs_env=qs_env,sab_tbe=sab_tbe,error=error)
+       END IF
     END IF
 
 

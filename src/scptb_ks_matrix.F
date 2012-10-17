@@ -63,6 +63,8 @@ MODULE scptb_ks_matrix
                                              RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_collocate_density,            ONLY: calculate_scp_charge
+  USE qs_dftb_coulomb,                 ONLY: dftb_ewald_overlap,&
+                                             dftb_spme_evaluate
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -71,6 +73,7 @@ MODULE scptb_ks_matrix
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scptb_types,                     ONLY: &
        get_scptb_parameter, scp_vector_add, scp_vector_copy, &
@@ -270,9 +273,10 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_s
     TYPE(qs_rho_type), POINTER               :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: mcharge
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(inout)                          :: mcharge
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: dmcharge
+      INTENT(inout)                          :: dmcharge
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -280,16 +284,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, ewald_type, i, ia, iat, iatom, ikind, is, istat, ja, jat, &
-      jatom, jkind, jmax, lmaxscp, natom, nkind, nsize
+      jatom, jkind, jmax, lmaxscp, natom, ndim, nkind, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, failure, found, &
+                                                use_virial
     REAL(KIND=dp)                            :: alpha, beta, chabs, deth, dq, &
                                                 dr2, eta, f0, ff, fi, noa, &
                                                 nob, t
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: qcharge
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: drcharge
+      DIMENSION(:, :)                        :: drcharge, gmcharge
     REAL(KIND=dp), DIMENSION(0:1)            :: f
     REAL(KIND=dp), DIMENSION(3)              :: rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, ksblock, pblock, &
@@ -306,6 +311,8 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: n_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -313,15 +320,19 @@ CONTAINS
       POINTER                                :: force
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
+    TYPE(virial_type), POINTER               :: virial
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
          energy=energy,para_env=para_env,&
          particle_set=particle_set,cell=cell,error=error)
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     local_particles=local_particles,natom=natom,error=error)
+    ndim = 1
     IF (calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+       ndim = 4
     END IF
+    use_virial=.FALSE.
 
     energy%hartree = 0._dp
     energy%core_self = 0._dp
@@ -331,6 +342,9 @@ CONTAINS
        scptb_control => dft_control%qs_control%scptb_control
        IF(scptb_control%do_ewald) THEN
           CALL cp_unimplemented_error(routineP,"No Ewald possible",error)
+          ALLOCATE(gmcharge(natom,ndim),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          gmcharge = 0._dp
           ! Ewald sum
           NULLIFY(ewald_env,ewald_pw)
           CALL get_qs_env(qs_env=qs_env,&
@@ -338,9 +352,9 @@ CONTAINS
                           error=error)
           CALL get_cell(cell=cell,periodic=periodic,deth=deth)
           CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
-!         CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
-!         CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
-!                                 virial,use_virial,qs_env%atprop,error=error)
+          CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
+          CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
+                                  virial,use_virial,qs_env%atprop,error=error)
           SELECT CASE(ewald_type)
           CASE DEFAULT
             CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
@@ -354,9 +368,11 @@ CONTAINS
             CALL cp_unimplemented_error(routineP,&
                  "PME not implemented in SCPTB",error)
           CASE(do_ewald_spme)
-!           CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
-!             gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
+            CALL dftb_spme_evaluate(ewald_env,ewald_pw,particle_set,cell,&
+              gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
           END SELECT
+          DEALLOCATE(gmcharge,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ELSE
          ! direct sum
          IF(.NOT.just_energy .OR. calculate_forces) THEN

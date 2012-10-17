@@ -97,6 +97,7 @@ MODULE qs_dftb_coulomb
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_coulomb'
 
   PUBLIC :: build_dftb_coulomb
+  PUBLIC :: dftb_spme_evaluate, dftb_ewald_overlap
 
 CONTAINS
 
