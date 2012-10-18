@@ -80,6 +80,7 @@ QMMM/QS/regtest-2-swave
 QMMM/QS/regtest-4
 QMMM/QS/regtest-2-erf
 QMMM/SE/regtest_2
+QMMM/SE/regtest-force-mixing
 QS/regtest-ot-refine
 QS/regtest-meta
 QS/regtest-gapw-3
