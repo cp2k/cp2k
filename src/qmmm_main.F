@@ -264,8 +264,10 @@ CPSourceFileRef,&
         ! [NB] if any other data isn't preserved in new subsys structures, it'll need to be copied here
         ! save local_particles from original subsys for two new subsys
         CALL cp_subsys_get(subsys=subsys,local_particles=local_particles,error=error)
-        CALL cp_subsys_set(sub_force_env(force_mixing_core_subsys)%force_env%subsys, local_particles=local_particles,error=error)
-        CALL cp_subsys_set(sub_force_env(force_mixing_extended_subsys)%force_env%subsys, local_particles=local_particles,error=error)
+        CALL cp_subsys_set(sub_force_env(force_mixing_core_subsys)%force_env%subsys, &
+             local_particles=local_particles,error=error)
+        CALL cp_subsys_set(sub_force_env(force_mixing_extended_subsys)%force_env%subsys, &
+             local_particles=local_particles,error=error)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         CALL section_vals_release(qmmm_core_section, error=error)
