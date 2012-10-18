@@ -24,7 +24,7 @@ MODULE ma_topology
       USE ISO_C_BINDING
 #endif
 
- USE machine,                      ONLY: m_walltime
+ USE machine,                      ONLY: m_walltime,m_getpid
  USE machine_architecture_types,   ONLY: net_topo,ma_mp_type,has_MPI,&
                                          cannon_graph,complete_graph
  USE ma_errors,                    ONLY: ma_error_stop, &
@@ -38,6 +38,7 @@ MODULE ma_topology
  USE message_passing,              ONLY: mp_environ, mp_reordering, &
                                          mp_proc_name,mp_scatter,mp_sync,&
                                          mp_sum, mp_isendrecv,mp_waitall
+ USE string_utilities,             ONLY: integer_to_string
 
 IMPLICIT NONE
 
@@ -57,12 +58,14 @@ IMPLICIT NONE
   PUBLIC :: ma_comm_graph, ma_comm_pattern_cannon
   PUBLIC :: ma_comm_pattern_alltoall
   PUBLIC :: ma_2dgrid_dimensions
+  PUBLIC :: ma_get_job_allocation
   PUBLIC :: ma_destroy_topology
   
 #if defined __parallel
 #if defined __GEMINI || __SEASTAR
  PUBLIC :: ma_extract_topology
  PUBLIC :: ma_remove_topology
+ PUBLIC :: ma_get_job_alloc_strategy
 #endif 
 #endif
  
@@ -105,7 +108,15 @@ IMPLICIT NONE
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION ma_remove_topology
-  END INTERFACE  
+  END INTERFACE 
+
+  INTERFACE 
+   FUNCTION ma_get_job_alloc_strategy() RESULT(istat) BIND(C,name="get_job_alloc_strategy")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT)                      :: istat
+   END FUNCTION ma_get_job_alloc_strategy 
+  END INTERFACE
+ 
 #endif
 #endif
 
@@ -122,6 +133,22 @@ CONTAINS
  END FUNCTION ma_num_nodes
 
 ! *****************************************************************************
+!> \brief Get the job allocation strategy used on Cray machines
+! *****************************************************************************
+ FUNCTION ma_get_job_allocation() RESULT (strategy)
+   INTEGER                           :: strategy
+   strategy = 0
+
+#if defined __parallel
+#if defined __GEMINI || __SEASTAR
+  strategy = ma_get_job_alloc_strategy()
+#else
+  strategy = -1
+#endif
+#endif
+  END FUNCTION ma_get_job_allocation
+
+! *****************************************************************************
 !> \brief Initialize the network topology and send to all MPI processes.
 !> The topology is structured differently for each type of system.
 !> For instance, on Cray machines with torus it keeps the coordinates. On 
@@ -133,9 +160,9 @@ CONTAINS
  SUBROUTINE ma_net_topology (mp_group)
   INTEGER                                  :: rst_unit,istat,i,j,nfields  
   INTEGER,DIMENSION(:), POINTER            :: nid,x,y,z
-  INTEGER                                  :: fnid,fx,fy,fz,endoffile
+  INTEGER                                  :: fnid,fx,fy,fz,endoffile,myid
   INTEGER                                  :: mp_group,source, numtask, req(2)
-  CHARACTER(LEN=default_string_length)     :: host_name
+  CHARACTER(LEN=default_string_length)     :: host_name,name_file,myid_str
   CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_net_topology', &
       routineP = moduleN//':'//routineN
   REAL, DIMENSION(:), POINTER              :: msgin,msgout
@@ -148,8 +175,13 @@ CONTAINS
  
   CALL mp_environ(numtask,source,mp_group)
   IF (source == 0) THEN
+    istat =  ma_extract_topology()
+    IF (istat /= 0) CALL ma_error_stop(ma_error_database)
     rst_unit = 121314  
-    OPEN(rst_unit,FILE="topology",ACTION="READ",STATUS="OLD",ACCESS="SEQUENTIAL")
+    CALL m_getpid(myid)
+    CALL integer_to_string(myid,myid_str)
+    name_file = "topo_"//TRIM(myid_str)//"/topology"
+    OPEN(rst_unit,FILE=name_file,ACTION="READ",STATUS="OLD",ACCESS="SEQUENTIAL")
     READ(rst_unit,*) nfields
     max_nodes = nfields
   ENDIF
@@ -208,10 +240,13 @@ CONTAINS
 #endif 
 
   IF (source==0) THEN
+    CALL m_getpid(myid)
+    CALL integer_to_string(myid,myid_str)
+    name_file = "topo_"//TRIM(myid_str)//"/topology"
     istat =  ma_extract_topology()
     IF (istat /= 0) CALL ma_error_stop(ma_error_database)
     rst_unit = 121314
-    OPEN(rst_unit,FILE="topology",ACTION="READ",STATUS="OLD",ACCESS="SEQUENTIAL")
+    OPEN(rst_unit,FILE=name_file,ACTION="READ",STATUS="OLD",ACCESS="SEQUENTIAL")
     READ(rst_unit,*) nfields
   ENDIF
 

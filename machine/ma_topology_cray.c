@@ -17,7 +17,7 @@ int extract_topology()
   // but it is the simplest one 
   FILE *fpexec;
   int pid;
-  char name[24];
+  char name[24], name_dir[256];
   char pidstr[12];
 
   name[0] = pidstr[0] = '\0';
@@ -25,10 +25,19 @@ int extract_topology()
   pid = getpid();
   sprintf(pidstr,"%d",pid);  
 
-  strcpy(name,"topo_cray");
-  strcat(name,"_");
+  strcpy(name_dir,"topo_");
+  strcat(name_dir,pidstr);
+  strcat(name_dir,"\0");
+
+  char mk_dir[256];
+  strcpy(mk_dir,"mkdir topo_");
+  strcat(mk_dir,pidstr);
+  strcat(mk_dir,"\0");
+  int ret = system(mk_dir);
+
+  strcpy(name,"topo_");
   strcat(name,pidstr);
-  strcat(name,".sh\0");
+  strcat(name,"/topo_cray.sh\0");
 
   fpexec = fopen(name, "w");
   fprintf (fpexec, "#!/bin/bash\n");
@@ -45,22 +54,58 @@ int extract_topology()
   fclose(fpexec);
 
   char command[256];
-  strcpy(command,"chmod +x ");
+   
+  strcpy(command,"chmod +x ./");
   strcat(command,name);
-  strcat(command,"; ./");
-  strcat(command,name);
-  strcat(command,"; rm ");
-  strcat(command,name);
+  strcat(command,";cd ");
+  strcat(command,name_dir);
+  strcat(command,"; ./topo_cray.sh");
+  strcat(command,"; rm topo_cray.sh");
+  strcat(command,";cd ../");
 
-  int ret = system(command);
+
+  ret = system(command);
   return ret;
 }
 
 int remove_topology()
 {
-  char command[]="if [ -f topology ]; then rm topology; fi";
+  char pidstr[12];
+  char name_dir[256];
+  int pid;
+
+  pid = getpid();
+  sprintf(pidstr,"%d",pid);  
+
+  strcpy(name_dir,"topo_");
+  strcat(name_dir,pidstr);
+
+  char command[256];
+  
+  strcpy(command,"rm -rf ");
+  strcat(command,name_dir);
+  strcat(command,";");
+
   int ret = system(command);
   return ret;
+}
+
+int get_job_alloc_strategy()
+{
+  int strategy = -1;
+  char nid_order;
+  FILE *fpexec;
+ 
+  char command[]="less /etc/sysconfig/alps | grep ALPS_NIDORDER | cut -c 18";
+  fpexec = popen(command,"r");
+  if (fpexec != NULL){
+     fscanf(fpexec,"%c",&nid_order);
+     if (nid_order == 'n' || nid_order == 'x' || nid_order == 'y' ||
+         nid_order == 'r' || nid_order == 'r')
+          strategy = 1;                    
+  }  
+
+  return strategy;
 }
 
 #endif

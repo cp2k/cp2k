@@ -14,18 +14,19 @@ MODULE ma_process_mapping
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_stop
   USE ma_kinds,                        ONLY: dp
+  USE machine_architecture,            ONLY: ma_get_ncores,&
+                                             ma_get_nmachines
+  USE machine_architecture_types,      ONLY: &
+       cannon, cannon_graph, complete_graph, hilbert, hilbert_peano, own, &
+       packed, peano, round_robin, snake, switch
   USE ma_topology,                     ONLY: allocated_topology,&
                                              ma_2dgrid_dimensions,&
                                              ma_allocated_topology,&
                                              ma_comm_graph,&
                                              ma_compute_contention,&
                                              ma_net_topology,&
+					     ma_get_job_allocation, &
                                              net_topology
-  USE machine_architecture,            ONLY: ma_get_ncores,&
-                                             ma_get_nmachines
-  USE machine_architecture_types,      ONLY: &
-       cannon, cannon_graph, complete_graph, hilbert, hilbert_peano, own, &
-       packed, peano, round_robin, snake, switch
   USE message_passing,                 ONLY: mp_environ,&
                                              mp_reordering,&
                                              mp_sum
@@ -60,8 +61,11 @@ SUBROUTINE ma_mpi_reordering(reorder,mp_comm)
 #if defined(__parallel)
    INTEGER                   :: new_comm, numtask,taskid,&
                                 ncol,nrow
-  CALL ma_net_topology(mp_comm)
-  CALL ma_allocated_topology(mp_comm)
+
+  IF( reorder > hilbert_peano) THEN
+	  CALL ma_net_topology(mp_comm)
+	  CALL ma_allocated_topology(mp_comm)
+  ENDIF
 
   SELECT CASE (reorder)
   CASE (packed)
@@ -1766,9 +1770,19 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
        DO ipe=1, numtask
            ranks_order(ipe) = ipe - 1
        ENDDO
+#if defined __GEMINI || __SEASTAR
+      IF(ma_get_job_allocation() .NE. -1) &
+	CALL ma_switch(mp_new_comm,mp_comm,ranks_order,complete_graph)
+#else
        CALL ma_switch(mp_new_comm,mp_comm,ranks_order,complete_graph)
+#endif
      ELSE
+#if defined __GEMINI || __SEASTAR
+      IF(ma_get_job_allocation() .NE. -1)&
        CALL ma_switch(mp_new_comm,mp_comm,ranks_order,cannon_graph)
+#else
+       CALL ma_switch(mp_new_comm,mp_comm,ranks_order,cannon_graph)
+#endif
      ENDIF
    
 #ifdef __DEBUG_HWTOPO
