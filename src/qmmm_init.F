@@ -645,7 +645,7 @@ CPSourceFileRef,&
        END IF
        IF (is_mm) THEN
           icount = icount + 1
-          mm_atom_index(icount) = i
+          IF (icount <= size_mm_system) mm_atom_index(icount) = i
        END IF
     END DO
     CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,error,failure)

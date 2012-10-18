@@ -12,7 +12,9 @@
 !> \author teo & fawzi
 ! *****************************************************************************
 MODULE input_cp2k_qmmm
-  USE bibliography,                    ONLY: Laino2005,&
+  USE bibliography,                    ONLY: Bernstein2009,&
+                                             Bernstein2012,&
+                                             Laino2005,&
                                              Laino2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -191,6 +193,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DELTA_CHARGE",&
+            description="Additional net charge relative to that specified in DFT section.  Used automatically by force mixing",&
+            usage="DELTA_CHARGE q",default_i_val=0,&
+            n_var=1,type_of_var=integer_t,repeats=.FALSE.,required=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! NB: remember to create these
        CALL create_qmmm_force_mixing_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -302,19 +311,30 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: link_subsection, print_key, &
+                                                qm_kinds_subsection, &
                                                 subsection
 
     failure=.FALSE.
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="FORCE_MIXING",&
-            description="This section defines parameters for force-mixing based QM/MM,"//&
+            description="This section enables and defines parameters for force-mixing based QM/MM,"//&
             " which actually does two conventional QM/MM calculations, on a small "//&
-            " and a large QM regions, and combines the MM forces from one and QM "//&
+            " and a large QM region, and combines the MM forces from one and QM "//&
             " forces from the other to create a complete set of forces.  Energy is "//&
-            " not conserved (although the energy from the large QM region is saved) "//&
-            " so a proper thermostat (i.e. massive, and able to handle dissipation) must be used.",&
+            " not conserved (although the QM/MM energy from the large QM region calculation is reported) "//&
+            " so a proper thermostat (i.e. massive, and able to handle dissipation, such as "//&
+            " Adaptive Langevin (AD_LANGEVIN)) must be used. For some propagation algorithms "//&
+            " (NVT and REFTRAJ MD ensembles) algorithm is adaptive, "//&
+            " including molecules hysteretically based on their instantaneous distance from the core region. "//&
+            " Information on core/QM/buffer labels can be written in PDB file using "//&
+            " MOTION&PRINT&FORCE_MIXING_LABELS.  Will fail if calculation requires a "//&
+            " meaningfull stress, or an energy that is consistent with the forces. "//&
+            " For GEO_OPT this means "//&
+            " only MOTION&GEO_OPT&TYPE CG, MOTION&GEO_OPT&CG&LINE_SEARCH&TYPE 2PNT, and "//&
+            " MOTION&GEO_OPT&CG&LINE_SEARCH&2PNT&LINMIN_GRAD_ONLY T",&
          n_keywords=5, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+         citations=(/Bernstein2009,Bernstein2012/),&
          error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
@@ -325,8 +345,8 @@ CONTAINS
 
     CALL keyword_create(keyword, name="R_CORE",&
         description="Specify the inner and outer radii of core QM region. "//&
-        "All atoms within this distance (hysteretically) of any atoms listed in "//&
-        "ATOM_INDEX will be core QM atoms in the force-mixing calculation.", &
+        " All molecules with any atoms within this distance (hysteretically) of any atoms "//&
+        " specified as QM in enclosing QM/MM section  will be core QM atoms in the force-mixing calculation.", &
         usage="R_CORE <real> <real>",n_var=2,type_of_var=real_t,&
         default_r_vals=(/ cp_unit_to_cp2k(0.0_dp,"angstrom",error=error),&
                           cp_unit_to_cp2k(0.0_dp,"angstrom",error=error) /),&
@@ -335,9 +355,9 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="R_QM",&
-        description="Specify the inner and outer radii of extended QM region. "//&
-        "All atoms within this distance (hysteretically) of any atoms listed in "//&
-        "ATOM_INDEX will be QM atoms in the force-mixing calculation.", &
+        description="Specify the inner and outer radii of QM dynamics region. "//&
+        " All molecules with atoms within this distance (hysteretically) of any atoms in "//&
+        " core will follow QM dynamics in the force-mixing calculation.", &
         usage="R_QM <real> <real>",n_var=2,type_of_var=real_t,&
         default_r_vals=(/ cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
                           cp_unit_to_cp2k(1.0_dp,"angstrom",error=error) /),&
@@ -347,9 +367,9 @@ CONTAINS
 
     CALL keyword_create(keyword, name="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST",&
         description="Makes the extended QM zone be defined hysterestically "//&
-        "by distance from QM core list (i.e. atoms specified explicitly by "//&
-        "user) instead of from full QM core region (specified by user + hysteretic "//&
-        "selection + unbreakable bonds)",&
+        " by distance from QM core list (i.e. atoms specified explicitly by "//&
+        " user) instead of from full QM core region (specified by user + hysteretic "//&
+        " selection + unbreakable bonds)",&
         usage="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST <logical>",n_var=1,type_of_var=logical_t,&
         default_l_val=.FALSE., repeats = .FALSE., required = .FALSE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -357,8 +377,8 @@ CONTAINS
 
     CALL keyword_create(keyword, name="R_BUF",&
       description="Specify the inner and outer radii of buffer region. "//&
-      "All atoms within this distance (hysteretically) of any QM atoms "//&
-      "will be buffer atoms in the force-mixing calculation.", &
+      " All atoms within this distance (hysteretically) of any QM atoms "//&
+      " will be buffer atoms in the force-mixing calculation.", &
       usage="R_BUF <real> <real>",n_var=2,type_of_var=real_t,&
       default_r_vals=(/ cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
                       cp_unit_to_cp2k(1.0_dp,"angstrom",error=error) /),&
@@ -367,7 +387,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="QM_KIND_ELEMENT_MAPPING",&
-         description="Mapping from elements to QM_KINDs for adaptivity",&
+         description="Mapping from elements to QM_KINDs for adaptively included atoms.",&
          usage="QM_KIND_ELEMENT_MAPPING {El} {QM_KIND}",&
          n_var=2,type_of_var=char_t,repeats=.TRUE.,required=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -380,6 +400,55 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="ADAPTIVE_EXCLUDE_MOLECULES",&
+         description="List of molecule names to exclude from adaptive regions (e.g. big things like proteins)",&
+         usage="ADAPTIVE_EXCLUDE_MOLECULES molec1 molec2 ...",&
+         n_var=-1,type_of_var=char_t,repeats=.FALSE.,required=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="EXTENDED_DELTA_CHARGE",&
+         description="Additional net charge in extended region relative to core (core charge is "//&
+         " specified in DFT section, as usual for a convetional QM/MM calculation)",&
+         usage="EXTENDED_DELTA_CHARGE q",default_i_val=0,&
+         n_var=1,type_of_var=integer_t,repeats=.FALSE.,required=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    ! QM_NON_ADAPTIVE subsection
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="QM_NON_ADAPTIVE",&
+         description="List of atoms always in QM region, non-adaptively",&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+         error=error)
+
+    NULLIFY(qm_kinds_subsection)
+    CALL create_qmmm_qm_kinds(qm_kinds_subsection,error)
+    CALL section_add_subsection(subsection,qm_kinds_subsection,error=error)
+    CALL section_release(qm_kinds_subsection,error=error)
+
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)    
+
+    ! BUFFER_NON_ADAPTIVE subsection
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="BUFFER_NON_ADAPTIVE",&
+         description="List of atoms always in buffer region, non-adaptively, and any needed LINK sections",&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+         error=error)
+
+    NULLIFY(qm_kinds_subsection)
+    CALL create_qmmm_qm_kinds(qm_kinds_subsection,error)
+    CALL section_add_subsection(subsection,qm_kinds_subsection,error=error)
+    CALL section_release(qm_kinds_subsection,error=error)
+    NULLIFY(link_subsection)
+    CALL create_qmmm_link_section(link_subsection,error)
+    CALL section_add_subsection(subsection,link_subsection,error=error)
+    CALL section_release(link_subsection,error=error)
+
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)    
+
 
     ![NB] also need a list?
     ![NB] maybe not list+links , but some sort of link template
@@ -387,8 +456,8 @@ CONTAINS
     ! BUFFER_LINKS subsection
     NULLIFY(subsection)
     CALL section_create(subsection,name="BUFFER_LINKS",&
-         description="Information about possible links for the buffer QM/MM calculation."//&
-         "Not used yet - need to implement buffer selection by atom and walking of connectivity data.",&
+         description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."//&
+         "Ignored - need to implement buffer selection by atom and walking of connectivity data.",&
          n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
          error=error)
 

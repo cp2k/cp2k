@@ -49,6 +49,7 @@ MODULE gopt_param_types
   TYPE cg_ls_param_type
      INTEGER         :: brent_max_iter, type_id
      REAL(KIND = dp) :: brent_tol, brack_limit, initial_step, max_step
+     LOGICAL         :: grad_only
   END TYPE cg_ls_param_type
 
 ! *****************************************************************************
@@ -162,6 +163,8 @@ CONTAINS
                r_val=gopt_param%cg_ls%brack_limit,error=error)
           CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%MAX_ALLOWED_STEP",&
                r_val=gopt_param%cg_ls%max_step,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%LINMIN_GRAD_ONLY",&
+               l_val=gopt_param%cg_ls%grad_only,error=error)
        END SELECT
 
        SELECT CASE(gopt_param%type_id)

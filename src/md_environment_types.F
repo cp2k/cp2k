@@ -29,6 +29,8 @@ MODULE md_environment_types
                                              force_env_type
   USE free_energy_types,               ONLY: fe_env_release,&
                                              free_energy_type
+  USE input_constants,                 ONLY: do_thermo_al,&
+                                             langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -79,7 +81,7 @@ MODULE md_environment_types
 
   ! *** Public subroutines and data types ***
   PUBLIC :: md_environment_type, set_md_env, get_md_env, md_env_create,&
-            md_env_release, md_env_retain
+            md_env_release, md_env_retain, need_per_atom_wiener_process
 
   ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
@@ -423,5 +425,31 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_md_env
+
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2012 created [noamb]
+!> \author Noam Bernstein
+! *****************************************************************************
+   FUNCTION need_per_atom_wiener_process(md_env, error) 
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    LOGICAL                                  :: need_per_atom_wiener_process
+
+! return value
+! check for Langevin ensemble
+
+       need_per_atom_wiener_process = (md_env%simpar%ensemble == langevin_ensemble)
+       IF (need_per_atom_wiener_process) RETURN
+
+       ! check for adaptive-Langevin thermostat
+       IF (.NOT. ASSOCIATED(md_env%thermostats)) RETURN
+       IF (.NOT. ASSOCIATED(md_env%thermostats%thermostat_part)) RETURN
+       need_per_atom_wiener_process = (md_env%thermostats%thermostat_part%type_of_thermostat == do_thermo_al)
+
+    END FUNCTION need_per_atom_wiener_process
+
 
 END MODULE md_environment_types

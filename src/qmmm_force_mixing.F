@@ -21,8 +21,9 @@ MODULE qmmm_force_mixing
   USE input_section_types,             ONLY: &
        section_vals_add_values, section_vals_duplicate, section_vals_get, &
        section_vals_get_subs_vals, section_vals_get_subs_vals3, &
-       section_vals_remove_values, section_vals_type, section_vals_val_get, &
-       section_vals_val_set
+       section_vals_release, section_vals_remove_values, &
+       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set, section_vals_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -33,8 +34,10 @@ MODULE qmmm_force_mixing
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: force_mixing_label_QM_core,&
                                              force_mixing_label_QM_core_list,&
-                                             force_mixing_label_QM_extended,&
+                                             force_mixing_label_QM_dynamics,&
+                                             force_mixing_label_QM_dynamics_list,&
                                              force_mixing_label_buffer,&
+                                             force_mixing_label_buffer_list,&
                                              force_mixing_label_none,&
                                              force_mixing_label_termination
 #include "cp_common_uses.h"
@@ -68,8 +71,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      POINTER                                :: adaptive_exclude_molecules(:)
     INTEGER :: i_rep_section, i_rep_val, im, ip, max_n_qm, n_new, &
-      n_rep_section, n_rep_val, natoms, QM_extended_seed_min_label_val
+      n_rep_exclude, n_rep_section, n_rep_val, natoms, &
+      QM_extended_seed_min_label_val
     INTEGER, ALLOCATABLE                     :: new_full_labels(:), &
                                                 orig_full_labels(:)
     INTEGER, POINTER :: breakable_bonds(:,:), broken_bonds(:), &
@@ -88,6 +94,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_mixing_section, &
+                                                non_adaptive_section, &
                                                 qm_kind_section, &
                                                 restart_section
 
@@ -95,18 +102,23 @@ IF (debug_this_module) PRINT *, "BOB starting update_force_mixing_labels"
     ! get cur indices, labels
     force_mixing_section => section_vals_get_subs_vals3(qmmm_section,"FORCE_MIXING",error=error)
     CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels, error=error)
-IF (debug_this_module) PRINT *, "BOB got cur_indices ",cur_indices(1:n_new)
-IF (debug_this_module) PRINT *, "BOB got cur_labels ",cur_labels(1:n_new)
+IF (debug_this_module) PRINT *, "BOB got cur_indices ",SIZE(cur_indices)
+IF (debug_this_module) PRINT *, "BOB got cur_labels ",SIZE(cur_labels)
 
     ! read from input 
     ![NB] breakable bonds will come from here, too
-    NULLIFY(r_core, r_qm, r_buf)
+    NULLIFY(r_core, r_qm, r_buf, adaptive_exclude_molecules)
     CALL section_vals_val_get(force_mixing_section,"R_CORE",r_vals=r_core,error=error)
     CALL section_vals_val_get(force_mixing_section,"R_QM",r_vals=r_qm,error=error)
     CALL section_vals_val_get(force_mixing_section,"QM_EXTENDED_SEED_IS_ONLY_CORE_LIST",&
       l_val=QM_extended_seed_is_core_list,error=error)
     CALL section_vals_val_get(force_mixing_section,"R_BUF",r_vals=r_buf,error=error)
     CALL section_vals_val_get(force_mixing_section,"MAX_N_QM",i_val=max_n_qm,error=error)
+
+    CALL section_vals_val_get(force_mixing_section,"ADAPTIVE_EXCLUDE_MOLECULES",n_rep_val=n_rep_exclude,error=error)
+    IF (n_rep_exclude > 0) THEN
+       CALL section_vals_val_get(force_mixing_section,"ADAPTIVE_EXCLUDE_MOLECULES",c_vals=adaptive_exclude_molecules,error=error)
+    ENDIF
     ![NB] need to read real list from input
     ! should be 2xN_bb integer arrays, with (1,:) indices of inside atoms, and (2,:) indices of outside atoms
     ! maybe also breakable_bond_types, with _atomic numbers_ of inside/outside atoms?
@@ -137,7 +149,7 @@ IF (debug_this_module) PRINT *, "BOB got cur_labels ",cur_labels(1:n_new)
     NULLIFY(nlist)
     CALL make_neighbor_list(force_mixing_section, subsys, cell, MAX(r_core(2), r_qm(2), r_buf(2)), nlist, error)
 
-    ! reset core_list from QM_KIND
+    ! create labels for core_list from QM_KIND
     NULLIFY(mm_index_entry)
     qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND",error=error)
     CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section,error=error)
@@ -156,6 +168,47 @@ IF (debug_this_module) PRINT *, "BOB got cur_labels ",cur_labels(1:n_new)
 
 IF (debug_this_module) PRINT *, "BOB core_list new_indices ",new_indices(1:n_new)
 IF (debug_this_module) PRINT *, "BOB core_list new_labels ",new_labels(1:n_new)
+
+    ! create labels for non adaptive QM and buffer regions from *_NON_ADAPTIVE&QM_KIND sections
+    non_adaptive_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING%QM_NON_ADAPTIVE",&
+      can_return_null=.TRUE.,error=error)
+    IF (ASSOCIATED(non_adaptive_section)) THEN
+       qm_kind_section => section_vals_get_subs_vals3(non_adaptive_section,"QM_KIND",error=error)
+       CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section,error=error)
+       DO i_rep_section=1,n_rep_section
+         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val,error=error)
+         DO i_rep_val=1,n_rep_val
+           CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,i_rep_val=i_rep_val, &
+             i_vals=mm_index_entry, error=error)
+           DO ip=1, SIZE(mm_index_entry)
+             CALL add_new_label(mm_index_entry(ip), force_mixing_label_QM_dynamics_list, n_new, new_indices, new_labels, &
+                                new_full_labels, max_n_qm)
+           END DO ! ip
+         END DO ! i_rep_val
+       END DO ! i_rep_section
+    ENDIF
+IF (debug_this_module) PRINT *, "BOB core_list + non adaptive QM new_indices ",new_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB core_list + non adaptive QM new_labels ",new_labels(1:n_new)
+    non_adaptive_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING%BUFFER_NON_ADAPTIVE",&
+      can_return_null=.TRUE.,error=error)
+    IF (ASSOCIATED(non_adaptive_section)) THEN
+       qm_kind_section => section_vals_get_subs_vals3(non_adaptive_section,"QM_KIND",error=error)
+       CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section,error=error)
+       DO i_rep_section=1,n_rep_section
+         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val,error=error)
+         DO i_rep_val=1,n_rep_val
+           CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,i_rep_val=i_rep_val, &
+             i_vals=mm_index_entry, error=error)
+           DO ip=1, SIZE(mm_index_entry)
+             CALL add_new_label(mm_index_entry(ip), force_mixing_label_buffer_list, n_new, new_indices, new_labels, &
+                                new_full_labels, max_n_qm)
+           END DO ! ip
+         END DO ! i_rep_val
+       END DO ! i_rep_section
+    ENDIF
+
+IF (debug_this_module) PRINT *, "BOB core_list + non adaptive QM+buffer new_indices ",new_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB core_list + non adaptive QM+buffer new_labels ",new_labels(1:n_new)
 
     ! allocate and initialize full atom set labels for hysteretic loops
     ALLOCATE(nearest_dist(natoms))
@@ -179,7 +232,7 @@ IF (debug_this_module) PRINT *, "BOB core_list new_labels ",new_labels(1:n_new)
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         force_mixing_label_QM_core_list, force_mixing_label_QM_core_list, force_mixing_label_QM_core, r_core, &
-        max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
+        max_n_qm, adaptive_exclude_molecules, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
     ![NB] should actually pass this back for making link sections?
     DEALLOCATE(broken_bonds)
 
@@ -198,8 +251,8 @@ IF (debug_this_module) PRINT *, "BOB QM_extended_seed_is_core_list ",QM_extended
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         QM_extended_seed_min_label_val, force_mixing_label_QM_core_list, &
-        force_mixing_label_QM_extended, r_qm, &
-        max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set)
+        force_mixing_label_QM_dynamics, r_qm, &
+        max_n_qm, adaptive_exclude_molecules, .TRUE., breakable_bonds, molecule_of_atom, molecule_set)
 
 IF (debug_this_module) PRINT *, "BOB extended new_indices ",new_indices(1:n_new)
 IF (debug_this_module) PRINT *, "BOB extended new_labels ",new_labels(1:n_new)
@@ -207,8 +260,8 @@ IF (debug_this_module) PRINT *, "BOB extended new_labels ",new_labels(1:n_new)
     ! add buffer using hysteretic selection (>= QM extended, r_buf) + unbreakable bonds
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
-        force_mixing_label_QM_extended, force_mixing_label_QM_core_list, force_mixing_label_buffer, r_buf, &
-        max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
+        force_mixing_label_QM_dynamics, force_mixing_label_QM_core_list, force_mixing_label_buffer, r_buf, &
+        max_n_qm, adaptive_exclude_molecules, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
     ![NB] should actually pass this back for making link sections?
     DEALLOCATE(broken_bonds)
 
@@ -239,9 +292,14 @@ IF (debug_this_module) PRINT *, "BOB buffer new_labels ",new_labels(1:n_new)
 
      ![NB] perhap be controlled by some &PRINT section?
      IF (force_env%para_env%ionode) THEN
-       PRINT *, "QMMM FORCE MIXING final count (not including links): "//&
-          " N_QM core ", COUNT(new_labels >= force_mixing_label_QM_core), &
-          " N_QM buffered ", COUNT(new_labels >= force_mixing_label_buffer)
+       WRITE(unit=*, fmt='(A,A,I5,A,I5,A,I5,A,I5)')
+       PRINT *, "QMMM FORCE MIXING final count (not including links): ",&
+          " N_QM core_list ", COUNT(new_labels == force_mixing_label_QM_core_list), &
+          " N_QM core ",      COUNT(new_labels == force_mixing_label_QM_core), &
+          " N_QM extended ",  COUNT(new_labels == force_mixing_label_QM_dynamics .OR. &
+                                    new_labels == force_mixing_label_QM_dynamics_list), &
+          " N_QM buffered ",  COUNT(new_labels == force_mixing_label_buffer .OR. &
+                                    new_labels == force_mixing_label_buffer_list)
      ENDIF
 
    END SUBROUTINE update_force_mixing_labels
@@ -254,21 +312,38 @@ IF (debug_this_module) PRINT *, "BOB buffer new_labels ",new_labels(1:n_new)
     CHARACTER(len=*), PARAMETER :: routineN = 'add_new_label', &
       routineP = moduleN//':'//routineN
 
-      n_new = n_new + 1
-      CALL cp_assert(n_new <= max_n_qm, cp_failure_level,cp_assertion_failed,routineP,&
-           "add_new_label tried to add more atoms than allowed by &FORCE_MIXING&MAX_N_QM!"//&
+    INTEGER                                  :: i, old_index
+
+    IF (new_full_labels(ip) > force_mixing_label_none) THEN ! already marked, just change mark
+         old_index = -1
+         DO i=1, n_new
+            IF (new_indices(i) == ip) THEN
+               old_index = i
+               EXIT
+            ENDIF
+         END DO
+         CALL cp_assert(old_index > 0, cp_failure_level,cp_assertion_failed,routineP,&
+              "add_new_label found atom with a label already set, but not in new_indices array"//&
 CPSourceFileRef)
-      IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices,1,n_new+9)
-      IF (n_new > SIZE(new_labels))  CALL reallocate(new_labels,1,n_new+9)
-      new_indices(n_new) = ip
-      new_labels(n_new) = label
-      new_full_labels(ip) = label
+         new_labels(old_index) = label
+    ELSE
+         n_new = n_new + 1
+         CALL cp_assert(n_new <= max_n_qm, cp_failure_level,cp_assertion_failed,routineP,&
+              "add_new_label tried to add more atoms than allowed by &FORCE_MIXING&MAX_N_QM!"//&
+CPSourceFileRef)
+         IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices,1,n_new+9)
+         IF (n_new > SIZE(new_labels))  CALL reallocate(new_labels,1,n_new+9)
+         new_indices(n_new) = ip
+         new_labels(n_new) = label
+    ENDIF
+    new_full_labels(ip) = label
   END SUBROUTINE add_new_label
 
 
   SUBROUTINE add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
     orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
     seed_min_label_val, seed_max_label_val, set_label_val, r_inout, max_n_qm, &
+    adaptive_exclude_molecules, &
     pad_to_breakable_bonds, breakable_bonds, molecule_of_atom, molecule_set, &
     broken_bonds)
     TYPE(fist_neighbor_type), POINTER        :: nlist
@@ -284,6 +359,7 @@ CPSourceFileRef)
                                                 set_label_val
     REAL(dp)                                 :: r_inout(2)
     INTEGER                                  :: max_n_qm
+    CHARACTER(len=*), POINTER                :: adaptive_exclude_molecules(:)
     LOGICAL                                  :: pad_to_breakable_bonds
     INTEGER, OPTIONAL, POINTER               :: breakable_bonds(:,:), &
                                                 molecule_of_atom(:)
@@ -294,10 +370,10 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'add_layer_hysteretically', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_ind, im, ip, ipair, &
-                                                ipairkind, j_ind
-    LOGICAL :: i_in_new_seed, i_outside_new_seed, j_in_new_seed, &
-      j_outside_new_seed, molec_in_inner, molec_in_outer
+    INTEGER                                  :: i_ind, im, im_exclude, ip, &
+                                                ipair, ipairkind, j_ind
+    LOGICAL :: adaptive_exclude, i_in_new_seed, i_outside_new_seed, &
+      j_in_new_seed, j_outside_new_seed, molec_in_inner, molec_in_outer
     REAL(dp)                                 :: r_ij(3), r_ij_mag
 
 IF (debug_this_module) PRINT *,"BOB adding hysteretically seed ",seed_min_label_val,seed_max_label_val,&
@@ -329,15 +405,25 @@ IF (debug_this_module) PRINT *,"BOB adding hysteretically seed ",seed_min_label_
 
       END DO
     END DO
-IF (debug_this_module) PRINT *,"BOB nearest_dist ", nearest_dist
+! IF (debug_this_module) PRINT *,"BOB nearest_dist ", nearest_dist
 
 ![NB] this is whole molecule.  Should be replaced with labeling of individual atoms + 
 ! pad_to_breakable_bonds (below), but QM molecule bond information isn't available yet
 DO im=1, SIZE(molecule_set)
-IF (debug_this_module) PRINT *, "BOB check molecule ",im," atoms ",molecule_set(im)%first_atom,molecule_set(im)%last_atom
+! IF (debug_this_module) PRINT *, "BOB check molecule ",im,trim(molecule_set(im)%molecule_kind%name)," atoms ",&
+! molecule_set(im)%first_atom,molecule_set(im)%last_atom
+  IF (ASSOCIATED(adaptive_exclude_molecules)) THEN
+     adaptive_exclude = .FALSE.
+     DO im_exclude=1, SIZE(adaptive_exclude_molecules)
+        IF ( TRIM(molecule_set(im)%molecule_kind%name) == TRIM(adaptive_exclude_molecules(im_exclude)) .OR. &
+             TRIM(molecule_set(im)%molecule_kind%name) == '_QM_'//TRIM(adaptive_exclude_molecules(im_exclude)) ) &
+          adaptive_exclude = .TRUE.
+     END DO
+     IF (adaptive_exclude) CYCLE
+  ENDIF
   molec_in_inner = ANY(nearest_dist(molecule_set(im)%first_atom:molecule_set(im)%last_atom) <= r_inout(1))
   molec_in_outer = ANY(nearest_dist(molecule_set(im)%first_atom:molecule_set(im)%last_atom) <= r_inout(2))
-IF (debug_this_module) PRINT *, "BOB got molec_in_inner ", molec_in_inner, " outer ", molec_in_outer
+! IF (debug_this_module) PRINT *, "BOB got molec_in_inner ", molec_in_inner, " outer ", molec_in_outer
   IF (molec_in_inner) THEN
     DO ip=molecule_set(im)%first_atom, molecule_set(im)%last_atom
       ! labels are being rebuild from scratch, so never overwrite new label that's higher level
@@ -401,7 +487,7 @@ IF (PRESENT(broken_bonds)) CALL reallocate(broken_bonds,1,0)
 !!!    print *, "BOB molecule im ",im, " #bonds ",size(molecule_set(im)%molecule_kind%bond_list), " name ", &
 !!!      trim(molecule_set(im)%molecule_kind%name), molecule_set(im)%molecule_kind%kind_number
 !!!    do ib=1, size(molecule_set(im)%molecule_kind%bond_list)
-!!!      print *, "BOB",molecule_set(im)%molecule_kind%bond_list(ib)%a + molecule_set(im)%first_atom - 1, &
+!!!      print *, "BOB    ",molecule_set(im)%molecule_kind%bond_list(ib)%a + molecule_set(im)%first_atom - 1, &
 !!!                     molecule_set(im)%molecule_kind%bond_list(ib)%b + molecule_set(im)%first_atom - 1
 !!!    end do
 !!!  end do
@@ -553,15 +639,15 @@ IF (PRESENT(broken_bonds)) CALL reallocate(broken_bonds,1,0)
     CHARACTER(len=DEFAULT_STRING_LENGTH), &
       POINTER                                :: elem_mapping(:,:), &
                                                 elem_mapping_entry(:)
-    INTEGER :: i_rep_section_core, i_rep_section_extended, i_rep_val_core, &
-      i_rep_val_extended, ielem, ip, n_elements
+    INTEGER :: delta_charge, i_rep_section_core, i_rep_section_extended, &
+      i_rep_val_core, i_rep_val_extended, ielem, ip, n_elements
     INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
-    LOGICAL                                  :: new_element_core, &
+    LOGICAL                                  :: mapped, new_element_core, &
                                                 new_element_extended
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(section_vals_type), POINTER         :: force_mixing_section, &
-                                                link_section, qm_kind_section
+    TYPE(section_vals_type), POINTER :: buffer_non_adaptive_section, &
+      dup_link_section, force_mixing_section, link_section, qm_kind_section
 
 !
 ! create new qmmm sections for core and extended
@@ -575,6 +661,25 @@ IF (PRESENT(broken_bonds)) CALL reallocate(broken_bonds,1,0)
     IF (ASSOCIATED(link_section)) THEN
       CALL section_vals_remove_values(link_section,error)
     END IF
+    ! for LINKs to be added to extended
+    buffer_non_adaptive_section => section_vals_get_subs_vals(qmmm_extended_section, "FORCE_MIXING%BUFFER_NON_ADAPTIVE", &
+      can_return_null=.TRUE., error=error)
+    link_section => section_vals_get_subs_vals(buffer_non_adaptive_section, "LINK", can_return_null=.TRUE., error=error)
+    IF (ASSOCIATED(link_section)) THEN
+       NULLIFY(dup_link_section)
+       CALL section_vals_duplicate(link_section, dup_link_section, error=error)
+       CALL section_vals_set_subs_vals(qmmm_extended_section, "LINK", dup_link_section, error=error)
+       CALL section_vals_release(dup_link_section, error=error)
+    ENDIF
+
+IF (debug_this_module) THEN
+link_section => section_vals_get_subs_vals(qmmm_core_section, "LINK", can_return_null=.TRUE., error=error)
+PRINT *, "core section has LINKs ",ASSOCIATED(link_section)
+CALL section_vals_write(link_section,unit_nr=6,error=error)
+link_section => section_vals_get_subs_vals(qmmm_extended_section, "LINK", can_return_null=.TRUE., error=error)
+PRINT *, "extended section has LINKs ",ASSOCIATED(link_section)
+CALL section_vals_write(link_section,unit_nr=6,error=error)
+ENDIF
 
     force_mixing_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING",error=error)
 
@@ -593,9 +698,32 @@ IF (PRESENT(broken_bonds)) CALL reallocate(broken_bonds,1,0)
          "cur_indices is empty, found no QM atoms"//&
 CPSourceFileRef)
 
+IF (debug_this_module) THEN
+PRINT *, "cur_indices ",cur_indices
+PRINT *, "cur_labels ",cur_labels
+ENDIF
+
     ! loop through elements and atoms, and set up new QM_KIND sections
     particles => subsys%particles%els
 
+    DO ip=1, SIZE(cur_indices)
+      IF (cur_labels(ip) > force_mixing_label_none .AND. cur_labels(ip) < force_mixing_label_QM_core_list .AND. &
+          cur_labels(ip) /= force_mixing_label_termination) THEN
+          mapped = .FALSE.
+          DO ielem=1,n_elements
+              IF (TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol) == TRIM(elem_mapping(1,ielem))) THEN
+                 mapped = .TRUE.
+                 EXIT
+              ENDIF
+          END DO
+          CALL cp_assert(mapped,cp_failure_level,cp_assertion_failed,routineP,&
+               "Force-mixing failed to find QM_KIND mapping for atom of type "//&
+               TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol)//"! "//&
+CPSourceFileRef)
+      ENDIF
+    END DO
+
+    ! pre-existing QM_KIND section specifies list of core atom
     qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND",error=error)
     CALL section_vals_get(qm_kind_section,n_repetition=i_rep_section_core,error=error)
     CALL cp_assert(i_rep_section_core > 0,cp_failure_level,cp_assertion_failed,routineP,&
@@ -606,14 +734,14 @@ CPSourceFileRef)
       new_element_core = .TRUE.
       new_element_extended = .TRUE.
       DO ip=1, SIZE(cur_indices) ! particles with label
-
+        IF (TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol) /= TRIM(elem_mapping(1,ielem))) CYCLE
         ! extended
-        ! if current particle is some sort of QM atom, and not in core list (those the user
-        ! gave explicit QM_KIND sections for, and not a termination atom, need to make a 
-        ! QM_KIND section for it
-        IF (cur_labels(ip) > force_mixing_label_none .AND. cur_labels(ip) < force_mixing_label_QM_core_list .AND. &
+        ! if current particle is some sort of QM atom, and not in core list
+        ! (those the user gave explicit QM_KIND sections for), and not a
+        ! termination atom, need to make a QM_KIND section for it
+        IF (cur_labels(ip) > force_mixing_label_none .AND. &
+            cur_labels(ip) /= force_mixing_label_QM_core_list .AND. &
             cur_labels(ip) /= force_mixing_label_termination) THEN
-          IF (TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol) == TRIM(elem_mapping(1,ielem))) THEN
             qm_kind_section => section_vals_get_subs_vals3(qmmm_extended_section,"QM_KIND",error=error)
             IF (new_element_extended) THEN ! add new QM_KIND section for this element
               i_rep_section_extended = i_rep_section_extended + 1
@@ -626,14 +754,12 @@ CPSourceFileRef)
             i_rep_val_extended = i_rep_val_extended + 1
             CALL section_vals_val_set(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section_extended, &
               i_rep_val=i_rep_val_extended, i_val=cur_indices(ip),error=error)
-          ENDIF ! element name matches current element
         ENDIF ! is a non-termination QM atom
 
         ! core
         ! if current particle is a core QM atom, and not in core list (those the user
         ! gave explicit QM_KIND sections for, need to make a QM_KIND section for it
         IF (cur_labels(ip) == force_mixing_label_QM_core) THEN
-          IF (TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol) == TRIM(elem_mapping(1,ielem))) THEN
             qm_kind_section => section_vals_get_subs_vals3(qmmm_core_section,"QM_KIND",error=error)
             IF (new_element_core) THEN ! add new QM_KIND section for this element
               i_rep_section_core = i_rep_section_core + 1
@@ -646,14 +772,23 @@ CPSourceFileRef)
             i_rep_val_core = i_rep_val_core + 1
             CALL section_vals_val_set(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section_core, &
               i_rep_val=i_rep_val_core, i_val=cur_indices(ip),error=error)
-          ENDIF ! element name matches current element
         ENDIF ! is a non-termination QM atom
 
       END DO ! atom index ip
     END DO ! element index ielem
 
+    CALL section_vals_val_get(force_mixing_section,"EXTENDED_DELTA_CHARGE",i_val=delta_charge,error=error)
+    CALL section_vals_val_set(qmmm_extended_section,"DELTA_CHARGE",i_val=delta_charge,error=error)
+
     ![NB] check
     DEALLOCATE(elem_mapping, cur_indices, cur_labels)
+
+IF (debug_this_module) THEN
+PRINT *, "qmmm_core_section"
+CALL section_vals_write(qmmm_core_section,unit_nr=6,error=error)
+PRINT *, "qmmm_extended_section"
+CALL section_vals_write(qmmm_extended_section,unit_nr=6,error=error)
+ENDIF
 
    END SUBROUTINE setup_force_mixing_qmmm_sections
 

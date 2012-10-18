@@ -872,15 +872,17 @@ CONTAINS
     INTEGER, INTENT(in)                      :: i
     CHARACTER(len=6)                         :: res
 
+    CHARACTER(len=6)                         :: t_res
     INTEGER                                  :: iostat
     REAL(KIND=dp)                            :: tmp_r
 
     IF (i>999999 .OR. i<-99999) THEN
        tmp_r=i
-       WRITE (res,fmt='(es6.1)',iostat=iostat) tmp_r
+       WRITE (t_res,fmt='(es6.1)',iostat=iostat) tmp_r
     ELSE
-       WRITE (res,fmt='(i6)',iostat=iostat) i
+       WRITE (t_res,fmt='(i6)',iostat=iostat) i
     END IF
+    res = t_res
     IF (iostat/=0) THEN
        PRINT *,"cp_int_to_string ioerror",iostat
        CALL print_stack(cp_logger_get_default_unit_nr())

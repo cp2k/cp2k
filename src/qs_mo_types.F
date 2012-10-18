@@ -1404,7 +1404,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-       para_env,id_nr,multiplicity,dft_section,scp,scp_env,error)
+       para_env,id_nr,multiplicity,dft_section,scp,scp_env,natom_mismatch,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1417,6 +1417,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: dft_section
     LOGICAL, INTENT(IN)                      :: scp
     TYPE(scp_environment_type), POINTER      :: scp_env
+    LOGICAL, INTENT(OUT), OPTIONAL           :: natom_mismatch
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
@@ -1457,7 +1458,15 @@ CPSourceFileRef,&
 
     CALL read_mos_restart_low (mo_array,para_env=para_env, particle_set=particle_set,&
          natom=natom,&
-         rst_unit=restart_unit, multiplicity=multiplicity, error=error)
+         rst_unit=restart_unit, multiplicity=multiplicity, natom_mismatch=natom_mismatch, &
+         error=error)
+    IF (PRESENT(natom_mismatch)) THEN
+       IF (natom_mismatch) THEN
+          IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
+          CALL timestop(handle)
+          RETURN
+       ENDIF
+    ENDIF
 
     IF (scp) CALL read_aux_coeff_set(restart_unit, scp_env%aux_coeff_set, para_env, error)
 
@@ -1547,7 +1556,7 @@ CPSourceFileRef,&
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE read_mos_restart_low (mos,  para_env, particle_set, natom, rst_unit, &
-        multiplicity, rt_mos, error)
+        multiplicity, rt_mos, natom_mismatch, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1558,6 +1567,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(in), OPTIONAL            :: multiplicity
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rt_mos
+    LOGICAL, INTENT(OUT), OPTIONAL           :: natom_mismatch
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
@@ -1612,11 +1622,18 @@ CPSourceFileRef,&
       END IF
 
       IF (natom_read /= natom) THEN
+         IF (PRESENT(natom_mismatch)) THEN
+            WRITE(cp_logger_get_default_unit_nr(logger),*) &
+                 " READ RESTART : WARNING : DIFFERENT natom, returning ",natom,natom_read
+            natom_mismatch = .TRUE.
+            RETURN
+         ENDIF
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
               "Incorrect number of atoms in restart file. "//&
               CPSourceFileRef,&
               only_ionode=.TRUE.)
       END IF
+      IF (PRESENT(natom_mismatch)) natom_mismatch = .FALSE.
 
       ! Let's make it possible to change the basis set
       ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)

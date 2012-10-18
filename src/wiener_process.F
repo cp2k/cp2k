@@ -21,12 +21,12 @@ MODULE wiener_process
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_constants,                 ONLY: langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE md_environment_types,            ONLY: get_md_env,&
-                                             md_environment_type
+                                             md_environment_type,&
+                                             need_per_atom_wiener_process
   USE metadynamics_types,              ONLY: meta_env_type
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
@@ -87,7 +87,8 @@ CONTAINS
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
          simpar=simpar, error=error)
 
-    IF (simpar%ensemble == langevin_ensemble) THEN
+    ![NB] shouldn't the calling process know if it's needed
+    IF (need_per_atom_wiener_process(md_env, error=error)) THEN
 
        ! Load initial seed (not needed for a restart)
 

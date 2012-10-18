@@ -520,16 +520,11 @@ CONTAINS
       myind, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
-    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
-      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
-      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
-      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
-      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
-      dcd, dda, ddb, ddc, ddd, dr1, dr1c, dr2, dr2c, dr3, dr3c, e1, e2, e3, &
-      f1, f2, f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, &
-      r3, rt1, rt2, rt3, rv1, rv2, rv3, s1, s2, s3, s4, sph_chrg_factor, t1, &
-      t2, t3, t4, u1, u2, u3, v1, v2, v3, v4, val
-    REAL(KIND=dp) :: xd1, xd2, xd3, xs1, xs2, xs3
+    REAL(KIND=dp) :: a1, a2, a3, abc_X(4,4), abc_X_Y(4), b1, b2, b3, c1, c2, &
+      c3, d1, d2, d3, dr1, dr1c, dr2, dr2c, dr3, dr3c, e1, e2, e3, f1, f2, &
+      f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, r3, &
+      rt1, rt2, rt3, rv1, rv2, rv3, s1, s2, s3, s4, sph_chrg_factor, t1, t2, &
+      t3, t4, u1, u2, u3, v1, v2, v3, v4, val, xd1, xd2, xd3, xs1, xs2, xs3
     REAL(KIND=dp), DIMENSION(3)              :: ra, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid, grid2
@@ -578,96 +573,67 @@ CONTAINS
              my_j=bo(1,2)-gbo(1,2)
              xs2 = REAL(my_j,dp)*dr2c
              rv3 = rt3 - xs3
-             DO j =  bo(1,2), bo(2,2)
-                xs1 = (bo(1,1)-gbo(1,1))*dr1c
-                rv2 = rt2 - xs2
-                DO i =  bo(1,1), bo(2,1)
-                   rv1  = rt1 - xs1
-                   !
-                   ! Spline Interpolation
-                   !
-                   vec = (/rv1,rv2,rv3/)
-                   ivec = FLOOR(vec/pw%pw_grid%dr)
-                   xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
-                   xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
+             vec(3) = rv3
+             ivec(3) = FLOOR(vec(3)/pw%pw_grid%dr(3))
                    xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
                    ik1 = MODULO(ivec(3)-1,npts(3))+1
                    ik2 = MODULO(ivec(3)  ,npts(3))+1
                    ik3 = MODULO(ivec(3)+1,npts(3))+1
                    ik4 = MODULO(ivec(3)+2,npts(3))+1
+             p1  = 3.0_dp + xd3
+             p2  = p1*p1
+             p3  = p2*p1
+             q1  = 2.0_dp + xd3
+             q2  = q1*q1
+             q3  = q2*q1
+             r1  = 1.0_dp + xd3
+             r2  = r1*r1
+             r3  = r2*r1
+             u1  = xd3
+             u2  = u1*u1
+             u3  = u2*u1
+             v1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
+             v2 = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
+             v3 =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
+             v4 =   1.0_dp/6.0_dp*u3
+             DO j =  bo(1,2), bo(2,2)
+                xs1 = (bo(1,1)-gbo(1,1))*dr1c
+                rv2 = rt2 - xs2
+                vec(2) = rv2
+                ivec(2) = FLOOR(vec(2)/pw%pw_grid%dr(2))
+                xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
                    ij1 = MODULO(ivec(2)-1,npts(2))+1
                    ij2 = MODULO(ivec(2)  ,npts(2))+1
                    ij3 = MODULO(ivec(2)+1,npts(2))+1
                    ij4 = MODULO(ivec(2)+2,npts(2))+1
+                e1  = 3.0_dp + xd2
+                e2  = e1*e1
+                e3  = e2*e1
+                f1  = 2.0_dp + xd2
+                f2  = f1*f1
+                f3  = f2*f1
+                g1  = 1.0_dp + xd2
+                g2  = g1*g1
+                g3  = g2*g1
+                h1  = xd2
+                h2  = h1*h1
+                h3  = h2*h1
+                s1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
+                s2 = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
+                s3 =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
+                s4 =   1.0_dp/6.0_dp*h3
+                DO i =  bo(1,1), bo(2,1)
+                   rv1  = rt1 - xs1
+                   vec(1) = rv1
+                   ivec(1) = FLOOR(vec(1)/pw%pw_grid%dr(1))
+                   xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
                    ii1 = MODULO(ivec(1)-1,npts(1))+1
                    ii2 = MODULO(ivec(1)  ,npts(1))+1
                    ii3 = MODULO(ivec(1)+1,npts(1))+1
                    ii4 = MODULO(ivec(1)+2,npts(1))+1
-
-                   aaa   = grid(ii1,ij1,ik1)
-                   baa   = grid(ii2,ij1,ik1)
-                   caa   = grid(ii3,ij1,ik1)
-                   daa   = grid(ii4,ij1,ik1)
-                   aba   = grid(ii1,ij2,ik1)
-                   bba   = grid(ii2,ij2,ik1)
-                   cba   = grid(ii3,ij2,ik1)
-                   dba   = grid(ii4,ij2,ik1)
-                   aca   = grid(ii1,ij3,ik1)
-                   bca   = grid(ii2,ij3,ik1)
-                   cca   = grid(ii3,ij3,ik1)
-                   dca   = grid(ii4,ij3,ik1)
-                   ada   = grid(ii1,ij4,ik1)
-                   bda   = grid(ii2,ij4,ik1)
-                   cda   = grid(ii3,ij4,ik1)
-                   dda   = grid(ii4,ij4,ik1)
-                   aab   = grid(ii1,ij1,ik2)
-                   bab   = grid(ii2,ij1,ik2)
-                   cab   = grid(ii3,ij1,ik2)
-                   dab   = grid(ii4,ij1,ik2)
-                   abb   = grid(ii1,ij2,ik2)
-                   bbb   = grid(ii2,ij2,ik2)
-                   cbb   = grid(ii3,ij2,ik2)
-                   dbb   = grid(ii4,ij2,ik2)
-                   acb   = grid(ii1,ij3,ik2)
-                   bcb   = grid(ii2,ij3,ik2)
-                   ccb   = grid(ii3,ij3,ik2)
-                   dcb   = grid(ii4,ij3,ik2)
-                   adb   = grid(ii1,ij4,ik2)
-                   bdb   = grid(ii2,ij4,ik2)
-                   cdb   = grid(ii3,ij4,ik2)
-                   ddb   = grid(ii4,ij4,ik2)
-                   aac   = grid(ii1,ij1,ik3)
-                   bac   = grid(ii2,ij1,ik3)
-                   cac   = grid(ii3,ij1,ik3)
-                   dac   = grid(ii4,ij1,ik3)
-                   abc   = grid(ii1,ij2,ik3)
-                   bbc   = grid(ii2,ij2,ik3)
-                   cbc   = grid(ii3,ij2,ik3)
-                   dbc   = grid(ii4,ij2,ik3)
-                   acc   = grid(ii1,ij3,ik3)
-                   bcc   = grid(ii2,ij3,ik3)
-                   ccc   = grid(ii3,ij3,ik3)
-                   dcc   = grid(ii4,ij3,ik3)
-                   adc   = grid(ii1,ij4,ik3)
-                   bdc   = grid(ii2,ij4,ik3)
-                   cdc   = grid(ii3,ij4,ik3)
-                   ddc   = grid(ii4,ij4,ik3)
-                   aad   = grid(ii1,ij1,ik4)
-                   bad   = grid(ii2,ij1,ik4)
-                   cad   = grid(ii3,ij1,ik4)
-                   dad   = grid(ii4,ij1,ik4)
-                   abd   = grid(ii1,ij2,ik4)
-                   bbd   = grid(ii2,ij2,ik4)
-                   cbd   = grid(ii3,ij2,ik4)
-                   dbd   = grid(ii4,ij2,ik4)
-                   acd   = grid(ii1,ij3,ik4)
-                   bcd   = grid(ii2,ij3,ik4)
-                   ccd   = grid(ii3,ij3,ik4)
-                   dcd   = grid(ii4,ij3,ik4)
-                   add   = grid(ii1,ij4,ik4)
-                   bdd   = grid(ii2,ij4,ik4)
-                   cdd   = grid(ii3,ij4,ik4)
-                   ddd   = grid(ii4,ij4,ik4)
+                   !
+                   ! Spline Interpolation 
+                   !
 
                    a1  = 3.0_dp + xd1
                    a2  = a1*a1
@@ -681,60 +647,34 @@ CONTAINS
                    d1  = xd1
                    d2  = d1*d1
                    d3  = d2*d1
-                   e1  = 3.0_dp + xd2
-                   e2  = e1*e1
-                   e3  = e2*e1
-                   f1  = 2.0_dp + xd2
-                   f2  = f1*f1
-                   f3  = f2*f1
-                   g1  = 1.0_dp + xd2
-                   g2  = g1*g1
-                   g3  = g2*g1
-                   h1  = xd2
-                   h2  = h1*h1
-                   h3  = h2*h1
-                   p1  = 3.0_dp + xd3
-                   p2  = p1*p1
-                   p3  = p2*p1
-                   q1  = 2.0_dp + xd3
-                   q2  = q1*q1
-                   q3  = q2*q1
-                   r1  = 1.0_dp + xd3
-                   r2  = r1*r1
-                   r3  = r2*r1
-                   u1  = xd3
-                   u2  = u1*u1
-                   u3  = u2*u1
-
                    t1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
                    t2 = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
                    t3 =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
                    t4 =   1.0_dp/6.0_dp*d3
-                   s1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
-                   s2 = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
-                   s3 =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
-                   s4 =   1.0_dp/6.0_dp*h3
-                   v1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
-                   v2 = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
-                   v3 =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
-                   v4 =   1.0_dp/6.0_dp*u3
 
-                   val = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                          ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                          ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                          ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                         (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                          ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                          ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                          ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                         (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                          ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                          ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                          ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                         (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                          ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                          ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                          ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+                   abc_X(1,1) = grid(ii1,ij1,ik1)*v1 + grid(ii1,ij1,ik2)*v2 + grid(ii1,ij1,ik3)*v3 + grid(ii1,ij1,ik4)*v4
+                   abc_X(1,2) = grid(ii1,ij2,ik1)*v1 + grid(ii1,ij2,ik2)*v2 + grid(ii1,ij2,ik3)*v3 + grid(ii1,ij2,ik4)*v4
+                   abc_X(1,3) = grid(ii1,ij3,ik1)*v1 + grid(ii1,ij3,ik2)*v2 + grid(ii1,ij3,ik3)*v3 + grid(ii1,ij3,ik4)*v4
+                   abc_X(1,4) = grid(ii1,ij4,ik1)*v1 + grid(ii1,ij4,ik2)*v2 + grid(ii1,ij4,ik3)*v3 + grid(ii1,ij4,ik4)*v4
+                   abc_X(2,1) = grid(ii2,ij1,ik1)*v1 + grid(ii2,ij1,ik2)*v2 + grid(ii2,ij1,ik3)*v3 + grid(ii2,ij1,ik4)*v4
+                   abc_X(2,2) = grid(ii2,ij2,ik1)*v1 + grid(ii2,ij2,ik2)*v2 + grid(ii2,ij2,ik3)*v3 + grid(ii2,ij2,ik4)*v4
+                   abc_X(2,3) = grid(ii2,ij3,ik1)*v1 + grid(ii2,ij3,ik2)*v2 + grid(ii2,ij3,ik3)*v3 + grid(ii2,ij3,ik4)*v4
+                   abc_X(2,4) = grid(ii2,ij4,ik1)*v1 + grid(ii2,ij4,ik2)*v2 + grid(ii2,ij4,ik3)*v3 + grid(ii2,ij4,ik4)*v4
+                   abc_X(3,1) = grid(ii3,ij1,ik1)*v1 + grid(ii3,ij1,ik2)*v2 + grid(ii3,ij1,ik3)*v3 + grid(ii3,ij1,ik4)*v4
+                   abc_X(3,2) = grid(ii3,ij2,ik1)*v1 + grid(ii3,ij2,ik2)*v2 + grid(ii3,ij2,ik3)*v3 + grid(ii3,ij2,ik4)*v4
+                   abc_X(3,3) = grid(ii3,ij3,ik1)*v1 + grid(ii3,ij3,ik2)*v2 + grid(ii3,ij3,ik3)*v3 + grid(ii3,ij3,ik4)*v4
+                   abc_X(3,4) = grid(ii3,ij4,ik1)*v1 + grid(ii3,ij4,ik2)*v2 + grid(ii3,ij4,ik3)*v3 + grid(ii3,ij4,ik4)*v4
+                   abc_X(4,1) = grid(ii4,ij1,ik1)*v1 + grid(ii4,ij1,ik2)*v2 + grid(ii4,ij1,ik3)*v3 + grid(ii4,ij1,ik4)*v4
+                   abc_X(4,2) = grid(ii4,ij2,ik1)*v1 + grid(ii4,ij2,ik2)*v2 + grid(ii4,ij2,ik3)*v3 + grid(ii4,ij2,ik4)*v4
+                   abc_X(4,3) = grid(ii4,ij3,ik1)*v1 + grid(ii4,ij3,ik2)*v2 + grid(ii4,ij3,ik3)*v3 + grid(ii4,ij3,ik4)*v4
+                   abc_X(4,4) = grid(ii4,ij4,ik1)*v1 + grid(ii4,ij4,ik2)*v2 + grid(ii4,ij4,ik3)*v3 + grid(ii4,ij4,ik4)*v4
+
+                   abc_X_Y(1) = abc_X(1,1)*t1 + abc_X(2,1)*t2 + abc_X(3,1)*t3 + abc_X(4,1)*t4
+                   abc_X_Y(2) = abc_X(1,2)*t1 + abc_X(2,2)*t2 + abc_X(3,2)*t3 + abc_X(4,2)*t4
+                   abc_X_Y(3) = abc_X(1,3)*t1 + abc_X(2,3)*t2 + abc_X(3,3)*t3 + abc_X(4,3)*t4
+                   abc_X_Y(4) = abc_X(1,4)*t1 + abc_X(2,4)*t2 + abc_X(3,4)*t3 + abc_X(4,4)*t4
+
+                   val = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
 
                    grid2(i,j,k) = grid2(i,j,k) - val * qt
                    xs1 = xs1 + dr1c

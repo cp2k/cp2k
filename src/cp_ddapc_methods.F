@@ -43,7 +43,7 @@ MODULE cp_ddapc_methods
             build_b_vector,&
             build_der_b_vector,&
             build_A_matrix,&
-            build_der_A_matrix,&
+            build_der_A_matrix_rows,&
             prep_g_dot_rvec_sin_cos,&
             cleanup_g_dot_rvec_sin_cos,&
             ddapc_eval_AmI,&
@@ -200,9 +200,12 @@ CONTAINS
     INTEGER :: e_dim, handle, idim1, idim2, ig, igauss1, igauss2, igmax, &
       iparticle1, iparticle2, istart_g, s_dim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: g2, gcut2, rvec1(3), &
-                                                rvec2(3), rvec_diff(3), tmp
+    REAL(KIND=dp)                            :: g2, gcut2, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_Am, my_Amw
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: gfunc_sq(:,:,:)
+
+!NB precalculate as many things outside of the innermost loop as possible, in particular w(ig)*gfunc(ig,igauus1)*gfunc(ig,igauss2)
 
     failure = .FALSE.
 
@@ -221,14 +224,20 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(gfunc_sq(s_dim:igmax,SIZE(radii),SIZE(radii)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       DO igauss1 = 1, SIZE(radii)
+          DO igauss2 = 1, SIZE(radii)
+             gfunc_sq(s_dim:igmax,igauss1,igauss2) = w(s_dim:igmax)*gfunc(s_dim:igmax,igauss1)*gfunc(s_dim:igmax,igauss2)
+          END DO
+       END DO
+
        DO iparticle1 = 1, SIZE(particle_set)
-          rvec1=particle_set(iparticle1)%r
           DO iparticle2 = iparticle1, SIZE(particle_set)
-             rvec2=particle_set(iparticle2)%r
-             rvec_diff=rvec1-rvec2
              DO ig = s_dim, igmax
                 !NB replace explicit dot product and cosine with cos(A+B) formula - much faster
-                my_Am(ig) = w(ig)*(g_dot_rvec_cos(ig-s_dim+1,iparticle1)*g_dot_rvec_cos(ig-s_dim+1,iparticle2) + &
+                my_Am(ig) = (g_dot_rvec_cos(ig-s_dim+1,iparticle1)*g_dot_rvec_cos(ig-s_dim+1,iparticle2) + &
                                    g_dot_rvec_sin(ig-s_dim+1,iparticle1)*g_dot_rvec_sin(ig-s_dim+1,iparticle2))
              END DO
              DO igauss1 = 1, SIZE(radii)
@@ -237,9 +246,7 @@ CONTAINS
                 IF (iparticle2==iparticle1) istart_g = igauss1
                 DO igauss2 = istart_g, SIZE(radii)
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
-                   DO ig = s_dim, igmax
-                      my_Amw(ig) = my_Am(ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
-                   END DO
+                   my_Amw(s_dim:igmax) = my_Am(s_dim:igmax)*gfunc_sq(s_dim:igmax,igauss1,igauss2)
 !NB no loss of accuracy in my test cases
 #ifdef ACCURATE_SUMS
                    tmp = accurate_sum(my_Amw)
@@ -252,6 +259,8 @@ CONTAINS
              END DO
           END DO
        END DO
+       DEALLOCATE(gfunc_sq,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(my_Amw,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(my_Am,stat=stat)
@@ -350,8 +359,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   !NB accept g_dot_rvec_* arrays
-  SUBROUTINE build_der_A_matrix(dAm, gfunc, w, particle_set, radii,&
-       rho_tot_g, gcut, iparticle0, g_dot_rvec_sin, g_dot_rvec_cos, error)
+  SUBROUTINE build_der_A_matrix_rows(dAm, gfunc, w, particle_set, radii,&
+       rho_tot_g, gcut, iparticle0, nparticles, g_dot_rvec_sin, g_dot_rvec_cos, error)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: dAm
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
@@ -361,24 +370,27 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    INTEGER, INTENT(IN)                      :: iparticle0
+    INTEGER, INTENT(IN)                      :: iparticle0, nparticles
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: g_dot_rvec_sin, g_dot_rvec_cos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix_rows', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: e_dim, handle, idim1, idim2, ig, igauss1, igauss2, igmax, &
-      iparticle1, iparticle2, istart_g, s_dim, stat
+    INTEGER                                  :: e_dim, handle, ig, igauss2, &
+                                                igmax, iparticle1, &
+                                                iparticle2, s_dim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: factor, g2, gcut2, tmp
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: arg1_v_sin, my_Amw
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: my_Am
-    REAL(KIND=dp), DIMENSION(3)              :: rvec1, rvec2, rvec_diff
+    REAL(KIND=dp)                            :: g2, gcut2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: arg1_v_sin
 
-!NB temporary for precomputing expensive sin()
+!NB calculate derivatives for a block of particles, just the row parts (since derivative matrix is symmetric)
+!NB Use DGEMM to speed up calculation, can't do accurate_sum() anymore because dgemm does the sum over g
+
+    EXTERNAL DGEMM
+    REAL(KIND=dp), ALLOCATABLE :: lhs(:,:), rhs(:,:)
+    INTEGER :: Nr, Np, Ng, icomp, ipp
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -392,79 +404,75 @@ CONTAINS
           IF (g2 > gcut2) EXIT
           igmax  = ig
        ENDDO
-       ALLOCATE(my_Am(3,s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(arg1_v_sin(s_dim:igmax),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       DO iparticle1 = 1, SIZE(particle_set)
-          rvec1 =  particle_set(iparticle1)%r
-          DO iparticle2 = iparticle1, SIZE(particle_set)
-             rvec2 =  particle_set(iparticle2)%r
-             IF ((iparticle1 /= iparticle0).AND.(iparticle2 /= iparticle0)) CYCLE
-             IF    ((iparticle1 == iparticle0).AND.(iparticle2==iparticle0))  THEN
-                   factor=2.0_dp
-             ELSEIF (iparticle1 == iparticle0) THEN
-                   factor=1.0_dp
-             ELSEIF (iparticle2 == iparticle0) THEN
-                   factor=-1.0_dp
-             END IF
-             rvec_diff=rvec2-rvec1
+       Nr=SIZE(radii)
+       Np=SIZE(particle_set)
+       Ng=igmax-s_dim+1
+       ALLOCATE(lhs(nparticles*Nr,Ng), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(rhs(Ng,Np*Nr), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-             !NB precompute sin(g.(r1-r2)) with sin(A+B) formula - perhaps just move this into the loop?
-             arg1_v_sin(s_dim:igmax) = g_dot_rvec_sin(1:igmax-s_dim+1, iparticle2)*g_dot_rvec_cos(1:igmax-s_dim+1, iparticle1) - &
-                                       g_dot_rvec_cos(1:igmax-s_dim+1, iparticle2)*g_dot_rvec_sin(1:igmax-s_dim+1, iparticle1)
-             DO ig = s_dim, igmax
-                my_Am(1:3,ig) = factor * w(ig) * arg1_v_sin(ig) * rho_tot_g%pw_grid%g(:,ig)
-             END DO
-             DO igauss1 = 1, SIZE(radii)
-                idim1 = (iparticle1-1)*SIZE(radii)+igauss1
-                istart_g = 1
-                IF (iparticle2==iparticle1) istart_g = igauss1
-                DO igauss2 = istart_g, SIZE(radii)
-                   idim2 = (iparticle2-1)*SIZE(radii)+igauss2
-                   DO ig = s_dim, igmax
-                      my_Amw(ig) =  my_Am(1,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
-                   END DO
-!NB no loss of accuracy in my test cases
-#ifdef ACCURATE_SUMS
-                   tmp = accurate_sum(my_Amw)
-#else
-                   tmp = SUM(my_Amw)
-#endif
-                   dAm (idim1,idim2,1) = tmp
-                   dAm (idim2,idim1,1) = tmp
-                   DO ig = s_dim, igmax
-                      my_Amw(ig) =  my_Am(2,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
-                   END DO
-!NB no loss of accuracy in my test cases
-#ifdef ACCURATE_SUMS
-                   tmp = accurate_sum(my_Amw)
-#else
-                   tmp = SUM(my_Amw)
-#endif
-                   dAm (idim1,idim2,2) = tmp
-                   dAm (idim2,idim1,2) = tmp
-                   DO ig = s_dim, igmax
-                      my_Amw(ig) =  my_Am(3,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
-                   END DO
-!NB no loss of accuracy in my test cases
-#ifdef ACCURATE_SUMS
-                   tmp = accurate_sum(my_Amw)
-#else
-                   tmp = SUM(my_Amw)
-#endif
-                   dAm (idim1,idim2,3) = tmp
-                   dAm (idim2,idim1,3) = tmp
-                END DO
-             END DO
+       ! rhs with first term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
+       ! rhs has all parts that depend on iparticle2
+       DO iparticle2=1,Np
+          DO igauss2=1,Nr
+             rhs(1:Ng,(iparticle2-1)*Nr+igauss2) = g_dot_rvec_sin(1:Ng, iparticle2)*gfunc(s_dim:igmax,igauss2)
           END DO
        END DO
-       DEALLOCATE(my_Amw,stat=stat)
+       DO icomp=1,3
+          ! create lhs, which has all parts that depend on iparticle1
+          DO ipp=1, nparticles
+            iparticle1 = iparticle0 + ipp - 1
+            DO ig=s_dim,igmax
+               lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr,ig-s_dim+1) = w(ig) * rho_tot_g%pw_grid%g(icomp,ig) * &
+                  gfunc(ig,1:Nr) * g_dot_rvec_cos(ig-s_dim+1, iparticle1)
+            END DO
+          END DO ! ipp
+          ! do main multiply
+          CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1,1), nparticles*Nr, rhs(1,1), &
+                     Ng, 0.0D0, dAm((iparticle0-1)*Nr+1,1,icomp), Np*Nr)
+          ! do extra multiplies to compensate for missing factor of 2
+          DO ipp=1, nparticles
+             iparticle1 = iparticle0 + ipp - 1
+             CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1,1), nparticles*Nr, rhs(1,(iparticle1-1)*Nr+1), &
+                        Ng, 1.0D0, dAm((iparticle1-1)*Nr+1,(iparticle1-1)*Nr+1,icomp), Np*Nr)
+          END DO
+          ! now extra columns to account for factor of 2 in some rhs columns
+       END DO ! icomp
+
+       ! rhs with second term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
+       ! rhs has all parts that depend on iparticle2
+       DO iparticle2=1,Np
+          DO igauss2=1,Nr
+             rhs(1:Ng,(iparticle2-1)*Nr+igauss2) = -g_dot_rvec_cos(1:Ng, iparticle2)*gfunc(s_dim:igmax,igauss2)
+          END DO
+       END DO
+       DO icomp=1,3
+          ! create lhs, which has all parts that depend on iparticle1
+          DO ipp=1, nparticles
+            iparticle1 = iparticle0 + ipp - 1
+            DO ig=s_dim,igmax
+               lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr,ig-s_dim+1) = w(ig) * rho_tot_g%pw_grid%g(icomp,ig) * gfunc(ig,1:Nr) * &
+                  g_dot_rvec_sin(ig-s_dim+1, iparticle1)
+            END DO
+          ENDDO
+          ! do main multiply
+          CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1,1), nparticles*Nr, rhs(1,1), &
+                     Ng, 1.0D0, dAm((iparticle0-1)*Nr+1,1,icomp), Np*Nr)
+          ! do extra multiples to compensate for missing factor of 2
+          DO ipp=1, nparticles
+            iparticle1 = iparticle0 + ipp - 1
+            CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1,1), nparticles*Nr, rhs(1,(iparticle1-1)*Nr+1), &
+                       Ng, 1.0D0, dAm((iparticle1-1)*Nr+1,(iparticle1-1)*Nr+1,icomp), Np*Nr)
+          END DO
+       END DO
+
+       DEALLOCATE(rhs,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_Am,stat=stat)
+       DEALLOCATE(lhs,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !!! DEALLOCATE(arg1_v,stat=stat)
        !!! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -472,7 +480,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(handle)
-  END SUBROUTINE build_der_A_matrix
+  END SUBROUTINE build_der_A_matrix_rows
 
   !NB deallocate g_dot_rvec_* arrays
   SUBROUTINE cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)

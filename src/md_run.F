@@ -36,10 +36,14 @@ MODULE md_run
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, reftraj_ensemble
+  USE input_constants,                 ONLY: ehrenfest,&
+                                             npe_f_ensemble,&
+                                             npe_i_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -59,6 +63,7 @@ MODULE md_run
                                              md_env_create,&
                                              md_env_release,&
                                              md_environment_type,&
+                                             need_per_atom_wiener_process,&
                                              set_md_env
   USE md_util,                         ONLY: md_output
   USE md_vel_utils,                    ONLY: angvel_control,&
@@ -288,7 +293,9 @@ CONTAINS
                     force_env=force_env, error=error)
 
     ! Possibly initialize Wiener processes
-    IF (simpar%ensemble == langevin_ensemble) CALL create_wiener_process(md_env,error)
+    ![NB] Tested again within create_wiener_process.  Why??
+    IF (need_per_atom_wiener_process(md_env, error=error)) CALL create_wiener_process(md_env,error)
+
     time_iter_start=m_walltime()
 
     CALL get_md_env(md_env, force_env=force_env, itimes=itimes, constant=constant,&
@@ -349,7 +356,8 @@ CONTAINS
           CALL rt_prop_setup(force_env,error)
           force_env%qs_env%rtp%dt=simpar%dt
        ELSE
-          CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
+          ![NB] Lets let all methods, even ones without consistent energies, succeed here.  They'll fail in actual integrator if needed
+          CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., require_consistent_energy_force=.FALSE., error=error)
        END IF
 
        IF(ASSOCIATED(force_env%qs_env))THEN

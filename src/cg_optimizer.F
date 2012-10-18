@@ -132,7 +132,9 @@ CONTAINS
     INTEGER                                  :: handle, iter_nr, its, &
                                                 max_steep_steps, maxiter, stat
     LOGICAL                                  :: conv, failure, &
-                                                Fletcher_Reeves, should_stop
+                                                Fletcher_Reeves, &
+                                                save_consistent_energy_force, &
+                                                should_stop
     REAL(KIND=dp)                            :: emin, eold, opt_energy, &
                                                 res_lim, t_diff, t_now, t_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
@@ -164,8 +166,12 @@ CONTAINS
        CALL force_env_get(force_env,cell=cell,error=error)
        
        ! Evaluate energy and forces at the first step
+       ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
+       save_consistent_energy_force = gopt_env%require_consistent_energy_force
+       gopt_env%require_consistent_energy_force = .FALSE.
        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, error)
+       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
        g    = -xi
        h    =   g
@@ -204,8 +210,12 @@ CONTAINS
           emin = MIN(emin, opt_energy)
 
           IF (conv.OR.(its==maxiter))  EXIT
+          ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
+          save_consistent_energy_force = gopt_env%require_consistent_energy_force
+          gopt_env%require_consistent_energy_force = .FALSE.
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
                gopt_env%force_env%para_env, error)
+          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
           ! Get Conjugate Directions:  updates the searching direction (h)
           wildcard = "   CG"

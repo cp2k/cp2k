@@ -12,6 +12,7 @@ MODULE input_cp2k_thermostats
   USE bibliography,                    ONLY: Bussi2007,&
                                              Ceriotti2009,&
                                              Ceriotti2009b,&
+                                             Jones2011,&
                                              Nose1984a,&
                                              Nose1984b
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -239,9 +240,9 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: csvr_section, gle_section, &
-                                                nose_section, region_section, &
-                                                subsection
+    TYPE(section_type), POINTER              :: al_section, csvr_section, &
+                                                gle_section, nose_section, &
+                                                region_section, subsection
 
     failure=.FALSE.
 
@@ -249,7 +250,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
+       NULLIFY(csvr_section, gle_section, al_section, nose_section, subsection, region_section)
 
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
@@ -262,12 +263,13 @@ CONTAINS
                description="Specify the thermostat used for the constant temperature ensembles.",&
                usage="thermostat NOSE",&
                default_i_val=do_thermo_nose,&
-               enum_c_vals=s2a("NOSE","CSVR","GLE"),&
+               enum_c_vals=s2a("NOSE","CSVR","GLE","AD_LANGEVIN"),&
                enum_i_vals=(/do_thermo_nose,&
-               do_thermo_csvr,do_thermo_gle/),&
+               do_thermo_csvr,do_thermo_gle,do_thermo_al/),&
                enum_desc=s2a("Uses the Nose-Hoover thermostat.",&
                "Uses the canonical sampling through velocity rescaling.",&
-               "Uses GLE thermostat"),&
+               "Uses GLE thermostat",&
+               "Uses adaptive-Langevin thermostat"),&
                error=error)
           CALL section_add_keyword(section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
@@ -311,6 +313,10 @@ CONTAINS
        CALL create_gle_section(gle_section, error=error)
        CALL section_add_subsection(section, gle_section, error=error)
        CALL section_release(gle_section,error=error)
+
+       CALL create_al_section(al_section, error=error)
+       CALL section_add_subsection(section, al_section, error=error)
+       CALL section_release(al_section,error=error)
 
        ! Print Section
        CALL create_print_section(subsection, error=error)
@@ -685,6 +691,103 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_csvr_section
+
+! *****************************************************************************
+!> \param section will contain the adaptive langevin section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Noam [bernstei] 
+! *****************************************************************************
+  SUBROUTINE create_al_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_al_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+       CALL section_create(section,name="ad_langevin",&
+            description="Parameters of the adaptive-Langevin thermostat.",&
+            citations=(/Jones2011/),required=.TRUE.,error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="timecon_nh",&
+            description="Time constant of the Nose-Hoover part of the AD_LANGEVIN thermostat. A small time "//&
+            "constant will result in strong thermostatting (useful for "//&
+            "initial equilibrations) and a large time constant would be adequate "//&
+            "to get weak thermostatting in production runs.",&
+            usage="timecon_nh <REAL>", &
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+            unit_str="fs",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="timecon_langevin",&
+            description="Time constant of the Langevin part of the AD_LANGEVIN thermostat. A small time "//&
+            "constant will result in strong thermostatting (useful for "//&
+            "initial equilibrations) and a large time constant would be adequate "//&
+            "to get weak thermostatting in production runs.",&
+            usage="timecon_langevin <REAL>", &
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+            unit_str="fs",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_thermo_chi_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_mass_section(subsection,"ADAPTIVE LANGEVIN",error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_al_section
+
+! *****************************************************************************
+!> \brief Creates the thermostat chi restarting section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_thermo_chi_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_chi_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="CHI",&
+            description="Information to initialize the Ad-Langevin thermostat DOF chi.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify an initial thermostat DOF chi for Ad-Langevin thermostat.",repeats=.TRUE.,&
+            unit_str="fs^-1",type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_thermo_chi_section
 
 ! *****************************************************************************
 !> \brief Creates the thermostat energy restarting section

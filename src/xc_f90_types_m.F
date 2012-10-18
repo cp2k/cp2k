@@ -21,12 +21,12 @@ MODULE xc_f90_types_m
 
 
 
-  integer, public, parameter :: xc_f90_kind = selected_real_kind(14)
+  INTEGER, PUBLIC, PARAMETER :: xc_f90_kind = SELECTED_REAL_KIND(14)
 
 
-  type xc_f90_pointer_t
-    private
-    integer, pointer :: buffer
-  end type xc_f90_pointer_t
+  TYPE xc_f90_pointer_t
+    PRIVATE
+    INTEGER, POINTER :: buffer
+  END TYPE xc_f90_pointer_t
 
 END MODULE xc_f90_types_m

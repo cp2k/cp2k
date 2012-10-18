@@ -43,9 +43,11 @@ MODULE qmmm_types
   INTEGER, PARAMETER, PUBLIC :: force_mixing_label_none = -1,&
                                 force_mixing_label_QM_core_list     = 10,&
                                 force_mixing_label_QM_core          = 9,&
-                                force_mixing_label_QM_extended      = 8,&
-                                force_mixing_label_buffer           = 7,&
-                                force_mixing_label_termination      = 6
+                                force_mixing_label_QM_dynamics_list = 8,&
+                                force_mixing_label_QM_dynamics      = 7,&
+                                force_mixing_label_buffer_list      = 6,&
+                                force_mixing_label_buffer           = 5,&
+                                force_mixing_label_termination      = 4
 
   PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create

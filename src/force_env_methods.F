@@ -87,7 +87,8 @@ MODULE force_env_methods
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -114,10 +115,11 @@ MODULE force_env_methods
                                              qmmm_link_Imomm_forces
   USE qmmm_types,                      ONLY: &
        fist_subsys, force_mixing_core_subsys, force_mixing_extended_subsys, &
-       force_mixing_label_QM_extended, primary_subsys, qmmm_env_qm_retain, &
+       force_mixing_label_QM_dynamics, primary_subsys, qmmm_env_qm_retain, &
        qmmm_env_qm_type, qmmm_links_type, qs_subsys
   USE qmmm_util,                       ONLY: apply_qmmm_translate,&
-                                             apply_qmmm_walls
+                                             apply_qmmm_walls,&
+                                             qmmm_force_mixing_active
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_retain,&
@@ -159,13 +161,13 @@ CONTAINS
 !> \author CJM & fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
-       consistent_energies, skip_external_control, eval_energy_forces, error)
+       consistent_energies, skip_external_control, eval_energy_forces, &
+       require_consistent_energy_force, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
-                                                consistent_energies, &
-                                                skip_external_control, &
-                                                eval_energy_forces
+    LOGICAL, INTENT(IN), OPTIONAL :: calc_force, consistent_energies, &
+      skip_external_control, eval_energy_forces, &
+      require_consistent_energy_force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
@@ -242,7 +244,8 @@ CONTAINS
                 CALL eip_bazant(force_env, error=error)
              END IF
           CASE ( use_qmmm )
-             CALL qmmm_energy_and_forces(force_env,calculate_forces,error=error)
+             CALL qmmm_energy_and_forces(force_env,calculate_forces,require_consistent_energy_force,&
+                  error=error)
           CASE ( use_mixed_force )
              CALL mixed_energy_forces(force_env,calculate_forces,error=error)
           CASE default
@@ -792,17 +795,21 @@ CONTAINS
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
+  RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,require_consistent_energy_force,error)
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    LOGICAL, INTENT(IN), OPTIONAL :: calc_force, &
+      require_consistent_energy_force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(DEFAULT_STRING_LENGTH)         :: restart_filename, &
+                                                restart_filename_suffix, &
+                                                restart_history_filename
     INTEGER                                  :: ip, isubf
     INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
-    LOGICAL                                  :: failure
+    LOGICAL :: do_require_consistent_energy_force, failure
     TYPE(cp_subsys_type), POINTER            :: subsys_primary, &
                                                 subsys_qmmm_core, &
                                                 subsys_qmmm_extended
@@ -812,13 +819,48 @@ CONTAINS
                                                 particles_qmmm_extended
     TYPE(section_vals_type), POINTER         :: force_env_section
 
+    do_require_consistent_energy_force = .TRUE.
+    IF (PRESENT(require_consistent_energy_force)) do_require_consistent_energy_force = require_consistent_energy_force
+
+    IF (do_require_consistent_energy_force) THEN
+      CALL cp_assert(.NOT. qmmm_force_mixing_active(force_env, error),&
+          cp_failure_level,cp_assertion_failed,&
+          routineP,"qmmm_energy_and_forces got require_consistent_energy_force but force mixing is active. "//&
+CPSourceFileRef,&
+          error,failure)
+    ENDIF
+
 ! Possibly translate the system
 
     CALL apply_qmmm_translate(force_env, error)
 
     DO isubf=1, SIZE(force_env%sub_force_env)
+        IF (SIZE(force_env%sub_force_env) > 1) THEN ! rewrite restart file name
+           CALL force_env_get(force_env, force_env_section=force_env_section,error=error)
+           CALL section_vals_val_get(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME", &
+             c_val=restart_filename, error=error)
+           CALL section_vals_val_get(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME", &
+             c_val=restart_history_filename, error=error)
+
+           WRITE (unit=restart_filename_suffix, fmt=*) isubf
+           restart_filename_suffix= ADJUSTL(restart_filename_suffix)
+
+           CALL force_env_get(force_env%sub_force_env(isubf)%force_env, force_env_section=force_env_section,error=error)
+           CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME", &
+                c_val=TRIM(restart_filename)//"-SubForceEnv-"//TRIM(restart_filename_suffix), error=error)
+           CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME", &
+                c_val=TRIM(restart_history_filename)//"-SubForceEnv-"//TRIM(restart_filename_suffix), error=error)
+        ENDIF
+
         CALL qmmm_energy_and_forces_low(force_env%sub_force_env(isubf)%force_env,&
              calc_force,error)
+
+        IF (SIZE(force_env%sub_force_env) > 1) THEN ! undo rewrite of restart file name
+           CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME", &
+                c_val=TRIM(restart_filename), error=error)
+           CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME", &
+                c_val=TRIM(restart_history_filename), error=error)
+        ENDIF
     END DO
 
     IF (SIZE(force_env%sub_force_env) == 1) THEN
@@ -841,7 +883,7 @@ CONTAINS
         particles_qmmm_extended => subsys_qmmm_extended%particles%els
         particles_qmmm_core => subsys_qmmm_core%particles%els
         DO ip=1,SIZE(cur_indices)
-           IF (cur_labels(ip) >= force_mixing_label_QM_extended) THEN ! this is a QM atom
+           IF (cur_labels(ip) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
              ! copy (QM) force from extended calculation
              particles_qmmm_core(cur_indices(ip))%f=particles_qmmm_extended(cur_indices(ip))%f
            ENDIF

@@ -471,6 +471,10 @@ CONTAINS
        CALL write_trajectory(force_env, root_section, itimes, time*femtoseconds, dt*femtoseconds, md_ener%epot,&
             "FORCES", my_pos, my_act, middle_name="frc", extended_xmol_title=.TRUE., error=error)
 
+       ! Print Force-Mixing labels
+       CALL write_trajectory(force_env, root_section, itimes, time*femtoseconds, dt*femtoseconds, md_ener%epot,&
+            "FORCE_MIXING_LABELS", my_pos, my_act, middle_name="fmlabels", extended_xmol_title=.TRUE., error=error)
+
        ! Print Simulation Cell
        CALL write_simulation_cell(cell, motion_section, itimes, time*femtoseconds, my_pos, my_act, error)
 

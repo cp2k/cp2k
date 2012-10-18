@@ -8,6 +8,9 @@
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
 MODULE thermostat_types
+  USE al_system_types,                 ONLY: al_dealloc,&
+                                             al_init,&
+                                             al_system_type
   USE csvr_system_types,               ONLY: csvr_dealloc,&
                                              csvr_init,&
                                              csvr_system_type
@@ -20,6 +23,7 @@ MODULE thermostat_types
                                              gle_type
   USE input_constants,                 ONLY: do_region_global,&
                                              do_region_massive,&
+                                             do_thermo_al,&
                                              do_thermo_csvr,&
                                              do_thermo_gle,&
                                              do_thermo_nose
@@ -76,6 +80,7 @@ MODULE thermostat_types
      CHARACTER(LEN=default_string_length) :: label
      TYPE (lnhc_parameters_type), POINTER :: nhc
      TYPE (csvr_system_type), POINTER     :: csvr
+     TYPE (al_system_type), POINTER     :: al
      TYPE (gle_type), POINTER      ::  gle
      TYPE (section_vals_type), POINTER    :: section
   END TYPE thermostat_type
@@ -249,8 +254,8 @@ CONTAINS
 
     INTEGER                                  :: region, stat
     LOGICAL                                  :: failure, skip_region_loc
-    TYPE(section_vals_type), POINTER         :: csvr_section, gle_section, &
-                                                nose_section
+    TYPE(section_vals_type), POINTER         :: al_section, csvr_section, &
+                                                gle_section, nose_section
 
     failure = .FALSE.
     skip_region_loc = .FALSE.
@@ -266,6 +271,7 @@ CONTAINS
 
     NULLIFY(thermostat%nhc)
     NULLIFY(thermostat%csvr)
+    NULLIFY(thermostat%al)
     NULLIFY(thermostat%gle)
     CALL section_vals_val_get(section,"TYPE",i_val=thermostat%type_of_thermostat,error=error)
     IF (.NOT.skip_region_loc) CALL section_vals_val_get(section,"REGION",i_val=region,error=error)
@@ -281,6 +287,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL csvr_init(thermostat%csvr, simpar, csvr_section, error=error)
        thermostat%csvr%region=region
+    ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
+       al_section => section_vals_get_subs_vals(section,"AD_LANGEVIN",error=error)
+       ALLOCATE(thermostat%al, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL al_init(thermostat%al, simpar, al_section, error=error)
+       thermostat%al%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
        gle_section => section_vals_get_subs_vals(section,"GLE",error=error)
        ALLOCATE(thermostat%gle, stat=stat)
@@ -352,6 +364,9 @@ CONTAINS
           IF (ASSOCIATED(thermostat%csvr)) THEN
              CALL csvr_dealloc(thermostat%csvr,error=error)
           END IF
+          IF (ASSOCIATED(thermostat%al)) THEN
+             CALL al_dealloc(thermostat%al,error=error)
+          END IF
           IF (ASSOCIATED(thermostat%gle)) THEN
              CALL gle_dealloc(thermostat%gle,error=error)
           END IF
@@ -401,6 +416,8 @@ CONTAINS
                 thermostats%thermostat_part%nhc%dt_fact  = dt_fact
              CASE(do_thermo_csvr)
                 thermostats%thermostat_part%csvr%dt_fact = dt_fact
+             CASE(do_thermo_al)
+                thermostats%thermostat_part%al%dt_fact = dt_fact
              CASE(do_thermo_gle)
                 thermostats%thermostat_part%gle%dt_fact = dt_fact
              END SELECT

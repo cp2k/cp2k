@@ -1112,9 +1112,14 @@ CONTAINS
                                                 j1, j2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, icol, irow, rindex
     LOGICAL                                  :: failure
+!NB load balance
+    INTEGER                                  :: im, ic, jc, ii, jj
 
 !------------------------------------------------------------------------------
 
+#ifdef ORIGINAL_RAY_DISTRIBUTION
+!NB original distribution, can have bad load balance in cp_ddapc_apply_CD which
+!NB uses spherical cutoff even though overall grid is full and block distributed
     failure = .FALSE.
 
     i1 = SIZE ( yz_mask, 1 )
@@ -1154,6 +1159,72 @@ CONTAINS
 
     DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
     CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+
+#else
+!NB spiral out from origin, so that even if overall grid is full and
+!NB block distributed, spherical cutoff still leads to good load
+!NB balance in cp_ddapc_apply_CD
+
+    i1 = SIZE ( yz_mask, 1 )
+    i2 = SIZE ( yz_mask, 2 )
+    yz_index = 0
+
+   icount = 1
+   ic=i1/2
+   jc=i2/2
+   ii=ic
+   jj=jc
+   IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
+      IF (yz_mask(ii,jj) /= 0) THEN
+         yz_index(1,icount) = ii
+         yz_index(2,icount) = jj
+         icount = icount + 1
+      ENDIF
+   ENDIF
+   DO im=1, MAX(ic+1,jc+1)
+      ii = ic-im
+      DO jj=jc-im,jc+im
+         IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
+            IF (yz_mask(ii,jj) /= 0) THEN
+               yz_index(1,icount) = ii
+               yz_index(2,icount) = jj
+               icount = icount + 1
+            ENDIF
+         ENDIF
+      END DO
+      ii = ic+im
+      DO jj=jc-im,jc+im
+         IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
+            IF (yz_mask(ii,jj) /= 0) THEN
+               yz_index(1,icount) = ii
+               yz_index(2,icount) = jj
+               icount = icount + 1
+            ENDIF
+         ENDIF
+      END DO
+      jj = jc-im
+      DO ii=ic-im+1,ic+im-1
+         IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
+            IF (yz_mask(ii,jj) /= 0) THEN
+               yz_index(1,icount) = ii
+               yz_index(2,icount) = jj
+               icount = icount + 1
+            ENDIF
+         ENDIF
+      END DO
+      jj = jc+im
+      DO ii=ic-im+1,ic+im-1
+         IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
+            IF (yz_mask(ii,jj) /= 0) THEN
+               yz_index(1,icount) = ii
+               yz_index(2,icount) = jj
+               icount = icount + 1
+            ENDIF
+         ENDIF
+      END DO
+   END DO
+
+#endif
 
   END SUBROUTINE order_mask
 

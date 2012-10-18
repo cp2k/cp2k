@@ -24,7 +24,7 @@ MODULE thermostat_utils
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_constr_atomic, do_constr_molec, do_region_defined, &
-       do_region_global, do_region_massive, do_region_molecule, &
+       do_region_global, do_region_massive, do_region_molecule, do_thermo_al, &
        do_thermo_communication, do_thermo_csvr, do_thermo_gle, &
        do_thermo_no_communication, do_thermo_nose, isokin_ensemble, &
        langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
@@ -1145,9 +1145,9 @@ CONTAINS
                 vel(2,ipart) =  vel(2,ipart) * map_info%p_scale(2,ii)%point
                 vel(3,ipart) =  vel(3,ipart) * map_info%p_scale(3,ii)%point
              ELSE
-                particle_set(ipart)%v(1) =  particle_set(ipart)%v(1)*map_info%p_scale(1,ii)%point
-                particle_set(ipart)%v(2) =  particle_set(ipart)%v(2)*map_info%p_scale(2,ii)%point
-                particle_set(ipart)%v(3) =  particle_set(ipart)%v(3)*map_info%p_scale(3,ii)%point
+                particle_set(ipart)%v(1) =  particle_set(ipart)%v(1) * map_info%p_scale(1,ii)%point
+                particle_set(ipart)%v(2) =  particle_set(ipart)%v(2) * map_info%p_scale(2,ii)%point
+                particle_set(ipart)%v(3) =  particle_set(ipart)%v(3) * map_info%p_scale(3,ii)%point
              END IF
              ! If Shell Adiabatic then apply the NHC thermostat also to the Shells
              IF(shell_adiabatic) THEN
@@ -1610,6 +1610,8 @@ CONTAINS
           DEALLOCATE(thermo_energy,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+       ![NB] nothing to do for Ad-Langevin?
+
        END IF
     END IF
 
@@ -1668,6 +1670,24 @@ CONTAINS
           END DO
           CALL get_temperatures ( thermostat%csvr%map_info, thermostat%csvr%loc_num_csvr, &
           thermostat%csvr%glob_num_csvr, nkt, dof, para_env, tot_temperature, array_temp, error )
+          DEALLOCATE(nkt, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(dof, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
+          ! Energy associated with the AD_LANGEVIN thermostat
+          CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,error,failure)
+
+          ALLOCATE(nkt(thermostat%al%loc_num_al), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(dof(thermostat%al%loc_num_al), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,thermostat%al%loc_num_al
+             nkt(i) = thermostat%al%nvt(i)%nkt
+             dof(i) = REAL(thermostat%al%nvt(i)%degrees_of_freedom,KIND=dp)
+          END DO
+          CALL get_temperatures ( thermostat%al%map_info, thermostat%al%loc_num_al, &
+          thermostat%al%glob_num_al, nkt, dof, para_env, tot_temperature, array_temp, error )
           DEALLOCATE(nkt, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dof, STAT=stat)

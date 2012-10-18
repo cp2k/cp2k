@@ -113,7 +113,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_same_as_part=100,&
                                               do_thermo_nose=101,&
                                               do_thermo_csvr=102,&
-                                              do_thermo_gle=103
+                                              do_thermo_gle=103, &
+                                              do_thermo_al=104
 
 
   ! Run Types

@@ -311,6 +311,13 @@ CONTAINS
                 f(:) = particle_set(iatom)%f(:)
              END IF
              WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)*factor
+          CASE ("FORCE_MIXING_LABELS")
+             IF (PRESENT(array)) THEN
+                f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+             ELSE
+                f(:) = particle_set(iatom)%f(:)
+             END IF
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)*factor
           END SELECT
        END DO
     CASE (dump_atomic)
@@ -331,6 +338,13 @@ CONTAINS
              END IF
              WRITE (iunit,"(3F20.10)")v(1:3)*factor
           CASE ("FORCE")
+             IF (PRESENT(array)) THEN
+                f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+             ELSE
+                f(:) = particle_set(iatom)%f(:)
+             END IF
+             WRITE (iunit,"(3F20.10)")f(1:3)*factor
+          CASE ("FORCE_MIXING_LABELS")
              IF (PRESENT(array)) THEN
                 f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE

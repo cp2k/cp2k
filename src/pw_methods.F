@@ -53,6 +53,7 @@ MODULE pw_methods
   PUBLIC :: pw_derive, pw_dr2, pw_fft_wrap, pw_write
   PUBLIC :: pw_compare_debug
   PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
+  PUBLIC :: pw_integral_aa_fast, pw_integral_ab_fast
   PUBLIC :: pw_dr2_gg, pw_integrate_function
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
@@ -1933,6 +1934,80 @@ CONTAINS
   END FUNCTION pw_integral_ab
 
 ! *****************************************************************************
+!> \brief Calculate integral over unit cell for functions in plane wave basis
+!>      only returns the real part of it ......
+!> \par History
+!>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
+!> \author apsi
+! *****************************************************************************
+  FUNCTION pw_integral_ab_fast ( pw1, pw2, error) RESULT ( integral_value )
+
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: integral_value
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab_fast', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"Grids incompatible")
+    END IF
+
+    ! since the return value is real, only do accurate sum on the real bit ?
+    IF ( pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D ) THEN
+       integral_value = SUM ( pw1%cr3d ( :, :, : )  &
+            * pw2%cr3d ( :, :, : ) )
+    ELSE IF ( pw1%in_use == REALDATA3D &
+         .AND. pw2%in_use == COMPLEXDATA3D ) THEN
+       integral_value = SUM (  pw1%cr3d ( :, :, : )  &
+            * pw2%cc3d ( :, :, : ) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA3D &
+         .AND. pw2%in_use == REALDATA3D ) THEN
+       integral_value = SUM ( pw1%cc3d ( :, :, : ) &
+            *  pw2%cr3d ( :, :, : ) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA3D &
+         .AND. pw2%in_use == COMPLEXDATA3D ) THEN
+       integral_value = SUM ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+            * pw2%cc3d ( :, :, : ) )
+
+    ELSE IF ( pw1%in_use == REALDATA1D &
+         .AND. pw2%in_use == REALDATA1D ) THEN
+       integral_value = SUM ( pw1%cr (:) *  pw2%cr (:) )
+    ELSE IF ( pw1%in_use == REALDATA1D &
+         .AND. pw2%in_use == COMPLEXDATA1D ) THEN
+       integral_value = SUM ( pw1%cr (:) * pw2%cc (:) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA1D &
+         .AND. pw2%in_use == REALDATA1D ) THEN
+       integral_value = SUM ( pw1%cc (:) * pw2%cr (:) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA1D &
+         .AND. pw2%in_use == COMPLEXDATA1D ) THEN
+       integral_value = SUM ( CONJG ( pw1%cc (:) ) * pw2%cc (:) )
+    ELSE
+       CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
+    END IF
+
+    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
+       integral_value = integral_value * pw1%pw_grid%dvol
+    ELSE
+       integral_value = integral_value * pw1%pw_grid%vol
+    ENDIF
+    IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+       IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
+          integral_value = 2.0_dp * integral_value
+          IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
+               CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 )
+       END IF
+    END IF
+
+    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
+         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
+
+  END FUNCTION pw_integral_ab_fast
+
+! *****************************************************************************
   FUNCTION pw_integral_aa ( pw1, flag, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1
@@ -1995,6 +2070,70 @@ CONTAINS
          CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
 
   END FUNCTION pw_integral_aa
+
+! *****************************************************************************
+  FUNCTION pw_integral_aa_fast ( pw1, flag, error) RESULT ( integral_value )
+
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: integral_value
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_aa_fast', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF ( PRESENT ( flag ) ) THEN
+       IF ( flag == SQUARE ) THEN
+          IF ( pw1%in_use == REALDATA3D ) THEN
+             integral_value = SUM ( pw1%cr3d ( :, :, : )** 2 )
+          ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
+             integral_value = SUM ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+                  * pw1%cc3d ( :, :, : )  )
+          ELSE IF ( pw1%in_use == REALDATA1D ) THEN
+             integral_value = SUM ( pw1%cr (:) ** 2 )
+          ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+             integral_value = SUM ( CONJG ( pw1%cc (:) ) &
+                  * pw1%cc (:) )
+             IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
+                integral_value = 2.0_dp * integral_value
+                IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
+                     CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 )
+             END IF
+          ELSE
+             CALL stop_program(routineN,moduleN,__LINE__,"No possible SQUARE DATA")
+          END IF
+
+       ELSE IF ( flag == SQUAREROOT ) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,"No SQUAREROOT defined")
+       END IF
+
+    ELSE
+       IF ( pw1%in_use == REALDATA3D ) THEN
+          integral_value = SUM ( pw1%cr3d ( :, :, : ) )
+       ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
+          integral_value = SUM ( pw1%cc3d ( :, :, : ) )
+       ELSE IF ( pw1%in_use == REALDATA1D ) THEN
+          integral_value = SUM ( pw1%cr (:) )
+       ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+          integral_value = SUM ( pw1%cc (:) )
+       ELSE
+          CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
+       END IF
+    END IF
+
+    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
+       integral_value = integral_value * pw1%pw_grid%dvol
+    ELSE
+       integral_value = integral_value * pw1%pw_grid%vol
+    END IF
+
+    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
+         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
+
+  END FUNCTION pw_integral_aa_fast
 
 ! *****************************************************************************
   FUNCTION pw_integral_a2b ( pw1, pw2, error) RESULT ( integral_value )

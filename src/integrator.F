@@ -256,9 +256,6 @@ CONTAINS
     DEALLOCATE (pos,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
-
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
 
@@ -465,10 +462,8 @@ CONTAINS
           deallocate_vel=.FALSE.
        END IF
 
-       ![ADAPT] update input structure with new coordinates, make new labels
-       CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
-
-       CALL force_env_calc_energy_force(force_env,error=error)
+       ![NB] let nve work with force mixing which does not have consistent energies and forces
+       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.,error=error)
 
        ! Metadynamics
        CALL metadyn_integrator(force_env, tmp%vel, error=error)
@@ -634,9 +629,6 @@ CONTAINS
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
-
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -787,10 +779,10 @@ CONTAINS
             core_particle_set=core_particle_set, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_fast, molecule_kind_set, molecule_set,&
-            particle_set, local_molecules, para_env%group ,error=error)
+            particle_set, local_molecules, local_particles, para_env%group ,error=error)
 
        CALL apply_thermostat_particles(thermostat_slow, molecule_kind_set, molecule_set,&
-            particle_set, local_molecules, para_env%group ,error=error)
+            particle_set, local_molecules, local_particles, para_env%group ,error=error)
     END IF
 
     IF (simpar%constraint) CALL getold( gci, local_molecules, molecule_set,  &
@@ -835,9 +827,6 @@ CONTAINS
              shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error)
     END IF
 
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
-
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
 
@@ -864,10 +853,10 @@ CONTAINS
             core_vel= tmp%core_vel, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_slow,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, para_env%group, vel= tmp%vel, error=error)
+            particle_set, local_molecules, local_particles, para_env%group, vel= tmp%vel, error=error)
 
        CALL apply_thermostat_particles(thermostat_fast,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, para_env%group, vel= tmp%vel, error=error)
+            particle_set, local_molecules, local_particles, para_env%group, vel= tmp%vel, error=error)
     END IF
 
     ! Broadcast the new particle velocities and deallocate temporary
@@ -1008,7 +997,7 @@ CONTAINS
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-            particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+            particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic,&
             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
             error=error)
 
@@ -1017,7 +1006,7 @@ CONTAINS
             core_particle_set=core_particle_set, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-            particle_set, local_molecules, para_env%group ,error=error)
+            particle_set, local_molecules, local_particles, para_env%group ,error=error)
     END IF
 
     IF (simpar%constraint) CALL getold( gci, local_molecules, molecule_set,  &
@@ -1062,8 +1051,47 @@ CONTAINS
              shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error)
     END IF
 
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
+
+    ![NB] recreate pointers changed by creation of new subsys in qmmm_update_force_mixing_env
+    ![NB] ugly hack, which is why adaptivity isn't implemented in most other ensembles
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    CALL force_env_get(force_env=force_env, subsys=subsys, &
+       virial=virial, cell=cell,error=error)
+
+    CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
+       particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
+       molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+
+    nparticle_kind  = atomic_kinds%n_els
+    atomic_kind_set => atomic_kinds%els
+    molecule_kind_set => molecule_kinds%els
+
+    nparticle    = particles%n_els
+    particle_set => particles%els
+    molecule_set => molecules%els
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+       shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
+       shell_check_distance=shell_check_distance)
+
+    !  Allocate work storage for positions and velocities
+    IF(shell_present) THEN
+     CALL cp_subsys_get(subsys=subsys,shell_particles=shell_particles,&
+          core_particles=core_particles, error=error)
+     shell_particle_set =>  shell_particles%els
+     nshell = SIZE(shell_particles%els)
+
+     IF(shell_adiabatic) THEN
+        core_particle_set =>  core_particles%els
+     END IF
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     ! Update forces
-    CALL force_env_calc_energy_force(force_env,error=error)
+    ![NB] let nvt work with force mixing which does not have consistent energies and forces
+    CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.,error=error)
 
     ! Metadynamics
     CALL metadyn_integrator(force_env, tmp%vel, rand=rand, error=error)
@@ -1080,7 +1108,7 @@ CONTAINS
     ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+            particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic,&
             vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel, error=error)
 
        CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
@@ -1088,7 +1116,7 @@ CONTAINS
             core_vel= tmp%core_vel, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, para_env%group, vel= tmp%vel, error=error)
+            particle_set, local_molecules, local_particles, para_env%group, vel= tmp%vel, error=error)
     END IF
 
     ! Broadcast the new particle velocities and deallocate temporary
@@ -1256,13 +1284,13 @@ CONTAINS
     IF(simpar% ensemble /= npe_i_ensemble) THEN
       IF(shell_adiabatic) THEN
         CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
+             particle_set, local_molecules, local_particles, para_env%group,shell_adiabatic=shell_adiabatic,&
              shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
              error=error)
 
       ELSE
         CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-             particle_set, local_molecules, para_env%group ,error=error)
+             particle_set, local_molecules, local_particles, para_env%group ,error=error)
       END IF
     END IF
 
@@ -1368,8 +1396,6 @@ CONTAINS
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -1407,11 +1433,11 @@ CONTAINS
     IF(simpar% ensemble /= npe_i_ensemble) THEN
       IF (shell_adiabatic) THEN
         CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-             particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+             particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic,&
              vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel, error=error)
       ELSE
         CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-             particle_set, local_molecules, para_env%group, vel=tmp%vel, error=error)
+             particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel, error=error)
       END IF
     END IF
 
@@ -1542,7 +1568,7 @@ CONTAINS
     ! Let's check directly (providing some info) also for the last
     ! line of this frame..
     CALL parser_read_line(reftraj_env%info%traj_parser,1,at_end=my_end,error=error)
-    READ(reftraj_env%info%traj_parser%input_line,*) AA,particle_set(i)%r
+    READ(unit=reftraj_env%info%traj_parser%input_line,fmt=*) AA,particle_set(i)%r
     particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1),"angstrom",error=error)
     particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2),"angstrom",error=error)
     particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3),"angstrom",error=error)
@@ -1593,10 +1619,13 @@ CPSourceFileRef,&
 
     ![ADAPT] update input structure with new coordinates, make new labels
     CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
+    ! no pointers into force_env%subsys to update
 
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
-    CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
+    ![NB] let reftraj work with force mixing which does not have consistent energies and forces
+    CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,&
+         require_consistent_energy_force=.FALSE., error=error)
 
     ! Metadynamics
     CALL metadyn_integrator(force_env, error=error)
@@ -1815,8 +1844,6 @@ CPSourceFileRef,&
 
     ! Update forces (and stress)
     CALL force_env_set_cell(force_env, cell, error)
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2079,8 +2106,6 @@ CPSourceFileRef,&
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2273,12 +2298,12 @@ CPSourceFileRef,&
     IF(simpar% ensemble /= npe_f_ensemble) THEN
       IF(shell_adiabatic) THEN
         CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
+             particle_set, local_molecules, local_particles, para_env%group,shell_adiabatic=shell_adiabatic,&
              shell_particle_set=shell_particle_set,core_particle_set=core_particle_set,&
              error=error)
       ELSE
         CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-             particle_set, local_molecules, para_env%group ,error=error)
+             particle_set, local_molecules, local_particles, para_env%group ,error=error)
       END IF
     END IF
 
@@ -2379,8 +2404,6 @@ CPSourceFileRef,&
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
-    ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -2419,12 +2442,12 @@ CPSourceFileRef,&
     IF(simpar% ensemble /= npe_f_ensemble) THEN
       IF (shell_adiabatic) THEN
         CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
+             particle_set, local_molecules, local_particles, para_env%group,shell_adiabatic=shell_adiabatic,&
              vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel, error=error)
 
       ELSE
         CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-             particle_set, local_molecules, para_env%group, vel=tmp%vel, error=error)
+             particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel, error=error)
       END IF
     END IF
 
@@ -2603,9 +2626,6 @@ CPSourceFileRef,&
           particle_set_respa(iparticle)%r = particle_set(iparticle)%r
        END DO
 
-       ![ADAPT] update input structure with new coordinates, make new labels
-       ! Not checked, and probably won't work, with RESPA.
-       CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
        ! Update forces
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
 
@@ -2638,9 +2658,6 @@ CPSourceFileRef,&
 
     ! Multiple time step (second part)
     ! Compute forces for respa force_env
-    ![ADAPT] update input structure with new coordinates, make new labels
-    ! Not checked, and probably won't work, with RESPA.
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics

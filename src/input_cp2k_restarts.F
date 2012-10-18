@@ -9,6 +9,7 @@
 !>      01.2006 [created] Teodoro Laino
 ! *****************************************************************************
 MODULE input_cp2k_restarts
+  USE al_system_types,                 ONLY: al_system_type
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE averages_types,                  ONLY: average_quantities_type
@@ -44,9 +45,9 @@ MODULE input_cp2k_restarts
   USE gle_system_types,                ONLY: gle_type
   USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: &
-       do_band_collective, do_coord_cp2k, do_thermo_csvr, do_thermo_gle, &
-       do_thermo_no_communication, do_thermo_nose, ehrenfest, mol_dyn_run, &
-       mon_car_run, pint_run, use_rt_restart
+       do_band_collective, do_coord_cp2k, do_thermo_al, do_thermo_csvr, &
+       do_thermo_gle, do_thermo_no_communication, do_thermo_nose, ehrenfest, &
+       mol_dyn_run, mon_car_run, pint_run, use_rt_restart
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -740,6 +741,10 @@ CONTAINS
           ! Restart of CSVR Thermostat for Particles
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR",error=error)
           CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section, error)
+       ELSE IF (thermostat_part%type_of_thermostat == do_thermo_al) THEN
+          ! Restart of AD_LANGEVIN Thermostat for Particles
+          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%AD_LANGEVIN",error=error)
+          CALL dump_al_restart_info(thermostat_part%al, para_env, work_section, error)
        ELSE IF (thermostat_part%type_of_thermostat == do_thermo_gle) THEN
           ! Restart of GLE Thermostat for Particles
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%GLE",error=error)
@@ -1503,6 +1508,69 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE dump_csvr_restart_info
+
+! *****************************************************************************
+!> \brief Collect all information needed to dump the restart for AD_LANGEVIN
+!>      thermostat
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2007 created [tlaino] - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
+  SUBROUTINE dump_al_restart_info(al, para_env, al_section, error)
+    TYPE(al_system_type), POINTER            :: al
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: al_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_al_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dum
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: t_array, work
+    TYPE(section_vals_type), POINTER         :: work_section
+
+    failure = .FALSE.    
+
+    ! chi and mass
+    ALLOCATE(work(al%glob_num_al),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(t_array(al%loc_num_al),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! copy chi into temporary
+    DO i = 1,al%loc_num_al
+       t_array(i) = al%nvt(i)%chi
+    END DO
+    ! consolidate into work
+    CALL get_kin_energies (al%map_info,al%loc_num_al,&
+               al%glob_num_al,t_array,&
+               dum, para_env, array_kin=work, error=error)
+
+    ! If check passes then let's dump the info on the restart file
+    work_section => section_vals_get_subs_vals(al_section,"CHI",error=error)
+    CALL dump_csvr_energy_info(work, al%glob_num_al, work_section, error)
+
+    ! copy mass into temporary
+    DO i = 1,al%loc_num_al
+       t_array(i) = al%nvt(i)%mass
+    END DO
+    ! consolidate into work
+    CALL get_kin_energies (al%map_info,al%loc_num_al,&
+               al%glob_num_al,t_array,&
+               dum, para_env, array_kin=work, error=error)
+
+    ! If check passes then let's dump the info on the restart file
+    work_section => section_vals_get_subs_vals(al_section,"MASS",error=error)
+    CALL dump_csvr_energy_info(work, al%glob_num_al, work_section, error)
+
+    DEALLOCATE (work,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE dump_al_restart_info
 
 ! *****************************************************************************
 !> \brief Collect all information needed to dump the restart for GLE

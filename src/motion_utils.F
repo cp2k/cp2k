@@ -23,6 +23,8 @@ MODULE motion_utils
                                              dump_dcd,&
                                              dump_xmol
   USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -262,11 +264,14 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: id_label, id_wpc, my_act, my_ext, &
       my_form, my_middle, my_pk_name, my_pos, remark1, remark2, section_ref, &
       title, unit_str
-    INTEGER                                  :: handle, iskip, nat, &
+    INTEGER                                  :: handle, i, ii, iskip, nat, &
                                                 outformat, traj_unit
-    LOGICAL                                  :: failure, &
+    INTEGER, POINTER                         :: force_mixing_indices(:), &
+                                                force_mixing_labels(:)
+    LOGICAL                                  :: explicit, failure, &
                                                 my_extended_xmol_title, &
                                                 new_file
+    REAL(dp), ALLOCATABLE                    :: fml_array(:)
     REAL(KIND=dp)                            :: unit_conv
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -274,6 +279,8 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: my_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                force_mixing_restart_section
 
     CALL timeset(routineN,handle)
 
@@ -300,6 +307,9 @@ CONTAINS
     CASE("FORCES","SHELL_FORCES","CORE_FORCES")
        id_dcd = "FRC "
        id_wpc = "FORCE"
+    CASE("FORCE_MIXING_LABELS")
+       id_dcd = "FML "
+       id_wpc = "FORCE_MIXING_LABELS"
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
     END SELECT
@@ -315,9 +325,11 @@ CONTAINS
     nat=my_particles%n_els
 
     ! Gather units of measure for output (if available)
-    CALL section_vals_val_get(root_section,"MOTION%PRINT%"//TRIM(my_pk_name)//"%UNIT",&
-         c_val=unit_str,error=error)
-    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    IF (TRIM(my_pk_name) /= "FORCE_MIXING_LABELS") THEN
+       CALL section_vals_val_get(root_section,"MOTION%PRINT%"//TRIM(my_pk_name)//"%UNIT",&
+            c_val=unit_str,error=error)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    ENDIF
 
     ! Get the otuput format
     CALL get_output_format(root_section,"MOTION%PRINT%"//TRIM(my_pk_name),my_form,my_ext,error)
@@ -356,8 +368,32 @@ CONTAINS
        ELSE
           CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
        END IF
-       CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
-            unit_conv=unit_conv,error=error)
+       IF (TRIM(my_pk_name) == "FORCE_MIXING_LABELS") THEN
+          ALLOCATE(fml_array(3*SIZE(particle_set)))
+          fml_array = 0.0_dp
+          CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
+          force_mixing_restart_section => section_vals_get_subs_vals(force_env_section, &
+             "QMMM%FORCE_MIXING%RESTART_INFO",&
+             can_return_null=.TRUE., error=error)
+          IF (ASSOCIATED(force_mixing_restart_section)) THEN
+             CALL section_vals_get(force_mixing_restart_section,explicit=explicit,error=error)
+             IF (explicit) THEN
+                CALL section_vals_val_get(force_mixing_restart_section,"INDICES",i_vals=force_mixing_indices,error=error)
+                CALL section_vals_val_get(force_mixing_restart_section,"LABELS",i_vals=force_mixing_labels,error=error)
+                DO i=1, SIZE(force_mixing_indices)
+                  ii = force_mixing_indices(i)
+                  CPPostcondition(ii <= SIZE(particle_set),cp_failure_level,routineP,error,failure)
+                  fml_array((ii-1)*3+1:(ii-1)*3+3) = force_mixing_labels(i)
+                END DO
+             ENDIF
+          ENDIF
+          CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
+               array=fml_array,error=error)
+          DEALLOCATE(fml_array)
+       ELSE
+          CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
+               unit_conv=unit_conv,error=error)
+       ENDIF
     END IF
 
     CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),error=error)

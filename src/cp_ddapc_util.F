@@ -16,10 +16,9 @@ MODULE cp_ddapc_util
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                              dft_control_type
   USE cp_ddapc_forces,                 ONLY: evaluate_restraint_functional
-!NB routines to precompute sin(g . r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix()
   USE cp_ddapc_methods,                ONLY: build_A_matrix,&
                                              build_b_vector,&
-                                             build_der_A_matrix,&
+                                             build_der_A_matrix_rows,&
                                              build_der_b_vector,&
                                              cleanup_g_dot_rvec_sin_cos,&
                                              prep_g_dot_rvec_sin_cos
@@ -218,8 +217,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: type_of_density
-    INTEGER :: handle, handle2, handle3, i, ii, iparticle, ispin, iw, j, &
-      myid, n_rep_val, ndim, num_gauss, pmax, pmin, stat
+    INTEGER :: handle, handle2, handle3, i, ii, iparticle, iparticle0, ispin, &
+      iw, j, myid, n_rep_val, ndim, nparticles, num_gauss, pmax, pmin, stat
     LOGICAL                                  :: failure, need_f
     REAL(KIND=dp)                            :: c1, c3, ch_dens, gcut, pfact, &
                                                 rcmin, Vol
@@ -245,6 +244,7 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_rho_type), POINTER               :: rho
 
+!NB variables for doing build_der_A_matrix_rows in blocks
 !NB refactor math in inner loop - no need for dqv0
 !!NB refactor math in inner loop - new temporaries
 
@@ -425,43 +425,56 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           AmI_bv = MATMUL(cp_ddapc_env%AmI,bv)
 
-          !NB call routine to precompute sin(g.r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix()
+          !NB call routine to precompute sin(g.r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix_rows()
           CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
-          DO iparticle = 1, SIZE(particle_set)
-             dbv = 0.0_dp
-             CALL build_der_b_vector(dbv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                  particle_set, radii, rho_tot_g, gcut, iparticle, error);  dbv = dbv / Vol
-             IF (debug_this_module) THEN
-                CALL debug_der_b_vector(dbv, particle_set, radii, rho_tot_g,&
-                     gcut, iparticle, Vol, qs_env, error)
-                cp_ddapc_env => qs_env%cp_ddapc_env
-             END IF
-             CALL build_der_A_matrix(dAm, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                  particle_set, radii, rho_tot_g, gcut, iparticle, g_dot_rvec_sin, g_dot_rvec_cos, error);
+          !NB do build_der_A_matrix_rows in blocks, for more efficient use of DGEMM
+#define NPSET 100
+          DO iparticle0 = 1, SIZE(particle_set), NPSET
+             nparticles = MIN(NPSET, SIZE(particle_set)-iparticle0+1)
+             !NB each dAm is supposed to have one block of rows and one block of columns
+             !NB for derivatives with respect to each atom.  build_der_A_matrix_rows()
+             !NB just returns rows, since dAm is symmetric, and missing columns can be 
+             !NB reconstructed with a simple transpose, as below
+             CALL build_der_A_matrix_rows(dAm, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
+                  particle_set, radii, rho_tot_g, gcut, iparticle0, nparticles, g_dot_rvec_sin, g_dot_rvec_cos, error); 
              !NB no more reduction of dbv and dAm - instead we go through with each node's contribution
              !NB and reduce resulting charges/forces once, at the end.  Intermediate speedup can be
              !NB had by reducing dqv after the inner loop, and then other routines don't need to know
              !NB that contributions to dqv are distributed over the nodes.
              !NB also get rid of zeroing of dAm and division by Vol**2 - it's slow, and can be done
              !NB more quickly later, to a scalar or vector rather than a matrix
+             DO iparticle = iparticle0, iparticle0+nparticles-1
              IF (debug_this_module) THEN
                 CALL debug_der_A_matrix(dAm, particle_set, radii, rho_tot_g,&
                      gcut, iparticle, Vol, qs_env, error)
                 cp_ddapc_env => qs_env%cp_ddapc_env
              END IF
+                dbv = 0.0_dp
+                CALL build_der_b_vector(dbv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
+                     particle_set, radii, rho_tot_g, gcut, iparticle, error);  dbv = dbv / Vol
+                IF (debug_this_module) THEN
+                   CALL debug_der_b_vector(dbv, particle_set, radii, rho_tot_g,&
+                        gcut, iparticle, Vol, qs_env, error)
+                   cp_ddapc_env => qs_env%cp_ddapc_env 
+                END IF
              DO j = 1, 3
                 !NB dAmj is actually pretty sparse - one block of cols + one block of rows - use this here:
                 pmin = (iparticle-1)*SIZE(radii)+1
                 pmax = iparticle*SIZE(radii)
+                   !NB multiply by block of columns that aren't explicitly in dAm, but can be reconstructured
+                   !NB as transpose of relevant block of rows
                 IF (pmin > 1) THEN
-                  dAmj_qv(1:pmin-1)      = MATMUL(dAm(1:pmin-1,pmin:pmax,j),qv(pmin:pmax))
-                  cvT_AmI_dAmj(1:pmin-1) = MATMUL(dAm(1:pmin-1,pmin:pmax,j),cvT_AmI(pmin:pmax))
+                     dAmj_qv(:pmin-1)      = MATMUL(TRANSPOSE(dAm(pmin:pmax,:pmin-1,j)),qv(pmin:pmax))
+                     cvT_AmI_dAmj(:pmin-1) = MATMUL(TRANSPOSE(dAm(pmin:pmax,:pmin-1,j)),cvT_AmI(pmin:pmax))
                 ENDIF
+                   !NB multiply by block of rows that are explicitly in dAm
                 dAmj_qv(pmin:pmax)      = MATMUL(dAm(pmin:pmax,:,j),qv(:))
                 cvT_AmI_dAmj(pmin:pmax) = MATMUL(dAm(pmin:pmax,:,j),cvT_AmI(:))
+                   !NB multiply by block of columns that aren't explicitly in dAm, but can be reconstructured
+                   !NB as transpose of relevant block of rows
                 IF (pmax < SIZE(particle_set)*SIZE(radii)) THEN
-                  dAmj_qv(pmax+1:)      = MATMUL(dAm(pmax+1:,pmin:pmax,j),qv(pmin:pmax))
-                  cvT_AmI_dAmj(pmax+1:) = MATMUL(dAm(pmax+1:,pmin:pmax,j),cvT_AmI(pmin:pmax))
+                     dAmj_qv(pmax+1:)      = MATMUL(TRANSPOSE(dAm(pmin:pmax,pmax+1:,j)),qv(pmin:pmax))
+                     cvT_AmI_dAmj(pmax+1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax,pmax+1:,j)),cvT_AmI(pmin:pmax))
                 ENDIF
                 dAmj_qv      = dAmj_qv / (Vol*Vol)
                 cvT_AmI_dAmj = cvT_AmI_dAmj / (Vol*Vol)
@@ -470,8 +483,9 @@ CONTAINS
              END DO ! j
              !NB zero relevant parts of dAm here
              dAm((iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:,:) = 0.0_dp
-             dAm(:,(iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:) = 0.0_dp
+                !! dAm(:,(iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:) = 0.0_dp
           END DO ! iparticle
+          END DO ! iparticle0
           !NB final part of refactoring of math - one dgemm is faster than many dgemv
           CALL dgemm('N','N',SIZE(dqv,1),SIZE(dqv,2)*SIZE(dqv,3),SIZE(cp_ddapc_env%AmI,2),1.0_dp,&
                      cp_ddapc_env%AmI,SIZE(cp_ddapc_env%AmI,1),tv,SIZE(tv,1),0.0_dp,dqv,SIZE(dqv,1))

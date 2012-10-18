@@ -56,7 +56,8 @@ MODULE qs_initial_guess
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
@@ -135,7 +136,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
                                                 nelec_kind, sort_kind
     LOGICAL                                  :: do_std_diag, exist, failure, &
-                                                has_unit_metric, ofgpw, scp
+                                                has_unit_metric, &
+                                                natom_mismatch, ofgpw, scp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, maxocc, occ, &
@@ -224,7 +226,12 @@ CONTAINS
     ! in sync with read_mo_set_from_restart
     id_nr=0
     IF (density_guess == restart_guess) THEN
-        CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
+        ! only check existence on I/O node, otherwise if file exists there but
+        ! not on compute nodes, everything goes crazy even though only I/O
+        ! node actually reads the file
+        IF (qs_env%para_env%ionode) &
+           CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
+        CALL mp_bcast(exist, qs_env%para_env%source, qs_env%para_env%group)
         IF (.NOT.exist) THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "User requested to restart the wavefunction from the file named: "//&
@@ -274,44 +281,48 @@ CPSourceFileRef,&
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            scp=scp, scp_env=scp_env, error=error)
+            scp=scp, scp_env=scp_env, natom_mismatch=natom_mismatch, error=error)
 
-       DO ispin=1,nspin
-          IF (scf_control%level_shift /= 0.0_dp) THEN
+       IF (natom_mismatch) THEN
+         density_guess = atomic_guess
+       ELSE
+          DO ispin=1,nspin
+             IF (scf_control%level_shift /= 0.0_dp) THEN
+                CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                                mo_coeff=mo_coeff)
+                CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+             END IF
+
+             ! make all nmo vectors present orthonormal
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                             mo_coeff=mo_coeff)
-             CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-          END IF
+                  mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
-          ! make all nmo vectors present orthonormal
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-               mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+             IF(has_unit_metric) THEN
+               CALL make_basis_simple(mo_coeff,nmo,error=error)
+             ELSEIF(qs_env%dft_control%smear)THEN
+               CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
+                    matrix_s=s_sparse(1)%matrix,error=error)
+             ELSE
+               ! ortho so that one can restart for different positions (basis sets?)
+               CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
+             ENDIF
+            ! only alpha spin is kept for restricted
+             IF (dft_control%restricted) EXIT
+          ENDDO
+          IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
 
-          IF(has_unit_metric) THEN
-            CALL make_basis_simple(mo_coeff,nmo,error=error)
-          ELSEIF(qs_env%dft_control%smear)THEN
-            CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
-                 matrix_s=s_sparse(1)%matrix,error=error)
-          ELSE
-            ! ortho so that one can restart for different positions (basis sets?)
-            CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
-          ENDIF
-         ! only alpha spin is kept for restricted
-          IF (dft_control%restricted) EXIT
-       ENDDO
-       IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
+          CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear,error=error)
 
-       CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear,error=error)
+          DO ispin=1,nspin
 
-       DO ispin=1,nspin
+             IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
+                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+             ENDIF!fm->dbcsr
 
-          IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-             CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
-          ENDIF!fm->dbcsr
-
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv(ispin)%matrix,error=error)
-       ENDDO
+             CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                  p_rmpv(ispin)%matrix,error=error)
+          ENDDO
+       ENDIF ! natom_mismatch
 
     ELSE IF (density_guess == history_guess) THEN
        IF (not_read > 1) THEN
@@ -446,97 +457,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                        p_rmpv(ispin)%matrix,&
                                        error=error)
        END DO
-
-    ELSE IF (density_guess == atomic_guess) THEN
-
-       subsys_section => section_vals_get_subs_vals(input,"SUBSYS",error=error)
-       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",extension=".Log",&
-                                          error=error)
-       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
-           "Atomic guess: The first density matrix is obtained in terms of atomic orbitals",&
-           "              and electronic configurations assigned to each atomic kind"
-       END IF
-
-       DO ispin=1,nspin
-
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
-
-          CALL calculate_atomic_block_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, &
-                                         particle_set, atomic_kind_set, &
-                                         ispin, nspin, nelectron, output_unit, error)
-
-          ! The orbital transformation method (OT) requires not only an
-          ! initial density matrix, but also an initial wavefunction (MO set)
-          IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
-             ! get orbitals later
-          ELSE
-             IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
-             IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
-                  (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
-                  .OR. dft_control%do_admm .OR. scf_env%method==block_davidson_diag_method_nr) THEN
-                IF (dft_control%restricted.AND.(ispin == 2)) THEN
-                   CALL mo_set_restrict(mo_array,error=error)
-                ELSE
-                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                                   mo_coeff=mo_coeff,&
-                                   nmo=nmo, nao=nao, homo=homo)
-
-                   CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
-                   CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-
-                   CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
-                   ! multiply times PS
-                   IF (has_unit_metric) THEN
-                      CALL cp_fm_to_fm(mo_coeff,sv,error=error)
-                   ELSE
-                      ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-                      CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
-                   END IF
-                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
-
-                   CALL cp_fm_release(sv,error=error)
-                   ! and ortho the result
-                   IF (has_unit_metric) THEN
-                      CALL make_basis_simple(mo_coeff,nmo,error=error)
-                   ELSE
-                      CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
-                   END IF
-                END IF
-
-                CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                       smear=qs_env%scf_control%smear,&
-                                       error=error)
-
-                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
-                                      mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
-
-                CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                              p_rmpv(ispin)%matrix,&
-                                              error=error)
-             END IF
-          END IF
-
-       END DO
-
-       IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
-          ! We fit a function to the square root of the density
-          CALL qs_rho_update_rho(qs_env%rho,qs_env,error=error)
-          CPPostcondition(1==0,cp_failure_level,routineP,error,failure)
-!         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
-!         DO ispin=1,nspin
-!           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env,error=error)
-!           CALL cp_cfm_solve(overlap,mos,error)
-!           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-!                           mo_coeff=mo_coeff, nmo=nmo, nao=nao)
-!           CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-!         END DO
-!         CALL cp_fm_release(sv,error=error)
-       END IF
-
-       CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-                                         "PRINT%KINDS",error=error)
-
 
     ELSE IF (density_guess == sparse_guess) THEN
 
@@ -904,11 +824,107 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                        error=error)
        END DO
 
+    ELSE IF (density_guess == atomic_guess) THEN
+      ! do it in a separate if
+
     ELSE IF (density_guess == no_guess) THEN
+      ! do nothing
 
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
-                         "An invalid keyword for the initial density guess was specified")
+             "An invalid keyword for the initial density guess was specified")
+    END IF
+
+    IF (density_guess == atomic_guess) THEN
+
+       subsys_section => section_vals_get_subs_vals(input,"SUBSYS",error=error)
+       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",extension=".Log",&
+                                          error=error)
+       IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
+           "Atomic guess: The first density matrix is obtained in terms of atomic orbitals",&
+           "              and electronic configurations assigned to each atomic kind"
+       END IF
+
+       DO ispin=1,nspin
+
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
+
+          CALL calculate_atomic_block_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, &
+                                         particle_set, atomic_kind_set, &
+                                         ispin, nspin, nelectron, output_unit, error)
+
+          ! The orbital transformation method (OT) requires not only an
+          ! initial density matrix, but also an initial wavefunction (MO set)
+          IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
+             ! get orbitals later
+          ELSE
+             IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
+             IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
+                  (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
+                  .OR. dft_control%do_admm .OR. scf_env%method==block_davidson_diag_method_nr) THEN
+                IF (dft_control%restricted.AND.(ispin == 2)) THEN
+                   CALL mo_set_restrict(mo_array,error=error)
+                ELSE
+                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                                   mo_coeff=mo_coeff,&
+                                   nmo=nmo, nao=nao, homo=homo)
+
+                   CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
+                   CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+
+                   CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+                   ! multiply times PS
+                   IF (has_unit_metric) THEN
+                      CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+                   ELSE
+                      ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+                      CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                   END IF
+                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
+
+                   CALL cp_fm_release(sv,error=error)
+                   ! and ortho the result
+                   IF (has_unit_metric) THEN
+                      CALL make_basis_simple(mo_coeff,nmo,error=error)
+                   ELSE
+                      CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+                   END IF
+                END IF
+
+                CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                       smear=qs_env%scf_control%smear,&
+                                       error=error)
+
+                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                      mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+
+                CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                              p_rmpv(ispin)%matrix,&
+                                              error=error)
+             END IF
+          END IF
+
+       END DO
+
+       IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
+          ! We fit a function to the square root of the density
+          CALL qs_rho_update_rho(qs_env%rho,qs_env,error=error)
+          CPPostcondition(1==0,cp_failure_level,routineP,error,failure)
+!         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+!         DO ispin=1,nspin
+!           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env,error=error)
+!           CALL cp_cfm_solve(overlap,mos,error)
+!           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+!                           mo_coeff=mo_coeff, nmo=nmo, nao=nao)
+!           CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+!         END DO
+!         CALL cp_fm_release(sv,error=error)
+       END IF
+
+       CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+                                         "PRINT%KINDS",error=error)
+
     END IF
 
     CALL timestop(handle)

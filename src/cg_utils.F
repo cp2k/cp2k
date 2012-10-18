@@ -72,8 +72,8 @@ CONTAINS
     CASE(default_minimization_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
-          CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, output_unit=output_unit,&
-               error=error)
+          CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=gopt_param%cg_ls%grad_only, &
+               output_unit=output_unit, error=error)
        CASE(ls_fit)
           CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
@@ -150,7 +150,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
-    LOGICAL                                  :: failure, my_use_only_grad
+    LOGICAL                                  :: failure, my_use_only_grad, &
+                                                save_consistent_energy_force
     REAL(KIND=dp) :: a, b, c, dx, dx_min, dx_min_save, dx_thrs, norm_grad1, &
       norm_grad2, norm_ls_vec, opt_energy2, x_grad_zero
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient2, ls_norm
@@ -170,8 +171,12 @@ CONTAINS
        dx_thrs = gopt_param%cg_ls%max_step
 
        x0 = x0 + dx * ls_norm
+       ![NB] don't need consistent energies and forces if using only gradient
+       save_consistent_energy_force = gopt_env%require_consistent_energy_force
+       gopt_env%require_consistent_energy_force = .NOT. my_use_only_grad
        CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2,master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env,error=error)
+            para_env=gopt_env%force_env%para_env, error=error)
+       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
        norm_grad1 = -DOT_PRODUCT(        g,ls_norm)
        norm_grad2 =  DOT_PRODUCT(gradient2,ls_norm)

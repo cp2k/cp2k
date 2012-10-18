@@ -199,6 +199,15 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"force_mixing_labels",&
+            description="controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels",&
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the force mixing labels.", error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"forces",&
             description="controls the output of the forces",&
             print_level=high_print_level, common_iter_levels=1,&
@@ -1233,12 +1242,21 @@ CONTAINS
             description="Provides parameters to tune the line search for the two point based line search.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
+
        CALL keyword_create(keyword, name="MAX_ALLOWED_STEP",&
             description="Max allowed value for the line search step.",&
             usage="MAX_ALLOWED_STEP {real}",unit_str="internal_cp2k",&
             default_r_val=0.25_dp,error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LINMIN_GRAD_ONLY",&
+            description="Use only the gradient, not the energy for line minimizations (e.g. in conjugate gradients).",&
+            usage="LINMIN_GRAD_ONLY T",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,subsubsection,error=error)
        CALL section_release(subsubsection,error=error)
 

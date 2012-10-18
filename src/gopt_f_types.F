@@ -71,6 +71,7 @@ MODULE gopt_f_types
      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
      TYPE(cell_opt_env_type), POINTER         :: cell_env
      REAL(KIND=dp),DIMENSION(3,3)                      :: h_ref
+     LOGICAL                                  :: require_consistent_energy_force
   END TYPE gopt_f_type
 
 CONTAINS
@@ -123,6 +124,7 @@ CONTAINS
        gopt_env%globenv        => globenv
        gopt_env%eval_opt_geo=.TRUE.
        IF (PRESENT(eval_opt_geo)) gopt_env%eval_opt_geo = eval_opt_geo
+       gopt_env%require_consistent_energy_force=.TRUE.
 
        gopt_env%type_id        = gopt_param%type_id
        SELECT CASE(gopt_env%type_id)

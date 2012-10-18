@@ -128,8 +128,9 @@
       CASE (default_minimization_method_id)
         ! Geometry Minimization
         CALL force_env_calc_energy_force(gopt_env%force_env,&
-                                         calc_force=PRESENT(gradient),&
-                                         error=error)
+	     calc_force=PRESENT(gradient),&
+	     require_consistent_energy_force=gopt_env%require_consistent_energy_force,&
+	     error=error)
         ! Possibly take the potential energy
         IF (PRESENT(f)) THEN
           CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
@@ -197,8 +198,9 @@ CPSourceFileRef,&
           CALL write_cell(cell,gopt_env%geo_section,error=error)
           CALL virial_create(virial_avg, error)
           CALL force_env_calc_energy_force(gopt_env%force_env,&
-                                           calc_force=PRESENT(gradient),&
-                                           error=error)
+	       calc_force=PRESENT(gradient),&
+	       require_consistent_energy_force=gopt_env%require_consistent_energy_force,&
+	       error=error)
 
           ! Possibly take the potential energy
           CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
@@ -358,8 +360,9 @@ CPSourceFileRef,&
 
        ! Shell-core optimization
        CALL force_env_calc_energy_force(gopt_env%force_env,&
-                                        calc_force=PRESENT(gradient),&
-                                        error=error)
+	    calc_force=PRESENT(gradient),&
+	    require_consistent_energy_force=gopt_env%require_consistent_energy_force,&
+	    error=error)
 
        ! Possibly take the potential energy
        IF (PRESENT(f)) THEN

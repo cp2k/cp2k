@@ -8,6 +8,8 @@
 !> \author teo [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
 MODULE thermostat_methods
+  USE al_system_dynamics,              ONLY: al_particles
+  USE al_system_init,                  ONLY: initialize_al_part
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -41,10 +43,10 @@ MODULE thermostat_methods
                                              initialize_gle_part
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_region_global, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-       do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
-       nvt_ensemble
+       do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
+       do_thermo_nose, do_thermo_same_as_part, npe_f_ensemble, &
+       npe_i_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_adiabatic_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -254,6 +256,13 @@ CPSourceFileRef,&
                   molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
                   gci=gci, error=error)
+          ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_al) THEN
+             ! Initialize or possibly restart Ad-Langevin thermostat on Particles
+             work_section => section_vals_get_subs_vals(thermo_part_section,"AD_LANGEVIN",error=error)
+             CALL initialize_al_part(thermostats%thermostat_info_part,simpar,local_molecules,&
+                  molecules_new%els, molecule_kinds_new%els, para_env, &
+                  thermostats%thermostat_part%al, al_section=work_section,&
+                  gci=gci, error=error)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_gle) THEN
              ! Initialize or possibly restart GLE thermostat on Particles
              work_section => section_vals_get_subs_vals(thermo_part_section,"GLE",error=error)
@@ -437,8 +446,11 @@ CPSourceFileRef,&
     CASE(do_thermo_csvr)
        work_section => section_vals_get_subs_vals(section,"CSVR",error=error)
        CALL section_vals_val_set(work_section,"TIMECON",r_val=thermostat%csvr%tau_csvr,error=error)
+    CASE(do_thermo_al)
+       work_section => section_vals_get_subs_vals(section,"AD_LANGEVIN",error=error)
+       CALL section_vals_val_set(work_section,"TIMECON_NH",r_val=thermostat%al%tau_nh,error=error)
+       CALL section_vals_val_set(work_section,"TIMECON_LANGEVIN",r_val=thermostat%al%tau_langevin,error=error)
     END SELECT
-
   END SUBROUTINE update_thermo_baro_section
 
 ! *****************************************************************************
@@ -494,6 +506,14 @@ CPSourceFileRef,&
                ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',tmp
           WRITE ( iw, '( A,T69,F12.6 )' ) &
                ' THERMOSTAT| Initial Kinetic Energy ',kin_energy
+       CASE(do_thermo_al)
+          WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Adaptive Langevin'
+          tmp = cp_unit_from_cp2k(thermostat%al%tau_nh,"fs",error=error)*0.5_dp*simpar%dt
+          WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
+               ' THERMOSTAT| AD_LANGEVIN NH time constant [', 'fs' ,'] ',tmp
+          tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin,"fs",error=error)*0.5_dp*simpar%dt
+          WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
+               ' THERMOSTAT| AD_LANGEVIN Langevin time constant [', 'fs' ,'] ',tmp
        END SELECT
        WRITE ( iw, '( A,/ )' ) ' THERMOSTAT| End of Thermostat Info for '//TRIM(label)
     END IF
@@ -542,14 +562,15 @@ CPSourceFileRef,&
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE apply_thermostat_particles(thermostat, molecule_kind_set, molecule_set,&
-       particle_set, local_molecules, group, shell_adiabatic, shell_particle_set,&
+       particle_set, local_molecules, local_particles, group, shell_adiabatic, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
 
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
     INTEGER, INTENT(IN)                      :: group
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
@@ -577,6 +598,11 @@ CPSourceFileRef,&
           CALL csvr_particles(thermostat%csvr,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
                core_particle_set, vel, shell_vel, core_vel, error)
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN  
+          ! Apply AD_LANGEVIN Thermostat
+          CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,error,failure)
+          CALL al_particles(thermostat%al,molecule_kind_set,molecule_set,&
+               particle_set,local_molecules, local_particles, group, vel, error)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
          ! Apply GLE Thermostat
           CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,error,failure)

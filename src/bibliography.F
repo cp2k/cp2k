@@ -57,7 +57,7 @@ MODULE bibliography
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
-             Marques2012
+             Marques2012, Jones2011, Bernstein2009, Bernstein2012
 
 CONTAINS
 
@@ -1913,6 +1913,71 @@ CONTAINS
          "UT WOS:000306771900024",&
          "ER"),&
          DOI="10.1016/j.cpc.2012.05.007")
+
+    CALL add_reference(key=Jones2011, ISI_record=s2a(&
+         "AU Jones, Andrew",&
+         "   Leimkuhler, Ben",&
+         "TI Adaptive stochastic methods for sampling driven molecular systems",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "VL 135",&
+         "IS 8",&
+         "AR 084125",&
+         "DI 10.1063/1.3626941",&
+         "PD AUG 28 2011",&
+         "PY 2011",&
+         "TC 0",&
+         "SN 0021-9606",&
+         "UT WOS:000294484700031",&
+         "ER"),&
+         DOI="10.1063/1.3626941")
+
+     CALL add_reference(key=Bernstein2012, ISI_record=s2a(&
+         "AU Bernstein, Noam",&
+         "   Varnai, Csilla",&
+         "   Solt, Ivan",&
+         "   Winfield, Steven A",&
+         "   Payne, Mike C",&
+         "   Simon, Istvan",&
+         "   Fuxreiter, Monika",&
+         "   Csanyi, Gabor",&
+         "TI QM/MM simulation of liquid water with an adaptive quantum region",&
+         "SO PHYSICAL CHEMISTRY CHEMICAL PHYSICS",&
+         "VL 14",&
+         "IS 2",&
+         "BP 646",&
+         "EP 656",&
+         "DI 10.1039/c1cp22600b",&
+         "PD 2012",&
+         "PY 2012",&
+         "TC 0",&
+         "ZB 0",&
+         "Z8 0",&
+         "Z9 0",&
+         "SN 1463-9076",&
+         "UT WOS:000298552800027",&
+         "ER"),&
+         DOI="10.1039/c1cp22600b")
+
+     CALL add_reference(key=Bernstein2009, ISI_record=s2a(&
+         "AU Bernstein, N",&
+         "   Kermode, J R",&
+         "   Csanyi, G",&
+         "TI Hybrid atomistic simulation methods for materials systems",&
+         "SO REPORTS ON PROGRESS IN PHYSICS",&
+         "VL 72",&
+         "IS 2",&
+         "AR 026501",&
+         "DI 10.1088/0034-4885/72/2/026501",&
+         "PD FEB 2009",&
+         "PY 2009",&
+         "TC 25",&
+         "ZB 0",&
+         "Z8 0",&
+         "Z9 25",&
+         "SN 0034-4885",&
+         "UT WOS:000262785900001",&
+         "ER"),&
+         DOI="10.1088/0034-4885/72/2/026501")
 
   END SUBROUTINE add_all_references
 

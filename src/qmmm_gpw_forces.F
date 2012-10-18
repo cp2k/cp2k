@@ -743,18 +743,14 @@ CONTAINS
       myind, npts(3), stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
-    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
-      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
-      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
-      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
-      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
-      dcd, dda, ddb, ddc, ddd, dr1, dr1c, dr1i, dr2, dr2c, dr2i, dr3, dr3c, &
-      dr3i, dvol, e1, e2, e3, f1, f2, f3, fac, ft1, ft2, ft3, g1, g2, g3, h1, &
-      h2, h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, r3, rt1, rt2, rt3, rv1, &
-      rv2, rv3, s1, s1d, s1o, s2, s2d, s2o, s3, s3d, s3o
-    REAL(KIND=dp) :: s4, s4d, s4o, sph_chrg_factor, t1, t1d, t1o, t2, t2d, &
-      t2o, t3, t3d, t3o, t4, t4d, t4o, u1, u2, u3, v1, v1d, v1o, v2, v2d, &
-      v2o, v3, v3d, v3o, v4, v4d, v4o, xd1, xd2, xd3, xs1, xs2, xs3
+    REAL(KIND=dp) :: a1, a2, a3, abc_X(4,4), abc_X_Y(4), b1, b2, b3, c1, c2, &
+      c3, d1, d2, d3, dr1, dr1c, dr1i, dr2, dr2c, dr2i, dr3, dr3c, dr3i, &
+      dvol, e1, e2, e3, f1, f2, f3, fac, ft1, ft2, ft3, g1, g2, g3, h1, h2, &
+      h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, r3, rt1, rt2, rt3, rv1, rv2, &
+      rv3, s1, s1d, s1o, s2, s2d, s2o, s3, s3d, s3o, s4, s4d, s4o, &
+      sph_chrg_factor, t1, t1d, t1o, t2, t2d, t2o, t3, t3d, t3o, t4, t4d, &
+      t4o, u1, u2, u3, v1, v1d, v1o, v2, v2d, v2o, v3, v3d, v3o, v4, v4d, &
+      v4o, xd1, xd2, xd3, xs1, xs2, xs3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra, val, vec
@@ -815,95 +811,73 @@ CONTAINS
              my_j = bo(1,2)-gbo(1,2)
              xs2 = REAL(my_j,dp)*dr2c
              rv3 = rt3 - xs3
-             DO j =  bo(1,2), bo(2,2)
-                my_i= bo(1,1)-gbo(1,1)
-                xs1 = REAL(my_i,dp)*dr1c
-                rv2 = rt2 - xs2
-                DO i =  bo(1,1), bo(2,1)
-                   rv1 = rt1 - xs1
-                   vec = (/rv1,rv2,rv3/)
-                   ivec = FLOOR(vec/pw%pw_grid%dr)
-                   xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
-                   xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
-                   xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
+             vec(3) = rv3
+             ivec(3) = FLOOR(vec(3)/pw%pw_grid%dr(3))
                    ik1 = MODULO(ivec(3)-1,npts(3))+1
                    ik2 = MODULO(ivec(3)  ,npts(3))+1
                    ik3 = MODULO(ivec(3)+1,npts(3))+1
                    ik4 = MODULO(ivec(3)+2,npts(3))+1
+             xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
+             p1  = 3.0_dp + xd3
+             p2  = p1*p1
+             p3  = p2*p1
+             q1  = 2.0_dp + xd3
+             q2  = q1*q1
+             q3  = q2*q1
+             r1  = 1.0_dp + xd3
+             r2  = r1*r1
+             r3  = r2*r1
+             u1  = xd3
+             u2  = u1*u1
+             u3  = u2*u1
+             v1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
+             v2o = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
+             v3o =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
+             v4o =   1.0_dp/6.0_dp*u3
+             v1d =  -8.0_dp + 4.0_dp*p1 - 0.5_dp*p2
+             v2d =  10.0_dp - 8.0_dp*q1 + 1.5_dp*q2
+             v3d =  -2.0_dp + 4.0_dp*r1 - 1.5_dp*r2
+             v4d =   0.5_dp*u2
+             DO j =  bo(1,2), bo(2,2)
+                my_i= bo(1,1)-gbo(1,1)
+                xs1 = REAL(my_i,dp)*dr1c
+                rv2 = rt2 - xs2
+                vec(2) = rv2
+                ivec(2) = FLOOR(vec(2)/pw%pw_grid%dr(2))
                    ij1 = MODULO(ivec(2)-1,npts(2))+1
                    ij2 = MODULO(ivec(2)  ,npts(2))+1
                    ij3 = MODULO(ivec(2)+1,npts(2))+1
                    ij4 = MODULO(ivec(2)+2,npts(2))+1
+                xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
+                e1  = 3.0_dp + xd2
+                e2  = e1*e1
+                e3  = e2*e1
+                f1  = 2.0_dp + xd2
+                f2  = f1*f1
+                f3  = f2*f1
+                g1  = 1.0_dp + xd2
+                g2  = g1*g1
+                g3  = g2*g1
+                h1  = xd2
+                h2  = h1*h1
+                h3  = h2*h1
+                s1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
+                s2o = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
+                s3o =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
+                s4o =   1.0_dp/6.0_dp*h3
+                s1d =  -8.0_dp + 4.0_dp*e1 - 0.5_dp*e2
+                s2d =  10.0_dp - 8.0_dp*f1 + 1.5_dp*f2
+                s3d =  -2.0_dp + 4.0_dp*g1 - 1.5_dp*g2
+                s4d =   0.5_dp*h2
+                DO i =  bo(1,1), bo(2,1)
+                   rv1 = rt1 - xs1
+                   vec(1) = rv1
+                   ivec(1) = FLOOR(vec(1)/pw%pw_grid%dr(1))
                    ii1 = MODULO(ivec(1)-1,npts(1))+1
                    ii2 = MODULO(ivec(1)  ,npts(1))+1
                    ii3 = MODULO(ivec(1)+1,npts(1))+1
                    ii4 = MODULO(ivec(1)+2,npts(1))+1
-
-                   aaa   = grid2(ii1,ij1,ik1)
-                   baa   = grid2(ii2,ij1,ik1)
-                   caa   = grid2(ii3,ij1,ik1)
-                   daa   = grid2(ii4,ij1,ik1)
-                   aba   = grid2(ii1,ij2,ik1)
-                   bba   = grid2(ii2,ij2,ik1)
-                   cba   = grid2(ii3,ij2,ik1)
-                   dba   = grid2(ii4,ij2,ik1)
-                   aca   = grid2(ii1,ij3,ik1)
-                   bca   = grid2(ii2,ij3,ik1)
-                   cca   = grid2(ii3,ij3,ik1)
-                   dca   = grid2(ii4,ij3,ik1)
-                   ada   = grid2(ii1,ij4,ik1)
-                   bda   = grid2(ii2,ij4,ik1)
-                   cda   = grid2(ii3,ij4,ik1)
-                   dda   = grid2(ii4,ij4,ik1)
-                   aab   = grid2(ii1,ij1,ik2)
-                   bab   = grid2(ii2,ij1,ik2)
-                   cab   = grid2(ii3,ij1,ik2)
-                   dab   = grid2(ii4,ij1,ik2)
-                   abb   = grid2(ii1,ij2,ik2)
-                   bbb   = grid2(ii2,ij2,ik2)
-                   cbb   = grid2(ii3,ij2,ik2)
-                   dbb   = grid2(ii4,ij2,ik2)
-                   acb   = grid2(ii1,ij3,ik2)
-                   bcb   = grid2(ii2,ij3,ik2)
-                   ccb   = grid2(ii3,ij3,ik2)
-                   dcb   = grid2(ii4,ij3,ik2)
-                   adb   = grid2(ii1,ij4,ik2)
-                   bdb   = grid2(ii2,ij4,ik2)
-                   cdb   = grid2(ii3,ij4,ik2)
-                   ddb   = grid2(ii4,ij4,ik2)
-                   aac   = grid2(ii1,ij1,ik3)
-                   bac   = grid2(ii2,ij1,ik3)
-                   cac   = grid2(ii3,ij1,ik3)
-                   dac   = grid2(ii4,ij1,ik3)
-                   abc   = grid2(ii1,ij2,ik3)
-                   bbc   = grid2(ii2,ij2,ik3)
-                   cbc   = grid2(ii3,ij2,ik3)
-                   dbc   = grid2(ii4,ij2,ik3)
-                   acc   = grid2(ii1,ij3,ik3)
-                   bcc   = grid2(ii2,ij3,ik3)
-                   ccc   = grid2(ii3,ij3,ik3)
-                   dcc   = grid2(ii4,ij3,ik3)
-                   adc   = grid2(ii1,ij4,ik3)
-                   bdc   = grid2(ii2,ij4,ik3)
-                   cdc   = grid2(ii3,ij4,ik3)
-                   ddc   = grid2(ii4,ij4,ik3)
-                   aad   = grid2(ii1,ij1,ik4)
-                   bad   = grid2(ii2,ij1,ik4)
-                   cad   = grid2(ii3,ij1,ik4)
-                   dad   = grid2(ii4,ij1,ik4)
-                   abd   = grid2(ii1,ij2,ik4)
-                   bbd   = grid2(ii2,ij2,ik4)
-                   cbd   = grid2(ii3,ij2,ik4)
-                   dbd   = grid2(ii4,ij2,ik4)
-                   acd   = grid2(ii1,ij3,ik4)
-                   bcd   = grid2(ii2,ij3,ik4)
-                   ccd   = grid2(ii3,ij3,ik4)
-                   dcd   = grid2(ii4,ij3,ik4)
-                   add   = grid2(ii1,ij4,ik4)
-                   bdd   = grid2(ii2,ij4,ik4)
-                   cdd   = grid2(ii3,ij4,ik4)
-                   ddd   = grid2(ii4,ij4,ik4)
-
+                   xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
                    a1  = 3.0_dp + xd1
                    a2  = a1*a1
                    a3  = a2*a1
@@ -916,56 +890,69 @@ CONTAINS
                    d1  = xd1
                    d2  = d1*d1
                    d3  = d2*d1
-                   e1  = 3.0_dp + xd2
-                   e2  = e1*e1
-                   e3  = e2*e1
-                   f1  = 2.0_dp + xd2
-                   f2  = f1*f1
-                   f3  = f2*f1
-                   g1  = 1.0_dp + xd2
-                   g2  = g1*g1
-                   g3  = g2*g1
-                   h1  = xd2
-                   h2  = h1*h1
-                   h3  = h2*h1
-                   p1  = 3.0_dp + xd3
-                   p2  = p1*p1
-                   p3  = p2*p1
-                   q1  = 2.0_dp + xd3
-                   q2  = q1*q1
-                   q3  = q2*q1
-                   r1  = 1.0_dp + xd3
-                   r2  = r1*r1
-                   r3  = r2*r1
-                   u1  = xd3
-                   u2  = u1*u1
-                   u3  = u2*u1
-
                    t1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
                    t2o = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
                    t3o =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
                    t4o =   1.0_dp/6.0_dp*d3
-                   s1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
-                   s2o = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
-                   s3o =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
-                   s4o =   1.0_dp/6.0_dp*h3
-                   v1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
-                   v2o = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
-                   v3o =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
-                   v4o =   1.0_dp/6.0_dp*u3
-
                    t1d =  -8.0_dp + 4.0_dp*a1 - 0.5_dp*a2
                    t2d =  10.0_dp - 8.0_dp*b1 + 1.5_dp*b2
                    t3d =  -2.0_dp + 4.0_dp*c1 - 1.5_dp*c2
                    t4d =   0.5_dp*d2
-                   s1d =  -8.0_dp + 4.0_dp*e1 - 0.5_dp*e2
-                   s2d =  10.0_dp - 8.0_dp*f1 + 1.5_dp*f2
-                   s3d =  -2.0_dp + 4.0_dp*g1 - 1.5_dp*g2
-                   s4d =   0.5_dp*h2
-                   v1d =  -8.0_dp + 4.0_dp*p1 - 0.5_dp*p2
-                   v2d =  10.0_dp - 8.0_dp*q1 + 1.5_dp*q2
-                   v3d =  -2.0_dp + 4.0_dp*r1 - 1.5_dp*r2
-                   v4d =   0.5_dp*u2
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! # v then t then s
+!
+! for ii in 1 2 3; do
+! if [[ $ii == 1 ]]; then ld=t; fi
+! if [[ $ii == 2 ]]; then ld=s; fi
+! if [[ $ii == 3 ]]; then ld=v; fi
+! #
+! for l in t s v; do
+! for i in 1 2 3 4; do
+! if [[ $ld == $l ]]; then
+!  echo "$l$i = $l${i}d*dr${ii}i"
+! else
+!  echo "$l$i = $l${i}o"
+! fi
+! done
+! done
+! #
+! for i in 1 2 3 4; do
+! for j in 1 2 3 4; do
+! echo -n "abc_X($i,$j) = "
+! for k in 1 2 3 4; do
+! if [ $k == 4 ]; then
+! echo "grid2(ii$i,ij$j,ik$k)*v$k"
+! else
+! echo -n "grid2(ii$i,ij$j,ik$k)*v$k + "
+! fi
+! done
+! done
+! done
+! echo ""
+! for j in 1 2 3 4; do
+! echo -n "abc_X_Y($j) = "
+! for k in 1 2 3 4; do
+! if [ $k == 4 ]; then
+! echo "abc_X($k,$j)*t$k"
+! else
+! echo -n "abc_X($k,$j)*t$k + "
+! fi
+! done
+! done
+! echo ""
+! echo -n "val($ii) = "
+! for k in 1 2 3 4; do
+! if [ $k == 4 ]; then
+! echo "abc_X_Y($k)*s$k"
+! else
+! echo -n "abc_X_Y($k)*s$k + "
+! fi
+! done
+! echo ""
+! done
 
                    t1     = t1d*dr1i
                    t2     = t2d*dr1i
@@ -979,22 +966,29 @@ CONTAINS
                    v2     = v2o
                    v3     = v3o
                    v4     = v4o
-                   val(1) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                             ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                             ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                             ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                            (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                             ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                             ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                             ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                            (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                             ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                             ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                             ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                            (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                             ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                             ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                             ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+                   abc_X(1,1) = grid2(ii1,ij1,ik1)*v1 + grid2(ii1,ij1,ik2)*v2 + grid2(ii1,ij1,ik3)*v3 + grid2(ii1,ij1,ik4)*v4
+                   abc_X(1,2) = grid2(ii1,ij2,ik1)*v1 + grid2(ii1,ij2,ik2)*v2 + grid2(ii1,ij2,ik3)*v3 + grid2(ii1,ij2,ik4)*v4
+                   abc_X(1,3) = grid2(ii1,ij3,ik1)*v1 + grid2(ii1,ij3,ik2)*v2 + grid2(ii1,ij3,ik3)*v3 + grid2(ii1,ij3,ik4)*v4
+                   abc_X(1,4) = grid2(ii1,ij4,ik1)*v1 + grid2(ii1,ij4,ik2)*v2 + grid2(ii1,ij4,ik3)*v3 + grid2(ii1,ij4,ik4)*v4
+                   abc_X(2,1) = grid2(ii2,ij1,ik1)*v1 + grid2(ii2,ij1,ik2)*v2 + grid2(ii2,ij1,ik3)*v3 + grid2(ii2,ij1,ik4)*v4
+                   abc_X(2,2) = grid2(ii2,ij2,ik1)*v1 + grid2(ii2,ij2,ik2)*v2 + grid2(ii2,ij2,ik3)*v3 + grid2(ii2,ij2,ik4)*v4
+                   abc_X(2,3) = grid2(ii2,ij3,ik1)*v1 + grid2(ii2,ij3,ik2)*v2 + grid2(ii2,ij3,ik3)*v3 + grid2(ii2,ij3,ik4)*v4
+                   abc_X(2,4) = grid2(ii2,ij4,ik1)*v1 + grid2(ii2,ij4,ik2)*v2 + grid2(ii2,ij4,ik3)*v3 + grid2(ii2,ij4,ik4)*v4
+                   abc_X(3,1) = grid2(ii3,ij1,ik1)*v1 + grid2(ii3,ij1,ik2)*v2 + grid2(ii3,ij1,ik3)*v3 + grid2(ii3,ij1,ik4)*v4
+                   abc_X(3,2) = grid2(ii3,ij2,ik1)*v1 + grid2(ii3,ij2,ik2)*v2 + grid2(ii3,ij2,ik3)*v3 + grid2(ii3,ij2,ik4)*v4
+                   abc_X(3,3) = grid2(ii3,ij3,ik1)*v1 + grid2(ii3,ij3,ik2)*v2 + grid2(ii3,ij3,ik3)*v3 + grid2(ii3,ij3,ik4)*v4
+                   abc_X(3,4) = grid2(ii3,ij4,ik1)*v1 + grid2(ii3,ij4,ik2)*v2 + grid2(ii3,ij4,ik3)*v3 + grid2(ii3,ij4,ik4)*v4
+                   abc_X(4,1) = grid2(ii4,ij1,ik1)*v1 + grid2(ii4,ij1,ik2)*v2 + grid2(ii4,ij1,ik3)*v3 + grid2(ii4,ij1,ik4)*v4
+                   abc_X(4,2) = grid2(ii4,ij2,ik1)*v1 + grid2(ii4,ij2,ik2)*v2 + grid2(ii4,ij2,ik3)*v3 + grid2(ii4,ij2,ik4)*v4
+                   abc_X(4,3) = grid2(ii4,ij3,ik1)*v1 + grid2(ii4,ij3,ik2)*v2 + grid2(ii4,ij3,ik3)*v3 + grid2(ii4,ij3,ik4)*v4
+                   abc_X(4,4) = grid2(ii4,ij4,ik1)*v1 + grid2(ii4,ij4,ik2)*v2 + grid2(ii4,ij4,ik3)*v3 + grid2(ii4,ij4,ik4)*v4
+
+                   abc_X_Y(1) = abc_X(1,1)*t1 + abc_X(2,1)*t2 + abc_X(3,1)*t3 + abc_X(4,1)*t4
+                   abc_X_Y(2) = abc_X(1,2)*t1 + abc_X(2,2)*t2 + abc_X(3,2)*t3 + abc_X(4,2)*t4
+                   abc_X_Y(3) = abc_X(1,3)*t1 + abc_X(2,3)*t2 + abc_X(3,3)*t3 + abc_X(4,3)*t4
+                   abc_X_Y(4) = abc_X(1,4)*t1 + abc_X(2,4)*t2 + abc_X(3,4)*t3 + abc_X(4,4)*t4
+
+                   val(1) = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
 
                    t1     = t1o
                    t2     = t2o
@@ -1004,26 +998,33 @@ CONTAINS
                    s2     = s2d*dr2i
                    s3     = s3d*dr2i
                    s4     = s4d*dr2i
-                   v1     = v1o
-                   v2     = v2o
-                   v3     = v3o
-                   v4     = v4o
-                   val(2) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                             ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                             ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                             ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                            (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                             ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                             ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                             ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                            (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                             ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                             ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                             ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                            (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                             ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                             ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                             ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+                   !! v1 = v1o
+                   !! v2 = v2o
+                   !! v3 = v3o
+                   !! v4 = v4o
+                   !! abc_X(1,1) = grid2(ii1,ij1,ik1)*v1 + grid2(ii1,ij1,ik2)*v2 + grid2(ii1,ij1,ik3)*v3 + grid2(ii1,ij1,ik4)*v4
+                   !! abc_X(1,2) = grid2(ii1,ij2,ik1)*v1 + grid2(ii1,ij2,ik2)*v2 + grid2(ii1,ij2,ik3)*v3 + grid2(ii1,ij2,ik4)*v4
+                   !! abc_X(1,3) = grid2(ii1,ij3,ik1)*v1 + grid2(ii1,ij3,ik2)*v2 + grid2(ii1,ij3,ik3)*v3 + grid2(ii1,ij3,ik4)*v4
+                   !! abc_X(1,4) = grid2(ii1,ij4,ik1)*v1 + grid2(ii1,ij4,ik2)*v2 + grid2(ii1,ij4,ik3)*v3 + grid2(ii1,ij4,ik4)*v4
+                   !! abc_X(2,1) = grid2(ii2,ij1,ik1)*v1 + grid2(ii2,ij1,ik2)*v2 + grid2(ii2,ij1,ik3)*v3 + grid2(ii2,ij1,ik4)*v4
+                   !! abc_X(2,2) = grid2(ii2,ij2,ik1)*v1 + grid2(ii2,ij2,ik2)*v2 + grid2(ii2,ij2,ik3)*v3 + grid2(ii2,ij2,ik4)*v4
+                   !! abc_X(2,3) = grid2(ii2,ij3,ik1)*v1 + grid2(ii2,ij3,ik2)*v2 + grid2(ii2,ij3,ik3)*v3 + grid2(ii2,ij3,ik4)*v4
+                   !! abc_X(2,4) = grid2(ii2,ij4,ik1)*v1 + grid2(ii2,ij4,ik2)*v2 + grid2(ii2,ij4,ik3)*v3 + grid2(ii2,ij4,ik4)*v4
+                   !! abc_X(3,1) = grid2(ii3,ij1,ik1)*v1 + grid2(ii3,ij1,ik2)*v2 + grid2(ii3,ij1,ik3)*v3 + grid2(ii3,ij1,ik4)*v4
+                   !! abc_X(3,2) = grid2(ii3,ij2,ik1)*v1 + grid2(ii3,ij2,ik2)*v2 + grid2(ii3,ij2,ik3)*v3 + grid2(ii3,ij2,ik4)*v4
+                   !! abc_X(3,3) = grid2(ii3,ij3,ik1)*v1 + grid2(ii3,ij3,ik2)*v2 + grid2(ii3,ij3,ik3)*v3 + grid2(ii3,ij3,ik4)*v4
+                   !! abc_X(3,4) = grid2(ii3,ij4,ik1)*v1 + grid2(ii3,ij4,ik2)*v2 + grid2(ii3,ij4,ik3)*v3 + grid2(ii3,ij4,ik4)*v4
+                   !! abc_X(4,1) = grid2(ii4,ij1,ik1)*v1 + grid2(ii4,ij1,ik2)*v2 + grid2(ii4,ij1,ik3)*v3 + grid2(ii4,ij1,ik4)*v4
+                   !! abc_X(4,2) = grid2(ii4,ij2,ik1)*v1 + grid2(ii4,ij2,ik2)*v2 + grid2(ii4,ij2,ik3)*v3 + grid2(ii4,ij2,ik4)*v4
+                   !! abc_X(4,3) = grid2(ii4,ij3,ik1)*v1 + grid2(ii4,ij3,ik2)*v2 + grid2(ii4,ij3,ik3)*v3 + grid2(ii4,ij3,ik4)*v4
+                   !! abc_X(4,4) = grid2(ii4,ij4,ik1)*v1 + grid2(ii4,ij4,ik2)*v2 + grid2(ii4,ij4,ik3)*v3 + grid2(ii4,ij4,ik4)*v4
+
+                   abc_X_Y(1) = abc_X(1,1)*t1 + abc_X(2,1)*t2 + abc_X(3,1)*t3 + abc_X(4,1)*t4
+                   abc_X_Y(2) = abc_X(1,2)*t1 + abc_X(2,2)*t2 + abc_X(3,2)*t3 + abc_X(4,2)*t4
+                   abc_X_Y(3) = abc_X(1,3)*t1 + abc_X(2,3)*t2 + abc_X(3,3)*t3 + abc_X(4,3)*t4
+                   abc_X_Y(4) = abc_X(1,4)*t1 + abc_X(2,4)*t2 + abc_X(3,4)*t3 + abc_X(4,4)*t4
+
+                   val(2) = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
 
                    t1     = t1o
                    t2     = t2o
@@ -1037,22 +1038,30 @@ CONTAINS
                    v2     = v2d*dr3i
                    v3     = v3d*dr3i
                    v4     = v4d*dr3i
-                   val(3) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                             ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                             ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                             ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                            (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                             ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                             ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                             ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                            (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                             ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                             ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                             ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                            (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                             ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                             ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                             ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+                   abc_X(1,1) = grid2(ii1,ij1,ik1)*v1 + grid2(ii1,ij1,ik2)*v2 + grid2(ii1,ij1,ik3)*v3 + grid2(ii1,ij1,ik4)*v4
+                   abc_X(1,2) = grid2(ii1,ij2,ik1)*v1 + grid2(ii1,ij2,ik2)*v2 + grid2(ii1,ij2,ik3)*v3 + grid2(ii1,ij2,ik4)*v4
+                   abc_X(1,3) = grid2(ii1,ij3,ik1)*v1 + grid2(ii1,ij3,ik2)*v2 + grid2(ii1,ij3,ik3)*v3 + grid2(ii1,ij3,ik4)*v4
+                   abc_X(1,4) = grid2(ii1,ij4,ik1)*v1 + grid2(ii1,ij4,ik2)*v2 + grid2(ii1,ij4,ik3)*v3 + grid2(ii1,ij4,ik4)*v4
+                   abc_X(2,1) = grid2(ii2,ij1,ik1)*v1 + grid2(ii2,ij1,ik2)*v2 + grid2(ii2,ij1,ik3)*v3 + grid2(ii2,ij1,ik4)*v4
+                   abc_X(2,2) = grid2(ii2,ij2,ik1)*v1 + grid2(ii2,ij2,ik2)*v2 + grid2(ii2,ij2,ik3)*v3 + grid2(ii2,ij2,ik4)*v4
+                   abc_X(2,3) = grid2(ii2,ij3,ik1)*v1 + grid2(ii2,ij3,ik2)*v2 + grid2(ii2,ij3,ik3)*v3 + grid2(ii2,ij3,ik4)*v4
+                   abc_X(2,4) = grid2(ii2,ij4,ik1)*v1 + grid2(ii2,ij4,ik2)*v2 + grid2(ii2,ij4,ik3)*v3 + grid2(ii2,ij4,ik4)*v4
+                   abc_X(3,1) = grid2(ii3,ij1,ik1)*v1 + grid2(ii3,ij1,ik2)*v2 + grid2(ii3,ij1,ik3)*v3 + grid2(ii3,ij1,ik4)*v4
+                   abc_X(3,2) = grid2(ii3,ij2,ik1)*v1 + grid2(ii3,ij2,ik2)*v2 + grid2(ii3,ij2,ik3)*v3 + grid2(ii3,ij2,ik4)*v4
+                   abc_X(3,3) = grid2(ii3,ij3,ik1)*v1 + grid2(ii3,ij3,ik2)*v2 + grid2(ii3,ij3,ik3)*v3 + grid2(ii3,ij3,ik4)*v4
+                   abc_X(3,4) = grid2(ii3,ij4,ik1)*v1 + grid2(ii3,ij4,ik2)*v2 + grid2(ii3,ij4,ik3)*v3 + grid2(ii3,ij4,ik4)*v4
+                   abc_X(4,1) = grid2(ii4,ij1,ik1)*v1 + grid2(ii4,ij1,ik2)*v2 + grid2(ii4,ij1,ik3)*v3 + grid2(ii4,ij1,ik4)*v4
+                   abc_X(4,2) = grid2(ii4,ij2,ik1)*v1 + grid2(ii4,ij2,ik2)*v2 + grid2(ii4,ij2,ik3)*v3 + grid2(ii4,ij2,ik4)*v4
+                   abc_X(4,3) = grid2(ii4,ij3,ik1)*v1 + grid2(ii4,ij3,ik2)*v2 + grid2(ii4,ij3,ik3)*v3 + grid2(ii4,ij3,ik4)*v4
+                   abc_X(4,4) = grid2(ii4,ij4,ik1)*v1 + grid2(ii4,ij4,ik2)*v2 + grid2(ii4,ij4,ik3)*v3 + grid2(ii4,ij4,ik4)*v4
+
+                   abc_X_Y(1) = abc_X(1,1)*t1 + abc_X(2,1)*t2 + abc_X(3,1)*t3 + abc_X(4,1)*t4
+                   abc_X_Y(2) = abc_X(1,2)*t1 + abc_X(2,2)*t2 + abc_X(3,2)*t3 + abc_X(4,2)*t4
+                   abc_X_Y(3) = abc_X(1,3)*t1 + abc_X(2,3)*t2 + abc_X(3,3)*t3 + abc_X(4,3)*t4
+                   abc_X_Y(4) = abc_X(1,4)*t1 + abc_X(2,4)*t2 + abc_X(3,4)*t3 + abc_X(4,4)*t4
+
+                   val(3) = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                    fac = grid(i,j,k)
                    ft1 = ft1 + val(1) * fac
