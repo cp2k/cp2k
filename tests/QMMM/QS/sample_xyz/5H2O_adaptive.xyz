@@ -1,5 +1,22 @@
 15
-all intermolecular distances r = 2.0 <= r_inner = 2.5, should be 6/12
+1st 3 intermolecular distances r = 2.0 <= r_inner = 2.5, last 2 far away. Should be core_list: 3, core: 3, extended: 3, buffer: 0
+O 5.000 0.000 0.000
+H 5.000 0.000 0.947
+H 5.000 0.896 -0.317
+O 7.000 0.000 0.000
+H 7.000 0.000 0.947
+H 7.000 0.896 -0.317
+O 9.000 0.000 0.000
+H 9.000 0.000 0.947
+H 9.000 0.896 -0.317
+O 13.000 0.000 0.000
+H 13.000 0.000 0.947
+H 13.000 0.896 -0.317
+O 15.000 0.000 0.000
+H 15.000 0.000 0.947
+H 15.000 0.896 -0.317
+15
+all intermolecular distances r = 2.0 <= r_inner = 2.5. Should be core_list: 3, core: 3, extended: 3, buffer: 3
 O 5.000 0.000 0.000
 H 5.000 0.000 0.947
 H 5.000 0.896 -0.317
@@ -16,7 +33,7 @@ O 13.000 0.000 0.000
 H 13.000 0.000 0.947
 H 13.000 0.896 -0.317
 15
-move molecule #4 to r_inner = 2.5 < r = 3.0 <= r_outer = 3.5, still 6/12
+move molecule #4 to r_inner = 2.5 < r = 3.0 <= r_outer = 3.5.  Should be core_list: 3, core: 3, extended: 3, buffer: 3
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -33,7 +50,7 @@ O 14.100 0.000 0.000
 H 14.100 0.000 0.947
 H 14.100 0.896 -0.317
 15
-move 1 atom in molecule #4 to r = 3.55 > r_outer = 3.5, rest are at r = 3.45 <= r_outer, still 6/12
+move 1 atom in molecule #4 to r = 3.55 > r_outer = 3.5, rest are at r = 3.45 <= r_outer.  Should be core_list: 3, core: 3, extended: 3, buffer: 3
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -50,7 +67,7 @@ O 14.650 0.000 0.000
 H 14.650 0.000 0.947
 H 14.650 0.896 -0.317
 15
-move rest of molecule #4 to r = 4.1 > r_outer = 3.5, now 6/9
+move rest of molecule #4 to r = 4.1 > r_outer = 3.5.  Should be core_list: 3, core: 3, extended: 3, buffer: 0
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -67,7 +84,7 @@ O 15.200 0.000 0.000
 H 15.200 0.000 0.947
 H 15.200 0.896 -0.317
 15
-move one atom of molecule #4 to r_inner = 2.5 < r = 3.45 < r_outer = 3.5, rest at r = 3.55 <= r_outer = 3.5 still 6/9
+move one atom of molecule #4 to r_inner = 2.5 < r = 3.45 < r_outer = 3.5, rest at r = 3.55 <= r_outer = 3.5. Should be core_list: 3, core: 3, extended: 3, buffer: 0
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -84,7 +101,7 @@ O 14.650 0.000 0.000
 H 14.650 0.000 0.947
 H 14.650 0.896 -0.317
 15
-move rest of molecule #4 to r_inner = 2.5 < r = 3.1 < r_outer = 3.5, still 6/9
+move rest of molecule #4 to r_inner = 2.5 < r = 3.1 < r_outer = 3.5. Should be core_list: 3, core: 3, extended: 3, buffer: 0
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -101,7 +118,7 @@ O 14.200 0.000 0.000
 H 14.200 0.000 0.947
 H 14.200 0.896 -0.317
 15
-move one atom of molecule #4 to r = 2.45 < r_inner = 2.5, rest at r_inner = 2.5 < r = 2.55 <= r_outer = 3.5, back to 6/12
+move one atom of molecule #4 to r = 2.45 < r_inner = 2.5, rest at r_inner = 2.5 < r = 2.55 <= r_outer = 3.5.  Should be core_list: 3, core: 3, extended: 3, buffer: 3
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -118,7 +135,7 @@ O 13.650 0.000 0.000
 H 13.650 0.000 0.947
 H 13.650 0.896 -0.317
 15
-move rest of molecule #4 to r = 2.1 < r_inner = 2.5, still 6/12
+move rest of molecule #4 to r = 2.1 < r_inner = 2.5. Should be core_list: 3, core: 3, extended: 3, buffer: 3
 O 5.100 0.000 0.000
 H 5.100 0.000 0.947
 H 5.100 0.896 -0.317
@@ -134,3 +151,37 @@ H 11.200 0.896 -0.317
 O 13.200 0.000 0.000
 H 13.200 0.000 0.947
 H 13.200 0.896 -0.317
+15
+move rest of molecule #4 back out. Should be core_list: 3, core: 3, extended: 3, buffer: 0
+O 5.000 0.000 0.000
+H 5.000 0.000 0.947
+H 5.000 0.896 -0.317
+O 7.000 0.000 0.000
+H 7.000 0.000 0.947
+H 7.000 0.896 -0.317
+O 9.000 0.000 0.000
+H 9.000 0.000 0.947
+H 9.000 0.896 -0.317
+O 13.000 0.000 0.000
+H 13.000 0.000 0.947
+H 13.000 0.896 -0.317
+O 15.000 0.000 0.000
+H 15.000 0.000 0.947
+H 15.000 0.896 -0.317
+15
+same as prev config.  Should be core_list: 3, core: 3, extended: 3, buffer: 0
+O 5.000 0.000 0.000
+H 5.000 0.000 0.947
+H 5.000 0.896 -0.317
+O 7.000 0.000 0.000
+H 7.000 0.000 0.947
+H 7.000 0.896 -0.317
+O 9.000 0.000 0.000
+H 9.000 0.000 0.947
+H 9.000 0.896 -0.317
+O 13.000 0.000 0.000
+H 13.000 0.000 0.947
+H 13.000 0.896 -0.317
+O 15.000 0.000 0.000
+H 15.000 0.000 0.947
+H 15.000 0.896 -0.317
