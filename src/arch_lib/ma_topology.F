@@ -114,6 +114,7 @@ IMPLICIT NONE
    FUNCTION ma_get_job_alloc_strategy() RESULT(istat) BIND(C,name="get_job_alloc_strategy")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: istat
+
    END FUNCTION ma_get_job_alloc_strategy 
   END INTERFACE
  
@@ -136,7 +137,8 @@ CONTAINS
 !> \brief Get the job allocation strategy used on Cray machines
 ! *****************************************************************************
  FUNCTION ma_get_job_allocation() RESULT (strategy)
-   INTEGER                           :: strategy
+    INTEGER                                  :: strategy
+
    strategy = 0
 
 #if defined __parallel
