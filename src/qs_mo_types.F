@@ -1461,6 +1461,8 @@ CPSourceFileRef,&
          rst_unit=restart_unit, multiplicity=multiplicity, natom_mismatch=natom_mismatch, &
          error=error)
     IF (PRESENT(natom_mismatch)) THEN
+       ! read_mos_restart_low only the io_node returns natom_mismatch, must broadcast it
+       CALL mp_bcast(natom_mismatch,source,group)
        IF (natom_mismatch) THEN
           IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
           CALL timestop(handle)
