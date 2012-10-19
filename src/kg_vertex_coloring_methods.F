@@ -196,7 +196,7 @@ CONTAINS
 
     IF (unit_nr>0) THEN
 
-      WRITE(unit_nr,'(T2,A,T10,A)'), "Color |", "Molecules in this subset (IDs start from 0)"
+      WRITE(unit_nr,'(T2,A,T10,A)') "Color |", "Molecules in this subset (IDs start from 0)"
 
       nnodes = SIZE(graph)
  
