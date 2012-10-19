@@ -201,7 +201,7 @@ CONTAINS
       nnodes = SIZE(graph)
  
       DO i=1,ncolors
-        WRITE(unit_nr,'(T2,I5,1X,A)', ADVANCE='NO'), i,"|"
+        WRITE(unit_nr,'(T2,I5,1X,A)', ADVANCE='NO') i,"|"
         counter=0
         DO j=1, nnodes
           IF (graph(j)%vertex%color.EQ.i) THEN
