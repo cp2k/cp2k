@@ -559,3 +559,5 @@ C4H10-qmmm-gauss-11.inp
 C11H24-qmmm-gauss-0.inp
 # stabilize BFGS with model Hessian 
 constr.inp
+# reset numerics
+C4H10-qmmm-gauss-6.inp

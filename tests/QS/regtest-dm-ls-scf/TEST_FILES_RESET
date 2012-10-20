@@ -215,3 +215,6 @@ H2O-32-dftb-ls-7.inp
 H2O-32-dftb-ls-8.inp
 # further trs4 refinements
 H2O-32-dftb-trs4.inp
+# reset numerics
+H2-big-10.inp
+H2-big-11.inp

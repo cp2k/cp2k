@@ -309,3 +309,5 @@ H2O_Onopaw_gop.inp
 H2O_Hnopaw_pp.inp
 # stabilize BFGS with model Hessian 
 H2O_Onopaw_gop.inp
+# reset numerics
+CO_xastpxfh.inp

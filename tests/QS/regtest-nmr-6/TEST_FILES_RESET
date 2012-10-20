@@ -784,3 +784,5 @@ h2-gapw-1.inp
 ch3m-gapw-1.inp
 #  
 ch3p-gapw-1.inp
+# reset numerics
+no-gapw-1-distributed.inp

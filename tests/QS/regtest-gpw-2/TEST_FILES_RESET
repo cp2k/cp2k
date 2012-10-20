@@ -796,3 +796,7 @@ Au12_rmsd_mtd.inp
 Au12_rmsd_mtd.inp
 #  
 H2O-tpss_lsd.inp
+# reset numerics
+Au12_rmsd_mtd.inp
+Au13ico_mtd.inp
+hcn_ts_r.inp

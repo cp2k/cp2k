@@ -6,3 +6,6 @@ H2_MD.inp
 H2-libxc.inp
 # faster testcase
 H2-libxc.inp
+# reset numerics
+H2_MD-2.inp
+H2_MD.inp

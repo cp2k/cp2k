@@ -973,3 +973,12 @@ H2O-UKS-GPW-relax_multip.inp
 H2O-xc_none.inp
 # stabilize BFGS with model Hessian 
 H2O-UKS-GPW-relax_multip.inp
+# reset numerics
+H+-bloechl.inp
+H+solv1.inp
+H2O-bloechl-restraint.inp
+H2O-bloechl.inp
+H2O-xc_none.inp
+He2H-bloechl-md.inp
+He2H-bloechl.inp
+dynamics.inp

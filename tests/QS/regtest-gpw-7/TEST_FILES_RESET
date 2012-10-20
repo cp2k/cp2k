@@ -1,2 +1,5 @@
 # stabilize BFGS with model Hessian 
 si8_broy_kry_r.inp
+# reset numerics
+si8_broy_kry.inp
+si8_broy_kry_r.inp

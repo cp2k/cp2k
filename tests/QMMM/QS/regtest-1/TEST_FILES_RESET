@@ -441,3 +441,5 @@ H2O-qmmm-gauss-11.inp
 H2O-qmmm-none-1.inp
 # stabilize BFGS with model Hessian 
 H2O-qmmm-gauss-15.inp
+# reset numerics
+H2O-qmmm-none-force-mixing-1.inp

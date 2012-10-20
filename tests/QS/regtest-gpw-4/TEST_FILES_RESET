@@ -1058,3 +1058,11 @@ H2O-meta_hydro.inp
 
 # stabilize BFGS with model Hessian 
 H2-geo-1.inp
+# reset numerics
+He3_multi_ddapc.inp
+NO2-EFG-1.inp
+basis_none_1.inp
+basis_none_2.inp
+h2o-otdiag-lsd.inp
+h2o-otdiag.inp
+spin_restraint.inp

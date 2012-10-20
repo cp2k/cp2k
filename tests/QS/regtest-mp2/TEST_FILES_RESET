@@ -10,3 +10,5 @@ H2O_DSD-BLYP.inp
 H2O_B2PLYP_D3.inp 
 CH3_GPW.inp 
 CH3_B2PLYP_allelec.inp 
+# reset numerics
+H2O_ADMM_MP2.inp

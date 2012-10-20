@@ -449,3 +449,7 @@ Li-hybrid-MCY3.inp
 Ne-hybrid-MCY3.inp
 #
 Ne-hybrid-rcam-b3lyp.inp
+# reset numerics
+Li-hybrid-rcam-b3lyp.inp
+Ne-hybrid-MCY3.inp
+Ne-hybrid-rcam-b3lyp.inp

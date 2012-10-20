@@ -142,3 +142,5 @@ CH4-BP-CAUCHY_SUBSPACE.inp
 CH4-BP-CAUCHY.inp
 # extended GTH pseudopotentials 
 H2+-BLOCKED-PURIFY-FULL.inp
+# reset numerics
+H2+-BLOCKED-PURIFY-FULL.inp

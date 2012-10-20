@@ -527,3 +527,5 @@ H2O-fixed.inp
 h2.t1.inp
 # stabilize BFGS with model Hessian 
 h2.t2.inp
+# reset numerics
+h4.t4.inp
