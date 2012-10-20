@@ -537,3 +537,7 @@ H2O-uks-otcg-mulliken.inp
 H2O-uks-otcg.inp
 H2O-uks-u_ramping.inp
 H2O-uks-u_ramping_reset.inp
+# more numerics
+H2O-rks-diag-mulliken.inp
+H2O-rks-diag.inp
+H2O-uks-diag.inp

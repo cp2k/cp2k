@@ -218,3 +218,9 @@ H2O-32-dftb-trs4.inp
 # reset numerics
 H2-big-10.inp
 H2-big-11.inp
+# more numerics
+H2-big-1.inp
+H2-big-2.inp
+H2-big-4.inp
+H2-big-7.inp
+H2-big-8.inp

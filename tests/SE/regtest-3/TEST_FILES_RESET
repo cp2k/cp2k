@@ -463,3 +463,11 @@ N3-rp_colvar.inp
 LM-KSDO.inp
 # stabilize BFGS with model Hessian 
 LM-KSDO-D.inp
+# more numerics
+Co_complex.inp
+H2O-4.inp
+N3_dp_md.inp
+N3_rp_dp_md.inp
+N3_rp_md.inp
+SiO2.inp
+SiO2_lr_quad.inp

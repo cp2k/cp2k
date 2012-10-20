@@ -352,3 +352,5 @@ nh3_wat-restraint-fixd-4.inp
 nh3_bfgs.inp
 # stabilize BFGS with model Hessian 
 nh3_bfgs_r.inp
+# more numerics
+nh3-meta-walks_2r.inp

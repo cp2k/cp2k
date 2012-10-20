@@ -791,3 +791,13 @@ b2h6_pm6.inp
 ch2o_pm6.inp
 # stabilize BFGS with model Hessian 
 hcn_pm6.inp
+# more numerics
+dimer.inp
+dimer2.inp
+dimer3.inp
+dimer4.inp
+dimer_atprop.inp
+h2o_lsd-ot.inp
+h2op_2.inp
+h2po4.inp
+st.inp

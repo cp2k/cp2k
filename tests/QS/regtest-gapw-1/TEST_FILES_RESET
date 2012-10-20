@@ -151,3 +151,7 @@ c8_pmix_gapw_all_xashh.inp
 c8_broy_gapw_all.inp
 #  
 c8_broy_gapw_all_xashh.inp
+# more numerics
+c8_broy_gapw_all_xashh.inp
+c8_pmix_gapw_all.inp
+c8_pmix_gapw_all_xashh.inp

@@ -453,3 +453,6 @@ Ne-hybrid-rcam-b3lyp.inp
 Li-hybrid-rcam-b3lyp.inp
 Ne-hybrid-MCY3.inp
 Ne-hybrid-rcam-b3lyp.inp
+# more numerics
+CH4-PBE0_TC.inp
+CH4-PBE0_TC_LRC.inp
