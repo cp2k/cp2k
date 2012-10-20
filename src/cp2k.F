@@ -41,7 +41,8 @@ PROGRAM cp2k
   USE cp_files,        ONLY: init_preconnection_list
   USE cp2k_info,       ONLY: print_cp2k_license,&
                              cp2k_version,&
-                             id_cp2k_version, get_runtime_info
+                             id_cp2k_version, get_runtime_info, &
+                             compile_revision
   USE cp2k_runs,       ONLY: write_cp2k_html_manual, &
                              write_xml_file, run_input
   USE input_constants, ONLY: id_development_version
@@ -51,7 +52,7 @@ PROGRAM cp2k
                              default_string_length
   USE f77_interface,   ONLY: init_cp2k, finalize_cp2k, &
                              check_input, default_para_env, &
-			     init_f77_default
+                             init_f77_default
   USE f77_blas
   USE string_utilities, ONLY: string_to_ascii
 #include "cp_common_uses.h"
@@ -61,9 +62,9 @@ PROGRAM cp2k
 #endif
 
   CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,&
-  					  arg_att, mpi_mapping
+                                          arg_att, mpi_mapping
   CHARACTER(LEN=default_string_length) :: dev_flag
-  INTEGER                              :: output_unit,istat,mpi_mapping_method
+  INTEGER                              :: output_unit,istat,l,mpi_mapping_method
   INTEGER                              :: ierr, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive,has_mpi_mapping
@@ -99,14 +100,14 @@ PROGRAM cp2k
   n_arg=m_iargc()
 
   ! this is an error condition, provide usage information
-  IF (n_arg<1) THEN
-     WRITE (output_unit,"(a)") ""
-     WRITE (output_unit,"(a)") "ERROR: At least one command line argument must be specified"
-         command_line_error=.TRUE.
-  ENDIF
+  IF (n_arg < 1) THEN
+     WRITE (output_unit,"(/,T2,A)")&
+      "ERROR: At least one command line argument must be specified"
+     command_line_error = .TRUE.
+  END IF
 
   i_arg=0
-arg_loop: DO WHILE (i_arg<n_arg)
+  arg_loop: DO WHILE (i_arg < n_arg)
         i_arg=i_arg+1
         CALL m_getarg(i_arg,arg_att)
         SELECT CASE(arg_att)
@@ -134,16 +135,16 @@ arg_loop: DO WHILE (i_arg<n_arg)
         CASE("-help","--help","-h")
            usage=.TRUE.
            run_it=.FALSE.
-	CASE("-mpi-mapping","--mpi-mapping")
-	   i_arg=i_arg+1
+        CASE("-mpi-mapping","--mpi-mapping")
+           i_arg=i_arg+1
            CALL m_getarg(i_arg,arg_att)
            ! argument does not start with a - it is a reordering
            IF (.NOT. arg_att(1:1)=="-") THEN
               mpi_mapping=arg_att
               has_mpi_mapping=.TRUE.
            ELSE
-              WRITE (output_unit,"(a)") ""
-              WRITE (output_unit,"(a)") "ERROR: the mpi mapping"//TRIM(arg_att)//" starts with -"
+              WRITE (output_unit,"(/,T2,A)")&
+               "ERROR: The MPI mapping "//TRIM(arg_att)//" starts with -"
               command_line_error=.TRUE.
               EXIT arg_loop
            ENDIF
@@ -155,8 +156,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
               input_file_name=arg_att
               has_input=.TRUE.
            ELSE
-              WRITE (output_unit,"(a)") ""
-              WRITE (output_unit,"(a)") "ERROR: the input file name"//TRIM(arg_att)//" starts with -"
+              WRITE (output_unit,"(/,T2,A)")&
+               "ERROR: The input file name"//TRIM(arg_att)//" starts with -"
               command_line_error=.TRUE.
               EXIT arg_loop
            ENDIF
@@ -167,8 +168,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
            IF (.NOT. arg_att(1:1)=="-") THEN
               output_file_name=arg_att
            ELSE
-              WRITE (output_unit,"(a)") ""
-              WRITE (output_unit,"(a)") "ERROR: the output file name"//TRIM(arg_att)//" starts with -"
+              WRITE (output_unit,"(/,T2,A)")&
+               "ERROR: The output file name"//TRIM(arg_att)//" starts with -"
               command_line_error=.TRUE.
               EXIT arg_loop
            ENDIF
@@ -193,8 +194,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
      END IF
      IF ((run_it.OR.force_run.OR.check.OR.echo_input).AND.&
          (.NOT.has_input).AND.(.NOT.command_line_error)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,A)")&
-         "ERROR: an input file name is required"
+       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+         "ERROR: An input file name is required"
        command_line_error = .TRUE.
      END IF
 
@@ -227,36 +228,39 @@ arg_loop: DO WHILE (i_arg<n_arg)
      IF (usage.OR.command_line_error) THEN
        IF (default_para_env%source == default_para_env%mepos) THEN
          CALL m_getarg(0,arg_att) ! actually this is non-standard
-         WRITE (UNIT=output_unit,FMT="(/,A,4(/,/,T5,A),/,(T5,A))")&
-           TRIM(arg_att)//" [-c|--check] [-e|--echo] [-h|--help]"//&
-                          " [--html-manual] [--xml] [-r|-run]"//&
-                          " [-o ouput_file] [--permissive-echo]"//&
-                          " [[-i] input_file]",&
-                          " [[-mpi-mapping|--mpi-mapping] method]",&
-           "Starts the CP2K program, see <http://www.cp2k.org/>",&
-           "The easiest way is "//TRIM(arg_att)//" input_file",&
+         l = LEN_TRIM(arg_att)
+         WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
+           TRIM(arg_att)//" [-c|--check] [-e|--echo] [-h|--help] [--html-manual]",&
+           REPEAT(" ",l)//" [-i] <input_file>",&
+           REPEAT(" ",l)//" [-mpi-mapping|--mpi-mapping] <method>",&
+           REPEAT(" ",l)//" [-o] <output_file>",&
+           REPEAT(" ",l)//" [--permissive-echo] [-r|-run] [--xml]"
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,/,T2,A,/,/,(T3,A))")&
+           "starts the CP2K program, see <http://www.cp2k.org/>",&
+           "The easiest way is "//TRIM(arg_att)//" <input_file>",&
            "The following options can be used:",&
-           "-o output_file : provides an output file name [default: screen]",&
-           "-i input_file  : provides an input file name, if it is the last",&
-           "                 argument, the -i is not needed"
-         WRITE (UNIT=output_unit,FMT="(/,T5,A,/,/,(T5,A))")&
+           "-i <input_file>   : provides an input file name, if it is the last",&
+           "                    argument, the -i flag is not needed",&
+           "-o <output_file>  : provides an output file name [default: screen]"
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,(T3,A))")&
            "These switches skip the simulation, unless [-r|-run] is specified:",&
-           "--run, -r         : force a run after any of the following",&
-           "--check, -c       : perform a syntax check of [input_file]",&
-           "--echo, -e        : echos [input_file], and makes all defaults explicit",&
-           "                    The input is also checked, but only failure is reported",&
-           "--version,-v      : print the CP2K version number",&
-           "--license         : print the CP2K license",&
+           "--check, -c       : performs a syntax check of the <input_file>",&
+           "--echo, -e        : echos the <input_file>, and make all defaults explicit",&
+           "                    The input is also checked, but only a failure is reported",&
            "--help, -h        : writes this message",&
-           "--html-manual     : writes a HTML reference manual of the CP2K input file",&
-           "                    in the current directory. index.html is a good starting",&
-           "                    point for browsing",&
+           "--html-manual     : writes a HTML reference manual of the CP2K input",&
+           "                    in the current directory. The file index.html is a good",&
+           "                    starting point for browsing",&
+           "--license         : prints the CP2K license",&
+           "--mpi-mapping     : applies a given MPI reordering to CP2K",&
            "--permissive-echo : ignores unknown keywords and sections in the input",&
            "                    and echoes it, you cannot run, you have to run the",&
            "                    dumped input",&
+           "--run, -r         : forces a CP2K run regardless of other specified flags",&
+           "--version, -v     : prints the CP2K version and the SVN revision number",&
            "--xml             : dumps the whole CP2K input structure as a XML file",&
-           "                    xml2htm generates a HTML manual from this XML file", &
-           "--mpi-mapping     : applies a given MPI reordering to CP2K"
+           "                    xml2htm generates a HTML manual from this XML file",&
+           ""
        END IF
      END IF
 
@@ -266,8 +270,10 @@ arg_loop: DO WHILE (i_arg<n_arg)
         IF (print_version) THEN
            IF (default_para_env%source==default_para_env%mepos) THEN
               dev_flag = ""
-              IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
-              WRITE(output_unit,'(T2,A)') cp2k_version//TRIM(dev_flag)
+              IF (id_cp2k_version == id_development_version) dev_flag=" (Development Version)"
+              WRITE (output_unit,"(T2,A)")&
+               cp2k_version//TRIM(dev_flag),&
+               "SVN source code revision "//TRIM(compile_revision)
            ENDIF
         ENDIF
 
@@ -297,13 +303,13 @@ arg_loop: DO WHILE (i_arg<n_arg)
            IF (default_para_env%source==default_para_env%mepos) THEN
               IF (ierr==0) THEN
                 IF (.NOT. echo_input) THEN
-                   WRITE (output_unit,"(a)") "SUCCESS, the input could be parsed correctly."
-                   WRITE (output_unit,"(a)") "         This is does not guarantee that this input is meaningful"
-                   WRITE (output_unit,"(a)") "         or will run successfully"
+                   WRITE (output_unit,"(A)") "SUCCESS, the input could be parsed correctly."
+                   WRITE (output_unit,"(A)") "         This is does not guarantee that this input is meaningful"
+                   WRITE (output_unit,"(A)") "         or will run successfully"
                 ENDIF
               ELSE
-                 WRITE (output_unit,"(a)") "ERROR,   the input could *NOT* be parsed correctly."
-                 WRITE (output_unit,"(a)") "         Please, check and correct it"
+                 WRITE (output_unit,"(A)") "ERROR,   the input could *NOT* be parsed correctly."
+                 WRITE (output_unit,"(A)") "         Please, check and correct it"
               END IF
            END IF
         ENDIF
