@@ -32,7 +32,8 @@ MODULE input_section_types
                                              val_write
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp
+                                             dp,&
+                                             max_line_length
   USE reference_manager,               ONLY: get_citation_key,&
                                              print_format_journal,&
                                              print_reference
@@ -2109,9 +2110,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_section_xml', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2000)                      :: string
     CHARACTER(LEN=3)                         :: repeats, required
     CHARACTER(LEN=8)                         :: short_string
+    CHARACTER(LEN=MAX(&
+      description_string_length, &
+      max_line_length))                      :: string
     INTEGER                                  :: i, l0, l1, l2
     LOGICAL                                  :: failure
 
