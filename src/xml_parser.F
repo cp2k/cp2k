@@ -49,9 +49,9 @@ MODULE xml_parser
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: XML_BUFFER_LENGTH = 1000
-   !
+
    ! Define the data type that holds the parser information
-   !
+
    TYPE XML_PARSE
       INTEGER          :: lun                ! LU-number of the XML-file
       INTEGER          :: level              ! Indentation level (output)
@@ -65,23 +65,20 @@ MODULE xml_parser
       CHARACTER(len=XML_BUFFER_LENGTH) :: line  ! Buffer
    END TYPE XML_PARSE
 
-   !
    ! Global options
-   !
+
    INTEGER, PARAMETER    :: XML_STDOUT       = -1
    INTEGER, PRIVATE      :: report_lun_      = XML_STDOUT
    LOGICAL, PRIVATE      :: report_errors_   = .FALSE.
    LOGICAL, PRIVATE      :: report_details_  = .FALSE.
 
-   !
    ! Global data (the ampersand must come first)
-   !
+
    CHARACTER(len=10), DIMENSION(2,3), SAVE, PRIVATE :: entities = &
       RESHAPE( (/ '&    ', '&amp;', &
                   '>    ', '&gt; ',  &
                   '<    ', '&lt; ' /), (/2,3/) )
 
-   !
    ! Auxiliary routines - private
 
    PRIVATE               :: xml_compress_

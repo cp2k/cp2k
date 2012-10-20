@@ -162,7 +162,8 @@ CONTAINS
       nparticle_kind, nparticle_local, stat
     LOGICAL                                  :: failure, present_vel
     REAL(KIND=dp)                            :: mass
-    REAL(KIND=dp), POINTER                   :: w(:,:)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: w(:,:)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(rng_stream_type), POINTER           :: rng_stream
@@ -220,6 +221,9 @@ CONTAINS
          END DO
       END DO
     END DO
+
+    DEALLOCATE (w,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE al_OU_step
 

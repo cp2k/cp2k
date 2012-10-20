@@ -1567,6 +1567,8 @@ CONTAINS
     work_section => section_vals_get_subs_vals(al_section,"MASS",error=error)
     CALL dump_csvr_energy_info(work, al%glob_num_al, work_section, error)
 
+    DEALLOCATE (t_array,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
