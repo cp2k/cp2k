@@ -225,14 +225,15 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: qmmm_core_section, &
       qmmm_extended_Section, qmmm_force_mixing, qmmm_section, subsys_section
 
-    ! check everything for not null, because sometimes (e.g. metadynamics in parallel) it happens
-    if (.not. associated(force_env)) return
-    if (.not. associated(force_env%force_env_section)) return
+! check everything for not null, because sometimes (e.g. metadynamics in parallel) it happens
+
+    IF (.NOT. ASSOCIATED(force_env)) RETURN
+    IF (.NOT. ASSOCIATED(force_env%force_env_section)) RETURN
     ! these two should never happen, because the sections exist, but just in case...
     qmmm_section => section_vals_get_subs_vals(force_env%force_env_section,"QMMM",can_return_null=.TRUE.,error=error)
-    if (.not. associated(qmmm_section)) return
+    IF (.NOT. ASSOCIATED(qmmm_section)) RETURN
     qmmm_force_mixing => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING",can_return_null=.TRUE.,error=error)
-    if (.not. associated(qmmm_force_mixing)) return
+    IF (.NOT. ASSOCIATED(qmmm_force_mixing)) RETURN
     CALL section_vals_get(qmmm_force_mixing,explicit=force_mixing_active,error=error)
 
     IF (force_mixing_active) THEN
