@@ -12,7 +12,10 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k_mm
-  USE bibliography,                    ONLY: Foiles1986,&
+  USE bibliography,                    ONLY: Devynck2012,&
+                                             Dick1958,&
+                                             Foiles1986,&
+                                             Mitchell1993,&
                                              Tersoff1988,&
                                              Tosi1964a,&
                                              Tosi1964b,&
@@ -1180,6 +1183,7 @@ CONTAINS
        CALL section_create(section, name="SHELL",&
             description="This section specifies the parameters for shell-model potentials",&
             n_keywords=6, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Dick1958,Mitchell1993,Devynck2012/),&
             error=error)
 
        NULLIFY(keyword)

@@ -57,7 +57,8 @@ MODULE bibliography
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
-             Marques2012, Jones2011, Bernstein2009, Bernstein2012
+             Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
+             Mitchell1993, Devynck2012
 
 CONTAINS
 
@@ -1978,6 +1979,59 @@ CONTAINS
          "UT WOS:000262785900001",&
          "ER"),&
          DOI="10.1088/0034-4885/72/2/026501")
+
+    CALL add_reference(key=Dick1958, ISI_record=s2a(&
+         "PT J",&
+         "AU Dick, BG",&
+         "   Overhauser, AW",&
+         "TI Theory of the Dielectric Constants of Alkali Halide Crystals",&
+         "SO Phys. Rev.",&
+         "VL 112",&
+         "IS 1",&
+         "SP 90",&
+         "EP 103",&
+         "PD OCT 1",&
+         "PY 1958",&
+         "UR http://link.aps.org/doi/10.1103/PhysRev.112.90",&
+         "ER"),&
+         DOI="10.1103/PhysRev.112.90")
+
+    CALL add_reference(key=Mitchell1993, ISI_record=s2a(&
+         "PT J",&
+         "AU Mitchell, PJ",&
+         "   Fincham D",&
+         "TI Shell model simulations by adiabatic dynamics",&
+         "SO J. Phys.: Condens. Matter",&
+         "VL 5",&
+         "IS 8",&
+         "SP 1031",&
+         "EP 1038",&
+         "PD FEB 22",&
+         "PY 1993",&
+         "UR http://stacks.iop.org/0953-8984/5/i=8/a=006",&
+         "ER"),&
+         DOI="10.1088/0953-8984/5/8/006")
+
+    CALL add_reference(key=Devynck2012, ISI_record=s2a(&
+         "PT J",&
+         "AU Devynck, F",&
+         "   Iannuzzi, M",&
+         "   Krack, M",&
+         "AF Devynck, Fabien",&
+         "   Iannuzzi, Marcella",&
+         "   Krack, Matthias",&
+         "TI Frenkel pair recombinations in UO2: Importance of explicit description of",&
+         "   polarizability in core-shell molecular dynamics simulations",&
+         "SO Phys. Rev. B",&
+         "VL 85",&
+         "IS 18",&
+         "SP 184103",&
+         "EP",&
+         "PD MAY 15",&
+         "PY 2012",&
+         "UR http://link.aps.org/doi/10.1103/PhysRevB.85.184103",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.85.184103")
 
   END SUBROUTINE add_all_references
 

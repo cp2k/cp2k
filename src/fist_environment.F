@@ -13,6 +13,10 @@ MODULE fist_environment
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE bibliography,                    ONLY: Devynck2012,&
+                                             Dick1958,&
+                                             Mitchell1993,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
@@ -197,10 +201,13 @@ CONTAINS
     CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
     NULLIFY(shell_particles)
     NULLIFY(core_particles)
-    IF(ASSOCIATED(shell_particle_set)) THEN
+    IF (ASSOCIATED(shell_particle_set)) THEN
+       CALL cite_reference(Devynck2012)
+       CALL cite_reference(Mitchell1993)
+       CALL cite_reference(Dick1958)
        CALL particle_list_create ( shell_particles, els_ptr = shell_particle_set, error = error )
     END IF
-    IF(ASSOCIATED(core_particle_set)) THEN
+    IF (ASSOCIATED(core_particle_set)) THEN
        CALL particle_list_create ( core_particles, els_ptr = core_particle_set, error = error )
     END IF
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
