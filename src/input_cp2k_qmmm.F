@@ -662,7 +662,7 @@ CONTAINS
             description="Specifies the value of the width of the (induced) Gaussian "//&
                         "charge distribution carried by each MM atom.",&
             usage="WIDTH <real> ",n_var=1,type_of_var=real_t,&
-            default_r_val=cp_unit_to_cp2k(value=0.6614_dp,unit_str="angstrom^-2", error=error), &
+            default_r_val=cp_unit_to_cp2k(value=3.0_dp,unit_str="angstrom^-2", error=error), &
             unit_str="angstrom^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

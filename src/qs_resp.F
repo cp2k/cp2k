@@ -34,7 +34,9 @@ MODULE qs_resp
                                              do_resp_z_dir,&
                                              use_perd_none,&
                                              use_perd_xyz
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_get_ivals,&
+                                             section_get_lval,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -51,12 +53,14 @@ MODULE qs_resp
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_scale,&
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_scale,&
                                              pw_transfer,&
                                              pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -65,9 +69,11 @@ MODULE qs_resp
                                              pw_p_type,&
                                              pw_release,&
                                              pw_type
-  USE qs_collocate_density,            ONLY: calculate_rho_resp
+  USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
+                                             calculate_rho_resp_single
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -89,7 +95,8 @@ MODULE qs_resp
                                              nonperiodic_sys, rheavies
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
-                                             npoints, stride(3), my_fit
+                                             npoints, stride(3), my_fit,&
+                                             npoints_proc
    INTEGER, DIMENSION(:), POINTER         :: atom_surf_list
    INTEGER, DIMENSION(:,:), POINTER       :: fitpoints
    REAL(KIND=dp)                          :: rheavies_strength,&
@@ -211,6 +218,7 @@ CONTAINS
        CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
 
        CALL print_resp_charges(qs_env,resp_env,output_unit,natom,error)
+       CALL print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_unit,error)
 
        DEALLOCATE(ipiv, stat=stat)
        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -264,6 +272,7 @@ CONTAINS
     resp_env%nres=0
     resp_env%nrest_sec=0
     resp_env%npoints=0
+    resp_env%npoints_proc=0 
 
   END SUBROUTINE create_resp_type
 !****************************************************************************
@@ -545,17 +554,19 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bo(2,3), gbo(2,3), handle, i, &
-                                                jx, jy, jz, k, l, m, np(3), &
-                                                p, stat
+                                                jx, jy, jz, k, l, m, now, &
+                                                np(3), p, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dh(3,3), dvol, r(3), vec(3), &
                                                 vec_pbc(3), vj
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: v_hartree_pw
+    TYPE(section_vals_type), POINTER         :: input, print_key, resp_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(v_hartree_pw)
+    NULLIFY(logger,input,print_key,resp_section,v_hartree_pw)
     failure=.FALSE.
 
     IF (.NOT.cell%orthorhombic) THEN
@@ -569,6 +580,12 @@ CPSourceFileRef,&
              "Nonperiodic solution for RESP charges (i.e. nonperiodic"//&
              " Poisson solver) can only be used with section NONPERIODC_SYS")
     ENDIF
+    CALL get_qs_env(qs_env=qs_env,input=input,error=error)
+    resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
+                                                error=error)
+    print_key => section_vals_get_subs_vals(resp_section,&
+                                            "PRINT%V_RESP_CUBE",error=error)
+    logger => cp_error_get_logger(error)
 
     v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
     bo=v_hartree_pw%pw_grid%bounds_local
@@ -578,6 +595,18 @@ CPSourceFileRef,&
     dvol=v_hartree_pw%pw_grid%dvol
     ALLOCATE(dist(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+
+    !only store fitting points when printing resp potential
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
+        "PRINT%V_RESP_CUBE",error=error),cp_p_file)) THEN
+     IF(.NOT.ASSOCIATED(resp_env%fitpoints)) THEN
+        now = 1000
+        ALLOCATE(resp_env%fitpoints(3,now),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     ELSE
+        now = SIZE(resp_env%fitpoints,2)
+     END IF
+    ENDIF
 
     DO jz=bo(1,3),bo(2,3)
     DO jy=bo(1,2),bo(2,2)
@@ -607,7 +636,16 @@ CPSourceFileRef,&
        ! the point for fitting, add/subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
        IF (ALL(dist>resp_env%rmax-1.0E-13_dp).OR.ANY(dist<resp_env%rmin+1.0E-13_dp)) CYCLE
        resp_env%npoints = resp_env%npoints + 1
-
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
+           "PRINT%V_RESP_CUBE",error=error),cp_p_file)) THEN
+        IF(resp_env%npoints > now) THEN
+           now = 2*now
+           CALL reallocate(resp_env%fitpoints,1,3,1,now)
+        ENDIF
+        resp_env%fitpoints(1,resp_env%npoints) = jx
+        resp_env%fitpoints(2,resp_env%npoints) = jy
+        resp_env%fitpoints(3,resp_env%npoints) = jz
+       ENDIF
        ! correct for the fact that v_hartree is scaled by dvol, and has the opposite sign
        IF (qs_env%qmmm) THEN
           ! If it's a QM/MM run let's remove the contribution of the MM potential out of the Hartree pot
@@ -626,13 +664,15 @@ CPSourceFileRef,&
     ENDDO
     ENDDO
     ENDDO
-
+    
+    resp_env%npoints_proc=resp_env%npoints
     CALL mp_sum(resp_env%npoints,v_hartree_pw%pw_grid%para%group)
     CALL mp_sum(matrix,v_hartree_pw%pw_grid%para%group)
     CALL mp_sum(rhs,v_hartree_pw%pw_grid%para%group)
     !weighted sum
     matrix=matrix/resp_env%npoints
     rhs=rhs/resp_env%npoints
+
     DEALLOCATE(dist,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 
@@ -710,7 +750,7 @@ CPSourceFileRef,&
     DO i=1,natom
      !collocate gaussian for each atom
       CALL pw_zero(rho_ga%pw, error=error)
-      CALL calculate_rho_resp(rho_ga,qs_env,resp_env%eta,i,error)
+      CALL calculate_rho_resp_single(rho_ga,qs_env,resp_env%eta,i,error)
      !calculate potential va and store the part needed for fitting in vpot
       CALL pw_zero(va_gspace%pw, error=error)
       CALL pw_poisson_solve(poisson_env,rho_ga%pw,vhartree=va_gspace%pw,error=error)
@@ -740,7 +780,8 @@ CPSourceFileRef,&
 
     DEALLOCATE(vpot,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-
+    
+    resp_env%npoints_proc=resp_env%npoints
     CALL mp_sum(resp_env%npoints,para_env%group)
     CALL mp_sum(resp_env%matrix,para_env%group)
     CALL mp_sum(resp_env%rhs,para_env%group)
@@ -771,7 +812,7 @@ CPSourceFileRef,&
                                                 iatom, in_x, in_y, in_z, jx, &
                                                 jy, jz, k, l, m, natom, now, &
                                                 output_unit, p, stat
-    LOGICAL                                  :: failure, my_write
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dh(3,3), r(3), vec_pbc(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
     TYPE(cp_logger_type), POINTER            :: logger
@@ -782,7 +823,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    my_write=.TRUE.
     NULLIFY(v_hartree_pw,para_env,logger,input,resp_section)   
  
     CALL get_qs_env(qs_env, input=input, para_env=para_env, error=error)
@@ -889,7 +929,7 @@ CPSourceFileRef,&
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             resp_section,"PRINT%COORD_FIT_POINTS",error=error),&
             cp_p_file))THEN
-     CALL print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,my_write,error)
+     CALL print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,error)
     ENDIF
 
     CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
@@ -948,14 +988,12 @@ CPSourceFileRef,&
 !\brief print the atom coordinates and the coordinates of the fitting points
 !       to an xyz file
 !****************************************************************************
-  SUBROUTINE print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,&
-                                  my_write,error)
+  SUBROUTINE print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,error)
   
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     REAL(KIND=dp), INTENT(IN)                :: dh(3,3)
     INTEGER, INTENT(IN)                      :: output_unit, gbo(2,3)
-    LOGICAL, INTENT(INOUT)                   :: my_write
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_fitting_points', &
@@ -997,16 +1035,13 @@ CPSourceFileRef,&
      filename=cp_print_key_generate_filename(logger,&
               print_key, extension=".xyz",&
               my_local=.FALSE.,error=error)
-     IF(my_write) THEN
-      WRITE(unit=output_unit,FMT="(I12,A,/)") SIZE(particle_set),' + nr fit points'
-      DO iatom=1,SIZE(particle_set)
-       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                            element_symbol=element_symbol)
-       WRITE(UNIT=output_unit,FMT="(A,1X,3F10.5)") element_symbol,&
-                                               particle_set(iatom)%r(1:3)*conv
-       my_write=.FALSE.  
-      ENDDO
-     ENDIF
+     WRITE(unit=output_unit,FMT="(I12,A,/)") SIZE(particle_set),' + nr fit points'
+     DO iatom=1,SIZE(particle_set)
+      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                           element_symbol=element_symbol)
+      WRITE(UNIT=output_unit,FMT="(A,1X,3F10.5)") element_symbol,&
+                                              particle_set(iatom)%r(1:3)*conv
+     ENDDO
      !printing points of proc which is doing the output (should be proc 0)
      DO ip=1,resp_env%npoints
       jx=resp_env%fitpoints(1,ip)     
@@ -1132,7 +1167,7 @@ CPSourceFileRef,&
      WRITE(output_unit,'(T3,A,T80,A)')  "Constrain total charge ",MERGE("T","F",resp_env%itc)
      WRITE(output_unit,'(T3,A,T80,A)')  "Restrain heavy atoms ",MERGE("T","F",resp_env%rheavies)
      IF (resp_env%rheavies) THEN
-        WRITE(output_unit,'(T3,A,T71,F10.5)') "Heavy atom restraint strength: ",&
+        WRITE(output_unit,'(T3,A,T71,F10.6)') "Heavy atom restraint strength: ",&
                                                                     resp_env%rheavies_strength
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
@@ -1194,7 +1229,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, k, m, ncons_v, &
                                                 stat, z
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, atom_list_res
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit_coeff, failure
     REAL(KIND=dp)                            :: my_atom_coef(2), strength, &
                                                 TARGET
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
@@ -1206,12 +1241,18 @@ CPSourceFileRef,&
  
     ! add the restraints
     DO i=1,resp_env%nrest_sec
-       CALL section_vals_val_get(rest_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef,error=error)
        CALL section_vals_val_get(rest_section,"TARGET",i_rep_section=i,r_val=TARGET,error=error)
        CALL section_vals_val_get(rest_section,"STRENGTH",i_rep_section=i,r_val=strength,error=error)
        CALL build_atom_list(rest_section,subsys,atom_list_res,i,error)
-       CPPrecondition(SIZE(atom_list_res)==SIZE(atom_coef),cp_failure_level,routineP,error,failure)
+       CALL section_vals_val_get(rest_section,"ATOM_COEF",i_rep_section=i,explicit=explicit_coeff,&
+            error=error)
+       IF (explicit_coeff) THEN
+        CALL section_vals_val_get(rest_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef,&
+             error=error)
+        CPPrecondition(SIZE(atom_list_res)==SIZE(atom_coef),cp_failure_level,routineP,error,failure)
+       ENDIF
        DO m=1,SIZE(atom_list_res)
+         IF (explicit_coeff) THEN
           DO k=1,SIZE(atom_list_res)
              resp_env%matrix(atom_list_res(m),atom_list_res(k))=&
                                      resp_env%matrix(atom_list_res(m),atom_list_res(k))+ &
@@ -1219,6 +1260,13 @@ CPSourceFileRef,&
           ENDDO
           resp_env%rhs(atom_list_res(m))=resp_env%rhs(atom_list_res(m))+&
                                        2.0_dp*TARGET*strength*atom_coef(m)
+         ELSE
+          resp_env%matrix(atom_list_res(m),atom_list_res(m))=&
+              resp_env%matrix(atom_list_res(m),atom_list_res(m))+ &
+               2.0_dp*strength
+          resp_env%rhs(atom_list_res(m))=resp_env%rhs(atom_list_res(m))+&
+                                       2.0_dp*TARGET*strength
+         ENDIF
        ENDDO
        DEALLOCATE(atom_list_res,stat=stat)
        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -1337,4 +1385,134 @@ CPSourceFileRef,&
 
     CALL timestop(handle)
   END SUBROUTINE print_resp_charges
+!****************************************************************************
+!\brief print potential generates by RESP charges to file
+!****************************************************************************
+  SUBROUTINE print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_runinfo,error)
+ 
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, INTENT(IN)                      :: natom, output_runinfo
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_pot_from_resp_charges', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: my_pos_cube
+    INTEGER                                  :: handle, ip, jx, jy, jz, &
+                                                unit_nr
+    LOGICAL                                  :: append_cube, failure
+    REAL(KIND=dp)                            :: normalize_factor, rms, rrms, &
+                                                sum_diff, sum_hartree, udvol
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: aux_r, rho_resp, &
+                                                v_resp_gspace, v_resp_rspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: input, print_key, resp_section
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(auxbas_pw_pool,logger,pw_env,poisson_env,input,print_key,&
+            para_env,resp_section)
+    normalize_factor=SQRT((resp_env%eta/pi)**3)
+    CALL get_qs_env(qs_env=qs_env,input=input,para_env=para_env,&
+                    pw_env=pw_env,error=error)
+    resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
+                                                error=error)
+    print_key => section_vals_get_subs_vals(resp_section,&
+                                            "PRINT%V_RESP_CUBE",error=error)
+    logger => cp_error_get_logger(error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
+         "PRINT%V_RESP_CUBE",error=error),cp_p_file)) THEN
+     ! calculate potential generated from RESP charges
+     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
+                       poisson_env=poisson_env,error=error)
+
+     CALL pw_pool_create_pw(auxbas_pw_pool,&
+                            rho_resp%pw,&
+                            use_data=COMPLEXDATA1D,&
+                            in_space=RECIPROCALSPACE,&
+                            error=error)
+     CALL pw_pool_create_pw(auxbas_pw_pool,&
+                            v_resp_gspace%pw, &
+                            use_data=COMPLEXDATA1D,&
+                            in_space=RECIPROCALSPACE,&
+                            error=error)
+     CALL pw_pool_create_pw(auxbas_pw_pool,&
+                            v_resp_rspace%pw,&
+                            use_data=REALDATA3D,&
+                            in_space=REALSPACE,&
+                            error=error)
+
+     CALL pw_zero(rho_resp%pw,error=error)
+     CALL calculate_rho_resp_all(rho_resp,resp_env%rhs,natom,&
+                                              resp_env%eta,qs_env,error)
+     CALL pw_zero(v_resp_gspace%pw, error=error)
+     CALL pw_poisson_solve(poisson_env,rho_resp%pw,&
+                          vhartree=v_resp_gspace%pw,error=error)
+     CALL pw_zero(v_resp_rspace%pw, error=error)
+     CALL pw_transfer(v_resp_gspace%pw,v_resp_rspace%pw,error=error)
+     CALL pw_scale(v_resp_rspace%pw,v_resp_rspace%pw%pw_grid%dvol,&
+                   error=error) 
+     CALL pw_scale(v_resp_rspace%pw,-normalize_factor,&
+                   error=error)  
+     CALL pw_release(v_resp_gspace%pw,error=error)
+     CALL pw_release(rho_resp%pw,error=error)
+     !now print the v_resp_rspace%pw to a cube file
+     CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
+                             use_data = REALDATA3D,&
+                             in_space = REALSPACE, error=error)
+     append_cube=section_get_lval(resp_section,"PRINT%V_RESP_CUBE%APPEND",error=error)
+     my_pos_cube="REWIND"
+     IF(append_cube) THEN
+       my_pos_cube="APPEND"
+     END IF
+     unit_nr=cp_print_key_unit_nr(logger,resp_section,&
+                           "PRINT%V_RESP_CUBE",&
+                           extension=".cube",&
+                           file_position=my_pos_cube,error=error)
+     udvol = 1.0_dp/v_resp_rspace%pw%pw_grid%dvol
+     CALL pw_copy(v_resp_rspace%pw,aux_r%pw, error=error)
+     CALL pw_scale(aux_r%pw,udvol,error=error)
+     CALL pw_to_cube(aux_r%pw,unit_nr,"RESP POTENTIAL",particles=particles,&
+               stride=section_get_ivals(resp_section,&
+               "PRINT%V_RESP_CUBE%STRIDE",error=error),&
+               error=error)
+     CALL cp_print_key_finished_output(unit_nr,logger,resp_section,&
+          "PRINT%V_RESP_CUBE",error=error)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
+   
+    !RMS and RRMS
+    sum_diff=0.0_dp
+    sum_hartree=0.0_dp
+    rms=0.0_dp
+    rrms=0.0_dp
+    DO ip=1,resp_env%npoints_proc 
+     jx = resp_env%fitpoints(1,ip)
+     jy = resp_env%fitpoints(2,ip)
+     jz = resp_env%fitpoints(3,ip)
+     sum_diff=sum_diff+(qs_env%ks_env%v_hartree_rspace%pw%cr3d(jx,jy,jz)-&
+              v_resp_rspace%pw%cr3d(jx,jy,jz))**2
+     sum_hartree=sum_hartree+qs_env%ks_env%v_hartree_rspace%pw%cr3d(jx,jy,jz)**2 
+    ENDDO
+     CALL mp_sum(sum_diff,para_env%group)
+     CALL mp_sum(sum_hartree,para_env%group)
+     rms=SQRT(sum_diff/resp_env%npoints)
+     rrms=SQRT(sum_diff/sum_hartree)
+     IF(output_runinfo > 0) THEN
+      WRITE(output_runinfo,'(2X,A,T69,ES12.5)') "Root-mean-square (RMS) "//&
+                                                "error of RESP fit:",rms  
+      WRITE(output_runinfo,'(2X,A,T69,ES12.5,/)') "Relative root-mean-square "//&
+                                                  "(RRMS) error of RESP fit:",rrms  
+     ENDIF
+     CALL pw_release(v_resp_rspace%pw,error=error)
+    ENDIF
+ 
+    CALL timestop(handle)
+  END SUBROUTINE print_pot_from_resp_charges
 END MODULE qs_resp

@@ -194,7 +194,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="ATOM_COEF",&
-            description="Defines the the coefficient of the atom in this this "//&
+            description="Defines the coefficient of the atom in this "//&
                         "linear constraint",&
             usage="ATOM_COEF 1.0 -1.0",&
             type_of_var=real_t, n_var=-1, error=error)
@@ -229,7 +229,7 @@ CONTAINS
        CALL section_create(section,name="RESTRAINT",&
             description="specifies a restraint on the fitted charges."//&
                         "This can be used to restrain values to zero." //&
-                        "s*(sum over atom_list c_i * q_i - t)**2",&
+                        "s*(sum over atom_list q_i - t)**2",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -258,8 +258,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="ATOM_COEF",&
-            description="Defines the the coefficient of the atom in this this "//&
-                        "linear restraint",&
+            description="Defines the coefficient of the atom in this "//&
+                        "linear restraint. If given, the restraint will be: "//&
+                        "s*(sum over atom_list c_i * q_i - t)**2 ",&
             usage="ATOM_COEF 1.0 -1.0",&
             type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -459,12 +460,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       NULLIFY(print_key)
+       NULLIFY(print_key, keyword)
        CALL section_create(section,name="print",&
             description="Section of possible print options specific for the RESP code.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
@@ -493,6 +495,28 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,&
             filename="RESP_CHARGES",&
             common_iter_levels=3, error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"V_RESP_CUBE",&
+            description="Controls the printing of the potential generated "//&
+            "by the RESP CHARGES to a cube file. Prints the relative "//&
+            "root-mean-square (RRMS) and root-mean-square (RMS) errors.",&
+            print_level=high_print_level,add_last=add_last_numeric,&
+            filename="RESP_POTENTIAL",&
+            common_iter_levels=3, error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
    ENDIF

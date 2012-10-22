@@ -1057,7 +1057,7 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
 
     INTEGER                                  :: atom_a, iatom, natom, &
                                                 output_unit
-    REAL(KIND=dp)                            :: sum_coeff
+    REAL(KIND=dp)                            :: normalize_factor, sum_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input
 
@@ -1066,6 +1066,7 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
 
  sum_coeff=0.0_dp
  natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
+ normalize_factor=SQRT((qs_env%qmmm_env_qm%image_charge_pot%eta/pi)**3)
 
  DO iatom=1,natom
    sum_coeff=sum_coeff+image_coeff(iatom)
@@ -1078,9 +1079,9 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
  IF(output_unit>0) THEN
    WRITE (unit=output_unit,fmt="(/)")
    WRITE (unit=output_unit,fmt="(T2,A)")&
-    "Image charge coefficients [a.u.] after QMMM calculation: "
-   WRITE (unit=output_unit,fmt="(T4,A4,T68,A)") "Atom", "Coefficient"
-   WRITE(unit=output_unit,fmt="(T4,A,T68,A)") REPEAT("-",4), REPEAT("-",11)
+    "Image charges [a.u.] after QMMM calculation: "
+   WRITE (unit=output_unit,fmt="(T4,A4,T67,A)") "Atom", "Image charge"
+   WRITE(unit=output_unit,fmt="(T4,A,T67,A)") REPEAT("-",4), REPEAT("-",12)
 
       DO iatom=1, natom
          atom_a=qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
@@ -1088,12 +1089,12 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
          !the 'wrong' sign to ensure consistency with v_hartree which has
          !the opposite sign
          WRITE (unit=output_unit,fmt="(T2,I6,T65,ES16.9)")&
-                                       atom_a, -image_coeff(iatom)
+                             atom_a, -image_coeff(iatom)/normalize_factor
       ENDDO
 
    WRITE(unit=output_unit,fmt="(T2,A)") REPEAT("-",79)
    WRITE (unit=output_unit,fmt="(T2,A,T65,ES16.9)") &
-                                  "sum coefficients:",-sum_coeff
+                          "sum image charges:",-sum_coeff/normalize_factor
  ENDIF
 
  CALL cp_print_key_finished_output(output_unit,logger,input,&
