@@ -429,29 +429,37 @@ SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
 
     INTEGER                                  :: i, n, nnodes, ncores, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: ranks_order,tmp_order
-    INTEGER                                  :: numtask,taskid,stat, ind
+    INTEGER                                  :: numtask,taskid,stat, ind, rounds
 
 #if !defined (__parallel)
    mp_new_comm = mp_comm
 #else
+#if defined __HWLOC
     ! get number of machines and number of cores per machine
     nnodes = ma_get_nmachines(mp_comm)
     ncores = ma_get_ncores()
-     
+ 
     IF (nnodes .GT. 0) THEN
       ! Get a new MPI rank ordering, reduce comm costs
        CALL mp_environ(numtask,taskid,mp_comm)
-      ALLOCATE(ranks_order(numtask),stat=stat)
+       ALLOCATE(ranks_order(numtask),stat=stat)
 
      ranks_order(:) = 0
      ind = 1
+     rounds = CEILING(REAL((numtask/ncores),KIND=dp))
 
-      DO i=0, nnodes-1    
-        DO n=0, ncores-1 
-          ranks_order(ind) = i + nnodes*n
+     IF(rounds .EQ. 0)THEN
+        DO i=0,numtask-1
+          ranks_order(ind) = i
           ind = ind + 1
         ENDDO
-      ENDDO
+      ELSE
+        i = 0
+        DO ind=1, numtask
+          ranks_order(ind) =  MOD((ind-1),nnodes)*ncores+i
+          IF (MOD(ind,nnodes) == 0 ) i = i + 1
+        ENDDO
+      ENDIF
 
       ! Create the new communicator
       CALL mp_reordering(mp_comm,mp_new_comm,ranks_order)
@@ -462,7 +470,14 @@ SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
        unit_nr = 6
        WRITE(unit_nr,'(T2,A,A)') "WARNING: round-robin not", &
             " applied"
+       mp_new_comm = mp_comm
     ENDIF
+#else
+   unit_nr = 6
+   WRITE(unit_nr,'(T2,A,A)') "WARNING: You need hwloc library", &
+            " to use round-robin strategy"
+    mp_new_comm = mp_comm
+#endif
 #endif
 
 END SUBROUTINE ma_round_robin
