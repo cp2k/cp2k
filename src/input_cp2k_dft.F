@@ -1156,84 +1156,89 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"ao_matrices",&
+       CALL cp_print_key_section_create(print_key,"AO_MATRICES",&
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
             print_level=debug_print_level,filename="__STD_OUT__",&
             error=error)
-       CALL keyword_create(keyword, name="core_hamiltonian",&
+       CALL keyword_create(keyword, name="CORE_HAMILTONIAN",&
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="density",&
+       CALL keyword_create(keyword, name="DENSITY",&
             description="If the printkey is activated controls the printing of the density (P) matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="kinetic_energy",&
+       CALL keyword_create(keyword, name="KINETIC_ENERGY",&
             description="If the printkey is activated controls the printing of the kinetic energy matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="kohn_sham_matrix",&
+       CALL keyword_create(keyword, name="KOHN_SHAM_MATRIX",&
             description="If the printkey is activated controls the printing of the kohn-sham matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ortho",&
+       CALL keyword_create(keyword, name="MATRIX_VXC",&
+            description="If the printkey is activated compute and print the matrix of the exchange and correlation potential."//&
+                        "Only the GGA part for GPW is printed",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="ORTHO",&
             description="If the printkey is activated controls the printing of the orthogonalization matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="overlap",&
+       CALL keyword_create(keyword, name="OVERLAP",&
             description="If the printkey is activated controls the printing of the overlap matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="fermi_contact",&
+       CALL keyword_create(keyword, name="FERMI_CONTACT",&
             description="If the printkey is activated controls the printing of the Fermi contact matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="pso",&
+       CALL keyword_create(keyword, name="PSO",&
             description="If the printkey is activated controls the printing of the paramagnetic spin-orbit matrices",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="efg",&
+       CALL keyword_create(keyword, name="EFG",&
             description="If the printkey is activated controls the printing of the electric field gradient matrices",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="potential_energy",&
+       CALL keyword_create(keyword, name="POTENTIAL_ENERGY",&
             description="If the printkey is activated controls the printing of the potential energy matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="oce_hard",&
+       CALL keyword_create(keyword, name="OCE_HARD",&
             description="If the printkey is activated controls the printing of the OCE HARD matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="oce_soft",&
+       CALL keyword_create(keyword, name="OCE_SOFT",&
             description="If the printkey is activated controls the printing of the OCE SOFT matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="w_matrix",&
+       CALL keyword_create(keyword, name="W_MATRIX",&
             description="If the printkey is activated controls the printing of the w matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="w_matrix_aux_fit",&
+       CALL keyword_create(keyword, name="W_MATRIX_AUX_FIT",&
             description="If the printkey is activated controls the printing of the w matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="derivatives",&
+       CALL keyword_create(keyword, name="DERIVATIVES",&
             description="If the printkey is activated controls the printing "//&
             "of derivatives (for the matrixes that support this)",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)

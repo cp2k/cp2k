@@ -2375,6 +2375,7 @@ CONTAINS
       nd(3), ngto, niso, nkind, nmo, np, nr, output_unit, unit_nr
     LOGICAL                                  :: all_equal, append_cube, &
                                                 failure, print_total_density, &
+                                                write_ks, write_xc, &
                                                 xrd_interface
     REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
       rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
@@ -2393,7 +2394,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
-                                                matrix_s
+                                                matrix_s, matrix_vxc
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2438,7 +2439,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,matrix_ks_aux_fit=ks_rmpv_aux_fit,admm_env=admm_env,&
-            scf_control=scf_control,matrix_s=matrix_s,&
+            scf_control=scf_control,matrix_s=matrix_s,matrix_vxc=matrix_vxc,&
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -2971,12 +2972,22 @@ CONTAINS
                                             error=error)
        END IF
 
-       ! Write the Kohn-Sham matrices
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
+       write_ks=BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
+       write_xc=BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                 "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
+
+       ! we need to update stuff before writing, potentially computing the matrix_vxc
+       IF (write_ks .OR. write_xc) THEN
+          IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
+          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,error=error,&
                                    calculate_forces=.FALSE.,just_energy=.FALSE.)
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+          IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
+       ENDIF
+
+       ! Write the Kohn-Sham matrices
+       IF (write_ks) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
@@ -2987,6 +2998,20 @@ CONTAINS
                                             "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                             error=error)
        END IF
+
+       ! Write the xc matrix
+       IF (write_xc) THEN
+          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
+                                    extension=".Log",error=error)
+          DO ispin=1,dft_control%nspins
+             CALL cp_dbcsr_write_sparse_matrix(qs_env%matrix_vxc(ispin)%matrix,4,6,qs_env,&
+                                            para_env,output_unit=iw,error=error)
+          END DO
+          CALL cp_print_key_finished_output(iw,logger,input,&
+                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+                                            error=error)
+       END IF
+
 
     END IF
 

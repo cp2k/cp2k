@@ -17,7 +17,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_methods
-
   USE admm_methods,                    ONLY: admm_merge_ks_matrix,&
                                              admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
@@ -29,7 +28,7 @@ MODULE qs_ks_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_get_info, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_release_p, &
+       cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_release_p, cp_dbcsr_scale, &
        cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
@@ -701,6 +700,10 @@ CONTAINS
        CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy_xc, error=error)
+
+       IF (qs_env%requires_matrix_vxc) THEN
+          CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
+       ENDIF
 
        NULLIFY(rho_struct)
 
@@ -2351,6 +2354,63 @@ CONTAINS
         "DFT%SCF%PRINT%DETAILED_ENERGY", error=error)
 
   END SUBROUTINE print_detailed_energy
+
+! *****************************************************************************
+!> \brief compute matrix_vxc, defined via the potential created by qs_vxc_create
+!>        ignores things like tau functional, gapw, sic, ...
+!>         so only OK for GGA & GPW right now
+!> \par History
+!>    created 23.10.2012 [Joost VandeVondele]
+!> \author
+! *****************************************************************************
+  SUBROUTINE compute_matrix_vxc(qs_env,v_rspace, matrix_vxc, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_vxc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin
+    LOGICAL                                  :: gapw
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    CALL timeset(routineN,handle)
+
+    ! create the matrix using matrix_ks as a template
+    IF (ASSOCIATED(matrix_vxc)) THEN
+       CALL cp_dbcsr_deallocate_matrix_set(matrix_vxc,error)
+    ENDIF
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+    ALLOCATE(matrix_vxc(SIZE(matrix_ks)))
+    DO ispin=1,SIZE(matrix_ks)
+       NULLIFY(matrix_vxc(ispin)%matrix)
+       CALL cp_dbcsr_init_p(matrix_vxc(ispin)%matrix,error=error)
+       CALL cp_dbcsr_copy(matrix_vxc(ispin)%matrix,matrix_ks(ispin)%matrix,&
+                                   name="Matrix VXC of spin "//cp_to_string(ispin),error=error)
+       CALL cp_dbcsr_set(matrix_vxc(ispin)%matrix,0.0_dp,error=error)
+    ENDDO
+
+    ! and integrate
+    CALL get_qs_env(qs_env,dft_control=dft_control,error=error)
+    gapw=dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
+    DO ispin=1,SIZE(matrix_ks)
+       CALL integrate_v_rspace(v_rspace=v_rspace(ispin),&
+                               h=matrix_vxc(ispin), &
+                               qs_env=qs_env, &
+                               calculate_forces=.FALSE.,&
+                               gapw=gapw,error=error)
+       ! scale by the volume element... should really become part of integrate_v_rspace
+       CALL cp_dbcsr_scale(matrix_vxc(ispin)%matrix,v_rspace(ispin)%pw%pw_grid%dvol,error=error)
+    ENDDO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE compute_matrix_vxc
 
 ! *****************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate

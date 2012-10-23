@@ -318,6 +318,7 @@ MODULE qs_environment_types
     LOGICAL :: use_ref_cell
     LOGICAL :: qmmm, qmmm_periodic
     LOGICAL :: requires_mo_derivs
+    LOGICAL :: requires_matrix_vxc
     LOGICAL :: has_unit_metric
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
@@ -348,8 +349,9 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(harris_env_type), POINTER                        :: harris_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER         :: matrix_h,&
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h,&
                                                              matrix_ks,&
+                                                             matrix_vxc,&
                                                              matrix_s,&
                                                              kinetic,&
                                                              matrix_w,&
@@ -447,7 +449,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_cn,sab_scp,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,particle_set,energy,force,harris_env,matrix_h,matrix_ks,run_rtp,rtp,&
+       sab_se,sab_tbe,sab_core,particle_set,energy,force,harris_env,matrix_h,matrix_ks,matrix_vxc,run_rtp,rtp,&
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
@@ -484,7 +486,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: force
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_ks
+      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
+                                                matrix_vxc
     LOGICAL, OPTIONAL                        :: run_rtp
     TYPE(rt_prop_type), OPTIONAL, POINTER    :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
@@ -657,6 +660,7 @@ CONTAINS
     IF (PRESENT(harris_env)) harris_env => qs_env%harris_env
     IF (PRESENT(matrix_h)) matrix_h => qs_env%matrix_h
     IF (PRESENT(matrix_ks)) matrix_ks => qs_env%matrix_ks
+    IF (PRESENT(matrix_vxc)) matrix_vxc => qs_env%matrix_vxc
     IF (PRESENT(matrix_ks_aux_fit)) matrix_ks_aux_fit => qs_env%matrix_ks_aux_fit
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
@@ -815,6 +819,7 @@ CONTAINS
     NULLIFY (qs_env%harris_env)
     NULLIFY (qs_env%matrix_h)
     NULLIFY (qs_env%matrix_ks)
+    NULLIFY (qs_env%matrix_vxc)
     NULLIFY (qs_env%matrix_ks_aux_fit)
     NULLIFY (qs_env%kinetic)
     NULLIFY (qs_env%matrix_s)
@@ -902,6 +907,7 @@ CONTAINS
     qs_env%qmmm=.FALSE.
     qs_env%qmmm_periodic=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
+    qs_env%requires_matrix_vxc=.FALSE.
     qs_env%has_unit_metric=.FALSE.
     qs_env%use_harris=.FALSE.
     qs_env%calc_image_preconditioner=.TRUE.
@@ -927,7 +933,7 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,energy,force,harris_env,matrix_h,matrix_ks,&
+       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,energy,force,harris_env,matrix_h,matrix_ks,matrix_vxc,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,&
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,&
@@ -957,7 +963,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: force
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
-      matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
+      matrix_ks, matrix_vxc, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
       matrix_s_aux_fit_vs_orb, matrix_w, gamma_matrix
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(ewald_environment_type), OPTIONAL, &
@@ -1127,6 +1133,7 @@ CONTAINS
     IF (PRESENT(harris_env)) qs_env%harris_env => harris_env
     IF (PRESENT(matrix_h)) qs_env%matrix_h => matrix_h
     IF (PRESENT(matrix_ks)) qs_env%matrix_ks => matrix_ks
+    IF (PRESENT(matrix_vxc)) qs_env%matrix_vxc => matrix_vxc
     IF (PRESENT(matrix_ks_aux_fit)) qs_env%matrix_ks_aux_fit => matrix_ks_aux_fit
     IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
     IF (PRESENT(matrix_s_aux_fit)) qs_env%matrix_s_aux_fit => matrix_s_aux_fit
@@ -1614,6 +1621,9 @@ CONTAINS
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_ks)) THEN
              CALL cp_dbcsr_deallocate_matrix_set(qs_env % matrix_ks,error)
+          ENDIF
+          IF (ASSOCIATED(qs_env%matrix_vxc)) THEN
+             CALL cp_dbcsr_deallocate_matrix_set(qs_env % matrix_vxc,error)
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_ks_aux_fit)) THEN
              CALL cp_dbcsr_deallocate_matrix_set(qs_env % matrix_ks_aux_fit,error)
