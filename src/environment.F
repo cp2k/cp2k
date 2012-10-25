@@ -27,7 +27,8 @@ MODULE environment
                                              cp_ma_print_machine,&
                                              cp_ma_run_on,&
                                              cp_ma_thread_run_on,&
-                                             cp_ma_thread_sched
+                                             cp_ma_thread_sched, &
+                                             cp_ma_print_strategy
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -648,6 +649,8 @@ CONTAINS
     SReclaimable=SReclaimable/1024
     MemLikelyFree=MemLikelyFree/1024
 
+
+
    ! Initialize the MA configurations
     IF (has_ma) THEN
       CALL cp_ma_config(root_section,error)
@@ -777,6 +780,11 @@ CONTAINS
                                                              MemLikelyFree_avr
        WRITE (UNIT=output_unit,FMT='()')
 
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET || __HWLOC || __LIBNUMA
+    WRITE(UNIT=output_unit,FMT='(T2,A)') "MACHINE HARDWARE TOPOLOGY| Strategies details"
+    CALL cp_ma_print_strategy(unit_nr=output_unit,error=error)
+    WRITE (UNIT=output_unit,FMT='()')
+#endif
        ! Show machine topology
        CALL cp_ma_print_machine(unit_nr=output_unit, error=error)
 

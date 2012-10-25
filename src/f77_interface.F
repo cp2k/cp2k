@@ -31,7 +31,8 @@ MODULE f77_interface
                                              cp_ma_mpi_reordering,&
                                              cp_ma_print_strategy,&
                                              has_ma,&
-                                             has_ma_topology
+                                             has_ma_topology, &
+                                             cp_ma_set_mpi_reordering
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -267,7 +268,7 @@ CONTAINS
        ierr=0
 
 #if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
-     CALL cp_ma_print_strategy(strategy,unit_nr, error)
+     CALL cp_ma_set_mpi_reordering(strategy)
 #endif
 
        ! Initialize the MA_ARCH configuration

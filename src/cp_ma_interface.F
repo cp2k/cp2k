@@ -60,6 +60,7 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_mpi_reorder_strategy
   PUBLIC :: cp_ma_mpi_reordering
   PUBLIC :: cp_ma_print_strategy
+  PUBLIC :: cp_ma_set_mpi_reordering
 
 CONTAINS
 
@@ -609,8 +610,15 @@ END SUBROUTINE cp_ma_net_affinity
     ENDIF
   END SUBROUTINE cp_ma_verify_place
 
-  SUBROUTINE cp_ma_print_strategy(mpi_reorder,unit_nr, error)
-    CHARACTER, INTENT(IN)                    :: mpi_reorder
+  SUBROUTINE cp_ma_set_mpi_reordering(mpi_reordering)
+    CHARACTER(len=1), INTENT(IN)             :: mpi_reordering
+
+    CALL ma_set_conf_mpi_reordering(mpi_reordering)
+
+  END SUBROUTINE cp_ma_set_mpi_reordering
+
+  SUBROUTINE cp_ma_print_strategy(unit_nr, error)
+    CHARACTER                                :: mpi_reorder
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -619,6 +627,8 @@ END SUBROUTINE cp_ma_net_affinity
 
     INTEGER                                  :: unit_num
     TYPE(cp_logger_type), POINTER            :: logger
+
+    mpi_reorder = ma_get_conf_mpi_reordering()
 
     logger => cp_error_get_logger(error)
 
@@ -629,7 +639,6 @@ END SUBROUTINE cp_ma_net_affinity
     ENDIF
 
     IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-      WRITE(unit_num,'(A)')
       IF (mpi_reorder .EQ. 'H' .OR. mpi_reorder .EQ. 'h') THEN
         WRITE(unit_num,'(A)') " MPI REORDERING| Hilbert curve"
       ELSE IF (mpi_reorder .EQ. 'P' .OR. mpi_reorder .EQ. 'p') THEN
