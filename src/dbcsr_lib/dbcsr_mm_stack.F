@@ -17,7 +17,7 @@ MODULE dbcsr_mm_stack
   USE dbcsr_config,                    ONLY: &
        detailed_timing, driver_is_async, kernel_timing, mm_async, mm_driver, &
        mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
-       mm_driver_smm, mm_workshare
+       mm_driver_smm, mm_thread_workshare
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_device_sync,&
                                              dbcsr_cuda_stream_sync
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
@@ -117,7 +117,7 @@ CONTAINS
 !>
 !> All non-empty stacks in the param_group are added to the queue.
 !> \par Non-worksharing
-!>      When mm_workshare is FALSE the stacks are instead processessed
+!>      When mm_thread_workshare is FALSE the stacks are instead processessed
 !>      immediately, bypassing the queue.
 !> \param[in,out] queue        My queue, to which parameter stacks are added.
 !> \param[in] param_group      Parameter stacks to add to queue
@@ -161,7 +161,7 @@ CONTAINS
           IF (dbg) WRITE(*,*)routineN//" not adding empty stack"
        ELSE
           IF (dbg) WRITE(*,*)routineN//" adding stack len", param_group%stacks(i)%s%stack_p
-          IF (mm_workshare .OR. mm_async) THEN
+          IF (mm_thread_workshare .OR. mm_async) THEN
              CALL dbcsr_pq_add_stack (queue, param_group%stacks(i), error=error)
           ELSE
              ! If no worksharing is active, just process the stack immediately.
@@ -414,7 +414,7 @@ CONTAINS
     CALL xtime_start (mult_timers(tmr_wait_for_empty_stack))
     stack_group => dbcsr_ps_set_get_group_p (param_sets, wait=.FALSE.,&
          error=error)
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP FLUSH
     ENDIF
     ! If the parameter stack we get is still busy then
@@ -446,7 +446,7 @@ CONTAINS
           CALL xtime_start (mult_timers(tmr_wait_for_empty_stack))
           CALL xtime_start (mult_timers(tmr_get_a_stack))
        ENDIF
-       IF (mm_workshare) THEN
+       IF (mm_thread_workshare) THEN
           !$OMP FLUSH
        ENDIF
        cnt = cnt + 1
@@ -493,7 +493,7 @@ CONTAINS
        ! appropriate a lock on the data area is taken.
        IF (dbg) WRITE(*,*)"Target too small"
        maxs = zero_last
-       IF (mm_workshare) THEN
+       IF (mm_thread_workshare) THEN
           CALL xtime_start (mult_timers(tmr_wait_for_my_target))
           ! Lock the target and wait for others to unlock their
           ! regions.
@@ -506,7 +506,7 @@ CONTAINS
             WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor, error=error)
-       IF (mm_workshare) THEN
+       IF (mm_thread_workshare) THEN
           ! Potentially resize locks.  The number of region locks is
           ! adjusted to the allocated size of the new data area (to
           ! prevent changing them whenever the last addressed block is
@@ -554,7 +554,7 @@ CONTAINS
           IF (verbose_acc) WRITE(*,*)routineN//" reallocating c_dev",&
                tmp_i, c_size
           !--- !$OMP CRITICAL (crit_cuda)
-          !$ IF (mm_workshare) CALL OMP_SET_LOCK (accel_lock)
+          !$ IF (mm_thread_workshare) CALL OMP_SET_LOCK (accel_lock)
           CALL dbcsr_cuda_dev_mem_realloc (card_data, tmp_i, stat=istat)
           IF (istat /= 0) THEN
              ! If the resize, including pre-oversizing failed, try to
@@ -566,7 +566,7 @@ CONTAINS
           IF (dbg) WRITE(*,*)routineN//" zeroing c_dev"
           CALL dbcsr_cuda_dev_mem_zero(card_data,&
                first=zero_first, last=c_size, error=error)
-          !$ IF (mm_workshare) CALL OMP_UNSET_LOCK (accel_lock)
+          !$ IF (mm_thread_workshare) CALL OMP_UNSET_LOCK (accel_lock)
           !--- !$OMP END CRITICAL (crit_cuda)
        ELSE IF (dbg) THEN
           WRITE(*,*)"not reallocating c_dev"
@@ -595,7 +595,7 @@ CONTAINS
           IF (verbose_acc .OR. info) WRITE(*,*)routineN//" reallocating locks", maxs
           IF (dbg) WRITE(*,*)routineN//" deallocating..."
           !--- !$OMP CRITICAL (crit_cuda)
-          !$ IF (mm_workshare) CALL OMP_SET_LOCK (accel_lock)
+          !$ IF (mm_thread_workshare) CALL OMP_SET_LOCK (accel_lock)
           CALL dbcsr_cuda_dev_mem_dealloc(c_locks_dev, error=error)
           tmp_i = INT(REAL(nblks*4,kind=dp)*default_resize_factor)
           !WRITE(*,*)routineN//" reallocating locks", tmp_i, maxs
@@ -611,7 +611,7 @@ CONTAINS
           CALL dbcsr_cuda_dev_mem_zero(c_locks_dev,&
                first=1, last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
                error=error)
-          !$ IF (mm_workshare) CALL OMP_UNSET_LOCK (accel_lock)
+          !$ IF (mm_thread_workshare) CALL OMP_UNSET_LOCK (accel_lock)
           !--- !$OMP END CRITICAL (crit_cuda)
           IF (.FALSE.) THEN
              t_dev_sync = t_dev_sync - m_walltime()
@@ -776,7 +776,7 @@ CONTAINS
     ! Locks the target (data) area if there could be an access
     ! conflict there.
     !
-    !$ IF (mm_workshare .AND. .NOT. driver_is_async (driver)) THEN
+    !$ IF (mm_thread_workshare .AND. .NOT. driver_is_async (driver)) THEN
     !$    CALL xtime_start (mult_timers(tmr_wait_for_other_target))
     !$    CALL dbcsr_ps_target_lock_regions (target_desc,&
     !$    stack_size, params,&
@@ -785,7 +785,7 @@ CONTAINS
     !$    error=error)
     !$    CALL xtime_stop (mult_timers(tmr_wait_for_other_target))
     !$ ENDIF
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP FLUSH
     ENDIF
     IF (.NOT. mm_async) &
@@ -919,16 +919,16 @@ CONTAINS
     !
     ! These writes have to be ordered.  Specifically the state should not
     ! be set before the stack has been used and the results written.
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP FLUSH
     ENDIF
     IF (.NOT. driver_is_async (driver)) THEN
        state = dbcsr_ps_state_empty
     ENDIF
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP FLUSH
     ENDIF
-    !$ IF (mm_workshare .AND. .NOT. driver_is_async (driver)) THEN
+    !$ IF (mm_thread_workshare .AND. .NOT. driver_is_async (driver)) THEN
     !$      CALL dbcsr_ps_target_unlock_regions (target_desc,&
     !$      which_locks, nregions,&
     !$      error=error)
@@ -1065,12 +1065,12 @@ CONTAINS
     IF (kernel_timing) kt = -m_walltime()
     !
     !--- !$OMP CRITICAL (crit_cuda)
-    !$ IF (mm_workshare) CALL OMP_SET_LOCK (accel_lock)
+    !$ IF (mm_thread_workshare) CALL OMP_SET_LOCK (accel_lock)
     CALL dbcsr_cuda_do_mm_stack (params_dev%d_i, stack_size, dbcsr_ps_width,&
          data_a_dev, data_b_dev, data_c_dev,&
          c_locks%d_i, ABS(m_max), ABS(n_max), ABS(k_max), defined_mnk,&
          stream=stream, error=error)
-    !$ IF (mm_workshare) CALL OMP_UNSET_LOCK (accel_lock)
+    !$ IF (mm_thread_workshare) CALL OMP_UNSET_LOCK (accel_lock)
     !--- !$OMP END CRITICAL (crit_cuda)
     IF (.FALSE.) CALL dbcsr_cuda_device_sync (error=error)
     IF (kernel_timing) THEN

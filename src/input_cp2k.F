@@ -28,7 +28,7 @@ MODULE input_cp2k
        dbcsr_get_conf_use_comm_thread, has_blas, has_cuda, has_plasma, &
        has_smm_gemm, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm, mm_workshare
+       mm_name_matmul, mm_name_plasma, mm_name_smm, mm_thread_workshare
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -898,10 +898,11 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
-    CALL keyword_create(keyword, name="mm_workshare",&
-         description="Share MM work (e.g., multiple threads, CPU/GPU, ...).",&
-         usage="mm_workshare T",&
-         default_l_val=mm_workshare,error=error)
+    CALL keyword_create(keyword, name="mm_thread_workshare",&
+         description="Share matrix multiplication work between multiple threads",&
+         usage="mm_thread_workshare T",&
+         variants=(/"MM_WORKSHARE"/),&
+         default_l_val=mm_thread_workshare,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !

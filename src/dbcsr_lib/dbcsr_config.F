@@ -72,7 +72,7 @@ MODULE dbcsr_config
   !
   PUBLIC :: detailed_timing, kernel_timing
   PUBLIC :: is_configured
-  PUBLIC :: mm_workshare
+  PUBLIC :: mm_thread_workshare
   PUBLIC :: epoch_time
 
 
@@ -168,7 +168,7 @@ MODULE dbcsr_config
   LOGICAL, SAVE :: is_configured = .FALSE.
 
   ! Worksharing between threads
-  LOGICAL, SAVE :: mm_workshare = .TRUE.
+  LOGICAL, SAVE :: mm_thread_workshare = .TRUE.
 
   REAL(KIND=dp), SAVE :: epoch_time = 0.0_dp
   !$OMP THREADPRIVATE (epoch_time)
@@ -207,17 +207,17 @@ CONTAINS
     !
     use_comm_thread = .TRUE.
     comm_thread_load = 100
-    mm_workshare = .FALSE.
-    !$ mm_workshare = .TRUE.
+    mm_thread_workshare = .FALSE.
+    !$ mm_thread_workshare = .TRUE.
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
        mm_host_driver = mm_driver_smm
-       mm_workshare = .FALSE.
+       mm_thread_workshare = .FALSE.
     ELSE
        mm_host_driver = mm_driver
     ENDIF
     epoch_time = m_walltime()
-    IF (has_cuda) mm_workshare = .FALSE.
+    IF (has_cuda) mm_thread_workshare = .FALSE.
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf
 

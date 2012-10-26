@@ -25,7 +25,7 @@ MODULE dbcsr_internal_operations
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_nstacks, detailed_timing, mm_async, mm_driver, &
        mm_driver_blas, mm_driver_cuda, mm_driver_plasma, mm_host_driver, &
-       mm_stack_size, mm_workshare, use_CUDA_host_pinned_memory, &
+       mm_stack_size, mm_thread_workshare, use_CUDA_host_pinned_memory, &
        use_MPI_memory, use_combined_types, use_comm_thread
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_create_streams,&
                                              dbcsr_cuda_destroy_streams
@@ -1839,7 +1839,7 @@ CONTAINS
     carrier%a_norms => a_norms
     carrier%b_norms => b_norms
     !
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP BARRIER
     ENDIF
     !
@@ -1895,7 +1895,7 @@ CONTAINS
     ! Mark myself as done with indexing.
     CALL dbcsr_pq_mark_done (carrier%queue, error)
     i_interface = .FALSE.
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP MASTER
        !
        ! I am the thread that interfaces to the accelerator.
@@ -1934,7 +1934,7 @@ CONTAINS
             error=error)
        CALL xtime_stop (mult_timers(tmr_mult_finish1))
 
-       IF (mm_workshare) THEN
+       IF (mm_thread_workshare) THEN
           CALL xtime_set (mult_timers(tmr_mult_finish2))
           CALL process_queue_others (carrier%queue, forever=.FALSE.,&
                driver=mm_driver, error=error)
@@ -1946,7 +1946,7 @@ CONTAINS
             driver=mm_host_driver, error=error)
        CALL xtime_stop (mult_timers(tmr_mult_finish1))
 
-       IF (mm_workshare) THEN
+       IF (mm_thread_workshare) THEN
           CALL xtime_set (mult_timers(tmr_mult_finish3))
           CALL process_queue_others (carrier%queue, forever=.TRUE.,&
                driver=mm_driver, error=error)
@@ -1957,7 +1957,7 @@ CONTAINS
     !
     flop = carrier%flop
     !
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        CALL xtime_start (mult_timers(tmr_sync))
        !$OMP BARRIER
        CALL xtime_stop (mult_timers(tmr_sync))
@@ -3000,7 +3000,7 @@ CONTAINS
     !
     advance_memreg = .FALSE.
     i_interface = .FALSE.
-    IF (mm_workshare) THEN
+    IF (mm_thread_workshare) THEN
        !$OMP MASTER
        ! I am the thread that interfaces to the accelerator.
        i_interface = mm_async
@@ -3154,7 +3154,7 @@ CONTAINS
                 IF (i_interface) THEN
                    CALL process_queue_mine (queue, &
                         driver=mm_driver, error=error)
-                   IF (mm_workshare) THEN
+                   IF (mm_thread_workshare) THEN
                       CALL process_queue_others (queue, forever=.FALSE.,&
                            driver=mm_driver, error=error)
                    ENDIF
@@ -3941,7 +3941,7 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handle, error)
 
     ! Only the master thread does common work in when threads share work.
-    do_master_work = .NOT. mm_workshare
+    do_master_work = .NOT. mm_thread_workshare
     do_master_work = .TRUE.
     !$OMP MASTER
     do_master_work = .TRUE.

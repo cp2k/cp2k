@@ -14,7 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_pq_methods
   USE dbcsr_config,                    ONLY: has_omp_2_5,&
-                                             mm_workshare
+                                             mm_thread_workshare
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_hold,&
                                              dbcsr_cuda_dev_mem_release
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
@@ -322,7 +322,7 @@ CONTAINS
     IF (careful_mod) &
          CALL dbcsr_error_set(routineN, error_handle, error)
     !$ CALL OMP_SET_LOCK (queue%queue_lock)
-    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     !$OMP CRITICAL
@@ -368,7 +368,7 @@ CONTAINS
     queue%stacks(new_n,bin) = stack
     queue%nstacks(bin) = queue%nstacks(bin) + 1
     queue%nstacks_total = queue%nstacks_total + 1
-    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
@@ -472,7 +472,7 @@ CONTAINS
     INTEGER                                  :: bin
 
     !$ CALL OMP_SET_LOCK (queue%queue_lock)
-    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     found = .FALSE.
@@ -489,7 +489,7 @@ CONTAINS
     ELSE
        found = .FALSE.
     ENDIF
-    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
@@ -513,7 +513,7 @@ CONTAINS
     LOGICAL                                  :: dbg = .FALSE.
 
     !$ CALL OMP_SET_LOCK (queue%queue_lock)
-    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     !$ IF (dbg) WRITE(*,*)'checking stacks', omp_get_thread_num(),&
@@ -536,7 +536,7 @@ CONTAINS
     ELSE
        found = .FALSE.
     ENDIF
-    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
@@ -1678,7 +1678,7 @@ CONTAINS
        !$ ENDIF
     ENDIF
     !$ CALL OMP_SET_LOCK (t%target_lock)
-    !$ IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    !$ IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     !$ ENDIF
     !$ if (dbg) write(*,*)"  locked main", OMP_GET_THREAD_NUM(), t%owner
@@ -1709,7 +1709,7 @@ CONTAINS
 
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    !$ IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+    !$ IF (mm_thread_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     !$ ENDIF
     !$ CALL OMP_UNSET_LOCK (t%target_lock)
