@@ -437,3 +437,5 @@ UO2-4x4x4-autofit.inp
 UO2-2x2x2-genpot_units.inp
 # stabilize BFGS with model Hessian 
 UO2-2x2x2-genpot_units.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+UO2-2x2x2-genpot_units.inp

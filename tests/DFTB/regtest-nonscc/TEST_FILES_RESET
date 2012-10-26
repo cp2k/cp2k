@@ -94,3 +94,9 @@ ch2o-3.inp
 ch2o-r.inp
 # stabilize BFGS with model Hessian 
 n2.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o-2.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o-3.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o-r.inp

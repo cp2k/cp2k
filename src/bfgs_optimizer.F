@@ -72,7 +72,8 @@ MODULE bfgs_optimizer
                                              dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_min
   USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -202,7 +203,7 @@ CONTAINS
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
        CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
        DO its=1,SIZE(eigval)
-         IF(eigval(its).lt.0.100_dp)eigval(its)=0.10_dp
+         IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
        END DO
        CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
        CALL cp_fm_column_scale(eigvec_mat,eigval)
@@ -917,7 +918,7 @@ CONTAINS
 
      alpha(1,:)=(/1._dp,0.3949_dp,0.3949_dp/)
      alpha(2,:)=(/0.3494_dp,0.2800_dp,0.2800_dp/)
-     alpha(3,:)=(/0.3494_dp,0.2800_dp,0.2800_dp/)
+     alpha(3,:)=(/0.3494_dp,0.2800_dp,0.1800_dp/)
 
      r0(1,:)=(/1.35_dp,2.10_dp,2.53_dp/)
      r0(2,:)=(/2.10_dp,2.87_dp,3.40_dp/)
@@ -938,6 +939,9 @@ CONTAINS
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      fixed=1.0_dp
      CALL fix_atom_control( force_env, error, fixed)
+     DO i=1,3
+        CALL mp_min(fixed(i,:),hess_mat%matrix_struct%para_env%group)
+     END DO
      rho_ij=0
       !XXXX insert proper rows !XXX
      at_row=3
@@ -963,16 +967,14 @@ CONTAINS
         iglobal=col_indices(i)
         iind=MOD(iglobal-1,3)+1
         iat_col=CEILING(REAL(iglobal)/3)
-        IF(fixed(iind,iat_col).lt.0.5_dp)CYCLE
         IF(iat_col.gt.natom)CYCLE
         DO j=1,nrow_local
            jglobal=row_indices(j)
            jind=MOD(jglobal-1,3)+1
            iat_row=CEILING(REAL(jglobal)/3)
-           IF(fixed(jind,iat_row).lt.0.5_dp)CYCLE
            IF(iat_row.gt.natom)CYCLE
            IF(iat_row.ne.iat_col)THEN
-               IF(rho_ij(iat_row,iat_col).gt.0.0001_dp)&
+               IF(d_ij(iat_row,iat_col).lt.6.0_dp)&
                local_data(j,i)=local_data(j,i)+&
                      angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
            ELSE
@@ -980,17 +982,22 @@ CONTAINS
                      angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
            END IF
            IF(iat_col.NE.iat_row)THEN
+               IF(d_ij(iat_row,iat_col).lt.4.0_dp) &
                local_data(j,i)=local_data(j,i)-&
                                dist_second_deriv(r_ij(iat_col,iat_row,:),&
                                iind,jind,d_ij(iat_row,iat_col),rho_ij(iat_row,iat_col))
            ELSE
               DO k=1,natom
                  IF(k==iat_col)CYCLE
-                 IF(rho_ij(iat_row,k).gt.0.0001_dp) &
+                 IF(d_ij(iat_row,k).lt.4.0_dp) &
                  local_data(j,i)=local_data(j,i)+&
                                dist_second_deriv(r_ij(iat_col,k,:),&
                                iind,jind,d_ij(iat_row,k),rho_ij(iat_row,k))
               END DO
+           END IF
+           IF(fixed(jind,iat_row).lt.0.5_dp.OR.fixed(iind,iat_col).lt.0.5_dp)THEN
+              local_data(j,i)=0.0_dp
+              IF(jind==iind.AND.iat_row==iat_col)local_data(j,i)=1.0_dp
            END IF 
         END DO
      END DO
@@ -1058,9 +1065,9 @@ CONTAINS
                                                          rsst3*r12(idir)/(d31*d12**3)
               D_mat(3,2)=(r31(jdir)-r12(jdir))/(d31*d12)+rsst3*r31(jdir)/(d31**3*d12)-&
                                                          rsst3*r12(jdir)/(d31*d12**3)
-              IF(denom1.le.0.011_dp)D_mat(1,1)=0.0_dp
-              IF(denom2.le.0.011_dp)D_mat(2,1)=0.0_dp
-              IF(denom3.le.0.011_dp)D_mat(3,1)=0.0_dp
+              IF(ABS(denom1).le.0.011_dp)D_mat(1,1)=0.0_dp
+              IF(ABS(denom2).le.0.011_dp)D_mat(2,1)=0.0_dp
+              IF(ABS(denom3).le.0.011_dp)D_mat(3,1)=0.0_dp
               deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
                     ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
                     ka3*D_mat(3,1)*D_mat(3,2)/denom3
@@ -1106,16 +1113,16 @@ CONTAINS
                                                        rsst2*r31(jdr)/(d23*d31**3)
               D_mat(3,2)=r12(jdr)/(d31*d12)-rsst3*r31(jdr)/(d31**3*d12)
            END IF
-           IF(denom1.le.0.011_dp)D_mat(1,1)=0.0_dp
-           IF(denom2.le.0.011_dp)D_mat(2,1)=0.0_dp
-           IF(denom3.le.0.011_dp)D_mat(3,1)=0.0_dp
+           IF(ABS(denom1).le.0.011_dp)D_mat(1,1)=0.0_dp
+           IF(ABS(denom2).le.0.011_dp)D_mat(2,1)=0.0_dp
+           IF(ABS(denom3).le.0.011_dp)D_mat(3,1)=0.0_dp
 
            deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
                  ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
                  ka3*D_mat(3,1)*D_mat(3,2)/denom3
          END DO
       END IF
-      deriv=0.5_dp*deriv
+      deriv=0.25_dp*deriv
 
  END FUNCTION angle_second_deriv
   

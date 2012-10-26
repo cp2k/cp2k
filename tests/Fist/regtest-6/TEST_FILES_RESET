@@ -148,3 +148,7 @@ cubane_0.inp
 cubane_15.inp
 # stabilize BFGS with model Hessian 
 cubane_0.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+cubane_15.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+cubane_0.inp

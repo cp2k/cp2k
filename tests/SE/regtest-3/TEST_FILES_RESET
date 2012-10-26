@@ -471,3 +471,9 @@ N3_rp_dp_md.inp
 N3_rp_md.inp
 SiO2.inp
 SiO2_lr_quad.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+N3-rp_colvar.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+LM-KSDO.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+LM-KSDO-D.inp

@@ -351,3 +351,7 @@ Be_GAPW.inp
 H2S-gapw-gop-ot.inp
 H2S-gapw-gop.inp
 H2S-gapw-ot.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2S-gapw-gop.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2S-gapw-gop-ot.inp

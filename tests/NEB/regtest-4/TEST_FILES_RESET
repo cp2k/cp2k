@@ -60,3 +60,7 @@ UO2-2x2x2-CI-NEB-core-shell-res.inp
 # more numerics
 2gly_IT-NEB-CV-res.inp
 2gly_IT-NEB-CV.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+2gly_IT-NEB-CV.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+2gly_IT-NEB-CV-res.inp

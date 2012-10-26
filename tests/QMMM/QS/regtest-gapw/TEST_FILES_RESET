@@ -77,3 +77,5 @@ H2O-qmmm-hfx.inp
 C11H24-qmmmgapw-gauss-0.inp
 # stabilize BFGS with model Hessian 
 C11H24-qmmmgapw-gauss-0.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+C11H24-qmmmgapw-gauss-0.inp

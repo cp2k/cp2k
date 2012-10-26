@@ -529,3 +529,9 @@ h2.t1.inp
 h2.t2.inp
 # reset numerics
 h4.t4.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-harris.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geoopt.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-fixed.inp

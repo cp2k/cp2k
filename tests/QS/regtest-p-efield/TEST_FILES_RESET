@@ -25,3 +25,7 @@ H2O-field-gopt-lsd.inp
 # more numerics
 H2O-field-gopt-lsd.inp
 H2O-field-gopt.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-field-gopt.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-field-gopt-lsd.inp

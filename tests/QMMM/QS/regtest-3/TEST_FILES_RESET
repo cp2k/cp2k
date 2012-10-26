@@ -561,3 +561,15 @@ C11H24-qmmm-gauss-0.inp
 constr.inp
 # reset numerics
 C4H10-qmmm-gauss-6.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+C4H10-qmmm-gauss-2.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+C4H10-qmmm-gauss-9.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+C4H10-qmmm-gauss-10.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+C4H10-qmmm-gauss-11.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+C11H24-qmmm-gauss-0.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+constr.inp

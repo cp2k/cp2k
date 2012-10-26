@@ -107,3 +107,5 @@ C-levelshift.inp
 NO2-ROKS.inp
 # stabilize BFGS with model Hessian 
 NO2-ROKS.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+NO2-ROKS.inp

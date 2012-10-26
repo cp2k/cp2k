@@ -550,3 +550,27 @@ ZrF2-PM6.inp
 hcl_ot.inp
 # speedup
 Pt-cis-2xpet3Cl2-si.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+h2o.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+h2o_lsd.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+nh4.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+st.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+h2o_lsd-ot.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+NO2-ROKS.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+b2h6_pm6.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o_pm6.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+hcn_pm6.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+Pt-cis-2xpet3Cl2.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+Pt-cis-2xpet3Cl2-si-noc.inp

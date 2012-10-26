@@ -224,3 +224,13 @@ ch2o-5.inp
 ch2o.inp
 # stabilize BFGS with model Hessian 
 fa_atprop.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o-1.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o-3.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o-5.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+ch2o.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+fa_atprop.inp

@@ -956,3 +956,17 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # more numerics
 He2_ddapc_constraint-4.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-ot-evals.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-ot-mols.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-ot-pdos.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-pdos.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-pdos_comp.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-ot-pdos-lumo-comp.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+H2O-geo-pdos_comp_list.inp

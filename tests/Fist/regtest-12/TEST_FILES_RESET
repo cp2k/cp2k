@@ -196,3 +196,9 @@ Si_tersoff.inp
 Si_tersoff.inp
 argon_opt_cell.inp
 argon_opt_cell_ks.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+argon_opt_cell.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+argon_opt_cell_ks.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+Si_tersoff.inp

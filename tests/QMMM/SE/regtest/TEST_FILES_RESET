@@ -211,3 +211,7 @@ water_3_full_num.inp
 water_3_full.inp
 # stabilize BFGS with model Hessian 
 water_3_full_num.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+water_3_full.inp
+# BFGS fix atoms parallel bug fix + tiny improvement 
+water_3_full_num.inp
