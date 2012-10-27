@@ -153,7 +153,8 @@ CONTAINS
     !
     IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, iw)
     !
-    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw)
+    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env,test_matmul=.TRUE.,test_dgemm=.FALSE.,iw=iw)
+    IF ( runtest ( 5 ) /= 0 ) CALL matmul_test ( para_env,test_matmul=.FALSE.,test_dgemm=.TRUE.,iw=iw)
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, globenv%fftw_plan_type, &
                                               error=error )
@@ -242,16 +243,18 @@ CONTAINS
 !
 !..defaults
 
+    ! using this style is not recommended, introduce sections instead (see e.g. cp_fm_gemm)
     runtest = 0
     test_section => section_vals_get_subs_vals(root_section,"TEST",error=error)
-    CALL section_vals_val_get(test_section,"memory",r_val=max_memory,error=error)
-    CALL section_vals_val_get(test_section,'copy',i_val=runtest(1),error=error )
-    CALL section_vals_val_get(test_section,'matmul',i_val=runtest(2),error=error )
-    CALL section_vals_val_get(test_section,'fft',i_val=runtest(3),error=error )
-    CALL section_vals_val_get(test_section,'eri',i_val=runtest(4),error=error )
-    CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest(6),error=error )
-    CALL section_vals_val_get(test_section,'mpi',i_val=runtest (8),error=error )
-    CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
+    CALL section_vals_val_get(test_section,"MEMORY",r_val=max_memory,error=error)
+    CALL section_vals_val_get(test_section,'COPY',i_val=runtest(1),error=error )
+    CALL section_vals_val_get(test_section,'MATMUL',i_val=runtest(2),error=error )
+    CALL section_vals_val_get(test_section,'DGEMM',i_val=runtest(5),error=error )
+    CALL section_vals_val_get(test_section,'FFT',i_val=runtest(3),error=error )
+    CALL section_vals_val_get(test_section,'ERI',i_val=runtest(4),error=error )
+    CALL section_vals_val_get(test_section,'CLEBSCH_GORDON',i_val=runtest(6),error=error )
+    CALL section_vals_val_get(test_section,'MPI',i_val=runtest (8),error=error )
+    CALL section_vals_val_get(test_section,'RNG',i_val=runtest(9),error=error )
 
     CALL mp_sync(para_env%group)
   END SUBROUTINE test_input
@@ -327,8 +330,9 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE matmul_test ( para_env, iw)
+  SUBROUTINE matmul_test ( para_env, test_matmul, test_dgemm, iw)
     TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL                                  :: test_matmul, test_dgemm
     INTEGER                                  :: iw
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
@@ -341,196 +345,201 @@ CONTAINS
 
 ! test for matrix multpies
 
-    siz = ABS ( runtest ( 2 ) )
-    IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
-    DO i = 5, siz, 2
-       len = 2**i + 1
-       IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
-       ALLOCATE ( ma ( len, len ), STAT = ierr )
-       IF ( ierr /= 0 ) EXIT
-       ALLOCATE ( mb ( len, len ), STAT = ierr )
-       IF ( ierr /= 0 ) EXIT
-       ALLOCATE ( mc ( len, len ), STAT = ierr )
-       IF ( ierr /= 0 ) EXIT
-       mc = 0.0_dp
+    IF (test_matmul) THEN
+       siz = ABS ( runtest ( 2 ) )
+       IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
+       DO i = 5, siz, 2
+          len = 2**i + 1
+          IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
+          ALLOCATE ( ma ( len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) EXIT
+          ALLOCATE ( mb ( len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) EXIT
+          ALLOCATE ( mc ( len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) EXIT
+          mc = 0.0_dp
 
-       CALL RANDOM_NUMBER ( xdum )
-       ma = xdum
-       CALL RANDOM_NUMBER ( xdum )
-       mb = xdum
-       ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
-       ntim = MAX ( ntim, 1 )
-       ntim = MIN ( ntim, siz * 200 )
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          mc = MATMUL ( ma, mb )
-          ma ( 1, 1 ) = REAL ( j,KIND=dp)
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart + threshold
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
-       END IF
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          mc = mc + MATMUL ( ma, mb )
-          ma ( 1, 1 ) = REAL ( j,KIND=dp)
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart +threshold
-       IF ( t > 0.0_dp ) THEN
+          CALL RANDOM_NUMBER ( xdum )
+          ma = xdum
+          CALL RANDOM_NUMBER ( xdum )
+          mb = xdum
+          ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
+          ntim = MAX ( ntim, 1 )
+          ntim = MIN ( ntim, siz * 200 )
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             mc = MATMUL ( ma, mb )
+             ma ( 1, 1 ) = REAL ( j,KIND=dp)
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart + threshold
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
+          END IF
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             mc = mc + MATMUL ( ma, mb )
+             ma ( 1, 1 ) = REAL ( j,KIND=dp)
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart +threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
 
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
-       END IF
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
+          END IF
 
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          mc = mc + MATMUL ( ma, TRANSPOSE ( mb ) )
-          ma ( 1, 1 ) = REAL ( j,KIND=dp)
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             mc = mc + MATMUL ( ma, TRANSPOSE ( mb ) )
+             ma ( 1, 1 ) = REAL ( j,KIND=dp)
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart + threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
+          END IF
+
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             mc = mc + MATMUL ( TRANSPOSE ( ma ), mb )
+             ma ( 1, 1 ) = REAL ( j,KIND=dp)
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart +threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
+          END IF
+
+          DEALLOCATE ( ma , STAT = ierr )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
+          DEALLOCATE ( mb , STAT = ierr )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
+          DEALLOCATE ( mc , STAT = ierr )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
        END DO
-       tend = m_walltime ( )
-       t = tend - tstart + threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
-       END IF
-
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          mc = mc + MATMUL ( TRANSPOSE ( ma ), mb )
-          ma ( 1, 1 ) = REAL ( j,KIND=dp)
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart +threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
-       END IF
-
-       DEALLOCATE ( ma , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
-       DEALLOCATE ( mb , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
-       DEALLOCATE ( mc , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
-    END DO
+    ENDIF
 
     ! test for matrix multpies
-    IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
-    DO i = 5, siz, 2
-       len = 2**i + 1
-       IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
-       ALLOCATE ( ma ( len, len ), STAT = ierr )
-       IF ( ierr /= 0 ) EXIT
-       ALLOCATE ( mb ( len, len ), STAT = ierr )
-       IF ( ierr /= 0 ) EXIT
-       ALLOCATE ( mc ( len, len ), STAT = ierr )
-       IF ( ierr /= 0 ) EXIT
-       mc = 0.0_dp
+    IF (test_dgemm) THEN
+       siz = ABS ( runtest ( 5 ) )
+       IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
+       DO i = 5, siz, 2
+          len = 2**i + 1
+          IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
+          ALLOCATE ( ma ( len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) EXIT
+          ALLOCATE ( mb ( len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) EXIT
+          ALLOCATE ( mc ( len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) EXIT
+          mc = 0.0_dp
 
-       CALL RANDOM_NUMBER ( xdum )
-       ma = xdum
-       CALL RANDOM_NUMBER ( xdum )
-       mb = xdum
-       ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
-       ntim = MAX ( ntim, 1 )
-       ntim = MIN ( ntim, 1000 )
+          CALL RANDOM_NUMBER ( xdum )
+          ma = xdum
+          CALL RANDOM_NUMBER ( xdum )
+          mb = xdum
+          ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
+          ntim = MAX ( ntim, 1 )
+          ntim = MIN ( ntim, 1000 )
 
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart+threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
+          END IF
+
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart+threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
+          END IF
+
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart+threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
+          END IF
+
+          tstart = m_walltime ( )
+          DO j = 1, ntim
+             CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart+threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+                  " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
+          END IF
+
+          DEALLOCATE ( ma , STAT = ierr )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
+          DEALLOCATE ( mb , STAT = ierr )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
+          DEALLOCATE ( mc , STAT = ierr )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
        END DO
-       tend = m_walltime ( )
-       t = tend - tstart+threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
-       END IF
-
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart+threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
-       END IF
-
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart+threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
-       END IF
-
-       tstart = m_walltime ( )
-       DO j = 1, ntim
-          CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart+threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-               " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
-       END IF
-
-       DEALLOCATE ( ma , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
-       DEALLOCATE ( mb , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
-       DEALLOCATE ( mc , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
-    END DO
+    ENDIF
 
     CALL mp_sync(para_env%group)
 
@@ -1834,7 +1843,7 @@ CONTAINS
           ELSE
             WRITE(iw,'(A)') "B "
           ENDIF
-          WRITE(iw,'(T2,A,I3,A,I3)') 'requested block size',nrow_block,' by ',ncol_block
+          WRITE(iw,'(T2,A,I5,A,I5)') 'requested block size',nrow_block,' by ',ncol_block
           WRITE(iw,'(T2,A,I5)') 'number of repetitions of cp_fm_gemm ',n_loop
        ENDIF
 
@@ -1853,7 +1862,7 @@ CONTAINS
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
                                 nrow_block=nrow_block, ncol_block=ncol_block, error=error)
        CALL cp_fm_struct_get(fmstruct_a,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
-       IF (iw>0) WRITE(iw,'(T2,A,I5,A,I5,A,I5,A,I5)') 'matrix A ',nrow_global," by ",ncol_global, &
+       IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix A ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        IF (transb_p) THEN
@@ -1866,7 +1875,7 @@ CONTAINS
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
                                 nrow_block=nrow_block, ncol_block=ncol_block, error=error)
        CALL cp_fm_struct_get(fmstruct_b,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
-       IF (iw>0) WRITE(iw,'(T2,A,I5,A,I5,A,I5,A,I5)') 'matrix B ',nrow_global," by ",ncol_global, &
+       IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix B ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        NULLIFY (fmstruct_c)
@@ -1876,7 +1885,7 @@ CONTAINS
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
                                 nrow_block=nrow_block, ncol_block=ncol_block, error=error)
        CALL cp_fm_struct_get(fmstruct_c,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
-       IF (iw>0) WRITE(iw,'(T2,A,I5,A,I5,A,I5,A,I5)') 'matrix C ',nrow_global," by ",ncol_global, &
+       IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix C ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        NULLIFY (matrix_a)
@@ -1901,7 +1910,7 @@ CONTAINS
        t2=m_walltime()
 
        IF (iw>0) THEN
-          WRITE(iw,'(T2,A,F12.6)')     "cp_fm_gemm timing: ",t2-t1
+          WRITE(iw,'(T2,A,F12.6)')     "average cp_fm_gemm timing: ",(t2-t1)/N_loop
           IF (t2>t1) THEN
              WRITE(iw,'(T2,A,F12.6)') "cp_fm_gemm Gflops per MPI task: ", &
                 2*REAL(m,kind=dp)*REAL(n,kind=dp)*REAL(k,kind=dp)*N_loop / (t2-t1) / 1.0E9_dp / para_env%num_pe
