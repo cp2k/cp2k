@@ -53,6 +53,8 @@ MODULE external_potential_types
   USE string_utilities,                ONLY: remove_word,&
                                              uppercase
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -727,7 +729,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_gth_potential', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
     IF (.NOT.ASSOCIATED(potential)) RETURN
+
+    CALL timeset(routineN,handle)
 
     IF (potential%nppnl > 0) THEN
 
@@ -743,6 +749,8 @@ CONTAINS
        CALL init_vprj_ppnl(potential,error)
 
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_gth_potential
 
@@ -802,9 +810,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_all_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dz
+    INTEGER                                  :: dz, handle
 
     IF (.NOT.ASSOCIATED(potential)) RETURN
+
+    CALL timeset(routineN,handle)
 
     IF ( PRESENT (zeff) ) potential%zeff = zeff
     IF ( PRESENT (zeff_correction) ) potential%zeff_correction = zeff_correction
@@ -880,6 +890,8 @@ CONTAINS
           END IF
        ENDIF
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_all_potential
 

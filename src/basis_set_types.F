@@ -51,6 +51,8 @@ MODULE basis_set_types
                                              remove_word,&
                                              uppercase
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -449,9 +451,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_aux_basis_set', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
 ! -------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
+
+    CALL timeset(routineN,handle)
 
     SELECT CASE (gto_basis_set%norm_type)
     CASE ( 0 )
@@ -468,6 +474,8 @@ CONTAINS
 
     ! Initialise the transformation matrices "pgf" -> "cgf"
     CALL init_cphi_and_sphi(gto_basis_set,error)
+  
+    CALL timestop(handle)
 
   END SUBROUTINE init_aux_basis_set
 
@@ -483,12 +491,17 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_cgf, first_sgf, icgf, &
-                                                ico, ipgf, iset, ishell, l, &
-                                                n, ncgf, nsgf
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_cphi_and_sphi', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_cgf, first_sgf, handle, &
+                                                icgf, ico, ipgf, iset, &
+                                                ishell, l, n, ncgf, nsgf
 
 ! -------------------------------------------------------------------------
 ! Build the Cartesian transformation matrix "cphi"
+
+    CALL timeset(routineN,handle)
 
     DO iset=1,gto_basis_set%nset
        n = ncoset(gto_basis_set%lmax(iset))
@@ -526,6 +539,8 @@ CONTAINS
           END DO
        END DO
     ENDIF
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_cphi_and_sphi
 
@@ -740,9 +755,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_orb_basis_set', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
 ! -------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
+
+    CALL timeset(routineN,handle)
 
     SELECT CASE (gto_basis_set%norm_type)
     CASE ( 0 )
@@ -763,6 +782,8 @@ CONTAINS
     ! Initialise the transformation matrices "pgf" -> "cgf"
 
     CALL init_cphi_and_sphi(gto_basis_set,error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_orb_basis_set
 
