@@ -961,19 +961,19 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    CALL section_create(section,name="test",&
+    CALL section_create(section,name="TEST",&
          description="Tests to perform on the supported libraries.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
     NULLIFY(keyword, print_key)
-    CALL keyword_create(keyword, name="memory",&
+    CALL keyword_create(keyword, name="MEMORY",&
          description="Set the maximum amount of memory allocated for a given test (in bytes)",&
          usage="MEMORY <REAL>",default_r_val=256.e6_dp, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="copy",&
+    CALL keyword_create(keyword, name="COPY",&
          description="Tests the performance to copy two vectors."//&
          "The results of these tests allow to determine the size of the cache "//&
          "of the CPU. This can be used to optimize the performance of the"//&
@@ -982,27 +982,34 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="matmul",&
+    CALL keyword_create(keyword, name="MATMUL",&
          description="Tests the performance of different kinds of matrix matrix "//&
-         "multiply kernels for the BLAS and F95 INTRINSIC matmul. Matrices up to 2**N+1 will be tested. ",&
+         "multiply kernels for the F95 INTRINSIC matmul. Matrices up to 2**N+1 will be tested. ",&
          usage="matmul 10",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="fft",&
+    CALL keyword_create(keyword, name="DGEMM",&
+         description="Tests the performance of different kinds of matrix matrix "//&
+         "multiply kernels for the BLAS INTRINSIC DGEMM. Matrices up to 2**N+1 will be tested. ",&
+         usage="DGEMM 10",default_i_val=0,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="FFT",&
          description="Tests the performance of all available FFT libraries for "//&
          "3D FFTs Tests are repeated the given number of times.",&
          usage="fft 10",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="eri",&
+    CALL keyword_create(keyword, name="ERI",&
          description="Tests the performance and correctness of ERI libraries ",&
          usage="eri 1",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="clebsch_gordon",variants=(/"clebsch"/),&
+    CALL keyword_create(keyword, name="CLEBSCH_GORDON",variants=(/"CLEBSCH"/),&
          description="Tests the Clebsch-Gordon Coefficients. "//&
          "Tests are repeated the given number of times.",&
          usage="clebsch_gordon 10",default_i_val=0,error=error)
@@ -1010,7 +1017,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="mpi",&
+    CALL keyword_create(keyword, name="MPI",&
          description="Tests mpi, quickly adapted benchmark code,"//&
          "will ONLY work on an even number of CPUs. comm is the relevant, "//&
          "initialized communicator. This test will produce messages "//&
@@ -1021,7 +1028,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="random_number_generator",variants=(/"rng"/),&
+    CALL keyword_create(keyword, name="RANDOM_NUMBER_GENERATOR",variants=(/"rng"/),&
          description=" Tests the parallel random number generator (RNG)",&
          usage="rng 1000000",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -1252,15 +1259,29 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="nrow_block",&
+    CALL keyword_create(keyword, name="NROW_BLOCK",&
          description="block_size for rows",&
          usage="nrow_block 64",default_i_val=32,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="ncol_block",&
+    CALL keyword_create(keyword, name="NCOL_BLOCK",&
          description="block_size for cols",&
          usage="nrow_block 64",default_i_val=32,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="ROW_MAJOR",&
+         description="Use a row major blacs grid",&
+         usage="ROW_MAJOR .FALSE.",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="GRID_2D",&
+         description="Explicitly set the blacs 2D processor layout."//&
+                     " If the product differs from the number of MPI ranks,"//&
+                     " it is ignored and a default nearly square layout is used.", n_var=2,&
+         usage="GRID_2D 64 16 ",default_i_vals=(/1, 1/),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

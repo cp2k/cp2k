@@ -242,8 +242,8 @@ CONTAINS
 
 !
 !..defaults
+! using this style is not recommended, introduce sections instead (see e.g. cp_fm_gemm)
 
-    ! using this style is not recommended, introduce sections instead (see e.g. cp_fm_gemm)
     runtest = 0
     test_section => section_vals_get_subs_vals(root_section,"TEST",error=error)
     CALL section_vals_val_get(test_section,"MEMORY",r_val=max_memory,error=error)
@@ -1804,7 +1804,8 @@ CONTAINS
     INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, &
       ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
       nrow_global
-    LOGICAL                                  :: transa_p, transb_p
+    INTEGER, DIMENSION(:), POINTER           :: grid_2d
+    LOGICAL                                  :: row_major, transa_p, transb_p
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
@@ -1825,6 +1826,8 @@ CONTAINS
        CALL section_vals_val_get(cp_fm_gemm_test_section,"transb",i_rep_section=i_rep,l_val=transb_p,error=error )
        CALL section_vals_val_get(cp_fm_gemm_test_section,"nrow_block",i_rep_section=i_rep,i_val=nrow_block,error=error )
        CALL section_vals_val_get(cp_fm_gemm_test_section,"ncol_block",i_rep_section=i_rep,i_val=ncol_block,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"ROW_MAJOR",i_rep_section=i_rep,l_val=row_major,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"GRID_2D",i_rep_section=i_rep,i_vals=grid_2d,error=error )
        transa="N"
        transb="N"
        IF (transa_p) transa="T"
@@ -1845,11 +1848,15 @@ CONTAINS
           ENDIF
           WRITE(iw,'(T2,A,I5,A,I5)') 'requested block size',nrow_block,' by ',ncol_block
           WRITE(iw,'(T2,A,I5)') 'number of repetitions of cp_fm_gemm ',n_loop
+          WRITE(iw,'(T2,A,L5)') 'Row Major',row_major
+          WRITE(iw,'(T2,A,2I7)') 'GRID_2D ',grid_2d
        ENDIF
 
        NULLIFY (blacs_env)
        CALL cp_blacs_env_create(blacs_env=blacs_env,&
                                 para_env=para_env,&
+                                row_major=row_major,&
+                                grid_2d=grid_2d,&
                                 error=error)
 
        NULLIFY (fmstruct_a)

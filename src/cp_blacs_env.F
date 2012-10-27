@@ -93,11 +93,13 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeatable,error)
+SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeatable,row_major,grid_2d,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: blacs_grid_layout
-    LOGICAL, INTENT(IN), OPTIONAL            :: blacs_repeatable
+    LOGICAL, INTENT(IN), OPTIONAL            :: blacs_repeatable, row_major
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: grid_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
@@ -106,7 +108,8 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
     INTEGER                                  :: gcd_max, ipcol, ipe, iprow, &
                                                 jpe, my_blacs_grid_layout, &
                                                 npcol, npe, nprow, stat
-    LOGICAL                                  :: failure, my_blacs_repeatable
+    LOGICAL                                  :: failure, my_blacs_repeatable, &
+                                                my_row_major
 
   failure=.FALSE.
 
@@ -142,35 +145,49 @@ CPSourceFileRef,&
      npe  =blacs_env%n_pid
      ! get the layout of this grid
 
-     ! hard code for the time being the grid layout
-     my_blacs_grid_layout=BLACS_GRID_SQUARE
-     IF(PRESENT(blacs_grid_layout)) my_blacs_grid_layout=blacs_grid_layout
-     ! XXXXXX
-     SELECT CASE (my_blacs_grid_layout)
-     CASE (BLACS_GRID_SQUARE)
-        ! make the grid as 'square' as possible, where square is defined as nprow and npcol
-        ! having the largest possible gcd
-        gcd_max=-1
-        DO ipe=1,CEILING(SQRT(REAL(npe,dp)))
-           jpe=npe/ipe
-           IF(ipe*jpe.NE.npe) CYCLE
-           IF (gcd(ipe,jpe)>=gcd_max) THEN
-              nprow=ipe
-              npcol=jpe
-              gcd_max=gcd(ipe,jpe)
-           ENDIF
-        ENDDO
-     CASE (BLACS_GRID_ROW)
-        nprow = 1
-        npcol = npe
-     CASE (BLACS_GRID_COL)
-        nprow = npe
-        npcol = 1
-     END SELECT
+     IF (PRESENT(grid_2d)) THEN
+        nprow=grid_2d(1)
+        npcol=grid_2d(2)
+     ENDIF
+
+     IF (nprow*npcol.NE.npe) THEN
+       ! hard code for the time being the grid layout
+       my_blacs_grid_layout=BLACS_GRID_SQUARE
+       IF(PRESENT(blacs_grid_layout)) my_blacs_grid_layout=blacs_grid_layout
+       ! XXXXXX
+       SELECT CASE (my_blacs_grid_layout)
+       CASE (BLACS_GRID_SQUARE)
+          ! make the grid as 'square' as possible, where square is defined as nprow and npcol
+          ! having the largest possible gcd
+          gcd_max=-1
+          DO ipe=1,CEILING(SQRT(REAL(npe,dp)))
+             jpe=npe/ipe
+             IF(ipe*jpe.NE.npe) CYCLE
+             IF (gcd(ipe,jpe)>=gcd_max) THEN
+                nprow=ipe
+                npcol=jpe
+                gcd_max=gcd(ipe,jpe)
+             ENDIF
+          ENDDO
+       CASE (BLACS_GRID_ROW)
+          nprow = 1
+          npcol = npe
+       CASE (BLACS_GRID_COL)
+          nprow = npe
+          npcol = 1
+       END SELECT
+     ENDIF
+
 
      ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
      blacs_env%group=para_env%group
-     CALL cp_blacs_gridinit(blacs_env%group,"Row-major",nprow,npcol)
+     my_row_major=.TRUE.
+     IF (PRESENT(row_major)) my_row_major=row_major
+     IF (my_row_major) THEN
+        CALL cp_blacs_gridinit(blacs_env%group,"Row-major",nprow,npcol)
+     ELSE
+        CALL cp_blacs_gridinit(blacs_env%group,"Col-major",nprow,npcol)
+     ENDIF
 
      my_blacs_repeatable = .FALSE.
      IF(PRESENT(blacs_repeatable)) my_blacs_repeatable=blacs_repeatable
