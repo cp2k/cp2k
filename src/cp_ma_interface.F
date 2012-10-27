@@ -618,13 +618,13 @@ END SUBROUTINE cp_ma_net_affinity
   END SUBROUTINE cp_ma_set_mpi_reordering
 
   SUBROUTINE cp_ma_print_strategy(unit_nr, error)
-    CHARACTER                                :: mpi_reorder
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_print_strategy', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: mpi_reorder
     INTEGER                                  :: unit_num
     TYPE(cp_logger_type), POINTER            :: logger
 

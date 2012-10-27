@@ -72,8 +72,8 @@ MODULE bfgs_optimizer
                                              dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_min
+  USE message_passing,                 ONLY: mp_min,&
+                                             mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop

@@ -29,10 +29,9 @@ MODULE f77_interface
                                              cp_ma_init_lib,&
                                              cp_ma_mpi_reorder_strategy,&
                                              cp_ma_mpi_reordering,&
-                                             cp_ma_print_strategy,&
+                                             cp_ma_set_mpi_reordering,&
                                              has_ma,&
-                                             has_ma_topology, &
-                                             cp_ma_set_mpi_reordering
+                                             has_ma_topology
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&

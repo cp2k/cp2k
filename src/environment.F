@@ -20,15 +20,10 @@ MODULE environment
        r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_ma_interface,                 ONLY: cp_ma_config,&
-                                             cp_ma_current_thread_run,&
-                                             cp_ma_mempol,&
-                                             cp_ma_mpi_sched,&
-                                             cp_ma_print_machine,&
-                                             cp_ma_run_on,&
-                                             cp_ma_thread_run_on,&
-                                             cp_ma_thread_sched, &
-                                             cp_ma_print_strategy
+  USE cp_ma_interface,                 ONLY: &
+       cp_ma_config, cp_ma_current_thread_run, cp_ma_mempol, cp_ma_mpi_sched, &
+       cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
+       cp_ma_thread_run_on, cp_ma_thread_sched
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
