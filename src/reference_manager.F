@@ -575,6 +575,8 @@ CONTAINS
     ! PD can be e.g. OCT-NOV or OCT or OCT 27
     ! if res can't be read as an integer, it is not a day, and we bail out
     READ(res,*,ERR=998,END=998) D
+    ! if the day is not in the expected range, we assume it is a parse error
+    IF (D<0 .OR. D>31) res=""
     RETURN
 998 CONTINUE
     res=""
