@@ -878,9 +878,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle, nparticle
+    INTEGER                                  :: handle, iparticle, nparticle
     LOGICAL                                  :: failure, my_add, update_for, &
                                                 update_pos, update_vel
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     nparticle  = SIZE ( particle_set )
@@ -925,7 +927,9 @@ CONTAINS
              particle_set(iparticle)%f(:) = for(:,iparticle)
           END DO
        END IF
-    ENDIF
+    END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE update_particle_set
 

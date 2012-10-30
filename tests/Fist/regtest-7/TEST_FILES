@@ -129,3 +129,7 @@ UO2-2x2x2-geo_opt-lbfgs.inp 11
 UO2-2x2x2-cs-geo_opt-bfgs.inp 11
 UO2-2x2x2-cs-geo_opt-cg.inp 11
 UO2-2x2x2-cs-geo_opt-lbfgs.inp 11
+# Enable fixed atom constraint for core-shell models
+UO2-4x4x4-fixd.inp 11
+UO2-4x4x4-cs-fixd.inp 43
+UO2-4x4x4-cs-fixd-restart.inp 44

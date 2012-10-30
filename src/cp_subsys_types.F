@@ -508,8 +508,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iatom, j, k, natom, &
-                                                nparticle, nshell, nsize, &
-                                                shell_index
+                                                nparticle, nsize, shell_index
     LOGICAL                                  :: failure
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -525,7 +524,6 @@ CONTAINS
                        core_particles=core_particles,&
                        natom=natom,&
                        nparticle=nparticle,&
-                       nshell=nshell,&
                        particles=particles,&
                        shell_particles=shell_particles,&
                        error=error)
@@ -628,8 +626,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iatom, j, k, natom, &
-                                                nparticle, nshell, nsize, &
-                                                shell_index
+                                                nparticle, nsize, shell_index
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fc, fs, mass, my_fscale
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -646,7 +643,6 @@ CONTAINS
                        core_particles=core_particles,&
                        natom=natom,&
                        nparticle=nparticle,&
-                       nshell=nshell,&
                        particles=particles,&
                        shell_particles=shell_particles,&
                        error=error)

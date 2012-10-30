@@ -123,7 +123,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
-      nparticle_kind, nparticle_local, stat
+      nparticle_kind, nparticle_local, nshell, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
                                                 gam, mass, sigma
@@ -154,14 +154,17 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
+
     NULLIFY (cell, para_env, gci, force_env)
     NULLIFY (atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
     NULLIFY (molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
+
     CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
          para_env=para_env, error=error)
 
     dt = simpar%dt
     gam = simpar%gamma+simpar%shadow_gamma
+    nshell = 0
 
     CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,&
          virial=virial,error=error)
@@ -169,9 +172,19 @@ CONTAINS
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
-    CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+    CALL cp_subsys_get(subsys=subsys,&
+                       atomic_kinds=atomic_kinds,&
+                       gci=gci,&
+                       local_particles=local_particles,&
+                       local_molecules_new=local_molecules,&
+                       molecules_new=molecules,&
+                       molecule_kinds_new=molecule_kinds,&
+                       nshell=nshell,&
+                       particles=particles,&
+                       error=error)
+    CALL cp_assert((nshell == 0),cp_failure_level,cp_assertion_failed,routineP,&
+                   "Langevin dynamics is not yet implemented for core-shell models",&
+                   error,failure)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
