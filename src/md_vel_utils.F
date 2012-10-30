@@ -57,6 +57,7 @@ MODULE md_vel_utils
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                              get_molecule_kind,&
+                                             get_molecule_kind_set,&
                                              molecule_kind_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_list_types,             ONLY: particle_list_type
@@ -1520,14 +1521,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_velocities', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, nconstraint, &
+                                                nconstraint_fixd
     LOGICAL                                  :: apply_cns0, failure, &
                                                 shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(particle_type), DIMENSION(:), &
@@ -1538,9 +1540,13 @@ CONTAINS
                                                 print_section, subsys_section
 
     failure = .FALSE.
+    
     CALL timeset(routineN,handle)
-    NULLIFY(atomic_kinds,cell,para_env,subsys,molecule_kinds_new,core_particles,particles)
-    NULLIFY(shell_particles,core_particle_set,particle_set,shell_particle_set,force_env_section,print_section,subsys_section)
+
+    NULLIFY (atomic_kinds,cell,para_env,subsys,molecule_kinds,core_particles,particles)
+    NULLIFY (shell_particles,core_particle_set,particle_set,shell_particle_set)
+    NULLIFY (force_env_section,print_section,subsys_section)
+
     print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
     apply_cns0 = .FALSE.
     IF (simpar%constraint) THEN
@@ -1551,30 +1557,45 @@ CONTAINS
          force_env_section=force_env_section, error=error )
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 
-    CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,molecule_kinds_new=molecule_kinds_new,&
-         particles=particles,shell_particles=shell_particles,core_particles=core_particles,&
-         error=error)
+    CALL cp_subsys_get(subsys,&
+                       atomic_kinds=atomic_kinds,&
+                       core_particles=core_particles,&
+                       molecule_kinds_new=molecule_kinds,&
+                       particles=particles,&
+                       shell_particles=shell_particles,&
+                       error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
-         shell_adiabatic=shell_adiabatic)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+                             shell_present=shell_present,&
+                             shell_adiabatic=shell_adiabatic)
 
-    NULLIFY(particle_set, shell_particle_set, core_particle_set)
+    NULLIFY (core_particle_set)
+    NULLIFY (particle_set)
+    NULLIFY (shell_particle_set)
     particle_set => particles%els
-    IF(shell_present .AND. shell_adiabatic) THEN
-       ! shell-model with constraint NYI
-       CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
+
+    IF (shell_present.AND.shell_adiabatic) THEN
+       ! Constraints are not yet implemented for core-shell models generally
+       CALL get_molecule_kind_set(molecule_kind_set=molecule_kinds%els,&
+                                  nconstraint=nconstraint,&
+                                  nconstraint_fixd=nconstraint_fixd)
+       CALL cp_assert((nconstraint - nconstraint_fixd == 0),&
+                      cp_fatal_level,cp_assertion_failed,routineP,&
+                      "Only the fixed atom constraint is implemented for core-shell models",&
+                      only_ionode=.TRUE.)
+!MK    CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(shell_particles),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(core_particles),cp_failure_level,routineP,error,failure)
        shell_particle_set => shell_particles%els
        core_particle_set  =>  core_particles%els
     END IF
 
-    CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-       force_env=force_env, globenv=globenv, md_env=md_env,&
-       label="Velocities initialization",print_section=print_section, &
-       subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
-       shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
-       para_env=para_env,error=error)
+    CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds,&
+         force_env=force_env, globenv=globenv, md_env=md_env,&
+         label="Velocities initialization",print_section=print_section, &
+         subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
+         shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
+         para_env=para_env,error=error)
 
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
@@ -1600,17 +1621,18 @@ CONTAINS
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
           CALL update_subsys(subsys_section,force_env,.FALSE.,write_binary_restart_file,error)
 
-          CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-             force_env=force_env, globenv=globenv, md_env=md_env,&
-             label="Re-Initializing velocities after applying constraints",print_section=print_section, &
-             subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
-             shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
-             para_env=para_env,error=error)
+          CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds,&
+               force_env=force_env, globenv=globenv, md_env=md_env,&
+               label="Re-Initializing velocities after applying constraints",print_section=print_section, &
+               subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
+               shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
+               para_env=para_env,error=error)
        END IF
     END IF
 
     ! Perform setup for a cascade run
-    CALL initialize_cascade(simpar,particle_set,molecule_kinds_new,md_section,error=error)
+    CALL initialize_cascade(simpar,particle_set,molecule_kinds,md_section,&
+                            error=error)
 
     CALL timestop(handle)
 
@@ -1747,6 +1769,10 @@ CONTAINS
        norm = 0.0_dp
        DO iatom=1,natom
           iparticle = atom_index(iatom)
+          CALL cp_assert((particle_set(iparticle)%shell_index == 0),&
+                         cp_warning_level,cp_assertion_failed,routineP,&
+                         "Warning: The primary knock-on atom is a core-shell atom",&
+                         only_ionode=.TRUE.)
           atomic_kind => particle_set(iparticle)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=matom(iatom))
           norm = norm + matom(iatom)*weight(iatom)

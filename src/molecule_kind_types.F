@@ -698,19 +698,20 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_molecule_kind_set(molecule_kind_set,maxatom,natom,&
                                    nbond,nbend,nub,ntorsion,nimpr,nopbend,&
-                                   nconstraint,nmolecule,nrestraints)
+                                   nconstraint,nconstraint_fixd,nmolecule,&
+                                   nrestraints)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, natom, nbond, nbend, nub, &
-      ntorsion, nimpr, nopbend, nconstraint, nmolecule, nrestraints
+      ntorsion, nimpr, nopbend, nconstraint, nconstraint_fixd, nmolecule, &
+      nrestraints
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_kind_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: ibend, ibond, iimpr, imolecule_kind, iopbend, itorsion, iub, &
-      na, nc, nconstraint_fixd, nfixd, nfixd_restraint, nm, nmolecule_kind, &
-      nrestraints_tot
+      na, nc, nc_fixd, nfixd_restraint, nm, nmolecule_kind, nrestraints_tot
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
@@ -724,6 +725,7 @@ CONTAINS
       IF (PRESENT(nimpr)) nimpr = 0
       IF (PRESENT(nopbend)) nopbend = 0
       IF (PRESENT(nconstraint)) nconstraint = 0
+      IF (PRESENT(nconstraint_fixd)) nconstraint_fixd = 0
       IF (PRESENT(nrestraints)) nrestraints = 0
       IF (PRESENT(nmolecule)) nmolecule = 0
 
@@ -742,8 +744,7 @@ CONTAINS
                                nimpr=iimpr,&
                                nopbend=iopbend,&
                                nconstraint=nc,&
-                               nconstraint_fixd=nconstraint_fixd,&
-                               nfixd=nfixd,&
+                               nconstraint_fixd=nc_fixd,&
                                nfixd_restraint=nfixd_restraint,&
                                nrestraints=nrestraints_tot,&
                                nmolecule=nm)
@@ -755,7 +756,8 @@ CONTAINS
         IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
         IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
         IF (PRESENT(nopbend)) nopbend = nopbend + iopbend*nm
-        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + nconstraint_fixd
+        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + nc_fixd
+        IF (PRESENT(nconstraint_fixd)) nconstraint_fixd = nconstraint_fixd + nc_fixd
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
         IF (PRESENT(nrestraints)) nrestraints = nrestraints + nm*nrestraints_tot + nfixd_restraint
 
