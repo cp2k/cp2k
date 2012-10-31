@@ -43,8 +43,8 @@ MODULE atomic_kind_types
        do_fist, do_method_am1, do_method_dftb, do_method_mndo, &
        do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
        do_method_pnnl, do_method_rm1, do_method_scptb, do_qs, &
-       use_aux_basis_set, use_ri_aux_basis_set, use_aux_fit_basis_set, &
-       use_orb_basis_set, use_scp_basis_set
+       use_aux_basis_set, use_aux_fit_basis_set, use_orb_basis_set, &
+       use_ri_aux_basis_set, use_scp_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -897,11 +897,8 @@ CONTAINS
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, & 
-                                                ri_aux_basis_set, &
-                                                aux_fit_basis_set, &
-                                                orb_basis_set, scp_basis_set, &
-                                                soft_basis_set
+    TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, &
+      orb_basis_set, ri_aux_basis_set, scp_basis_set, soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(shell_kind_type), POINTER           :: shell
@@ -1748,8 +1745,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-      ri_aux_basis_set_name, aux_fit_basis_set_name, geminal_basis_set_name, keyword, &
-      orb_basis_set_name, potential_name, potential_type
+      aux_fit_basis_set_name, geminal_basis_set_name, keyword, &
+      orb_basis_set_name, potential_name, potential_type, &
+      ri_aux_basis_set_name
     INTEGER                                  :: handle, i, i_rep, ipos, j, &
                                                 k_rep, l, m, n_rep, naux, &
                                                 ngauss, norb, norbitals, &

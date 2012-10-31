@@ -51,8 +51,8 @@ MODULE mp2_ri_gpw
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-  USE input_constants,                 ONLY: use_ri_aux_basis_set,&
-                                             use_orb_basis_set
+  USE input_constants,                 ONLY: use_orb_basis_set,&
+                                             use_ri_aux_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp

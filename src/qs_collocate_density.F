@@ -62,9 +62,9 @@ MODULE qs_collocate_density
   USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp,&
                                              use_aux_basis_set,&
-                                             use_ri_aux_basis_set,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             use_orb_basis_set,&
+                                             use_ri_aux_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
