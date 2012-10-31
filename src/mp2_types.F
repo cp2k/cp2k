@@ -14,7 +14,9 @@ MODULE mp2_types
   USE input_constants,                 ONLY: mp2_method_direct,&
                                              mp2_method_gpw,&
                                              mp2_method_laplace,&
-                                             mp2_method_none
+                                             mp2_method_none,&
+                                             ri_mp2_method_gpw,&
+                                             ri_rpa_method_gpw
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -27,34 +29,22 @@ MODULE mp2_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
-  PUBLIC :: mp2_type, mp2_laplace_type, mp2_direct_type, mp2_map_type, &
-                                        mp2_map_type_1, &
-                                        mp2_map_type_3, &
+  PUBLIC :: mp2_type, mp2_laplace_type, mp2_direct_type, &
                                         mp2_method_none,&
                                         mp2_method_laplace,&
                                         mp2_method_direct,&
                                         mp2_method_gpw,&
+                                        ri_mp2_method_gpw,&
+                                        ri_rpa_method_gpw,&
                                         init_TShPSC_lmax
 
   PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
             pair_list_type_mp2,&
-            mp2_potential_type, mp2_gpw_type
+            mp2_potential_type, mp2_gpw_type, ri_rpa_type
 
   INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
 ! TYPE definitions
-
-  TYPE mp2_map_type_1
-     INTEGER :: iatom,iset,nsgpf
-  END TYPE
-
-  TYPE mp2_map_type
-     INTEGER :: iatom,jatom,iset,jset,nsgpf
-  END TYPE
-
-  TYPE mp2_map_type_3
-     INTEGER :: iatom,jatom,katom,iset,jset,kset,nsgpf
-  END TYPE
 
   TYPE mp2_biel_type
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: index_table
@@ -84,8 +74,11 @@ MODULE mp2_types
        INTEGER                  :: print_level
        REAL(KIND=dp)            :: cutoff
        REAL(KIND=dp)            :: relative_cutoff
-       LOGICAL                  :: do_ri_mp2
   END TYPE mp2_gpw_type
+
+  TYPE ri_rpa_type
+       INTEGER                  :: rpa_num_quad_points
+  END TYPE
 
   TYPE mp2_type
        REAL(KIND=dp)            :: energy
@@ -95,6 +88,7 @@ MODULE mp2_types
        TYPE(mp2_direct_type)    :: direct_canonical
        TYPE(mp2_potential_type) :: potential_parameter
        TYPE(mp2_gpw_type)       :: mp2_gpw
+       TYPE(ri_rpa_type)        :: ri_rpa
        REAL(dp) :: mp2_memory
        REAL(dp) :: scale_S
        REAL(dp) :: scale_T

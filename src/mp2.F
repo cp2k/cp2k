@@ -18,7 +18,8 @@ MODULE mp2
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_diag,                      ONLY: cp_fm_power
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -39,7 +40,8 @@ MODULE mp2
                                              hfx_create_basis_types,&
                                              hfx_release,&
                                              hfx_release_basis_types
-  USE input_constants,                 ONLY: do_mp2_potential_TShPSC
+  USE input_constants,                 ONLY: cholesky_inverse,&
+                                             do_mp2_potential_TShPSC
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -57,7 +59,9 @@ MODULE mp2
                                              mp2_method_direct,&
                                              mp2_method_gpw,&
                                              mp2_method_laplace,&
-                                             mp2_type
+                                             mp2_type,&
+                                             ri_mp2_method_gpw,&
+                                             ri_rpa_method_gpw
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -101,7 +105,7 @@ MODULE mp2
       routineP = moduleN//':'//routineN
 
     INTEGER :: cholesky_method, dimen, handle, iatom, ikind, ispin, max_nset, &
-      nao, natom, ncol_block, ndep, nelec_alpha, nelec_beta, nelectron, &
+      nao, natom, ncol_block, nelec_alpha, nelec_beta, nelectron, &
       nfullcols_total, nfullrows_total, nkind, nmo, nrow_block, nspins, stat, &
       unit_nr
     INTEGER(KIND=int_8)                      :: mem
@@ -151,15 +155,23 @@ MODULE mp2
                   matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
                   mp2_env=mp2_env, admm_env=admm_env, error=error)
 
-    unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%MP2%MP2_INFO",&
+    unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%WF_CORRELATION%MP2_INFO",&
                                    extension=".mp2Log",error=error)
 
     IF (unit_nr>0) THEN
-       WRITE(unit_nr,*)
-       WRITE(unit_nr,*)
-       WRITE(unit_nr,'(T2,A)') 'MP2 section'
-       WRITE(unit_nr,'(T2,A)') '-----------'
-       WRITE(unit_nr,*)
+       IF(mp2_env%method.NE.ri_rpa_method_gpw) THEN
+         WRITE(unit_nr,*)
+         WRITE(unit_nr,*)
+         WRITE(unit_nr,'(T2,A)') 'MP2 section'
+         WRITE(unit_nr,'(T2,A)') '-----------'
+         WRITE(unit_nr,*)
+       ELSE
+         WRITE(unit_nr,*)
+         WRITE(unit_nr,*)
+         WRITE(unit_nr,'(T2,A)') 'RI-RPA section'
+         WRITE(unit_nr,'(T2,A)') '--------------'
+         WRITE(unit_nr,*)
+       END IF
     ENDIF
 
 
@@ -169,10 +181,12 @@ MODULE mp2
        mp2_env%mp2_num_proc=para_env%num_pe
     ENDIF
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T76,I5)')     'Used number of processes per group:', mp2_env%mp2_num_proc
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Maximum allowed memory usage per MPI processes during MP2:',&
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Maximum allowed memory usage per MPI processes:',&
                                                     mp2_env%mp2_memory, ' MB'
 
-    IF(mp2_env%method.NE.mp2_method_gpw) THEN
+    IF((mp2_env%method.NE.mp2_method_gpw).AND.&
+       (mp2_env%method.NE.ri_mp2_method_gpw).AND.&
+       (mp2_env%method.NE.ri_rpa_method_gpw)) THEN
       mem=m_memory()
       mem_real=(mem+1024*1024-1)/(1024*1024)
       CALL mp_max(mem_real,para_env%group)
@@ -231,9 +245,9 @@ MODULE mp2
    
     CALL cp_fm_get_info(matrix=fm_matrix_ks,nrow_block=nrow_block,ncol_block=ncol_block,error=error)
 
-    ! calculate S^(-1/2)
-    CALL cp_fm_power(fm_matrix_s,fm_matrix_work,-0.5_dp,&
-                     qs_env%scf_control%eps_eigval,ndep,error=error)
+    ! calculate S^(-1/2) (cholescky decomposition)
+    CALL cp_fm_cholesky_decompose(fm_matrix_s,error=error)
+    CALL cp_fm_triangular_invert(fm_matrix_s,error=error)
 
     NULLIFY(mos_mp2)
     ALLOCATE(mos_mp2(nspins),STAT=stat)
@@ -283,7 +297,7 @@ MODULE mp2
                        error=error)
 
       ! diagonalize KS matrix
-      cholesky_method=0
+      cholesky_method=cholesky_inverse
       CALL eigensolver(matrix_ks=fm_matrix_ks,&
                        mo_set=mos_mp2(ispin)%mo_set,&
                        ortho=fm_matrix_s,&
@@ -444,32 +458,66 @@ MODULE mp2
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
                           mos_mp2,para_env,unit_nr,calc_ex,error)
 
+     CASE (ri_mp2_method_gpw)
+       ! free Hartree Fock stuff, if associated
+       IF (ASSOCIATED(qs_env%x_data)) THEN
+          CALL hfx_release(qs_env%x_data, error=error)
+       ENDIF
+
+       ! check if calculate the exchange contribution
+       IF(mp2_env%scale_T==0.0_dp) calc_ex=.FALSE.
+
+       ! go with mp2_gpw
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
+                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_mp2=.TRUE.)
+
+     CASE(ri_rpa_method_gpw)
+       ! perform RI-RPA energy calculation (since most part of the calculation
+       ! is actually equal to the RI-MP2-GPW we decided to put RPA in the MP2
+       ! section to avoid code replication
+
+       ! free Hartree Fock stuff, if associated
+       IF (ASSOCIATED(qs_env%x_data)) THEN
+          CALL hfx_release(qs_env%x_data, error=error)
+       ENDIF
+
+       calc_ex=.FALSE.
+
+       ! go with ri_rpa_gpw
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
+                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_rpa=.TRUE.)
+
      CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
    END SELECT
    t2=m_walltime()
    IF (unit_nr>0) WRITE(unit_nr,*)
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total MP2 Time=',t2-t1
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Exchange Energy = ', Emp2_ex
-   IF(nspins==1) THEN
-     ! valid only in the closed shell case
-     Emp2_S=Emp2_Cou/2.0_dp
-     IF (calc_ex) THEN
-        Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
-     ELSE
-        ! unknown if Emp2_ex is not computed
-        Emp2_T=0.0_dp
-     ENDIF
+   IF(mp2_env%method.NE.ri_rpa_method_gpw) THEN
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total MP2 Time=',t2-t1
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Exchange Energy = ', Emp2_ex
+     IF(nspins==1) THEN
+       ! valid only in the closed shell case
+       Emp2_S=Emp2_Cou/2.0_dp
+       IF (calc_ex) THEN
+          Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
+       ELSE
+          ! unknown if Emp2_ex is not computed
+          Emp2_T=0.0_dp
+       ENDIF
+     END IF
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SS component (triplet) = ', Emp2_T
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SS                 = ', mp2_env%scale_T
+     Emp2_S=Emp2_S*mp2_env%scale_S
+     Emp2_T=Emp2_T*mp2_env%scale_T
+     Emp2=Emp2_S+Emp2_T
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Second order perturbation energy  =   ', Emp2
+   ELSE
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total RI-RPA Time=',t2-t1
+     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
    END IF
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SS component (triplet) = ', Emp2_T
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SS                 = ', mp2_env%scale_T
-   Emp2_S=Emp2_S*mp2_env%scale_S
-   Emp2_T=Emp2_T*mp2_env%scale_T
-   Emp2=Emp2_S+Emp2_T
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Second order perturbation energy  =   ', Emp2
    IF (unit_nr>0) WRITE(unit_nr,*)
 
    ! we have it !!!!
@@ -484,7 +532,7 @@ MODULE mp2
    CALL hfx_release_basis_types(basis_parameter,error)
 
    CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                                     "DFT%XC%MP2%MP2_INFO", error=error)
+                                     "DFT%XC%WF_CORRELATION%MP2_INFO", error=error)
 
    CALL timestop(handle)
 

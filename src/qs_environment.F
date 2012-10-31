@@ -367,7 +367,7 @@ CONTAINS
       END IF
     END IF
 
-    mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%MP2",error=error)
+    mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION",error=error)
     CALL section_vals_get(mp2_section,explicit=mp2_present,error=error)
     IF (mp2_present) THEN
        CALL mp2_env_create(qs_env%mp2_env,error)

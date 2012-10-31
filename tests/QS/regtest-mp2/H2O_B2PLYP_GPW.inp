@@ -48,9 +48,9 @@
           SCREEN_ON_INITIAL_P FALSE 
         &END SCREENING
       &END HF
-      &MP2 
+      &WF_CORRELATION
        METHOD  MP2_GPW
-       &MP2_GPW
+       &WFC_GPW
          CUTOFF  200
          REL_CUTOFF 25
        &END

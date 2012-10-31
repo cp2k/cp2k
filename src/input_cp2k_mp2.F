@@ -57,9 +57,9 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"MP2",&
-            description="Sets up the MP2 parameters if requested ",&
-            n_keywords=6, n_subsections=3, repeats=.TRUE., required=.TRUE.,&
+       CALL section_create(section,"WF_CORRELATION",&
+            description="Sets up the Wavefunction-based Correlation parameters if requested ",&
+            n_keywords=6, n_subsections=4, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -69,11 +69,13 @@ CONTAINS
             name="METHOD",&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD MP2_GPW",&
-            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW"),&
-            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw/),&
+            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW"),&
+            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,ri_rpa_method_gpw/),&
             enum_desc=s2a("Skip MP2 calculation",&
                           "Use the direct mp2 canonical approach",&
-                          "Use the GPW approach to MP2"),&
+                          "Use the GPW approach to MP2",&
+                          "Use the GPW approach to RI-MP2",&
+                          "Use the GPW approach to RI-RPA"),&
             default_i_val=mp2_method_direct, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -132,7 +134,11 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_mp2_gpw(subsection,error)
+       CALL create_wfc_gpw(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_ri_rpa(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -180,11 +186,45 @@ CONTAINS
 
   END SUBROUTINE create_mp2_direct
 
-  SUBROUTINE create_mp2_GPW(section,error)
+  SUBROUTINE create_ri_rpa(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_GPW', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_rpa', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"RI_RPA",&
+            description="Parameters influencing the RI RPA method",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+  
+       CALL keyword_create(keyword, name="QUADRATURE_POINTS",&
+            variants=(/"RPA_NUM_QUAD_POINTS"/),&
+            description="Number of quadrature points for the numerical integration in the RI-RPA method.",&
+            usage="QUADRATURE_POINTS 60",&
+            default_i_val=40,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_ri_rpa
+
+  SUBROUTINE create_wfc_gpw(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_wfc_gpw', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -194,9 +234,9 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"MP2_GPW",&
-            description="Parameters for the GPW approach",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+       CALL section_create(section,"WFC_GPW",&
+            description="Parameters for the GPW approach in Wavefunction-based Correlation methods",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -229,16 +269,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RI_MP2",&
-            variants=(/"DO_RI_MP2"/),&
-            description="Perform MP2-GPW calculation with resolution of identity (RI) approximation.",&
-            usage="RI_MP2",required=.FALSE.,&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="PRINT_LEVEL",&
             variants=(/"IOLEVEL"/),&
             description="How much output is written by the individual groups.",&
@@ -255,7 +285,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE create_mp2_GPW
+  END SUBROUTINE create_wfc_gpw
 
 
   SUBROUTINE create_mp2_potential(section,error)

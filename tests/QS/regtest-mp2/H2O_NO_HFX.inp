@@ -35,9 +35,9 @@
         &BECKE88
         &END
       &END XC_FUNCTIONAL
-      &MP2 
+      &WF_CORRELATION
         METHOD  MP2_GPW
-        &MP2_GPW
+        &WFC_GPW
           CUTOFF  200
           REL_CUTOFF 30
         &END

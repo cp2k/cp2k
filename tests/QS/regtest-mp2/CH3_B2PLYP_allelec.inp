@@ -46,7 +46,7 @@
           SCREEN_ON_INITIAL_P FALSE 
         &END SCREENING
       &END HF
-      &MP2 
+      &WF_CORRELATION
         METHOD DIRECT_CANONICAL
         &DIRECT_CANONICAL
           BIG_SEND

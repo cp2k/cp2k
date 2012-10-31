@@ -111,6 +111,7 @@ MODULE mp2_gpw
                                              build_neighbor_lists,&
                                              local_atoms_type,&
                                              pair_radius_setup
+  USE rpa_ri_gpw,                      ONLY: rpa_ri_compute_en
   USE task_list_methods,               ONLY: generate_qs_task_list
   USE task_list_types,                 ONLY: allocate_task_list,&
                                              deallocate_task_list,&
@@ -136,7 +137,7 @@ MODULE mp2_gpw
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_ex,error)
+                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_mp2,do_ri_rpa)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX, &
@@ -147,6 +148,7 @@ MODULE mp2_gpw
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, OPTIONAL                        :: do_ri_mp2, do_ri_rpa
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_main', &
       routineP = moduleN//':'//routineN
@@ -159,8 +161,8 @@ MODULE mp2_gpw
       sizes_B_virtual_beta, starts_array, starts_B_virtual, &
       starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: rbs
-    LOGICAL                                  :: blacs_repeatable, failure, &
-                                                skip_load_balance_distributed
+    LOGICAL :: blacs_repeatable, failure, my_do_ri_mp2, my_do_ri_rpa, &
+      skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
@@ -210,6 +212,14 @@ MODULE mp2_gpw
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
+    ! check if we want to do ri-mp2
+    my_do_ri_mp2=.FALSE.
+    IF(PRESENT(do_ri_mp2)) my_do_ri_mp2=do_ri_mp2
+
+    ! check if we want to do ri-rpa
+    my_do_ri_rpa=.FALSE.
+    IF(PRESENT(do_ri_rpa)) my_do_ri_rpa=do_ri_rpa
+
     ! ... setup needed to be able to qs_integrate in a subgroup.
 
     ! a para_env
@@ -228,9 +238,9 @@ MODULE mp2_gpw
 
     IF (unit_nr>0) THEN
       WRITE (UNIT=unit_nr,FMT="(T3,A,T71,F10.1)")&
-               "MP2_GPW| Density cutoff [a.u.]:", mp2_env%mp2_gpw%cutoff*0.5_dp
+               "GPW_INFO| Density cutoff [a.u.]:", mp2_env%mp2_gpw%cutoff*0.5_dp
       WRITE (UNIT=unit_nr,FMT="(T3,A,T71,F10.1)")&
-            "MP2_GPW| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
+            "GPW_INFO| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
       CALL m_flush(unit_nr)
     ENDIF
 
@@ -425,8 +435,8 @@ MODULE mp2_gpw
     ! now we're kind of ready to go....
     Emp2_S=0.0_dp
     Emp2_T=0.0_dp
-    IF(mp2_env%mp2_gpw%do_ri_mp2) THEN
-      ! RI-MP2-GPW compute integrals
+    IF(my_do_ri_mp2.OR.my_do_ri_rpa) THEN
+      ! RI-GPW integrals (same stuff for both RPA and MP2)
       IF(nspins==2) THEN
         ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
         CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
@@ -459,9 +469,6 @@ MODULE mp2_gpw
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub,&
                              homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
 
-        ! Emp2_Cou=Emp2_Cou*0.25_dp
-        ! Emp2_EX=Emp2_EX*0.5_dp
-
         ! beta-beta component
         IF (unit_nr>0) WRITE(unit_nr,*)
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Beta (ia|'
@@ -471,16 +478,6 @@ MODULE mp2_gpw
                              mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
         
-        ! Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
-        ! Emp2_EX_BB=Emp2_EX_BB*0.5_dp
-
-        ! Emp2_S=Emp2_AB
-        ! Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
-
-        ! Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
-        ! Emp2_EX=Emp2_EX+Emp2_EX_BB
-        ! Emp2=Emp2_EX+Emp2_Cou
-
       ELSE 
         ! closed shell case
         CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
@@ -534,52 +531,69 @@ MODULE mp2_gpw
     CALL distribution_1d_release(local_particles_sub,error=error_sub)
     CALL distribution_1d_release(local_molecules_sub,error=error_sub)
 
-    IF(mp2_env%mp2_gpw%do_ri_mp2) THEN
-      ! RI-MP2-GPW compute energy
+    ! decide if to doing RI-RPA or RI-MP2
+    IF(my_do_ri_rpa) THEN
+      ! RI-RPA
       IF(nspins==2) THEN
-        ! alpha-alpha component
-        CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
-                                   ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
-                                   open_shell_SS=.TRUE.)
- 
-        ! beta-beta component
-        CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,para_env,para_env_sub,color_sub,&
-                                   ends_array,ends_B_virtual_beta,sizes_array,&
-                                   sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
-                                   Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
-                                   open_shell_SS=.TRUE.)
-
-
-        ! alpha-beta case
-        CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
-                                   ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,.FALSE.,error,error_sub,&
-                                   .FALSE.,BIb_C_beta,homo_beta,Eigenval_beta,&
-                                   ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
-
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                               ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,&
+                               BIb_C_beta,homo_beta,Eigenval_beta,&
+                               ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
       ELSE
-        ! closed shell case
-        CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
-                                   ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub)
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                               ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub)
       END IF
-    END IF
+    ELSE
+      IF(my_do_ri_mp2) THEN
+        ! RI-MP2-GPW compute energy
+        IF(nspins==2) THEN
+          ! alpha-alpha component
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                     ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                     Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
+                                     open_shell_SS=.TRUE.)
+ 
+          ! beta-beta component
+          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,para_env,para_env_sub,color_sub,&
+                                     ends_array,ends_B_virtual_beta,sizes_array,&
+                                     sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
+                                     Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
+                                     open_shell_SS=.TRUE.)
 
-    IF(nspins==2) THEN
-      ! make order on the MP2 energy contributions
-      Emp2_Cou=Emp2_Cou*0.25_dp
-      Emp2_EX=Emp2_EX*0.5_dp
 
-      Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
-      Emp2_EX_BB=Emp2_EX_BB*0.5_dp
+          ! alpha-beta case
+          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                     ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                     Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,.FALSE.,error,error_sub,&
+                                     .FALSE.,BIb_C_beta,homo_beta,Eigenval_beta,&
+                                     ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
 
-      Emp2_S=Emp2_AB
-      Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
+        ELSE
+          ! closed shell case
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                     ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                     Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub)
+        END IF
+      END IF
 
-      Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
-      Emp2_EX=Emp2_EX+Emp2_EX_BB
-      Emp2=Emp2_EX+Emp2_Cou
+      IF(nspins==2) THEN
+        ! make order on the MP2 energy contributions
+        Emp2_Cou=Emp2_Cou*0.25_dp
+        Emp2_EX=Emp2_EX*0.5_dp
+
+        Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
+        Emp2_EX_BB=Emp2_EX_BB*0.5_dp
+
+        Emp2_S=Emp2_AB
+        Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
+
+        Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
+        Emp2_EX=Emp2_EX+Emp2_EX_BB
+        Emp2=Emp2_EX+Emp2_Cou
+      END IF
+
     END IF
 
     DEALLOCATE(Eigenval,STAT=stat)
@@ -1380,8 +1394,9 @@ MODULE mp2_gpw
     INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, iiB, &
       iproc, itmp(2), j, j_global, jjB, max_row_col_local, my_mu_end, &
       my_mu_size, my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, &
-      proc_receive, proc_send, proc_shift, rec_mu_end, rec_mu_size, &
-      rec_mu_start, row, row_offset, row_size, stat, virtual
+      proc_receive, proc_receive_static, proc_send, proc_send_static, &
+      proc_shift, rec_mu_end, rec_mu_size, rec_mu_start, row, row_offset, &
+      row_size, stat, virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
                                                 sizes_array, starts_array
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
@@ -1391,7 +1406,6 @@ MODULE mp2_gpw
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, Cocc, Cvirt, rec_C
-    REAL(KIND=dp), DIMENSION(1, 1)           :: null_mat, null_mat2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
                                                 local_C_internal
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
@@ -1482,17 +1496,15 @@ MODULE mp2_gpw
     END DO
 
     ! start ring communication for collecting the data from the other
-    ! proc. null_mat is just a dummy array that is exchanged in the case
-    ! the size of the real arrays is zero
-    null_mat=0.0_dp
-    null_mat2=0.0_dp
+    proc_send_static=proc_map(para_env%mepos+1)
+    proc_receive_static=proc_map(para_env%mepos-1)
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
       proc_receive=proc_map(para_env%mepos-proc_shift)
 
       ! first exchange information on the local data
       rec_col_row_info=0
-      CALL  mp_sendrecv(local_col_row_info,proc_send,rec_col_row_info,proc_receive,para_env%group)
+      CALL  mp_sendrecv(local_col_row_info,proc_send_static,rec_col_row_info,proc_receive_static,para_env%group)
       nrow_rec=rec_col_row_info(0,1)
       ncol_rec=rec_col_row_info(0,2)
 
@@ -1509,7 +1521,7 @@ MODULE mp2_gpw
       rec_C=0.0_dp
 
       ! then send and receive the real data
-      CALL  mp_sendrecv(local_C,proc_send,rec_C,proc_receive,para_env%group)
+      CALL  mp_sendrecv(local_C,proc_send_static,rec_C,proc_receive_static,para_env%group)
 
       ! accumulate the received data on C buffer 
       DO iiB=1, nrow_rec
@@ -1522,6 +1534,11 @@ MODULE mp2_gpw
         END IF
       END DO
 
+      local_col_row_info=rec_col_row_info
+      DEALLOCATE(local_C)
+      ALLOCATE(local_C(nrow_rec,ncol_rec),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      local_C=rec_C
 
       DEALLOCATE(col_indices_rec)
       DEALLOCATE(row_indices_rec)

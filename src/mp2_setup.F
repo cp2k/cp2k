@@ -18,7 +18,9 @@ MODULE mp2_setup
   USE mp2_types,                       ONLY: mp2_method_direct,&
                                              mp2_method_gpw,&
                                              mp2_method_none,&
-                                             mp2_type
+                                             mp2_type,&
+                                             ri_mp2_method_gpw,&
+                                             ri_rpa_method_gpw
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -50,7 +52,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     failure=.FALSE.
 
-    mp2_section => section_vals_get_subs_vals(input,"DFT%XC%MP2",error=error)
+    mp2_section => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION",error=error)
 
 
     ! should come from input
@@ -60,6 +62,7 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"SCALE_T",r_val=mp2_env%scale_T,error=error)
     CALL section_vals_val_get(mp2_section,"GROUP_SIZE",i_val=mp2_env%mp2_num_proc,error=error)
     CALL section_vals_val_get(mp2_section,"DIRECT_CANONICAL%BIG_SEND",l_val=mp2_env%direct_canonical%big_send,error=error)
+
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%POTENTIAL_TYPE",&
                               i_val=mp2_env%potential_parameter%potential_type, error=error)
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%TRUNCATION_RADIUS",&
@@ -67,18 +70,19 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%TShPSC_DATA",&
                               c_val=mp2_env%potential_parameter%filename, error=error)
 
-    CALL section_vals_val_get(mp2_section,"MP2_GPW%EPS_FILTER",&
+    CALL section_vals_val_get(mp2_section,"WFC_GPW%EPS_FILTER",&
                               r_val=mp2_env%mp2_gpw%eps_filter, error=error)
-    CALL section_vals_val_get(mp2_section,"MP2_GPW%EPS_GRID",&
+    CALL section_vals_val_get(mp2_section,"WFC_GPW%EPS_GRID",&
                               r_val=mp2_env%mp2_gpw%eps_grid, error=error)
-    CALL section_vals_val_get(mp2_section,"MP2_GPW%CUTOFF",&
+    CALL section_vals_val_get(mp2_section,"WFC_GPW%CUTOFF",&
                               r_val=mp2_env%mp2_gpw%cutoff, error=error)
-    CALL section_vals_val_get(mp2_section,"MP2_GPW%REL_CUTOFF",&
+    CALL section_vals_val_get(mp2_section,"WFC_GPW%REL_CUTOFF",&
                               r_val=mp2_env%mp2_gpw%relative_cutoff, error=error)
-    CALL section_vals_val_get(mp2_section,"MP2_GPW%PRINT_LEVEL",&
+    CALL section_vals_val_get(mp2_section,"WFC_GPW%PRINT_LEVEL",&
                               i_val=mp2_env%mp2_gpw%print_level, error=error)
-    CALL section_vals_val_get(mp2_section,"MP2_GPW%DO_RI_MP2",&
-                              l_val=mp2_env%mp2_gpw%do_ri_mp2,error=error)
+
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RPA_NUM_QUAD_POINTS",&
+                              i_val=mp2_env%ri_rpa%rpa_num_quad_points, error=error)
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&
@@ -89,11 +93,11 @@ CONTAINS
        CASE(mp2_method_direct)
          WRITE(unit_nr,'(T2,A)') "MP2| using direct canonical MP2"
        CASE(mp2_method_gpw)
-         IF(.NOT.mp2_env%mp2_gpw%do_ri_mp2) THEN
-           WRITE(unit_nr,'(T2,A)') "MP2| using MP2 GPW style"
-         ELSE
-           WRITE(unit_nr,'(T2,A)') "MP2| using RI-MP2-GPW"
-         END IF
+         WRITE(unit_nr,'(T2,A)') "MP2| using MP2 GPW style"
+       CASE(ri_mp2_method_gpw)
+         WRITE(unit_nr,'(T2,A)') "MP2| using RI-MP2-GPW"
+       CASE(ri_rpa_method_gpw)
+         WRITE(unit_nr,'(T2,A)') "RI-RPA| using GPW style"
        CASE DEFAULT
          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT

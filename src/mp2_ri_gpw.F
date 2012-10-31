@@ -17,6 +17,8 @@ MODULE mp2_ri_gpw
                                              init_orb_basis_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_create, cp_dbcsr_distribution, &
@@ -101,7 +103,8 @@ MODULE mp2_ri_gpw
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw'
 
   PUBLIC :: mp2_ri_gpw_compute_in,&
-            mp2_ri_gpw_compute_en
+            mp2_ri_gpw_compute_en,&
+            replicate_iaK_2intgroup
 
 
   CONTAINS
@@ -163,14 +166,13 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, comm_exchange, handle, handle2, handle3, i, i_counter, &
-      iproc, itmp(2), LLL, max_row_col_local, max_row_col_local_beta, &
-      my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
+    INTEGER :: a, handle, handle2, handle3, i, i_counter, iproc, itmp(2), &
+      LLL, max_row_col_local, max_row_col_local_beta, my_B_size, &
+      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
       my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
       my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
-      nfullrows_total, ngroup, nrow_local, stat, sub_sub_color, virtual, &
-      virtual_beta
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, sub_proc_map
+      nfullrows_total, ngroup, nrow_local, stat, virtual, virtual_beta
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
@@ -188,7 +190,7 @@ MODULE mp2_ri_gpw
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_BIb_jb, fm_BIb_jb_beta, &
                                                 fm_matrix_L
-    TYPE(cp_para_env_type), POINTER          :: para_env_exchange
+    TYPE(cp_para_env_type), POINTER          :: para_env_L
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(pw_p_type)                          :: psi_L
 
@@ -372,20 +374,6 @@ MODULE mp2_ri_gpw
     my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
     my_B_size=sizes_B_virtual(para_env_sub%mepos)
 
-    ! now create a group that contains all the proc that have the same virtual starting point
-    sub_sub_color=para_env_sub%mepos
-    CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
-    NULLIFY(para_env_exchange)
-    CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
-
-    ! crate the proc maps
-    ALLOCATE(proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
-    DO i=0,para_env_exchange%num_pe-1
-      proc_map(i)=i
-      proc_map(-i-1)=para_env_exchange%num_pe-i-1
-      proc_map(para_env_exchange%num_pe+i)=i
-    END DO
-
     ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
     DO i=0,para_env_sub%num_pe-1
       sub_proc_map(i)=i
@@ -400,18 +388,22 @@ MODULE mp2_ri_gpw
                             in_space=REALSPACE,error=error_sub)
 
     ! calculate L^{-1}
-    CALL calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_exchange,proc_map,&
+    CALL calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                          eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                          mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                          my_group_L_size,my_group_L_start,my_group_L_end,&
                          sizes_array,starts_array,ends_array,error_sub,error)
 
+    IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                      "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
+
     ! replicate the necessary row of the L^{-1} matrix on each proc
-    CALL grep_Lcols(qs_env,para_env,dimen_RI,fm_matrix_L,&
-                   my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
-                   error)
+    CALL grep_Lcols(qs_env,para_env_L,dimen_RI,fm_matrix_L,&
+                    my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
+                    error)
     ! clean the L^{-1} matrix
     CALL cp_fm_release(fm_matrix_L, error=error)
+    CALL cp_para_env_release(para_env_L,error=error_sub)
 
     IF (unit_nr>0) THEN
       WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
@@ -519,25 +511,21 @@ MODULE mp2_ri_gpw
       DEALLOCATE(local_col_row_info_beta)
     END IF
 
-    DEALLOCATE(proc_map)
     DEALLOCATE(sub_proc_map)
-
-    CALL cp_para_env_release(para_env_exchange,error=error_sub)
 
     CALL timestop(handle)
 
   END SUBROUTINE mp2_ri_gpw_compute_in
 
-  SUBROUTINE calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_exchange,proc_map,&
+  SUBROUTINE calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                              eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                              mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                              my_group_L_size,my_group_L_start,my_group_L_end,&
                              sizes_array,starts_array,ends_array,error_sub,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
-                                                para_env_exchange
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
-    REAL(KIND=dp)                            :: eps_filter
+                                                para_env_L
+    REAL(KIND=dp)                            :: mp2_memory, eps_filter
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L
     INTEGER                                  :: ngroup, color_sub, dimen_RI
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -555,18 +543,25 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dir, handle, handle2, handle3, i, i_counter, i_global, iatom, &
-      igrid_level, igroup, iiB, ikind, info_chol, ipgf, iset, istat, itmp(2), &
-      j_global, jjB, lb(3), LLL, location(3), na1, na2, natom, ncoa, &
-      ncol_local, nkind, nrow_local, nseta, offset, proc_receive, proc_send, &
-      proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, stat, tp(3), ub(3)
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
+    INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, &
+      group_size, handle, handle2, handle3, i, i_counter, i_global, iatom, &
+      igrid_level, igroup, iiB, ikind, info_chol, ipgf, iproc, iset, istat, &
+      itmp(2), j_global, jjB, lb(3), LLL, location(3), na1, na2, natom, ncoa, &
+      ncol_local, nkind, nrow_local, nseta, offset, proc_receive, &
+      proc_receive_static, proc_send, proc_send_static, proc_shift, &
+      rec_L_end, rec_L_size, rec_L_start, sgfa, stat, strat_group_size, &
+      sub_sub_color, tp(3), ub(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, proc_map, &
+                                                sub_ends_array, &
+                                                sub_sizes_array, &
+                                                sub_starts_array
     INTEGER, DIMENSION(:), POINTER           :: col_indices, la_max, la_min, &
                                                 lb_max, lb_min, npgfa, nsgfa, &
                                                 row_indices
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, map_it_here
-    REAL(KIND=dp)                            :: pair_energy, rab2
+    REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
+                                                rab2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: wf_vector
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: I_ab, L_external_col, &
@@ -578,8 +573,9 @@ MODULE mp2_ri_gpw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_L
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_para_env_type), POINTER          :: para_env_exchange
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -604,7 +600,7 @@ MODULE mp2_ri_gpw
     atomic_kind_set => subsys%atomic_kinds%els
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
-    blacs_env => qs_env%blacs_env
+    ! blacs_env => qs_env%blacs_env
     cell=>qs_env%cell
 
     nkind = SIZE(atomic_kind_set)
@@ -796,11 +792,77 @@ MODULE mp2_ri_gpw
     CALL mp_sum(L_local_col,para_env_sub%group)
     CALL timestop(handle2)
 
-    ! create the full matrix L
+    ! split the total number of proc in a subgroup of the size of ~1/10 of the 
+    ! total num of proc
+    best_group_size=para_env%num_pe
+
+    strat_group_size=MAX(1,para_env%num_pe/10)
+
+    min_mem_for_QK=REAL(dimen_RI,KIND=dp)*dimen_RI*3.0_dp*8.0_dp/1024_dp/1024_dp
+
+    group_size=strat_group_size-1
+    DO iproc=strat_group_size, para_env%num_pe
+      group_size=group_size+1
+      ! check that group_size is a multiple of sub_group_size and a divisor of
+      ! the total num of proc
+      IF(MOD(para_env%num_pe,group_size)/=0.OR.MOD(group_size,para_env_sub%num_pe)/=0) CYCLE
+
+      ! check for memory
+      IF(REAL(group_size,KIND=dp)*mp2_memory<min_mem_for_QK) CYCLE
+
+      best_group_size=group_size
+      EXIT
+    END DO
+
+    ! create the L group
+    color_L=para_env%mepos/best_group_size
+    CALL mp_comm_split_direct(para_env%group,comm_L,color_L)
+    NULLIFY(para_env_L)
+    CALL cp_para_env_create(para_env_L,comm_L,error=error)
+
+    ! create the blacs_L
+    NULLIFY(blacs_env_L)
+    CALL cp_blacs_env_create(blacs_env=blacs_env_L, para_env=para_env_L, error=error)
+
+    ! now create the exchange group (for communication only between members not belonging to the
+    ! same group
+    sub_sub_color=para_env_sub%mepos
+    CALL mp_comm_split_direct(para_env_L%group,comm_exchange,sub_sub_color)
+    NULLIFY(para_env_exchange)
+    CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
+
+    ! crate the proc maps
+    ALLOCATE(proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
+    DO i=0,para_env_exchange%num_pe-1
+      proc_map(i)=i
+      proc_map(-i-1)=para_env_exchange%num_pe-i-1
+      proc_map(para_env_exchange%num_pe+i)=i
+    END DO
+
+    ! create the information array
+    ALLOCATE(sub_sizes_array(0:para_env_exchange%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    sub_sizes_array=0
+    ALLOCATE(sub_starts_array(0:para_env_exchange%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    sub_starts_array=0
+    ALLOCATE(sub_ends_array(0:para_env_exchange%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    sub_ends_array=0
+
+    sub_sizes_array(para_env_exchange%mepos)=my_group_L_size
+    sub_starts_array(para_env_exchange%mepos)=my_group_L_start
+    sub_ends_array(para_env_exchange%mepos)=my_group_L_end
+
+    CALL mp_sum(sub_sizes_array,para_env_exchange%group)
+    CALL mp_sum(sub_starts_array,para_env_exchange%group)
+    CALL mp_sum(sub_ends_array,para_env_exchange%group)
+
+    ! create the full matrix L defined in the L group
     NULLIFY(fm_matrix_L)
     NULLIFY(fm_struct)
-    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_RI,&
-                             ncol_global=dimen_RI,para_env=para_env,error=error)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env_L,nrow_global=dimen_RI,&
+                             ncol_global=dimen_RI,para_env=para_env_L,error=error)
     CALL cp_fm_create(fm_matrix_L,fm_struct,name="fm_matrix_L",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
@@ -823,18 +885,21 @@ MODULE mp2_ri_gpw
       END IF
     END DO
  
+    proc_send_static=proc_map(para_env_exchange%mepos+1)
+    proc_receive_static=proc_map(para_env_exchange%mepos-1)
+ 
     DO proc_shift=1, para_env_exchange%num_pe-1
       proc_send=proc_map(para_env_exchange%mepos+proc_shift)
       proc_receive=proc_map(para_env_exchange%mepos-proc_shift)
      
-      rec_L_size=sizes_array(proc_receive)
-      rec_L_start=starts_array(proc_receive)
-      rec_L_end=ends_array(proc_receive)
+      rec_L_size=sub_sizes_array(proc_receive)
+      rec_L_start=sub_starts_array(proc_receive)
+      rec_L_end=sub_ends_array(proc_receive)
 
       ALLOCATE(L_external_col(dimen_RI,rec_L_size))
       L_external_col=0.0_dp
 
-      CALL  mp_sendrecv(L_local_col,proc_send,L_external_col,proc_receive,para_env_exchange%group)
+      CALL  mp_sendrecv(L_local_col,proc_send_static,L_external_col,proc_receive_static,para_env_exchange%group)
 
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
@@ -846,11 +911,34 @@ MODULE mp2_ri_gpw
         END IF
       END DO
 
+      DEALLOCATE(L_local_col)
+      ALLOCATE(L_local_col(dimen_RI,rec_L_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      L_local_col=L_external_col
+
       DEALLOCATE(L_external_col)
 
     END DO
 
     DEALLOCATE(L_local_col)
+
+    ! free the old exchange group stuff
+    DEALLOCATE(proc_map)
+    CALL cp_para_env_release(para_env_exchange,error=error_sub)
+
+    DEALLOCATE(sub_sizes_array)
+    DEALLOCATE(sub_starts_array)
+    DEALLOCATE(sub_ends_array)
+
+    ! create the new group for the mp_sum of the local data
+    sub_sub_color=para_env_L%mepos
+    CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
+    NULLIFY(para_env_exchange)
+    CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
+
+    CALL mp_sum(fm_matrix_L%local_data,para_env_exchange%group)
+
+    CALL cp_para_env_release(para_env_exchange,error=error_sub)
 
     ! do cholesky decomposition
     CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L, n=dimen_RI, info_out=info_chol, error=error)
@@ -872,6 +960,9 @@ MODULE mp2_ri_gpw
         IF(j_global<i_global) fm_matrix_L%local_data(iiB,jjB)=0.0_dp
       END DO
     END DO
+
+    ! release blacs_env
+    CALL cp_blacs_env_release(blacs_env_L,error=error)
 
     CALL timestop(handle)
 
@@ -895,8 +986,8 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, &
-      ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, proc_send, &
-      proc_shift, stat
+      ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
+      proc_receive_static, proc_send, proc_send_static, proc_shift, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 rec_col_row_info
@@ -963,13 +1054,16 @@ MODULE mp2_ri_gpw
       END IF
     END DO    
 
+    proc_send_static=proc_map(para_env%mepos+1)
+    proc_receive_static=proc_map(para_env%mepos-1)
+
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
       proc_receive=proc_map(para_env%mepos-proc_shift)
 
       ! first exchange information on the local data
       rec_col_row_info=0
-      CALL  mp_sendrecv(local_col_row_info,proc_send,rec_col_row_info,proc_receive,para_env%group)
+      CALL  mp_sendrecv(local_col_row_info,proc_send_static,rec_col_row_info,proc_receive_static,para_env%group)
       nrow_rec=rec_col_row_info(0,1)
       ncol_rec=rec_col_row_info(0,2)
 
@@ -986,7 +1080,7 @@ MODULE mp2_ri_gpw
       rec_L=0.0_dp
 
       ! then send and receive the real data
-      CALL  mp_sendrecv(local_L,proc_send,rec_L,proc_receive,para_env%group)
+      CALL  mp_sendrecv(local_L,proc_send_static,rec_L,proc_receive_static,para_env%group)
 
       ! accumulate the received data on my_Lrows
       DO jjB=1, ncol_rec
@@ -998,6 +1092,12 @@ MODULE mp2_ri_gpw
           END DO
         END IF
       END DO
+
+      local_col_row_info=rec_col_row_info
+      DEALLOCATE(local_L)
+      ALLOCATE(local_L(nrow_rec,ncol_rec),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      local_L=rec_L
 
       DEALLOCATE(col_indices_rec)
       DEALLOCATE(row_indices_rec)
@@ -1270,7 +1370,8 @@ MODULE mp2_ri_gpw
           max_ij_block=CEILING(REAL(total_ij_block,KIND=dp)/REAL(ngroup,KIND=dp))
           load_bal_var=REAL(min_ij_block*i_B_size**2)/REAL(max_ij_block*i_B_size**2)
          
-          IF(load_bal_var>=best_load_bal) THEN
+          ! IF(load_bal_var>=best_load_bal) THEN
+          IF(load_bal_var>=0.9_dp) THEN
             ! calculate ammount of communication
             comm_var=REAL(total_ij_block,KIND=dp)/REAL(ngroup,KIND=dp)*REAL(integ_group_size,KIND=dp) 
             IF(comm_var<best_comm) THEN
