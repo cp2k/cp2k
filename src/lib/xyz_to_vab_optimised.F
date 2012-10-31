@@ -2,38 +2,24 @@
 !> \\brief provides specific implementations for common cases of xyz_to_vab routine.
 !> 
 !> \\note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
-!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
-!>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
-!>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
-!>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/
-!>      ____ _                  ___                              _ _       _       _
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
-!>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
-!>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
-!>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/
-!>     _____ _     _       _____ _ _      _
-!>    |_   _| |__ (_)___  |  ___(_) | ___| |
-!>      | | | '_ \| / __| | |_  | | |/ _ \ |
-!>      | | | | | | \__ \ |  _| | | |  __/_|
-!>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>
-!>      This is a template
-!>
-!>      **** DO NOT MODIFY THIS .f90 FILE ****
-!>      modify the .template instead
-!>      The script to regenerate this file can be found at autotune_grid/xyz_to_vab/
-!> \par History
-!>      07.2012 Fixed a bug with the dimension of coef_xyz
-!>      06.2012 Template cleanup 
-!>      05.2012 created
+!>      Specific implemenations for la_max_local,lb_max_local <=4 are contained
+!>      in the this file, tuned for AMD Interlagos processor using the
+!>      gfortran compiler
+!>      If grid operations (subroutines integrate_v_rspace, calculate_rho_elec and similar)
+!>      consume significant amounts of time, users are recommended to build an auto-tuned
+!>      version of these kernels for their own system.
+!>      Instructions on building an optimised 'libgrid' library can be found in cp2k/tools/autotune_grid
 !>
 !> \\author Ruyman Reyes
 ! *****************************************************************************
 
-! Caller routine
+#ifdef __HAS_LIBGRID
+
+! We use the caller routine in libgrid.a (which may have a different range of la/lb_max_local implemented
+
+#else
+
+! Use the default caller routine
       SUBROUTINE call_to_xyz_to_vab(prefactor, coef_xyz, lp, &
                                     la_max_local, lb_max_local, &
                                     rp, ra, rab, vab, coset, & 
@@ -9229,6 +9215,6 @@
       
             END SUBROUTINE xyz_to_vab
       
-      
+#endif      
       
 
