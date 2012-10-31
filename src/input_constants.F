@@ -769,7 +769,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: use_orb_basis_set=1,&
                                               use_aux_fit_basis_set=2,&
                                               use_aux_basis_set=3,&
-                                              use_scp_basis_set=4
+                                              use_scp_basis_set=4,&
+                                              use_ri_aux_basis_set=5
   ! ADMM PARAMETER
   ! This parameter the method to use in order to get an auxiliary density matrix
   INTEGER, PARAMETER, PUBLIC               ::  do_admm_basis_set_projection=1,&

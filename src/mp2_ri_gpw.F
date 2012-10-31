@@ -51,7 +51,7 @@ MODULE mp2_ri_gpw
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-  USE input_constants,                 ONLY: use_aux_basis_set,&
+  USE input_constants,                 ONLY: use_ri_aux_basis_set,&
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -438,7 +438,7 @@ MODULE mp2_ri_gpw
       ! pseudo psi_L
       CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
                                   atomic_kind_set,cell,dft_control,particle_set, &
-                                  pw_env_sub,basis_set_id=use_aux_basis_set,&
+                                  pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
                                   external_vector=my_Lrows(:,LLL-my_group_L_start+1),&
                                   error=error_sub)
 
@@ -612,15 +612,15 @@ MODULE mp2_ri_gpw
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
     DO ikind=1, nkind
-      atomic_kind_set(ikind)%aux_basis_set%norm_type=2
-      CALL init_orb_basis_set(atomic_kind_set(ikind)%aux_basis_set,error)
+      CPPrecondition(ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set),cp_failure_level,routineP,error,failure)
+      atomic_kind_set(ikind)%ri_aux_basis_set%norm_type=2
+      CALL init_orb_basis_set(atomic_kind_set(ikind)%ri_aux_basis_set,error)
     END DO
 
     dimen_RI=0
     DO iatom=1, natom
       ikind=kind_of(iatom)
-      ! rbs(iatom)=atomic_kind_set(ikind)%aux_basis_set%nsgf
-      dimen_RI=dimen_RI+atomic_kind_set(ikind)%aux_basis_set%nsgf
+      dimen_RI=dimen_RI+atomic_kind_set(ikind)%ri_aux_basis_set%nsgf
     END DO
 
     ! calculate wich rows of L^{-1} to have
@@ -664,7 +664,7 @@ MODULE mp2_ri_gpw
       ! pseudo psi_L
       CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
                                   atomic_kind_set,cell,dft_control,particle_set, &
-                                  pw_env_sub,basis_set_id=use_aux_basis_set,&
+                                  pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
                                   external_vector=wf_vector,&
                                   error=error_sub)
 
@@ -691,7 +691,7 @@ MODULE mp2_ri_gpw
       offset=0
       DO iatom=1, natom
         ikind=kind_of(iatom)
-        basis_set_a => atomic_kind_set(ikind)%aux_basis_set
+        basis_set_a => atomic_kind_set(ikind)%ri_aux_basis_set
 
         first_sgfa   =>  basis_set_a%first_sgf
         la_max       =>  basis_set_a%lmax

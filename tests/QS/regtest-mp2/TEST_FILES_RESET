@@ -12,3 +12,6 @@ CH3_GPW.inp
 CH3_B2PLYP_allelec.inp 
 # reset numerics
 H2O_ADMM_MP2.inp
+# RI-MP2 and RI-RPA
+RI_MP2_H2O.inp
+RI_RPA_H2O.inp

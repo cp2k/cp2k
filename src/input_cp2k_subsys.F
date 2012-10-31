@@ -1079,7 +1079,7 @@ CONTAINS
 
        CALL section_create(section,name="kind",&
             description="The description of the kind of the atoms (mostly for QM)",&
-            n_keywords=18, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=19, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1094,6 +1094,14 @@ CONTAINS
             variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
             description="The auxliliary basis set (GTO type)",&
             usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
+            n_var=1, required=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RI_AUX_BASIS_SET",&
+            variants=s2a("RI_MP2_BASIS_SET","RI_RPA_BASIS_SET", "RI_AUX_BASIS"),&
+            description="The RI auxliliary basis set used in WF_CORRELATION (GTO type)",&
+            usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
             n_var=1, required=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

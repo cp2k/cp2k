@@ -62,6 +62,7 @@ MODULE qs_collocate_density
   USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp,&
                                              use_aux_basis_set,&
+                                             use_ri_aux_basis_set,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -2487,9 +2488,12 @@ END SUBROUTINE calculate_rho_resp_all
       CASE (use_aux_fit_basis_set)
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              aux_fit_basis_set=orb_basis_set)
-      CASE(use_aux_basis_set)
+      CASE (use_aux_basis_set)
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              aux_basis_set=orb_basis_set)
+      CASE (use_ri_aux_basis_set)
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             ri_aux_basis_set=orb_basis_set)
       END SELECT
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              first_sgf=first_sgfa,&
