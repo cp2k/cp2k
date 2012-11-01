@@ -32,6 +32,9 @@ MODULE pair_potential
   USE pair_potential_util,             ONLY: ener_pot,&
                                              ener_zbl,&
                                              zbl_matching_polinomial
+  USE physcon,                         ONLY: bohr,&
+                                             evolt,&
+                                             kjmol
   USE splines_methods,                 ONLY: init_spline,&
                                              init_splinexy,&
                                              potential_s
@@ -318,10 +321,12 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: message
     CHARACTER(LEN=default_string_length)     :: file_name, tmp
-    INTEGER                                  :: jx, mfac, nx, unit_number
+    INTEGER                                  :: ix, jx, mfac, nppa, nx, &
+                                                unit_number
     LOGICAL                                  :: fixed_spline_points
-    REAL(KIND=dp)                            :: diffmax, dx2, e, e_spline, x, &
-                                                x2, xdum, xdum1, xsav
+    REAL(KIND=dp)                            :: df, dg, dh, diffmax, dx, dx2, &
+                                                e, e_spline, f, g, h, r, &
+                                                rcut, x, x2, xdum, xdum1, xsav
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_factor_type), POINTER        :: spl_f
@@ -401,8 +406,8 @@ CPSourceFileRef,&
         " SPLINE_INFO| Atomic kind names:                            "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
                                                                         TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
         " SPLINE_INFO| Number of spline points:                      ",npoints,&
-        " SPLINE_INFO| Requested accuracy:                          ",eps_spline,&
-        " SPLINE_INFO| Achieved accuracy:                           ",diffmax,&
+        " SPLINE_INFO| Requested accuracy [Hartree]:                ",eps_spline,&
+        " SPLINE_INFO| Achieved accuracy [Hartree]:                 ",diffmax,&
         " SPLINE_INFO| Spline range [bohr]:                         ",locut,hicut,&
         " SPLINE_INFO| Spline range used to achieve accuracy [bohr]:",xsav,hicut
        dx2 = (hicut - locut)/REAL(npoints+1,KIND=dp)
@@ -410,47 +415,88 @@ CPSourceFileRef,&
        WRITE (UNIT=iw,FMT='(A,ES17.9)')&
         " SPLINE_INFO| Spline value at RMIN [Hartree]:             ",potential_s(spl_p,x*x,xdum,spl_f,logger),&
         " SPLINE_INFO| Spline value at RMAX [Hartree]:             ",potential_s(spl_p,hicut*hicut,xdum,spl_f,logger),&
-        " SPLINE_INFO| Non-bonded cutoff:                          ",energy_cutoff
+        " SPLINE_INFO| Non-bonded energy cutoff [Hartree]:         ",energy_cutoff
     END IF
     ! Print spline data on file if requested
     IF (iw2 > 0) THEN
-       nx = 5000
-       dx2 = (hicut - locut)/REAL(nx+1,KIND=dp)
-       x2  = locut + dx2
+       ! Set increment to 200 points per Angstrom
+       nppa = 200
+       dx = bohr/REAL(nppa,KIND=dp)
+       nx = NINT(hicut/dx)
        file_name = ""
-       tmp=ADJUSTL(cp_to_string(n))
+       tmp = ADJUSTL(cp_to_string(n))
        WRITE (UNIT=file_name,FMT="(A,I0,A)")&
-         TRIM(ADJUSTL(nonbonded_type))//"_SPLINE_"//TRIM(tmp)//"_"//&
-         TRIM(ADJUSTL(atomic_kind_set(i)%name))//"_"//&
-         TRIM(ADJUSTL(atomic_kind_set(j)%name))
+        TRIM(ADJUSTL(nonbonded_type))//"_SPLINE_"//TRIM(tmp)//"_"//&
+        TRIM(ADJUSTL(atomic_kind_set(i)%name))//"_"//&
+        TRIM(ADJUSTL(atomic_kind_set(j)%name))
        CALL open_file(file_name=file_name,&
                       file_status="UNKNOWN",&
                       file_form="FORMATTED",&
                       file_action="WRITE",&
                       unit_number=unit_number)
        WRITE (UNIT=unit_number,&
-              FMT="(A,I0,/,A,I0,/,A,I0,1X,I0,/,A,/,A,I0,2(/,A,ES13.6),2(/,A,2ES13.6),/,A,I0,A,/,A)")&
-         "# Spline number:                                ",ncount,&
-         "# Unique spline number:                         ",n,&
-         "# Atomic kind numbers:                          ",i,j,&
-         "# Atomic kind names:                            "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
-                                                             TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
-         "# Number of spline points:                      ",npoints,&
-         "# Requested accuracy:                          ",eps_spline,&
-         "# Achieved accuracy:                           ",diffmax,&
-         "# Spline range [bohr]:                         ",locut,hicut,&
-         "# Spline range used to achieve accuracy [bohr]:",xsav,hicut,&
-         "# Test spline using ",nx," points:",&
-         "# Point      Abscissa [bohr]          Energy [a.u.]            Splined energy           1st derivative"
-       DO jx=1,nx
-          x = x2
-          e = ener_pot(pot,x,energy_cutoff)
-          IF (do_zbl) THEN
-             e = e + ener_zbl(pot, x)
+              FMT="(2(A,I0,/),A,I0,1X,I0,/,A,/,A,I0,2(/,A,ES13.6),2(/,A,2ES13.6),/,A,ES13.6,/,A,I0,A,/,A)")&
+        "# Spline number:                                    ",ncount,&
+        "# Unique spline number:                             ",n,&
+        "# Atomic kind numbers:                              ",i,j,&
+        "# Atomic kind names:                                "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
+                                                                TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
+        "# Number of spline points:                          ",npoints,&
+        "# Requested accuracy [eV]:                         ",eps_spline*evolt,&
+        "# Achieved accuracy [eV]:                          ",diffmax*evolt,&
+        "# Spline range [Angstrom]:                         ",locut/bohr,hicut/bohr,&
+        "# Spline range used to achieve accuracy [Angstrom]:",xsav/bohr,hicut/bohr,&
+        "# Non-bonded energy cutoff [eV]:                   ",energy_cutoff*evolt,&
+        "# Test spline using ",nppa," points per Angstrom:",&
+        "#     Abscissa [Angstrom]              Energy [eV]      Splined energy [eV] Derivative [eV/Angstrom]"//&
+        "      |Energy error| [eV]"
+       x = 0.0_dp
+       DO jx=0,nx
+          IF (x > hicut) x = hicut
+          IF (x > locut) THEN
+             e = ener_pot(pot,x,energy_cutoff)
+             IF (do_zbl) e = e + ener_zbl(pot,x)
+             e_spline = potential_s(spl_p,x*x,xdum,spl_f,logger)
+             WRITE (UNIT=unit_number,FMT="(5ES25.12)")&
+              x/bohr,e*evolt,e_spline*evolt,-bohr*x*xdum*evolt,ABS((e - e_spline)*evolt)
           END IF
-          e_spline = potential_s(spl_p,x*x,xdum,spl_f,logger)
-          WRITE (UNIT=unit_number,FMT="(1X,I6,4ES25.15)") jx,x,e,e_spline,-xdum
-          x2 = x2 + dx2
+          x = x + dx
+       END DO
+       CALL close_file(unit_number=unit_number)
+       !MK Write table.xvf for GROMACS 4.5.5
+       WRITE (UNIT=file_name,FMT="(A,I0,A)")&
+        "table_"//&
+        TRIM(ADJUSTL(atomic_kind_set(i)%name))//"_"//&
+        TRIM(ADJUSTL(atomic_kind_set(j)%name))//".xvg"
+       CALL open_file(file_name=file_name,&
+                      file_status="UNKNOWN",&
+                      file_form="FORMATTED",&
+                      file_action="WRITE",&
+                      unit_number=unit_number)
+       ! Recommended increment for dp is 0.0005 nm = 0.005 Angstrom
+       ! which are 200 points/Angstrom
+       rcut = 0.1_dp*hicut/bohr 
+       x = 0.0_dp
+       DO jx=0,nx
+          IF (x > hicut) x = hicut
+          r = 0.1_dp*x/bohr ! Convert bohr to nm
+          IF (x <= locut) THEN
+             WRITE (UNIT=unit_number,FMT="(7ES25.12)")&
+              r,(0.0_dp,ix=1,6)
+          ELSE
+             e_spline = potential_s(spl_p,x*x,xdum,spl_f,logger)
+             f  =  1.0_dp/r
+             df = -1.0_dp/r**2
+             g  = -1.0_dp/r**6 + 1.0_dp/rcut**6
+             dg =  6.0_dp/r**7
+             h  =  e_spline*kjmol
+             dh = -10.0_dp*bohr*x*xdum*kjmol
+             WRITE (UNIT=unit_number,FMT="(7ES25.12)")&
+              r,f,-df,& ! r, f(r), -f'(r) => probably not used
+              g,-dg,&   !    g(r), -g'(r) => not used, if C = 0
+              h,-dh     !    h(r), -h'(r) => used, if A = 1
+          END IF
+          x = x + dx
        END DO
        CALL close_file(unit_number=unit_number)
     END IF
