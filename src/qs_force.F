@@ -9,7 +9,8 @@
 ! *****************************************************************************
 MODULE qs_force
 
-  USE admm_methods,                    ONLY: calc_mixed_overlap_force
+  USE admm_methods,                    ONLY: calc_aux_mo_derivs_none,&
+                                             calc_mixed_overlap_force
   USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -21,7 +22,8 @@ MODULE qs_force
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_types,                     ONLY: cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_type,&
+                                             cp_fm_write
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -36,6 +38,7 @@ MODULE qs_force
   USE harris_force,                    ONLY: harris_force_correction
   USE harris_force_types,              ONLY: harris_force_create,&
                                              harris_force_type
+  USE input_constants,                 ONLY: do_admm_purify_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -126,14 +129,15 @@ CONTAINS
                                                 matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb, &
                                                 matrix_w, mo_derivs
-    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff
+    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff, &
+                                                mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: mos, mos_aux_fit
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -320,10 +324,23 @@ CONTAINS
                mos=mos,&
                admm_env=admm_env,&
                error=error)
-          DO ispin=1,nspin
+          DO ispin=1,nspin             
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
+
+             ! if no purification we need to calculate the H matrix for forces
+             IF (admm_env%purification_method==do_admm_purify_none) THEN
+                CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
+                     error=error)
+                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+                CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
+                     mo_coeff, mo_coeff_aux_fit, &
+                     qs_env%matrix_ks_aux_fit, error=error)
+                IF(.FALSE.) CALL cp_fm_write(admm_env%H(ispin)%matrix, handle, .TRUE., .FALSE., error)            
+             END IF
+
              use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+
              CALL calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff, &
                                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger, &
                                            iw, use_virial, error)

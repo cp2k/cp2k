@@ -24,3 +24,5 @@ H2+-BLOCKED-PURIFY-BLOCKED.inp          1
 2H2O-BLOCKED-PURIFY-FULL.inp            1
 2H2O-BLOCKED-PURIFY-BLOCKED.inp         1
 MD-1.inp                                1
+MD-2_OT.inp                             1
+MD-2_no_OT.inp                          1
