@@ -1723,7 +1723,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, maxmom, reference, &
                                                 unit_nr
-    LOGICAL                                  :: periodic
+    LOGICAL                                  :: magnetic, periodic
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -1740,6 +1740,8 @@ CONTAINS
              keyword_name="DFT%PRINT%MOMENTS%PERIODIC",error=error)
        reference = section_get_ival(section_vals=input,&
              keyword_name="DFT%PRINT%MOMENTS%REFERENCE",error=error)
+       magnetic = section_get_lval(section_vals=input,&
+             keyword_name="DFT%PRINT%MOMENTS%MAGNETIC",error=error)
        NULLIFY ( ref_point )
        CALL section_vals_val_get(input,"DFT%PRINT%MOMENTS%REF_POINT",r_vals=ref_point,error=error)
        unit_nr = cp_print_key_unit_nr(logger=logger,basis_section=input,&
@@ -1750,17 +1752,17 @@ CONTAINS
           IF(unit_nr /= output_unit) THEN
             INQUIRE (UNIT=unit_nr,NAME=filename)
             WRITE (UNIT=output_unit,FMT="(/,T2,A,2(/,T3,A),/)")&
-                 "MOMENTS","The electric moments are written to file:",&
+                 "MOMENTS","The electric/magnetic moments are written to file:",&
                  TRIM(filename)
           ELSE
-            WRITE (UNIT=output_unit,FMT="(/,T2,A)") "ELECTRIC MOMENTS"
+            WRITE (UNIT=output_unit,FMT="(/,T2,A)") "ELECTRIC/MAGNETIC MOMENTS"
           END IF
        END IF
 
        IF (periodic) THEN
-          CALL qs_moment_berry_phase(qs_env,maxmom,reference,ref_point,unit_nr,error)
+          CALL qs_moment_berry_phase(qs_env,magnetic,maxmom,reference,ref_point,unit_nr,error)
        ELSE
-          CALL qs_moment_locop(qs_env,maxmom,reference,ref_point,unit_nr,error)
+          CALL qs_moment_locop(qs_env,magnetic,maxmom,reference,ref_point,unit_nr,error)
        END IF
 
        CALL cp_print_key_finished_output(unit_nr=unit_nr,logger=logger,&

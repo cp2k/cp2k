@@ -4,13 +4,14 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculates the moment integrals <a|r^m|b>
+!> \brief Calculates the moment integrals <a|r^m|b> and <a|r x d/dr|b>
 !> \par History
-!>      none
+!>      added angular moments (JGH 11.2012)
 !> \author JGH (20.07.2006)
 ! *****************************************************************************
 MODULE qs_moments
 
+  USE ai_angmom,                       ONLY: angmom
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin,&
                                              moment
@@ -88,7 +89,7 @@ MODULE qs_moments
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_local_moment_matrix, build_berry_moment_matrix
+  PUBLIC :: build_berry_moment_matrix
   PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
 CONTAINS
@@ -299,7 +300,7 @@ CONTAINS
 
 !          *** Contraction step ***
 
-                DO i=1,nm
+           DO i=1,nm
 
              CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                         1.0_dp,mab(1,1,i),SIZE(mab,1),&
@@ -347,6 +348,262 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_local_moment_matrix
+
+! *****************************************************************************
+  SUBROUTINE build_local_magmom_matrix(qs_env,magmom,nmoments,ref_point,ref_points,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: magmom
+    INTEGER, INTENT(IN)                      :: nmoments
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: ref_point
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: ref_points
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, &
+      jatom, jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, ncob, &
+      nkind, nm, nseta, nsetb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp)                            :: dab, rab2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mab
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc, rc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: mint
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    IF ( nmoments < 1 ) RETURN
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY (atomic_kind_set,cell,particle_set,sab_orb)
+    NULLIFY (matrix_s)
+
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
+
+    ! magnetic dipoles/angular moments only
+    nm = 3
+    CALL cp_dbcsr_allocate_matrix_set ( magmom, nm ,error=error)
+
+    DO i=1,nm
+       ALLOCATE(magmom(i)%matrix)
+       CALL cp_dbcsr_init (magmom(i)%matrix, error=error)
+       CALL cp_dbcsr_copy(magmom(i)%matrix, matrix_s(1)%matrix, "Moments", error)
+       CALL cp_dbcsr_set(magmom(i)%matrix,0.0_dp,error=error)
+    END DO
+
+    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,cell=cell,&
+                    sab_orb=sab_orb,error=error)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+!   *** Allocate work storage ***
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             maxsgf=maxsgf)
+
+    ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    mab(:,:,:) = 0.0_dp
+
+    ALLOCATE (work(maxco,maxsgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    work(:,:) = 0.0_dp
+
+    ALLOCATE (mint(nm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,nm
+      NULLIFY (mint(i)%block)
+    END DO
+
+    ALLOCATE (basis_set_list(nkind),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+                              iatom=iatom,jatom=jatom,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       ! basis ikind
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+       ! basis jkind
+       first_sgfb   =>  basis_set_b%first_sgf
+       lb_max       =>  basis_set_b%lmax
+       npgfb        =>  basis_set_b%npgf
+       nsetb        =   basis_set_b%nset
+       nsgfb        =>  basis_set_b%nsgf_set
+       rpgfb        =>  basis_set_b%pgf_radius
+       set_radius_b =>  basis_set_b%set_radius
+       sphi_b       =>  basis_set_b%sphi
+       zetb         =>  basis_set_b%zet
+
+       IF(inode==1) last_jatom = 0
+
+       ! this guarentees minimum image convention
+       ! anything else would not make sense
+       IF (jatom == last_jatom) THEN
+         CYCLE
+       END IF
+
+       last_jatom = jatom
+
+       IF (iatom <= jatom) THEN
+         irow = iatom
+         icol = jatom
+       ELSE
+         irow = jatom
+         icol = iatom
+       END IF
+
+       DO i=1,nm
+         NULLIFY (mint(i)%block)
+         CALL cp_dbcsr_get_block_p(matrix=magmom(i)%matrix,&
+              row=irow,col=icol,BLOCK=mint(i)%block,found=found)
+         mint(i)%block = 0._dp
+       END DO
+
+       ! fold atomic position back into unit cell
+       IF ( PRESENT (ref_points) ) THEN
+          rc(:) = 0.5_dp * (ref_points(:,iatom) + ref_points(:,jatom))
+       ELSE IF ( PRESENT (ref_point) ) THEN
+          rc(:) = ref_point(:)
+       ELSE
+          rc(:) = 0._dp
+       END IF
+       ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
+       ! by folding around the center, such screwing can be avoided for a proper choice of center.
+       ra(:) = pbc(particle_set(iatom)%r(:)-rc,cell)+rc
+       rb(:) = pbc(particle_set(jatom)%r(:)-rc,cell)+rc
+       ! we dont use PBC at this point
+       rab(:) = ra(:) - rb(:)
+       rac(:) = ra(:) - rc(:)
+       rbc(:) = rb(:) - rc(:)
+       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+       dab = SQRT(rab2)
+
+       DO iset=1,nseta
+
+         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         sgfa = first_sgfa(1,iset)
+
+         DO jset=1,nsetb
+
+           IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+           ncob = npgfb(jset)*ncoset(lb_max(jset))
+           sgfb = first_sgfb(1,jset)
+
+!          *** Calculate the primitive integrals ***
+
+           CALL angmom(la_max(iset),npgfa(iset),zeta(:,iset),&
+                       rpgfa(:,iset),la_min(iset),&
+                       lb_max(jset),npgfb(jset),zetb(:,jset),&
+                       rpgfb(:,jset),rac,rbc,mab)
+
+!          *** Contraction step ***
+
+           DO i=1,nm
+
+             CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                        1.0_dp,mab(1,1,i),SIZE(mab,1),&
+                        sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                        0.0_dp,work(1,1),SIZE(work,1))
+
+             IF (iatom <= jatom) THEN
+
+               CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                          1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                          work(1,1),SIZE(work,1),&
+                          1.0_dp,mint(i)%block(sgfa,sgfb),&
+                          SIZE(mint(i)%block,1))
+
+             ELSE
+
+               CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                          1.0_dp,work(1,1),SIZE(work,1),&
+                          sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                          1.0_dp,mint(i)%block(sgfb,sgfa),&
+                          SIZE(mint(i)%block,1))
+
+             END IF
+
+           END DO
+
+         END DO
+       END DO
+
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
+
+!   *** Release work storage ***
+
+    DEALLOCATE (mab,basis_set_list,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,nm
+      NULLIFY (mint(i)%block)
+    END DO
+    DEALLOCATE (mint,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_local_magmom_matrix
 
 ! *****************************************************************************
   SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
@@ -527,9 +784,10 @@ CONTAINS
   END SUBROUTINE build_berry_moment_matrix
 
 ! *****************************************************************************
-  SUBROUTINE qs_moment_berry_phase (qs_env,nmoments,reference,ref_point,unit_number,error)
+  SUBROUTINE qs_moment_berry_phase (qs_env,magnetic,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: magnetic
     INTEGER, INTENT(IN)                      :: nmoments, reference
     REAL(dp), DIMENSION(:), POINTER          :: ref_point
     INTEGER, INTENT(IN)                      :: unit_number
@@ -551,6 +809,7 @@ CONTAINS
     LOGICAL                                  :: failure, ghost, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
     REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -595,6 +854,12 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        rmom = 0.0_dp
        rlab = ""
+       IF(magnetic) THEN
+          nm=3
+          ALLOCATE (mmom(nm),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          mmom = 0._dp
+       END IF
 
        para_env => qs_env%para_env
        NULLIFY ( dft_control, rho, cell, particle_set )
@@ -904,12 +1169,20 @@ CONTAINS
        CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.)
+       IF(magnetic) THEN
+          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.,mmom=mmom)
+       ELSE
+          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.)
+       END IF
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (rlab,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF(magnetic) THEN
+          DEALLOCATE ( mmom, STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
        CALL cp_dbcsr_deallocate_matrix ( cosmat, error )
        CALL cp_dbcsr_deallocate_matrix ( sinmat, error )
@@ -1051,9 +1324,10 @@ CONTAINS
   END SUBROUTINE op_orbbas_rtp
 
 ! *****************************************************************************
-  SUBROUTINE qs_moment_locop (qs_env,nmoments,reference,ref_point,unit_number,error)
+  SUBROUTINE qs_moment_locop (qs_env,magnetic,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: magnetic
     INTEGER, INTENT(IN)                      :: nmoments, reference
     REAL(dp), DIMENSION(:), POINTER          :: ref_point
     INTEGER, INTENT(IN)                      :: unit_number
@@ -1070,12 +1344,13 @@ CONTAINS
                                                 nm, nmom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
     REAL(dp), DIMENSION(3)                   :: rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, moments
+      POINTER                                :: magmom, matrix_s, moments
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -1130,6 +1405,23 @@ CONTAINS
 
        CALL cp_dbcsr_deallocate_matrix_set ( moments, error )
 
+       ! magnetic moments
+       IF (magnetic) THEN
+          NULLIFY ( magmom )
+          CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc,error=error)
+          nm = SIZE(magmom)
+          ALLOCATE (mmom(nm),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1, SIZE(magmom)
+             strace = 0._dp
+             DO ispin=1,dft_control%nspins
+               CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
+               strace = strace + trace
+             END DO
+             mmom(i) = strace
+          END DO
+       END IF
+
        ! nuclear contribution
        CALL get_qs_env(qs_env=qs_env,&
                       local_particles=local_particles,error=error)
@@ -1163,12 +1455,20 @@ CONTAINS
        CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.)
+       IF(magnetic) THEN
+          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.,mmom=mmom)
+       ELSE
+          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.)
+       END IF
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (rlab,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF (magnetic) THEN
+          DEALLOCATE (mmom,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
        CALL timestop(handle)
 
@@ -1197,13 +1497,15 @@ CONTAINS
   END SUBROUTINE set_label
 
 ! *****************************************************************************
-  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic)
+  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic,mmom)
     INTEGER, INTENT(IN)                      :: unit_number, nmom
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rmom
     CHARACTER(LEN=8), DIMENSION(:)           :: rlab
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rcc
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL                                  :: periodic
+    REAL(dp), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: mmom
 
     INTEGER                                  :: i, i0, i1, j, l
     REAL(dp)                                 :: dd
@@ -1266,6 +1568,14 @@ CONTAINS
             END DO
         END SELECT
       END DO
+      IF(PRESENT(mmom)) THEN
+        IF(nmom>=1) THEN
+          dd=SQRT(SUM(mmom(1:3)**2))
+          WRITE(unit_number,"(T3,A)") "Magnetic Dipole Moment [WRONG]"
+          WRITE(unit_number,"(T5,3(A,A,F14.8,1X),T60,A,T68,F14.8)") &
+             (TRIM(rlab(i+1)),"=",mmom(i),i=1,3),"Total=",dd
+        END IF
+      END IF
     END IF
 
   END SUBROUTINE print_moments

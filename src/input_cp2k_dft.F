@@ -1639,6 +1639,18 @@ CONTAINS
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword=keyword,&
+            name="MAGNETIC",&
+            description="Calculate also magnetic moments",&
+            usage="MAGNETIC yes",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key,error=error)
 
