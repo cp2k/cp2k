@@ -13,8 +13,7 @@ MODULE mp2_ri_gpw
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: gto_basis_set_type,&
-                                             init_orb_basis_set
+  USE basis_set_types,                 ONLY: gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -75,6 +74,7 @@ MODULE mp2_ri_gpw
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
@@ -511,6 +511,8 @@ MODULE mp2_ri_gpw
       DEALLOCATE(local_col_row_info_beta)
     END IF
 
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw,error=error_sub)
+
     DEALLOCATE(sub_proc_map)
 
     CALL timestop(handle)
@@ -613,8 +615,8 @@ MODULE mp2_ri_gpw
 
     DO ikind=1, nkind
       CPPrecondition(ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set),cp_failure_level,routineP,error,failure)
-      atomic_kind_set(ikind)%ri_aux_basis_set%norm_type=2
-      CALL init_orb_basis_set(atomic_kind_set(ikind)%ri_aux_basis_set,error)
+      ! atomic_kind_set(ikind)%ri_aux_basis_set%norm_type=2
+      ! CALL init_orb_basis_set(atomic_kind_set(ikind)%ri_aux_basis_set,error)
     END DO
 
     dimen_RI=0
