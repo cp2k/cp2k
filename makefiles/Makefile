@@ -17,6 +17,7 @@ LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
 LIB3      = cp2k_dbcsr_lib
 LIB4      = cp2k_ma_lib
+LIB5      = cp2k_elpa_lib
 LIBCP2K   = cp2k_lib
 
 export VERSION=sopt
@@ -33,7 +34,7 @@ PRETTYOBJDIR         = $(CP2KHOME)/obj/prettified
 TOOLDIR              = $(OBJDIR)/tools
 TOOLSRC              = $(CP2KHOME)/tools
 SRCDIR               = $(CP2KHOME)/src
-SRCDIRS              = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/machine
+SRCDIRS              = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/machine
 MAKEFILE             = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS          = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                 = $(EXEDIR)/cp2k.$(VERSION)
@@ -47,6 +48,7 @@ LIB1_OBJECTDEFS      = $(SRCDIR)/lib/OBJECTDEFS
 LIB2_OBJECTDEFS      = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
 LIB3_OBJECTDEFS      = $(SRCDIR)/fft_lib/OBJECTDEFS
 LIB4_OBJECTDEFS      = $(SRCDIR)/arch_lib/OBJECTDEFS
+LIB5_OBJECTDEFS      = $(SRCDIR)/elpa_lib/OBJECTDEFS
 LIBNVOBJECTDEFS      = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
 LIBMA_OBJECTDEFS     = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
@@ -55,6 +57,7 @@ LIB1_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB3_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
 LIB4_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
+LIB5_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB5).a
 LIB_CP2K_ARCHIVE     = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
 FESOBJECTDEFS        = $(TOOLSRC)/metadyn/OBJECTDEFS
@@ -100,6 +103,7 @@ build: dirs deptool
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) dbcsr.dep
 	+$(MAKE) -C $(SRCDIR)/fft_lib -f $(MAKEFILE) fft.dep
 	+$(MAKE) -C $(SRCDIR)/arch_lib -f $(MAKEFILE) ma.dep
+	+$(MAKE) -C $(SRCDIR)/elpa_lib -f $(MAKEFILE) elpa.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
@@ -123,6 +127,7 @@ pretty: dirs
 	+$(MAKE) -C $(SRCDIR)/fft_lib   -f $(MAKEFILE) _pretty_lib2
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
 	+$(MAKE) -C $(SRCDIR)/arch_lib  -f $(MAKEFILE) _pretty_lib4
+	+$(MAKE) -C $(SRCDIR)/elpa_lib  -f $(MAKEFILE) _pretty_lib5
 
 deptool: dirs
 	+$(MAKE) LDFLAGS=$(MAKDEPF90_LDFLAGS) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
@@ -162,6 +167,7 @@ include $(LIB1_OBJECTDEFS)
 include $(LIB2_OBJECTDEFS)
 include $(LIB3_OBJECTDEFS)
 include $(LIB4_OBJECTDEFS)
+include $(LIB5_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
@@ -187,7 +193,7 @@ endif
 
 
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) 
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIB5_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) 
 
 #
 # some practical variables for the build
@@ -241,7 +247,7 @@ endif
 # this is obviously not correct (i.e. can lead to a miscompiled CP2K), 
 # but if you know what you are doing (i.e. you are sure that only information private to this module will be changed) might be useful nevertheless.
 #
-all.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
+all.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
 ifeq ($(HACKDEP),yes)
 	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
@@ -259,6 +265,10 @@ dbcsr.dep: $(LIB3_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F)
 
 ma.dep: $(LIB4_OBJECTS:.o=.F) machine.F message_passing.F mathlib.F
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/ma.dep || ( rm -f $(OBJDIR)/$(VERSION)/ma.dep ; exit 1 )
+
+elpa.dep: $(LIB5_OBJECTS:.o=.F)
+	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/elpa.dep || ( rm -f $(OBJDIR)/$(VERSION)/elpa.dep ; exit 1 )
+
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
@@ -279,6 +289,8 @@ _pretty_lib1:$(LIB1_OBJECTS:.o=.pretty)
 _pretty_lib2:$(LIB2_OBJECTS:.o=.pretty)
 _pretty_lib3:$(LIB3_OBJECTS:.o=.pretty)
 _pretty_lib4:$(LIB4_OBJECTS:.o=.pretty)
+_pretty_lib5:$(LIB5_OBJECTS:.o=.pretty)
+
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $?
@@ -304,13 +316,18 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB4_ARCHIVE)
 endif
 
+$(LIB5_ARCHIVE): $(LIB5_OBJECTS)
+	$(AR) $(LIB5_ARCHIVE) $?
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB5_ARCHIVE)
+endif
 
 #
 # a hack to first compile the src/lib/ stuff before files from src/
 # otherwise we have missing dependencies
 #
 ifneq ($(HACKLIBDEP),yes)
-LIB_OBJECTS = $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+LIB_OBJECTS = $(LIB5_ARCHIVE) $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 else
 LIB_OBJECTS =
 endif
@@ -449,6 +466,7 @@ realclean: clean
 	-rm -f $(LIB2_ARCHIVE)
 	-rm -f $(LIB3_ARCHIVE)
 	-rm -f $(LIB4_ARCHIVE)
+	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
 #
 # Remove all files from previous builds
@@ -485,6 +503,7 @@ doxygen: doxygen/clean
 	{ cd $(SRCDIR)/fft_lib ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/dbcsr_lib ; for f in $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/arch_lib ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/elpa_lib ; for f in $(LIB5_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOCDIR) ; sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/" Doxyfile.template >Doxyfile ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
