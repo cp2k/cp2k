@@ -3916,6 +3916,7 @@ SUBROUTINE elpa_transpose_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvs,nvr,
 ! for least_common_multiple
 ! for least_common_multiple
 ! for least_common_multiple
+! for least_common_multiple
 
    CALL mpi_comm_rank(comm_s,myps,mpierr)
    CALL mpi_comm_size(comm_s,nps ,mpierr)
@@ -4020,6 +4021,7 @@ SUBROUTINE elpa_reduce_add_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvr,nvc
                                                 nblks_tot, nl, nps, npt, ns
     REAL*8, ALLOCATABLE                      :: aux1(:), aux2(:)
 
+! for least_common_multiple
 ! for least_common_multiple
 ! for least_common_multiple
 ! for least_common_multiple
