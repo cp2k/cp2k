@@ -1106,7 +1106,7 @@ SUBROUTINE tridiag_band_real(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_comm
           ! with MPI calls
 
 !$omp parallel do private(my_thread, my_block_s, my_block_e, iblk, ns, ne, hv, tau, &
-!$omp private(nc, nr, hs, hd, vnorm2, hf, x, h, i), schedule(static,1), num_threads(max_threads)
+!$omp nc, nr, hs, hd, vnorm2, hf, x, h, i), schedule(static,1), num_threads(max_threads)
           DO my_thread = 1, max_threads
 
             IF(iter == 1) THEN
@@ -2906,7 +2906,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
           ! with MPI calls
 
 !$omp parallel do private(my_thread, my_block_s, my_block_e, iblk, ns, ne, hv, tau, &
-!$omp private (nc, nr, hs, hd, vnorm2, hf, x, h, i), schedule(static,1), num_threads(max_threads)
+!$omp nc, nr, hs, hd, vnorm2, hf, x, h, i), schedule(static,1), num_threads(max_threads)
           DO my_thread = 1, max_threads
 
             IF(iter == 1) THEN
