@@ -131,6 +131,15 @@ How to compile CP2K code
        During the installation, the directory $(LIBXC_DIR)/lib is created.
      * Add -D__LIBXC to DFLAGS and -L$(LIBXC_DIR)/lib -lxc to LIBS.
 
+ 2l) Library ELPA for the solution of the eigenvalue problem
+     * The present version is the development version downloded from the ELPA repository
+       in October 2012 (http://elpa.rzg.mpg.de/software)
+     * Add -D__ELPA to  DFLAGS 
+     * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
+     * The related ELPA modules are in cp2k/src/elpa_lib By default the general elpa2_kernel's 
+       are compiled. For specific architectures it can be better to use specifically 
+       optimized kernels (see BG) and/or emply a higher optimization level to compile it.
+     
  3) To compile the code:
 
  3a) The location of compiler and libraries needs to be specified.  Examples
@@ -169,6 +178,7 @@ How to compile CP2K code
      -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
      -D__LIBINT: use libint (needed for HF exchange)
      -D__LIBXC: use libxc
+     -D__ELPA: use ELPA in place of SYEVD  to solve the eigenvalue problem
      various FFTs (use __FFTW3 if possible) :
      -D__FFTSG: Stefan Goedecker FFT (should always be there)
      -D__FFTW3: FFTW version 3
