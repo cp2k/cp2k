@@ -212,17 +212,6 @@ PROGRAM cp2k
 #endif
 
   IF (ierr==0) THEN
-#if defined(__HMD)
-     DO i=0,default_para_env%num_pe-1
-        IF (default_para_env%mepos==i) THEN
-           PRINT *, "***** proc ",i
-           CALL _dump_allocated(%VAL(0))
-        END IF
-        CALL mp_sync(default_para_env%group)
-     END DO
-#endif
-
-
      ! some first info concerning how to run CP2K
 
      IF (usage.OR.command_line_error) THEN
@@ -322,16 +311,6 @@ PROGRAM cp2k
            ENDIF
         END IF
      ENDIF
-
-#if defined(__HMD)
-     DO i=0,default_para_env%num_pe-1
-        IF (default_para_env%mepos==i) THEN
-           PRINT *, "***** proc ",i
-           CALL _dump_allocated_delta(%VAL(0))
-        END IF
-        CALL mp_sync(default_para_env%group)
-     END DO
-#endif
   ELSE
      WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"
   END IF
