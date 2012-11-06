@@ -1479,14 +1479,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="OXYGENS",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="OXYGENS {integer} {integer} ..",required=.TRUE.,&
+            usage="OXYGENS {integer} {integer} ..",required=.TRUE., repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="HYDROGENS",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="HYDROGENS {integer} {integer} ..",required=.TRUE.,&
+            usage="HYDROGENS {integer} {integer} ..",required=.TRUE., repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

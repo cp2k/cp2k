@@ -450,16 +450,29 @@ CONTAINS
     ELSE IF (my_subsection(9)) THEN
        ! Hydronium
        CALL colvar_create(colvar,hydronium_colvar_id, error)
-       CALL section_vals_val_get(hydronium_section,"OXYGENS",i_vals=iatms,error=error)
-       colvar%hydronium_param%n_oxygens = SIZE(iatms)
-       ALLOCATE(colvar%hydronium_param%i_oxygens(SIZE(iatms)),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-       colvar%hydronium_param%i_oxygens = iatms
-       CALL section_vals_val_get(hydronium_section,"HYDROGENS",i_vals=iatms,error=error)
-       colvar%hydronium_param%n_hydrogens = SIZE(iatms)
-       ALLOCATE(colvar%hydronium_param%i_hydrogens(SIZE(iatms)),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-       colvar%hydronium_param%i_hydrogens = iatms
+       NULLIFY(colvar%hydronium_param%i_oxygens)
+       NULLIFY(colvar%hydronium_param%i_hydrogens)
+
+       CALL section_vals_val_get(hydronium_section,"OXYGENS",n_rep_val=n_var,error=error)
+       ndim = 0
+       DO k = 1, n_var
+         CALL section_vals_val_get(hydronium_section,"OXYGENS",i_vals=iatms,error=error)
+         CALL reallocate(colvar%hydronium_param%i_oxygens,1,ndim+SIZE(iatms))
+         colvar%hydronium_param%i_oxygens(ndim+1:ndim+SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
+       END DO
+       colvar%hydronium_param%n_oxygens = ndim
+
+       CALL section_vals_val_get(hydronium_section,"HYDROGENS",n_rep_val=n_var,error=error)
+       ndim = 0
+       DO k = 1, n_var
+         CALL section_vals_val_get(hydronium_section,"HYDROGENS",i_vals=iatms,error=error)
+         CALL reallocate(colvar%hydronium_param%i_hydrogens,1,ndim+SIZE(iatms))
+         colvar%hydronium_param%i_hydrogens(ndim+1:ndim+SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
+       END DO
+       colvar%hydronium_param%n_hydrogens = ndim
+
        CALL section_vals_val_get(hydronium_section,"ROO",r_val=colvar%hydronium_param%r_OO,error=error)
        CALL section_vals_val_get(hydronium_section,"ROH",r_val=colvar%hydronium_param%r_OH,error=error)
        CALL section_vals_val_get(hydronium_section,"pNH",i_val=colvar%hydronium_param%pnh,error=error)
