@@ -18,7 +18,7 @@ MODULE dm_ls_scf
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
@@ -276,7 +276,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iaspc, ispin, istore, &
                                                 naspc, unit_nr
-    REAL(KIND=dp)                            :: alpha, energy, trace
+    REAL(KIND=dp)                            :: alpha, energy
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -354,7 +354,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, istore, unit_nr
-    REAL(KIND=dp)                            :: trace
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
