@@ -129,7 +129,7 @@
 
     ! tracing a symmetric with a general matrix is not implemented, as it would require communication of blocks
     IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
-        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).AND. .NOT. &
+        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).NEQV. &
        (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
        CALL dbcsr_assert (.FALSE.,dbcsr_fatal_level,&
