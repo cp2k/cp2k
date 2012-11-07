@@ -392,6 +392,7 @@ CONTAINS
              CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt, &
                                           0.0_dp, ls_scf_env%scf_history%matrix(ispin,istore) , &
                                           filter_eps=ls_scf_env%eps_filter,error=error)
+             CALL cp_dbcsr_release(matrix_tmp1,error=error)
           ENDIF
 
        ENDDO
