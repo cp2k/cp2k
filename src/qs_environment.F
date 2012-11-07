@@ -230,8 +230,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: method_id, natom
-    LOGICAL :: do_et, do_hfx, do_hfx_ri, do_kg, harris_flag, kg_present, &
-      mp2_present, my_qmmm, my_qmmm_periodic, use_ref_cell
+    LOGICAL :: do_et, do_hfx, do_hfx_ri, harris_flag, mp2_present, my_qmmm, &
+      my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -251,7 +251,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
-      kg_section, kind_section, mp2_section
+      kind_section, mp2_section
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -375,15 +375,9 @@ CONTAINS
        CALL read_mp2_section(qs_env%input,qs_env%mp2_env,error)
     ENDIF
 
-    do_kg = qs_env%dft_control%qs_control%do_kg
-    IF (do_kg) THEN
+    IF (qs_env%dft_control%qs_control%do_kg) THEN
       CALL cite_reference(Iannuzzi2006)
       CALL kg_env_create(qs_env%kg_env, qs_env%input, error)
-      kg_section => section_vals_get_subs_vals(qs_env%input,"DFT%KG_METHOD",error=error)
-      CALL section_vals_get(kg_section,explicit=kg_present,error=error)
-      IF (kg_present) THEN
-      ! read KG section...
-      ENDIF
     END IF
 
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
