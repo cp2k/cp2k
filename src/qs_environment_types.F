@@ -55,6 +55,8 @@ MODULE qs_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
+                                             ls_scf_release
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_retain,&
                                              ep_qs_type
@@ -332,6 +334,7 @@ MODULE qs_environment_types
     INTEGER,DIMENSION(:),POINTER                          :: ipiv
     INTEGER                                               :: sim_step
     TYPE(ga_environment_type), POINTER                    :: ga_env
+    TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -461,7 +464,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
-       hfx_ri_env,dispersion_env, vee,mp2_env,kg_env,WannierCentres,ga_env,atprop,error)
+       hfx_ri_env,dispersion_env, vee,mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -604,6 +607,7 @@ CONTAINS
     TYPE(ga_environment_type), OPTIONAL, &
       POINTER                                :: ga_env
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
+    TYPE(ls_scf_env_type), OPTIONAL, POINTER :: ls_scf_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -713,6 +717,7 @@ CONTAINS
     IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
     IF (PRESENT(rtp)) rtp=>qs_env%rtp
+    IF (PRESENT(ls_scf_env)) ls_scf_env=>qs_env%ls_scf_env
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -788,6 +793,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (qs_env%blacs_env)
+    NULLIFY (qs_env%ls_scf_env)
     NULLIFY (qs_env%image_matrix)
     NULLIFY (qs_env%ipiv)
     NULLIFY (qs_env%image_coeff)
@@ -943,7 +949,7 @@ CONTAINS
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin, efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
-       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
+       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
        hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1052,6 +1058,7 @@ CONTAINS
     TYPE(fist_nonbond_env_type), OPTIONAL, &
       POINTER                                :: se_nonbond_env
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
+    TYPE(ls_scf_env_type), OPTIONAL, POINTER :: ls_scf_env
     TYPE(ri_environment_type), OPTIONAL, &
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
@@ -1120,6 +1127,7 @@ CONTAINS
     IF (PRESENT(sac_ae)) qs_env%sac_ae => sac_ae
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sap_ppnl)) qs_env%sap_ppnl => sap_ppnl
+    IF (PRESENT(ls_scf_env)) qs_env%ls_scf_env => ls_scf_env
     IF (PRESENT(sap_oce)) qs_env%sap_oce => sap_oce
     IF (PRESENT(sab_se)) qs_env%sab_se => sab_se
     IF (PRESENT(sab_lrc)) qs_env%sab_lrc => sab_lrc
@@ -1666,6 +1674,9 @@ CONTAINS
           ENDIF
           IF(ASSOCIATED(qs_env%task_list_soft)) THEN
              CALL deallocate_task_list(qs_env%task_list_soft,error)
+          ENDIF
+          IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
+             CALL ls_scf_release(qs_env%ls_scf_env,error)
           ENDIF
 
           !Only if do_xas_calculation

@@ -45,7 +45,6 @@ MODULE dm_ls_scf_qs
                                              ls_mstruct_type,&
                                              ls_scf_env_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -70,7 +69,7 @@ MODULE dm_ls_scf_qs
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_qs'
 
-  PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs, ls_scf_dm_to_ks
+  PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs, ls_scf_dm_to_ks, ls_scf_qs_atomic_guess
 
 CONTAINS
 
@@ -319,20 +318,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
-    INTEGER, DIMENSION(2)                    :: nelectron_spin
-    LOGICAL                                  :: has_unit_metric
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
 
@@ -349,16 +339,9 @@ CONTAINS
                            matrix_s=matrix_s,&
                            matrix_ks=matrix_ks,&
                            ks_env=ks_env,&
-                           input=input,&
-                           energy=energy,&
-                           atomic_kind_set=atomic_kind_set,&
-                           particle_set=particle_set,&
-                           has_unit_metric=has_unit_metric,&
-                           para_env=para_env,&
-                           nelectron_spin=nelectron_spin,error=error)
+                           error=error)
 
     nspin=dft_control%nspins
-
 
     ! we might have to create matrix_ks
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
@@ -378,6 +361,63 @@ CONTAINS
        CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
        CALL qs_ks_release(ks_env,error=error)
     END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ls_scf_init_qs
+
+! *****************************************************************************
+!> \brief get an atomic initial guess
+!> \par History
+!>       2012.11 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE ls_scf_qs_atomic_guess(qs_env,energy,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp)                            :: energy
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_qs_atomic_guess', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspin, unit_nr
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
+    LOGICAL                                  :: has_unit_metric
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: qs_energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+
+    CALL timeset(routineN,handle)
+
+    ! get a useful output_unit
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    ! get basic quantities from the qs_env
+    CALL get_qs_env(qs_env,dft_control=dft_control,&
+                           matrix_s=matrix_s,&
+                           matrix_ks=matrix_ks,&
+                           ks_env=ks_env,&
+                           energy=qs_energy,&
+                           atomic_kind_set=atomic_kind_set,&
+                           particle_set=particle_set,&
+                           has_unit_metric=has_unit_metric,&
+                           para_env=para_env,&
+                           nelectron_spin=nelectron_spin,error=error)
+
+    nspin=dft_control%nspins
 
     ! create an initial atomic guess
     DO ispin=1,nspin
@@ -400,14 +440,11 @@ CONTAINS
     CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
                              just_energy=.FALSE.,error=error)
 
-    IF (unit_nr>0) THEN
-       WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",energy%total
-       WRITE(unit_nr,'()')
-    ENDIF
+    energy=qs_energy%total
 
     CALL timestop(handle)
 
-  END SUBROUTINE ls_scf_init_qs
+  END SUBROUTINE ls_scf_qs_atomic_guess
 
 ! *****************************************************************************
 !> \brief use the density matrix in ls_scf_env to compute the new energy and KS matrix

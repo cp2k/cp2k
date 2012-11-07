@@ -11,11 +11,15 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf_types
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular
   USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -32,6 +36,11 @@ MODULE dm_ls_scf_types
      INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
   END TYPE
 
+  TYPE ls_mat_history_type
+     INTEGER :: istore,nstore
+     TYPE(cp_dbcsr_type), DIMENSION(:,:), ALLOCATABLE :: matrix
+  END TYPE
+
   TYPE ls_scf_env_type
      INTEGER               :: nspins, natoms
      INTEGER               :: nelectron_total
@@ -40,6 +49,8 @@ MODULE dm_ls_scf_types
      REAL(KIND=dp), DIMENSION(2) ::  homo_spin
      REAL(KIND=dp), DIMENSION(2) ::  lumo_spin
 
+     TYPE(ls_mat_history_type) :: scf_history
+     INTEGER :: extrapolation_order
 
      LOGICAL :: has_unit_metric
 
@@ -67,6 +78,51 @@ MODULE dm_ls_scf_types
 
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE ls_scf_env_type
+
+  PUBLIC :: ls_scf_release
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief release the LS type.
+!> \par History
+!>       2012.11 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE ls_scf_release(ls_scf_env,error)
+    TYPE(ls_scf_env_type), POINTER           :: ls_scf_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, istat, istore
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    CALL cp_para_env_release(ls_scf_env%para_env,error)
+
+    DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! set up the buffer for the history of matrices
+    DO istore=1,MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
+       DO ispin=1,SIZE(ls_scf_env%scf_history%matrix,1)
+          CALL cp_dbcsr_release(ls_scf_env%scf_history%matrix(ispin,istore),error=error)
+       ENDDO
+    ENDDO
+    DEALLOCATE(ls_scf_env%scf_history%matrix,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    DEALLOCATE(ls_scf_env,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ls_scf_release
 
 END MODULE dm_ls_scf_types
 

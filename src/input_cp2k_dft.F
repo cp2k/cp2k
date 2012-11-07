@@ -4566,6 +4566,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EXTRAPOLATION_ORDER",&
+            description="Number of previous matrices used for the ASPC extrapolation of the initial guess. "//&
+                        "0 implies that an atomic guess is used at each step. "//&
+                        "low (1-2) will result in a drift of the constant of motion during MD. "//&
+                        "high (>5) might be somewhat unstable, leading to more SCF iterations.",&
+            usage="EXTRAPOLATION_ORDER 3",default_i_val=4, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="S_PRECONDITIONER",&
             description="Preconditions S with some appropriate form.",&
             usage="S_PRECONDITIONER MOLECULAR",&

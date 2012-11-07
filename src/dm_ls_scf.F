@@ -11,18 +11,19 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf
+  USE bibliography,                    ONLY: Kolafa2004,&
+                                             cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
+  USE cp_para_env,                     ONLY: cp_para_env_retain
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
                                              compute_matrix_preconditioner,&
@@ -31,6 +32,7 @@ MODULE dm_ls_scf
                                              density_matrix_trs4
   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                              ls_scf_init_qs,&
+                                             ls_scf_qs_atomic_guess,&
                                              matrix_ls_create,&
                                              matrix_ls_to_qs,&
                                              matrix_qs_to_ls
@@ -48,10 +50,13 @@ MODULE dm_ls_scf
                                              matrix_sqrt_newton_schulz
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
+  USE mathlib,                         ONLY: binomial
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -62,7 +67,7 @@ MODULE dm_ls_scf
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf'
 
-  PUBLIC :: ls_scf
+  PUBLIC :: ls_scf,ls_scf_create
 
 CONTAINS
 
@@ -81,12 +86,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    TYPE(ls_scf_env_type), POINTER           :: ls_scf_env
 
     CALL timeset(routineN,handle)
 
+    ! get scf env
+    CALL get_qs_env(qs_env,ls_scf_env=ls_scf_env,error=error)
+
     ! initialize the scf phase
-    CALL ls_scf_init(qs_env,ls_scf_env,error)
+    CALL ls_scf_init_scf(qs_env,ls_scf_env,error)
 
     ! perform the actual scf
     CALL ls_scf_main(qs_env,ls_scf_env,error)
@@ -99,17 +107,96 @@ CONTAINS
   END SUBROUTINE ls_scf
 
 ! *****************************************************************************
-!> \brief Basic initialization of the LS type.
+!> \brief Creation and basic initialization of the LS type.
+!> \par History
+!>       2012.11 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE ls_scf_create(qs_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, istat, unit_nr
+    LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ls_scf_env_type), POINTER           :: ls_scf_env
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: input
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
+    ! get a useful output_unit
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    ALLOCATE(ls_scf_env,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    ! get basic quantities from the qs_env
+    CALL get_qs_env(qs_env,nelectron_total=ls_scf_env%nelectron_total, &
+                           matrix_s=matrix_s,&
+                           dft_control=dft_control,&
+                           particle_set=particle_set,&
+                           molecule_set=molecule_set,&
+                           input=input,&
+                           has_unit_metric=ls_scf_env%has_unit_metric,&
+                           para_env=ls_scf_env%para_env,&
+                           nelectron_spin=ls_scf_env%nelectron_spin,error=error)
+
+    ! copy some basic stuff
+    ls_scf_env%nspins=dft_control%nspins
+    ls_scf_env%natoms=SIZE(particle_set,1)
+    CALL cp_para_env_retain(ls_scf_env%para_env,error)
+
+    ! initialize block to group to defined molecules
+    ALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms),stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL molecule_of_atom(molecule_set,atom_to_mol=ls_scf_env%ls_mstruct%atom_to_molecule,error=error)
+
+    ! parse the ls_scf section and set derived quantities
+    CALL ls_scf_init_read_write_input(input,ls_scf_env,unit_nr,error)
+
+    ! set up the buffer for the history of matrices
+    ls_scf_env%scf_history%nstore=ls_scf_env%extrapolation_order
+    ls_scf_env%scf_history%istore=0
+    ALLOCATE(ls_scf_env%scf_history%matrix(ls_scf_env%nspins,ls_scf_env%scf_history%nstore))
+
+    ! put the ls_scf_env in qs_env
+    CALL set_qs_env(qs_env,ls_scf_env=ls_scf_env,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ls_scf_create
+
+! *****************************************************************************
+!> \brief initialization needed for scf
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE ls_scf_init(qs_env,ls_scf_env,error)
+  SUBROUTINE ls_scf_init_scf(qs_env,ls_scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_scf', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
@@ -141,18 +228,6 @@ CONTAINS
                            para_env=ls_scf_env%para_env,&
                            nelectron_spin=ls_scf_env%nelectron_spin,error=error)
 
-    ! copy some basic stuff
-    ls_scf_env%nspins=dft_control%nspins
-    ls_scf_env%natoms=cp_dbcsr_nblkrows_total(matrix_s(1)%matrix)
-    CALL cp_para_env_retain(ls_scf_env%para_env,error)
-
-    ! initialize block to group to defined molecules
-    ALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms))
-    CALL molecule_of_atom(molecule_set,atom_to_mol=ls_scf_env%ls_mstruct%atom_to_molecule,error=error)
-
-    ! parse the ls_scf section and set derived quantities
-    CALL ls_scf_init_read_write_input(input,ls_scf_env,unit_nr,error)
-
     ! some basic initialization of the QS side of things
     CALL ls_scf_init_qs(qs_env,error)
 
@@ -178,9 +253,154 @@ CONTAINS
     ! set up matrix S, and needed functions of S
     CALL ls_scf_init_matrix_s(matrix_s(1)%matrix,ls_scf_env,error)
 
+    ! get the initial guess for the SCF
+    CALL ls_scf_initial_guess(qs_env,ls_scf_env,error)
+
     CALL timestop(handle)
 
-  END SUBROUTINE ls_scf_init
+  END SUBROUTINE ls_scf_init_scf
+
+! *****************************************************************************
+!> \brief deal with the scf initial guess
+!> \par History
+!>       2012.11 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE ls_scf_initial_guess(qs_env,ls_scf_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_initial_guess', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iaspc, ispin, istore, &
+                                                naspc, unit_nr
+    REAL(KIND=dp)                            :: alpha, energy, trace
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp1
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    ! get a useful output_unit
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    ! if there is no history go for the atomic guess, otherwise extrapolate the dm history
+    IF (unit_nr>0) WRITE(unit_nr,'()')
+    IF (ls_scf_env%scf_history%istore==0) THEN
+       CALL ls_scf_qs_atomic_guess(qs_env,energy,error)
+    ELSE
+       CALL cite_reference(Kolafa2004)
+       naspc=MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
+
+       DO ispin=1,SIZE(ls_scf_env%matrix_p)
+          ! actual extrapolation
+          CALL cp_dbcsr_set(ls_scf_env%matrix_p(ispin),0.0_dp,error=error)
+          DO iaspc=1,naspc
+             alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+             istore=MOD(ls_scf_env%scf_history%istore-iaspc,ls_scf_env%scf_history%nstore)+1
+             CALL cp_dbcsr_add(ls_scf_env%matrix_p(ispin), ls_scf_env%scf_history%matrix(ispin,istore), 1.0_dp, alpha, error=error)
+          ENDDO
+
+          IF (ls_scf_env%use_s_sqrt) THEN
+             ! need to get P in the non-orthogonal basis if it was stored differently
+             CALL cp_dbcsr_init(matrix_tmp1,error=error)
+             CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
+                                  matrix_type=dbcsr_type_no_symmetry,error=error)
+             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_p(ispin),&
+                                          0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
+             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
+                                          0.0_dp, ls_scf_env%matrix_p(ispin)  , &
+                                          filter_eps=ls_scf_env%eps_filter,error=error)
+             CALL cp_dbcsr_release(matrix_tmp1,error=error)
+
+             IF (ls_scf_env%has_s_preconditioner) THEN
+                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
+                                ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
+             ENDIF
+          ENDIF
+       ENDDO
+
+       ! compute corresponding energy and ks matrix
+       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy,error)
+    ENDIF
+
+    IF (unit_nr>0) THEN
+       WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",energy
+       WRITE(unit_nr,'()')
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ls_scf_initial_guess
+
+! *****************************************************************************
+!> \brief store a history of matrices for later use in ls_scf_initial_guess
+!> \par History
+!>       2012.11 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE ls_scf_store_result(ls_scf_env,error)
+    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_store_result', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, istore, unit_nr
+    REAL(KIND=dp)                            :: trace
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp1
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    ! get a useful output_unit
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    IF (ls_scf_env%scf_history%nstore>0) THEN
+       ls_scf_env%scf_history%istore=ls_scf_env%scf_history%istore+1
+       DO ispin=1,SIZE(ls_scf_env%matrix_p)
+          istore=MOD(ls_scf_env%scf_history%istore-1,ls_scf_env%scf_history%nstore)+1
+          IF (ls_scf_env%scf_history%istore<=ls_scf_env%scf_history%nstore) &
+             CALL cp_dbcsr_init(ls_scf_env%scf_history%matrix(ispin,istore),error=error)
+          CALL cp_dbcsr_copy(ls_scf_env%scf_history%matrix(ispin,istore), ls_scf_env%matrix_p(ispin), error=error) 
+
+          ! if we have the sqrt around, we use it to go to the orthogonal basis
+          IF (ls_scf_env%use_s_sqrt) THEN
+             ! usualy sqrt(S) * P * sqrt(S) should be available, or could be stored at least,
+             ! so that the next multiplications could be saved.
+             CALL cp_dbcsr_init(matrix_tmp1,error=error)
+             CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
+                                  matrix_type=dbcsr_type_no_symmetry,error=error)
+
+             IF (ls_scf_env%has_s_preconditioner) THEN
+                 CALL apply_matrix_preconditioner(ls_scf_env%scf_history%matrix(ispin,istore),"backward", &
+                                ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
+             ENDIF
+             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt, ls_scf_env%scf_history%matrix(ispin,istore),&
+                                          0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
+             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt, &
+                                          0.0_dp, ls_scf_env%scf_history%matrix(ispin,istore) , &
+                                          filter_eps=ls_scf_env%eps_filter,error=error)
+          ENDIF
+
+       ENDDO
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ls_scf_store_result
 
 ! *****************************************************************************
 !> \brief initialize S matrix related properties (sqrt, inverse...)
@@ -354,6 +574,8 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method,error=error)
     CALL section_vals_val_get(ls_scf_section,"DYNAMIC_THRESHOLD",l_val=ls_scf_env%dynamic_threshold,error=error)
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=ls_scf_env%sign_sqrt_order,error=error)
+    CALL section_vals_val_get(ls_scf_section,"EXTRAPOLATION_ORDER",i_val=ls_scf_env%extrapolation_order,error=error)
+    ls_scf_env%extrapolation_order=MAX(0,ls_scf_env%extrapolation_order)
 
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
@@ -393,6 +615,7 @@ CONTAINS
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing sqrt(S):",ls_scf_env%use_s_sqrt
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing s preconditioner ",ls_scf_env%has_s_preconditioner
        WRITE(unit_nr,'(T2,A,T38,I20)') "sign sqrt order:",ls_scf_env%sign_sqrt_order
+       WRITE(unit_nr,'(T2,A,T38,I20)') "Extrapolation order:",ls_scf_env%extrapolation_order
        WRITE(unit_nr,'(T2,A,T38,L20)') "Use single precision matrices",ls_scf_env%ls_mstruct%single_precision
 
        SELECT CASE(ls_scf_env%s_preconditioner_type)
@@ -496,7 +719,6 @@ CONTAINS
          EXIT
       ENDIF
 
-
       t1 = m_walltime()
       iscf=iscf+1
 
@@ -525,8 +747,7 @@ CONTAINS
                            error=error)
       END DO
 
-!>>>--
-!      ! compute the deviation in the mixing matrix
+      ! compute the deviation in the mixing matrix
       IF (iscf > 1) THEN
         DO ispin=1,nspin
           CALL cp_dbcsr_add(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), -1.0_dp, 1.0_dp, error=error)
@@ -534,7 +755,6 @@ CONTAINS
           CALL lanczos_alg_serial(matrix_ks_deviation(ispin), maxev(ispin), minev(ispin), 1.0E-4_dp, error=error)
         ENDDO
       ENDIF
-!<<<--
 
       ! compute the density matrix that matches it
       DO ispin=1,nspin
@@ -571,12 +791,10 @@ CONTAINS
          IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
       ENDDO
 
-!>>>--
-!      ! save the old mixing matrix
-       DO ispin=1,nspin
+      ! save the old mixing matrix
+      DO ispin=1,nspin
          CALL cp_dbcsr_copy(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), error=error)
-       ENDDO
-!<<<--
+      ENDDO
 
       ! compute the corresponding new energy KS matrix and new energy
       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,error)
@@ -605,6 +823,7 @@ CONTAINS
       IF (ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
 
     ENDDO
+
 
     ! free storage
     DO ispin=1,nspin
@@ -648,6 +867,9 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
+    ! store the matrix for a next scf run
+    CALL ls_scf_store_result(ls_scf_env,error)
+
     ! compute the matrix_w if associated
     CALL get_qs_env(qs_env,matrix_w=matrix_w,error=error)
     IF (ASSOCIATED(matrix_w)) THEN
@@ -690,9 +912,6 @@ CONTAINS
     ENDDO
     DEALLOCATE(ls_scf_env%matrix_ks)
 
-    CALL cp_para_env_release(ls_scf_env%para_env,error)
-
-    DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule)
 
     CALL timestop(handle)
 

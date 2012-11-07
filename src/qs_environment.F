@@ -68,6 +68,7 @@ MODULE qs_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
+  USE dm_ls_scf,                       ONLY: ls_scf_create
   USE et_coupling_types,               ONLY: et_coupling_create
   USE ewald_environment_types,         ONLY: ewald_env_create,&
                                              ewald_env_get,&
@@ -394,6 +395,10 @@ CONTAINS
     CALL init_ga_env ( ga_env, error )
     CALL set_qs_env ( qs_env, ga_env=ga_env, error=error )
     CALL se_ga_pair_list_init ( qs_env, error )
+
+    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+       CALL ls_scf_create(qs_env,error)
+    ENDIF
 
   END SUBROUTINE qs_init
 

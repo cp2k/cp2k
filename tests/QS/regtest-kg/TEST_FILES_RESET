@@ -9,3 +9,9 @@ H2-libxc.inp
 # reset numerics
 H2_MD-2.inp
 H2_MD.inp
+#  
+H2_MD.inp
+#  
+H2_MD-2.inp
+#  
+H2_MD-3.inp
