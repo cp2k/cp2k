@@ -127,6 +127,16 @@
        (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) sym_fac = REAL(2.0,real_4)
 
+    ! tracing a symmetric with a general matrix is not implemented, as it would require communication of blocks
+    IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).AND. .NOT. &
+       (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
+        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
+       CALL dbcsr_assert (.FALSE.,dbcsr_fatal_level,&
+            dbcsr_unimplemented_error_nr, routineN, "Tracing general with symmetric matrix NYI",&
+            __LINE__,error)
+    ENDIF
+
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)

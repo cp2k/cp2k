@@ -1712,6 +1712,15 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_valid_index (matrix_a), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Invalid matrix", __LINE__, error=error)
 
+    IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).AND. .NOT. &
+       (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
+        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
+       CALL dbcsr_assert (.FALSE.,dbcsr_fatal_level,&
+            dbcsr_unimplemented_error_nr, routineN, "Summing general with symmetric matrix NYI",&
+            __LINE__,error)
+    ENDIF
+
     data_type_a = dbcsr_get_data_type(matrix_a)
     data_type_b = dbcsr_get_data_type(matrix_b)
     !
