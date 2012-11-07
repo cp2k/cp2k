@@ -15,3 +15,6 @@ H2O_ADMM_MP2.inp
 # RI-MP2 and RI-RPA
 RI_MP2_H2O.inp
 RI_RPA_H2O.inp
+# RI-MP2 and RI-RPA, reset for normalization
+RI_MP2_H2O.inp
+RI_RPA_H2O.inp
