@@ -3899,7 +3899,8 @@ SUBROUTINE elpa_transpose_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvs,nvr,
 !
 !-------------------------------------------------------------------------------
 
-   USE elpa1 ! for least_common_multiple
+   ! for least_common_multiple
+   USE elpa1 
     INTEGER, INTENT(in)                      :: ld_s, comm_s, ld_t, comm_t, &
                                                 nvs, nvr, nvc
     REAL*8, INTENT(inout)                    :: vmat_t(ld_t,nvc)
@@ -3911,13 +3912,6 @@ SUBROUTINE elpa_transpose_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvs,nvr,
                                                 nblks_comm, nblks_skip, &
                                                 nblks_tot, nl, nps, npt, ns
     REAL*8, ALLOCATABLE                      :: aux(:)
-
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
 
    CALL mpi_comm_rank(comm_s,myps,mpierr)
    CALL mpi_comm_size(comm_s,nps ,mpierr)
@@ -4010,7 +4004,8 @@ SUBROUTINE elpa_reduce_add_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvr,nvc
 !
 !-------------------------------------------------------------------------------
 
-   USE elpa1 ! for least_common_multiple
+   ! for least_common_multiple
+   USE elpa1 
     INTEGER, INTENT(in)                      :: ld_s, comm_s, ld_t, comm_t, &
                                                 nvr, nvc
     REAL*8, INTENT(inout)                    :: vmat_t(ld_t,nvc)
@@ -4021,13 +4016,6 @@ SUBROUTINE elpa_reduce_add_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvr,nvc
                                                 mpierr, myps, mypt, n, &
                                                 nblks_tot, nl, nps, npt, ns
     REAL*8, ALLOCATABLE                      :: aux1(:), aux2(:)
-
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
-! for least_common_multiple
 
    CALL mpi_comm_rank(comm_s,myps,mpierr)
    CALL mpi_comm_size(comm_s,nps ,mpierr)
