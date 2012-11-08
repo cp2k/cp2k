@@ -30,7 +30,8 @@ MODULE rpa_ri_gpw
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
-                                             m_memory
+                                             m_memory,&
+                                             m_walltime
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_comm_split_direct,&
@@ -98,7 +99,8 @@ MODULE rpa_ri_gpw
                                                 sizes_ia, sizes_ia_beta, &
                                                 starts_ia, starts_ia_beta, &
                                                 sub_proc_map
-    LOGICAL                                  :: failure, my_open_shell
+    LOGICAL                                  :: failure, my_open_shell, &
+                                                skip_integ_group_opt
     REAL(KIND=dp) :: avail_mem, mem_for_iaK, mem_for_QK, mem_min, &
       mem_per_group, mem_real, needed_mem, rpa_memory
     REAL(KIND=dp), ALLOCATABLE, &
@@ -161,40 +163,63 @@ MODULE rpa_ri_gpw
     needed_mem=mem_for_iaK*2.0_dp+mem_for_QK
 
     ! here we try to find the best rpa group size
-    best_integ_group_size=ngroup
-    best_num_integ_point=num_integ_points
-
-    min_integ_group_size=MAX(1,ngroup/num_integ_points)
-
-    integ_group_size=min_integ_group_size-1
-    DO iiB=min_integ_group_size+1, ngroup
-      integ_group_size=integ_group_size+1
-
-      ! check that the ngroup is a multiple of  integ_group_size
-      IF(MOD(ngroup,integ_group_size)/=0) CYCLE
-
-      ! check for memory 
-      avail_mem=integ_group_size*mem_per_group
-      IF(avail_mem<needed_mem) CYCLE
-      
-      ! check the number of integration points is a multiple of the  number of integ_group
-      num_integ_group=ngroup/integ_group_size
-      IF(num_integ_points<num_integ_group) CYCLE
-      IF(MOD(num_integ_points,num_integ_group)/=0) CYCLE
-
-      ! if all the test passed then decide
-      IF((num_integ_points/num_integ_group)<best_num_integ_point) THEN 
-        best_num_integ_point=num_integ_points/num_integ_group
-        best_integ_group_size=integ_group_size
+    skip_integ_group_opt=.FALSE.
+     
+    IF(mp2_env%ri_rpa%rpa_integ_group_size>0) THEN
+      IF(MOD(mp2_env%ri_rpa%rpa_integ_group_size,para_env_sub%num_pe)==0) THEN
+        best_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size/para_env_sub%num_pe
+        IF(MOD(ngroup,best_integ_group_size)==0) THEN
+          num_integ_group=ngroup/best_integ_group_size
+          IF((num_integ_points>num_integ_group).AND.MOD(num_integ_points,num_integ_group)==0) THEN
+            best_num_integ_point=num_integ_points/num_integ_group
+            skip_integ_group_opt=.TRUE.
+          ELSE 
+            IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'RPA_NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
+          END IF
+        ELSE
+          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Total number of groups not multiple of SIZE_FREQ_INTEG_GROUP'
+        END IF
+      ELSE
+        IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'SIZE_FREQ_INTEG_GROUP not multiple of GROUP_SIZE'
       END IF
+    END IF
 
-    END DO
+    IF(.NOT.skip_integ_group_opt) THEN
+       best_integ_group_size=ngroup
+       best_num_integ_point=num_integ_points
+
+       min_integ_group_size=MAX(1,ngroup/num_integ_points)
+
+      integ_group_size=min_integ_group_size-1
+      DO iiB=min_integ_group_size+1, ngroup
+        integ_group_size=integ_group_size+1
+
+        ! check that the ngroup is a multiple of  integ_group_size
+        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
+
+        ! check for memory 
+        avail_mem=integ_group_size*mem_per_group
+        IF(avail_mem<needed_mem) CYCLE
+        
+        ! check the number of integration points is a multiple of the  number of integ_group
+        num_integ_group=ngroup/integ_group_size
+        IF(num_integ_points<num_integ_group) CYCLE
+        IF(MOD(num_integ_points,num_integ_group)/=0) CYCLE
+
+        ! if all the test passed then decide
+        IF((num_integ_points/num_integ_group)<best_num_integ_point) THEN 
+          best_num_integ_point=num_integ_points/num_integ_group
+          best_integ_group_size=integ_group_size
+        END IF
+
+      END DO
+    END IF
 
     integ_group_size=best_integ_group_size
 
     IF (unit_nr>0) THEN
        WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                               "RI_INFO| Number of group for (ia|K) integral replication:", integ_group_size
+                               "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
        WRITE (UNIT=unit_nr,FMT="(T3,A)")&
                                "INTEG_INFO| Clenshaw-Curtius quadrature"
        WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
@@ -680,14 +705,12 @@ MODULE rpa_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'clenshaw_curtius_quad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: avirt, handle, i_global, iiB, &
-                                                info_chol, iocc, j_global, &
-                                                jjB, jquad, ncol_local, &
-                                                nrow_local, stat
+    INTEGER :: avirt, handle, i_global, iiB, info_chol, iocc, j_global, jjB, &
+      jquad, my_num_dgemm_call, ncol_local, nrow_local, stat
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, my_open_shell
-    REAL(KIND=dp)                            :: a_scaling, alpha, eigen_diff, &
-                                                FComega, omega
+    REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, eigen_diff, FComega, &
+      my_flop_rate, omega, t_end, t_start
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Q_log, tj, trace_Qomega, wj
 
     CALL timeset(routineN,handle)
@@ -738,6 +761,8 @@ MODULE rpa_ri_gpw
 
     Erpa=0.0_dp
     wj=wj*a_scaling
+    my_num_dgemm_call=0
+    my_flop_rate=0.0_dp
     DO jquad=1, num_integ_points
       IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
       
@@ -770,9 +795,14 @@ MODULE rpa_ri_gpw
       END DO
 
       ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
+      t_start=m_walltime()
       CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
                       matrix_a=fm_mat_S,matrix_b=fm_mat_G,beta=0.0_dp,&
                       matrix_c=fm_mat_Q,error=error)
+      t_end=m_walltime()
+      actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+      IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
+      my_num_dgemm_call=my_num_dgemm_call+1
 
       IF(my_open_shell) THEN
         ! the same for the beta spin
@@ -800,9 +830,14 @@ MODULE rpa_ri_gpw
           END DO
         END DO
 
+        t_start=m_walltime()
         CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
                         matrix_a=fm_mat_S_beta,matrix_b=fm_mat_G_beta,beta=0.0_dp,&
                         matrix_c=fm_mat_Q_beta,error=error)
+        t_end=m_walltime()
+        actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+        IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
+        my_num_dgemm_call=my_num_dgemm_call+1
 
         CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=fm_mat_Q,beta=1.0_dp,matrix_b=fm_mat_Q_beta,error=error)
         ! fm_mat_Q%local_data=fm_mat_Q%local_data+fm_mat_Q_beta%local_data        
@@ -867,6 +902,12 @@ MODULE rpa_ri_gpw
 
     CALL mp_sum(Erpa,para_env%group)
     Erpa=Erpa/(pi*2.0_dp)
+
+    IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate/REAL(MAX(my_num_dgemm_call,1),KIND=dp)/1.0E9_dp
+    CALL mp_sum(my_flop_rate,para_env%group)
+    my_flop_rate=my_flop_rate/para_env%num_pe
+    IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.2)")&
+                          "PERFORMANCE| PDGEMM flop rate (Gflops / MPI rank):", my_flop_rate
 
     DEALLOCATE(tj)
     DEALLOCATE(wj)

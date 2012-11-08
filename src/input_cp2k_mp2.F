@@ -59,7 +59,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
-            n_keywords=6, n_subsections=4, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=6, n_subsections=5, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -138,6 +138,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_ri_mp2(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_ri_rpa(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -186,6 +190,41 @@ CONTAINS
 
   END SUBROUTINE create_mp2_direct
 
+  SUBROUTINE create_ri_mp2(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_mp2', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"RI_MP2",&
+            description="Parameters influencing the RI MP2 method",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="BLOCK_SIZE",&
+            variants=(/"MESSAGE_SIZE"/),&
+            description="Determines the blocking used for communication in RI-MP2. Larger BLOCK_SIZE "//&
+                        "reduces communication but requires more memory. The default (-1) is automatic.",&
+            usage="BLOCK_SIZE 2",&
+            default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_ri_mp2
+
   SUBROUTINE create_ri_rpa(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -202,7 +241,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_RPA",&
             description="Parameters influencing the RI RPA method",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -212,6 +251,18 @@ CONTAINS
             description="Number of quadrature points for the numerical integration in the RI-RPA method.",&
             usage="QUADRATURE_POINTS 60",&
             default_i_val=40,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SIZE_FREQ_INTEG_GROUP",&
+            variants=(/"RPA_GROUP_SIZE"/),&
+            description="Group size for frequency integration, that is the number of processes involved in "//&
+                        "the computation of each integration point. SIZE_FREQ_INTEG_GROUP has to be a multiple "//&
+                        "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "//&
+                        "is automatic.",&
+            usage="SIZE_FREQ_INTEG_GROUP 16",&
+            default_i_val=-1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

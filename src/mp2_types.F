@@ -76,8 +76,13 @@ MODULE mp2_types
        REAL(KIND=dp)            :: relative_cutoff
   END TYPE mp2_gpw_type
 
+  TYPE ri_mp2_type
+       INTEGER                  :: block_size
+  END TYPE
+
   TYPE ri_rpa_type
        INTEGER                  :: rpa_num_quad_points
+       INTEGER                  :: rpa_integ_group_size
   END TYPE
 
   TYPE mp2_type
@@ -88,6 +93,7 @@ MODULE mp2_types
        TYPE(mp2_direct_type)    :: direct_canonical
        TYPE(mp2_potential_type) :: potential_parameter
        TYPE(mp2_gpw_type)       :: mp2_gpw
+       TYPE(ri_mp2_type)        :: ri_mp2
        TYPE(ri_rpa_type)        :: ri_rpa
        REAL(dp) :: mp2_memory
        REAL(dp) :: scale_S

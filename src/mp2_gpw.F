@@ -550,31 +550,31 @@ MODULE mp2_gpw
         ! RI-MP2-GPW compute energy
         IF(nspins==2) THEN
           ! alpha-alpha component
-          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                     Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
+                                     Eigenval,nmo,homo,dimen_RI,unit_nr,calc_ex,error,error_sub,&
                                      open_shell_SS=.TRUE.)
  
           ! beta-beta component
-          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual_beta,sizes_array,&
                                      sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
-                                     Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
+                                     Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,calc_ex,error,error_sub,&
                                      open_shell_SS=.TRUE.)
 
 
           ! alpha-beta case
-          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                     Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,.FALSE.,error,error_sub,&
+                                     Eigenval,nmo,homo,dimen_RI,unit_nr,.FALSE.,error,error_sub,&
                                      .FALSE.,BIb_C_beta,homo_beta,Eigenval_beta,&
                                      ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
 
         ELSE
           ! closed shell case
-          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                     Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub)
+                                     Eigenval,nmo,homo,dimen_RI,unit_nr,calc_ex,error,error_sub)
         END IF
       END IF
 

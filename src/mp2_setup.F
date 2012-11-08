@@ -83,6 +83,12 @@ CONTAINS
 
     CALL section_vals_val_get(mp2_section,"RI_RPA%RPA_NUM_QUAD_POINTS",&
                               i_val=mp2_env%ri_rpa%rpa_num_quad_points, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%SIZE_FREQ_INTEG_GROUP",&
+                              i_val=mp2_env%ri_rpa%rpa_integ_group_size, error=error)
+
+    CALL section_vals_val_get(mp2_section,"RI_MP2%BLOCK_SIZE",&
+                              i_val=mp2_env%ri_mp2%block_size, error=error)
+
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&

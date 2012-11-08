@@ -56,7 +56,8 @@ MODULE mp2_ri_gpw
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
-                                             m_memory
+                                             m_memory,&
+                                             m_walltime
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_comm_split_direct,&
                                              mp_max,&
@@ -65,6 +66,7 @@ MODULE mp2_ri_gpw
                                              mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE mp2_types,                       ONLY: mp2_type
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -1227,22 +1229,22 @@ MODULE mp2_ri_gpw
 
   END SUBROUTINE grep_my_integrals
 
-  SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+  SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
                                    ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_memory,calc_ex,error,error_sub,&
+                                   Eigenval,nmo,homo,dimen_RI,unit_nr,calc_ex,error,error_sub,&
                                    open_shell_SS,BIb_C_beta,homo_beta,Eigenval_beta,&
                                    ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: color_sub
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: nmo, homo, dimen_RI, unit_nr
-    REAL(KIND=dp)                            :: mp2_memory
     LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
     LOGICAL, OPTIONAL                        :: open_shell_SS
@@ -1258,31 +1260,34 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, a_global, b, b_global, best_block_size, &
-      best_integ_group_size, block_size, comm_exchange, end_point, handle, &
-      handle2, handle3, i, i_B_size, iiB, ij_counter, ij_counter_send, &
-      ij_index, integ_group_size, irep, jjB, Lend_pos, Lstart_pos, &
-      max_ij_block, max_ij_pairs, min_ij_block, min_integ_group_size, &
-      my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-      my_group_L_size, my_group_L_start, my_homo_beta, my_i, my_ij_pairs, &
-      my_j, my_new_group_L_size, ngroup, num_integ_group, pos_integ_group, &
-      proc_receive, proc_send, proc_shift
-    INTEGER :: rec_B_size, rec_B_virtual_end, rec_B_virtual_start, &
-      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-      send_i, send_ij_index, send_j, start_point, stat, sub_sub_color, &
-      total_ij_block, total_ij_pairs, virtual, virtual_beta
+    INTEGER :: a, a_global, assigned_blocks, b, b_global, best_block_size, &
+      best_integ_group_size, block_size, comm_exchange, end_point, &
+      first_I_block, first_J_block, handle, handle2, handle3, i, iiB, &
+      ij_block_counter, ij_counter, ij_counter_send, ij_index, &
+      integ_group_size, irep, jjB, last_I_block, last_J_block, Lend_pos, &
+      Lstart_pos, max_ij_pairs, min_integ_group_size, my_B_size, &
+      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
+      my_B_virtual_start, my_B_virtual_start_beta, my_block_size, &
+      my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, my_i, &
+      my_ij_pairs, my_j, my_new_group_L_size, my_num_dgemm_call
+    INTEGER :: ngroup, num_block_per_group, num_IJ_blocks, num_integ_group, &
+      pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
+      rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
+      send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, &
+      send_ij_index, send_j, start_point, stat, sub_sub_color, &
+      total_ij_block, total_ij_pairs, total_ij_pairs_blocks, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: integ_group_pos2color_sub, &
                                                 new_sizes_array, &
                                                 num_ij_pairs, proc_map, &
                                                 sub_proc_map
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ij_marker
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     LOGICAL                                  :: failure, my_alpha_beta_case, &
                                                 my_open_shell_SS
-    REAL(KIND=dp) :: best_comm, best_load_bal, comm_var, load_bal_var, &
-      mem_for_aK, mem_for_iaK, mem_min, mem_per_group, mem_real, &
-      null_mat_rec(2,2,2), null_mat_send(2,2,2), sym_fac
+    REAL(KIND=dp) :: actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK, &
+      mem_for_rep, mem_min, mem_per_group, mem_real, my_flop_rate, &
+      null_mat_rec(2,2,2), null_mat_send(2,2,2), sym_fac, t_end, t_start
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: external_ab, external_i_aL, &
                                                 local_ab
@@ -1328,13 +1333,7 @@ MODULE mp2_ri_gpw
                                                           mem_min, ' MB'
     END IF
    
-    ! mem_real=mp2_memory-mem_real
-    ! mem_real=MAX(mem_real,mem_min)
-
-    ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Available memory per MPI process:',&
-    !                                                     mem_real, ' MB'
-    
-    mem_real=mp2_memory
+    mem_real=mp2_env%mp2_memory
 
     mem_per_group=mem_real*para_env_sub%num_pe
     
@@ -1344,55 +1343,54 @@ MODULE mp2_ri_gpw
 
     ! in the open shell case no replication and no block communication is done 
     IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      total_ij_block=homo*(1+homo)/2
-      min_ij_block=total_ij_block/ngroup
-      max_ij_block=CEILING(REAL(total_ij_block,KIND=dp)/REAL(ngroup,KIND=dp))
-      best_load_bal=REAL(min_ij_block)/REAL(max_ij_block)
-      best_comm=REAL(total_ij_block,KIND=dp)
-      DO i_B_size=1, homo
-        ! check homo is a multiple of block size 
-        IF(MOD(homo,i_B_size)/=0) CYCLE
-        ! check if there is enough memory for store the blocks
-        IF(mem_for_aK*2.0D+00*i_B_size>=mem_per_group) CYCLE
-        ! calculate the minimum integral (RPA) group size according to the available memory
-        min_integ_group_size=CEILING(2.0_dp*mem_for_iaK/(mem_per_group-mem_for_aK*2.0D+00*i_B_size))
-        
-        integ_group_size=MIN(min_integ_group_size,ngroup)-1
-        DO iiB=min_integ_group_size+1, ngroup
-          integ_group_size=integ_group_size+1
-          ! check that the ngroup is a multiple of  integ_group_size
-          IF(MOD(ngroup,integ_group_size)/=0) CYCLE
-          ! check that the integ group size is not too small (10% is empirical for now)
-          IF(REAL(integ_group_size)/REAL(ngroup)<0.1_dp) CYCLE
+      ! Here we split the memory half for the communication, half for replication
+      IF(mp2_env%ri_mp2%block_size>0) THEN
+        best_block_size=mp2_env%ri_mp2%block_size
+        mem_for_rep=MAX(mem_min,mem_per_group-2.0_dp*mem_for_aK*best_block_size)
+      ELSE
+        mem_for_rep=mem_per_group/2.0_dp
+      END IF
+      ! calculate the minimum replication group size according to the available memory
+      min_integ_group_size=CEILING(2.0_dp*mem_for_iaK/mem_for_rep)
 
-          block_size=i_B_size
-          ! calculate load balance parameter
-          total_ij_block=(homo/block_size)*(1+(homo/block_size))/2
-          min_ij_block=total_ij_block/ngroup
-          max_ij_block=CEILING(REAL(total_ij_block,KIND=dp)/REAL(ngroup,KIND=dp))
-          load_bal_var=REAL(min_ij_block*i_B_size**2)/REAL(max_ij_block*i_B_size**2)
-         
-          ! IF(load_bal_var>=best_load_bal) THEN
-          IF(load_bal_var>=0.9_dp) THEN
-            ! calculate ammount of communication
-            comm_var=REAL(total_ij_block,KIND=dp)/REAL(ngroup,KIND=dp)*REAL(integ_group_size,KIND=dp) 
-            IF(comm_var<best_comm) THEN
-              best_comm=comm_var
-              best_load_bal=load_bal_var
-              best_integ_group_size=integ_group_size
-              best_block_size=block_size
-            END IF
+      integ_group_size=MIN(min_integ_group_size,ngroup)-1
+      DO iiB=min_integ_group_size+1, ngroup
+        integ_group_size=integ_group_size+1
+        ! check that the ngroup is a multiple of  integ_group_size
+        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
+        ! check that the integ group size is not too small (10% is empirical for now)
+        IF(REAL(integ_group_size,KIND=dp)/REAL(ngroup,KIND=dp)<0.1_dp) CYCLE
+
+        best_integ_group_size=integ_group_size
+        EXIT
+      END DO
+
+      IF(.NOT.(mp2_env%ri_mp2%block_size>0)) THEN
+        mem_for_comm=mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
+        ! calculate the maximum block size and make sure it is not smaller than 1
+        best_block_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
+        DO 
+          num_IJ_blocks=(homo/best_block_size)
+          num_IJ_blocks=(num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
+          IF(num_IJ_blocks>ngroup.OR.best_block_size==1) THEN
+            EXIT
+          ELSE
+            best_block_size=best_block_size-1
           END IF
         END DO
-      END DO
+      END IF
+ 
+      ! check that best_block_size is not bigger than homo/2-1
+      best_block_size=MIN(MAX(homo/2-1+MOD(homo,2),1),best_block_size)
     END IF
+
     integ_group_size=best_integ_group_size
     block_size=best_block_size
 
     IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
       IF (unit_nr>0) THEN
          WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                                 "RI_INFO| Number of group for (ia|K) integral replication:", integ_group_size
+                                 "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
          WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                                  "RI_INFO| Block size:", block_size
          CALL m_flush(unit_nr)
@@ -1483,41 +1481,93 @@ MODULE mp2_ri_gpw
     ! Calculate the maximum number of ij pairs that have to be computed
     ! among groups
     IF(.NOT.my_alpha_beta_case) THEN
-      total_ij_pairs=(homo/block_size)*(1+(homo/block_size))/2
-      ALLOCATE(ij_map(total_ij_pairs,2),STAT=stat)
+      total_ij_pairs=homo*(1+homo)/2
+      num_IJ_blocks=homo/block_size-1
+
+      first_I_block=1
+      last_i_block=block_size*(num_IJ_blocks-1)
+
+      first_J_block=block_size+1
+      last_J_block=block_size*(num_IJ_blocks+1)
+
+      ij_block_counter=0
+      DO iiB=first_I_block, last_i_block, block_size
+        DO jjB=iiB+block_size, last_J_block, block_size
+          ij_block_counter=ij_block_counter+1
+        END DO
+      END DO
+
+      total_ij_block=ij_block_counter
+      num_block_per_group=total_ij_block/ngroup
+      assigned_blocks=num_block_per_group*ngroup
+
+      total_ij_pairs_blocks=assigned_blocks+(total_ij_pairs-assigned_blocks*(block_size**2))
+
+      ALLOCATE(ij_marker(homo,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_marker=0
+      ALLOCATE(ij_map(total_ij_pairs_blocks,3),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
       ij_map=0
       ij_counter=0
       my_ij_pairs=0
-      DO iiB=1, homo, block_size
-        DO jjB=iiB, homo, block_size
+      DO iiB=first_I_block, last_i_block, block_size
+        DO jjB=iiB+block_size, last_J_block, block_size
+          IF(ij_counter+1>assigned_blocks) EXIT
           ij_counter=ij_counter+1
+          ij_marker(iiB:iiB+block_size-1,jjB:jjB+block_size-1)=1
           ij_map(ij_counter,1)=iiB
           ij_map(ij_counter,2)=jjB
+          ij_map(ij_counter,3)=block_size
           IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-        END DO 
+        END DO
       END DO
+      DO iiB=1, homo
+        DO jjB=iiB, homo
+          IF(ij_marker(iiB,jjB)==0) THEN
+            ij_counter=ij_counter+1
+            ij_map(ij_counter,1)=iiB
+            ij_map(ij_counter,2)=jjB
+            ij_map(ij_counter,3)=1
+            IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+          END IF
+        END DO
+      END DO
+      DEALLOCATE(ij_marker)
+
+      IF((.NOT.my_open_shell_SS)) THEN
+        IF (unit_nr>0) THEN
+          IF(block_size==1) THEN
+            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
+                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
+          ELSE
+            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
+                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
+                        100.0_dp*REAL((total_ij_pairs-assigned_blocks*(block_size**2)),KIND=dp)/REAL(total_ij_pairs,KIND=dp)
+          END IF
+          CALL m_flush(unit_nr)
+        END IF
+      END IF
+
     ELSE
       ! alpha-beta case no index symmetry
-      total_ij_pairs=(homo/block_size)*(homo_beta/block_size)
-      ALLOCATE(ij_map(total_ij_pairs,2),STAT=stat)
+      total_ij_pairs=homo*homo_beta
+      ALLOCATE(ij_map(total_ij_pairs,3),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
       ij_map=0
       ij_counter=0
       my_ij_pairs=0
-      DO iiB=1, homo, block_size
-        DO jjB=1, homo_beta, block_size
+      DO iiB=1, homo 
+        DO jjB=1, homo_beta
           ij_counter=ij_counter+1
           ij_map(ij_counter,1)=iiB
           ij_map(ij_counter,2)=jjB
+          ij_map(ij_counter,3)=1
           IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
         END DO
       END DO
     END IF
     
-    ! max_ij_pairs=my_ij_pairs
-    ! CALL mp_max(max_ij_pairs,para_env%group)
-
     ALLOCATE(num_ij_pairs(0:para_env_exchange%num_pe-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
     num_ij_pairs=0
@@ -1540,6 +1590,8 @@ MODULE mp2_ri_gpw
     Emp2=0.0_dp
     Emp2_Cou=0.0_dp
     Emp2_EX=0.0_dp
+    my_num_dgemm_call=0
+    my_flop_rate=0.0_dp
     DO ij_index=1, max_ij_pairs
 
       IF(ij_index<=my_ij_pairs) THEN
@@ -1547,6 +1599,7 @@ MODULE mp2_ri_gpw
         ij_counter=(ij_index-MIN(1,color_sub))*ngroup+color_sub
         my_i=ij_map(ij_counter,1)      
         my_j=ij_map(ij_counter,2) 
+        my_block_size=ij_map(ij_counter,3)
 
         local_i_aL=0.0_dp
         ! local_i_aL(my_group_L_start:my_group_L_end,1:my_B_size)=BIb_C(1:my_group_L_size,1:my_B_size,my_i)
@@ -1556,7 +1609,8 @@ MODULE mp2_ri_gpw
           start_point=ranges_info_array(3,irep,para_env_exchange%mepos)
           end_point=ranges_info_array(4,irep,para_env_exchange%mepos)
 
-          local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1:block_size)=BIb_C(start_point:end_point,1:my_B_size,my_i:my_i+block_size-1)
+          local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1:my_block_size)=&
+                                                  BIb_C(start_point:end_point,1:my_B_size,my_i:my_i+my_block_size-1)
         END DO
 
         local_j_aL=0.0_dp
@@ -1568,10 +1622,11 @@ MODULE mp2_ri_gpw
           end_point=ranges_info_array(4,irep,para_env_exchange%mepos)
 
           IF(.NOT.my_alpha_beta_case) THEN
-            local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1:block_size)=BIb_C(start_point:end_point,1:my_B_size,my_j:my_j+block_size-1)
+            local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1:my_block_size)=&
+                                                  BIb_C(start_point:end_point,1:my_B_size,my_j:my_j+my_block_size-1)
           ELSE
-            local_j_aL(Lstart_pos:Lend_pos,1:my_B_size_beta,1:block_size)=&
-                                                           BIb_C_beta(start_point:end_point,1:my_B_size_beta,my_j:my_j+block_size-1)
+            local_j_aL(Lstart_pos:Lend_pos,1:my_B_size_beta,1:my_block_size)=&
+                                                  BIb_C_beta(start_point:end_point,1:my_B_size_beta,my_j:my_j+my_block_size-1)
           END IF
         END DO
 
@@ -1584,7 +1639,7 @@ MODULE mp2_ri_gpw
           send_ij_index=num_ij_pairs(proc_send)
 
           rec_L_size=sizes_array(proc_receive)
-          ALLOCATE(BI_C_rec(rec_L_size,MAX(my_B_size,my_B_size_beta),block_size),STAT=stat)
+          ALLOCATE(BI_C_rec(rec_L_size,MAX(my_B_size,my_B_size_beta),my_block_size),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
  
           IF(ij_index<=send_ij_index) THEN
@@ -1592,11 +1647,12 @@ MODULE mp2_ri_gpw
             ij_counter_send=(ij_index-MIN(1,integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
             send_i=ij_map(ij_counter_send,1)
             send_j=ij_map(ij_counter_send,2)
+            send_block_size=ij_map(ij_counter_send,3)
 
             ! occupied i
             BI_C_rec=0.0_dp
-            CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_i:send_i+block_size-1),proc_send,&
-                              BI_C_rec(1:rec_L_size,1:my_B_size,1:block_size),proc_receive,&
+            CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_i:send_i+send_block_size-1),proc_send,&
+                              BI_C_rec(1:rec_L_size,1:my_B_size,1:my_block_size),proc_receive,&
                               para_env_exchange%group)
             DO irep=0, num_integ_group-1
               Lstart_pos=ranges_info_array(1,irep,proc_receive)
@@ -1604,19 +1660,20 @@ MODULE mp2_ri_gpw
               start_point=ranges_info_array(3,irep,proc_receive)
               end_point=ranges_info_array(4,irep,proc_receive)
  
-              local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1:block_size)=BI_C_rec(start_point:end_point,1:my_B_size,1:block_size)
+              local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1:my_block_size)=&
+                                                  BI_C_rec(start_point:end_point,1:my_B_size,1:my_block_size)
 
             END DO
 
             ! occupied j
             BI_C_rec=0.0_dp
             IF(.NOT.my_alpha_beta_case) THEN
-              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_j:send_j+block_size-1),proc_send,&
-                                BI_C_rec(1:rec_L_size,1:my_B_size,1:block_size),proc_receive,&
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_j:send_j+send_block_size-1),proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1:my_block_size),proc_receive,&
                                 para_env_exchange%group)
             ELSE
-              CALL  mp_sendrecv(BIb_C_beta(1:my_group_L_size,1:my_B_size_beta,send_j:send_j+block_size-1),proc_send,&
-                                BI_C_rec(1:rec_L_size,1:my_B_size_beta,1:block_size),proc_receive,&
+              CALL  mp_sendrecv(BIb_C_beta(1:my_group_L_size,1:my_B_size_beta,send_j:send_j+send_block_size-1),proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size_beta,1:my_block_size),proc_receive,&
                                 para_env_exchange%group)
             END IF
 
@@ -1627,10 +1684,11 @@ MODULE mp2_ri_gpw
               end_point=ranges_info_array(4,irep,proc_receive)
  
               IF(.NOT.my_alpha_beta_case) THEN
-                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1:block_size)=BI_C_rec(start_point:end_point,1:my_B_size,1:block_size)
+                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1:my_block_size)=&
+                                                  BI_C_rec(start_point:end_point,1:my_B_size,1:my_block_size)
               ELSE
-                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size_beta,1:block_size)=&
-                                                                    BI_C_rec(start_point:end_point,1:my_B_size_beta,1:block_size)
+                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size_beta,1:my_block_size)=&
+                                                  BI_C_rec(start_point:end_point,1:my_B_size_beta,1:my_block_size)
               END IF
 
             END DO
@@ -1641,7 +1699,7 @@ MODULE mp2_ri_gpw
             ! occupied i
             BI_C_rec=0.0_dp
             CALL  mp_sendrecv(null_mat_send,proc_send,&
-                              BI_C_rec(1:rec_L_size,1:my_B_size,1:block_size),proc_receive,&
+                              BI_C_rec(1:rec_L_size,1:my_B_size,1:my_block_size),proc_receive,&
                               para_env_exchange%group)
 
             DO irep=0, num_integ_group-1
@@ -1650,7 +1708,8 @@ MODULE mp2_ri_gpw
               start_point=ranges_info_array(3,irep,proc_receive)
               end_point=ranges_info_array(4,irep,proc_receive)
 
-              local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1:block_size)=BI_C_rec(start_point:end_point,1:my_B_size,1:block_size)
+              local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1:my_block_size)=&
+                                                  BI_C_rec(start_point:end_point,1:my_B_size,1:my_block_size)
 
             END DO
 
@@ -1658,11 +1717,11 @@ MODULE mp2_ri_gpw
             BI_C_rec=0.0_dp
             IF(.NOT.my_alpha_beta_case) THEN
               CALL  mp_sendrecv(null_mat_send,proc_send,&
-                                BI_C_rec(1:rec_L_size,1:my_B_size,1:block_size),proc_receive,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1:my_block_size),proc_receive,&
                                 para_env_exchange%group)
             ELSE
               CALL  mp_sendrecv(null_mat_send,proc_send,&
-                                BI_C_rec(1:rec_L_size,1:my_B_size_beta,1:block_size),proc_receive,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size_beta,1:my_block_size),proc_receive,&
                                 para_env_exchange%group)
             END IF
             DO irep=0, num_integ_group-1
@@ -1672,10 +1731,11 @@ MODULE mp2_ri_gpw
               end_point=ranges_info_array(4,irep,proc_receive)
         
               IF(.NOT.my_alpha_beta_case) THEN
-                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1:block_size)=BI_C_rec(start_point:end_point,1:my_B_size,1:block_size)
+                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1:my_block_size)=&
+                                                  BI_C_rec(start_point:end_point,1:my_B_size,1:my_block_size)
               ELSE
-                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size_beta,1:block_size)=&
-                                                                    BI_C_rec(start_point:end_point,1:my_B_size_beta,1:block_size)
+                local_j_aL(Lstart_pos:Lend_pos,1:my_B_size_beta,1:my_block_size)=&
+                                                  BI_C_rec(start_point:end_point,1:my_B_size_beta,1:my_block_size)
               END IF
 
             END DO
@@ -1688,13 +1748,18 @@ MODULE mp2_ri_gpw
         CALL timestop(handle3)
 
         ! loop over the block elements
-        DO iiB=1, block_size
-          DO jjB=1, block_size
+        DO iiB=1, my_block_size
+          DO jjB=1, my_block_size
             CALL timeset(routineN//"_expansion",handle3)
             ! calculate the integrals (ia|jb) stratibg from my local data ...
             local_ab=0.0_dp
+            t_start=m_walltime()
             CALL DGEMM('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                        0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size_beta),my_B_size)
+            t_end=m_walltime()
+            actual_flop_rate=2.0_dp*my_B_size*my_B_size_beta*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+            my_flop_rate=my_flop_rate+actual_flop_rate
+            my_num_dgemm_call=my_num_dgemm_call+1
             ! ... and from the other of my subgroup
             DO proc_shift=1, para_env_sub%num_pe-1
               proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
@@ -1713,8 +1778,13 @@ MODULE mp2_ri_gpw
                                 para_env_sub%group)
 
               ! local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size)=MATMUL(TRANSPOSE(external_i_aL),local_j_aL)
+              t_start=m_walltime()
               CALL DGEMM('T','N',rec_B_size,my_B_size_beta,dimen_RI,1.0_dp,external_i_aL,dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                          0.0_dp,local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size_beta),rec_B_size)
+              t_end=m_walltime()
+              actual_flop_rate=2.0_dp*rec_B_size*my_B_size_beta*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+              my_flop_rate=my_flop_rate+actual_flop_rate
+              my_num_dgemm_call=my_num_dgemm_call+1
 
               DEALLOCATE(external_i_aL)
             END DO
@@ -1807,18 +1877,19 @@ MODULE mp2_ri_gpw
             ij_counter_send=(ij_index-MIN(1,integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
             send_i=ij_map(ij_counter_send,1)
             send_j=ij_map(ij_counter_send,2)
+            send_block_size=ij_map(ij_counter_send,3)
          
             ! occupied i
-            CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_i:send_i+block_size-1),proc_send,&
+            CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_i:send_i+send_block_size-1),proc_send,&
                               null_mat_rec,proc_receive,&
                               para_env_exchange%group)
             ! occupied j
             IF(.NOT.my_alpha_beta_case) THEN
-              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_j:send_j+block_size-1),proc_send,&
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_j:send_j+send_block_size-1),proc_send,&
                                 null_mat_rec,proc_receive,&
                                 para_env_exchange%group)            
             ELSE
-              CALL  mp_sendrecv(BIb_C_beta(1:my_group_L_size,1:my_B_size_beta,send_j:send_j+block_size-1),proc_send,&
+              CALL  mp_sendrecv(BIb_C_beta(1:my_group_L_size,1:my_B_size_beta,send_j:send_j+send_block_size-1),proc_send,&
                                 null_mat_rec,proc_receive,&
                                 para_env_exchange%group)
             END IF
@@ -1873,6 +1944,12 @@ MODULE mp2_ri_gpw
     END IF
 
     CALL cp_para_env_release(para_env_exchange,error=error_sub)
+
+    my_flop_rate=my_flop_rate/REAL(MAX(my_num_dgemm_call,1),KIND=dp)/1.0E9_dp
+    CALL mp_sum(my_flop_rate,para_env%group)
+    my_flop_rate=my_flop_rate/para_env%num_pe
+    IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.2)")&
+                          "PERFORMANCE| DGEMM flop rate (Gflops / MPI rank):", my_flop_rate
 
     CALL timestop(handle)
 
