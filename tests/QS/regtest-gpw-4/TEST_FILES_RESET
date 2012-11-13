@@ -1066,3 +1066,6 @@ basis_none_2.inp
 h2o-otdiag-lsd.inp
 h2o-otdiag.inp
 spin_restraint.inp
+#bug fix
+H-extpot.inp
+H2O-extpot.inp

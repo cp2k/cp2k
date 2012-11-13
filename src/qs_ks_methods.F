@@ -2520,7 +2520,7 @@ CONTAINS
           END IF
           ! External electrostatic potential
           IF(dft_control%apply_external_potential)THEN
-             CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+             CALL qmmm_modify_hartree_pot(v_hartree=v_rspace_new(ispin),&
                   v_qmmm=qs_env%vee,scale=-1.0_dp,error=error)
           END IF
           !
