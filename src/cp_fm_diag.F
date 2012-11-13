@@ -61,9 +61,52 @@ MODULE cp_fm_diag
             cp_fm_syevd, &
             cp_fm_syevr, &
             cp_fm_syevx, &
-            cp_fm_elpa
+            cp_fm_elpa, choose_eigv_solver
 
 CONTAINS
+
+
+! *****************************************************************************
+!> \brief   Choose the Eigensolver depending on which library is available
+!           ELPA seems to be unstable for small systems
+! *****************************************************************************
+  SUBROUTINE choose_eigv_solver(matrix,eigenvectors,eigenvalues,error)
+
+    TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: use_elpa, use_SL2
+    INTEGER :: nmo
+
+
+#if defined (__ELPA)
+    use_elpa =.TRUE.
+#else
+    use_elpa = .FALSE.
+#endif
+
+#if defined (__SCALAPACK2)
+    use_SL2 = .TRUE.
+#else
+    use_SL2 = .FALSE.
+#endif
+
+       nmo=SIZE(eigenvalues,1)
+
+       IF(use_elpa) THEN
+          CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
+       ELSEIF(use_SL2) THEN
+          CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
+       ELSE
+          CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,error=error)
+       END IF
+
+
+  END SUBROUTINE choose_eigv_solver
 
 ! *****************************************************************************
 !> \brief   Computes all eigenvalues and vectors of a real symmetric matrix
@@ -228,7 +271,7 @@ CONTAINS
 #endif
 
     nmo = SIZE(eigenvalues,1)
-    IF (SIZE(eigenvalues,1) > n) THEN
+    IF (nmo > n) THEN
       eigenvalues(1:n) = eig(1:n)
     ELSE
       eigenvalues(1:nmo) = eig(1:nmo)
@@ -890,7 +933,11 @@ CONTAINS
 
     ! Compute the eigenvectors and eigenvalues
 
+#if defined (__ELPA)
+    CALL cp_fm_elpa(matrix,work,eigenvalues,error=error)
+#else
     CALL cp_fm_syevd(matrix,work,eigenvalues,error=error)
+#endif
 
 #if defined(__SCALAPACK)
     nrow_block = work%matrix_struct%nrow_block

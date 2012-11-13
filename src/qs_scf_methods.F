@@ -29,9 +29,7 @@ MODULE qs_scf_methods
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
-                                             cp_fm_elpa,&
-                                             cp_fm_syevd,&
-                                             cp_fm_syevr
+                                             choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -170,7 +168,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, nao, &
                                                 nelectron, nmo
-    LOGICAL                                  :: use_elpa
+!    LOGICAL                                  :: use_elpa
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -180,11 +178,11 @@ CONTAINS
     NULLIFY (mo_coeff)
     NULLIFY (mo_eigenvalues)
 
-#if defined (__ELPA)
-    use_elpa =.TRUE.
-#else
-    use_elpa = .FALSE.
-#endif
+!#if defined (__ELPA)
+!    use_elpa =.TRUE.
+!#else
+!    use_elpa = .FALSE.
+!#endif
 
     ! Diagonalise the Kohn-Sham matrix
 
@@ -220,20 +218,7 @@ CONTAINS
                "MULTIPLY",pos="LEFT",transa="T",error=error)
        END SELECT
 
-       IF (use_jacobi) THEN
-          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-       ELSEIF(use_elpa) THEN
-          CALL cp_fm_elpa(matrix_ks,work,mo_eigenvalues,error=error)
-       ELSEIF(nmo==nao) THEN
-          ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
-          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-       ELSE
-#if defined (__SCALAPACK2)
-          CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
-#else
-          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-#endif
-       END IF
+       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
 
        IF(cholesky_method==cholesky_inverse) THEN
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
@@ -270,16 +255,7 @@ CONTAINS
           END DO
        END IF
 
-       ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
-       IF(nmo==nao) THEN
-         CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
-       ELSE
-#if defined (__SCALAPACK2)
-        CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
-#else
-        CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
-#endif
-       END IF
+       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff,error=error)
@@ -313,7 +289,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, istat, &
                                                 nao, nelectron, nmo
-    LOGICAL                                  :: failure = .FALSE.
+!    LOGICAL                                  :: use_elpa
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigvals
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -323,6 +299,13 @@ CONTAINS
 
     NULLIFY (mo_coeff)
     NULLIFY (mo_eigenvalues)
+
+!#if defined (__ELPA)
+!    use_elpa =.TRUE.
+!#else
+!    use_elpa = .FALSE.
+!#endif
+
 
     CALL get_mo_set(mo_set=mo_set,&
                     nao=nao,&
@@ -348,16 +331,11 @@ CONTAINS
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
        CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,jacobi_threshold,homo+1)
     ELSE
-      ALLOCATE(eigvals(nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
-      CALL cp_fm_syevd(matrix_ks,work,eigvals,error)
 
-      mo_eigenvalues(1:nmo) = eigvals(1:nmo)
+       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
+
       CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
 
-      DEALLOCATE(eigvals,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (do_level_shift) THEN

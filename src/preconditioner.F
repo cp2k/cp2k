@@ -47,7 +47,7 @@ MODULE preconditioner
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -897,7 +897,8 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp,error=error)
        CALL cp_fm_create(matrix_tmp2,matrix_tmp%matrix_struct,name="matrix_tmp2",error=error)
        ALLOCATE(evals(n))
-       CALL cp_fm_syevd(matrix_tmp,matrix_tmp2,evals,error)
+       CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error)
+
        CALL cp_fm_release(matrix_tmp2,error=error)
        WRITE(6,*) "evals ",evals
        DEALLOCATE(evals)
@@ -1019,7 +1020,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
 
     ! 2) diagonalize this operator
     CALL cp_fm_cholesky_reduce(matrix_tmp,ortho,error=error)
-    CALL cp_fm_syevd(matrix_tmp,matrix_pre,preconditioner_env%full_evals,error=error)
+    CALL choose_eigv_solver(matrix_tmp,matrix_pre,preconditioner_env%full_evals,error=error)
     CALL cp_fm_cholesky_restore(matrix_pre,n,ortho,matrix_tmp,"SOLVE",error=error)
     CALL cp_fm_to_fm(matrix_tmp,matrix_pre,error=error)
 
@@ -1033,7 +1034,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ALLOCATE(norms(k))
         CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
-        CALL cp_fm_syevd(matrix_s1,matrix_s2,norms,error=error)
+        CALL choose_eigv_solver(matrix_s1,matrix_s2,norms,error=error)
         WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
         DEALLOCATE(norms)
         CALL cp_fm_release(matrix_s1,error=error)
@@ -1197,7 +1198,7 @@ SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
   CALL copy_dbcsr_to_fm(matrix_s,fm_s,error=error)
   CALL cp_fm_cholesky_decompose(fm_s,error=error)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s,error=error)
-  CALL cp_fm_syevd(fm_h,fm,evals,error=error)
+  CALL choose_eigv_solver(fm_h,fm,evals,error=error)
   CALL cp_fm_cholesky_restore(fm,n,fm_s,fm_h,"SOLVE",error=error)
   DO i=1,n
         evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
@@ -1492,7 +1493,8 @@ SUBROUTINE make_full_single_ortho(preconditioner_env, fm, matrix_h, &
   CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
   CALL copy_dbcsr_to_fm(matrix_h,fm_h,error=error)
-  CALL cp_fm_syevd(fm_h,fm,evals,error=error)
+  
+  CALL choose_eigv_solver(fm_h,fm,evals,error=error)
   DO i=1,n
         evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
   ENDDO
@@ -1591,7 +1593,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
        CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp,error=error)
        CALL cp_fm_create(matrix_tmp2,matrix_tmp%matrix_struct,name="matrix_tmp2",error=error)
        ALLOCATE(evals(n))
-       CALL cp_fm_syevd(matrix_tmp,matrix_tmp2,evals,error)
+       CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error)
        CALL cp_fm_release(matrix_tmp2,error=error)
        WRITE(6,*) "evals ",evals
        DEALLOCATE(evals)
@@ -1693,7 +1695,8 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
     CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
 
     ! 2) diagonalize this operator
-    CALL cp_fm_syevd(matrix_tmp,matrix_pre,preconditioner_env%full_evals,error=error)
+     CALL choose_eigv_solver(matrix_tmp,matrix_pre,preconditioner_env%full_evals,error=error)
+
 
     ! test that the subspace remained conserved
     IF (.FALSE.) THEN
@@ -1706,7 +1709,8 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ALLOCATE(norms(k))
         CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
-        CALL cp_fm_syevd(matrix_s1,matrix_s2,norms,error=error)
+        CALL choose_eigv_solver(matrix_s1,matrix_s2,norms,error=error)
+
         WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
         DEALLOCATE(norms)
         CALL cp_fm_release(matrix_s1,error=error)

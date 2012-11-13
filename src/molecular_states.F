@@ -16,7 +16,7 @@ MODULE molecular_states
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -255,7 +255,7 @@ CONTAINS
        CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
             b,c,0.0_dp,d,error=error)
 
-       CALL cp_fm_syevd ( d, e_vectors, evals ,error=error)
+       CALL choose_eigv_solver( d, e_vectors, evals ,error=error)
 
        IF (output_unit>0) WRITE(output_unit,*)""
        IF (output_unit>0) WRITE(output_unit,*)"MOLECULE ",imol

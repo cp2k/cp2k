@@ -25,9 +25,9 @@ MODULE cp_dbcsr_diag
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
+  USE cp_fm_diag,                      ONLY: &
                                              cp_fm_syevr,&
-                                             cp_fm_syevx
+                                             cp_fm_syevx, choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -94,7 +94,7 @@ CONTAINS
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
-    CALL cp_fm_syevd(fm_matrix,fm_eigenvectors,eigenvalues,error)
+    CALL choose_eigv_solver(fm_matrix,fm_eigenvectors,eigenvalues,error)
 
     CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, error=error)
 

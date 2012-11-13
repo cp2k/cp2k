@@ -28,7 +28,7 @@ MODULE bfgs_optimizer
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_transpose
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -201,7 +201,7 @@ CONTAINS
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp,error=error)
        CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
-       CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error)
        DO its=1,SIZE(eigval)
          IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
        END DO
@@ -295,7 +295,7 @@ CONTAINS
        ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
 
-       CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error)
        IF(use_rfo)THEN
           CALL set_hes_eig(ndf,eigval,work)
           dx = eigval

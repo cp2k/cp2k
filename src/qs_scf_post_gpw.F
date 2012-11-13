@@ -29,7 +29,7 @@ MODULE qs_scf_post_gpw
                                              cp_dbcsr_type
   USE cp_ddapc_util,                   ONLY: get_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -2253,7 +2253,8 @@ CONTAINS
        ALLOCATE(eigenvalues(nao))
 
        CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,fm_s,error=error)
-       CALL cp_fm_syevd(fm_s,fm_work,eigenvalues,error=error)
+       CALL choose_eigv_solver(fm_s,fm_work,eigenvalues,error=error)
+
        CALL cp_fm_release(fm_s,error=error)
        CALL cp_fm_release(fm_work,error=error)
 

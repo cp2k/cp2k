@@ -19,7 +19,7 @@ MODULE qs_scf_lanczos
                                              cp_fm_transpose,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -241,7 +241,7 @@ CONTAINS
 
     !Diagonalize  (C^t)HC
     CALL timeset(routineN//"diag_chc",hand1)
-    CALL cp_fm_syevd(chc,evec,eval,error=error)
+    CALL choose_eigv_solver(chc,evec,eval,error=error)
     CALL timestop(hand1)
 
     !Rotate the C vectors
@@ -423,8 +423,9 @@ CONTAINS
         DEALLOCATE(tblock, STAT=istat)
 
     CALL timeset(routineN//"_diag_tri",hand3)
+
+        CALL choose_eigv_solver(t_mat,t_vec,t_eval,error=error)
         ! Diagonalize the block-tridiagonal matrix
-        CALL cp_fm_syevd(t_mat,t_vec,t_eval,error=error)
     CALL timestop(hand3)
 
     CALL timeset(routineN//"_build_cnew",hand4)
@@ -576,7 +577,7 @@ CONTAINS
 
     !Diagonalize  (C^t)HC
     CALL timeset(routineN//"diag_chc",hand1)
-    CALL cp_fm_syevd(chc,evec,eval,error=error)
+    CALL choose_eigv_solver(chc,evec,eval,error=error)
 
     CALL timestop(hand1)
 

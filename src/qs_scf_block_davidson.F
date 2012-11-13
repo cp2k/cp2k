@@ -36,8 +36,7 @@ MODULE qs_scf_block_davidson
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_power,&
-                                             cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: cp_fm_power, choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -1087,7 +1086,7 @@ CONTAINS
          CALL cp_fm_triangular_invert(s_block,error=error)
          CALL cp_fm_cholesky_restore(H_block,ndim,S_block,w_block,"MULTIPLY",pos="RIGHT",error=error)
          CALL cp_fm_cholesky_restore(w_block,ndim,S_block,H_block,"MULTIPLY",pos="LEFT",transa="T",error=error)
-         CALL cp_fm_syevd(H_block,w_block,evals,error=error)
+         CALL choose_eigv_solver(H_block,w_block,evals,error=error)
          CALL cp_fm_cholesky_restore(w_block,ndim,S_block,v_block,"MULTIPLY",error=error)
       ELSE
 ! S^(-1/2)
@@ -1095,7 +1094,7 @@ CONTAINS
          CALL cp_fm_to_fm(w_block,s_block,error=error)
          CALL cp_fm_gemm('N','N',ndim,ndim,ndim,1.0_dp,H_block,s_block,0.0_dp,w_block,error=error)
          CALL cp_fm_gemm('N','N',ndim,ndim,ndim,1.0_dp,s_block,w_block,0.0_dp,H_block,error=error)
-         CALL cp_fm_syevd(H_block,w_block,evals,error=error)
+         CALL choose_eigv_solver(H_block,w_block,evals,error=error)
          CALL cp_fm_gemm('N','N',ndim,ndim,ndim,1.0_dp,s_block,w_block,0.0_dp,v_block,error=error)
       END IF
 

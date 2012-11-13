@@ -32,7 +32,7 @@ MODULE qs_loc_utils
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -183,7 +183,7 @@ CONTAINS
 
     ! o2 = (o1^T o1)^-1/2
     ALLOCATE(eigenvalues(ncol))
-    CALL cp_fm_syevd(o2,o3,eigenvalues,error)
+    CALL choose_eigv_solver(o2,o3,eigenvalues,error=error)
     CALL cp_fm_to_fm(o3,o4,error=error)
     eigenvalues=1.0_dp/SQRT(eigenvalues)
     CALL cp_fm_column_scale(o4,eigenvalues)

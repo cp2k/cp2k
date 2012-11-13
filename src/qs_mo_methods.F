@@ -31,8 +31,7 @@ MODULE qs_mo_methods
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power,&
-                                             cp_fm_syevd,&
-                                             cp_fm_syevx
+                                             cp_fm_syevx, choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -551,7 +550,7 @@ CONTAINS
 
         ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
         IF (compute_evecs) THEN
-            CALL cp_fm_syevd(h_block,e_vectors,evals,error=error)
+            CALL choose_eigv_solver(h_block,e_vectors,evals,error=error)
         ELSE
             CALL cp_fm_syevx(h_block,eigenvalues=evals,error=error)
         ENDIF
@@ -894,7 +893,7 @@ CONTAINS
       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap,error=error)
-      CALL cp_fm_syevd(overlap,evecs,evals,error)
+      CALL choose_eigv_solver(overlap,evecs,evals,error)
       mo_mag_min=MIN(MINVAL(evals),mo_mag_min)
       mo_mag_max=MAX(MAXVAL(evals),mo_mag_max)
       CALL cp_fm_release(overlap,error=error)

@@ -31,7 +31,7 @@ MODULE qs_scf_diagonalization
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -388,7 +388,7 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,c0,work,nmo,error=error)
          CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
         !diagonalize C'HC
-         CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
+         CALL choose_eigv_solver(chc,evec,mo_eigenvalues,error=error)
 
         !rotate the mos by the eigenvectors of C'HC
          CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,mo_coeff,error=error)
@@ -969,7 +969,7 @@ END SUBROUTINE diag_subspace_allocate
 
     ! Diagonalization of the ROKS operator matrix
 
-    CALL cp_fm_syevd(ksa,work,eiga,error=error)
+     CALL choose_eigv_solver(ksa,work,eiga,error=error)
 
     ! Back-transformation of the orthonormal eigenvectors if needed
 
@@ -1187,7 +1187,7 @@ END SUBROUTINE diag_subspace_allocate
            CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
            CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
            !Diagonalize  (C^t)HC
-           CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
+           CALL choose_eigv_solver(chc,evec,mo_eigenvalues,error=error)
            !Rotate the C vectors
            CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
            c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
