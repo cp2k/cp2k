@@ -58,7 +58,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dm_ls_curvy_optimization', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lsstep, lstype
+    INTEGER                                  :: handle, i, lsstep
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -156,10 +156,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimization_step', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin,handle
+    INTEGER                                  :: handle, ispin
     REAL(KIND=dp)                            :: filter, step_size(2)
 
 ! Upon first line search step compute new search direction and apply CG if required
+
     CALL timeset(routineN,handle)
 
     IF(curvy_data%line_search_step==1)THEN     
@@ -587,8 +588,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'commutator_symm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_dbcsr_type)                      :: work
     INTEGER                                  :: handle
+    TYPE(cp_dbcsr_type)                      :: work
 
      CALL timeset(routineN,handle)
 
@@ -732,7 +733,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_matrix_orth', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin,handle
+    INTEGER                                  :: handle, ispin
     TYPE(cp_dbcsr_type)                      :: matrix_work
 
     CALL timeset(routineN,handle)

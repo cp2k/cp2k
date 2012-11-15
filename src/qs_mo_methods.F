@@ -30,8 +30,9 @@ MODULE qs_mo_methods
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_diag,                      ONLY: cp_fm_power,&
-                                             cp_fm_syevx, choose_eigv_solver
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                             cp_fm_power,&
+                                             cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type

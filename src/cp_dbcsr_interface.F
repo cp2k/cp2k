@@ -2796,10 +2796,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-    LOGICAL                                 :: myshallow_data_copy, &
+    LOGICAL                                  :: myshallow_data_copy, &
                                                 mytranspose_distribution
     TYPE(dbcsr_distribution_obj)             :: myuse_distribution
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
 !   set some defaults to make usage a bit less painful (fschiff)

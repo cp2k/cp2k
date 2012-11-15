@@ -36,7 +36,8 @@ MODULE qs_scf_block_davidson
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_power, choose_eigv_solver
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                             cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type

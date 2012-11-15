@@ -25,8 +25,8 @@ MODULE dm_ls_scf
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
-  USE dm_ls_scf_curvy,                 ONLY: dm_ls_curvy_optimization,&
-                                             deallocate_curvy_data
+  USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
+                                             dm_ls_curvy_optimization
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
                                              compute_matrix_preconditioner,&
                                              density_matrix_sign,&
@@ -45,10 +45,10 @@ MODULE dm_ls_scf
        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
        ls_scf_trs4
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_val_get
   USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                              matrix_sqrt_newton_schulz
   USE kinds,                           ONLY: dp
@@ -554,7 +554,7 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
-    TYPE(section_vals_type), POINTER         :: ls_scf_section,curvy_section
+    TYPE(section_vals_type), POINTER         :: curvy_section, ls_scf_section
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -681,7 +681,7 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, &
                                                 nelectron_spin_real, nspin, &
                                                 unit_nr
-    LOGICAL                                  :: should_stop
+    LOGICAL                                  :: check_convergence, should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, maxdev, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ks_deviation, maxev, minev
@@ -690,7 +690,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_ks_deviation, &
                                                 matrix_mixing_old
-    LOGICAL                                  :: check_convergence
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)

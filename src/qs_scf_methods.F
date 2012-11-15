@@ -28,8 +28,8 @@ MODULE qs_scf_methods
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
-                                             choose_eigv_solver
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                             cp_fm_block_jacobi
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -168,10 +168,11 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, nao, &
                                                 nelectron, nmo
-!    LOGICAL                                  :: use_elpa
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+!    LOGICAL                                  :: use_elpa
 
     CALL timeset(routineN,handle)
 
@@ -287,13 +288,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, imo, istat, &
-                                                nao, nelectron, nmo
-!    LOGICAL                                  :: use_elpa
+    INTEGER                                  :: handle, homo, imo, nao, &
+                                                nelectron, nmo
     REAL(KIND=dp)                            :: alpha
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigvals
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+!    LOGICAL                                  :: use_elpa
 
     CALL timeset(routineN,handle)
 

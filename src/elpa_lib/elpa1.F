@@ -3901,8 +3901,7 @@ SUBROUTINE elpa_transpose_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvs,nvr,
 
    ! for least_common_multiple
     USE elpa1 
-    implicit none
-    include 'mpif.h'
+    INCLUDE 'mpif.h'
     INTEGER, INTENT(in)                      :: ld_s, comm_s, ld_t, comm_t, &
                                                 nvs, nvr, nvc
     REAL*8, INTENT(inout)                    :: vmat_t(ld_t,nvc)
@@ -4008,8 +4007,7 @@ SUBROUTINE elpa_reduce_add_vectors(vmat_s,ld_s,comm_s,vmat_t,ld_t,comm_t,nvr,nvc
 
    ! for least_common_multiple
     USE elpa1 
-    implicit none
-    include 'mpif.h'
+    INCLUDE 'mpif.h'
     INTEGER, INTENT(in)                      :: ld_s, comm_s, ld_t, comm_t, &
                                                 nvr, nvc
     REAL*8, INTENT(inout)                    :: vmat_t(ld_t,nvc)

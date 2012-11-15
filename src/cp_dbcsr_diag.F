@@ -25,9 +25,9 @@ MODULE cp_dbcsr_diag
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE cp_fm_diag,                      ONLY: &
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                              cp_fm_syevr,&
-                                             cp_fm_syevx, choose_eigv_solver
+                                             cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
