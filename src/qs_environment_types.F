@@ -1160,7 +1160,7 @@ CONTAINS
     IF (PRESENT(task_list_aux_fit)) qs_env%task_list_aux_fit=>task_list_aux_fit
     IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
-    IF (PRESENT(rtp)) qs_env%rtp=rtp
+    IF (PRESENT(rtp)) qs_env%rtp=>rtp
     IF (PRESENT(efield)) qs_env%efield=>efield
     IF (PRESENT(atprop)) qs_env%atprop=>atprop
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
