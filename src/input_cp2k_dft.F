@@ -4527,7 +4527,7 @@ CONTAINS
             n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY (keyword)
+       NULLIFY (keyword,subsection)
 
        CALL keyword_create(keyword, name="MAX_SCF",&
             description="Maximum number of SCF iteration to be performed for one optimization",&
