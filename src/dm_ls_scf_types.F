@@ -29,7 +29,7 @@ MODULE dm_ls_scf_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_types'
 
   PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular, &
-            ls_mat_history_type
+            ls_mat_history_type, ls_scf_curvy_type
 
   TYPE ls_mstruct_type
      INTEGER :: cluster_type
@@ -41,6 +41,30 @@ MODULE dm_ls_scf_types
      INTEGER :: istore,nstore
      TYPE(cp_dbcsr_type), DIMENSION(:,:), ALLOCATABLE :: matrix
   END TYPE
+
+  TYPE ls_scf_curvy_type
+      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_dp
+      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
+      TYPE(cp_dbcsr_type), DIMENSION(:,:), ALLOCATABLE :: matrix_psave
+      TYPE(cp_dbcsr_type), DIMENSION(:,:), ALLOCATABLE :: matrix_BCH
+      REAL(KIND=dp)                                    :: step_size(2)
+      REAL(KIND=dp)                                    :: shift(2)
+      REAL(KIND=dp)                                    :: cg_denom(2)
+      REAL(KIND=dp)                                    :: cg_numer(2)
+      REAL(KIND=dp), DIMENSION(6)                      :: energies
+      INTEGER                                          :: line_search_step
+      INTEGER                                          :: BCH_saved(2)
+      LOGICAL                                          :: double_step_size
+      LOGICAL                                          :: fix_shift(2)
+
+      INTEGER                                          :: line_search_type
+      INTEGER                                          :: n_bch_hist
+      REAL(KIND=dp)                                    :: scale_filter
+      REAL(KIND=dp)                                    :: filter_factor
+      REAL(KIND=dp)                                    :: min_shift
+      REAL(KIND=dp)                                    :: min_filter
+  END TYPE
+
 
   TYPE ls_scf_env_type
      INTEGER               :: nspins, natoms
@@ -55,6 +79,7 @@ MODULE dm_ls_scf_types
 
      LOGICAL :: has_unit_metric
 
+     LOGICAL :: curvy_steps
      INTEGER :: s_preconditioner_type
      INTEGER :: s_inversion_type
      INTEGER :: purification_method
@@ -76,6 +101,7 @@ MODULE dm_ls_scf_types
      LOGICAL  :: report_all_sparsities, perform_mu_scan, use_s_sqrt
 
      TYPE(ls_mstruct_type) :: ls_mstruct
+     TYPE(ls_scf_curvy_type) :: curvy_data
 
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE ls_scf_env_type

@@ -4516,6 +4516,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -4660,10 +4661,91 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL create_ls_curvy_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+
     END IF
 
   END SUBROUTINE create_ls_scf_section
 
+! *****************************************************************************
+!> \brief creates the curvy_steps section in linear scaling scf 
+!> \author Florian Schiffmann [2012-10]
+! *****************************************************************************
+  SUBROUTINE create_ls_curvy_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ls_curvy_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"CURVY_STEPS",&
+            description="Specifies the parameters of the linear scaling SCF routines",&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY (keyword)
+
+       CALL keyword_create(keyword, name="LINE_SEARCH",&
+            description="Line serch type used in the curvy_setp optimization.",&
+            usage="LINE Search 3POINT", default_i_val=ls_scf_line_search_3point,&
+            enum_c_vals=s2a("3POINT","3POINT_2D"),&
+            enum_desc=s2a("Performs a three point line search",&
+            "Only for spin unrestricted calcualtions. Separate step sizes for alpha and beta spin"//&
+            " using a fit to a 2D parabolic function"),&
+            enum_i_vals=(/ls_scf_line_search_3point,ls_scf_line_search_3point_2d/), error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="N_BCH_HISTORY",&
+            description="Number of stored matrices in the Baker-Campbell-Hausdorff series. "//&
+            "Reduces the BCH evaluation during line search but can be memory intense. ",&
+            usage="N_BCH_HISTORY 5",&
+            default_i_val=7,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MIN_HESSIAN_SHIFT",&
+            description="Minimal eigenvalue shift for the Hessian in the Newton iteration."//&
+                        " Useful for small band gap systems (0.5-1.0 recommended). ",&
+            usage="MIN_HESSIAN_SHIFT 0.0", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FILTER_FACTOR",&
+            description="Allows to set a seperate EPS_FILTER in the newton iterations."//&
+                        " The new EPS is EPS_FILTER*FILTER_FACTOR.",&
+            usage="FILTER_FACTOR 10.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FILTER_FACTOR_SCALE",&
+            description="Allows for dynamic EPS_FILTER. Updates the filter factor every scf-newton "//&
+                        "step by FILTER_FACTOR=FILTER_FACTOR*FILTER_FACTOR_SCALE",&
+            usage="FILTER_FACTOR_SCALE 0.5", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MIN_FILTER",&
+            description="Lowest EPS_FILTER in dynamic filtering. Given as multiple of EPS_FILTER:"//&
+                        " EPS_FILTER_MIN=EPS_FILTER*MIN_FILTER",&
+            usage="FILTER_FACTOR 1.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+   END IF
+
+  END SUBROUTINE create_ls_curvy_section
 ! *****************************************************************************
 !> \brief creates the structure of the section with scf parameters
 !>      controlling an other loop

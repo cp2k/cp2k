@@ -2780,7 +2780,6 @@ CONTAINS
     CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_z
-
   SUBROUTINE cp_dbcsr_transposed (transposed, normal, shallow_data_copy,&
        transpose_data, transpose_distribution, use_distribution, error)
 
@@ -2798,11 +2797,22 @@ CONTAINS
 
     INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+    LOGICAL                                 :: myshallow_data_copy, &
+                                                mytranspose_distribution
+    TYPE(dbcsr_distribution_obj)             :: myuse_distribution
 
     CALL timeset(routineN, timing_handle)
-    CALL dbcsr_new_transposed(transposed%matrix, normal%matrix, shallow_data_copy,&
-         transpose_data, transpose_distribution,&
-         use_distribution=use_distribution, error=dbcsr_error)
+!   set some defaults to make usage a bit less painful (fschiff)
+    myshallow_data_copy=.FALSE.
+    myuse_distribution=cp_dbcsr_distribution(normal)
+    mytranspose_distribution=.FALSE.
+    IF(PRESENT(shallow_data_copy)) myshallow_data_copy=shallow_data_copy
+    IF(PRESENT(use_distribution))myuse_distribution=use_distribution
+    IF(PRESENT(transpose_distribution))mytranspose_distribution=transpose_distribution
+
+    CALL dbcsr_new_transposed(transposed%matrix, normal%matrix, myshallow_data_copy,&
+         transpose_data, mytranspose_distribution,&
+         use_distribution=myuse_distribution, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_transposed
 

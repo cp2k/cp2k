@@ -870,6 +870,9 @@ MODULE input_constants
   
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns=17, ls_scf_trs4=18
 
+  INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
+                                              ls_scf_line_search_3point_2d=6
+
   ! some MP2 parameters
   INTEGER, PARAMETER, PUBLIC               :: mp2_method_none=0,&
                                               mp2_method_laplace=2,&
