@@ -36,7 +36,8 @@ MODULE mp2_types
                                         mp2_method_gpw,&
                                         ri_mp2_method_gpw,&
                                         ri_rpa_method_gpw,&
-                                        init_TShPSC_lmax
+                                        init_TShPSC_lmax,&
+                                        ri_mp2_type
 
   PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
             pair_list_type_mp2,&

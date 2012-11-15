@@ -22,7 +22,8 @@ MODULE input_cp2k_resp
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t,&
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -342,7 +343,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
-            description="Specifies the maximum distance a fit point is away from an atom. ",&
+            description="Specifies the maximum distance a fit point is away from an atom. "//&
+                        "Valid for all atomic kinds for which no RMAX_KIND are specified.",&
             usage="RMAX 2.5",&
             default_r_val=cp_unit_to_cp2k(value=2.5_dp, unit_str="angstrom", error=error),&
             unit_str='angstrom', error=error)
@@ -350,10 +352,27 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMIN",&
-            description="Specifies the minimum distance a fit point is away from an atom. ",&
+            description="Specifies the minimum distance a fit point is away from an atom. "//&
+                        "Valid for all atomic kinds for which no RMIN_KIND are specified.",&
             usage="RMIN 2.1",&
             default_r_val=cp_unit_to_cp2k(value=2.1_dp, unit_str="angstrom", error=error),&
             unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMAX_KIND",&
+            description="Specifies the maximum distance a fit point is away from an atom "//&
+                        "of a given kind",&
+            usage="RMAX 2.5 Br", required=.FALSE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMIN_KIND",&
+            description="Specifies the minimum distance a fit point is away from an atom "//&
+                        "of a given kind",&
+            usage="RMIN 2.1 Br", required=.FALSE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

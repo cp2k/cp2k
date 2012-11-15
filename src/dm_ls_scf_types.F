@@ -28,7 +28,8 @@ MODULE dm_ls_scf_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_types'
 
-  PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular
+  PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular, &
+            ls_mat_history_type
 
   TYPE ls_mstruct_type
      INTEGER :: cluster_type
