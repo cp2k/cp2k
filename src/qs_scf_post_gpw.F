@@ -23,7 +23,8 @@ MODULE qs_scf_post_gpw
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -1236,13 +1237,20 @@ CONTAINS
        ENDIF
 
        ! *** Write WaveFunction restart file ***
+
+       DO ispin=1,SIZE(mos_new)
+          IF(overwrite_mos)THEN
+             CALL cp_fm_to_fm(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff,error)
+             IF(mos_new(1)%mo_set%use_mo_coeff_b)&
+                CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos_new(ispin)%mo_set%mo_coeff_b,&
+                                      error=error)
+          END IF 
+          IF(mos(1)%mo_set%use_mo_coeff_b)&
+             CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b,&
+                                   error=error)
+       END DO
        CALL write_mo_set(mos_new,particle_set,dft_section=dft_section,scp=.FALSE., &
                          atomic_kind_set=atomic_kind_set,error=error)
-       IF(overwrite_mos)THEN
-          DO ispin=1,SIZE(mos_new)
-             CALL cp_fm_to_fm(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff,error)
-          END DO
-        END IF
 
        DO ispin=1,SIZE(mos_new)
           CALL deallocate_mo_set(mos_new(ispin)%mo_set,error)
@@ -2588,7 +2596,7 @@ CONTAINS
                                                 nr, output_unit, unit_nr
     LOGICAL                                  :: append_cube, failure, &
                                                 print_total_density, &
-                                                xrd_interface
+                                                xrd_interface, write_ks, write_xc
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
                                                 rho_total, rho_total_rspace, &
                                                 udvol, volume
@@ -3072,15 +3080,38 @@ CONTAINS
        END IF
 
        ! Write the Kohn-Sham matrices
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,error=error,&
-                                   calculate_forces=.FALSE.,just_energy=.FALSE.)
+       write_ks=BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
+       write_xc=BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                 "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
+       ! we need to update stuff before writing, potentially computing the matrix_vxc
+       IF (write_ks .OR. write_xc) THEN
+          IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,error=error,&
+                                    calculate_forces=.FALSE.,just_energy=.FALSE.)
+          IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
+       END IF
+
+       ! Write the Kohn-Sham matrices
+       IF (write_ks) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
              CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
+                                            para_env,output_unit=iw,error=error)
+          END DO
+          CALL cp_print_key_finished_output(iw,logger,input,&
+                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+                                            error=error)
+       END IF
+
+       ! Write the xc matrix
+       IF (write_xc) THEN
+          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
+                                    extension=".Log",error=error)
+          DO ispin=1,dft_control%nspins
+             CALL cp_dbcsr_write_sparse_matrix(qs_env%matrix_vxc(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
