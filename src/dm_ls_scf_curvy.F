@@ -11,7 +11,8 @@
 ! *****************************************************************************
 
 MODULE dm_ls_scf_curvy
-
+  USE bibliography,                    ONLY: Shao2003,&
+                                             cite_reference
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, &
@@ -62,6 +63,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
+
+    CALL cite_reference(Shao2003)
 
 ! Check that the transformation matrices into orthonormal basis are present
     failure=.FALSE.

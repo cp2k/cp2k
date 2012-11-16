@@ -13,6 +13,8 @@ MODULE thermostat_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE bibliography,                    ONLY: VandeVondele2002,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -176,6 +178,7 @@ CONTAINS
 
     ! Compute Degrees of Freedom
     IF ( simpar%ensemble==nvt_adiabatic_ensemble ) THEN
+      CALL cite_reference(VandeVondele2002)
       region = do_region_global
       region_section_fast => section_vals_get_subs_vals(adiabatic_fast_section,"DEFINE_REGION",error=error)
       region_section_slow => section_vals_get_subs_vals(adiabatic_slow_section,"DEFINE_REGION",error=error)

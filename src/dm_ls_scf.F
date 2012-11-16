@@ -12,6 +12,9 @@
 ! *****************************************************************************
 MODULE dm_ls_scf
   USE bibliography,                    ONLY: Kolafa2004,&
+                                             Niklasson2003,&
+                                             Shao2003,&
+                                             VandeVondele2012,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
@@ -138,6 +141,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+
+    CALL cite_reference(VandeVondele2012)
 
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
@@ -557,6 +562,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: curvy_section, ls_scf_section
 
     CALL timeset(routineN,handle)
+    CALL cite_reference(VandeVondele2012)
     failure=.FALSE.
     ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF",error=error)
     curvy_section => section_vals_get_subs_vals(ls_scf_section,"CURVY_STEPS",error=error)
@@ -639,10 +645,16 @@ CONTAINS
            WRITE(unit_nr,'(T2,A,T38,A20)') "S preconditioner type ","MOLECULAR"
        END SELECT
 
+       IF (ls_scf_env%curvy_steps) THEN
+          WRITE(unit_nr,'(T2,A,T38,A30)') "Using curvy steps to optimize the density matrix"
+          CALL cite_reference(Shao2003)
+       ENDIF
+
        SELECT CASE(ls_scf_env%purification_method)
        CASE(ls_scf_ns)
            WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Newton-Schulz sign iter"
        CASE(ls_scf_trs4)
+           CALL cite_reference(Niklasson2003)
            WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Trace resetting 4th order"
        CASE DEFAULT
            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

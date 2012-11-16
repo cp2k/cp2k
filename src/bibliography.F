@@ -58,7 +58,7 @@ MODULE bibliography
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
-             Mitchell1993, Devynck2012
+             Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002
 
 CONTAINS
 
@@ -2031,6 +2031,99 @@ CONTAINS
          "UR http://link.aps.org/doi/10.1103/PhysRevB.85.184103",&
          "ER"),&
          DOI="10.1103/PhysRevB.85.184103")
+
+     CALL add_reference(key=VandeVondele2012, ISI_record=s2a(&
+          "PT J",&
+          "AU VandeVondele, J",&
+          "   Borstnik, U",&
+          "   Hutter, J",&
+          "AF VandeVondele, Joost",&
+          "   Borstnik, Urban",&
+          "   Hutter, Juerg",&
+          "TI Linear Scaling Self-Consistent Field Calculations with Millions of Atoms",&
+          "   in the Condensed Phase",&
+          "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+          "SN 1549-9618",&
+          "PD OCT",&
+          "PY 2012",&
+          "VL 8",&
+          "IS 10",&
+          "BP 3565",&
+          "EP 3573",&
+          "DI 10.1021/ct200897x",&
+          "UT WOS:000309505600014",&
+          "ER"),&
+          DOI="10.1021/ct200897x")
+
+      CALL add_reference(key=Niklasson2003, ISI_record=s2a(&
+           "PT J",&
+           "AU Niklasson, AMN",&
+           "   Tymczak, CJ",&
+           "   Challacombe, M",&
+           "AF Niklasson, AMN",&
+           "   Tymczak, CJ",&
+           "   Challacombe, M",&
+           "TI Trace resetting density matrix purification in O(N)",&
+           "   self-consistent-field theory",&
+           "SO JOURNAL OF CHEMICAL PHYSICS",&
+           "SN 0021-9606",&
+           "PD MAY 15",&
+           "PY 2003",&
+           "VL 118",&
+           "IS 19",&
+           "BP 8611",&
+           "EP 8620",&
+           "DI 10.1063/1.1559913",&
+           "UT WOS:000182603000010",&
+           "ER"),&
+           DOI="10.1063/1.1559913")
+
+      CALL add_reference(key=Shao2003, ISI_record=s2a(&
+            "PT J",&
+            "AU Shao, Y",&
+            "   Saravanan, C",&
+            "   Head-Gordon, M",&
+            "   White, CA",&
+            "AF Shao, Y",&
+            "   Saravanan, C",&
+            "   Head-Gordon, M",&
+            "   White, CA",&
+            "TI Curvy steps for density matrix-based energy minimization: Application to",&
+            "   large-scale self-consistent-field calculations",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "RI White, Christopher/B-7390-2009",&
+            "SN 0021-9606",&
+            "PD APR 8",&
+            "PY 2003",&
+            "VL 118",&
+            "IS 14",&
+            "BP 6144",&
+            "EP 6151",&
+            "DI 10.1063/1.1558476",&
+            "UT WOS:000181834900004",&
+            "ER"),&
+          DOI="11.1063/1.1558476")
+
+      CALL add_reference(key=VandeVondele2002, ISI_record=s2a(&
+            "PT J",&
+            "AU VandeVondele, J",&
+            "   Rothlisberger, U",&
+            "AF VandeVondele, J",&
+            "   Rothlisberger, U",&
+            "TI Canonical adiabatic free energy sampling (CAFES): A novel method for the",&
+            "   exploration of free energy surfaces",&
+            "SO JOURNAL OF PHYSICAL CHEMISTRY B",&
+            "SN 1520-6106",&
+            "PD JAN 10",&
+            "PY 2002",&
+            "VL 106",&
+            "IS 1",&
+            "BP 203",&
+            "EP 208",&
+            "DI 10.1021/jp013346k",&
+            "UT WOS:000173256700030",&
+            "ER"),&
+            DOI="10.1021/jp013346k") 
 
   END SUBROUTINE add_all_references
 

@@ -14,11 +14,11 @@ MODULE input_cp2k_dft
        Avezac2005, Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
        Dudarev1998, Elstner1998, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
        Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
-       Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
-       Stewart1989, Stewart2007, Thiel1992, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-       Zhechkov2005
+       Kunert2003, Lippert1997, Lippert1999, Niklasson2003, Perdew1981, &
+       Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
+       Shao2003, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
+       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+       VandeVondele2006, VandeVondele2012, Weber2008, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -4525,7 +4525,7 @@ CONTAINS
        CALL section_create(section,"LS_SCF",&
             description="Specifies the parameters of the linear scaling SCF routines",&
             n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            citations=(/VandeVondele2012/),error=error)
 
        NULLIFY (keyword,subsection)
 
@@ -4593,6 +4593,7 @@ CONTAINS
             description="Scheme used to purify the Kohn-Sham matrix into the density matrix.",&
             usage="PURIFICATION_METHOD TRS4",&
             default_i_val=ls_scf_ns,&
+            citations=(/VandeVondele2012,Niklasson2003/),&
             enum_c_vals=s2a( "SIGN_MATRIX", "TRS4"),&
             enum_desc=s2a("Newton-Schulz sign matrix iteration.",&
                           "Trace resetting 4th order scheme"),&
@@ -4691,6 +4692,7 @@ CONTAINS
        CALL section_create(section,"CURVY_STEPS",&
             description="Specifies the parameters of the linear scaling SCF routines",&
             n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Shao2003/),&
             error=error)
 
        NULLIFY (keyword)

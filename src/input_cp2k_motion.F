@@ -12,7 +12,7 @@ MODULE input_cp2k_motion
   USE bibliography,                    ONLY: &
        Byrd1995, Elber1987, Evans1983, Henkelman1999, Jonsson1998, &
        Jonsson2000_1, Jonsson2000_2, Kolafa2004, Kuhne2007, Minary2003, &
-       Ricci2003, Wales2004
+       Ricci2003, VandeVondele2002, Wales2004
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -1522,8 +1522,8 @@ CONTAINS
             "langevin dynamics (constant temperature)",&
             "constant pressure ensemble (no thermostat)",&
             "constant pressure ensemble using an isotropic cell (no thermostat)",&
-            "adiabatic dynamics in constant temperature and volume ensemble"),&
-            citations=(/Evans1983,Minary2003,Kolafa2004/),&
+            "adiabatic dynamics in constant temperature and volume ensemble (CAFES)"),&
+            citations=(/Evans1983,VandeVondele2002,Minary2003,Kolafa2004/),&
             enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,npt_f_ensemble,&
             nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble,nph_ensemble,isokin_ensemble,&
             reftraj_ensemble,langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
@@ -3656,9 +3656,10 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-       CALL section_create(section,name="adiabatic_dynamics",&
-            description="Parameters used in adiabatic dynamics.",&
+       CALL section_create(section,name="ADIABATIC_DYNAMICS",&
+            description="Parameters used in canonical adiabatic free energy sampling (CAFES).",&
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            citations=(/VandeVondele2002/),&
             error=error)
 
        NULLIFY(keyword,thermo_fast_section,thermo_slow_section)
