@@ -63,6 +63,7 @@ MODULE dm_ls_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_scf_post_gpw,                 ONLY: write_mo_free_results
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -910,7 +911,10 @@ CONTAINS
 
     IF (ls_scf_env%report_all_sparsities) CALL post_scf_sparsities(ls_scf_env,error)
 
+    CALL write_mo_free_results(qs_env,error)
+
     IF (.TRUE.) CALL post_scf_experiment(ls_scf_env,error)
+
 
     ! clean up used data
 

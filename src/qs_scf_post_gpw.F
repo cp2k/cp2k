@@ -174,7 +174,8 @@ MODULE qs_scf_post_gpw
             qs_scf_post_unocc_cubes,&
             qs_scf_post_moments,&
             qs_scf_post_efg,&
-            write_available_results
+            write_available_results,&
+            write_mo_free_results
 
 CONTAINS
 
@@ -2357,11 +2358,14 @@ CONTAINS
   END SUBROUTINE qs_scf_post_gemopt
 
 ! *****************************************************************************
-!> \brief Write QS results always available (if switched on through the print_keys)
+!> \brief Interface routine to trigger writing of results available from normal 
+!>        SCF. Can write MO-dependent and MO free results (needed for call from
+!>        the linear scaling code)
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
+
   SUBROUTINE write_available_results(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
@@ -2370,41 +2374,52 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=1), DIMENSION(3)           :: cdir = (/"x","y","z"/)
-    CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
-    CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: handle, homo, i, iat, id, ikind, iso, ispin, istat, iw, l, &
-      nd(3), ngto, niso, nkind, nmo, np, nr, output_unit, unit_nr
-    LOGICAL                                  :: all_equal, append_cube, &
-                                                failure, print_total_density, &
-                                                write_ks, write_xc, &
-                                                xrd_interface
-    REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
-      rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
-      volume
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: bfun
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: aedens, ccdens, ppdens
-    REAL(KIND=dp), DIMENSION(3)              :: dr
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+    CALL write_mo_dependent_results(qs_env,scf_env,error)
+    CALL write_mo_free_results(qs_env,error)
+    CALL timestop(handle)
+
+  END SUBROUTINE write_available_results
+
+! *****************************************************************************
+!> \brief Write QS results available if MO's are present (if switched on through the print_keys)
+!>        Writes only MO dependent results. Split is necessary as ls_scf does not
+!>        provide MO's
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE write_mo_dependent_results(qs_env,scf_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, ispin, nmo, &
+                                                output_unit
+    LOGICAL                                  :: all_equal, failure
+    REAL(KIND=dp)                            :: maxocc, s_square, &
+                                                s_square_ideal, &
+                                                total_abs_spin_dens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
                                                 occupation_numbers
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
-                                                matrix_s, matrix_vxc
+                                                matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -2412,27 +2427,21 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: aux_g, aux_r, &
-                                                rho_elec_gspace, &
-                                                rho_elec_rspace, wf_r
-    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
+    TYPE(pw_p_type)                          :: wf_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER                                :: rho_atom_set
-    TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, input, xc_section
+    TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            mo_coeff, mo_coeff_deriv,mo_eigenvalues,mos,atomic_kind_set,particle_set,rho,&
-            ks_rmpv,matrix_s,scf_control,dft_section,xc_section,&
-            molecule_set,input,particles,subsys)
+    NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
+         mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, &
+         particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
+         molecule_set, input, particles, subsys)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -2442,7 +2451,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,matrix_ks_aux_fit=ks_rmpv_aux_fit,admm_env=admm_env,&
-            scf_control=scf_control,matrix_s=matrix_s,matrix_vxc=matrix_vxc,&
+            scf_control=scf_control,matrix_s=matrix_s,&
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -2469,21 +2478,22 @@ CONTAINS
                   CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
                                                     ks_rmpv_aux_fit(ispin)%matrix, error)
                 END IF
-
-                IF (scf_env%method == ot_method_nr) THEN
-                   CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                        eigenvalues=mo_eigenvalues)
-                   IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-                      mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
-                   ELSE
-                      mo_coeff_deriv=>NULL()
-                   ENDIF
-
-                   CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                        do_rotation=.TRUE.,&
-                        co_rotate_dbcsr=mo_coeff_deriv,error=error)
-                   CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
-
+                IF(PRESENT(scf_env))THEN
+                   IF (scf_env%method == ot_method_nr) THEN
+                      CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                           eigenvalues=mo_eigenvalues)
+                      IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                         mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+                      ELSE
+                         mo_coeff_deriv=>NULL()
+                      ENDIF
+   
+                      CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
+                           do_rotation=.TRUE.,&
+                           co_rotate_dbcsr=mo_coeff_deriv,error=error)
+                      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
+   
+                   END IF
                 END IF
                 IF(dft_control%nspins==2) THEN
                    CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
@@ -2502,7 +2512,7 @@ CONTAINS
              END DO
           ENDIF
        END IF
-
+       
        !   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
@@ -2547,6 +2557,92 @@ CONTAINS
              energy%s_square=s_square
           END IF
        ENDIF
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_mo_dependent_results
+
+! *****************************************************************************
+!> \brief Write QS results always available (if switched on through the print_keys)
+!>        Can be called from ls_scf
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE write_mo_free_results(qs_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_free_results', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=1), DIMENSION(3)           :: cdir = (/"x","y","z"/)
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: handle, i, iat, id, ikind, &
+                                                iso, ispin, istat, iw, l, &
+                                                nd(3), ngto, niso, nkind, np, &
+                                                nr, output_unit, unit_nr
+    LOGICAL                                  :: append_cube, failure, &
+                                                print_total_density, &
+                                                xrd_interface
+    REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
+                                                rho_total, rho_total_rspace, &
+                                                udvol, volume
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: bfun
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: aedens, ccdens, ppdens
+    REAL(KIND=dp), DIMENSION(3)              :: dr
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
+                                                matrix_s
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: aux_g, aux_r, &
+                                                rho_elec_gspace, &
+                                                rho_elec_rspace, wf_r
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(section_vals_type), POINTER         :: dft_section, input, xc_section
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
+         atomic_kind_set, particle_set, rho, ks_rmpv, matrix_s, &
+         dft_section, xc_section, input, particles, subsys)
+    para_env=>qs_env%para_env
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL get_qs_env(qs_env,dft_control=dft_control, &
+            atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
+            rho=rho,matrix_ks=ks_rmpv,matrix_ks_aux_fit=ks_rmpv_aux_fit,&
+            matrix_s=matrix_s,input=input,cell=cell,subsys=subsys,error=error)
+       dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+       CALL cp_subsys_get(subsys,particles=particles,error=error)
 
        ! Print the total density (electronic + core charge)
 
@@ -2975,22 +3071,12 @@ CONTAINS
                                             error=error)
        END IF
 
-       write_ks=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
-       write_xc=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
-
-       ! we need to update stuff before writing, potentially computing the matrix_vxc
-       IF (write_ks .OR. write_xc) THEN
-          IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+       ! Write the Kohn-Sham matrices
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,error=error,&
                                    calculate_forces=.FALSE.,just_energy=.FALSE.)
-          IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
-       ENDIF
-
-       ! Write the Kohn-Sham matrices
-       IF (write_ks) THEN
+          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
@@ -3002,25 +3088,11 @@ CONTAINS
                                             error=error)
        END IF
 
-       ! Write the xc matrix
-       IF (write_xc) THEN
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
-                                    extension=".Log",error=error)
-          DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(qs_env%matrix_vxc(ispin)%matrix,4,6,qs_env,&
-                                            para_env,output_unit=iw,error=error)
-          END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-                                            error=error)
-       END IF
-
-
     END IF
 
     CALL timestop(handle)
 
-  END SUBROUTINE write_available_results
+  END SUBROUTINE write_mo_free_results
 
   SUBROUTINE project_function_a(ca,a,cb,b,l,error)
     ! project function cb on ca
