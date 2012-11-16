@@ -3115,7 +3115,7 @@ CONTAINS
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+                                            "DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
                                             error=error)
        END IF
 
