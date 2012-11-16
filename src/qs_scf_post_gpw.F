@@ -2596,7 +2596,8 @@ CONTAINS
                                                 nr, output_unit, unit_nr
     LOGICAL                                  :: append_cube, failure, &
                                                 print_total_density, &
-                                                xrd_interface, write_ks, write_xc
+                                                write_ks, write_xc, &
+                                                xrd_interface
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
                                                 rho_total, rho_total_rspace, &
                                                 udvol, volume
