@@ -80,7 +80,10 @@ MODULE force_env_methods
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       debug_run, do_stress_analytical, do_stress_diagonal_anal, &
+       debug_run, do_fm_mom_conserv_QM, do_fm_mom_conserv_buffer, &
+       do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &
+       do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, &
+       do_stress_analytical, do_stress_diagonal_anal, &
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
        mix_restrained, use_bazant_eip, use_lenosky_eip
@@ -115,7 +118,8 @@ MODULE force_env_methods
                                              qmmm_link_Imomm_forces
   USE qmmm_types,                      ONLY: &
        fist_subsys, force_mixing_core_subsys, force_mixing_extended_subsys, &
-       force_mixing_label_QM_dynamics, primary_subsys, qmmm_env_qm_retain, &
+       force_mixing_label_QM_core, force_mixing_label_QM_dynamics, &
+       force_mixing_label_buffer, primary_subsys, qmmm_env_qm_retain, &
        qmmm_env_qm_type, qmmm_links_type, qs_subsys
   USE qmmm_util,                       ONLY: apply_qmmm_translate,&
                                              apply_qmmm_walls,&
@@ -807,9 +811,15 @@ CONTAINS
     CHARACTER(DEFAULT_STRING_LENGTH)         :: restart_filename, &
                                                 restart_filename_suffix, &
                                                 restart_history_filename
-    INTEGER                                  :: ip, isubf
+    INTEGER                                  :: ip, isubf, &
+                                                mom_conserv_min_label, &
+                                                mom_conserv_n, &
+                                                mom_conserv_region, &
+                                                mom_conserv_type
     INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
     LOGICAL :: do_require_consistent_energy_force, failure
+    REAL(dp)                                 :: delta_a(3), delta_f(3), &
+                                                mom_conserv_mass, total_f(3)
     TYPE(cp_subsys_type), POINTER            :: subsys_primary, &
                                                 subsys_qmmm_core, &
                                                 subsys_qmmm_extended
@@ -888,6 +898,54 @@ CPSourceFileRef,&
              particles_qmmm_core(cur_indices(ip))%f=particles_qmmm_extended(cur_indices(ip))%f
            ENDIF
         END DO
+
+        ! zero momentum
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%MOMENTUM_CONSERVATION_TYPE",&
+                                  i_val=mom_conserv_type,error=error)
+        IF (mom_conserv_type /= do_fm_mom_conserv_none) THEN
+           CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%MOMENTUM_CONSERVATION_REGION",&
+                                     i_val=mom_conserv_region,error=error)
+
+           IF (mom_conserv_region == do_fm_mom_conserv_core) THEN
+              mom_conserv_min_label = force_mixing_label_QM_core
+           ELSEIF (mom_conserv_region == do_fm_mom_conserv_QM) THEN
+              mom_conserv_min_label = force_mixing_label_QM_dynamics
+           ELSEIF (mom_conserv_region == do_fm_mom_conserv_buffer) THEN
+              mom_conserv_min_label = force_mixing_label_buffer
+           ELSE
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                   routineP,"Got unknown MOMENTUM_CONSERVATION_REGION (not CORE, QM, or BUFFER) !"//&
+CPSourceFileRef,&
+               error,failure)
+           ENDIF
+
+           total_f = 0.0_dp
+           DO ip=1, SIZE(particles_qmmm_core)
+             total_f(1:3) = total_f(1:3) + particles_qmmm_core(ip)%f(1:3)
+           END DO
+           IF (mom_conserv_type == do_fm_mom_conserv_equal_f) THEN
+              mom_conserv_n = COUNT(cur_labels >= mom_conserv_region)
+              delta_f = total_f/mom_conserv_n
+              DO ip=1, SIZE(cur_indices)
+                IF (cur_labels(ip) >= mom_conserv_region) THEN
+                  particles_qmmm_core(cur_indices(ip))%f = particles_qmmm_core(cur_indices(ip))%f - delta_f
+                ENDIF
+              END DO
+           ELSE IF (mom_conserv_type == do_fm_mom_conserv_equal_a) THEN
+              mom_conserv_mass = 0.0_dp
+              DO ip=1, SIZE(cur_indices)
+               IF (cur_labels(ip) >= mom_conserv_region) &
+                 mom_conserv_mass = mom_conserv_mass + particles_qmmm_core(cur_indices(ip))%atomic_kind%mass
+              END DO
+              delta_a = total_f/mom_conserv_mass
+              DO ip=1, SIZE(cur_indices)
+                IF (cur_labels(ip) >= mom_conserv_region) THEN
+                  particles_qmmm_core(cur_indices(ip))%f = particles_qmmm_core(cur_indices(ip))%f - &
+                     particles_qmmm_core(cur_indices(ip))%atomic_kind%mass * delta_a
+                ENDIF
+              END DO
+           ENDIF
+        ENDIF
 
         IF (force_mixing_core_subsys /= primary_subsys) THEN
           CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&

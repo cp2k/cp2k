@@ -306,6 +306,14 @@ MODULE input_constants
                                               do_qmmm_image_calcmatrix=0,&
                                               do_qmmm_image_iter=1
 
+  INTEGER, PARAMETER, PUBLIC               :: do_fm_mom_conserv_none=0, &
+                                              do_fm_mom_conserv_equal_f=1, &
+                                              do_fm_mom_conserv_equal_a=2
+
+  INTEGER, PARAMETER, PUBLIC               :: do_fm_mom_conserv_core=0, &
+                                              do_fm_mom_conserv_qm=1, &
+                                              do_fm_mom_conserv_buffer=2
+
   INTEGER, PARAMETER, PUBLIC               :: do_region_global=0, &
                                               do_region_molecule=1,&
                                               do_region_massive=2,&

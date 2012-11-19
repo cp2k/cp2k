@@ -343,6 +343,30 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="MOMENTUM_CONSERVATION_TYPE",&
+        description="How to apply force to get momentum conservation", &
+        usage="MOMENTUM_CONSERVATION_TYPE <type>",&
+        enum_c_vals=s2a( "NONE","EQUAL_F","EQUAL_A"),&
+        enum_i_vals=(/ do_fm_mom_conserv_none, do_fm_mom_conserv_equal_f, do_fm_mom_conserv_equal_a/),&
+        enum_desc=s2a("No momentum conservation", &
+                      "Equal force on each atom",&
+                      "Equal acceleration on each atom"),&
+        default_i_val=do_fm_mom_conserv_equal_a, required=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="MOMENTUM_CONSERVATION_REGION",&
+        description="Region to apply correction force to for momentum conservation", &
+        usage="MOMENTUM_CONSERVATION_REGION <label>",&
+        enum_c_vals=s2a( "CORE","QM","BUFFER"),&
+        enum_i_vals=(/ do_fm_mom_conserv_core, do_fm_mom_conserv_QM, do_fm_mom_conserv_buffer/),&
+        enum_desc=s2a("Apply to QM core region", &
+                      "Apply to full QM (dynamics) region",&
+                      "Apply to QM+buffer regions"),&
+        default_i_val=do_fm_mom_conserv_QM, required=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="R_CORE",&
         description="Specify the inner and outer radii of core QM region. "//&
         " All molecules with any atoms within this distance (hysteretically) of any atoms "//&

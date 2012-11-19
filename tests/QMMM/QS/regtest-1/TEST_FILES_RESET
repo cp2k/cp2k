@@ -451,3 +451,6 @@ H2O-qmmm-gauss-11.inp
 H2O-qmmm-none-1.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 H2O-qmmm-gauss-15.inp
+#
+H2O-qmmm-gauss-force-mixing-1.inp
+H2O-qmmm-none-force-mixing-1.inp
