@@ -167,6 +167,7 @@ OBJECTS_GENERIC =\
  distribution_methods.o\
  distribution_optimize.o\
  dkh_main.o\
+ dm_ls_chebyshev.o\
  dm_ls_scf_methods.o\
  dm_ls_scf_curvy.o\
  dm_ls_scf.o\

@@ -4666,10 +4666,75 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_chebyshev_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 
   END SUBROUTINE create_ls_scf_section
+
+! *****************************************************************************
+!> \brief creates the DOS section
+!> \author Joost VandeVondele, Jinwoong Cha [2012-10]
+! *****************************************************************************
+  SUBROUTINE create_chebyshev_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_chebyshev_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,"CHEBYSHEV",&
+            description="Specifies the parameters needed for the chebyshev expansion based properties.",&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY (keyword)
+       NULLIFY(print_key)
+
+       CALL keyword_create(keyword, name="N_CHEBYSHEV",&
+            description="Order of the polynomial expansion.",&
+            usage="N_CHEBYSHEV 2000", default_i_val=500,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! A DOS print key
+       CALL cp_print_key_section_create(print_key,"DOS",&
+            description="Controls the printing of the Density of States (DOS).", &
+            print_level=high_print_level,filename="",error=error)
+       CALL keyword_create(keyword, name="N_GRIDPOINTS",&
+            description="Number of points in the computed DOS",&
+            usage="N_GRIDPOINTS 10000", default_i_val=2000,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL keyword_create(keyword, name="MIN_ENERGY",&
+            description="Energy range of interest (smaller one)",&
+            usage="MIN_ENERGY -1", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_ENERGY",&
+            description="Energy range of interest (larger one)",&
+            usage="MAX_ENERGY 1", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_chebyshev_section
 
 ! *****************************************************************************
 !> \brief creates the curvy_steps section in linear scaling scf 

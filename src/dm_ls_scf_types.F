@@ -17,6 +17,8 @@ MODULE dm_ls_scf_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -66,6 +68,15 @@ MODULE dm_ls_scf_types
   END TYPE
 
 
+  TYPE chebyshev_type
+     LOGICAL :: compute_chebyshev
+     INTEGER :: n_chebyshev
+     INTEGER :: n_gridpoint_dos
+     REAL(KIND=dp) :: min_energy
+     REAL(KIND=dp) :: max_energy
+     TYPE(section_vals_type), POINTER :: print_key_dos=>NULL()
+  END TYPE
+
   TYPE ls_scf_env_type
      INTEGER               :: nspins, natoms
      INTEGER               :: nelectron_total
@@ -102,6 +113,8 @@ MODULE dm_ls_scf_types
 
      TYPE(ls_mstruct_type) :: ls_mstruct
      TYPE(ls_scf_curvy_type) :: curvy_data
+
+     TYPE(chebyshev_type) :: chebyshev
 
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE ls_scf_env_type
@@ -143,6 +156,8 @@ CONTAINS
     DEALLOCATE(ls_scf_env%scf_history%matrix,stat=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_dos)) &
+        CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos,error=error)
 
     DEALLOCATE(ls_scf_env,stat=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

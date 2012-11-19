@@ -28,6 +28,7 @@ MODULE dm_ls_scf
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
   USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                              dm_ls_curvy_optimization
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
@@ -50,6 +51,7 @@ MODULE dm_ls_scf
        ls_scf_trs4
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE iterate_matrix,                  ONLY: invert_Hotelling,&
@@ -560,7 +562,8 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
-    TYPE(section_vals_type), POINTER         :: curvy_section, ls_scf_section
+    TYPE(section_vals_type), POINTER         :: chebyshev_section, &
+                                                curvy_section, ls_scf_section
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
@@ -595,6 +598,17 @@ CONTAINS
     CALL section_vals_val_get(curvy_section,"MIN_FILTER",r_val=ls_scf_env%curvy_data%min_filter,error=error)
 
     ls_scf_env%extrapolation_order=MAX(0,ls_scf_env%extrapolation_order)
+
+    chebyshev_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%CHEBYSHEV",error=error)
+    CALL section_vals_get(chebyshev_section,explicit=ls_scf_env%chebyshev%compute_chebyshev,error=error)
+    IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
+      CALL section_vals_val_get(chebyshev_section,"N_CHEBYSHEV",i_val=ls_scf_env%chebyshev%n_chebyshev,error=error)
+      CALL section_vals_val_get(chebyshev_section,"DOS%N_GRIDPOINTS",i_val=ls_scf_env%chebyshev%n_gridpoint_dos,error=error)
+      CALL section_vals_val_get(chebyshev_section,"MIN_ENERGY",r_val=ls_scf_env%chebyshev%min_energy,error=error)
+      CALL section_vals_val_get(chebyshev_section,"MAX_ENERGY",r_val=ls_scf_env%chebyshev%max_energy,error=error)
+      ls_scf_env%chebyshev%print_key_dos =>  section_vals_get_subs_vals(chebyshev_section,"DOS",error=error)
+      CALL section_vals_retain(ls_scf_env%chebyshev%print_key_dos,error=error)
+    ENDIF
 
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
@@ -668,6 +682,13 @@ CONTAINS
            WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","MOLECULAR"
        END SELECT
 
+       IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
+          WRITE(unit_nr,'(T2,A,T38,A20)') "Computing Chebyshev","TRUE"
+          WRITE(unit_nr,'(T2,A,T38,I20)') "N_CHEBYSHEV:",ls_scf_env%chebyshev%n_chebyshev
+          WRITE(unit_nr,'(T2,A,T38,I20)') "N_GRIDPOINT_DOS:",ls_scf_env%chebyshev%n_gridpoint_dos
+       ELSE
+          WRITE(unit_nr,'(T2,A,T38,A20)') "Computing Chebyshev","FALSE"
+       ENDIF
 
        WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
        WRITE(unit_nr,'()')
@@ -912,6 +933,8 @@ CONTAINS
     IF (ls_scf_env%report_all_sparsities) CALL post_scf_sparsities(ls_scf_env,error)
 
     CALL write_mo_free_results(qs_env,error)
+
+    IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(ls_scf_env,error)
 
     IF (.TRUE.) CALL post_scf_experiment(ls_scf_env,error)
 
@@ -1260,6 +1283,7 @@ CONTAINS
     ELSE
        unit_nr=-1
     ENDIF
+
 
     CALL timestop(handle)
 
