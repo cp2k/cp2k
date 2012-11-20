@@ -107,6 +107,10 @@ CONTAINS
        CASE(ls_2pnt)
           CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE.,&
                output_unit=output_unit, error=error)
+       CASE(ls_gold)
+          CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
+               gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
+               gopt_param%cg_ls%initial_step, output_unit, globenv, error)
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Line Search type not yet implemented in CG for cell optimization.", &
@@ -174,8 +178,8 @@ CONTAINS
        ![NB] don't need consistent energies and forces if using only gradient
        save_consistent_energy_force = gopt_env%require_consistent_energy_force
        gopt_env%require_consistent_energy_force = .NOT. my_use_only_grad
-       CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2,master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env, error=error)
+       CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2, master=gopt_env%force_env%para_env%mepos,&
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env, error=error)
        gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
        norm_grad1 = -DOT_PRODUCT(        g,ls_norm)
@@ -273,7 +277,8 @@ CONTAINS
        IF (dimer_env%rot%curvature>0) dx = dx_thrs
        x0 = x0 + dx * tls_norm
        CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env, error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
+                       error=error)
        IF (dimer_env%rot%curvature>0) THEN
           dx_min      = 0.0_dp
           dx_min_save = dx
@@ -307,7 +312,8 @@ CONTAINS
 
        ! Here we compute the value of the energy in point zero..
        CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env, error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
+                       error=error)
 
        DEALLOCATE(tls_norm,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -356,7 +362,8 @@ CONTAINS
        CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
        ! Re-compute energy, gradients and rotation vector for new R1
        CALL cp_eval_at(gopt_env, x0, f, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env, error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
+                       error=error)
 
        curvature1 = dimer_env%rot%curvature
        a1         = (curvature0 - curvature1 + b1 * SIN(2.0_dp*angle))/(1.0_dp - COS(2.0_dp*angle))
@@ -919,7 +926,8 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x*xicom
        CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env, error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
+                       error=error)
        DEALLOCATE(xvec, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -963,7 +971,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x * xicom
        CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env, error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env, error=error)
        my_val = DOT_PRODUCT(grad,xicom)
        fval   = energy
        DEALLOCATE(xvec, stat=stat)

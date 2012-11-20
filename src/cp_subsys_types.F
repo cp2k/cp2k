@@ -16,6 +16,9 @@ MODULE cp_subsys_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              colvar_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -494,14 +497,15 @@ CONTAINS
 !> \author  Matthias Krack (MK)
 !> \date    19.11.10
 !> \version 1.0
-!> \note    It is assumed that f, r, or v are properly allocated already
+!> \note    It is assumed that f, r, s, or v are properly allocated already
 ! *****************************************************************************
-  SUBROUTINE pack_subsys_particles(subsys,f,r,v,fscale,error)
+  SUBROUTINE pack_subsys_particles(subsys,f,r,s,v,fscale,cell,error)
 
     TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(OUT), OPTIONAL                  :: f, r, v
+      INTENT(OUT), OPTIONAL                  :: f, r, s, v
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fscale
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pack_subsys_particles', &
@@ -510,11 +514,16 @@ CONTAINS
     INTEGER                                  :: i, iatom, j, k, natom, &
                                                 nparticle, nsize, shell_index
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: rs
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+
+    IF (PRESENT(s)) THEN
+      CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)
+    END IF
 
     NULLIFY (core_particles)
     NULLIFY (particles)
@@ -581,6 +590,35 @@ CONTAINS
       END DO
     END IF
 
+    ! Pack as scaled coordinates
+
+    IF (PRESENT(s)) THEN
+      CPPrecondition((SIZE(s) >= nsize),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          CALL real_to_scaled(rs,particles%els(iatom)%r,cell)
+          DO i=1,3
+            j = j + 1
+            s(j) = rs(i)
+          END DO
+        ELSE
+          CALL real_to_scaled(rs,core_particles%els(shell_index)%r,cell)
+          DO i=1,3
+            j = j + 1
+            s(j) = rs(i)
+          END DO
+          CALL real_to_scaled(rs,shell_particles%els(shell_index)%r,cell)
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            s(k+i) = rs(i)
+          END DO
+        END IF
+      END DO
+    END IF
+
     ! Pack velocities
 
     IF (PRESENT(v)) THEN
@@ -614,12 +652,13 @@ CONTAINS
 !> \date    19.11.10
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE unpack_subsys_particles(subsys,f,r,v,fscale,error)
+  SUBROUTINE unpack_subsys_particles(subsys,f,r,s,v,fscale,cell,error)
 
     TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: f, r, v
+      INTENT(IN), OPTIONAL                   :: f, r, s, v
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fscale
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'unpack_subsys_particles', &
@@ -629,6 +668,7 @@ CONTAINS
                                                 nparticle, nsize, shell_index
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fc, fs, mass, my_fscale
+    REAL(KIND=dp), DIMENSION(3)              :: rs
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
@@ -700,6 +740,41 @@ CONTAINS
           DO i=1,3
             shell_particles%els(shell_index)%r(i) = r(k+i)
           END DO
+          ! Update atomic position due to core and shell motion
+          mass = particles%els(iatom)%atomic_kind%mass
+          fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
+          fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
+          particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) +&
+                                        fs*shell_particles%els(shell_index)%r(1:3)
+        END IF
+      END DO
+    END IF
+
+    ! Unpack scaled coordinates
+
+    IF (PRESENT(s)) THEN
+      CPPrecondition((SIZE(s) >= nsize),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            rs(i) = s(j)
+          END DO
+          CALL scaled_to_real(particles%els(iatom)%r,rs,cell)
+        ELSE
+          DO i=1,3
+            j = j + 1
+            rs(i) = s(j)
+          END DO
+          CALL scaled_to_real(core_particles%els(shell_index)%r,rs,cell)
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            rs(i) = s(k+i)
+          END DO
+          CALL scaled_to_real(shell_particles%els(shell_index)%r,rs,cell)
           ! Update atomic position due to core and shell motion
           mass = particles%els(iatom)%atomic_kind%mass
           fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass

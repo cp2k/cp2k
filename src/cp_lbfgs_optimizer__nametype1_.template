@@ -61,12 +61,13 @@ MODULE cp_lbfgs_optimizer_[nametype1]
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_particle_coordinates
-  USE cp_subsys_types,              ONLY: cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE machine,                         ONLY: m_flush
-  USE gopt_param_types,                    ONLY: gopt_param_type
-  USE gopt_f_methods,                    ONLY: gopt_f_io,&
-                                               check_converg
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
+  USE gopt_param_types,                ONLY: gopt_param_type
+  USE gopt_f_methods,                  ONLY: gopt_f_io,&
+                                             check_converg
   USE particle_list_types,             ONLY: particle_list_type
 #include "cp_common_uses.h"
   [USE]
@@ -304,7 +305,7 @@ CONTAINS
                optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
                optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
                optimizer%dsave, optimizer%work_array)
-          ALLOCATE (optimizer%x(n),stat=stat)
+          ALLOCATE (optimizer%x(n),optimizer%gradient(n),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        CALL mp_bcast(optimizer%x,optimizer%master,&
@@ -541,6 +542,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=5)                         :: wildcard
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
+    REAL(KIND=dp) :: t_diff, t_now, t_old
     INTEGER       :: stat
     LOGICAL       :: conv
 
@@ -554,6 +556,7 @@ CPSourceFileRef,&
     ALLOCATE(xold(SIZE(optimizer%x)),stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     xold = optimizer%x
+    t_old = m_walltime()
 
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -655,6 +658,7 @@ CPSourceFileRef,&
              CALL [type1_eval_at](optimizer%obj_funct, x=optimizer%x,&
                   f=optimizer%f,&
                   gradient=optimizer%gradient,&
+                  final_evaluation=.FALSE.,&
                   master=optimizer%master,para_env=optimizer%para_env,&
                   error=error) ! do not use keywords?
              IF (is_master) THEN
@@ -671,6 +675,7 @@ CPSourceFileRef,&
           CASE (2)
              !op=2 begin new iter
              CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
+             t_old = m_walltime()
           CASE (3)
              !op=3 ended iter
              wildcard = "LBFGS"
@@ -680,15 +685,14 @@ CPSourceFileRef,&
              CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
 
              ! Some IO and Convergence check
+             t_now  = m_walltime()
+             t_diff = t_now - t_old
+             t_old  = t_now
              CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
                   its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
-                  used_time=0.0_dp, error=error) ! needs proper timing...
-
-             ! Check convergence
-             IF (is_master) CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
-                  dataunit,conv,gopt_param,error=error)
+                  SIZE(optimizer%x), optimizer%x-xold, optimizer%gradient, conv, used_time=t_diff,&
+                  error=error)
              CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
-
              CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO", error=error)
              optimizer%eold = optimizer%f
@@ -755,6 +759,7 @@ CPSourceFileRef,&
          projected_gradient=optimizer%projected_gradient
     IF (PRESENT(n_iter)) n_iter=optimizer%n_iter
     CALL timestop(handle)
+
   END SUBROUTINE cp_opt_[nametype1]_step
 
 ! *****************************************************************************

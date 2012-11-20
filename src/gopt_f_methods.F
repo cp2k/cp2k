@@ -14,7 +14,13 @@ MODULE gopt_f_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_copy,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             init_cell,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type,&
@@ -25,7 +31,9 @@ MODULE gopt_f_methods
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_get_natom,&
                                              force_env_get_nparticle,&
+                                             force_env_set_cell,&
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -61,7 +69,8 @@ MODULE gopt_f_methods
 
   PUBLIC :: gopt_f_create_x0, check_converg, write_final_info,&
        print_geo_opt_header, check_rot_conv, write_rot_cycle_infos, print_geo_opt_nc,&
-       geo_opt_io, gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii
+       geo_opt_io, gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii, &
+       apply_cell_change
 
 CONTAINS
 
@@ -72,7 +81,7 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
 !> \par History
-!>      none
+!>      - Cell optimization revised (06.11.2012,MK)
 ! *****************************************************************************
   SUBROUTINE gopt_f_create_x0(gopt_env,x0,error)
 
@@ -85,7 +94,6 @@ CONTAINS
 
     INTEGER                                  :: i, idg, j, nparticle, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: s
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
 
@@ -104,40 +112,34 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL pack_subsys_particles(subsys=subsys,r=x0,error=error)
     CASE (default_cell_method_id)
-      SELECT CASE(gopt_env%cell_method_id)
-      CASE(default_cell_geo_opt_id,default_cell_md_id)
-         CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
-         ALLOCATE (x0(6),stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         idg=0
-         DO i=1,3
-           DO j=1,i
-             idg = idg + 1
-             x0(idg) = cell%hmat(j,i)
-           END DO
-         END DO
-      CASE(default_cell_direct_id)
+      SELECT CASE (gopt_env%cell_method_id)
+      CASE (default_cell_direct_id)
          CALL force_env_get(gopt_env%force_env,subsys=subsys,cell=cell,error=error)
-         gopt_env%h_ref=cell%hmat
-         !before starting we handle the case of translating coordinates (QM/MM)
+         ! Store reference cell
+         gopt_env%h_ref = cell%hmat
+         ! before starting we handle the case of translating coordinates (QM/MM)
          CALL apply_qmmm_translate(gopt_env%force_env,error=error)
          nparticle = force_env_get_nparticle(gopt_env%force_env,error)
          ALLOCATE (x0(3*nparticle+6),STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ! for a combined optimization positions have to be stored in scaled coord
-         idg = 0
-         DO i=1,nparticle
-            s=subsys%particles%els(i)%r
-            DO j=1,3
-               idg=idg+1
-               x0(idg)=s(j)
-            END DO
-         END DO
+         CALL pack_subsys_particles(subsys=subsys,r=x0,error=error)
+         idg = 3*nparticle
          DO i=1,3
             DO j=1,i
               idg = idg + 1
               x0(idg) = cell%hmat(j,i)
             END DO
+         END DO
+      CASE (default_cell_geo_opt_id,default_cell_md_id)
+         CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
+         ALLOCATE (x0(6),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         idg = 0
+         DO i=1,3
+           DO j=1,i
+             idg = idg + 1
+             x0(idg) = cell%hmat(j,i)
+           END DO
          END DO
       CASE DEFAULT
          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -238,8 +240,8 @@ CONTAINS
     REAL(KIND=dp)                            :: pres_diff, pres_int, pres_tol
 
     failure = .FALSE.
-    SELECT CASE(gopt_env%type_id)
-    CASE(default_ts_method_id,default_minimization_method_id)
+    SELECT CASE (gopt_env%type_id)
+    CASE (default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
        IF (.NOT.gopt_env%dimer_rotation) THEN
           CALL geo_opt_io(force_env=force_env, root_section=root_section, &
@@ -265,7 +267,7 @@ CONTAINS
              CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv, error)
           END IF
        END IF
-    CASE(default_cell_method_id)
+    CASE (default_cell_method_id)
        ! Cell Optimization
        pres_diff = gopt_env%cell_env%pres_int - gopt_env%cell_env%pres_ext
        pres_int  = gopt_env%cell_env%pres_int
@@ -282,7 +284,7 @@ CONTAINS
           CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
           CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,pres_diff,pres_tol,error=error)
        END IF
-    CASE(default_shellcore_method_id)
+    CASE (default_shellcore_method_id)
           CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
                pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard, used_time=used_time, error=error)
           ! Possibly check convergence
@@ -667,12 +669,13 @@ CONTAINS
                          error=error)
 
       ! Write out more data for the minimum
-      unit_nr=cp_logger_get_default_io_unit(logger)
-      IF (unit_nr>0) THEN
-        WRITE (unit=unit_nr, fmt="(/,T20,' Reevaluating energy at the minimum ')")
+      unit_nr = cp_logger_get_default_io_unit(logger)
+      IF (unit_nr > 0) THEN
+        WRITE (UNIT=unit_nr,FMT="(/,T20,' Reevaluating energy at the minimum')")
       END IF
-      CALL cp_eval_at(gopt_env,x0,f=etot,master=master,para_env=para_env,error=error)
-      CALL write_geo_traj(force_env,  root_section, it, etot, error)
+      CALL cp_eval_at(gopt_env,x0,f=etot,master=master,final_evaluation=.TRUE.,&
+                      para_env=para_env,error=error)
+      CALL write_geo_traj(force_env,root_section,it,etot,error)
     END IF
 
   END SUBROUTINE write_final_info
@@ -861,5 +864,138 @@ CONTAINS
     CALL write_simulation_cell(cell, motion_section, its, 0.0_dp, error=error)
 
   END SUBROUTINE geo_opt_io
+
+! *****************************************************************************
+!> \brief   Apply coordinate transformations after cell (shape) change
+!> \author  Matthias Krack
+!> \date    05.11.2012 (revised version of unbiase_coordinates moved here, MK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE apply_cell_change(gopt_env,cell,x,update_forces,error)
+
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
+    LOGICAL, INTENT(IN)                      :: update_forces
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_cell_change', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom, idg, j, natom, &
+                                                nparticle, shell_index
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fc, fs, mass
+    REAL(KIND=dp), DIMENSION(3)              :: s
+    TYPE(cell_type), POINTER                 :: cell_ref
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
+
+     failure = .FALSE.
+
+     NULLIFY (cell_ref)
+     NULLIFY (core_particles)
+     NULLIFY (particles)
+     NULLIFY (shell_particles)
+     NULLIFY (subsys)
+
+     natom = force_env_get_natom(gopt_env%force_env,error)
+     nparticle = force_env_get_nparticle(gopt_env%force_env,error)
+     CALL force_env_get(gopt_env%force_env,&
+                        subsys=subsys,&
+                        error=error)
+     CALL cp_subsys_get(subsys=subsys,&
+                        core_particles=core_particles,&
+                        particles=particles,&
+                        shell_particles=shell_particles,&
+                        error=error)
+
+     ! Retrieve the reference cell
+     CALL cell_create(cell_ref,error=error)
+     CALL cell_copy(cell,cell_ref,error=error)
+
+     ! Load the updated cell information
+     SELECT CASE (gopt_env%cell_method_id)
+     CASE (default_cell_direct_id)
+        idg = 3*nparticle
+        CALL init_cell(cell_ref,hmat=gopt_env%h_ref)
+     CASE (default_cell_geo_opt_id,default_cell_md_id)
+        idg = 0
+     END SELECT
+     CPPrecondition((SIZE(x) == idg + 6),cp_failure_level,routineP,error,failure)
+
+     IF (update_forces) THEN
+
+        ! Transform particle forces back to reference cell
+        idg = 1
+        DO iatom=1,natom
+           CALL real_to_scaled(s,x(idg:idg+2),cell)
+           CALL scaled_to_real(x(idg:idg+2),s,cell_ref)
+           idg = idg + 3
+        END DO
+
+     ELSE
+
+        ! Update cell
+        DO i=1,3
+          DO j=1,i
+             idg = idg + 1
+             cell%hmat(j,i) = x(idg)
+          END DO
+        END DO
+        CALL init_cell(cell)
+        CALL force_env_set_cell(gopt_env%force_env,cell,error=error)
+
+        ! Retrieve particle coordinates for the current cell
+        SELECT CASE (gopt_env%cell_method_id)
+        CASE (default_cell_direct_id)
+           idg = 1
+           DO iatom=1,natom
+              CALL real_to_scaled(s,x(idg:idg+2),cell_ref)
+              shell_index = particles%els(iatom)%shell_index
+              IF (shell_index == 0) THEN
+                 CALL scaled_to_real(particles%els(iatom)%r,s,cell)
+              ELSE
+                 CALL scaled_to_real(core_particles%els(shell_index)%r,s,cell)
+                 i = 3*(natom + shell_index - 1) + 1
+                 CALL real_to_scaled(s,x(i:i+2),cell_ref)
+                 CALL scaled_to_real(shell_particles%els(shell_index)%r,s,cell)
+                 ! Update atomic position due to core and shell motion
+                 mass = particles%els(iatom)%atomic_kind%mass
+                 fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
+                 fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
+                 particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) +&
+                                               fs*shell_particles%els(shell_index)%r(1:3)
+              END IF
+              idg = idg + 3
+           END DO
+        CASE (default_cell_geo_opt_id,default_cell_md_id)
+           DO iatom=1,natom
+              shell_index = particles%els(iatom)%shell_index
+              IF (shell_index == 0) THEN
+                 CALL real_to_scaled(s,particles%els(iatom)%r,cell_ref)
+                 CALL scaled_to_real(particles%els(iatom)%r,s,cell)
+              ELSE
+                 CALL real_to_scaled(s,core_particles%els(shell_index)%r,cell_ref)
+                 CALL scaled_to_real(core_particles%els(shell_index)%r,s,cell)
+                 i = 3*(natom + shell_index - 1) + 1
+                 CALL real_to_scaled(s,shell_particles%els(shell_index)%r,cell_ref)
+                 CALL scaled_to_real(shell_particles%els(shell_index)%r,s,cell)
+                 ! Update atomic position due to core and shell motion
+                 mass = particles%els(iatom)%atomic_kind%mass
+                 fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
+                 fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
+                 particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) +&
+                                               fs*shell_particles%els(shell_index)%r(1:3)
+              END IF
+           END DO
+        END SELECT
+
+     END IF
+
+     CALL cell_release(cell_ref,error)
+
+  END SUBROUTINE apply_cell_change
 
 END MODULE gopt_f_methods

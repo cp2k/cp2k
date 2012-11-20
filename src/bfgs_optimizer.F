@@ -11,14 +11,8 @@ MODULE bfgs_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_copy,&
-                                             cell_create,&
-                                             cell_release,&
-                                             cell_type,&
-                                             init_cell,&
-                                             pbc,&
-                                             real_to_scaled,&
-                                             scaled_to_real
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
@@ -50,7 +44,6 @@ MODULE bfgs_optimizer
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&
@@ -61,9 +54,7 @@ MODULE bfgs_optimizer
                                              print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_cell_direct_id,&
-                                             default_cell_method_id,&
-                                             default_ts_method_id
+  USE input_constants,                 ONLY: default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -93,8 +84,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Main driver for BFGS geometry optimizations
 ! *****************************************************************************
-  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv, geo_section, gopt_env, x0,&
-       error)
+  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,geo_section,gopt_env,x0,&
+                         error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -113,7 +104,7 @@ CONTAINS
     INTEGER                                  :: handle, hesunit_read, indf, &
                                                 iter_nr, its, maxiter, ndf, &
                                                 nfree, output_unit, stat
-    LOGICAL                                  :: conv, do_cell, failure, &
+    LOGICAL                                  :: cell_opt, conv, failure, &
                                                 hesrest, ionode, &
                                                 shell_present, should_stop, &
                                                 use_mod_hes, use_rfo
@@ -145,34 +136,34 @@ CONTAINS
     print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART", error=error)
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
+    cell_opt    = .FALSE.
     conv        = .FALSE.
     rat         = 0.0_dp
     wildcard    = " BFGS"
-    do_cell=.FALSE.
-    ! Stop if not implemented
-    SELECT CASE(gopt_env%type_id)
-    CASE(default_ts_method_id)
+
+    ! Stop if not yet implemented
+    SELECT CASE (gopt_env%type_id)
+    CASE (default_ts_method_id)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="BFGS method not yet working with DIMER", &
             error=error, error_level=cp_failure_level)
-    CASE(default_cell_method_id)
-       IF(gopt_env%cell_method_id==default_cell_direct_id)THEN
-          do_cell=.TRUE.
-       ELSE
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="BFGS method not working with specified CELL_OPT method", &
-               error=error, error_level=cp_failure_level)
-       END IF
     END SELECT
 
     CALL section_vals_val_get(geo_section,"BFGS%USE_RAT_FUN_OPT",l_val=use_rfo,error=error)
     CALL section_vals_val_get(geo_section,"BFGS%USE_MODEL_HESSIAN",l_val=use_mod_hes,error=error)
     CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest,error=error)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".geoLog",error=error)
+                                       extension=".geoLog",error=error)
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
+    CALL cp_assert((ndf <= 3000),cp_note_level,cp_assertion_failed,routineP,&
+                   "The dimension of the Hessian matrix ("//&
+                   TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "//&
+                   "The diagonalisation of the full Hessian  matrix needed for BFGS "//&
+                   "is computationally expensive. You should consider to use the linear "//&
+                   "scaling variant L-BFGS instead.",&
+                   only_ionode=.TRUE.)
 
     ! Initialize hessian (hes = unitary matrix or model hessian )
     CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
@@ -190,11 +181,11 @@ CONTAINS
     CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
     IF (shell_present) THEN
-      use_mod_hes = .FALSE.
-      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+      CALL cp_assert((.NOT.use_mod_hes),cp_warning_level,cp_assertion_failed,routineP,&
                      "No model Hessian available for core-shell models. "//&
                      "An unit matrix is used for the initial Hessian.",&
                       error,failure)
+      use_mod_hes = .FALSE.
     END IF
 
     IF (use_mod_hes) THEN
@@ -249,7 +240,7 @@ CONTAINS
 
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-         gopt_env%force_env%para_env, error)
+                    .FALSE., gopt_env%force_env%para_env, error)
 
     ! Print info at time 0
     emin = etot
@@ -312,7 +303,7 @@ CONTAINS
 
        ! Energy & Gradients at new step
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-            gopt_env%force_env%para_env, error)
+                       .FALSE., gopt_env%force_env%para_env, error)
        ediff = etot - eold
 
        ! check for an external exit command
@@ -329,11 +320,10 @@ CONTAINS
 
        IF (conv.OR.(its==maxiter)) EXIT
        IF (etot < emin) emin = etot
-       IF(use_rfo)CALL update_trust_rad(rat,rad,step,ediff)
+       IF (use_rfo) CALL update_trust_rad(rat,rad,step,ediff)
     END DO
-    
-    IF(do_cell)CALL unbias_coordinates(gopt_env,gopt_env%h_ref,cell,x0,error)
-    IF(its == maxiter .AND. (.NOT.conv))THEN
+
+    IF (its == maxiter .AND. (.NOT.conv))THEN
        CALL print_geo_opt_nc(gopt_env, output_unit)
     END IF
 
@@ -342,7 +332,6 @@ CONTAINS
     CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
-
 
     CALL cp_fm_struct_release(fm_struct_hes,error=error)
     CALL cp_fm_release(hess_mat,error=error)
@@ -1124,54 +1113,6 @@ CONTAINS
       END IF
       deriv=0.25_dp*deriv
 
- END FUNCTION angle_second_deriv
-  
-
-  SUBROUTINE unbias_coordinates(gopt_env,h_ref,cell,x,error)
-    TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'unbias_coordinates', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, idg, ip, j
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: r, s
-    TYPE(cell_type), POINTER                 :: cell_ref
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-
-     failure = .FALSE.
-     NULLIFY(cell_ref)
-     CALL cell_create(cell_ref,error=error)
-     CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
-     CALL cp_subsys_get(subsys,&
-                       particles=particles,&
-                       error=error)
-     CALL cell_copy(cell,cell_ref, error)
-     CALL init_cell(cell_ref,hmat=h_ref)
-     idg = SIZE(x)-6
-     DO i = 1, 3
-       DO j = 1, i
-          idg = idg + 1
-          cell%hmat(j,i) = x(idg)
-       END DO
-     END DO
-     CALL init_cell(cell)
-     CALL force_env_set_cell(gopt_env%force_env, cell, error)
-     ! Converting into reals
-     DO ip=1,(SIZE(x)-6)/3
-        r=x(3*ip-2:3*ip)
-        CALL real_to_scaled(s,r,cell_ref)
-        CALL scaled_to_real(r,s,cell)
-        particles%els(ip)%r = r
-     END DO
-     CALL cell_release(cell_ref,error)
- 
- END SUBROUTINE unbias_coordinates
-
+  END FUNCTION angle_second_deriv
 
 END MODULE bfgs_optimizer

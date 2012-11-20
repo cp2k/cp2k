@@ -1,0 +1,39 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      for details see cp2k/tools/do_regtest
+#
+# Geometry optimisation
+geo_opt_bfgs.inp 11
+geo_opt_cg_2pnt.inp 11
+geo_opt_cg_fit.inp 11
+geo_opt_cg_gold.inp 11
+geo_opt_lbfgs.inp 11
+# Direct cell optimisation (combined geometry and cell optimiser)
+cell_opt_direct_bfgs.inp 11
+cell_opt_direct_cg_2pnt.inp 11
+cell_opt_direct_cg_gold.inp 11
+cell_opt_direct_lbfgs.inp 11
+# Cell optimisation
+cell_opt_bfgs_geo_opt_bfgs.inp 11
+cell_opt_bfgs_geo_opt_lbfgs.inp 11
+cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp 11
+cell_opt_cg_2pnt_geo_opt_lbfgs.inp 11
+cell_opt_lbfgs_geo_opt_lbfgs.inp 11
+# Geometry optimisation using core-shell models
+cs_geo_opt_bfgs.inp 11
+cs_geo_opt_cg_2pnt.inp 11
+cs_geo_opt_cg_fit.inp 11
+cs_geo_opt_cg_gold.inp 11
+cs_geo_opt_lbfgs.inp 11
+# Direct cell optimisation using core-shell models
+cs_cell_opt_direct_bfgs.inp 11
+cs_cell_opt_direct_cg_2pnt.inp 11
+cs_cell_opt_direct_cg_gold.inp 11
+cs_cell_opt_direct_lbfgs.inp 11
+# Cell optimisation using core-shell models
+cs_cell_opt_bfgs_geo_opt_bfgs.inp 11
+cs_cell_opt_bfgs_geo_opt_lbfgs.inp 11
+cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp 11
+cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp 11
+cs_cell_opt_lbfgs_geo_opt_lbfgs.inp 11

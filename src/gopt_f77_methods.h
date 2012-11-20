@@ -18,7 +18,9 @@
 ! *****************************************************************************
 INTERFACE
 
-  RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
+  RECURSIVE SUBROUTINE cp_eval_at(gopt_env,x,f,gradient,master,&
+                                  final_evaluation,para_env,error)
+
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE gopt_f_types,                    ONLY: gopt_f_type
     USE kinds,                           ONLY: dp
@@ -28,9 +30,10 @@ INTERFACE
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: gradient
-    INTEGER, INTENT(in)                      :: master
+    INTEGER, INTENT(IN)                      :: master
+    LOGICAL, INTENT(IN), OPTIONAL            :: final_evaluation
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
   END SUBROUTINE cp_eval_at
 

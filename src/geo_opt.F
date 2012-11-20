@@ -9,6 +9,7 @@
 !>      none
 ! *****************************************************************************
 MODULE geo_opt
+
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE cp_lbfgs_geo,                    ONLY: geoopt_lbfgs
@@ -37,21 +38,22 @@ MODULE geo_opt
                                              timestop
 #include "cp_common_uses.h"
 
- IMPLICIT NONE
- PRIVATE
+  IMPLICIT NONE
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
 
- PUBLIC :: cp_geo_opt, cp_rot_opt
+  PUBLIC :: cp_geo_opt, cp_rot_opt
 
- CONTAINS
+CONTAINS
 
 ! *****************************************************************************
 !> \brief Main driver to perform geometry optimization
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-   RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, error)
+  RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: eval_opt_geo
@@ -93,7 +95,7 @@ MODULE geo_opt
 
     ! Reset counter for next iteration
     CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0,error=error)
-    DEALLOCATE(x0, stat=stat)
+    DEALLOCATE (x0,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL gopt_f_release(gopt_env, error=error)
     CALL gopt_param_release(gopt_param, error=error)
