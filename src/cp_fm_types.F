@@ -1706,9 +1706,11 @@ CPSourceFileRef,&
 
 #else
 
-   DO j=1,ncol_global
-      WRITE (unit) fm%local_data(:,j)
-   END DO
+   IF (unit>0)THEN
+      DO j=1,ncol_global
+         WRITE (unit) fm%local_data(:,j)
+      END DO
+   END IF
 
 #endif
 
