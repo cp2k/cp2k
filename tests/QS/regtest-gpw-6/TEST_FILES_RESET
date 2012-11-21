@@ -489,3 +489,5 @@ si8_noort_broy_wc_jacobi_ene1.inp
 si8_lsd_broy_stm.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 c8_broy_gop.inp
+# numerics due to a change in prefactor
+Ne_nlcc_md.inp
