@@ -1330,6 +1330,8 @@ CONTAINS
                       CALL remove_word(line_att)
                       DO ic=1,potential%nct_nlcc(ipot)
                         READ(line_att,*) potential%cval_nlcc(ic,ipot)
+                        !make it compatible with bigdft style
+                        potential%cval_nlcc(ic,ipot)=potential%cval_nlcc(ic,ipot)/(4.0_dp*pi)
                         CALL remove_word(line_att)
                       END DO
                    END DO
@@ -1401,6 +1403,8 @@ CONTAINS
                        CALL parser_get_object(parser,potential%nct_nlcc(ipot),error=error)
                        DO ic=1,potential%nct_nlcc(ipot)
                          CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot),error=error)
+                        !make it compatible with bigdft style
+                         potential%cval_nlcc(ic,ipot)=potential%cval_nlcc(ic,ipot)/(4.0_dp*pi)
                        END DO
                      END DO
                    ELSEIF(INDEX(LINE,"LSD") /= 0) THEN
