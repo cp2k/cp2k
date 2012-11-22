@@ -274,14 +274,14 @@ CONTAINS
        IF(PRESENT(print_every)) optimizer%print_every=print_every
        IF (PRESENT(master)) optimizer%master=master
        IF (optimizer%master==optimizer%para_env%mepos) THEN
-          lenwa= 2 * optimizer%m * n + 4 * n + &
-               11 * optimizer%m * optimizer%m + 8 * optimizer%m
-          ALLOCATE( optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
-               optimizer%isave(44), stat=stat)
+          !MK This has to be adapted for a new L-BFGS version possibly
+          lenwa = 2*optimizer%m*n + 5*n + 11*optimizer%m*optimizer%m + 8*optimizer%m
+          ALLOCATE (optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
+                    optimizer%isave(44), STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE( optimizer%x(n), optimizer%lower_bound(n), &
-               optimizer%upper_bound(n), optimizer%gradient(n), &
-               optimizer%dsave(29), optimizer%work_array(lenwa), stat=stat)
+          ALLOCATE (optimizer%x(n), optimizer%lower_bound(n), &
+                    optimizer%upper_bound(n), optimizer%gradient(n), &
+                    optimizer%dsave(29), optimizer%work_array(lenwa), STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           optimizer%x=x0
           optimizer%task='START'

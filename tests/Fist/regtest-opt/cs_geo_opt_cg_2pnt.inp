@@ -3,7 +3,7 @@
  PRINT_LEVEL low
  PROJECT cs_geo_opt_cg_2pnt
  RUN_TYPE geo_opt
- WALLTIME 300
+ WALLTIME 600
 &END GLOBAL
 
 &MOTION
@@ -16,7 +16,7 @@
   RMS_FORCE 0.00003
   &CG
    &LINE_SEARCH
-    TYPE 2PNT
+    TYPE 2pnt
     &2PNT
     &END 2PNT
    &END LINE_SEARCH

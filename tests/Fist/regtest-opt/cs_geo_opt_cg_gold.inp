@@ -3,7 +3,7 @@
  PRINT_LEVEL low
  PROJECT cs_geo_opt_cg_gold
  RUN_TYPE geo_opt
- WALLTIME 300
+ WALLTIME 600
 &END GLOBAL
 
 &MOTION
@@ -16,7 +16,7 @@
   RMS_FORCE 0.00003
   &CG
    &LINE_SEARCH
-    TYPE GOLD
+    TYPE gold
    &END LINE_SEARCH
   &END CG
  &END GEO_OPT

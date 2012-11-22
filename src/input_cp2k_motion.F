@@ -1334,7 +1334,9 @@ CONTAINS
 
        CALL keyword_create(keyword, name="MAX_H_RANK",&
             description="Maximum rank (and consequently size) of the "//&
-            "approximate hessian matrix used by the LBFGS optimizer",&
+            "approximate Hessian matrix used by the LBFGS optimizer. "//&
+            "Larger values (e.g. 30) will accelerate the convergence behaviour "//&
+            "at the cost of a larger memory consumption.",&
             usage="MAX_H_RANK {integer}",&
             default_i_val=5,error=error)
        CALL section_add_keyword(section,keyword,error=error)

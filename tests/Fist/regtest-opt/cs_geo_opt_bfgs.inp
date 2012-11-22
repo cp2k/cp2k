@@ -3,7 +3,7 @@
  PRINT_LEVEL low
  PROJECT cs_geo_opt_bfgs
  RUN_TYPE geo_opt
- WALLTIME 300
+ WALLTIME 600
 &END GLOBAL
 
 &MOTION
