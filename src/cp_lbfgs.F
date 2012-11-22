@@ -3328,7 +3328,6 @@ CONTAINS
 !     Let us try the projection, d is the Newton direction
 
       iword = 0
-      PRINT*,"n nsub",n,nsub
 
       CALL dcopy ( n, x, 1, xp, 1 )
 !
