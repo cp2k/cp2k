@@ -597,8 +597,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
-                                                orb_basis_set, &
-                                                orb_basis_set_main
+                                                orb_basis_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -644,7 +643,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
        ! the orb_basis_set and the aux_fit_basis_set.
        ! Seemingly others (e.g. gapw soft basis set) are not needed?
-       DO ibasis_set_type=1,2
+       DO ibasis_set_type=1,4
           DO ikind=1,nkind
             atomic_kind => atomic_kind_set(ikind)
 
@@ -668,14 +667,21 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              !
              ! now for the basis sets
              !
-             CALL get_atomic_kind(atomic_kind=atomic_kind, orb_basis_set=orb_basis_set_main, &
-                                  aux_fit_basis_set=aux_fit_basis_set)
-             SELECT CASE(ibasis_set_type)
-             CASE(1)
-                orb_basis_set=>orb_basis_set_main
-             CASE(2)
-                orb_basis_set=>aux_fit_basis_set
+             SELECT CASE (ibasis_set_type)
+             CASE (1)
+               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                    orb_basis_set=orb_basis_set)
+             CASE (2)
+               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                    aux_fit_basis_set=orb_basis_set)
+             CASE (3)
+               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                    aux_basis_set=orb_basis_set)
+             CASE (4)
+               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                    ri_aux_basis_set=orb_basis_set)
              END SELECT
+
              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
@@ -683,14 +689,22 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
 
              DO jkind=1,nkind
                 atomic_kind => atomic_kind_set(jkind)
-                CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set_main, &
-                                     aux_fit_basis_set=aux_fit_basis_set)
-                SELECT CASE(ibasis_set_type)
-                CASE(1)
-                   orb_basis_set=>orb_basis_set_main
-                CASE(2)
-                   orb_basis_set=>aux_fit_basis_set
+
+                SELECT CASE (ibasis_set_type)
+                CASE (1)
+                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                       orb_basis_set=orb_basis_set)
+                CASE (2)
+                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                       aux_fit_basis_set=orb_basis_set)
+                CASE (3)
+                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                       aux_basis_set=orb_basis_set)
+                CASE (4)
+                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                       ri_aux_basis_set=orb_basis_set)
                 END SELECT
+
                 IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                        npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
