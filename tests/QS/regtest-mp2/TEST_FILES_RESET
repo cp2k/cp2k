@@ -21,3 +21,8 @@ RI_RPA_H2O.inp
 # RI-MP2 and RI-RPA, reset for open shell
 RI_MP2_CH3.inp
 RI_RPA_CH3.inp
+# make faster
+RI_MP2_H2O.inp
+RI_RPA_CH3.inp
+RI_RPA_H2O.inp
+RI_MP2_CH3.inp
