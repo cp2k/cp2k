@@ -27,6 +27,7 @@ MODULE atom_output
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt
   USE xc_derivatives,                  ONLY: xc_functional_get_info
@@ -559,7 +560,7 @@ CONTAINS
         IF(potential%gth_pot%nlcc) THEN
           DO k=1,potential%gth_pot%nexp_nlcc
             WRITE(iw,'(T10,A,F10.6,T38,A,4F10.6)') " LSDPot: rc=",potential%gth_pot%alpha_nlcc(k),&
-              "CX=",(potential%gth_pot%cval_nlcc(i,k),i=1,potential%gth_pot%nct_nlcc(k))
+              "CX=",(potential%gth_pot%cval_nlcc(i,k)*4.0_dp*pi,i=1,potential%gth_pot%nct_nlcc(k))
           END DO
         END IF
         IF(potential%gth_pot%lsdpot) THEN
@@ -630,7 +631,7 @@ CONTAINS
       WRITE(iw,'(A,I5)') " NLCC ",gthpot%nexp_nlcc
       DO i=1,gthpot%nexp_nlcc
         WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_nlcc(i),gthpot%nct_nlcc(i),&
-                           (gthpot%cval_nlcc(j,i),j=1,gthpot%nct_nlcc(i))
+                           (gthpot%cval_nlcc(j,i)*4.0_dp*pi,j=1,gthpot%nct_nlcc(i))
       END DO
     END IF
     n = 0
