@@ -23,9 +23,9 @@
 ! obviously then the error messages will not give the filename.
 ! (otherwise make the file reference in the makefile relative vs. absolute)
 #ifdef __SHORT_FILE__
-#define CPSourceFileRef __SHORT_FILE__//' line '//cp_to_string(__LINE__)
+#define CPSourceFileRef __SHORT_FILE__//' line '//TRIM(ADJUSTL(cp_to_string(__LINE__)))
 #else
-#define CPSourceFileRef __FILE__//' line '//cp_to_string(__LINE__)
+#define CPSourceFileRef __FILE__//' line '//TRIM(ADJUSTL(cp_to_string(__LINE__)))
 #endif
 
 ! if the following macro is defined the longest form of macro
@@ -40,7 +40,7 @@
 ! (cp_precondition_failed = 200)
 #define CPPrecondition(cond,level,routineP,error,failure) \
 IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,200,routineP,\
-'PRECONDITION(cond) failed at line '//cp_to_string(__LINE__),error,failure)
+'PRECONDITION(cond) failed at line '//TRIM(ADJUSTL(cp_to_string(__LINE__))),error,failure)
 
 ! (cp_postcondition_failed = -200)
 #define CPPostcondition(cond,level,routineP,error,failure) \

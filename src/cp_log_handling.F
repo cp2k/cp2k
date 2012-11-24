@@ -601,7 +601,8 @@ CONTAINS
           unitNr = cp_logger_get_unit_nr(lggr,local=loc)
           CALL m_datum(datx)
           CALL print_message(datx(12:19)//' '//TRIM(ADJUSTL(label))//' in '//&
-                             fromWhere//' '//TRIM(ADJUSTL(message)),unitNr,level,1,1)
+                             fromWhere//' :: '//TRIM(ADJUSTL(message)),&
+                             unitNr,level,1,1)
           CALL m_flush(unitNr)
        END IF
     END IF
