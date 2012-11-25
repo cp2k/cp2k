@@ -717,8 +717,9 @@ CONTAINS
                                                 unit_nr
     LOGICAL                                  :: check_convergence, should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
-                                                energy_old, maxdev, t1, t2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ks_deviation, maxev, minev
+                                                energy_old, t1, t2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ks_deviation, maxdev, maxev, &
+                                                minev
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
@@ -739,7 +740,8 @@ CONTAINS
     nspin=ls_scf_env%nspins
 
     ! old quantities, useful for mixing
-    ALLOCATE(matrix_mixing_old(nspin), matrix_ks_deviation(nspin), ks_deviation(nspin), maxev(nspin), minev(nspin))
+    ALLOCATE(matrix_mixing_old(nspin), matrix_ks_deviation(nspin), ks_deviation(nspin), &
+             maxev(nspin), minev(nspin), maxdev(nspin))
     DO ispin=1,nspin
        CALL cp_dbcsr_init(matrix_mixing_old(ispin),error=error)
        CALL cp_dbcsr_create(matrix_mixing_old(ispin),template=ls_scf_env%matrix_ks(ispin), error=error)
@@ -780,56 +782,43 @@ CONTAINS
          CALL cp_dbcsr_filter(ls_scf_env%matrix_ks(ispin),ls_scf_env%eps_filter,error=error)
       ENDDO
 
-      ! initialize the mixing matrix with the current state if needed
-      IF (iscf==1) THEN
-         DO ispin=1,nspin
-            CALL cp_dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), error=error)
-         ENDDO
-      ENDIF
+      ! turn the KS matrix in a density matrix
       IF(iscf>1.AND.ls_scf_env%curvy_steps)THEN
          CALL dm_ls_curvy_optimization(ls_scf_env,energy_old,check_convergence,error)
       ELSE
-         ! perform the mixing of ks matrices
          DO ispin=1,nspin
-            CALL cp_dbcsr_add(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), &
-                              1.0_dp-ls_scf_env%mixing_fraction,ls_scf_env%mixing_fraction, &
-                              error=error)
-         END DO
-   
-         ! compute the deviation in the mixing matrix
-         IF (iscf > 1) THEN
-           DO ispin=1,nspin
-             CALL cp_dbcsr_add(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), -1.0_dp, 1.0_dp, error=error)
-             ks_deviation(ispin)  = cp_dbcsr_gershgorin_norm(matrix_ks_deviation(ispin))
-             CALL lanczos_alg_serial(matrix_ks_deviation(ispin), maxev(ispin), minev(ispin), 1.0E-4_dp, error=error)
-           ENDDO
-         ENDIF
-   
-         ! compute the density matrix that matches it
-         DO ispin=1,nspin
+            IF (iscf==1) THEN
+               ! initialize the mixing matrix with the current state if needed
+               CALL cp_dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), error=error)
+            ELSE
+               ! perform the mixing of ks matrices
+               CALL cp_dbcsr_add(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), &
+                                 1.0_dp-ls_scf_env%mixing_fraction,ls_scf_env%mixing_fraction, &
+                                 error=error)
+
+               ! compute the deviation in the mixing matrix
+               CALL cp_dbcsr_add(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), -1.0_dp, 1.0_dp, error=error)
+               ks_deviation(ispin)  = cp_dbcsr_gershgorin_norm(matrix_ks_deviation(ispin))
+               CALL lanczos_alg_serial(matrix_ks_deviation(ispin), maxev(ispin), minev(ispin), 1.0E-4_dp, error=error)
+               maxdev(ispin) = MAX(ABS(maxev(ispin)), ABS(minev(ispin)))
+            ENDIF
+
+            ! compute the density matrix that matches it
             ! we need the proper number of states
             nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
-   
-            IF (ls_scf_env%purification_method==ls_scf_ns) THEN
+
+            SELECT CASE(ls_scf_env%purification_method)
+            CASE(ls_scf_ns)
               CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
-                                       matrix_mixing_old(ispin),ls_scf_env%matrix_s, &
-                                       ls_scf_env%matrix_s_inv, &
+                                       matrix_mixing_old(ispin),ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
                                        nelectron_spin_real,ls_scf_env%eps_filter,error)
-            ELSEIF (ls_scf_env%purification_method==ls_scf_trs4) THEN
-              maxdev = MAX(ABS(maxev(ispin)), ABS(minev(ispin)))
-              CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), &
-                                       matrix_mixing_old(ispin),   &
-                                       ls_scf_env%matrix_s_sqrt_inv,&
-                                       nelectron_spin_real,        &
-                                       ls_scf_env%eps_filter,      &
-                                       ls_scf_env%homo_spin(ispin),&
-                                       ls_scf_env%lumo_spin(ispin),&
-                                       ls_scf_env%mu_spin(ispin),       &
-                                       dynamic_threshold=ls_scf_env%dynamic_threshold,&
-                                       delta_ks = maxdev, &
-                                       error=error)
-            ENDIF
+            CASE(ls_scf_trs4)
+              CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                       nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
+                                       ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
+                                       dynamic_threshold=ls_scf_env%dynamic_threshold, delta_ks = maxdev(ispin), error=error)
+            END SELECT
                                      
             IF (ls_scf_env%has_s_preconditioner) THEN
                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
@@ -838,10 +827,8 @@ CONTAINS
             CALL cp_dbcsr_filter(ls_scf_env%matrix_p(ispin),ls_scf_env%eps_filter,error=error)
    
             IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
-         ENDDO
-   
-         ! save the old mixing matrix
-         DO ispin=1,nspin
+
+            ! save the old mixing matrix
             CALL cp_dbcsr_copy(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), error=error)
          ENDDO
       END IF
@@ -873,7 +860,6 @@ CONTAINS
       IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
 
     ENDDO
-
 
     ! free storage
     DO ispin=1,nspin
