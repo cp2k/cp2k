@@ -231,6 +231,9 @@ CPSourceFileRef,&
                   calc_force=PRESENT(gradient),&
                   require_consistent_energy_force=gopt_env%require_consistent_energy_force,&
                   error=error)
+             IF (PRESENT(f)) THEN
+                CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
+             END IF
           ELSE
              SELECT CASE (gopt_env%cell_method_id)
              CASE (default_cell_geo_opt_id)
@@ -270,7 +273,7 @@ CPSourceFileRef,&
                 CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, rm_restart_info=.FALSE.,&
                                 error=new_error)
                 ! Retrieve the average of the stress tensor and the average of the potential energy
-                potential_energy=averages%avepot
+                potential_energy = averages%avepot
                 CALL cp_virial(averages%virial, virial_avg)
                 CALL release_averages(averages, error)
              CASE DEFAULT
@@ -280,10 +283,10 @@ CPSourceFileRef,&
                                          cell_opt_run, error)
              ! Update the virial
              CALL virial_update(virial_avg, subsys, para_env, error)
-          END IF
-          ! Possibly take give back the potential energy
-          IF (PRESENT(f)) THEN
-             f = potential_energy
+             ! Possibly take give back the potential energy
+             IF (PRESENT(f)) THEN
+                f = potential_energy
+             END IF
           END IF
           ! Possibly give back the gradients
           IF (PRESENT(gradient)) THEN

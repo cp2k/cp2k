@@ -748,7 +748,7 @@ CONTAINS
     CHARACTER(LEN=max_line_length)           :: error_message, string
     INTEGER                                  :: iz, n
     LOGICAL                                  :: failure, ilist_in_use
-    REAL(KIND=dp)                            :: z
+    REAL(KIND=dp)                            :: fz
 
     failure = .FALSE.
     test_result = ""
@@ -805,7 +805,7 @@ CONTAINS
 
        ! Check for floating point object
        error_message = ""
-       CALL read_float_object(string(1:n),z,error_message)
+       CALL read_float_object(string(1:n),fz,error_message)
        IF (LEN_TRIM(error_message) == 0) THEN
           test_result = "FLT"
           CALL parser_retrieve_status(parser,error)

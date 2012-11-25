@@ -667,7 +667,6 @@ CONTAINS
       CALL write_structure_data(particle_set,cell,motion_section,error)
       CALL write_restart(force_env=force_env,root_section=root_section,&
                          error=error)
-
       ! Write out more data for the minimum
       unit_nr = cp_logger_get_default_io_unit(logger)
       IF (unit_nr > 0) THEN
