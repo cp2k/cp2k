@@ -835,8 +835,8 @@ CONTAINS
             variants=s2a("DISPERSION_FUNCTIONAL"),&
             description="Type of dispersion/vdW functional or potential to use",&
             usage="POTENTIAL_TYPE PAIR_POTENTIAL",&
-            enum_c_vals=s2a("NONE","PAIR_POTENTIAL"),&
-            enum_i_vals=(/ xc_vdw_fun_none, xc_vdw_fun_pairpot /),&
+            enum_c_vals=s2a("NONE","PAIR_POTENTIAL","NON_LOCAL"),&
+            enum_i_vals=(/ xc_vdw_fun_none, xc_vdw_fun_pairpot, xc_vdw_fun_nonloc /),&
             default_i_val=xc_vdw_fun_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -951,7 +951,43 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
+       ! nonlocal section
+       NULLIFY(subsection,keyword)
+       CALL section_create(subsection,name="NON_LOCAL",&
+            description="Information on the non local dispersion functional",&
+            n_keywords=0, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword,name="TYPE",&
+            description="Type of functional.",&
+            usage="TYPE DRSLL", &
+            enum_c_vals=s2a("DRSLL","LMKLL"),&
+            enum_i_vals=(/ vdw_nl_DRSLL, vdw_NL_LMKLL /),&
+            default_i_val=vdw_nl_DRSLL, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="VERBOSE_OUTPUT",&
+            description="Extensive output for non local functionals",&
+            usage="VERBOSE_OUTPUT", default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="KERNEL_FILE_NAME",&
+            description="Name of the kernel data file, may include a path",&
+            usage="KERNEL_FILE_NAME <FILENAME>",required=.FALSE.,&
+            default_lc_val="vdW_kernel_table.dat",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="CUTOFF",&
+            description="The cutoff of the FFT grid used in the calculation "//&
+            "of the nonlocal vdW functional [Ry].",&
+            usage="CUTOFF 300",required=.FALSE.,&
+            default_r_val=-1._dp,unit_str="Ry",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

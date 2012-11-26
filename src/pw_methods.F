@@ -172,11 +172,11 @@ CONTAINS
           ELSE
              WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                         " grid 1 :",pw1%pw_grid %id_nr, &
-                        " sperical :",pw1%pw_grid%spherical, &
+                        " spherical :",pw1%pw_grid%spherical, &
                         " reference :",pw1%pw_grid%reference
              WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                         " grid 2 :",pw2%pw_grid %id_nr, &
-                        " sperical :",pw2%pw_grid%spherical, &
+                        " spherical :",pw2%pw_grid%spherical, &
                         " reference :",pw2%pw_grid%reference
              CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
           END IF
@@ -225,11 +225,11 @@ CONTAINS
              ELSE
                 WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                            " grid 1 :",pw1%pw_grid %id_nr, &
-                           " sperical :",pw1%pw_grid%spherical, &
+                           " spherical :",pw1%pw_grid%spherical, &
                            " reference :",pw1%pw_grid%reference
                 WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                            " grid 2 :",pw2%pw_grid %id_nr, &
-                           " sperical :",pw2%pw_grid%spherical, &
+                           " spherical :",pw2%pw_grid%spherical, &
                            " reference :",pw2%pw_grid%reference
                 CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
              END IF
@@ -243,11 +243,11 @@ CONTAINS
        ELSE
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                      " grid 1 :",pw1%pw_grid %id_nr, &
-                     " sperical :",pw1%pw_grid%spherical, &
+                     " spherical :",pw1%pw_grid%spherical, &
                      " reference :",pw1%pw_grid%reference
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                      " grid 2 :",pw2%pw_grid %id_nr, &
-                     " sperical :",pw2%pw_grid%spherical, &
+                     " spherical :",pw2%pw_grid%spherical, &
                      " reference :",pw2%pw_grid%reference
           CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
        END IF

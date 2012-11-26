@@ -42,6 +42,7 @@ MODULE qs_neighbor_lists
                                              gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: do_se_IS_slater,&
+                                             vdw_pairpot_dftd3,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -752,7 +753,7 @@ CONTAINS
                subcells=subcells,operator_type="PP",name="sab_vdw",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
 
-          IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
+          IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
              ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
              DO ikind = 1, nkind
                 atomic_kind => atomic_kind_set(ikind)

@@ -34,7 +34,12 @@ MODULE qs_dispersion_pairpot
                                              parser_create,&
                                              parser_release
   USE f77_blas
-  USE input_constants,                 ONLY: xc_vdw_fun_none,&
+  USE input_constants,                 ONLY: vdw_nl_DRSLL,&
+                                             vdw_nl_LMKLL,&
+                                             vdw_pairpot_dftd2,&
+                                             vdw_pairpot_dftd3,&
+                                             xc_vdw_fun_none,&
+                                             xc_vdw_fun_nonloc,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -130,10 +135,10 @@ CONTAINS
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
           vdw_pp_type = dispersion_env%type
-          SELECT CASE (TRIM(dispersion_env%pp_type))
+          SELECT CASE (dispersion_env%pp_type)
              CASE DEFAULT
                ! do nothing
-             CASE ("DFTD3")
+             CASE (vdw_pairpot_dftd3)
                 !DFT-D3 Method initial setup
                 CALL cite_reference(Grimme2010)
                 max_elem = 94
@@ -200,10 +205,10 @@ CONTAINS
           disp%defined = .FALSE.
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
-          SELECT CASE (TRIM(dispersion_env%pp_type))
+          SELECT CASE (dispersion_env%pp_type)
           CASE DEFAULT
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-          CASE ("DFTD2")
+          CASE (vdw_pairpot_dftd2)
              CALL cite_reference(Grimme2006)
              disp%type = dftd2_pp
              ! get filename of parameter file
@@ -257,7 +262,7 @@ CONTAINS
              ELSE
                 disp%defined = .FALSE.
              END IF
-          CASE ("DFTD3")
+          CASE (vdw_pairpot_dftd3)
              disp%type = dftd3_pp
              IF ( elem <= 94 ) THEN
                 disp%defined = .TRUE.
@@ -550,7 +555,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: symbol
-    INTEGER                                  :: handle, ikind, nkind, &
+    INTEGER                                  :: handle, i, ikind, nkind, &
                                                 output_unit
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -578,7 +583,7 @@ CONTAINS
        IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')")
           ! Pair potentials
-          IF ( TRIM(dispersion_env%pp_type) == "DFTD2" ) THEN
+          IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
@@ -596,13 +601,45 @@ CONTAINS
                    WRITE (output_unit, fmt="(' vdW PARAMETER| ',T20,'Atom=',A2,T70,'not defined')")
                 END IF
              END DO
-          ELSE IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
+          ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s6 Scaling Factor:',T73,F8.4)") dispersion_env%s6
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'sr6 Scaling Factor:',T73,F8.4)") dispersion_env%sr6
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
+          END IF
+       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
+          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T61,'Non-local Functional')")
+          WRITE (output_unit, &
+            fmt="(' vdW POTENTIAL| ','Implementation: G. Roman-Perez, J. Soler, PRL 103: 096102 (2009)')")
+          WRITE (output_unit, &
+            fmt="(' vdW POTENTIAL| ',T38,' T. Thonhauser et al, PRB 76: 125112 (2007)')")
+          WRITE (output_unit, &
+            fmt="(' vdW POTENTIAL| ',T22,' R. Sabatini et al, J.Phys:Condens Matter 24: 424209 (2012)')")
+          WRITE (output_unit, &
+            fmt="(' vdW POTENTIAL| ',T16,' Based on QE implementation by Brian Kolb, Timo Thonhauser (2009)')")
+          SELECT CASE (dispersion_env%nl_type)
+             CASE DEFAULT
+                ! unknown functional
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CASE (vdw_nl_DRSLL)
+                WRITE (output_unit, &
+                 fmt="(' vdW POTENTIAL| ','DRSLL Functional:           M. Dion et al, PRL 92: 246401 (2004)')")
+             CASE (vdw_nl_LMKLL)
+                WRITE (output_unit, &
+                 fmt="(' vdW POTENTIAL| ','LMKLL Functional:            K. Lee et al, PRB 82: 081101 (2010)')")
+          END SELECT
+          IF ( dispersion_env%verbose ) THEN
+             WRITE (output_unit,&
+              fmt="(' vdW POTENTIAL| ','         Carrying out vdW-DF run using the following parameters:')")
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ','Nqs =',I8,'        Nr_points =',I8,'       r_max =',F10.3)")&
+                dispersion_env%nqs,dispersion_env%nr_points,dispersion_env%r_max
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ','q_mesh =')")
+             WRITE (output_unit, fmt="(8X,4F18.8)" ) (dispersion_env%q_mesh(i), i=1, dispersion_env%nqs)
+             WRITE (output_unit,&
+              fmt="(' vdW POTENTIAL| ','Density cutoff for comvolution:',T68,F10.1,' Ry')") &
+              2.0_dp*dispersion_env%pw_cutoff
           END IF
        END IF
     END IF
@@ -719,7 +756,11 @@ CONTAINS
        IF(unit_nr>0) THEN
         WRITE(unit_nr,*)
         WRITE(unit_nr,*) " Pair potential vdW calculation"
-        WRITE(unit_nr,*) " Dispersion potential type: ",TRIM(dispersion_env%pp_type)
+        IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
+           WRITE(unit_nr,*) " Dispersion potential type: DFT-D2"
+        ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+           WRITE(unit_nr,*) " Dispersion potential type: DFT-D3"
+        END IF
        END IF
 
        NULLIFY (particle_set)
@@ -736,7 +777,7 @@ CONTAINS
           IF (use_virial .AND. debugall) THEN
             dvirial = virial%pv_virial
           END IF
-       ELSE IF ( dispersion_env%pp_type == "DFTD3" .AND. dispersion_env%doabc ) THEN
+       ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. dispersion_env%doabc ) THEN
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -762,14 +803,14 @@ CONTAINS
 
        rcut = 2._dp*dispersion_env%rc_disp
        rc2  = rcut*rcut
-       IF ( dispersion_env%pp_type == "DFTD2" ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
           s6 = dispersion_env%scaling
           dd = dispersion_env%exp_pre
           IF(unit_nr>0) THEN
              WRITE(unit_nr,*) " Scaling parameter (s6) ",s6
              WRITE(unit_nr,*) " Exponential prefactor  ",dd
           END IF
-       ELSE IF ( dispersion_env%pp_type == "DFTD3" ) THEN
+       ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
           maxc = SIZE(dispersion_env%c6ab,3)
           max_elem = SIZE(dispersion_env%c6ab,1)
           alp6 = dispersion_env%alp
@@ -1296,7 +1337,7 @@ CONTAINS
        elrc6 = 0._dp
        elrc8 = 0._dp
        elrc9 = 0._dp
-       IF ( dispersion_env%pp_type == "DFTD3" ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
           ! Long range correction (atomic contributions not implemented)
           IF (dispersion_env%lrc) THEN
              ALLOCATE (cnkind(nkind),STAT=istat)
@@ -1355,7 +1396,7 @@ CONTAINS
           END IF
        END IF
 
-       IF ( dispersion_env%pp_type == "DFTD3" ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
           DEALLOCATE (cnumbers,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           IF ( dispersion_env%doabc .AND. dispersion_env%c9cnst ) THEN
@@ -1377,7 +1418,7 @@ CONTAINS
        evdw = evdw + (elrc6+elrc8+elrc9)
        energy%dispersion = evdw
 
-       IF ( dispersion_env%pp_type == "DFTD3" .AND. debugall ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. debugall ) THEN
          CALL mp_sum(e6tot,para_env%group)
          CALL mp_sum(e8tot,para_env%group)
          CALL mp_sum(e9tot,para_env%group)

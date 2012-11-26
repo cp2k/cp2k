@@ -520,9 +520,12 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: no_excitations=0,&
                                               tddfpt_excitations=1
   INTEGER, PARAMETER, PUBLIC               :: xc_vdw_fun_none=100,&
-                                              xc_vdw_fun_pairpot=101
+                                              xc_vdw_fun_pairpot=101,&
+                                              xc_vdw_fun_nonloc=102
   INTEGER, PARAMETER, PUBLIC               :: vdw_pairpot_dftd2=1,&
                                               vdw_pairpot_dftd3=2
+  INTEGER, PARAMETER, PUBLIC               :: vdw_nl_DRSLL=1,&
+                                              vdw_nl_LMKLL=2
 
   ! Input constants for relativistic calculations
   INTEGER, PARAMETER, PUBLIC               :: rel_none=0,&

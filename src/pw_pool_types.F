@@ -62,7 +62,7 @@ MODULE pw_pool_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_pool_types'
   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr=0
-  INTEGER, PARAMETER :: default_max_cache=20, max_max_cache=50
+  INTEGER, PARAMETER :: default_max_cache=75, max_max_cache=150
 
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&

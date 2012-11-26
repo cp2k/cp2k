@@ -105,7 +105,8 @@ MODULE qs_environment
        do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
        do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
        do_multipole_none, general_roks, restart_guess, use_aux_fit_basis_set, &
-       xc_vdw_fun_none, xc_vdw_fun_pairpot
+       vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_vdw_fun_none, &
+       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -137,6 +138,7 @@ MODULE qs_environment
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
+  USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
                                              qs_scaling_dftd3,&
                                              qs_scaling_init,&
@@ -462,9 +464,9 @@ CONTAINS
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
-      et_coupling_section, et_ddapc_section, ewald_section, poisson_section, &
-      pp_section, print_section, qs_section, se_section, vdw_section, &
-      xc_fun_section
+      et_coupling_section, et_ddapc_section, ewald_section, nl_section, &
+      poisson_section, pp_section, print_section, qs_section, se_section, &
+      vdw_section, xc_fun_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
@@ -844,6 +846,8 @@ CONTAINS
       dispersion_env%verbose=.FALSE.
       NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
               dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
+      NULLIFY(dispersion_env%q_mesh,dispersion_env%kernel,dispersion_env%d2phi_dk2,&
+              dispersion_env%d2y_dx2)
       NULLIFY(vdw_section,xc_fun_section)
       vdw_section =>  section_vals_get_subs_vals(dft_section,"XC%vdw_potential",error=error)
       xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)
@@ -852,8 +856,8 @@ CONTAINS
         NULLIFY(pp_section)
         pp_section =>  section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
         CALL section_vals_val_get(pp_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
-        CALL section_vals_val_get(pp_section, "TYPE", c_val=dispersion_env%pp_type, error=error)
-        IF ( TRIM(dispersion_env%pp_type) == "DFTD2" ) THEN
+        CALL section_vals_val_get(pp_section, "TYPE", i_val=dispersion_env%pp_type, error=error)
+        IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
           ! functional parameters for Grimme D2 type
           CALL section_vals_val_get(pp_section, "EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
           CALL section_vals_val_get(pp_section, "SCALING" ,explicit=explicit,error=error)
@@ -868,7 +872,7 @@ CONTAINS
           dispersion_env%exp_pre=0._dp
           dispersion_env%scaling=0._dp
         END IF
-        IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
+        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
           ! functional parameters for Grimme DFT-D3 type
           CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn, error=error)
           CALL section_vals_val_get(pp_section, "D3_SCALING" ,explicit=explicit,error=error)
@@ -895,6 +899,16 @@ CONTAINS
         CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",&
              c_val=dispersion_env%parameter_file_name,error=error)
         CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
+      ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
+        NULLIFY(nl_section)
+        nl_section =>  section_vals_get_subs_vals(vdw_section,"NON_LOCAL",error=error)
+        CALL section_vals_val_get(nl_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
+        CALL section_vals_val_get(nl_section,"KERNEL_FILE_NAME",&
+             c_val=dispersion_env%kernel_file_name,error=error)
+        CALL section_vals_val_get(nl_section, "TYPE", i_val=dispersion_env%nl_type, error=error)
+        CALL section_vals_val_get(nl_section, "CUTOFF", r_val=dispersion_env%pw_cutoff, error=error)
+        dispersion_env%pw_cutoff = 0.5_dp * dispersion_env%pw_cutoff
+        CALL qs_dispersion_nonloc_init(dispersion_env,nl_section,para_env,error)
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
     ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN
@@ -909,7 +923,7 @@ CONTAINS
               dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
       IF (scptb_control%dispersion) THEN
          dispersion_env%type = xc_vdw_fun_pairpot
-         dispersion_env%pp_type = "DFTD3"
+         dispersion_env%pp_type = vdw_pairpot_dftd3
          dispersion_env%eps_cn = scptb_control%epscn
          dispersion_env%s6  = scptb_control%sd3(1)
          dispersion_env%sr6 = scptb_control%sd3(2)
@@ -1162,7 +1176,7 @@ CONTAINS
     ! Print the DFT control parameters
     CALL write_dft_control(dft_control,dft_section,error)
 
-    ! Print the DFT control parameters
+    ! Print the vdW control parameters
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &

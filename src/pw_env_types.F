@@ -51,6 +51,8 @@ MODULE pw_env_types
 !> \param lgrid scratch space for OpenMP threads rs_grid operations
 !> \param xc_pw_pool the pool used for xc calculation on grid (might be the
 !>        same as the finest, or finer still).
+!> \param vdw_pw_pool the pool used for vdw-nl calculation on grid (might be the
+!>        same or a grid with a new cutoff
 !> \param gridlevel_info gaussian gridlevel info
 !> \param cube_info info on cube and max sphere size for multigrids
 !> \param aux_bas which multigrid is the auxiliar basis
@@ -71,6 +73,7 @@ MODULE pw_env_types
      INTEGER :: ref_count
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE(pw_pool_type), POINTER :: xc_pw_pool
+     TYPE(pw_pool_type), POINTER :: vdw_pw_pool
      TYPE(realspace_grid_desc_p_type), DIMENSION(:), POINTER :: rs_descs
      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
      TYPE(lgrid_type), POINTER :: lgrid
@@ -94,7 +97,7 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,auxbas_rs_desc,auxbas_rs_grid,rs_descs,rs_grids,lgrid,&
-     xc_pw_pool, poisson_env,error)
+     xc_pw_pool, vdw_pw_pool, poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
@@ -113,7 +116,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rs_grids
     TYPE(lgrid_type), OPTIONAL, POINTER      :: lgrid
-    TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool, vdw_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -144,6 +147,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
      IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
+     IF (PRESENT(vdw_pw_pool)) vdw_pw_pool => pw_env%vdw_pw_pool
      IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
   END IF
 END SUBROUTINE pw_env_get
@@ -225,6 +229,7 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
+        CALL pw_pool_release(pw_env%vdw_pw_pool,error=error)
         IF (ASSOCIATED(pw_env%rs_descs)) THEN
           DO i=1, SIZE(pw_env%rs_descs)
             CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc, error=error)

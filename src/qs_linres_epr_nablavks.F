@@ -913,11 +913,11 @@ CONTAINS
     IF (gapw_xc) THEN
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho_xc, xc_section=xc_section,&
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
-           epr_xc=.TRUE., error=error)
+           error=error)
     ELSE
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section,&
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
-           epr_xc=.TRUE., error=error)
+           error=error)
     END IF
 
     IF (ASSOCIATED(v_rspace_new)) THEN

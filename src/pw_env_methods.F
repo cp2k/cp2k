@@ -36,7 +36,7 @@ MODULE pw_env_methods
        xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
        xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth
+       xc_rho_spline3_smooth, xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -62,6 +62,7 @@ MODULE pw_env_methods
                                              pw_pool_release,&
                                              pw_pool_retain,&
                                              pw_pools_dealloc
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -126,7 +127,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
     IF (.NOT. failure) THEN
        NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
             pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
-            pw_env%xc_pw_pool, pw_env%lgrid)
+            pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid)
        pw_env%auxbas_grid=-1
        pw_env%ref_count=1
        IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,external_para_env=external_para_env,error=error)
@@ -162,8 +163,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
       xc_deriv_method_id, xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
-    LOGICAL :: efg_present, failure, linres_present, odd, should_output, &
-      smooth_required, spherical, uf_grid, use_ref_cell
+    LOGICAL :: efg_present, failure, linres_present, odd, set_vdw_pool, &
+      should_output, smooth_required, spherical, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: cutilev, max_rpgf0_s, &
                                                 rel_cutoff, zet0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
@@ -176,10 +177,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_grid, &
                                                 old_pw_grid, pw_grid, &
-                                                super_ref_grid, &
+                                                super_ref_grid, vdw_grid, &
                                                 xc_super_ref_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
@@ -205,11 +207,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, atomic_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
-       super_ref_grid, my_cell, rs_grids)
+       vdw_grid, super_ref_grid, my_cell, rs_grids)
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     CALL pw_pool_release(pw_env%vdw_pw_pool,error=error)
      CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
      CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
      IF (ASSOCIATED(pw_env%rs_descs)) THEN
@@ -257,9 +260,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
 
   IF (.NOT.failure) THEN
+     NULLIFY(dispersion_env)
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
           cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
+          dispersion_env=dispersion_env,&
           error=error)
      IF (PRESENT(external_para_env)) THEN
         para_env=>external_para_env
@@ -445,8 +450,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
      pw_env%pw_pools => pw_pools
 
-     CALL cp_print_key_finished_output(iounit,logger,print_section,&
-            '',error=error)
+     CALL cp_print_key_finished_output(iounit,logger,print_section,'',error=error)
 
      ! init auxbas_grid
      DO i=1,ngrid_level
@@ -461,6 +465,31 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      ELSE
         pw_env%xc_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
         CALL pw_pool_retain(pw_env%xc_pw_pool,error=error)
+     END IF
+
+     ! init vdw_pool
+     set_vdw_pool = .FALSE.
+     IF(ASSOCIATED(dispersion_env)) THEN
+        IF(dispersion_env%type == xc_vdw_fun_nonloc) THEN
+           IF(dispersion_env%pw_cutoff > 0._dp) set_vdw_pool = .TRUE.
+        END IF
+     END IF
+     IF (set_vdw_pool) THEN
+        CPPrecondition(ASSOCIATED(old_pw_grid),cp_failure_level,routineP,error,failure)
+        CALL pw_grid_create(vdw_grid,para_env%group,error=error)
+        CALL pw_grid_setup(my_cell,vdw_grid,grid_span=grid_span,&
+             cutoff=dispersion_env%pw_cutoff,&
+             spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+             ncommensurate=ncommensurate,icommensurate=0,&
+             blocked=blocked_id,&
+             ref_grid=old_pw_grid,&
+             rs_dims=distribution_layout,&
+             iounit=iounit,error=error)
+        CALL pw_pool_create(pw_env%vdw_pw_pool,pw_grid=vdw_grid,error=error)
+        CALL pw_grid_release(vdw_grid,error=error)
+     ELSE
+        pw_env%vdw_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
+        CALL pw_pool_retain(pw_env%vdw_pw_pool,error=error)
      END IF
 
      ! complete init of the poisson_env

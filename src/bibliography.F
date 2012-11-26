@@ -58,7 +58,8 @@ MODULE bibliography
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
-             Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002
+             Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
+             Dion2004, Romanperez2009
 
 CONTAINS
 
@@ -2124,6 +2125,40 @@ CONTAINS
             "UT WOS:000173256700030",&
             "ER"),&
             DOI="10.1021/jp013346k") 
+
+    CALL add_reference(key=Dion2004, ISI_record=s2a(&
+         "PT J",&
+         "AU Dion, M",&
+         "   Rydberg, H",&
+         "   Schroder, E",&
+         "   Langreth, DC",&
+         "   Lundqvist, BI",&
+         "TI Van der Waals density functional for general geometries",&
+         "SO Phys. Rev. Lett.",&
+         "PD JUN 18",&
+         "PY 2004",&
+         "VL 92",&
+         "IS 24",&
+         "AR 246401",&
+         "UR http://prl.aps.org/abstract/PRL/v92/i24/e246401",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.92.246401")
+
+    CALL add_reference(key=RomanPerez2009, ISI_record=s2a(&
+         "PT J",&
+         "AU Roman-Perez, G",&
+         "   Soler, JM",&
+         "TI Efficient Implementation of a van der Waals Density Functional:",&
+         "   Application to Double-Wall Carbon Nanotubes",&
+         "SO Phys. Rev. Lett.",&
+         "PD AUG 28",&
+         "PY 2009",&
+         "VL 103",&
+         "IS 9",&
+         "AR 096102",&
+         "UR http://prl.aps.org/abstract/PRL/v103/i9/e096102",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.103.096102")
 
   END SUBROUTINE add_all_references
 

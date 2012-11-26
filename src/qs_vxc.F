@@ -20,7 +20,8 @@ MODULE qs_vxc
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
                                              sic_none,&
-                                             xc_none
+                                             xc_none,&
+                                             xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -42,6 +43,7 @@ MODULE qs_vxc
                                              pw_p_type,&
                                              pw_release,&
                                              pw_type
+  USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -76,9 +78,6 @@ CONTAINS
 !>        are responsible for it)
 !> \param qs_env qs_environment to get all the needed things
 !> \param rho_struct density for which v_xc is calculated
-!> \param calculate_forces if the forces should be calculated (so that you
-!>        might be able to add forces to the atoms is you do strange stuff in
-!>        the xc
 !> \param just_energy if true calculates just the energy, and does not
 !>        allocate v_*_rspace
 !> \param error variable to control error logging, stopping,...
@@ -94,23 +93,26 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_vxc_create( qs_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
-       just_energy, epr_xc, adiabatic_rescale_factor, error)
+       just_energy, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
-    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, epr_xc
+    LOGICAL, INTENT(in), OPTIONAL            :: just_energy
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, myfun, stat
-    LOGICAL :: do_adiabatic_rescaling, failure, my_epr_xc, my_just_energy, &
-      sic_scaling_b_zero, uf_grid
+    INTEGER                                  :: handle, ispin, myfun, stat, &
+                                                vdw
+    LOGICAL                                  :: do_adiabatic_rescaling, &
+                                                failure, my_just_energy, &
+                                                sic_scaling_b_zero, uf_grid, &
+                                                vdW_nl
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
                                                 my_scaling, nelec_s_inv, &
@@ -123,9 +125,9 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
                                                 rho_g, rho_m_gspace, &
                                                 rho_m_rspace, rho_r, tau
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, vdw_pw_pool, &
+                                                xc_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
-    TYPE(section_vals_type), POINTER         :: input
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset( routineN ,handle)
@@ -133,14 +135,12 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-    NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, cell, my_vxc_rho, &
+    NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, vdw_pw_pool, cell, my_vxc_rho, &
             tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
-            rho_m_gspace, input)
+            rho_m_gspace)
 
     my_just_energy=.FALSE.
     IF (PRESENT(just_energy)) my_just_energy=just_energy
-    my_epr_xc=.FALSE.
-    IF(PRESENT(epr_xc)) my_epr_xc=epr_xc
     my_adiabatic_rescale_factor = 1.0_dp
     do_adiabatic_rescaling = .FALSE.
     IF( PRESENT(adiabatic_rescale_factor)) THEN
@@ -148,12 +148,16 @@ CONTAINS
        do_adiabatic_rescaling = .TRUE.
     END IF
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
-         pw_env=pw_env, cell=cell,virial=virial, error=error)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
+         pw_env=pw_env, cell=cell, virial=virial, error=error)
 
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=myfun,error=error)
-    IF (myfun/=xc_none) THEN
+    CALL section_vals_val_get(xc_section,"VDW_POTENTIAL%POTENTIAL_TYPE",&
+         i_val=vdw,error=error)
+    vdW_nl = (vdw==xc_vdw_fun_nonloc)
+
+    IF (myfun/=xc_none .OR. vdW_nl) THEN
 
        ! test if the real space density is available
        CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -284,8 +288,8 @@ CONTAINS
                   rho_g=rho_g,tau=tau,exc=exc,&
                   xc_section=xc_section,&
                   cell=cell, pw_pool=xc_pw_pool,&
-                  error=error,&
-                  virial=virial)
+                  virial=virial,&
+                  error=error)
           END IF
 
           ! remove the nlcc densities (keep stuff in original state)
@@ -297,6 +301,18 @@ CONTAINS
                 CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
              ENDDO
           ENDIF
+
+          ! calclulate non-local vdW functional
+          ! only if this XC_SECTION has it
+          ! if yes, we use the dispersion_env from qs_env
+          ! this is dangerous, as it assumes a special connection xc_section -> qs_env
+          IF (vdW_nl) THEN
+             ! no spin polarization allowed
+             CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+             CALL pw_env_get(pw_env,vdw_pw_pool=vdw_pw_pool,error=error)
+             CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
+                  cell,vdw_pw_pool,xc_pw_pool,virial=virial,error=error)
+          END IF
 
           !! Apply rescaling to the potential if requested
           IF(.NOT. my_just_energy) THEN
@@ -597,6 +613,7 @@ CONTAINS
 
        END IF
     END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE qs_vxc_create

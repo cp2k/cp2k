@@ -1805,6 +1805,24 @@ CONTAINS
                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
               END IF
             END IF
+            ! vdD-DF
+            IF (ASSOCIATED(qs_env%dispersion_env%q_mesh)) THEN
+               DEALLOCATE(qs_env%dispersion_env%q_mesh, stat=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+            IF (ASSOCIATED(qs_env%dispersion_env%kernel)) THEN
+               DEALLOCATE(qs_env%dispersion_env%kernel, stat=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+            IF (ASSOCIATED(qs_env%dispersion_env%d2phi_dk2)) THEN
+               DEALLOCATE(qs_env%dispersion_env%d2phi_dk2, stat=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+            IF (ASSOCIATED(qs_env%dispersion_env%d2y_dx2)) THEN
+               DEALLOCATE(qs_env%dispersion_env%d2y_dx2, stat=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+
             DEALLOCATE(qs_env%dispersion_env, stat=stat)
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF

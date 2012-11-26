@@ -25,13 +25,15 @@ MODULE qs_dispersion_types
 
   TYPE qs_dispersion_type
     INTEGER                                :: TYPE
-    CHARACTER (LEN=default_string_length)  :: pp_type
+    INTEGER                                :: pp_type
+    INTEGER                                :: nl_type
     CHARACTER (LEN=default_string_length)  :: ref_functional
     REAL(KIND=dp)                          :: scaling
     REAL(KIND=dp)                          :: rc_disp
     REAL(KIND=dp)                          :: exp_pre
     LOGICAL                                :: verbose  !extended output
     CHARACTER (LEN=default_string_length)  :: parameter_file_name
+    CHARACTER (LEN=default_string_length)  :: kernel_file_name
     !DFT-D3 global parameters
     INTEGER                                :: max_elem !elements parametrized
     INTEGER                                :: maxc     !max coordination number references per element
@@ -53,6 +55,28 @@ MODULE qs_dispersion_types
                                            :: cnkind
     TYPE(cn_atom_list),DIMENSION(:), POINTER &
                                            :: cnlist
+    !vdW-DF variables
+    REAL(KIND=dp)                          :: pw_cutoff
+    INTEGER                                :: nqs, nr_points
+                                                       !! The number of q points and radial points
+                                                       !! used in generating the kernel phi(q1*r, q2*r)
+                                                       !! (see DION 14-16 and SOLER 3)
+    REAL(KIND=dp)                          :: r_max, q_cut, q_min, dk
+                                                       !! The maximum value of r, the maximum and minimum
+                                                       !! values of q and the k-space spacing of grid points.
+                                                       !! Note that, during a vdW run, values of q0 found
+                                                       !! larger than q_cut will be saturated (SOLER 6-7) to
+                                                       !! q_cut
+    REAL(KIND=dp),DIMENSION(:), POINTER    :: q_mesh   !! The values of all the q points used
+    REAL(KIND=dp),DIMENSION(:,:,:), POINTER &
+                                           :: kernel   !! A matrix holding the Fourier transformed kernel function
+                                                       !! for each pair of q values.  The ordering is
+                                                       !! kernel(k_point, q1_value, q2_value)
+    REAL(KIND=dp),DIMENSION(:,:,:), POINTER &
+                                           :: d2phi_dk2!! A matrix holding the second derivatives of the above
+                                                       !! kernel matrix at each of the q points.  Stored as  
+                                                       !! d2phi_dk2(k_point, q1_value, q2_value)
+    REAL(KIND=dp),DIMENSION(:,:), POINTER  :: d2y_dx2  !! 2nd derivatives of q_mesh for interpolation
   END TYPE qs_dispersion_type
 
   TYPE qs_atom_dispersion_type
