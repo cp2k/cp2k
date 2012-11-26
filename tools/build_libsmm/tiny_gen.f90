@@ -63,7 +63,7 @@ READ(arg,*) data_type
   write(6,*)                    "    ENDDO"
   write(6,*)                    "    ENDDO"
   write(6,*)                    "    ENDDO"
-  write(6,'(A200)')             '    write(6,''(4I4,F12.6,F12.3)'') '//&
+  write(6,'(A112)')             '    write(6,''(4I4,F12.6,F12.3)'') '//&
                   'best_loop,best_mu, best_nu, best_ku, best_time, (flops*Niter/best_time)/gflop'
   write(6,*)                    "END PROGRAM tiny_find"
 
