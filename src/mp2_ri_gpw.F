@@ -98,6 +98,12 @@ MODULE mp2_ri_gpw
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
+#if defined(__HAVE_CUBLAS)
+#define ACC_DGEMM cublas_dgemm
+#else
+#define ACC_DGEMM dgemm
+#endif
+
   IMPLICIT NONE
 
   PRIVATE
@@ -1754,7 +1760,8 @@ MODULE mp2_ri_gpw
             ! calculate the integrals (ia|jb) stratibg from my local data ...
             local_ab=0.0_dp
             t_start=m_walltime()
-            CALL DGEMM('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
+            CALL ACC_DGEMM('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
+                       local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                        0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size_beta),my_B_size)
             t_end=m_walltime()
             actual_flop_rate=2.0_dp*my_B_size*my_B_size_beta*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -1779,7 +1786,8 @@ MODULE mp2_ri_gpw
 
               ! local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size)=MATMUL(TRANSPOSE(external_i_aL),local_j_aL)
               t_start=m_walltime()
-              CALL DGEMM('T','N',rec_B_size,my_B_size_beta,dimen_RI,1.0_dp,external_i_aL,dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
+              CALL ACC_DGEMM('T','N',rec_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
+                         external_i_aL,dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                          0.0_dp,local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size_beta),rec_B_size)
               t_end=m_walltime()
               actual_flop_rate=2.0_dp*rec_B_size*my_B_size_beta*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -1790,6 +1798,7 @@ MODULE mp2_ri_gpw
             END DO
             CALL timestop(handle3)
 
+            CALL timeset(routineN//"_ener",handle3)
             ! calculate coulomb only MP2
             sym_fac=2.0_dp
             IF(my_i==my_j) sym_fac=1.0_dp
@@ -1858,6 +1867,7 @@ MODULE mp2_ri_gpw
                 DEALLOCATE(external_ab)
               END DO
             END IF
+            CALL timestop(handle3)
 
           END DO ! jjB
         END DO ! iiB
