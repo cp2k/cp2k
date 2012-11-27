@@ -373,14 +373,16 @@ CONTAINS
 !> \author Florian Thoele 
 ! *****************************************************************************
   SUBROUTINE density_matrix_trs4(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
-                                 nelectron, threshold, e_homo, e_lumo, e_mu, delta_ks, dynamic_threshold, error)
+                                 nelectron, threshold, e_homo, e_lumo, e_mu, &
+                                 dynamic_threshold, matrix_ks_deviation, error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_s_sqrt_inv
     INTEGER, INTENT(IN)                      :: nelectron
     REAL(KIND=dp), INTENT(IN)                :: threshold
-    REAL(KIND=dp), INTENT(INOUT)             :: e_homo, e_lumo, e_mu, delta_ks
+    REAL(KIND=dp), INTENT(INOUT)             :: e_homo, e_lumo, e_mu
     LOGICAL, INTENT(IN), OPTIONAL            :: dynamic_threshold
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_ks_deviation
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
@@ -392,12 +394,12 @@ CONTAINS
     INTEGER                                  :: branch, estimated_steps, &
                                                 handle, i, j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
-    LOGICAL                                  :: do_dyn_threshold
+    LOGICAL                                  :: converged, do_dyn_threshold
     REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_gap, &
       est_threshold, frob_id, frob_x, gam, homo, lumo, max_eig, &
-      max_threshold, min_eig, mmin, mu, mu_a, mu_b, mu_c, mu_fa, mu_fc, &
-      occ_matrix, scaled_homo_bound, scaled_lumo_bound, shift1, shift2, t1, &
-      t2, trace_fx, trace_gx, xi
+      max_threshold, maxdev, maxev, min_eig, minev, mmin, mu, mu_a, mu_b, &
+      mu_c, mu_fa, mu_fc, occ_matrix, scaled_homo_bound, scaled_lumo_bound, &
+      shift1, shift2, t1, t2, trace_fx, trace_gx, xi
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
                                                 matrix_xidsq, matrix_xsq, &
@@ -431,11 +433,25 @@ CONTAINS
     CALL cp_dbcsr_create(matrix_k0,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
     CALL cp_dbcsr_copy(matrix_k0, matrix_x, error=error)
 
+    ! compute the deviation in the mixed matrix, as seen in the ortho basis
+    CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x , -1.0_dp, 1.0_dp, error=error)
+    CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, 1.0E-4_dp, &
+                            converged=converged, error=error)
+    maxdev = MAX(ABS(maxev), ABS(minev))
+    IF (unit_nr>0) THEN
+       WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
+       WRITE(unit_nr, '(T6,A,1X,F12.5)') "change in mixed matrix: ", maxdev
+       WRITE(unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo+maxdev
+       WRITE(unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo-maxdev
+       WRITE(unit_nr, '(T6,A,1X,L12)')   "Predicts a gap ?        ", ((e_lumo-maxdev)-(e_homo+maxdev))>0
+    ENDIF
+    ! save the old mixed matrix
+    CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x , error=error)
 
     ! get largest/smallest eigenvalues for scaling
-    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, 1.0E-4_dp, error=error)
-    IF (unit_nr>0) WRITE(unit_nr,'(T6,A,2F12.5)') "Est. extremal eigenvalues", &
-                                                         min_eig, max_eig
+    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, 1.0E-4_dp, converged=converged, error=error)
+    IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
+                                                         min_eig, max_eig," converged: ",converged
     eps_max = max_eig
     eps_min = min_eig
     
@@ -445,8 +461,8 @@ CONTAINS
     CALL cp_dbcsr_scale(matrix_x, 1/(eps_max-eps_min), error=error)
 
     ! scale bounds for HOMO/LUMO
-    scaled_homo_bound = (eps_max-(e_homo+delta_ks))/(eps_max-eps_min)
-    scaled_lumo_bound = (eps_max-(e_lumo-delta_ks))/(eps_max-eps_min)
+    scaled_homo_bound = (eps_max-(e_homo+maxdev))/(eps_max-eps_min)
+    scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
     est_gap = scaled_homo_bound - scaled_lumo_bound
     current_threshold = threshold
 
