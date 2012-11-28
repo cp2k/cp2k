@@ -334,6 +334,8 @@ CONTAINS
                          ELSE
                             tmp2 = ABS(evals(iev,iter-1) - (in_evals(n_ev)+10.0_dp))
                          END IF
+                         ! protect against division by 0 by a introducing a cutoff.
+                         tmp2=MAX(tmp2,100*EPSILON(1.0_dp))
                          DO row=1, p_env%n_ao(spin)
                             CALL cp_fm_get_element(X(spin)%matrix, row, col, tmp)
                             CALL cp_fm_set_element(b(k,spin)%matrix, row, col, tmp/tmp2,error=error)
@@ -419,7 +421,7 @@ CONTAINS
        evals_difference =  1.0_dp
        IF (iter/=1) THEN
 
-          evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter))/evals(1:n_ev,iter-1))
+          evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter)))
           ! For debugging
           IF (output_unit>0) THEN
              WRITE (output_unit,*)
