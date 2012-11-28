@@ -38,6 +38,8 @@ MODULE rpa_ri_gpw
                                              mp_min,&
                                              mp_sendrecv,&
                                              mp_sum
+  USE minimax,                         ONLY: check_range
+  USE mp2_laplace,                     ONLY: laplace_minimax_approx
   USE mp2_types,                       ONLY: mp2_type
   USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&
@@ -58,7 +60,7 @@ MODULE rpa_ri_gpw
 
   SUBROUTINE rpa_ri_compute_en(Erpa,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,&
+                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,do_ri_sos_laplace_mp2,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
     REAL(KIND=dp)                            :: Erpa
@@ -73,6 +75,7 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: nmo, homo, dimen_RI, unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    LOGICAL                                  :: do_ri_sos_laplace_mp2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :), OPTIONAL           :: BIb_C_beta
     INTEGER, OPTIONAL                        :: homo_beta
@@ -86,23 +89,25 @@ MODULE rpa_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: a, best_integ_group_size, best_num_integ_point, &
-      color_rpa_group, dimen_ia, dimen_ia_beta, handle, i, ia_global, iiB, &
-      integ_group_size, iproc, itmp(2), jjB, min_integ_group_size, my_B_size, &
-      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-      my_group_L_size, my_group_L_start, my_homo_beta, my_ia_end, &
-      my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
+      color_rpa_group, dimen_ia, dimen_ia_beta, handle, i, ia_global, ierr, &
+      iiB, input_integ_group_size, integ_group_size, iproc, itmp(2), jjB, &
+      min_integ_group_size, my_B_size, my_B_size_beta, my_B_virtual_end, &
+      my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
+      my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, &
+      my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
       my_ia_start_beta, ngroup, num_integ_group, num_integ_points, &
       pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
-      rec_B_virtual_end, rec_B_virtual_start, stat, virtual, virtual_beta
+      rec_B_virtual_end
+    INTEGER :: rec_B_virtual_start, stat, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_ia, ends_ia_beta, &
                                                 sizes_ia, sizes_ia_beta, &
                                                 starts_ia, starts_ia_beta, &
                                                 sub_proc_map
     LOGICAL                                  :: failure, my_open_shell, &
                                                 skip_integ_group_opt
-    REAL(KIND=dp) :: avail_mem, mem_for_iaK, mem_for_QK, mem_min, &
-      mem_per_group, mem_real, needed_mem, rpa_memory
+    REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, &
+      Emin, Emin_beta, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, &
+      mem_real, needed_mem
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_C_2D, BIb_C_2D_beta
     REAL(KIND=dp), ALLOCATABLE, &
@@ -115,9 +120,6 @@ MODULE rpa_ri_gpw
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    num_integ_points=mp2_env%ri_rpa%rpa_num_quad_points
-    rpa_memory=mp2_env%mp2_memory
-
     my_open_shell=.FALSE.
     IF(PRESENT(BIb_C_beta).AND.&
        PRESENT(ends_B_virtual_beta).AND.&
@@ -127,6 +129,39 @@ MODULE rpa_ri_gpw
        PRESENT(Eigenval_beta)) my_open_shell=.TRUE.
 
     virtual=nmo-homo
+
+    IF(do_ri_sos_laplace_mp2) THEN
+      num_integ_points=mp2_env%ri_laplace%n_quadrature
+      input_integ_group_size=mp2_env%ri_laplace%integ_group_size
+
+      ! check the range for the minimax approximation
+      Emin=2.0_dp*(Eigenval(homo+1)-Eigenval(homo))
+      Emax=2.0_dp*(MAXVAL(Eigenval)-MINVAL(Eigenval))
+      IF(my_open_shell.AND.homo_beta>0) THEN
+        Emin_beta=2.0_dp*(Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta))
+        Emax_beta=2.0_dp*(MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta))
+        Emin=MIN(Emin,Emin_beta)
+        Emax=MAX(Emax,Emax_beta)
+      END IF
+      E_Range=Emax/Emin
+      IF(E_Range<2.0_dp) E_Range=2.0_dp
+      ierr=0
+      CALL check_range(num_integ_points,E_Range,ierr)
+      IF(ierr/=0) THEN
+        jjB=num_integ_points-1
+        DO iiB=1, jjB
+          num_integ_points=num_integ_points-1
+          ierr=0
+          CALL check_range(num_integ_points,E_Range,ierr)
+          IF(ierr==0) EXIT
+        END DO
+      END IF
+      CPPostcondition(num_integ_points>=1,cp_failure_level,routineP,error_sub,failure)
+    ELSE
+      num_integ_points=mp2_env%ri_rpa%rpa_num_quad_points
+      input_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size
+    END IF
+    allowed_memory=mp2_env%mp2_memory
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
 
@@ -147,12 +182,12 @@ MODULE rpa_ri_gpw
     ! has not been given back to the OS yet. 
     CALL mp_min(mem_real,para_env%group)
 
-    mem_min=REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
+    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
  
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
                                                         mem_min, ' MB'
    
-    mem_real=rpa_memory-mem_real
+    mem_real=allowed_memory-mem_real
     mem_real=MAX(mem_real,mem_min)
 
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Available memory per MPI process:',&
@@ -162,25 +197,25 @@ MODULE rpa_ri_gpw
 
     needed_mem=mem_for_iaK*2.0_dp+mem_for_QK
 
-    ! here we try to find the best rpa group size
+    ! here we try to find the best rpa/lapleca group size
     skip_integ_group_opt=.FALSE.
      
-    IF(mp2_env%ri_rpa%rpa_integ_group_size>0) THEN
-      IF(MOD(mp2_env%ri_rpa%rpa_integ_group_size,para_env_sub%num_pe)==0) THEN
-        best_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size/para_env_sub%num_pe
+    IF(input_integ_group_size>0) THEN
+      IF(MOD(input_integ_group_size,para_env_sub%num_pe)==0) THEN
+        best_integ_group_size=input_integ_group_size/para_env_sub%num_pe
         IF(MOD(ngroup,best_integ_group_size)==0) THEN
           num_integ_group=ngroup/best_integ_group_size
           IF((num_integ_points>num_integ_group).AND.MOD(num_integ_points,num_integ_group)==0) THEN
             best_num_integ_point=num_integ_points/num_integ_group
             skip_integ_group_opt=.TRUE.
           ELSE 
-            IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'RPA_NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
+            IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
           END IF
         ELSE
-          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Total number of groups not multiple of SIZE_FREQ_INTEG_GROUP'
+          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Total number of groups not multiple of SIZE_INTEG_GROUP'
         END IF
       ELSE
-        IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'SIZE_FREQ_INTEG_GROUP not multiple of GROUP_SIZE'
+        IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'SIZE_INTEG_GROUP not multiple of GROUP_SIZE'
       END IF
     END IF
 
@@ -218,14 +253,25 @@ MODULE rpa_ri_gpw
     integ_group_size=best_integ_group_size
 
     IF (unit_nr>0) THEN
-       WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                               "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
-       WRITE (UNIT=unit_nr,FMT="(T3,A)")&
-                               "INTEG_INFO| Clenshaw-Curtius quadrature"
-       WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                               "INTEG_INFO| Number of integration points:", num_integ_points
-       WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                               "INTEG_INFO| Number of integration points per RPA group:", best_num_integ_point
+      IF(do_ri_sos_laplace_mp2) THEN 
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "RI_INFO| Group size for laplace numerical integration:", integ_group_size*para_env_sub%num_pe
+         WRITE (UNIT=unit_nr,FMT="(T3,A)")&
+                                 "INTEG_INFO| MINIMAX approximation"
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "INTEG_INFO| Number of integration points:", num_integ_points
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "INTEG_INFO| Number of integration points per Laplace group:", best_num_integ_point
+      ELSE
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
+         WRITE (UNIT=unit_nr,FMT="(T3,A)")&
+                                 "INTEG_INFO| Clenshaw-Curtius quadrature"
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "INTEG_INFO| Number of integration points:", num_integ_points
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "INTEG_INFO| Number of integration points per RPA group:", best_num_integ_point
+      END IF
        CALL m_flush(unit_nr)
     END IF
     
@@ -422,16 +468,31 @@ MODULE rpa_ri_gpw
                             para_env_RPA,fm_mat_S_beta,fm_mat_G_beta,fm_mat_Q_beta,error,error_sub,&
                             .TRUE.,fm_mat_Q%matrix_struct%context)
 
-      ! go with clenshaw curtius quadrature
-      CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                                 num_integ_points,num_integ_group,color_rpa_group,&
-                                 fm_mat_S,fm_mat_G,fm_mat_Q,error,&
-                                 homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,fm_mat_Q_beta)
-
+      IF(do_ri_sos_laplace_mp2) THEN
+        ! go with laplace MINIMAX MP2
+        CALL laplace_minimax_approx(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                    num_integ_points,num_integ_group,color_rpa_group,&
+                                    fm_mat_S,fm_mat_G,fm_mat_Q,error,&
+                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,fm_mat_Q_beta)
+      ELSE
+        ! go with clenshaw curtius quadrature
+        CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                   num_integ_points,num_integ_group,color_rpa_group,&
+                                   fm_mat_S,fm_mat_G,fm_mat_Q,error,&
+                                   homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,fm_mat_Q_beta)
+      END IF
     ELSE
-      CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                                 num_integ_points,num_integ_group,color_rpa_group,&
-                                 fm_mat_S,fm_mat_G,fm_mat_Q,error)
+      IF(do_ri_sos_laplace_mp2) THEN
+        ! go with laplace MINIMAX MP2
+        CALL laplace_minimax_approx(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                    num_integ_points,num_integ_group,color_rpa_group,&
+                                    fm_mat_S,fm_mat_G,fm_mat_Q,error)
+      ELSE
+        ! go with clenshaw curtius quadrature
+        CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                   num_integ_points,num_integ_group,color_rpa_group,&
+                                   fm_mat_S,fm_mat_G,fm_mat_Q,error)
+      END IF
     END IF
 
     DEALLOCATE(sizes_ia)

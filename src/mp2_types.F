@@ -15,6 +15,7 @@ MODULE mp2_types
                                              mp2_method_gpw,&
                                              mp2_method_laplace,&
                                              mp2_method_none,&
+                                             ri_mp2_laplace,&
                                              ri_mp2_method_gpw,&
                                              ri_rpa_method_gpw
   USE kinds,                           ONLY: default_path_length,&
@@ -29,19 +30,20 @@ MODULE mp2_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
-  PUBLIC :: mp2_type, mp2_laplace_type, mp2_direct_type, &
-                                        mp2_method_none,&
-                                        mp2_method_laplace,&
-                                        mp2_method_direct,&
-                                        mp2_method_gpw,&
-                                        ri_mp2_method_gpw,&
-                                        ri_rpa_method_gpw,&
-                                        init_TShPSC_lmax,&
-                                        ri_mp2_type
+  PUBLIC :: mp2_type, mp2_direct_type, &
+            mp2_method_none,&
+            mp2_method_laplace,&
+            mp2_method_direct,&
+            mp2_method_gpw,&
+            ri_mp2_method_gpw,&
+            ri_rpa_method_gpw,&
+            ri_mp2_laplace,&
+            init_TShPSC_lmax
 
   PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
             pair_list_type_mp2,&
-            mp2_potential_type, mp2_gpw_type, ri_rpa_type
+            mp2_potential_type, mp2_gpw_type, ri_rpa_type, ri_mp2_type,&
+            mp2_laplace_type
 
   INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -53,10 +55,8 @@ MODULE mp2_types
 
   TYPE mp2_laplace_type
        INTEGER       :: n_quadrature
-       LOGICAL       :: dbcsr
-       LOGICAL       :: only_coulomb
-       LOGICAL       :: super_p
-       LOGICAL       :: sos
+       INTEGER       :: integ_group_size
+       LOGICAL       :: mo_sos
        REAL(dp)      :: threshold
   END TYPE
 
@@ -90,7 +90,7 @@ MODULE mp2_types
        REAL(KIND=dp)            :: energy
        LOGICAL                  :: compute_reference
        INTEGER                  :: method
-!      TYPE(mp2_laplace_type)   :: laplace
+       TYPE(mp2_laplace_type)   :: ri_laplace
        TYPE(mp2_direct_type)    :: direct_canonical
        TYPE(mp2_potential_type) :: potential_parameter
        TYPE(mp2_gpw_type)       :: mp2_gpw

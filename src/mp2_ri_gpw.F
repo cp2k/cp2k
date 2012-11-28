@@ -421,7 +421,7 @@ MODULE mp2_ri_gpw
       IF(do_alpha_beta) mem_for_iaK=mem_for_iaK+&
                         dimen_RI*REAL(homo_beta,KIND=dp)*(nmo-homo_beta)*8.0_dp/(1024_dp**2)
 
-      WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Total memory for (ia|K) integrals:',&
+      WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for (ia|K) integrals:',&
                                            mem_for_iaK, ' MB'
       CALL m_flush(unit_nr)
     ENDIF
@@ -1332,7 +1332,8 @@ MODULE mp2_ri_gpw
     ! has not been given back to the OS yet. 
     CALL mp_min(mem_real,para_env%group)
 
-    mem_min=REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
+    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
+    mem_min=mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI,KIND=dp)*8.0_dp/(1024**2)
  
     IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&

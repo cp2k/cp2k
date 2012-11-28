@@ -26,3 +26,6 @@ RI_MP2_H2O.inp
 RI_RPA_CH3.inp
 RI_RPA_H2O.inp
 RI_MP2_CH3.inp
+# RI-laplace-SOS-MP2
+RI_laplace_MP2_H2O.inp
+RI_laplace_MP2_CH3.inp

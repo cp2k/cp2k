@@ -381,7 +381,9 @@ OBJECTS_GENERIC =\
  molsym.o\
  moments_utils.o\
  motion_utils.o\
+ minimax.o\
  mp2_direct_method.o\
+ mp2_laplace.o\
  mp2_ri_gpw.o\
  mp2_gpw.o\
  mp2.o\

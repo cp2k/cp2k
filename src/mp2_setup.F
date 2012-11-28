@@ -19,6 +19,7 @@ MODULE mp2_setup
                                              mp2_method_gpw,&
                                              mp2_method_none,&
                                              mp2_type,&
+                                             ri_mp2_laplace,&
                                              ri_mp2_method_gpw,&
                                              ri_rpa_method_gpw
   USE timings,                         ONLY: timeset,&
@@ -86,6 +87,11 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"RI_RPA%SIZE_FREQ_INTEG_GROUP",&
                               i_val=mp2_env%ri_rpa%rpa_integ_group_size, error=error)
 
+    CALL section_vals_val_get(mp2_section,"RI_LAPLACE%QUADRATURE_POINTS",&
+                              i_val=mp2_env%ri_laplace%n_quadrature, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_LAPLACE%SIZE_INTEG_GROUP",&
+                              i_val=mp2_env%ri_laplace%integ_group_size, error=error)
+
     CALL section_vals_val_get(mp2_section,"RI_MP2%BLOCK_SIZE",&
                               i_val=mp2_env%ri_mp2%block_size, error=error)
 
@@ -104,6 +110,8 @@ CONTAINS
          WRITE(unit_nr,'(T2,A)') "MP2| using RI-MP2-GPW"
        CASE(ri_rpa_method_gpw)
          WRITE(unit_nr,'(T2,A)') "RI-RPA| using GPW style"
+       CASE(ri_mp2_laplace)
+         WRITE(unit_nr,'(T2,A)') "RI-SOS-Laplace-MP2| using GPW style"
        CASE DEFAULT
          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT

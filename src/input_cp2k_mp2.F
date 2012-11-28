@@ -59,7 +59,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
-            n_keywords=6, n_subsections=5, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=6, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -69,13 +69,14 @@ CONTAINS
             name="METHOD",&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD MP2_GPW",&
-            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW"),&
-            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,ri_rpa_method_gpw/),&
+            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE"),&
+            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,ri_rpa_method_gpw,ri_mp2_laplace/),&
             enum_desc=s2a("Skip MP2 calculation",&
                           "Use the direct mp2 canonical approach",&
                           "Use the GPW approach to MP2",&
                           "Use the GPW approach to RI-MP2",&
-                          "Use the GPW approach to RI-RPA"),&
+                          "Use the GPW approach to RI-RPA",&
+                          "Use the GPW approach to RI-SOS-Laplace-MP2"),&
             default_i_val=mp2_method_direct, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -143,6 +144,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_ri_rpa(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_ri_laplace(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -224,6 +229,52 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_ri_mp2
+
+  SUBROUTINE create_ri_laplace(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_laplace', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"RI_LAPLACE",&
+            description="Parameters influencing the RI-SOS-MP2-Laplace method",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="QUADRATURE_POINTS",&
+            variants=(/"LAPLACE_NUM_QUAD_POINTS"/),&
+            description="Number of quadrature points for the numerical integration in the RI-SOS-MP2-Laplace method.",&
+            usage="QUADRATURE_POINTS 6",&
+            default_i_val=5,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SIZE_INTEG_GROUP",&
+            variants=(/"LAPLACE_GROUP_SIZE"/),&
+            description="Group size for the integration in the Laplace method, that is the number of processes involved in "//&
+                        "the computation of each integration point. SIZE_INTEG_GROUP has to be a multiple "//&
+                        "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "//&
+                        "is automatic.",&
+            usage="SIZE_INTEG_GROUP 16",&
+            default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_ri_laplace
 
   SUBROUTINE create_ri_rpa(section,error)
     TYPE(section_type), POINTER              :: section

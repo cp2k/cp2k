@@ -137,7 +137,8 @@ MODULE mp2_gpw
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_mp2,do_ri_rpa)
+                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_mp2,do_ri_rpa,&
+                          do_ri_sos_laplace_mp2)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX, &
@@ -148,7 +149,8 @@ MODULE mp2_gpw
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
-    LOGICAL, OPTIONAL                        :: do_ri_mp2, do_ri_rpa
+    LOGICAL, OPTIONAL                        :: do_ri_mp2, do_ri_rpa, &
+                                                do_ri_sos_laplace_mp2
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_main', &
       routineP = moduleN//':'//routineN
@@ -162,7 +164,7 @@ MODULE mp2_gpw
       starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL :: blacs_repeatable, failure, my_do_ri_mp2, my_do_ri_rpa, &
-      skip_load_balance_distributed
+      my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
@@ -219,6 +221,10 @@ MODULE mp2_gpw
     ! check if we want to do ri-rpa
     my_do_ri_rpa=.FALSE.
     IF(PRESENT(do_ri_rpa)) my_do_ri_rpa=do_ri_rpa
+
+    ! check if we want to do ri-sos-laplace-mp2
+    my_do_ri_sos_laplace_mp2=.FALSE.
+    IF(PRESENT(do_ri_sos_laplace_mp2)) my_do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2
 
     ! ... setup needed to be able to qs_integrate in a subgroup.
 
@@ -435,7 +441,7 @@ MODULE mp2_gpw
     ! now we're kind of ready to go....
     Emp2_S=0.0_dp
     Emp2_T=0.0_dp
-    IF(my_do_ri_mp2.OR.my_do_ri_rpa) THEN
+    IF(my_do_ri_mp2.OR.my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
       ! RI-GPW integrals (same stuff for both RPA and MP2)
       IF(nspins==2) THEN
         ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
@@ -532,18 +538,18 @@ MODULE mp2_gpw
     CALL distribution_1d_release(local_molecules_sub,error=error_sub)
 
     ! decide if to doing RI-RPA or RI-MP2
-    IF(my_do_ri_rpa) THEN
+    IF(my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
       ! RI-RPA
       IF(nspins==2) THEN
         CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,&
+                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
       ELSE
         CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub)
+                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2)
       END IF
     ELSE
       IF(my_do_ri_mp2) THEN

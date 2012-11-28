@@ -60,6 +60,7 @@ MODULE mp2
                                              mp2_method_gpw,&
                                              mp2_method_laplace,&
                                              mp2_type,&
+                                             ri_mp2_laplace,&
                                              ri_mp2_method_gpw,&
                                              ri_rpa_method_gpw
   USE particle_types,                  ONLY: particle_type
@@ -186,7 +187,8 @@ MODULE mp2
 
     IF((mp2_env%method.NE.mp2_method_gpw).AND.&
        (mp2_env%method.NE.ri_mp2_method_gpw).AND.&
-       (mp2_env%method.NE.ri_rpa_method_gpw)) THEN
+       (mp2_env%method.NE.ri_rpa_method_gpw).AND.&
+       (mp2_env%method.NE.ri_mp2_laplace)) THEN
       mem=m_memory()
       mem_real=(mem+1024*1024-1)/(1024*1024)
       CALL mp_max(mem_real,para_env%group)
@@ -474,7 +476,7 @@ MODULE mp2
      CASE(ri_rpa_method_gpw)
        ! perform RI-RPA energy calculation (since most part of the calculation
        ! is actually equal to the RI-MP2-GPW we decided to put RPA in the MP2
-       ! section to avoid code replication
+       ! section to avoid code replication)
 
        ! free Hartree Fock stuff, if associated
        IF (ASSOCIATED(qs_env%x_data)) THEN
@@ -487,6 +489,22 @@ MODULE mp2
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
                           mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_rpa=.TRUE.)
 
+     CASE(ri_mp2_laplace) 
+       ! perform RI-SOS-Laplace-MP2 energy calculation, most part of the code in common
+       ! with the RI-RPA part
+     
+       ! free Hartree Fock stuff, if associated
+       IF (ASSOCIATED(qs_env%x_data)) THEN
+          CALL hfx_release(qs_env%x_data, error=error)
+       ENDIF
+
+       ! In SOS-MP2 only the coulomb-like contribution of the MP2 energy is computed
+       calc_ex=.FALSE.
+        
+       ! go with sos_laplace_mp2_gpw
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
+                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_sos_laplace_mp2=.TRUE.)
+
      CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
    END SELECT
@@ -494,22 +512,29 @@ MODULE mp2
    IF (unit_nr>0) WRITE(unit_nr,*)
    IF(mp2_env%method.NE.ri_rpa_method_gpw) THEN
      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total MP2 Time=',t2-t1
-     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
-     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Exchange Energy = ', Emp2_ex
-     IF(nspins==1) THEN
-       ! valid only in the closed shell case
-       Emp2_S=Emp2_Cou/2.0_dp
-       IF (calc_ex) THEN
-          Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
-       ELSE
-          ! unknown if Emp2_ex is not computed
-          Emp2_T=0.0_dp
-       ENDIF
+     IF(mp2_env%method==ri_mp2_laplace) THEN
+        Emp2_S=Emp2
+        Emp2_T=0.0_dp
+        IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
+        IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
+     ELSE
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Exchange Energy = ', Emp2_ex
+       IF(nspins==1) THEN
+         ! valid only in the closed shell case
+         Emp2_S=Emp2_Cou/2.0_dp
+         IF (calc_ex) THEN
+            Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
+         ELSE
+            ! unknown if Emp2_ex is not computed
+            Emp2_T=0.0_dp
+         ENDIF
+       END IF
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SS component (triplet) = ', Emp2_T
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SS                 = ', mp2_env%scale_T
      END IF
-     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
-     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SS component (triplet) = ', Emp2_T
-     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
-     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SS                 = ', mp2_env%scale_T
      Emp2_S=Emp2_S*mp2_env%scale_S
      Emp2_T=Emp2_T*mp2_env%scale_T
      Emp2=Emp2_S+Emp2_T
