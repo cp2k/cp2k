@@ -33,7 +33,9 @@ MODULE hfx_types
   USE hfx_helpers,                     ONLY: count_cells_perd,&
                                              next_image_cell_perd
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
-                                             initialize_libint
+                                             initialize_libint,&
+                                             terminate_libderiv,&
+                                             terminate_libint
   USE hfx_libint_wrapper_types,        ONLY: lib_deriv,&
                                              lib_int,&
                                              prim_data_f_size
@@ -1288,6 +1290,10 @@ MODULE hfx_types
 
         !! BASIS parameter
         CALL hfx_release_basis_types(actual_x_data%basis_parameter,error)
+
+        !MK Release libint and libderiv data structure
+        CALL terminate_libint(actual_x_data%lib)
+        CALL terminate_libderiv(actual_x_data%lib_deriv)
 
         !! Deallocate containers
         CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
