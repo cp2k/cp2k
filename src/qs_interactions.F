@@ -660,7 +660,7 @@ CONTAINS
     CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
     conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T72,A)")&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T71,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_str),&
         "Kind","Label","Radius","OCE Radius"
       DO ikind=1,nkind
@@ -687,7 +687,7 @@ CONTAINS
                             "Undefined basis set type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
-          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T57,F12.6,T69,F12.6)")&
             ikind,name,kind_radius*conv,short_kind_radius*conv
         ELSE
            WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
