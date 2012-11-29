@@ -52,7 +52,6 @@ MODULE dbcsr_transformations
                                              make_dense_index,&
                                              make_undense_index,&
                                              transpose_index_local
-  USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -131,11 +130,9 @@ MODULE dbcsr_transformations
             dbcsr_new_transposed,&
             dbcsr_complete_redistribute,&
             dbcsr_redistribute, dbcsr_make_untransposed_blocks
-  PUBLIC :: dbcsr_replicate_all, dbcsr_distribute, dbcsr_replicate
+  PUBLIC :: dbcsr_replicate_all, dbcsr_distribute, dbcsr_datablock_redistribute, dbcsr_replicate
   PUBLIC :: dbcsr_make_dense, dbcsr_make_undense, dbcsr_make_images_dense
   PUBLIC :: dbcsr_make_images
-
-
 
 CONTAINS
 
@@ -2603,7 +2600,6 @@ CONTAINS
     ALLOCATE (sm_disp(0:numnodes-1))
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
-    IF (dbg) CALL dbcsr_print(matrix,error=error)
     IF (dbg) THEN
        cs1 = dbcsr_checksum (matrix, error=error)
     ENDIF
@@ -3160,8 +3156,241 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_redistribute
 
+! *****************************************************************************
+!> \brief Redistributes data blocks of a DBCSR matrix read from a file. 
+!>        This routine should be used with dbcsr_binary_read in the module 
+!>        dbcsr_io.F 
+!>
+!> \param[in] dblk, row_p, col_i, blk_p   data blocks, row_p, col_i and blk_p
+!>    of the DBCSR matrix that the current node possesses after reading the 
+!>    data file 
+!> \param[in] proc_nblks, proc_darea_sizes   1D arrays holding nblks and data_
+!>    area_size of those nodes of the mp environment, that created the file, 
+!>    whose contents have been read by the current node of the present mp environment
+!> \param[in,out] new_matrix   redistributed matrix 
+!> 
+!> \par History
+!>      11.2012 created [Hossein Bani-Hashemian]
+! *****************************************************************************
+  SUBROUTINE dbcsr_datablock_redistribute (dblk, row_p, col_i, blk_p,&
+                                           proc_nblks, proc_darea_sizes, new_matrix,error)
+
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: dblk
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: row_p, col_i, blk_p, &
+                                                proc_nblks, proc_darea_sizes
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: new_matrix
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_datablock_redistribute', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: metalen = 2
+
+    COMPLEX(kind=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(kind=sp), DIMENSION(:), POINTER  :: c_sp
+    INTEGER :: actual_blk, bcol, blk, blk_ps, blk_size, blkp, blks, brow, &
+      col_size, data_type, dst_p, end_ind, error_handler, i, ind, job_count, &
+      meta_l, mp_group, nblkrows_total, numnodes, row_size, src_p, start_ind, &
+      stored_col_new, stored_row_new
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
+                                                sd_disp, sdp, send_meta, &
+                                                sm_disp, smp
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
+                                                total_recv_count, &
+                                                total_send_count
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: sym_tr, tr
+    REAL(kind=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(kind=sp), DIMENSION(:), POINTER     :: r_sp
+    TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
+                                                send_data
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_mp_obj)                       :: mp_env
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
 
+     dist = dbcsr_distribution (new_matrix)
+     mp_env = dbcsr_distribution_mp (dist)
+     numnodes = dbcsr_mp_numnodes (mp_env)
+     mp_group = dbcsr_mp_group (mp_env)
 
+     data_type = dbcsr_get_data_type(new_matrix)
+     nblkrows_total = dbcsr_nblkrows_total(new_matrix)
+     row_blk_size => array_data (new_matrix%m%row_blk_size)
+     col_blk_size => array_data (new_matrix%m%col_blk_size)
+
+     ALLOCATE (send_count(2, 0:numnodes-1))
+     ALLOCATE (recv_count(2, 0:numnodes-1))
+     ALLOCATE (total_send_count(2, 0:numnodes-1))
+     ALLOCATE (total_recv_count(2, 0:numnodes-1))
+     ALLOCATE (sdp(0:numnodes-1))
+     ALLOCATE (sd_disp(0:numnodes-1))
+     ALLOCATE (smp(0:numnodes-1))
+     ALLOCATE (sm_disp(0:numnodes-1))
+     ALLOCATE (rd_disp(0:numnodes-1))
+     ALLOCATE (rm_disp(0:numnodes-1))
+     send_count(:,:) = 0
+     dst_p = -1
+
+     job_count = COUNT(proc_nblks .NE. 0)
+     i = 0
+     DO ind = 1, job_count*nblkrows_total
+        brow = MOD(ind-1,nblkrows_total)+1
+        IF (brow - 1 .EQ. 0) i = i+1
+        row_size = row_blk_size(brow)
+        DO blk = row_p(ind+i-1)+1, row_p(ind+i)
+           actual_blk = blk+SUM(proc_nblks(1:i-1))
+           bcol = col_i(actual_blk)
+           col_size = col_blk_size(bcol)
+           blk_size = row_size*col_size
+           blkp = blk_p(actual_blk)
+           sym_tr = .FALSE.
+           CALL dbcsr_get_stored_coordinates (new_matrix%m, brow, bcol, sym_tr, dst_p)
+           send_count(1, dst_p) = send_count(1, dst_p) + 1
+           send_count(2, dst_p) = send_count(2, dst_p) + blk_size
+        ENDDO
+     ENDDO
+     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
+     CALL dbcsr_data_init (recv_data)
+     CALL dbcsr_data_new (recv_data, data_type, SUM(recv_count(2, :)))
+     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
+     CALL dbcsr_data_init (send_data)
+     CALL dbcsr_data_new (send_data, data_type, SUM(send_count(2, :)))
+     ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
+     DO dst_p = 0, numnodes-1
+        total_send_count(1, dst_p) = send_count (1, dst_p)
+        total_send_count(2, dst_p) = send_count (2, dst_p)
+        total_recv_count(1, dst_p) = recv_count (1, dst_p)
+        total_recv_count(2, dst_p) = recv_count (2, dst_p)
+     ENDDO
+     sd_disp = -1 ; sm_disp = -1 ; rd_disp = -1 ; rm_disp = -1                                                             
+     sd_disp(0) = 1 ; sm_disp(0) = 1 ; rd_disp(0) = 1 ; rm_disp(0) = 1                        
+     DO dst_p = 1, numnodes-1                               
+        sm_disp(dst_p) = sm_disp(dst_p-1) + metalen*total_send_count(1, dst_p-1)
+        sd_disp(dst_p) = sd_disp(dst_p-1) + total_send_count(2, dst_p-1)
+        rm_disp(dst_p) = rm_disp(dst_p-1) + metalen*total_recv_count(1, dst_p-1)
+        rd_disp(dst_p) = rd_disp(dst_p-1) + total_recv_count(2, dst_p-1)
+     ENDDO
+     sdp(:) = sd_disp     
+     smp(:) = sm_disp - metalen  
+    
+     SELECT CASE (data_type)
+     CASE (dbcsr_type_real_4)
+          r_sp => dblk%d%r_sp
+     CASE (dbcsr_type_real_8)
+          r_dp => dblk%d%r_dp
+     CASE (dbcsr_type_complex_4)
+          c_sp => dblk%d%c_sp
+     CASE (dbcsr_type_complex_8)
+          c_dp => dblk%d%c_dp
+     END SELECT 
+
+     CALL dbcsr_data_init (data_block)
+     CALL dbcsr_data_new (data_block, data_type)
+     i = 0
+     dst_p = -1
+     DO ind = 1, job_count*nblkrows_total
+        brow = MOD(ind-1,nblkrows_total)+1
+        IF (brow - 1 .EQ. 0) i = i+1
+        row_size = row_blk_size(brow)
+        DO blk = row_p(ind+i-1)+1, row_p(ind+i)
+           actual_blk = blk+SUM(proc_nblks(1:i-1))
+           bcol = col_i(actual_blk)
+           col_size = col_blk_size(bcol)
+           blk_size = row_size*col_size
+           blkp = blk_p(actual_blk)
+           start_ind = blkp+SUM(proc_darea_sizes(1:i-1))
+           end_ind = blkp+SUM(proc_darea_sizes(1:i-1))+blk_size-1
+
+           SELECT CASE (data_type)
+           CASE (dbcsr_type_real_4)
+               data_block%d%r_sp => r_sp(start_ind:end_ind)
+           CASE (dbcsr_type_real_8)
+               data_block%d%r_dp => r_dp(start_ind:end_ind)
+           CASE (dbcsr_type_complex_4)
+               data_block%d%c_sp => c_sp(start_ind:end_ind)
+           CASE (dbcsr_type_complex_8)
+               data_block%d%c_dp => c_dp(start_ind:end_ind)
+           END SELECT
+           sym_tr = .FALSE.
+           CALL dbcsr_get_stored_coordinates(new_matrix%m, brow, bcol, sym_tr, dst_p)
+           smp(dst_p) = smp(dst_p) + metalen
+           tr=.FALSE.
+!           IF (tr) THEN
+!              send_meta(smp(dst_p)) = -brow
+!           ELSE
+              send_meta(smp(dst_p)) = brow
+!           ENDIF
+           send_meta(smp(dst_p)+1) = bcol 
+           blk_size = dbcsr_data_get_size (data_block)
+
+           CALL dbcsr_data_set (send_data, lb=sdp(dst_p),&
+                                data_size=blk_size, src=data_block, source_lb=1)
+           sdp(dst_p) = sdp(dst_p) + blk_size
+        ENDDO
+     ENDDO
+     CALL dbcsr_data_clear_pointer (data_block)
+
+     SELECT CASE (data_type)
+     CASE (dbcsr_type_real_4)
+        CALL hybrid_alltoall_s1(&
+            send_data%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_env)
+     CASE (dbcsr_type_real_8)
+        CALL hybrid_alltoall_d1 (&
+           send_data%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+           recv_data%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+           mp_env)
+     CASE (dbcsr_type_complex_4)
+        CALL hybrid_alltoall_c1(&
+           send_data%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+           recv_data%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+           mp_env)
+     CASE (dbcsr_type_complex_8)
+        CALL hybrid_alltoall_z1(&
+          send_data%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+          recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+          mp_env)
+     END SELECT         
+     CALL hybrid_alltoall_i1(send_meta(:), SIZE(send_meta), metalen*total_send_count(1,:), sm_disp(:)-1,&
+          recv_meta(:), SIZE(recv_meta), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_env)
+     CALL dbcsr_work_create(new_matrix,SUM(recv_count(1,:)),&
+                            SUM(recv_count(2,:)), work_mutable=.FALSE., n=1, error=error)
+
+     blk_ps = 1
+     blks = 0
+     DO src_p = 0, numnodes-1
+        DO meta_l = 1, recv_count(1, src_p)
+           brow = recv_meta(rm_disp(src_p)+metalen*(meta_l-1))
+           tr = brow .LT. 0
+           stored_row_new = ABS(brow)
+           stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
+           blk_size = row_blk_size(stored_row_new) * col_blk_size(stored_col_new)
+
+           data_block = pointer_view (data_block, recv_data, blk_ps, blk_size)
+           CALL dbcsr_put_block(new_matrix, stored_row_new, stored_col_new, data_block, tr)
+
+           blk_ps = blk_ps + blk_size
+           blks = blks + 1
+        ENDDO
+     ENDDO
+     CALL dbcsr_data_clear_pointer (data_block)
+     CALL dbcsr_finalize(new_matrix, reshuffle=.TRUE., error=error)
+     CALL dbcsr_data_release (recv_data)
+     CALL dbcsr_data_release (send_data)
+ 
+     DEALLOCATE(send_count)
+     DEALLOCATE(recv_count)
+     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
+     DEALLOCATE(smp); DEALLOCATE(sm_disp)
+     DEALLOCATE(rd_disp)
+     DEALLOCATE(rm_disp)
+     DEALLOCATE(recv_meta)
+     DEALLOCATE(send_meta)
+
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_datablock_redistribute
 
 END MODULE dbcsr_transformations

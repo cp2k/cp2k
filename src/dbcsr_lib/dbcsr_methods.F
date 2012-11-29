@@ -123,7 +123,7 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area, dbcsr_switch_data_area
-  PUBLIC :: dbcsr_get_num_blocks
+  PUBLIC :: dbcsr_get_num_blocks, dbcsr_get_nze
 
 
   PUBLIC :: dbcsr_blk_row_size, dbcsr_blk_column_size,&
@@ -1770,8 +1770,6 @@ CONTAINS
     col_offset = matrix%m%col_blk_offset%low%data(col)
   END FUNCTION dbcsr_blk_col_offset
 
-
-
 ! *****************************************************************************
 !> \brief Returns the data area
 !> \param matrix     matrix from which to get data
@@ -2170,6 +2168,18 @@ CONTAINS
 
     num_blocks = matrix%m%nblks
   END FUNCTION dbcsr_get_num_blocks
+
+! *****************************************************************************
+!> \brief Returns the number of non-zero elements in the matrix
+!> \param matrix     matrix from which to get data
+!> \param area       data area
+! *****************************************************************************
+  PURE FUNCTION dbcsr_get_nze (matrix) RESULT (num_nze)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: num_nze
+
+    num_nze = matrix%m%nze
+  END FUNCTION dbcsr_get_nze
 
 ! *****************************************************************************
 !> \brief Returns the occupation of the matrix

@@ -14,27 +14,44 @@
 ! *****************************************************************************
 MODULE dbcsr_io
 
-  USE array_types,                     ONLY: array_data
-  USE dbcsr_data_methods,              ONLY: dbcsr_get_data
+  USE array_types,                     ONLY: array_data,&
+                                             array_i1d_obj,&
+                                             array_new
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_init,&
+                                             dbcsr_data_new,&
+                                             dbcsr_get_data
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
+  USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             dp,&
                                              real_4,&
+                                             real_4_size,&
                                              real_8,&
+                                             real_8_size,&
                                              sp
-  USE dbcsr_message_passing,           ONLY: mp_allgather
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
-                                             dbcsr_get_data_size_referenced,&
-                                             dbcsr_get_data_type,&
-                                             dbcsr_mp_group,&
-                                             dbcsr_mp_numnodes,&
-                                             dbcsr_valid_index
+  USE dbcsr_message_passing,           ONLY: &
+       file_amode_create, file_amode_rdonly, file_amode_wronly, file_offset, &
+       mp_allgather, mp_environ, mp_file_close, mp_file_open, &
+       mp_file_read_at, mp_file_read_at_all, mp_file_write_at, mp_group, &
+       mp_sum, mp_type_descriptor_type, mp_type_size, mpi_character_size, &
+       mpi_integer_size
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_data_area, dbcsr_distribution, dbcsr_distribution_mp, &
+       dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
+       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_valid_index
+  USE dbcsr_mp_operations,             ONLY: dbcsr_mp_type_from_anytype
   USE dbcsr_pq_types,                  ONLY: ntmr
-  USE dbcsr_types,                     ONLY: dbcsr_mp_obj,&
+  USE dbcsr_transformations,           ONLY: dbcsr_datablock_redistribute
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_distribution_obj,&
+                                             dbcsr_mp_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
+  USE dbcsr_work_operations,           ONLY: dbcsr_create
 
   !$ USE OMP_LIB
 
@@ -60,7 +77,8 @@ MODULE dbcsr_io
   ! Utility printing
   PUBLIC :: all_print
   PUBLIC :: print_xfer_timings, print_mult_timings
-
+  PUBLIC :: dbcsr_binary_write
+  PUBLIC :: dbcsr_binary_read
 
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
@@ -731,6 +749,493 @@ CONTAINS
     !     times(tmr_process_me),times(tmr_mult_local)
     !$OMP END CRITICAL
   END SUBROUTINE print_mult_timings
+  
+! *****************************************************************************
+!> \brief Writes a DBCSR matrix in a file
+!>   file's header consists of 3 sub-headers:
+!>   sub-header1 contains: 
+!>     1 string: (of length version_len) the current version of this routine
+!>     1 string: (of length default_string_length) matrix_name 
+!>     1 character: matrix_type 
+!>     4 integers: numnodes, data_type, nblkrows_total, nblkcols_total
+!>     2 vectors:  row_blk_size (length = nblkrows_total), 
+!>                 col_blk_size (length = nblkcols_total) 
+!>   sub-header2 contains:
+!>     2 integers: nblks, data_area_size
+!>   sub-header3 contains: 
+!>     3 vectors:  row_p (length = nblkrows_total+1), 
+!>                 col_i (length = nblks), blk_p (length = nblks)
+!>   and the file's body contains the block data
+!>
+!> \param[in] matrix    DBCSR matrix
+!> \param[in] filepath  path to the file
+!>
+!> \par History
+!>      11.2012 created [Hossein Bani-Hashemian]
+!> \author Hossein Bani-Hashemian
+!> \version v_1.0
+! *****************************************************************************
+  SUBROUTINE dbcsr_binary_write(matrix, filepath, error)
 
+    IMPLICIT NONE
+   
+    TYPE(dbcsr_obj), INTENT(IN)           :: matrix
+    CHARACTER (len=*), INTENT(IN)         :: filepath
+    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_binary_write', &
+                                   routineP = moduleN//':'//routineN
+
+    INTEGER                               :: nblkrows_total, nblkcols_total, &
+                                             nblks, nze, size_of_pgrid, &
+                                             thefile, i, sendbuf, data_area_size, &
+                                             data_type, type_size, &
+                                             mp_group, mynode, numnodes, & 
+                                             ginfo_size, linfo_size, error_handler                
+    INTEGER, DIMENSION(:), POINTER        :: row_p, col_i, blk_p,&
+                                             row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:,:), POINTER      :: pgrid                              
+    TYPE(mp_type_descriptor_type)         :: mp_type
+    TYPE(dbcsr_mp_obj)                    :: mp_env
+    TYPE(dbcsr_distribution_obj)          :: distribution
+    TYPE(dbcsr_data_obj)                  :: data_area
+    COMPLEX(sp),DIMENSION(:),POINTER      :: c_sp
+    COMPLEX(dp),DIMENSION(:),POINTER      :: c_dp
+    REAL(sp),DIMENSION(:),POINTER         :: r_sp
+    REAL(dp),DIMENSION(:),POINTER         :: r_dp
+    CHARACTER                             :: matrix_type
+    CHARACTER(LEN=80)                     :: matrix_name_v_1_0
+    CHARACTER(LEN=default_string_length)  :: matrix_name
+    INTEGER, PARAMETER                    :: version_len=10
+    CHARACTER(LEN=version_len), PARAMETER :: version = "DBCSRv_1.0"   
+    INTEGER, ALLOCATABLE, DIMENSION(:)                   :: linfo_sizes, da_sizes
+    INTEGER(kind=file_offset), ALLOCATABLE, DIMENSION(:) :: bdata_disps, bdata_offsets, & 
+                                                          subh2_disps, subh2_offsets, & 
+                                                          subh3_disps, subh3_offsets
+    INTEGER(kind=file_offset), PARAMETER                 :: BOF = 0
+    INTEGER, PARAMETER          :: char_count = version_len+default_string_length+1 !version, matrix_name, matrix_type
+
+   CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_assert (default_string_length==80,&
+         dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Changing the default string length affects the format of the writen matrix. Version needs to be adjusted",&
+         __LINE__,error)
+
+    nblkrows_total = dbcsr_nblkrows_total(matrix)
+    nblkcols_total = dbcsr_nblkcols_total(matrix)
+    distribution = dbcsr_distribution(matrix) 
+    matrix_name =  dbcsr_name(matrix)
+    data_area = dbcsr_data_area(matrix%m)
+    matrix_type = dbcsr_get_matrix_type(matrix)
+    data_type = dbcsr_get_data_type(matrix)
+    mp_env = dbcsr_distribution_mp(distribution)
+    mp_group = dbcsr_mp_group(mp_env)
+    nblks = dbcsr_get_num_blocks(matrix)
+    row_p => matrix%m%row_p
+    col_i => matrix%m%col_i
+    blk_p => matrix%m%blk_p
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    pgrid => dbcsr_mp_pgrid(mp_env)
+    size_of_pgrid = SIZE(pgrid)
+ 
+    CALL mp_environ(numnodes,mynode,mp_group)
+
+    ALLOCATE(linfo_sizes(numnodes), da_sizes(numnodes), &
+             subh2_disps(numnodes), subh2_offsets(numnodes),&
+             subh3_disps(numnodes), subh3_offsets(numnodes),&
+             bdata_disps(numnodes), bdata_offsets(numnodes))
+    subh2_disps = (/((i-1)*2,i=1,numnodes)/)
+    subh3_disps = BOF
+    bdata_disps = BOF
+    linfo_sizes = BOF
+    da_sizes = BOF
+
+    ginfo_size = char_count+4+nblkrows_total+nblkcols_total
+    linfo_size = 1+nblkrows_total+2*nblks
+
+    sendbuf = linfo_size
+    CALL mp_allgather(sendbuf,linfo_sizes,mp_group)
+    CALL cumsum_l(INT(linfo_sizes,kind=file_offset),subh3_disps)
+    subh3_disps = CSHIFT(subh3_disps,shift=-1)+ginfo_size+2*numnodes
+    subh3_disps(1)=ginfo_size+2*numnodes
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       data_area_size = SIZE(data_area%d%r_sp)
+    CASE (dbcsr_type_real_8)
+       data_area_size = SIZE(data_area%d%r_dp)
+    CASE (dbcsr_type_complex_4)
+       data_area_size = SIZE(data_area%d%c_sp)
+    CASE (dbcsr_type_complex_8)
+       data_area_size = SIZE(data_area%d%c_dp)
+    END SELECT
+    sendbuf = data_area_size
+    CALL mp_allgather(sendbuf,da_sizes,mp_group) 
+    CALL cumsum_l(INT(da_sizes,kind=file_offset),bdata_disps)
+    bdata_disps = CSHIFT(bdata_disps,shift=-1)+SUM(linfo_sizes)+&
+                    ginfo_size+numnodes*2
+    bdata_disps(1)=SUM(linfo_sizes)+ginfo_size+numnodes*2
+
+    CALL mp_file_open(mp_group, thefile, filepath, file_amode_create+file_amode_wronly)
+
+    IF (mynode .EQ. 0) THEN
+       CALL mp_file_write_at(thefile, BOF, version)
+       matrix_name_v_1_0 = matrix_name
+       CALL mp_file_write_at(thefile, BOF+version_len*mpi_character_size, matrix_name_v_1_0 ) 
+       CALL mp_file_write_at(thefile, BOF+(version_len+default_string_length)*mpi_character_size, matrix_type) 
+       CALL mp_file_write_at(thefile, BOF+char_count*mpi_character_size, &
+                             (/size_of_pgrid, data_type, &
+                              nblkrows_total, nblkcols_total, &
+                              row_blk_size, col_blk_size/))             
+    END IF
+!> write sub-header2 
+    subh2_disps = subh2_disps+ginfo_size
+    subh2_offsets = BOF + (subh2_disps-char_count)*mpi_integer_size +&
+                    char_count*mpi_character_size
+    CALL mp_file_write_at(thefile, subh2_offsets(mynode+1), (/nblks, data_area_size/))
+!> write sub-header3 
+    subh3_offsets = BOF + (subh3_disps-char_count)*mpi_integer_size +&
+                    char_count*mpi_character_size
+    CALL mp_file_write_at(thefile, subh3_offsets(mynode+1), (/row_p, col_i, blk_p/))
+!> write block data 
+    mp_type = dbcsr_mp_type_from_anytype(data_area)
+    CALL mp_type_size(mp_type,type_size)
+    bdata_offsets = BOF + (/((bdata_disps(i)-bdata_disps(1))*type_size,i=1,numnodes)/)+&
+                     (bdata_disps(1)-char_count)*mpi_integer_size+ &
+                     char_count*mpi_character_size
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       r_sp => data_area%d%r_sp
+       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), r_sp) 
+    CASE (dbcsr_type_real_8)
+       r_dp => data_area%d%r_dp
+       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), r_dp)
+    CASE (dbcsr_type_complex_4)
+       c_sp => data_area%d%c_sp
+       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), c_sp) 
+    CASE (dbcsr_type_complex_8)
+       c_dp => data_area%d%c_dp
+       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), c_dp) 
+    END SELECT
+    CALL mp_file_close(thefile)
+
+    DEALLOCATE(linfo_sizes,da_sizes)
+    DEALLOCATE(subh2_disps,subh2_offsets,subh3_disps,subh3_offsets)
+    DEALLOCATE(bdata_disps,bdata_offsets)
+
+    CALL dbcsr_error_stop(error_handler, error)
+    
+    CONTAINS
+      SUBROUTINE cumsum_l(arr,cumsum)
+    INTEGER(kind=file_offset), &
+      DIMENSION(:), INTENT(IN)               :: arr
+    INTEGER(kind=file_offset), &
+      DIMENSION(SIZE(arr)), INTENT(OUT)      :: cumsum
+
+    INTEGER                                  :: i
+
+        cumsum(1)=arr(1)
+        DO i=2,SIZE(arr) 
+          cumsum(i)=cumsum(i-1)+arr(i)
+        END DO
+      END SUBROUTINE cumsum_l
+  END SUBROUTINE dbcsr_binary_write
+
+! *****************************************************************************
+!> \brief Reads a DBCSR matrix from a file 
+!> \param[in] filepath             path to the file
+!> \param[in] distribution         row and column distribution
+!> \param[in](optional) groupid    message passing environment identifier
+!> \param[out] matrix_new          DBCSR matrix
+!>
+!> \par History
+!>      11.2012 created [Hossein Bani-Hashemian]
+!> \author Hossein Bani-Hashemian
+!> \version v_1.0
+! *****************************************************************************
+  SUBROUTINE dbcsr_binary_read(filepath, distribution, groupid, matrix_new, error)
+
+    IMPLICIT NONE
+
+    CHARACTER (len=*), INTENT(IN)                :: filepath
+    TYPE(dbcsr_distribution_obj), INTENT(IN)     :: distribution
+    INTEGER, INTENT(IN), OPTIONAL                :: groupid
+    TYPE(dbcsr_obj), INTENT(INOUT)               :: matrix_new
+    TYPE(dbcsr_error_type), INTENT(INOUT)        :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_binary_read', &
+                                   routineP = moduleN//':'//routineN
+
+    INTEGER                               :: nblkrows_total, nblkcols_total, &
+                                             nblks, darea_size, data_type, type_size, &
+                                             globalinfo_size, localinfo_size, &
+                                             subh3_length, size_of_pgrid, &
+                                             thefile, i, j, &
+                                             nblocks, data_area_size, sum_nblks, sum_darea_size, &
+                                             share_size, order, cur_blks, cur_darea_size, &
+                                             job_count, start_index, end_index,&
+                                             group_id, worker_id, group_list_size, error_handler
+    CHARACTER                             :: matrix_type
+    CHARACTER(LEN=default_string_length)  :: matrix_name
+    INTEGER, PARAMETER                    :: version_len=10
+    CHARACTER(LEN=version_len)            :: version   
+    CHARACTER(LEN=80)                     :: matrix_name_v_1_0
+    CHARACTER(LEN=version_len), PARAMETER :: version_v_1_0="DBCSRv_1.0"
+
+    INTEGER, DIMENSION(:), POINTER        :: row_p, col_i, blk_p, ginfo,&
+                                             proc_nblks, proc_darea_sizes
+    INTEGER, DIMENSION(:,:), POINTER      :: pgrid
+    INTEGER, DIMENSION(4)                 :: values
+    INTEGER, ALLOCATABLE, DIMENSION(:)    :: linfo_lens, bdata_lens
+    INTEGER, ALLOCATABLE, DIMENSION(:), TARGET     :: ginfo_vec, linfo_vec, &
+                                                      rowp, coli, blkp
+    INTEGER, ALLOCATABLE, DIMENSION(:,:), TARGET   :: val_data
+    TYPE(array_i1d_obj)                            :: row_blk_size, col_blk_size
+    TYPE(dbcsr_mp_obj)                             :: mp_env
+    TYPE(dbcsr_data_obj)                           :: dblk
+    REAL(sp),DIMENSION(:),POINTER                  :: r_sp
+    REAL(dp),DIMENSION(:),POINTER                  :: r_dp
+    COMPLEX(sp),DIMENSION(:),POINTER               :: c_sp
+    COMPLEX(dp),DIMENSION(:),POINTER               :: c_dp
+    REAL(sp), ALLOCATABLE, DIMENSION(:),TARGET     :: rsp
+    REAL(dp), ALLOCATABLE, DIMENSION(:),TARGET     :: rdp
+    COMPLEX(sp), ALLOCATABLE, DIMENSION(:),TARGET  :: csp
+    COMPLEX(dp), ALLOCATABLE, DIMENSION(:),TARGET  :: cdp
+    INTEGER(kind=file_offset), ALLOCATABLE, DIMENSION(:)   :: subh2_offsets, &
+                                                            subh3_disps, subh3_offsets, &
+                                                            bdata_disps, bdata_offsets
+    INTEGER(kind=file_offset), PARAMETER    :: BOF = 0
+    INTEGER(kind=file_offset)               :: offset, subh2_start, subh3_start, bdata_start
+    INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+
+    IF (PRESENT(groupid)) THEN
+       group_id = groupid
+    ELSE
+       mp_env = dbcsr_distribution_mp(distribution)
+       group_id = dbcsr_mp_group(mp_env)
+    END IF
+
+    CALL mp_environ(group_list_size,worker_id,group_id)
+    CALL mp_file_open(group_id, thefile, filepath, file_amode_rdonly)
+    
+!> read version, matrix name and matrix type
+    CALL mp_file_read_at(thefile, BOF, version)
+
+    CALL dbcsr_assert (version==version_v_1_0,&
+         dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Trying to read an unknown version of the matrix data file. Good luck!",&
+         __LINE__,error)
+
+    CALL mp_file_read_at(thefile, BOF+version_len*mpi_character_size, matrix_name_v_1_0) 
+    matrix_name=matrix_name_v_1_0
+
+    CALL mp_file_read_at(thefile, BOF+(version_len+default_string_length)*mpi_character_size, matrix_type) 
+!> read 4 integer values form sub-header1
+    CALL mp_file_read_at_all(thefile, BOF+char_count*mpi_character_size, values) 
+    size_of_pgrid = values(1) 
+    data_type = values(2)
+    nblkrows_total = values(3)  
+    nblkcols_total = values(4)
+!> read 2 vectors, row_blk_size and col_blk_size, from sub-header1   
+    globalinfo_size = nblkrows_total+nblkcols_total
+    ALLOCATE(ginfo_vec(globalinfo_size))
+    CALL mp_file_read_at_all(thefile, BOF+char_count*mpi_character_size+4*mpi_integer_size, ginfo_vec)
+    ginfo => ginfo_vec(1:nblkrows_total)
+    CALL array_new (row_blk_size, ginfo)
+    ginfo => ginfo_vec(nblkrows_total+1:globalinfo_size)
+    CALL array_new (col_blk_size, ginfo)
+
+!> compute the offsets where sub-header2 and sub-header3 start 
+    subh2_start = (4+globalinfo_size)*mpi_integer_size+char_count*mpi_character_size
+    subh3_start = subh2_start+2*size_of_pgrid*mpi_integer_size
+ 
+!> compute the offsets in sub-header2 and read 2 integers nblocks, data_area_size
+    share_size = CEILING(REAL(size_of_pgrid)/group_list_size)
+
+    ALLOCATE(subh2_offsets(share_size))
+    subh2_offsets = BOF
+    DO i = 1, share_size
+      offset = subh2_start+mpi_integer_size*2*(worker_id+(i-1)*group_list_size)
+      IF (offset .GE. subh3_start) EXIT
+      subh2_offsets(i) = offset
+    END DO
+
+    ALLOCATE(val_data(3,share_size))
+    val_data(:,:) = 0
+    DO i = 1, share_size
+       CALL mp_file_read_at(thefile, subh2_offsets(i), values, msglen=2)
+       nblocks = values(1)    
+       data_area_size = values(2)
+       IF (subh2_offsets(i) .EQ. 0 ) EXIT
+       val_data(1,i) = nblocks  
+       val_data(2,i) = data_area_size
+       val_data(3,i) = worker_id+(i-1)*group_list_size+1   ! order 
+    END DO
+    nblks = SUM(val_data(1,:))
+    darea_size = SUM(val_data(2,:))
+    proc_nblks => val_data(1,:)           ! to be passed to dbcsr_datablock_redistribute
+    proc_darea_sizes => val_data(2,:)     ! to be passed to dbcsr_datablock_redistribute
+
+!> compute the offsets in sub-header3 and read 3 vectors row_p, col_i, blk_p 
+    job_count = COUNT(val_data(3,:) .NE. 0)
+
+    ALLOCATE(linfo_lens(size_of_pgrid))
+    ALLOCATE(subh3_disps(size_of_pgrid))
+    linfo_lens = 0; subh3_disps = 0
+    DO i = 1, size_of_pgrid
+       DO j = 1, share_size
+          order = val_data(3,j)
+          IF (i .EQ. order) linfo_lens(order) = &
+                            1+nblkrows_total+2*val_data(1,j)
+       END DO
+    END DO
+    CALL mp_sum(linfo_lens,group_id)
+    CALL cumsum_l(INT(linfo_lens,kind=file_offset),subh3_disps)
+    subh3_disps = CSHIFT(subh3_disps,shift=-1)
+    subh3_disps(1) = BOF
+    subh3_offsets = subh3_start+subh3_disps*mpi_integer_size
+
+    sum_nblks = nblks ; sum_darea_size = darea_size
+    CALL mp_sum(sum_nblks,group_id)
+    CALL mp_sum(sum_darea_size,group_id)
+    subh3_length = size_of_pgrid*(1+nblkrows_total) + 2*sum_nblks
+
+    ALLOCATE(linfo_vec(subh3_length))
+    ALLOCATE(rowp((nblkrows_total+1)*job_count))
+    ALLOCATE(coli(nblks))
+    ALLOCATE(blkp(nblks))
+    DO i = 1, job_count
+       order = val_data(3,i)
+       cur_blks = val_data(1,i)
+
+       CALL mp_file_read_at(thefile, subh3_offsets(order), linfo_vec, msglen=linfo_lens(order))
+       rowp((i-1)*(nblkrows_total+1)+1:i*(nblkrows_total+1)) = linfo_vec(1:nblkrows_total+1)
+       start_index = SUM(val_data(1,1:i-1))+1
+       end_index = SUM(val_data(1,1:i))
+       coli(start_index:end_index) = &
+                linfo_vec(nblkrows_total+2:cur_blks+nblkrows_total+1)
+       blkp(start_index:end_index) = &
+                linfo_vec(cur_blks+nblkrows_total+2:2*cur_blks+nblkrows_total+1)
+    END DO
+    row_p => rowp
+    col_i => coli
+    blk_p => blkp 
+
+!> compute the offsets and read block data
+    ALLOCATE(bdata_lens(size_of_pgrid))
+    ALLOCATE(bdata_disps(size_of_pgrid))
+    bdata_lens = 0
+    DO i = 1, size_of_pgrid
+       DO j = 1, share_size
+          order = val_data(3,j)
+          IF (i .EQ. order) bdata_lens(order) = val_data(2,j)
+       END DO
+    END DO
+    CALL mp_sum(bdata_lens,group_id)
+    CALL cumsum_l(INT(bdata_lens,kind=file_offset),bdata_disps)
+    bdata_disps = CSHIFT(bdata_disps,shift=-1)
+    bdata_disps(1) = BOF
+
+    bdata_start = subh3_start+subh3_length*mpi_integer_size
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+         type_size = real_4_size
+    CASE (dbcsr_type_real_8)
+         type_size = real_8_size
+    CASE (dbcsr_type_complex_4)
+         type_size = 2*real_4_size
+    CASE (dbcsr_type_complex_8)
+         type_size = 2*real_8_size
+    END SELECT
+    bdata_offsets = bdata_start+bdata_disps*type_size  
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+         ALLOCATE(rsp(darea_size))
+         DO i = 1, job_count
+            order = val_data(3,i)
+            cur_darea_size = val_data(2,i)
+            start_index = SUM(val_data(2,1:i-1))+1
+            end_index = SUM(val_data(2,1:i))
+            CALL mp_file_read_at(thefile, bdata_offsets(order), rsp(start_index:end_index), &
+                                 msglen = bdata_lens(order))
+         END DO
+    CASE (dbcsr_type_real_8)
+         ALLOCATE(rdp(darea_size))
+         DO i = 1, job_count
+            order = val_data(3,i)
+            cur_darea_size = val_data(2,i)
+            start_index = SUM(val_data(2,1:i-1))+1
+            end_index = SUM(val_data(2,1:i))
+            CALL mp_file_read_at(thefile, bdata_offsets(order), rdp(start_index:end_index), &
+                                 msglen = bdata_lens(order))
+         END DO
+    CASE (dbcsr_type_complex_4)
+         ALLOCATE(csp(darea_size))
+         DO i = 1, job_count
+            order = val_data(3,i)
+            cur_darea_size = val_data(2,i)
+            start_index = SUM(val_data(2,1:i-1))+1
+            end_index = SUM(val_data(2,1:i))
+            CALL mp_file_read_at(thefile, bdata_offsets(order), csp(start_index:end_index), &
+                                 msglen = bdata_lens(order))
+         END DO
+    CASE (dbcsr_type_complex_8)
+         ALLOCATE(cdp(darea_size))
+         DO i = 1, job_count
+            order = val_data(3,i)
+            cur_darea_size = val_data(2,i)
+            start_index = SUM(val_data(2,1:i-1))+1
+            end_index = SUM(val_data(2,1:i))
+            CALL mp_file_read_at(thefile, bdata_offsets(order), cdp(start_index:end_index), &
+                                 msglen = bdata_lens(order))
+         END DO
+    END SELECT
+    CALL dbcsr_data_init (dblk)
+    CALL dbcsr_data_new (dblk, data_type)
+    dblk%d%r_dp => rdp
+    dblk%d%r_sp => rsp
+    dblk%d%c_dp => cdp
+    dblk%d%c_sp => csp
+
+    CALL mp_file_close(thefile)
+
+    CALL dbcsr_create (matrix_new, matrix_name, distribution, matrix_type, &
+                       row_blk_size, col_blk_size, nblks=nblks, nze=darea_size, & 
+                       data_type=data_type, error=error)
+    CALL dbcsr_datablock_redistribute (dblk, row_p, col_i, blk_p, proc_nblks, proc_darea_sizes, matrix_new, error)
+
+    DEALLOCATE(subh2_offsets, subh3_offsets, bdata_offsets)
+    DEALLOCATE(subh3_disps, bdata_disps)
+    DEALLOCATE(linfo_lens, bdata_lens)
+    DEALLOCATE(val_data, ginfo_vec, linfo_vec)
+    DEALLOCATE(rowp, coli, blkp)
+    IF (ALLOCATED(rdp)) DEALLOCATE(rdp)
+    IF (ALLOCATED(rsp)) DEALLOCATE(rsp)
+    IF (ALLOCATED(cdp)) DEALLOCATE(cdp)
+    IF (ALLOCATED(csp)) DEALLOCATE(csp)
+
+    CALL dbcsr_error_stop(error_handler, error)
+    CONTAINS
+      SUBROUTINE cumsum_l(arr,cumsum)
+    INTEGER(kind=file_offset), &
+      DIMENSION(:), INTENT(IN)               :: arr
+    INTEGER(kind=file_offset), &
+      DIMENSION(SIZE(arr)), INTENT(OUT)      :: cumsum
+
+    INTEGER                                  :: i
+
+        cumsum(1)=arr(1)
+        DO i=2,SIZE(arr) 
+          cumsum(i)=cumsum(i-1)+arr(i)
+        END DO
+      END SUBROUTINE cumsum_l
+
+  END SUBROUTINE dbcsr_binary_read
 
 END MODULE dbcsr_io

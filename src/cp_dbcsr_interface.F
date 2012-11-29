@@ -58,7 +58,9 @@ MODULE cp_dbcsr_interface
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
-  USE dbcsr_io,                        ONLY: dbcsr_print
+  USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
+                                             dbcsr_binary_write,&
+                                             dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -204,6 +206,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_frobenius_norm
   PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_name
+  PUBLIC :: cp_dbcsr_binary_write
+  PUBLIC :: cp_dbcsr_binary_read
 
 
   INTERFACE cp_dbcsr_create
@@ -2464,6 +2468,42 @@ CONTAINS
          first_row, last_row, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_on_diag
+
+  SUBROUTINE cp_dbcsr_binary_write(matrix, filepath, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    CHARACTER(LEN=*), INTENT(IN)             :: filepath
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_binary_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle)
+    CALL dbcsr_binary_write(matrix%matrix, filepath, dbcsr_error)
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE cp_dbcsr_binary_write
+
+  SUBROUTINE cp_dbcsr_binary_read(filepath, distribution, groupid, matrix_new, error)
+    CHARACTER(len=*), INTENT(IN)             :: filepath
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
+    INTEGER, INTENT(IN), OPTIONAL            :: groupid
+    TYPE(cp_dbcsr_type), INTENT(OUT)         :: matrix_new
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_binary_read', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle)
+    CALL dbcsr_binary_read(filepath, distribution, groupid, matrix_new%matrix, dbcsr_error)
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE cp_dbcsr_binary_read
 
   SUBROUTINE cp_dbcsr_copy(matrix_b, matrix_a, name, error, keep_sparsity,&
        shallow_data, keep_imaginary)

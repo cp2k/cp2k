@@ -1250,6 +1250,10 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
+!   CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(1),"pmatrix.dat",error)
+!   CALL cp_dbcsr_init(matrix_tmp1,error=error)
+!   CALL cp_dbcsr_binary_read("pmatrix.dat", distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
+!            matrix_new=matrix_tmp1, error=error)
 
     CALL timestop(handle)
 
