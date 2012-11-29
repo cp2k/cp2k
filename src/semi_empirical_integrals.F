@@ -81,6 +81,7 @@ CONTAINS
     REAL(KIND=dp)                            :: eps_storage
 
     failure = .FALSE.
+    w(:) = 0.0_dp
     IF (.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
        nints      = (sepi%natorb*(sepi%natorb+1)/2)*(sepj%natorb*(sepj%natorb+1)/2)
        cache_size = store_int_env%memory_parameter%cache_size
@@ -229,6 +230,8 @@ CONTAINS
 
     failure           = .FALSE.
     do_all_on_the_fly = .TRUE.
+    IF (PRESENT(e1b)) e1b(:) = 0.0_dp
+    IF (PRESENT(e2a)) e2a(:) = 0.0_dp
     IF (PRESENT(store_int_env)) do_all_on_the_fly = store_int_env%memory_parameter%do_all_on_the_fly
     IF (.NOT.do_all_on_the_fly) THEN
        nints_1    = 0
@@ -390,6 +393,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore', &
       routineP = moduleN//':'//routineN
 
+    enuc = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
        CALL corecore_gks (sepi,sepj,rij,enuc=enuc,se_int_control=se_int_control,&
             se_taper=se_taper, error=error)
@@ -425,6 +429,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el', &
       routineP = moduleN//':'//routineN
 
+    enuc = 0.0_dp
     IF (anag) THEN
        CALL corecore_el_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
             se_taper=se_taper, error=error)
@@ -454,6 +459,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint', &
       routineP = moduleN//':'//routineN
 
+    dw(:,:) = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
        CALL  drotint_gks(sepi,sepj,rij,dw=dw,se_int_control=se_int_control,se_taper=se_taper,error=error)
     ELSE
@@ -486,6 +492,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc', &
       routineP = moduleN//':'//routineN
 
+    IF (PRESENT(de1b)) de1b(:,:) = 0.0_dp
+    IF (PRESENT(de2a)) de2a(:,:) = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
           CALL drotnuc_gks (sepi, sepj, rij, de1b=de1b, de2a=de2a,&
                se_int_control=se_int_control,se_taper=se_taper,error=error)
@@ -520,6 +528,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore', &
       routineP = moduleN//':'//routineN
 
+    denuc = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
        CALL corecore_gks (sepi,sepj,rij,denuc=denuc,se_int_control=se_int_control,&
             se_taper=se_taper, error=error)
@@ -556,6 +565,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_el', &
       routineP = moduleN//':'//routineN
 
+    denuc = 0.0_dp
     IF (anag) THEN
        CALL corecore_el_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
             se_taper=se_taper, error=error)

@@ -242,20 +242,42 @@ CONTAINS
 
 #else
 
-    !if using CXML, LWORK must be at least 1 + 5*N + 2*N*lg N + 3*N**2,
-    ! where lg( N ) = smallest integer k such that 2**k >= N
-    ! for n=4 with my lapack (linux) I need to add 50 to the value of
-    ! lwork. 5000 seems to work in IRIX
-    ! unfortunately query is not supported. I did not test n dependence [fawzi]
-    lwork = MAX(1 + 6*n + 2*n**2 + 5000,1+5*n+2*n*20+3*n**2)
-    liwork = 5*n + 3
+    !MK Retrieve the optimal work array sizes first
+    info = 0
+    lwork = -1
+    liwork = -1
+    m => matrix%local_data
+    eig(:) = 0.0_dp
 
+    ALLOCATE (work(1),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    work(:) = 0.0_dp
+    ALLOCATE (iwork(1),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    iwork(:) = 0
+
+    CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,info)
+
+    IF (info /= 0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "ERROR in DSYEVD: Could not retrieve work array sizes")
+    END IF
+
+    ! Reallocate work arrays and perform diagonalisation
+    lwork = INT(work(1))
+    DEALLOCATE (work,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(work(lwork),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    liwork = iwork(1)
+    DEALLOCATE (iwork,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(liwork),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    m => matrix%local_data
-    CALL dsyevd('V','U', n, m(1,1), n, eig(1), work(1), lwork, iwork(1), liwork, info)
+    iwork(:) = 0
+
+    CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,info)
 
     IF (info /= 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
