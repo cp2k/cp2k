@@ -539,12 +539,16 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
  ! Allocate random number for Langevin Thermostat acting on COLVARS
       ALLOCATE (xieta(2*force_env%meta_env%n_colvar),STAT=isos)
       CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+      xieta(:) = 0.0_dp
       ALLOCATE (An(force_env%meta_env%n_colvar),STAT=isos)
       CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+      An(:) = 0.0_dp
       ALLOCATE (fz(force_env%meta_env%n_colvar),STAT=isos)
       CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+      fz(:) = 0.0_dp
       ALLOCATE (zbuff(2*force_env%meta_env%n_colvar),STAT=isos)
       CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+      zbuff(:) = 0.0_dp
 
     IF (output_unit>0)THEN
          WRITE(output_unit,'(a)')"HMC|==== Initial average forces"
