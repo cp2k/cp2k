@@ -636,7 +636,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER(KIND=int_8), PARAMETER           :: lmask8 = 4294967295_int_8
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: error_handle, i, stat
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: sort_keys
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buf, buf_d
@@ -645,6 +645,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (SIZE (row_i) .EQ. 0) RETURN
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+
     CALL dbcsr_assert(SIZE(row_i),'GE',n, dbcsr_failure_level,&
          dbcsr_caller_error, routineP, 'row_i too small',__LINE__,error)
     CALL dbcsr_assert(SIZE(col_i),'GE',n, dbcsr_failure_level,&
@@ -695,6 +698,8 @@ CONTAINS
     DEALLOCATE (sort_keys)
     IF(debug_mod.AND.PRESENT(blk_p))&
          WRITE(*,*)routineP//' sort, blk_p =',blk_p
+    CALL dbcsr_error_stop (error_handle, error)
+
   END SUBROUTINE dbcsr_sort_indices
 
 ! *****************************************************************************
