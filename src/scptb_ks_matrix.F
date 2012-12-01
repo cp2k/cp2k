@@ -43,7 +43,8 @@ MODULE scptb_ks_matrix
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             oorootpi
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
@@ -73,7 +74,12 @@ MODULE scptb_ks_matrix
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scptb_types,                     ONLY: &
        get_scptb_parameter, scp_vector_add, scp_vector_copy, &
@@ -81,6 +87,7 @@ MODULE scptb_ks_matrix
        scp_vector_scale, scp_vector_set, scp_vector_type, scptb_parameter_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -291,12 +298,12 @@ CONTAINS
                                                 use_virial
     REAL(KIND=dp)                            :: alpha, beta, chabs, deth, dq, &
                                                 dr2, eta, f0, ff, fi, noa, &
-                                                nob, t
+                                                nob, t, gmij, dr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: qcharge
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drcharge, gmcharge
     REAL(KIND=dp), DIMENSION(0:1)            :: f
-    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(3)              :: rij, fij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, ksblock, pblock, &
                                                 sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -311,6 +318,8 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: n_list
     TYPE(particle_type), DIMENSION(:), &
@@ -341,15 +350,12 @@ CONTAINS
     IF ( chabs > 1.e-8_dp ) THEN
        scptb_control => dft_control%qs_control%scptb_control
        IF(scptb_control%do_ewald) THEN
-          CALL cp_unimplemented_error(routineP,"No Ewald possible",error)
           ALLOCATE(gmcharge(natom,ndim),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           gmcharge = 0._dp
           ! Ewald sum
           NULLIFY(ewald_env,ewald_pw)
-          CALL get_qs_env(qs_env=qs_env,&
-                          ewald_env=ewald_env,ewald_pw=ewald_pw,&
-                          error=error)
+          CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
           CALL get_cell(cell=cell,periodic=periodic,deth=deth)
           CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
           CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
@@ -371,8 +377,216 @@ CONTAINS
             CALL dftb_spme_evaluate(ewald_env,ewald_pw,particle_set,cell,&
               gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
           END SELECT
+
+          CALL mp_sum(gmcharge(:,1),para_env%group)
+          ! add self charge interaction and background charge contribution
+          gmcharge(:,1) = gmcharge(:,1) - 2._dp*alpha*oorootpi*mcharge(:)
+          IF ( ANY (periodic(:)==1) ) THEN
+            gmcharge(:,1) = gmcharge(:,1) - pi / alpha**2 / deth
+          END IF
+          energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
+          IF ( calculate_forces ) THEN
+            ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+            CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                     kind_of=kind_of,&
+                                     atom_of_kind=atom_of_kind)
+
+            gmcharge(:,2)=gmcharge(:,2)*mcharge(:)
+            gmcharge(:,3)=gmcharge(:,3)*mcharge(:)
+            gmcharge(:,4)=gmcharge(:,4)*mcharge(:)
+            DO iatom=1,natom
+              ikind  = kind_of(iatom)
+              iat = atom_of_kind(iatom)
+              force(ikind)%rho_elec(1,iat) = force(ikind)%rho_elec(1,iat) - gmcharge(iatom,2)
+              force(ikind)%rho_elec(2,iat) = force(ikind)%rho_elec(2,iat) - gmcharge(iatom,3)
+              force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) - gmcharge(iatom,4)
+            END DO
+          END IF
+          IF ( .NOT. just_energy ) THEN
+            CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+            matrix_p => rho%rho_ao
+            IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
+              CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                   alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+            END IF
+
+            nsize = SIZE(ks_matrix)
+            CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
+            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+               gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
+               DO is=1,nsize
+                  NULLIFY(ksblock)
+                  CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is)%matrix,&
+                       row=iatom,col=jatom,block=ksblock,found=found)
+                  CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                  ksblock = ksblock - gmij*sblock
+               END DO
+               IF ( calculate_forces ) THEN
+                  ikind  = kind_of(iatom)
+                  iat = atom_of_kind(iatom)
+                  jkind  = kind_of(jatom)
+                  jat = atom_of_kind(jatom)
+                  NULLIFY(pblock)
+                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                       row=iatom,col=jatom,block=pblock,found=found)
+                  DO i=1,3
+                     NULLIFY(dsblock)
+                     CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                          row=iatom,col=jatom,block=dsblock,found=found)
+                     fi = -gmij*SUM(pblock*dsblock)
+                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
+                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
+                     fij(i) = fi
+                  END DO
+                  IF (use_virial) THEN
+                     rij = particle_set(iatom)%r - particle_set(jatom)%r
+                     rij = pbc(rij,cell)
+                     CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
+                     IF (qs_env%atprop%stress) THEN
+                       CALL virial_pair_force ( qs_env%atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
+                       CALL virial_pair_force ( qs_env%atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
+                     END IF
+                  END IF
+               END IF
+            END DO
+            CALL cp_dbcsr_iterator_stop(iter)
+            IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
+               CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                              alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+            END IF
+          END IF
+          ! direct sum correction for Gaussians
+          IF(.NOT.just_energy .OR. calculate_forces) THEN
+            ALLOCATE(qcharge(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            qcharge = 0._dp
+          END IF
+          IF (calculate_forces) THEN
+            ALLOCATE(drcharge(3,natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            drcharge = 0._dp
+          END IF
+          NULLIFY(n_list)
+          CALL get_qs_env(qs_env=qs_env,sab_scp=n_list,error=error)
+          CALL neighbor_list_iterator_create(nl_iterator,n_list)
+          DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+             CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
+
+             dr = SQRT(SUM(rij(:)**2))
+             IF (dr > 1.e-10) THEN
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+                CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=alpha)
+                IF (lmaxscp < 0) CYCLE
+                noa = (alpha/pi)**1.5_dp
+                atomic_kind => atomic_kind_set(jkind)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+                CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=beta)
+                IF (lmaxscp < 0) CYCLE
+                eta = alpha*beta/(alpha+beta)
+                f0 = 2.0_dp*SQRT(pi**5*(alpha+beta))/(alpha*beta)
+                nob = (beta/pi)**1.5_dp
+                t = eta*dr*dr
+                CALL fgamma_0(0,t,f)
+                ff = noa*nob*f(0)*f0
+                energy%hartree = energy%hartree + mcharge(iatom)*mcharge(jatom)*ff
+                energy%hartree = energy%hartree - mcharge(iatom)*mcharge(jatom)/dr
+                IF (.NOT.just_energy .OR. calculate_forces) THEN
+                   qcharge(iatom) = qcharge(iatom) + mcharge(jatom)*ff
+                   qcharge(iatom) = qcharge(iatom) - mcharge(jatom)/dr
+                   qcharge(jatom) = qcharge(jatom) + mcharge(iatom)*ff
+                   qcharge(jatom) = qcharge(jatom) - mcharge(iatom)/dr
+                END IF
+                IF ( calculate_forces ) THEN
+                   ff = noa*nob*f0*(EXP(-t)-f(0))/dr2
+                   drcharge(:,iatom) = drcharge(:,iatom) + ff*rij(:)*mcharge(iatom)*mcharge(jatom)
+                   drcharge(:,jatom) = drcharge(:,jatom) - ff*rij(:)*mcharge(iatom)*mcharge(jatom)
+                   drcharge(:,iatom) = drcharge(:,iatom) - rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
+                   drcharge(:,jatom) = drcharge(:,jatom) + rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
+                END IF
+
+             END IF
+
+          END DO
+          CALL neighbor_list_iterator_release(nl_iterator)
+
+          IF(.NOT.just_energy.OR.calculate_forces) THEN
+            CALL mp_sum(qcharge,para_env%group)
+            IF ( calculate_forces ) THEN
+               matrix_p => rho%rho_ao
+               IF (SIZE(matrix_p) == 2) THEN
+                  CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                       alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+               END IF
+            END IF
+            ! calculate KS matrix
+            nsize = SIZE(ks_matrix)
+            CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
+            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+               dq = qcharge(iatom)+qcharge(jatom)
+               IF(.NOT.just_energy) THEN
+                  DO is=1,nsize
+                     NULLIFY(ksblock)
+                     CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is)%matrix,&
+                          row=iatom,col=jatom,block=ksblock,found=found)
+                     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                     ksblock = ksblock - 0.5_dp*dq*sblock
+                  END DO
+               END IF
+               IF ( calculate_forces ) THEN
+                  ikind = kind_of(iatom)
+                  iat   = atom_of_kind(iatom)
+                  jkind = kind_of(jatom)
+                  jat   = atom_of_kind(jatom)
+                  NULLIFY(pblock)
+                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                       row=iatom,col=jatom,block=pblock,found=found)
+                  CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                  DO i=1,3
+                     NULLIFY(dsblock)
+                     CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                          row=iatom,col=jatom,block=dsblock,found=found)
+                     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                     fi = dq*SUM(pblock*dsblock)
+                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
+                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
+                  END DO
+               END IF
+            END DO
+            CALL cp_dbcsr_iterator_stop(iter)
+
+            IF ( calculate_forces ) THEN
+               CALL mp_sum(drcharge,para_env%group)
+               DO iatom=1,natom
+                  ikind  = kind_of(iatom)
+                  iat = atom_of_kind(iatom)
+                  force(ikind)%rho_elec(1,iat) = force(ikind)%rho_elec(1,iat) + drcharge(1,iatom)
+                  force(ikind)%rho_elec(2,iat) = force(ikind)%rho_elec(2,iat) + drcharge(2,iatom)
+                  force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) + drcharge(3,iatom)
+               END DO
+               IF (SIZE(matrix_p) == 2) THEN
+                  CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                                 alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+               END IF
+            END IF
+          END IF
+
           DEALLOCATE(gmcharge,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          IF(.NOT.just_energy .OR. calculate_forces) THEN
+            DEALLOCATE(qcharge,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF ( calculate_forces ) THEN
+            DEALLOCATE(drcharge,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
        ELSE
          ! direct sum
          IF(.NOT.just_energy .OR. calculate_forces) THEN
@@ -392,16 +606,16 @@ CONTAINS
            CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
            IF (.NOT.defined) CYCLE
            IF (lmaxscp < 0) CYCLE
-           noa = 4._dp*SQRT(alpha/pi)
+           noa = (alpha/pi)**1.5_dp
            DO jkind=1,ikind
              atomic_kind => atomic_kind_set(jkind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              eta = alpha*beta/(alpha+beta)
-             f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
+             f0 = 2.0_dp*SQRT(pi**5*(alpha+beta))/(alpha*beta)
              IF (.NOT.defined) CYCLE
              IF (lmaxscp < 0) CYCLE
-             nob = 4._dp*SQRT(beta/pi)
+             nob = (beta/pi)**1.5_dp
              DO ia=1,local_particles%n_el(ikind)
                iatom=local_particles%list(ikind)%array(ia)
                IF(ikind==jkind) THEN

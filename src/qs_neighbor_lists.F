@@ -783,6 +783,7 @@ CONTAINS
     END IF
     IF (scptb) THEN
        ! Build the neighbor lists for the Core term
+       default_present = .FALSE.
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
@@ -796,6 +797,7 @@ CONTAINS
             "/SAB_CORE","sab_core","CORE INTERACTIONS",error)
        ! Build the neighbor lists for the SCPTB Ewald methods
        IF ( qs_env%dft_control%qs_control%scptb_control%do_ewald ) THEN
+          ! Ewald with alpha
           CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
           CALL ewald_env_get ( ewald_env, alpha=alpha )
           c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
@@ -803,6 +805,18 @@ CONTAINS
           CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,&
                subcells=subcells,name="sab_tbe",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_tbe=sab_tbe,error=error)
+          ! Correction term for Gaussians
+          DO ikind = 1, nkind
+             atomic_kind => atomic_kind_set(ikind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+             CALL get_scptb_parameter(scptb_kind,ag=alpha)
+             alpha = SQRT(alpha)
+             c_radius(ikind) = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+          END DO
+          CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
+          CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,&
+               subcells=subcells,name="sab_scp",error=error)
+          CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
        END IF
     END IF
 

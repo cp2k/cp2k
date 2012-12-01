@@ -3,16 +3,20 @@
     &QS
       METHOD SCPTB
       &SCPTB
-        DISPERSION .FALSE.
+        DISPERSION .TRUE.
+        DISPERSION_PARAMETER_FILE ../dftd3.dat
         DO_EWALD .FALSE.
+        DO_SCP   .FALSE.
         PARAMETER_FILE_NAME ../nm12_parameters.xml
       &END SCPTB
     &END QS
     &SCF
-      SCF_GUESS CORE
-      &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   1.
+      SCF_GUESS ATOMIC
+      EPS_SCF   1.e-7
+      MAX_SCF   10000
+      &OT
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_KINETIC
       &END
     &END SCF
   &END DFT
@@ -22,14 +26,13 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     H      0.000000    0.000000    0.000000   
-     H      0.729177    0.000000    0.000000   
+     H      0.000000    0.000000    0.000000
+     F      1.050000    0.000000    0.000000
     &END COORD
   &END SUBSYS
-
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT h2
+  PROJECT HF
   RUN_TYPE ENERGY
-  PRINT_LEVEL HIGH
+  PRINT_LEVEL LOW
 &END GLOBAL
