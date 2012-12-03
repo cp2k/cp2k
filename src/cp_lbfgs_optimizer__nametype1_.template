@@ -305,15 +305,20 @@ CONTAINS
                optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
                optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
                optimizer%dsave, optimizer%work_array)
-          ALLOCATE (optimizer%x(n),optimizer%gradient(n),STAT=stat)
+          ALLOCATE (optimizer%x(n),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          optimizer%x(:) = 0.0_dp
+          ALLOCATE (optimizer%gradient(n),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          optimizer%gradient(:) = 0.0_dp
        END IF
-       CALL mp_bcast(optimizer%x,optimizer%master,&
-            optimizer%para_env%group)
-       optimizer%status=0
-       optimizer%ref_count=1
+       CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
+       optimizer%status = 0
+       optimizer%ref_count = 1
     END IF
+
     CALL timestop(handle)
+
   END SUBROUTINE cp_opt_[nametype1]_create
 
 ! *****************************************************************************
