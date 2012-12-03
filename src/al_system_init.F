@@ -26,6 +26,8 @@ MODULE al_system_init
   USE thermostat_types,                ONLY: thermostat_info_type
 #include "cp_common_uses.h"
 
+  IMPLICIT NONE
+
   PRIVATE
   PUBLIC :: initialize_al_part
 
@@ -93,7 +95,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_al', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n_rep
+    INTEGER                                  :: i, my_index, n_rep
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: work_section
 

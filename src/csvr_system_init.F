@@ -29,7 +29,10 @@ MODULE csvr_system_init
   USE thermostat_types,                ONLY: thermostat_info_type
 #include "cp_common_uses.h"
 
+  IMPLICIT NONE
+
   PRIVATE
+
   PUBLIC :: initialize_csvr_part, initialize_csvr_baro,&
             initialize_csvr_shell
 
@@ -131,7 +134,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: i, n_rep
+    INTEGER                                  :: i, my_index, n_rep
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: work_section
 

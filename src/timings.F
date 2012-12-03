@@ -26,6 +26,8 @@ MODULE timings
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
 
+  IMPLICIT NONE
+
   PRIVATE
 
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&

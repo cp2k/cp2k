@@ -38,6 +38,8 @@ MODULE qs_dftb_dispersion
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
+  IMPLICIT NONE
+
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_dispersion'
