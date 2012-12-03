@@ -378,6 +378,7 @@ END SUBROUTINE rf_deriv_check
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     ENDDO
+    CALL mp_sum(charges,para_env%group)
     CALL mp_sum(dcharges,para_env%group)
 
   END SUBROUTINE compute_dcharges

@@ -43,8 +43,8 @@ MODULE scptb_ks_matrix
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi,&
-                                             oorootpi
+  USE mathconstants,                   ONLY: oorootpi,&
+                                             pi
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
@@ -200,6 +200,7 @@ CONTAINS
             CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,dmcharge,error=error)
          ELSE
             NULLIFY(dmcharge)
+            charges = 0._dp
             CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
          END IF
          nkind = SIZE(atomic_kind_set)
@@ -291,19 +292,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, ewald_type, i, ia, iat, iatom, ikind, is, istat, ja, jat, &
-      jatom, jkind, jmax, lmaxscp, natom, ndim, nkind, nsize
+      jatom, jkind, lmaxscp, nai, naj, natom, ndim, nkind, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: periodic
+    INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
     REAL(KIND=dp)                            :: alpha, beta, chabs, deth, dq, &
-                                                dr2, eta, f0, ff, fi, noa, &
-                                                nob, t, gmij, dr
+                                                dr, dr2, ehartree, eta, f0, &
+                                                ff, fi, gmij, noa, nob, t
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: qcharge
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drcharge, gmcharge
     REAL(KIND=dp), DIMENSION(0:1)            :: f
-    REAL(KIND=dp), DIMENSION(3)              :: rij, fij
+    REAL(KIND=dp), DIMENSION(3)              :: fij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, ksblock, pblock, &
                                                 sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -347,6 +349,7 @@ CONTAINS
     energy%core_self = 0._dp
 
     chabs = SUM(ABS(mcharge))
+    CALL mp_sum(chabs,para_env%group)
     IF ( chabs > 1.e-8_dp ) THEN
        scptb_control => dft_control%qs_control%scptb_control
        IF(scptb_control%do_ewald) THEN
@@ -378,8 +381,8 @@ CONTAINS
               gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
           END SELECT
 
-          CALL mp_sum(gmcharge(:,1),para_env%group)
           ! add self charge interaction and background charge contribution
+          CALL mp_sum(gmcharge(:,1),para_env%group)
           gmcharge(:,1) = gmcharge(:,1) - 2._dp*alpha*oorootpi*mcharge(:)
           IF ( ANY (periodic(:)==1) ) THEN
             gmcharge(:,1) = gmcharge(:,1) - pi / alpha**2 / deth
@@ -459,6 +462,7 @@ CONTAINS
             END IF
           END IF
           ! direct sum correction for Gaussians
+          ehartree = 0._dp
           IF(.NOT.just_energy .OR. calculate_forces) THEN
             ALLOCATE(qcharge(natom),STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -475,7 +479,8 @@ CONTAINS
           DO WHILE (neighbor_list_iterate(nl_iterator)==0)
              CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
 
-             dr = SQRT(SUM(rij(:)**2))
+             dr2 = SUM(rij(:)**2)
+             dr = SQRT(dr2)
              IF (dr > 1.e-10) THEN
                 atomic_kind => atomic_kind_set(ikind)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
@@ -492,8 +497,8 @@ CONTAINS
                 t = eta*dr*dr
                 CALL fgamma_0(0,t,f)
                 ff = noa*nob*f(0)*f0
-                energy%hartree = energy%hartree + mcharge(iatom)*mcharge(jatom)*ff
-                energy%hartree = energy%hartree - mcharge(iatom)*mcharge(jatom)/dr
+                ehartree = ehartree + mcharge(iatom)*mcharge(jatom)*ff
+                ehartree = ehartree - mcharge(iatom)*mcharge(jatom)/dr
                 IF (.NOT.just_energy .OR. calculate_forces) THEN
                    qcharge(iatom) = qcharge(iatom) + mcharge(jatom)*ff
                    qcharge(iatom) = qcharge(iatom) - mcharge(jatom)/dr
@@ -512,9 +517,10 @@ CONTAINS
 
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)
+          CALL mp_sum(ehartree,para_env%group)
+          energy%hartree = energy%hartree + ehartree
 
           IF(.NOT.just_energy.OR.calculate_forces) THEN
-            CALL mp_sum(qcharge,para_env%group)
             IF ( calculate_forces ) THEN
                matrix_p => rho%rho_ao
                IF (SIZE(matrix_p) == 2) THEN
@@ -523,6 +529,7 @@ CONTAINS
                END IF
             END IF
             ! calculate KS matrix
+            CALL mp_sum(qcharge,para_env%group)
             nsize = SIZE(ks_matrix)
             CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
             DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -560,7 +567,6 @@ CONTAINS
             CALL cp_dbcsr_iterator_stop(iter)
 
             IF ( calculate_forces ) THEN
-               CALL mp_sum(drcharge,para_env%group)
                DO iatom=1,natom
                   ikind  = kind_of(iatom)
                   iat = atom_of_kind(iatom)
@@ -602,29 +608,27 @@ CONTAINS
          nkind = SIZE(atomic_kind_set)
          DO ikind=1,nkind
            atomic_kind => atomic_kind_set(ikind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nai,atom_list=atomi_list,&
+                scptb_parameter=scptb_kind)
            CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
            IF (.NOT.defined) CYCLE
            IF (lmaxscp < 0) CYCLE
            noa = (alpha/pi)**1.5_dp
            DO jkind=1,ikind
              atomic_kind => atomic_kind_set(jkind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,natom=naj,atom_list=atomj_list,&
+                  scptb_parameter=scptb_kind)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              eta = alpha*beta/(alpha+beta)
              f0 = 2.0_dp*SQRT(pi**5*(alpha+beta))/(alpha*beta)
              IF (.NOT.defined) CYCLE
              IF (lmaxscp < 0) CYCLE
              nob = (beta/pi)**1.5_dp
-             DO ia=1,local_particles%n_el(ikind)
-               iatom=local_particles%list(ikind)%array(ia)
-               IF(ikind==jkind) THEN
-                 jmax = ia - 1
-               ELSE
-                 jmax = local_particles%n_el(jkind)
-               END IF
-               DO ja=1,jmax
+             DO ia=1,nai
+               iatom=atomi_list(ia)
+               DO ja=1,local_particles%n_el(jkind)
                  jatom=local_particles%list(jkind)%array(ja)
+                 IF(ikind==jkind .AND. jatom >= iatom) CYCLE
                  rij = particle_set(iatom)%r - particle_set(jatom)%r
                  rij = pbc(rij,cell)
                  dr2 = SUM(rij(:)**2)
@@ -645,6 +649,7 @@ CONTAINS
              END DO
            END DO
          END DO
+         CALL mp_sum(energy%hartree,para_env%group)
          IF(.NOT.just_energy.OR.calculate_forces) THEN
             CALL mp_sum(qcharge,para_env%group)
             ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
@@ -697,7 +702,6 @@ CONTAINS
             CALL cp_dbcsr_iterator_stop(iter)
 
             IF ( calculate_forces ) THEN
-               CALL mp_sum(drcharge,para_env%group)
                DO iatom=1,natom
                   ikind  = kind_of(iatom)
                   iat = atom_of_kind(iatom)
