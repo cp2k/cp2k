@@ -17,9 +17,13 @@ MODULE ps_wavelet_base
                                              timestop
 #include "cp_common_uses.h"
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_util'
+  IMPLICIT NONE
 
-  PUBLIC :: scramble_unpack
+  PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_base'
+
+  PUBLIC :: scramble_unpack, p_poissonsolver, s_poissonsolver, f_poissonsolver
 
 CONTAINS
 

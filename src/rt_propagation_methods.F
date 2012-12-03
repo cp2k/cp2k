@@ -92,6 +92,7 @@ MODULE rt_propagation_methods
 
   IMPLICIT NONE
 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_methods'
 
@@ -100,7 +101,8 @@ MODULE rt_propagation_methods
        update_core_and_matrices,&
        calc_update_rho,&
        aspc_extrapolate,&
-       calc_sinvH
+       calc_sinvH,&
+       put_data_to_history
 
 
 CONTAINS

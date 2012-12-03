@@ -18,6 +18,9 @@ MODULE qmmm_gaussian_data
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+
+  PRIVATE
+
   INTEGER, PARAMETER, PUBLIC       :: min_geep_lib_gauss = 2
   INTEGER, PARAMETER, PUBLIC       :: max_geep_lib_gauss = 18
   ! G2

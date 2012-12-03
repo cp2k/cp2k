@@ -99,6 +99,8 @@ MODULE xc_pot_saop
 
   IMPLICIT NONE
 
+  PRIVATE
+
   PUBLIC :: add_saop_pot
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pot_saop'

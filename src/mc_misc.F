@@ -29,6 +29,8 @@ MODULE mc_misc
 
   IMPLICIT NONE
 
+  PRIVATE
+
   PUBLIC :: final_mc_write,mc_averages_create,mc_averages_release,&
             mc_make_dat_file_new
 

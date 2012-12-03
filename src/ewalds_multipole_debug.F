@@ -31,6 +31,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
 #include "cp_common_uses.h"
   IMPLICIT NONE
+
   TYPE charge_mono_type
      REAL(KIND=dp), DIMENSION(:),&
           POINTER                          :: charge

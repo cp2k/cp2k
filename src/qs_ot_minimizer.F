@@ -40,6 +40,8 @@ MODULE qs_ot_minimizer
 
   IMPLICIT NONE
 
+  PRIVATE
+
   PUBLIC  :: ot_mini
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'

@@ -30,7 +30,7 @@ MODULE cp_dbcsr_types
   PUBLIC :: cp_dbcsr_iterator
   PUBLIC :: cp_dbcsr_type
 
-
+  PRIVATE
 
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix

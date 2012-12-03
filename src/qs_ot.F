@@ -45,6 +45,8 @@ MODULE qs_ot
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+  PRIVATE 
+
   PUBLIC  :: qs_ot_get_p
   PUBLIC  :: qs_ot_get_orbitals
   PUBLIC  :: qs_ot_get_derivative

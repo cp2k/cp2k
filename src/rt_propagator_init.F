@@ -46,6 +46,7 @@ MODULE rt_propagator_init
 
   IMPLICIT NONE
 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagator_init'
 

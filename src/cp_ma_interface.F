@@ -46,6 +46,8 @@ MODULE cp_ma_interface
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ma_interface'
 
+  PRIVATE
+
   ! Interface to libma
   PUBLIC :: cp_ma_config, cp_ma_init_lib, cp_ma_finalize_lib
   PUBLIC :: cp_ma_run_on, cp_ma_thread_run_on
@@ -61,6 +63,8 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_mpi_reordering
   PUBLIC :: cp_ma_print_strategy
   PUBLIC :: cp_ma_set_mpi_reordering
+  PUBLIC :: cp_ma_default_affinity
+  PUBLIC :: has_ma, has_ma_topology
 
 CONTAINS
 

@@ -48,6 +48,10 @@ MODULE xml_parser
 
    IMPLICIT NONE
 
+   PRIVATE
+
+   PUBLIC :: XML_PARSE,xml_close,xml_get,xml_ok,xml_open
+
    INTEGER, PARAMETER :: XML_BUFFER_LENGTH = 1000
 
    ! Define the data type that holds the parser information

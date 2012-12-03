@@ -21,6 +21,8 @@ MODULE lgrid_types
 
   IMPLICIT NONE
 
+  PRIVATE
+
   PUBLIC :: lgrid_type, lgrid_p_type, lgrid_release, lgrid_create, lgrid_retain, lgrid_allocate_grid
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lgrid_types'

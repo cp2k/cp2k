@@ -36,6 +36,8 @@ MODULE mc_coordinates
 
   IMPLICIT NONE
 
+  PRIVATE
+
   PRIVATE :: generate_avbmc_insertion
 
   PUBLIC :: generate_cbmc_swap_config,&

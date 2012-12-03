@@ -65,6 +65,8 @@ MODULE qs_ot_scf
 
   IMPLICIT NONE
 
+  PRIVATE
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_scf'
   ! *** Public subroutines ***
 

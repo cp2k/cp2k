@@ -22,6 +22,8 @@ MODULE ai_geminals_utils
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_geminals_utils'
 
+  PRIVATE
+
   PUBLIC  :: matv, acoff
 
 ! *****************************************************************************

@@ -24,6 +24,8 @@ MODULE gaussian_gridlevels
 
   IMPLICIT NONE
 
+  PRIVATE
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gaussian_gridlevels'
 
 ! *****************************************************************************

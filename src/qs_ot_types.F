@@ -68,6 +68,9 @@ MODULE qs_ot_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+ 
+  PRIVATE
+
   PUBLIC  :: qs_ot_type
   PUBLIC  :: qs_ot_settings_type
   PUBLIC  :: qs_ot_destroy

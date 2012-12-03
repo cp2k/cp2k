@@ -39,6 +39,8 @@ MODULE qs_loc_molecules
 
   IMPLICIT NONE
 
+  PRIVATE
+
   ! *** Public ***
   PUBLIC :: wfc_to_molecule
 

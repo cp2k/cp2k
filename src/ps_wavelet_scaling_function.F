@@ -12,8 +12,10 @@ MODULE ps_wavelet_scaling_function
   USE lazy,                            ONLY: lazy_arrays
 #include "cp_common_uses.h"
 
-PUBLIC :: scaling_function,&
-          scf_recursion
+  PRIVATE
+
+  PUBLIC :: scaling_function,&
+            scf_recursion
 
 CONTAINS
 

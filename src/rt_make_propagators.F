@@ -50,6 +50,8 @@ MODULE rt_make_propagators
 
   IMPLICIT NONE
 
+  PRIVATE
+
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_make_propagators'
 

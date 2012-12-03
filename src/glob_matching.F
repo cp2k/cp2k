@@ -19,6 +19,9 @@ MODULE glob_matching
     CHARACTER(len=1), PARAMETER, PRIVATE :: star      = '*'
     CHARACTER(len=1), PARAMETER, PRIVATE :: question  = '?'
 
+  PRIVATE
+  PUBLIC :: string_match
+
 CONTAINS
 
 ! string_match --

@@ -51,7 +51,8 @@ MODULE t_c_g0
   USE message_passing,                 ONLY: mp_bcast
 
  IMPLICIT NONE
- PUBLIC :: t_c_g0_n
+ PRIVATE
+ PUBLIC :: t_c_g0_n, init, free
  REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE,  SAVE :: C0
  INTEGER, PARAMETER :: degree=13
  REAL(KIND=dp), PARAMETER :: target_error=      0.100000E-08

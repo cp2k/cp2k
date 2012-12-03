@@ -48,6 +48,8 @@ MODULE rt_matrix_exp
 
   IMPLICIT NONE
 
+  PRIVATE
+
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_matrix_exp'
 
@@ -58,7 +60,7 @@ MODULE rt_matrix_exp
             backtransform_matrix,&
             exp_pade_only_imaginary,&
             get_nsquare_norder,&
-            arnoldi
+            arnoldi, exp_pade_real
 
 CONTAINS
 

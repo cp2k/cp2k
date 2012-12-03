@@ -28,7 +28,8 @@ MODULE t_sh_p_s_c
   USE message_passing,                 ONLY: mp_bcast
 
  IMPLICIT NONE
- PUBLIC :: trunc_CS_poly_n20
+ PRIVATE
+ PUBLIC :: trunc_CS_poly_n20, init, free
  REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE,  SAVE :: C0
  INTEGER, PARAMETER :: degree=15
  REAL(KIND=dp), PARAMETER :: target_error=      0.100000E-08

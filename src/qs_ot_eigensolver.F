@@ -53,6 +53,7 @@ MODULE qs_ot_eigensolver
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+  PRIVATE
 
 ! *** Global parameters ***
 

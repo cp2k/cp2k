@@ -26,6 +26,8 @@ MODULE ai_geminals_debug
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_geminals_debug'
 
+  PRIVATE
+
   PUBLIC  init_grs, grs, transform1, transform2
 
   INTEGER, PARAMETER            :: lmax = 10

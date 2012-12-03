@@ -18,6 +18,10 @@ MODULE fermi_utils
 
   IMPLICIT NONE
 
+  PRIVATE
+
+  PUBLIC :: FermiFixed, FermiFixedDeriv
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
 
 CONTAINS

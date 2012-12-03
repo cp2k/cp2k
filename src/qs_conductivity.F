@@ -29,6 +29,8 @@ MODULE qs_conductivity
 
   IMPLICIT NONE
 
+  PRIVATE
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_conductivity'
 
 ! *** Public ***

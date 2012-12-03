@@ -17,6 +17,8 @@ MODULE csvr_system_utils
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+ 
+  PRIVATE
 
   LOGICAL, PARAMETER                   :: debug_this_module=.FALSE.
   PUBLIC                               :: rescaling_factor

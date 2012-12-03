@@ -51,6 +51,7 @@ MODULE rt_propagation_output
 
   IMPLICIT NONE
 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_output'
 

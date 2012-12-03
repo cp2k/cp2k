@@ -97,12 +97,14 @@ MODULE rt_propagation
 
   IMPLICIT NONE
 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation'
 
   PUBLIC :: rt_prop_setup,&
        init_ehrenfest_md,&
-       run_propagation
+       run_propagation, &
+       rt_write_input_restart
 
 
 CONTAINS

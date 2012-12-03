@@ -22,7 +22,11 @@ MODULE pint_gle
                                              timestop
 #include "cp_common_uses.h"
 
-  PUBLIC pint_gle_step, ping_gle_init, pint_calc_gle_energy
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC pint_gle_step, pint_gle_init, pint_calc_gle_energy
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_gle'
 
@@ -76,7 +80,7 @@ MODULE pint_gle
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iadd, ib, ideg, idim, &
-                                                imap, ndim, num
+                                                imap, istat, ndim, num
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, beta, mf, rr
     REAL(dp), DIMENSION(:, :), POINTER       :: a_mat, e_tmp, h_tmp, s_tmp
