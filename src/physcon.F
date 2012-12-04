@@ -29,7 +29,7 @@
 !>      kjmol       : Conversion factor [a.u.] -> [kJ/mol]
 !>      massunit    : Conversion factor [u] -> [a.u.]
 !>      mu_perm     : Magnetic constant or permeability of vacuum [N/A**2]
-!>      n_avogadro  : Avogrado constant [1/mol]
+!>      n_avogadro  : Avogadro constant [1/mol]
 !>      pascal      : Conversion factor [a.u.] -> [Pa]
 !>      permittivity: Electric constant or permittivity of vacuum [F/m]
 !>      picoseconds : Conversion factor [a.u.] -> [ps]
@@ -143,7 +143,7 @@ CONTAINS
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
     rydberg = 10973731.568549_dp
 
-    ! Avogradro constant [1/mol]
+    ! Avogadro constant [1/mol]
     n_avogadro = 6.02214199E+23_dp
 
     ! Boltzmann constant [J/K]
@@ -185,7 +185,7 @@ CONTAINS
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
     rydberg = 10973731.568527_dp
 
-    ! Avogradro constant [1/mol]
+    ! Avogadro constant [1/mol]
     n_avogadro = 6.02214179E+23_dp
 
     ! Boltzmann constant [J/K]
@@ -320,7 +320,7 @@ CONTAINS
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Rydberg constant [1/m]",rydberg
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Avogrado constant [1/mol]",n_avogadro
+      "Avogadro constant [1/mol]",n_avogadro
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Boltzmann constant [J/K]",boltzmann
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
