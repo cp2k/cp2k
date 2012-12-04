@@ -28,6 +28,7 @@ MODULE scptb_utils
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE message_passing,                 ONLY: mp_bcast
   USE scptb_parameters,                ONLY: scptb_default_parameter
   USE scptb_types,                     ONLY: allocate_scptb_parameter,&
                                              scptb_parameter_type,&
@@ -106,7 +107,9 @@ CONTAINS
       CALL allocate_scptb_parameter(scptb_parameter,error)
       CALL set_scptb_parameter(scptb_parameter,key=iname,defined=.FALSE., error=error)
     
-      CALL scptb_parameter_from_file(scptb_parameter,scptb_control,para_env,error)
+      ! only for ionode
+      IF(para_env%ionode) CALL scptb_parameter_from_file(scptb_parameter,scptb_control,error)
+      CALL scptb_parameter_broadcast(scptb_parameter,para_env,error)
 
       IF (scptb_parameter%defined .EQV. .FALSE.) THEN
         output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log",error=error)
@@ -114,8 +117,8 @@ CONTAINS
            WRITE(output_unit, "(A,I3,2X,A,A)") " SCPTB| Kind ", ikind, TRIM(iname), &
             ": No parameter xml given or element undefined. Using defaults."
         END IF
+        !defaults, but undefined for most elements atm
         CALL scptb_default_parameter(scptb_parameter,error) 
-                !defaults, but undefined for most elements atm
         CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS",error=error)
       END IF
 
@@ -190,12 +193,11 @@ CONTAINS
 
   END SUBROUTINE scptb_parameter_init
 
-  SUBROUTINE scptb_parameter_from_file(scptb_parameter,scptb_control,para_env,error)
+  SUBROUTINE scptb_parameter_from_file(scptb_parameter,scptb_control,error)
 
     TYPE(scptb_parameter_type), &
       INTENT(INOUT)                          :: scptb_parameter
     TYPE(scptb_control_type), INTENT(IN)     :: scptb_control
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_from_file', &
@@ -210,9 +212,6 @@ CONTAINS
       has_energy, has_eta, has_hcore, has_nqm, has_occ, has_z, has_zeff, &
       tag_over, tag_over2
     TYPE(XML_PARSE)                          :: xml_info
-
-!LOGICAL                                  :: at_end
-!TYPE(cp_parser_type), POINTER            :: parser
 
     DATA has_z, has_zeff, has_ag, has_a0, has_energy, has_hcore, has_occ,   &
                     has_nqm, has_eta, has_A, has_B, has_C, has_D/13*.FALSE./
@@ -364,7 +363,7 @@ CONTAINS
                                             IF (attribs(1,j) == "l") READ(attribs(2,j),*) l ; has_eta = .TRUE.
                                         END DO
                                         IF (endtag .EQV. .FALSE.) THEN
-                                            READ(DATA(1),*) scptb_parameter%pol(l)
+                                            IF(l>0) READ(DATA(1),*) scptb_parameter%pol(l)
                                             IF (l > scptb_parameter%lmaxscp) scptb_parameter%lmaxscp = l
                                         END IF
                                     CASE DEFAULT
@@ -427,6 +426,50 @@ CONTAINS
     END IF
 
   END SUBROUTINE scptb_parameter_from_file
+
+  SUBROUTINE scptb_parameter_broadcast(scptb_parameter,para_env,error)
+
+    TYPE(scptb_parameter_type), &
+      INTENT(INOUT)                          :: scptb_parameter
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_broadcast', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure=.FALSE.
+    INTEGER                                  :: source, group
+
+    source = para_env%source
+    group = para_env%group
+    
+    IF(para_env%ionode) THEN
+       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,error,failure)
+    ELSE
+       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL mp_bcast(scptb_parameter%key,source,group)
+    CALL mp_bcast(scptb_parameter%parameterization,source,group)
+    CALL mp_bcast(scptb_parameter%atomname,source,group)
+    CALL mp_bcast(scptb_parameter%defined,source,group)
+    CALL mp_bcast(scptb_parameter%z,source,group)
+    CALL mp_bcast(scptb_parameter%zeff,source,group)
+    CALL mp_bcast(scptb_parameter%natorb,source,group)
+    CALL mp_bcast(scptb_parameter%lmaxorb,source,group)
+    CALL mp_bcast(scptb_parameter%lmaxscp,source,group)
+    CALL mp_bcast(scptb_parameter%norb,source,group)
+    CALL mp_bcast(scptb_parameter%nqm,source,group)
+    CALL mp_bcast(scptb_parameter%zeta,source,group)
+    CALL mp_bcast(scptb_parameter%hcore,source,group)
+    CALL mp_bcast(scptb_parameter%occupation,source,group)
+    CALL mp_bcast(scptb_parameter%energy,source,group)
+    CALL mp_bcast(scptb_parameter%crep,source,group)
+    CALL mp_bcast(scptb_parameter%pol,source,group)
+    CALL mp_bcast(scptb_parameter%ag,source,group)
+    CALL mp_bcast(scptb_parameter%rcpair,source,group)
+
+  END SUBROUTINE scptb_parameter_broadcast
 
 END MODULE scptb_utils
 
