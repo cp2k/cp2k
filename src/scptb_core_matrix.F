@@ -307,6 +307,8 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (calculate_forces) THEN
+       DEALLOCATE (atom_of_kind,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                          alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
