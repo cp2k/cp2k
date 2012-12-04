@@ -99,12 +99,11 @@
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, icoef, kkk, stat
+    INTEGER                                  :: handle, icoef, kkk
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: L_b, R_max, R_min, R_transf, &
                                                 U_b
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
 
      CALL timeset(routineN,handle)
      failure=.FALSE.
@@ -162,8 +161,6 @@
          ierr=-1
      END SELECT
 
-     ALLOCATE(fit_coef(0:12,2*k),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      fit_coef=0.0
      aw=0.0
      IF(Rc<R_min) THEN
@@ -565,7 +562,6 @@
        END DO
      END IF
 
-     DEALLOCATE(fit_coef)
 
      CALL timestop(handle)
 
@@ -573,8 +569,7 @@
 
    SUBROUTINE get_fit_coef_k1(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -610,8 +605,7 @@
 
    SUBROUTINE get_fit_coef_k2(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -673,8 +667,7 @@
 
    SUBROUTINE get_fit_coef_k3(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -762,8 +755,7 @@
 
    SUBROUTINE get_fit_coef_k4(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -877,8 +869,7 @@
 
    SUBROUTINE get_fit_coef_k5_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -1018,8 +1009,7 @@
 
    SUBROUTINE get_fit_coef_k5_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -1159,8 +1149,7 @@
 
    SUBROUTINE get_fit_coef_k6_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -1326,8 +1315,7 @@
 
    SUBROUTINE get_fit_coef_k6_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -1493,8 +1481,7 @@
 
    SUBROUTINE get_fit_coef_k7_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+00_dp
@@ -1686,8 +1673,7 @@
 
    SUBROUTINE get_fit_coef_k7_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -1879,8 +1865,7 @@
 
    SUBROUTINE get_fit_coef_k8_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -2098,8 +2083,7 @@
 
    SUBROUTINE get_fit_coef_k8_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -2317,8 +2301,7 @@
 
    SUBROUTINE get_fit_coef_k9_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -2562,8 +2545,7 @@
 
    SUBROUTINE get_fit_coef_k9_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -2807,8 +2789,7 @@
 
    SUBROUTINE get_fit_coef_k10_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -3078,8 +3059,7 @@
 
    SUBROUTINE get_fit_coef_k10_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -3349,8 +3329,7 @@
 
    SUBROUTINE get_fit_coef_k11_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -3646,8 +3625,7 @@
 
    SUBROUTINE get_fit_coef_k11_mi(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -3943,8 +3921,7 @@
 
    SUBROUTINE get_fit_coef_k11_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -4240,8 +4217,7 @@
 
    SUBROUTINE get_fit_coef_k12_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -4563,8 +4539,7 @@
 
    SUBROUTINE get_fit_coef_k12_mi(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -4886,8 +4861,7 @@
 
    SUBROUTINE get_fit_coef_k12_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -5209,8 +5183,7 @@
 
    SUBROUTINE get_fit_coef_k13_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -5558,8 +5531,7 @@
 
    SUBROUTINE get_fit_coef_k13_mi(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -5907,8 +5879,7 @@
 
    SUBROUTINE get_fit_coef_k13_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -6256,8 +6227,7 @@
 
    SUBROUTINE get_fit_coef_k14_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+01_dp
@@ -6631,8 +6601,7 @@
 
    SUBROUTINE get_fit_coef_k14_mi(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -7006,8 +6975,7 @@
 
    SUBROUTINE get_fit_coef_k14_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   9.4708858956711737E+01_dp
@@ -7381,8 +7349,7 @@
 
    SUBROUTINE get_fit_coef_k15_sh(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   2.0000000000000000E+01_dp
@@ -7782,8 +7749,7 @@
 
    SUBROUTINE get_fit_coef_k15_mi(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   1.0000000000000000E+02_dp
@@ -8183,8 +8149,7 @@
 
    SUBROUTINE get_fit_coef_k15_lo(k,fit_coef,L_b,U_b)
     INTEGER                                  :: k
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: fit_coef
+    REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
     REAL(KIND=dp)                            :: L_b, U_b
 
      L_b =   9.3527642781376642E+01_dp
