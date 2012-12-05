@@ -202,3 +202,9 @@ argon_opt_cell.inp
 argon_opt_cell_ks.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 Si_tersoff.inp
+#  
+water32_hbonds_3.inp
+#  
+water32_hbonds_4.inp
+#  
+Si_tersoff.inp

@@ -1,0 +1,52 @@
+[
+{'lib':'cp',
+'libname':'cp',
+'nametype1':'r',
+'type1':'real(kind=dp)',
+'USE':'USE kinds, ONLY: dp',
+'defaultFormatType1':'"(es14.6)"',
+'lessQ':'CP_R_LESS_Q',
+'defines':"#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+{'lib':'cp',
+'libname':'cp',
+'nametype1':'i',
+'type1':'integer',
+'USE':'',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+{'lib':'cp',
+'libname':'cp',
+'nametype1':'i4',
+'type1':'integer(kind=4)',
+'USE':'',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+{'lib':'cp',
+'libname':'cp',
+'nametype1':'i8',
+'type1':'integer(kind=8)',
+'USE':'',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+
+{'lib':'dbcsr_lib/dbcsr',
+'libname':'dbcsr',
+'nametype1':'i4',
+'type1':'integer(kind=4)',
+'USE':'',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+{'lib':'dbcsr_lib/dbcsr',
+'libname':'dbcsr',
+'nametype1':'i8',
+'type1':'integer(kind=8)',
+'USE':'',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+]

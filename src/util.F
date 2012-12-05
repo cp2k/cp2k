@@ -14,7 +14,11 @@ MODULE util
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8
-
+  USE cp_array_r_sort,                ONLY: cp_1d_r_sort
+  USE cp_array_i4_sort,               ONLY: cp_1d_i4_sort
+  USE cp_array_i8_sort,               ONLY: cp_1d_i8_sort
+                                             
+                                             
   IMPLICIT NONE
 
   PRIVATE
@@ -26,8 +30,8 @@ MODULE util
             sort_unique
 
   INTERFACE sort
-     MODULE PROCEDURE sort_rv, sort_int_4v, sort_int_8v, sort_cv, sort_im,&
-                      sort_cm
+     MODULE PROCEDURE cp_1d_r_sort, cp_1d_i4_sort, cp_1d_i8_sort,&
+                      sort_cv, sort_im, sort_cm
   END INTERFACE
 
   INTERFACE sort_unique
@@ -217,69 +221,6 @@ CONTAINS
     failure = .FALSE.
 #include "sort_m.f90"
   END SUBROUTINE sort_cm
-
-! *****************************************************************************
-!> \brief Sorts an array of reals
-! *****************************************************************************
-  SUBROUTINE sort_rv ( arr, n, index )
-    INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(INOUT)             :: arr(1:n)
-    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_rv', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: m = 7, nstack = 50
-
-    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
-                                                itemp, j, jstack, k, l
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, temp
-
-    failure = .FALSE.
-#include "sort.f90"
-  END SUBROUTINE sort_rv
-
-! *****************************************************************************
-!> \brief Sorts an array of integers
-! *****************************************************************************
-  SUBROUTINE sort_int_4v ( arr, n, index )
-    INTEGER, INTENT(IN)                      :: n
-    INTEGER(KIND=int_4), INTENT(INOUT)       :: arr(1:n)
-    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_int_4v', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: m = 7, nstack = 50
-
-    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
-                                                itemp, j, jstack, k, l
-    INTEGER(kind=int_4)                      :: a, temp
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-#include "sort.f90"
-  END SUBROUTINE sort_int_4v
-
-! *****************************************************************************
-!> \brief Sorts an array of int_8 integers
-! *****************************************************************************
-  SUBROUTINE sort_int_8v ( arr, n, index )
-    INTEGER, INTENT(IN)                      :: n
-    INTEGER(KIND=int_8), INTENT(INOUT)       :: arr(1:n)
-    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_int_8v', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: m = 7, nstack = 50
-
-    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
-                                                itemp, j, jstack, k, l
-    INTEGER(kind=int_8)                      :: a, temp
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-#include "sort.f90"
-  END SUBROUTINE sort_int_8v
 
 ! *****************************************************************************
 !> \brief divide m entries into n parts, return size of part me

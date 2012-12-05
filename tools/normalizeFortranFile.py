@@ -874,11 +874,10 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
         m=moduleRe.match(line)
         if m:
             if not orig_filename: orig_filename=inFile.name
-            endPos=orig_filename.rfind('.')
-            if (m.group('moduleName')!=os.path.basename(orig_filename)[0:endPos]) :
+            fn = os.path.basename(orig_filename).rsplit(".",1)[0]
+            if (m.group('moduleName')!=fn) :
                 raise SyntaxError("Module name is different from filename ("+
-                                  m.group('moduleName')+
-                                  "!="+os.path.basename(orig_filename)[0:endPos]+")")
+                                  m.group('moduleName')+"!="+fn+")")
             break
     try:
         modulesDict=parseUse(inFile)

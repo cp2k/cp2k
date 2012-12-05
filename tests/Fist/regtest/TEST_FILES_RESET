@@ -617,3 +617,9 @@ h2_parse.inp
 TNF2.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 TNF2.inp
+#  
+gmax.inp
+#  
+water32_hbonds_2.inp
+#  
+deca_ala_avg2.inp

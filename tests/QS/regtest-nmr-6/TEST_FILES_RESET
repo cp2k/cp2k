@@ -786,3 +786,13 @@ ch3m-gapw-1.inp
 ch3p-gapw-1.inp
 # reset numerics
 no-gapw-1-distributed.inp
+#  
+no-gapw-1.inp
+#  
+no-gapw-3.inp
+#  
+no-gapw-4.inp
+#  
+no-gapw-1-replicated.inp
+#  
+no-gapw-gpw-1.inp

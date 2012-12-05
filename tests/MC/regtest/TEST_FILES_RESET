@@ -59,3 +59,7 @@ MC_KG.inp
 MC_QS.inp
 #  
 MC_QS.inp
+#  
+canonical.inp
+#  
+canonical_bias.inp

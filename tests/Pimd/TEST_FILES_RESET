@@ -60,3 +60,7 @@ h2o_pint_qs_nose_restart.inp
 he32_density.inp
 # initial centroid velocities: I/O bug fixed, rescaling added, default behavior changed
 centroid_velocity_init.inp
+#  
+w512_pint_nose.inp
+#  
+w512_pint_gle.inp

@@ -970,3 +970,15 @@ H2O-geo-pdos_comp.inp
 H2O-geo-ot-pdos-lumo-comp.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 H2O-geo-pdos_comp_list.inp
+#  
+He2_ddapc_constraint-2.inp
+#  
+He2_ddapc_constraint-3.inp
+#  
+He2_none_full_inverse.inp
+#  
+H2O-geo-ot-evals.inp
+#  
+sic_ddapc_rt.inp
+#  
+He2_ddapc_constraint-4.inp

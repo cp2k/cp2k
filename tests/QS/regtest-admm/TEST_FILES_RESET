@@ -144,3 +144,5 @@ CH4-BP-CAUCHY.inp
 H2+-BLOCKED-PURIFY-FULL.inp
 # reset numerics
 H2+-BLOCKED-PURIFY-FULL.inp
+#  
+MD-2_OT.inp

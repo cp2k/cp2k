@@ -573,3 +573,7 @@ C4H10-qmmm-gauss-11.inp
 C11H24-qmmm-gauss-0.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 constr.inp
+#  
+C4H10-qmmm-gauss-6.inp
+#  
+C4H10-qmmm-gauss-7.inp

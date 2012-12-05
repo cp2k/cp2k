@@ -64,3 +64,13 @@ UO2-2x2x2-CI-NEB-core-shell-res.inp
 2gly_IT-NEB-CV.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 2gly_IT-NEB-CV-res.inp
+#  
+NEB-MIXED.inp
+#  
+2gly_IT-NEB-CV.inp
+#  
+2gly_IT-NEB-CV-res.inp
+#  
+UO2-2x2x2-CI-NEB-core-shell.inp
+#  
+UO2-2x2x2-CI-NEB-core-shell-res.inp

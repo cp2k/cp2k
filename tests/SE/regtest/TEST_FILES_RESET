@@ -823,3 +823,9 @@ b2h6_pm6.inp
 ch2o_pm6.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 hcn_pm6.inp
+#  
+st.inp
+#  
+h2po4.inp
+#  
+ice-scp-ewald.inp

@@ -574,3 +574,7 @@ hcn_pm6.inp
 Pt-cis-2xpet3Cl2.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 Pt-cis-2xpet3Cl2-si-noc.inp
+#  
+md.inp
+#  
+H2O-32.inp

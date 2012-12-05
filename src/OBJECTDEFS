@@ -76,6 +76,10 @@ OBJECTS_GENERIC =\
  cp_array_logical_utils.o\
  cp_array_r_utils.o\
  cp_array_utils.o\
+ cp_array_r_sort.o\
+ cp_array_i_sort.o\
+ cp_array_i4_sort.o\
+ cp_array_i8_sort.o\
  cp_blacs_calls.o\
  cp_blacs_env.o\
  cp_cfm_basic_linalg.o\

@@ -48,4 +48,7 @@ LIB3_OBJECTS =\
  dbcsr_work_operations.o\
  dummy_c_bindings.o\
  min_heap.o\
- smm.o
+ smm.o\
+ dbcsr_array_i4_sort.o\
+ dbcsr_array_i8_sort.o
+ 
