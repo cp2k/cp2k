@@ -623,3 +623,7 @@ gmax.inp
 water32_hbonds_2.inp
 #  
 deca_ala_avg2.inp
+#  
+water_charge_no_array_pme.inp
+#  
+water_charge_array_pme.inp
