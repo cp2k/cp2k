@@ -132,34 +132,34 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
-       CALL cp_print_key_section_create(print_key,"trajectory",&
-            description="controls the output of the trajectory",&
+       CALL cp_print_key_section_create(print_key,"TRAJECTORY",&
+            description="Controls the output of the trajectory",&
             print_level=low_print_level, common_iter_levels=1,&
             filename="",unit_str="angstrom",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.TRUE.,&
             description="Specifies the format of the output file for the trajectory.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"shell_trajectory",&
-            description="controls the output of the trajectory of shells when the shell-model is used ",&
+       CALL cp_print_key_section_create(print_key,"SHELL_TRAJECTORY",&
+            description="Controls the output of the trajectory of shells when the shell-model is used ",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="angstrom",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.TRUE.,&
             description="Specifies the format of the output file for the trajectory of shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"core_trajectory",&
-            description="controls the output of the trajectory of cores when the shell-model is used ",&
+       CALL cp_print_key_section_create(print_key,"CORE_TRAJECTORY",&
+            description="Controls the output of the trajectory of cores when the shell-model is used ",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="angstrom",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.TRUE.,&
             description="Specifies the format of the output file for the trajectory of cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"cell",&
+       CALL cp_print_key_section_create(print_key,"CELL",&
             description="Controls the output of the simulation cell."//&
             "For later analysis of the trajectory it is recommendable that the"//&
             "frequency of printing is the same as the one used for the trajectory file",&
@@ -168,29 +168,29 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"velocities",&
-            description="controls the output of the velocities",&
+       CALL cp_print_key_section_create(print_key,"VELOCITIES",&
+            description="Controls the output of the velocities",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="bohr*au_t^-1",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the velocities.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"shell_velocities",&
-            description="controls the output of the velocities of shells when the shell model is used",&
+       CALL cp_print_key_section_create(print_key,"SHELL_VELOCITIES",&
+            description="Controls the output of the velocities of shells when the shell model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="bohr*au_t^-1",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the velocities of shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"core_velocities",&
+       CALL cp_print_key_section_create(print_key,"CORE_VELOCITIES",&
             description="controls the output of the velocities of cores when the shell model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="bohr*au_t^-1",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the velocities of cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -199,38 +199,38 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"force_mixing_labels",&
-            description="controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels",&
+       CALL cp_print_key_section_create(print_key,"FORCE_MIXING_LABELS",&
+            description="Controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the force mixing labels.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"forces",&
-            description="controls the output of the forces",&
+       CALL cp_print_key_section_create(print_key,"FORCES",&
+            description="Controls the output of the forces",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="hartree*bohr^-1",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the forces.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"shell_forces",&
+       CALL cp_print_key_section_create(print_key,"SHELL_FORCES",&
             description="controls the output of the forces on shells when shell-model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="hartree*bohr^-1",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the forces on shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"core_forces",&
+       CALL cp_print_key_section_create(print_key,"CORE_FORCES",&
             description="controls the output of the forces on cores when shell-model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",unit_str="hartree*bohr^-1",error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Specifies the format of the output file for the forces on cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2702,7 +2702,7 @@ CONTAINS
             description="Controls the output of the centroid's position", &
             unit_str="angstrom",&
             print_level=low_print_level,common_iter_levels=1,error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.TRUE.,&
             description="Output file format for the positions of centroid",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -2712,7 +2712,7 @@ CONTAINS
             description="Controls the output of the centroid's velocity", &
             unit_str="bohr*au_t^-1",&
             print_level=low_print_level,common_iter_levels=1,error=error)
-       CALL add_format_keyword(keyword, print_key, &
+       CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
             description="Output file format for the velocity of centroid",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -3135,9 +3135,10 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino 10.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE add_format_keyword(keyword, section, description, error)
+  SUBROUTINE add_format_keyword(keyword, section, pos, description, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN)                      :: pos
     CHARACTER(LEN=*), INTENT(IN)             :: description
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3150,18 +3151,61 @@ CONTAINS
     CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
 
-    CALL keyword_create(keyword, name="FORMAT",&
-         description=description,usage="FORMAT (ATOMIC|XMOL|XYZ|DCD)",&
-         default_i_val=dump_xmol,&
-         enum_c_vals=s2a("ATOMIC","XMOL","XYZ","DCD"),&
-         enum_i_vals= (/dump_atomic,dump_xmol,dump_xmol,dump_dcd/),&
-         enum_desc=s2a( "Prints in a formatted file only the coordinates X,Y,Z without element labels",&
-                        "Mostly known as XYZ format, provides in a formatted files: elements, X Y Z",&
-                        "Alias for XMOL",&
-                        "Binary file with information on coordinates and cells (no element labels)"),&
-         error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+    IF (pos) THEN
+
+       CALL keyword_create(keyword, name="FORMAT",&
+            description=description,usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=s2a("ATOMIC","DCD","PDB","XMOL","XYZ"),&
+            enum_i_vals= (/dump_atomic,dump_dcd,dump_pdb,dump_xmol,dump_xmol/),&
+            enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file",&
+                          "Write the coordinates (no element labels) and the cell information to a binary file",&
+                          "Write the atomic information in PDB format to a formatted file",&
+                          "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z",&
+                          "Alias name for XMOL"),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE_OCCUP",&
+            variants=(/"CHARGE_O"/),&
+            description="Write the MM charges to the OCCUP field of the PDB file",&
+            usage="CHARGE_OCCUP logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE_BETA",&
+            variants=(/"CHARGE_B"/),&
+            description="Write the MM charges to the BETA field of the PDB file",&
+            usage="CHARGE_BETA logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE_EXTENDED",&
+            description="Write the MM charges to the very last field of the PDB file (starting from column 81)",&
+            usage="CHARGE_EXTENDED logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    ELSE
+
+       CALL keyword_create(keyword, name="FORMAT",&
+            description=description,usage="FORMAT (ATOMIC|DCD|XMOL|XYZ)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=s2a("ATOMIC","DCD","XMOL","XYZ"),&
+            enum_i_vals= (/dump_atomic,dump_dcd,dump_xmol,dump_xmol/),&
+            enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file",&
+                          "Write the coordinates (no element labels) and the cell information to a binary file",&
+                          "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z",&
+                          "Alias name for XMOL"),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
 
   END SUBROUTINE add_format_keyword
 

@@ -1687,6 +1687,30 @@ CONTAINS
             description="controls the dumping of the PDB at the starting geometry",&
             print_level=debug_print_level, filename="dump",error=error)
        CALL section_add_subsection(section,print_key,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE_OCCUP",&
+            variants=(/"CHARGE_O"/),&
+            description="Write the MM charges to the OCCUP field of the PDB file",&
+            usage="CHARGE_OCCUP logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE_BETA",&
+            variants=(/"CHARGE_B"/),&
+            description="Write the MM charges to the BETA field of the PDB file",&
+            usage="CHARGE_BETA logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE_EXTENDED",&
+            description="Write the MM charges to the very last field of the PDB file (starting from column 81)",&
+            usage="CHARGE_EXTENDED logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"DUMP_PSF",&

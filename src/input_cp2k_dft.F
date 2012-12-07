@@ -914,7 +914,7 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL add_format_keyword(keyword, print_key, &
+    CALL add_format_keyword(keyword, print_key, pos=.TRUE.,& 
          description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)

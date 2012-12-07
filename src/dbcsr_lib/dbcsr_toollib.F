@@ -14,14 +14,14 @@
 ! *****************************************************************************
 MODULE dbcsr_toollib
 
+  USE dbcsr_array_i4_sort,             ONLY: dbcsr_1d_i4_sort
+  USE dbcsr_array_i8_sort,             ONLY: dbcsr_1d_i8_sort
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
                                              int_8
   USE dbcsr_machine,                   ONLY: m_walltime
-  USE dbcsr_array_i4_sort,             ONLY: dbcsr_1d_i4_sort
-  USE dbcsr_array_i8_sort,             ONLY: dbcsr_1d_i8_sort
-  
+
   !$ USE OMP_LIB
 
   IMPLICIT NONE

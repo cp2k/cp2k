@@ -10,15 +10,12 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE util
+  USE cp_array_i4_sort,                ONLY: cp_1d_i4_sort
+  USE cp_array_i8_sort,                ONLY: cp_1d_i8_sort
+  USE cp_array_r_sort,                 ONLY: cp_1d_r_sort
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             int_4,&
-                                             int_8
-  USE cp_array_r_sort,                ONLY: cp_1d_r_sort
-  USE cp_array_i4_sort,               ONLY: cp_1d_i4_sort
-  USE cp_array_i8_sort,               ONLY: cp_1d_i8_sort
-                                             
-                                             
+  USE kinds,                           ONLY: dp
+
   IMPLICIT NONE
 
   PRIVATE

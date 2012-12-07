@@ -42,7 +42,9 @@
     MD 1
    &END EACH
   &END STRESS
-  &TRAJECTORY
+  &TRAJECTORY on
+   CHARGE_BETA
+   FORMAT pdb
    &EACH
     MD 1
    &END EACH

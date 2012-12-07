@@ -25,9 +25,12 @@ MODULE particle_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE external_potential_types,        ONLY: fist_potential_type,&
+                                             get_potential
   USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
+                                             dump_pdb,&
                                              dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -41,6 +44,8 @@ MODULE particle_types
   USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE shell_potential_types,           ONLY: get_shell,&
+                                             shell_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -231,7 +236,9 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_particle_coordinates(particle_set,iunit,output_format,&
-       content,title,cell,array,unit_conv,error)
+                                        content,title,cell,array,unit_conv,&
+                                        charge_occup,charge_beta,&
+                                        charge_extended,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -241,22 +248,30 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: array
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: unit_conv
+    LOGICAL, INTENT(IN), OPTIONAL            :: charge_occup, charge_beta, &
+                                                charge_extended
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_coordinates', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=120)                       :: line
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     INTEGER                                  :: handle, iatom, natom, stat
-    LOGICAL                                  :: dummy, failure
+    LOGICAL                                  :: dummy, failure, &
+                                                my_charge_beta, &
+                                                my_charge_extended, &
+                                                my_charge_occup
     REAL(KIND=dp)                            :: angle_alpha, angle_beta, &
-                                                angle_gamma, factor
+                                                angle_gamma, factor, qeff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
     REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
+    TYPE(fist_potential_type), POINTER       :: fist_potential
+    TYPE(shell_kind_type), POINTER           :: shell
 
     CALL timeset(routineN,handle)
 
@@ -419,6 +434,99 @@ CONTAINS
        END IF
        DEALLOCATE(x4,y4,z4,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE (dump_pdb)
+       my_charge_occup = .FALSE.
+       IF (PRESENT(charge_occup)) my_charge_occup = charge_occup
+       my_charge_beta = .FALSE.
+       IF (PRESENT(charge_beta)) my_charge_beta = charge_beta
+       my_charge_extended = .FALSE.
+       IF (PRESENT(charge_extended)) my_charge_extended = charge_extended
+       IF (LEN_TRIM(title) > 0) THEN
+          WRITE (UNIT=iunit,FMT="(A6,T11,A)")&
+           "REMARK",TRIM(title)
+       END IF
+       CALL get_cell(cell,alpha=angle_alpha,beta=angle_beta,gamma=angle_gamma,abc=abc)
+       ! COLUMNS       DATA TYPE      CONTENTS
+       ! --------------------------------------------------
+       !  1 -  6       Record name    "CRYST1"
+       !  7 - 15       Real(9.3)      a (Angstroms)
+       ! 16 - 24       Real(9.3)      b (Angstroms)
+       ! 25 - 33       Real(9.3)      c (Angstroms)
+       ! 34 - 40       Real(7.2)      alpha (degrees)
+       ! 41 - 47       Real(7.2)      beta (degrees)
+       ! 48 - 54       Real(7.2)      gamma (degrees)
+       ! 56 - 66       LString        Space group
+       ! 67 - 70       Integer        Z value
+       WRITE (UNIT=iunit,FMT="(A6,3F9.3,3F7.2)")&
+        "CRYST1",abc(1:3)*factor,angle_alpha,angle_beta,angle_gamma
+       WRITE (UNIT=line(1:6),FMT="(A6)") "ATOM  "
+       DO iatom=1,natom
+          line = ""
+          ! COLUMNS        DATA TYPE       CONTENTS
+          !  1 -  6        Record name     "ATOM  "
+          !  7 - 11        Integer         Atom serial number
+          ! 13 - 16        Atom            Atom name
+          ! 17             Character       Alternate location indicator
+          ! 18 - 20        Residue name    Residue name
+          ! 22             Character       Chain identifier
+          ! 23 - 26        Integer         Residue sequence number
+          ! 27             AChar           Code for insertion of residues
+          ! 31 - 38        Real(8.3)       Orthogonal coordinates for X in Angstrom
+          ! 39 - 46        Real(8.3)       Orthogonal coordinates for Y in Angstrom
+          ! 47 - 54        Real(8.3)       Orthogonal coordinates for Z in Angstrom
+          ! 55 - 60        Real(6.2)       Occupancy
+          ! 61 - 66        Real(6.2)       Temperature factor (Default = 0.0)
+          ! 73 - 76        LString(4)      Segment identifier, left-justified
+          ! 77 - 78        LString(2)      Element symbol, right-justified
+          ! 79 - 80        LString(2)      Charge on the atom
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                               element_symbol=element_symbol,name=atm_name,&
+                               fist_potential=fist_potential,shell=shell)
+          IF (LEN_TRIM(element_symbol) == 0)  THEN
+             dummy = qmmm_ff_precond_only_qm(id1=atm_name)
+          END IF
+          name = TRIM(atm_name)
+          IF (ASSOCIATED(fist_potential)) THEN
+             CALL get_potential(potential=fist_potential,qeff=qeff)
+          ELSE
+             qeff = 0.0_dp
+          END IF
+          IF (ASSOCIATED(shell)) CALL get_shell(shell=shell,charge=qeff,error=error)
+          WRITE (UNIT=line( 1: 6),FMT="(A6)") "ATOM  "
+          WRITE (UNIT=line( 7:11),FMT="(I5)") MODULO(iatom,100000)
+          WRITE (UNIT=line(13:16),FMT="(A4)") ADJUSTL(name)
+          ! WRITE (UNIT=line(18:20),FMT="(A3)") TRIM(resname)
+          ! WRITE (UNIT=line(23:26),FMT="(I4)") MODULO(idres,10000)
+          SELECT CASE (TRIM(content))
+          CASE ("POS")
+             IF (PRESENT(array)) THEN
+                r(1:3) = get_particle_pos_or_vel(iatom,particle_set,array)
+             ELSE
+                r(:) = particle_set(iatom)%r(:)
+             END IF
+             WRITE (UNIT=line(31:54),FMT="(3F8.3)") r(1:3)*factor
+          CASE DEFAULT
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "PDB dump only for trajectory available")
+          END SELECT
+          IF (my_charge_occup) THEN
+             WRITE (UNIT=line(55:60),FMT="(F6.2)") qeff
+          ELSE
+             WRITE (UNIT=line(55:60),FMT="(F6.2)") 0.0_dp
+          END IF
+          IF (my_charge_beta) THEN
+             WRITE (UNIT=line(61:66),FMT="(F6.2)") qeff
+          ELSE
+             WRITE (UNIT=line(61:66),FMT="(F6.2)") 0.0_dp
+          END IF
+          ! WRITE (UNIT=line(73:76),FMT="(A4)") ADJUSTL(TRIM(molname))
+          WRITE (UNIT=line(77:78),FMT="(A2)") ADJUSTR(TRIM(element_symbol))
+          IF (my_charge_extended) THEN
+             WRITE (UNIT=line(81:),FMT="(SP,F0.8)") qeff
+          END IF
+          WRITE (UNIT=iunit,FMT="(A)") TRIM(line)
+       END DO
+       WRITE (UNIT=iunit,FMT="(A)") "END"
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"Illegal dump type")
     END SELECT
@@ -603,7 +711,7 @@ CONTAINS
           END DO
        END DO
 
-       !     *** Print the distance matrix ***
+       ! Print the distance matrix
        WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
             "INTERATOMIC DISTANCES IN "//TRIM(unit_str)
 

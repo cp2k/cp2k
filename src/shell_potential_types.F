@@ -54,18 +54,21 @@ MODULE shell_potential_types
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE get_shell(shell,charge_core,charge_shell,mass_core,mass_shell,&
-             k2_spring,k4_spring,max_dist,shell_cutoff,error)
+  SUBROUTINE get_shell(shell,charge,charge_core,charge_shell,mass_core,&
+                       mass_shell,k2_spring,k4_spring,max_dist,shell_cutoff,&
+                       error)
 
     TYPE(shell_kind_type), POINTER           :: shell
-    REAL(kind=dp), INTENT(OUT), OPTIONAL :: charge_core, charge_shell, &
-      mass_core, mass_shell, k2_spring, k4_spring, max_dist, shell_cutoff
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: charge, charge_core, &
+      charge_shell, mass_core, mass_shell, k2_spring, k4_spring, max_dist, &
+      shell_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_shell', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_shell', &
       routineP = moduleN//':'//routineN
 
     IF (ASSOCIATED(shell)) THEN
+      IF (PRESENT(charge)) charge = shell%charge_core + shell%charge_shell
       IF (PRESENT(charge_core)) charge_core = shell%charge_core
       IF (PRESENT(charge_shell)) charge_shell = shell%charge_shell
       IF (PRESENT(mass_core)) mass_core = shell%mass_core
