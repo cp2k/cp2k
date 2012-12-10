@@ -49,7 +49,7 @@ PROGRAM dbcsr_example_3
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
-       row, col
+       row, col, row_s, col_s
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
@@ -153,11 +153,12 @@ PROGRAM dbcsr_example_3
   DO row = 1, dbcsr_nblkrows_total (matrix_a)
      DO col = MAX(row-1,1), MIN(row+1,dbcsr_nblkcols_total (matrix_a))
         tr = .FALSE.
-        CALL dbcsr_get_stored_coordinates (matrix_a, row, col, tr, node_holds_blk)
+        row_s=row ; col_s=col
+        CALL dbcsr_get_stored_coordinates (matrix_a, row_s, col_s, tr, node_holds_blk)
         IF(node_holds_blk .EQ. mynode) THEN
-           nze = rbs(row) * cbs(col)
+           nze = rbs(row_s) * cbs(col_s)
            CALL RANDOM_NUMBER (values (1:nze))
-           CALL dbcsr_put_block (matrix_a, row, col, values(1:nze))
+           CALL dbcsr_put_block (matrix_a, row_s, col_s, values(1:nze))
         ENDIF
      ENDDO
   ENDDO
@@ -173,11 +174,12 @@ PROGRAM dbcsr_example_3
   DO row = 1, dbcsr_nblkrows_total (matrix_b)
      DO col = MAX(row-1,1), MIN(row+1,dbcsr_nblkcols_total (matrix_b))
         tr = .FALSE.
-        CALL dbcsr_get_stored_coordinates (matrix_b, row, col, tr, node_holds_blk)
+        row_s=row ; col_s=col
+        CALL dbcsr_get_stored_coordinates (matrix_b, row_s, col_s, tr, node_holds_blk)
         IF(node_holds_blk .EQ. mynode) THEN
-           nze = rbs(row) * cbs(col)
+           nze = rbs(row_s) * cbs(col_s)
            CALL RANDOM_NUMBER (values (1:nze))
-           CALL dbcsr_put_block (matrix_b, row, col, values(1:nze))
+           CALL dbcsr_put_block (matrix_b, row_s, col_s, values(1:nze))
         ENDIF
      ENDDO
   ENDDO

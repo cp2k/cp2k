@@ -49,7 +49,7 @@ PROGRAM dbcsr_example_2
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
-       row, col
+       row, col, row_s, col_s
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
@@ -148,17 +148,18 @@ PROGRAM dbcsr_example_2
         !
         ! get the node id that holds this (row, col) block
         tr = .FALSE.
-        CALL dbcsr_get_stored_coordinates (matrix_a, row, col, tr, node_holds_blk)
+        row_s=row ; col_s=col
+        CALL dbcsr_get_stored_coordinates (matrix_a, row_s, col_s, tr, node_holds_blk)
         !
         ! put the block on the right node
         IF(node_holds_blk .EQ. mynode) THEN
            !
            ! get the size of the block
-           nze = rbs(row) * cbs(col)
+           nze = rbs(row_s) * cbs(col_s)
            !
            ! fill the matrix with the random block
            CALL RANDOM_NUMBER (values (1:nze))
-           CALL dbcsr_put_block (matrix_a, row, col, values(1:nze))
+           CALL dbcsr_put_block (matrix_a, row_s, col_s, values(1:nze))
         ENDIF
      ENDDO
   ENDDO
