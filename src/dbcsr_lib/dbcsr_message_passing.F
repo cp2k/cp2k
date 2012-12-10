@@ -110,6 +110,7 @@ MODULE dbcsr_message_passing
   PUBLIC :: mp_file_open, mp_file_close
   PUBLIC :: mp_file_write_at, mp_file_read_at
   PUBLIC :: mp_file_write_at_all, mp_file_read_at_all
+  PUBLIC :: mp_file_get_size
 
 #ifndef __parallel
   INTEGER, PARAMETER :: MPI_COMM_SELF=0, MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
@@ -2050,6 +2051,32 @@ CONTAINS
     CLOSE(fh)
 #endif
   END SUBROUTINE mp_file_close
+
+! *****************************************************************************
+!> \brief Returns the file size
+!> \par MPI-I/O mapping   mpi_file_get_size
+!> \par STREAM-I/O mapping   INQUIRE 
+!>
+!> \param[in] fh file handle (file storage unit)
+!> \param[out] file_size  the file size                   
+!> \par History
+!>      12.2012 created [Hossein Bani-Hashemian]
+! *****************************************************************************
+  SUBROUTINE mp_file_get_size(fh,file_size)
+    INTEGER, INTENT(IN)                      :: fh
+    INTEGER(kind=file_offset), INTENT(OUT)   :: file_size
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+#if defined(__parallel)
+    CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
+    CALL mpi_file_get_size(fh, file_size, ierr)
+    IF (ierr .NE. 0) CALL mp_stop ( ierr, "mpi_file_set_errhandler @ mp_file_get_size" )
+#else
+    INQUIRE(UNIT=fh, SIZE=file_size)
+#endif
+  END SUBROUTINE mp_file_get_size
 
 ! *****************************************************************************
 !> \brief (parallel) Blocking individual file write using explicit offsets

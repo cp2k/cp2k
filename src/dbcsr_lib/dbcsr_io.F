@@ -30,10 +30,10 @@ MODULE dbcsr_io
                                              sp
   USE dbcsr_message_passing,           ONLY: &
        file_amode_create, file_amode_rdonly, file_amode_wronly, file_offset, &
-       mp_allgather, mp_environ, mp_file_close, mp_file_open, &
-       mp_file_read_at, mp_file_read_at_all, mp_file_write_at, mp_group, &
-       mp_sum, mp_type_descriptor_type, mp_type_size, mpi_character_size, &
-       mpi_integer_size
+       mp_allgather, mp_environ, mp_file_close, mp_file_get_size, &
+       mp_file_open, mp_file_read_at_all, mp_file_write_at, &
+       mp_file_write_at_all, mp_group, mp_sum, mp_type_descriptor_type, &
+       mp_type_size, mpi_character_size, mpi_integer_size
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
@@ -773,7 +773,7 @@ CONTAINS
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 !> \author Hossein Bani-Hashemian
-!> \version v_1.0
+!> \version DBCSRv_1.0
 ! *****************************************************************************
   SUBROUTINE dbcsr_binary_write(matrix, filepath, error)
 
@@ -787,7 +787,7 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     INTEGER                               :: nblkrows_total, nblkcols_total, &
-                                             nblks, nze, size_of_pgrid, &
+                                             nblks, size_of_pgrid, &
                                              thefile, i, sendbuf, data_area_size, &
                                              data_type, type_size, &
                                              mp_group, mynode, numnodes, & 
@@ -894,11 +894,11 @@ CONTAINS
     subh2_disps = subh2_disps+ginfo_size
     subh2_offsets = BOF + (subh2_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
-    CALL mp_file_write_at(thefile, subh2_offsets(mynode+1), (/nblks, data_area_size/))
+    CALL mp_file_write_at_all(thefile, subh2_offsets(mynode+1), (/nblks, data_area_size/))
 !> write sub-header3 
     subh3_offsets = BOF + (subh3_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
-    CALL mp_file_write_at(thefile, subh3_offsets(mynode+1), (/row_p, col_i, blk_p/))
+    CALL mp_file_write_at_all(thefile, subh3_offsets(mynode+1), (/row_p, col_i, blk_p/))
 !> write block data 
     mp_type = dbcsr_mp_type_from_anytype(data_area)
     CALL mp_type_size(mp_type,type_size)
@@ -908,16 +908,16 @@ CONTAINS
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        r_sp => data_area%d%r_sp
-       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), r_sp) 
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), r_sp) 
     CASE (dbcsr_type_real_8)
        r_dp => data_area%d%r_dp
-       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), r_dp)
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), r_dp)
     CASE (dbcsr_type_complex_4)
        c_sp => data_area%d%c_sp
-       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), c_sp) 
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), c_sp) 
     CASE (dbcsr_type_complex_8)
        c_dp => data_area%d%c_dp
-       CALL mp_file_write_at(thefile, bdata_offsets(mynode+1), c_dp) 
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), c_dp) 
     END SELECT
     CALL mp_file_close(thefile)
 
@@ -953,7 +953,7 @@ CONTAINS
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 !> \author Hossein Bani-Hashemian
-!> \version v_1.0
+!> \version DBCSRv_1.0
 ! *****************************************************************************
   SUBROUTINE dbcsr_binary_read(filepath, distribution, groupid, matrix_new, error)
 
@@ -970,12 +970,13 @@ CONTAINS
 
     INTEGER                               :: nblkrows_total, nblkcols_total, &
                                              nblks, darea_size, data_type, type_size, &
-                                             globalinfo_size, localinfo_size, &
+                                             globalinfo_size, &
                                              subh3_length, size_of_pgrid, &
                                              thefile, i, j, &
                                              nblocks, data_area_size, sum_nblks, sum_darea_size, &
-                                             share_size, order, cur_blks, cur_darea_size, &
+                                             share_size, order, cur_blks,  &
                                              job_count, start_index, end_index,&
+                                             localinfo_length, blockdata_length,&
                                              group_id, worker_id, group_list_size, error_handler
     CHARACTER                             :: matrix_type
     CHARACTER(LEN=default_string_length)  :: matrix_name
@@ -1007,7 +1008,8 @@ CONTAINS
                                                             subh3_disps, subh3_offsets, &
                                                             bdata_disps, bdata_offsets
     INTEGER(kind=file_offset), PARAMETER    :: BOF = 0
-    INTEGER(kind=file_offset)               :: offset, subh2_start, subh3_start, bdata_start
+    INTEGER(kind=file_offset)               :: offset, subh2_start, subh3_start, bdata_start, file_size,&
+                                               localinfo_offset, blockdata_offset
     INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -1024,17 +1026,17 @@ CONTAINS
     CALL mp_file_open(group_id, thefile, filepath, file_amode_rdonly)
     
 !> read version, matrix name and matrix type
-    CALL mp_file_read_at(thefile, BOF, version)
+    CALL mp_file_read_at_all(thefile, BOF, version)
 
     CALL dbcsr_assert (version==version_v_1_0,&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Trying to read an unknown version of the matrix data file. Good luck!",&
          __LINE__,error)
 
-    CALL mp_file_read_at(thefile, BOF+version_len*mpi_character_size, matrix_name_v_1_0) 
+    CALL mp_file_read_at_all(thefile, BOF+version_len*mpi_character_size, matrix_name_v_1_0) 
     matrix_name=matrix_name_v_1_0
 
-    CALL mp_file_read_at(thefile, BOF+(version_len+default_string_length)*mpi_character_size, matrix_type) 
+    CALL mp_file_read_at_all(thefile, BOF+(version_len+default_string_length)*mpi_character_size, matrix_type) 
 !> read 4 integer values form sub-header1
     CALL mp_file_read_at_all(thefile, BOF+char_count*mpi_character_size, values) 
     size_of_pgrid = values(1) 
@@ -1068,7 +1070,7 @@ CONTAINS
     ALLOCATE(val_data(3,share_size))
     val_data(:,:) = 0
     DO i = 1, share_size
-       CALL mp_file_read_at(thefile, subh2_offsets(i), values, msglen=2)
+       CALL mp_file_read_at_all(thefile, subh2_offsets(i), values, msglen=2)
        nblocks = values(1)    
        data_area_size = values(2)
        IF (subh2_offsets(i) .EQ. 0 ) EXIT
@@ -1083,6 +1085,7 @@ CONTAINS
 
 !> compute the offsets in sub-header3 and read 3 vectors row_p, col_i, blk_p 
     job_count = COUNT(val_data(3,:) .NE. 0)
+    CALL mp_file_get_size(thefile, file_size)
 
     ALLOCATE(linfo_lens(size_of_pgrid))
     ALLOCATE(subh3_disps(size_of_pgrid))
@@ -1109,11 +1112,19 @@ CONTAINS
     ALLOCATE(rowp((nblkrows_total+1)*job_count))
     ALLOCATE(coli(nblks))
     ALLOCATE(blkp(nblks))
-    DO i = 1, job_count
+    DO i = 1, share_size
        order = val_data(3,i)
        cur_blks = val_data(1,i)
+       IF (order .EQ. 0) THEN
+          localinfo_offset = file_size
+          localinfo_length = 0
+       ELSE
+          localinfo_offset = subh3_offsets(order)
+          localinfo_length = linfo_lens(order)
+       END IF
+       CALL mp_file_read_at_all(thefile, localinfo_offset, linfo_vec, msglen=localinfo_length)
+       IF (localinfo_length .EQ. 0) EXIT
 
-       CALL mp_file_read_at(thefile, subh3_offsets(order), linfo_vec, msglen=linfo_lens(order))
        rowp((i-1)*(nblkrows_total+1)+1:i*(nblkrows_total+1)) = linfo_vec(1:nblkrows_total+1)
        start_index = SUM(val_data(1,1:i-1))+1
        end_index = SUM(val_data(1,1:i))
@@ -1157,43 +1168,75 @@ CONTAINS
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
          ALLOCATE(rsp(darea_size))
-         DO i = 1, job_count
+         DO i = 1, share_size
             order = val_data(3,i)
-            cur_darea_size = val_data(2,i)
-            start_index = SUM(val_data(2,1:i-1))+1
-            end_index = SUM(val_data(2,1:i))
-            CALL mp_file_read_at(thefile, bdata_offsets(order), rsp(start_index:end_index), &
-                                 msglen = bdata_lens(order))
+            IF (order .EQ. 0) THEN
+               start_index = 1
+               end_index = 1
+               blockdata_length = 0
+               blockdata_offset = file_size
+            ELSE
+               start_index = SUM(val_data(2,1:i-1))+1
+               end_index = SUM(val_data(2,1:i))
+               blockdata_length = bdata_lens(order)
+               blockdata_offset = bdata_offsets(order)
+            END IF
+            CALL mp_file_read_at_all(thefile, blockdata_offset, rsp(start_index:end_index), &
+                                 msglen = blockdata_length)
          END DO
     CASE (dbcsr_type_real_8)
          ALLOCATE(rdp(darea_size))
-         DO i = 1, job_count
+         DO i = 1, share_size
             order = val_data(3,i)
-            cur_darea_size = val_data(2,i)
-            start_index = SUM(val_data(2,1:i-1))+1
-            end_index = SUM(val_data(2,1:i))
-            CALL mp_file_read_at(thefile, bdata_offsets(order), rdp(start_index:end_index), &
-                                 msglen = bdata_lens(order))
+            IF (order .EQ. 0) THEN
+               start_index = 1
+               end_index = 1
+               blockdata_length = 0
+               blockdata_offset = file_size
+            ELSE
+               start_index = SUM(val_data(2,1:i-1))+1
+               end_index = SUM(val_data(2,1:i))
+               blockdata_length = bdata_lens(order)
+               blockdata_offset = bdata_offsets(order)
+            END IF
+            CALL mp_file_read_at_all(thefile, blockdata_offset, rdp(start_index:end_index), &
+                                 msglen = blockdata_length)
          END DO
     CASE (dbcsr_type_complex_4)
          ALLOCATE(csp(darea_size))
-         DO i = 1, job_count
+         DO i = 1, share_size
             order = val_data(3,i)
-            cur_darea_size = val_data(2,i)
-            start_index = SUM(val_data(2,1:i-1))+1
-            end_index = SUM(val_data(2,1:i))
-            CALL mp_file_read_at(thefile, bdata_offsets(order), csp(start_index:end_index), &
-                                 msglen = bdata_lens(order))
+            IF (order .EQ. 0) THEN
+               start_index = 1
+               end_index = 1
+               blockdata_length = 0
+               blockdata_offset = file_size
+            ELSE
+               start_index = SUM(val_data(2,1:i-1))+1
+               end_index = SUM(val_data(2,1:i))
+               blockdata_length = bdata_lens(order)
+               blockdata_offset = bdata_offsets(order)
+            END IF
+            CALL mp_file_read_at_all(thefile, blockdata_offset, csp(start_index:end_index), &
+                                 msglen = blockdata_length)
          END DO
     CASE (dbcsr_type_complex_8)
          ALLOCATE(cdp(darea_size))
-         DO i = 1, job_count
+         DO i = 1, share_size
             order = val_data(3,i)
-            cur_darea_size = val_data(2,i)
-            start_index = SUM(val_data(2,1:i-1))+1
-            end_index = SUM(val_data(2,1:i))
-            CALL mp_file_read_at(thefile, bdata_offsets(order), cdp(start_index:end_index), &
-                                 msglen = bdata_lens(order))
+            IF (order .EQ. 0) THEN
+               start_index = 1
+               end_index = 1
+               blockdata_length = 0
+               blockdata_offset = file_size
+            ELSE
+               start_index = SUM(val_data(2,1:i-1))+1
+               end_index = SUM(val_data(2,1:i))
+               blockdata_length = bdata_lens(order)
+               blockdata_offset = bdata_offsets(order)
+            END IF
+            CALL mp_file_read_at_all(thefile, blockdata_offset, cdp(start_index:end_index), &
+                                 msglen = blockdata_length)
          END DO
     END SELECT
     CALL dbcsr_data_init (dblk)
