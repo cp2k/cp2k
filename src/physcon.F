@@ -40,22 +40,27 @@
 !>      debye       : Conversion factor [a.u.] -> Debye
 !> \note
 !>      Fundamental physical constants (SI units)
-!>      Literature: - B. J. Mohr and B. N. Taylor,
+!>      Literature: - P. J. Mohr and B. N. Taylor,
 !>                    "CODATA recommended values of the fundamental physical
-!>                     constants: 1998", Rev. Mod. Phys. 72(2), 351 (2000).
-!>                  - B. J. Mohr and B. N. Taylor,
+!>                     constants: 1998 Rev. Mod. Phys. 72, 351-495 (2000)
+!>                  - P. J. Mohr and B. N. Taylor,
 !>                    "CODATA recommended values of the fundamental physical
-!>                     constants: 2002", Rev. Mod. Phys. 77(2), 1 (2005).
-!>                  - B. J. Mohr and B. N. Taylor,
+!>                     constants: 2002", Rev. Mod. Phys. 77, 1 (2005).
+!>                  - P. J. Mohr, B. N. Taylor, and D. B. Newell,
 !>                    "CODATA recommended values of the fundamental physical
-!>                     constants: 2006", http://physics.nist.gov/constants
+!>                     constants: 2006 Rev. Mod. Phys. 80, 633 (2008)
+!>                  - P. J. Mohr, B. N. Taylor, and D. B. Newell,
+!>                    "CODATA recommended values of the fundamental physical
+!>                     constants: 2010", Rev. Mod. Phys. 84, 1527-1605 (2012)
 !> \par History
 !>      - Adapted for use in CP2K (JGH)
 !>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
 !>      - Updated to CODATA 2006. (26.03.2008,AK)
-!> \author Matthias Krack
+!>      - Updated to CODATA 2010. (10.12.2012,MK)
+!> \author Matthias Krack (MK)
 ! *****************************************************************************
 MODULE physcon
+
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -88,12 +93,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Initialize all basic physical constants used by CP2K using
 !>         the recommended fundamental constants of physics and chemistry
-!>         based on the 1998 adjustment (CODATA 1998)
+!>         based on the CODATA adjustments
 !> \author  JGH
 !> \date    14.11.2000
 !> \par History
-!>       - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-!>       - Updated to CODATA 2006. (26.03.2008,AK)
+!>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+!>      - Updated to CODATA 2006. (26.03.2008,AK)
+!>      - Updated to CODATA 2010. (10.12.2012,MK)
 !> \version 1.1
 ! *****************************************************************************
   SUBROUTINE init_physcon()
@@ -111,8 +117,14 @@ CONTAINS
     ! Electric constant or permittivity of vacuum [F/m]
     permittivity = 1.0_dp/(mu_perm*c_light**2)
 
+#define CODATA_DEFAULT_VERSION 2006
+
 #if !defined CODATA_VERSION
-#define CODATA_VERSION 2006
+#define CODATA_VERSION CODATA_DEFAULT_VERSION
+#endif
+
+#if CODATA_VERSION != 1998 && CODATA_VERSION != 2006 && CODATA_VERSION != 2010
+#define CODATA_VERSION CODATA_DEFAULT_VERSION
 #endif
 
 #if CODATA_VERSION == 1998
@@ -197,6 +209,48 @@ CONTAINS
     ! Bohr radius [m]
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
     a_bohr = 0.52917720859E-10_dp
+#endif
+
+#if CODATA_VERSION == 2010
+    ! Recommended fundamental constants of physics
+    ! and chemistry based on the 2010 adjustment
+
+    ! Planck constant [J*s]
+    h_planck = 6.62606957E-34_dp
+    h_bar = h_planck/(2.0_dp*pi)
+
+    ! Elementary charge [C]
+    e_charge = 1.602176565E-19_dp
+
+    ! Electron mass [kg]
+    e_mass = 9.10938291E-31_dp
+
+    ! Proton mass [kg]
+    p_mass = 1.672621777E-27_dp
+
+    ! Electron g factor [ ]
+    e_gfactor = -2.00231930436153_dp
+
+    ! Fine-structure constant
+!MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
+    a_fine = 7.2973525698E-3_dp
+
+    ! Rydberg constant [1/m]
+!MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
+    rydberg = 10973731.568539_dp
+
+    ! Avogadro constant [1/mol]
+    n_avogadro = 6.02214129E+23_dp
+
+    ! Boltzmann constant [J/K]
+    boltzmann = 1.3806488E-23_dp
+
+    ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
+    a_mass = 1.660538921E-27_dp
+
+    ! Bohr radius [m]
+!MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
+    a_bohr = 0.52917721092E-10_dp
 #endif
 
     ! Conversion factors
@@ -295,6 +349,14 @@ CONTAINS
       "***             CODATA recommended values of the fundamental physical",&
       "***             constants: 2006, Web Version 5.1",&
       "***             http://physics.nist.gov/constants"
+#endif
+
+#if CODATA_VERSION == 2010
+    WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
+      "*** Fundamental physical constants (SI units) ***",&
+      "*** Literature: P. J. Mohr, B. N. Taylor, and D. B. Newell,",&
+      "***             CODATA recommended values of the fundamental physical",&
+      "***             constants: 2010, Rev. Mod. Phys. 84, 1527-1605 (2012)"
 #endif
 
     WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,ES20.14)")&
