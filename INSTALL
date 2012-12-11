@@ -207,7 +207,10 @@ How to compile CP2K code
      with -D__HAS_LIBGRID (and -L/path/to/libgrid.a in LIBS) tuned versions of 
                              integrate and collocate routines can be generated.
                              See tools/autotune_grid/README for details
-
+     -D__PILAENV_BLOCKSIZE=1024 or similar is a hack to overwrite (if the linker allows this)
+                             the PILAENV function provided by Scalapack.
+                             This can lead to much improved PDGEMM performance.
+                             The optimal value depends on hardware (GPU?) and precise problem.
      Some options controlling MPI behavior and capabilities:
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
                              not declare they are thread safe but you want to

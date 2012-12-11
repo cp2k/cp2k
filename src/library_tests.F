@@ -1805,12 +1805,16 @@ CONTAINS
       ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
       nrow_global
     INTEGER, DIMENSION(:), POINTER           :: grid_2d
-    LOGICAL                                  :: row_major, transa_p, transb_p
+    LOGICAL                                  :: force_blocksize, row_major, &
+                                                transa_p, transb_p
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
                                                 fmstruct_c
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
+#if defined(__SCALAPACK)
+    INTEGER                                  :: pilaenv
+#endif
 
     CALL section_vals_get(cp_fm_gemm_test_section,n_repetition=n_rep,error=error)
     DO i_rep=1,n_rep
@@ -1828,6 +1832,7 @@ CONTAINS
        CALL section_vals_val_get(cp_fm_gemm_test_section,"ncol_block",i_rep_section=i_rep,i_val=ncol_block,error=error )
        CALL section_vals_val_get(cp_fm_gemm_test_section,"ROW_MAJOR",i_rep_section=i_rep,l_val=row_major,error=error )
        CALL section_vals_val_get(cp_fm_gemm_test_section,"GRID_2D",i_rep_section=i_rep,i_vals=grid_2d,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"FORCE_BLOCKSIZE",i_rep_section=i_rep,l_val=force_blocksize,error=error )
        transa="N"
        transb="N"
        IF (transa_p) transa="T"
@@ -1846,10 +1851,15 @@ CONTAINS
           ELSE
             WRITE(iw,'(A)') "B "
           ENDIF
-          WRITE(iw,'(T2,A,I5,A,I5)') 'requested block size',nrow_block,' by ',ncol_block
-          WRITE(iw,'(T2,A,I5)') 'number of repetitions of cp_fm_gemm ',n_loop
-          WRITE(iw,'(T2,A,L5)') 'Row Major',row_major
-          WRITE(iw,'(T2,A,2I7)') 'GRID_2D ',grid_2d
+          WRITE(iw,'(T2,A,T50,I5,A,I5)') 'requested block size',nrow_block,' by ',ncol_block
+          WRITE(iw,'(T2,A,T50,I5)') 'number of repetitions of cp_fm_gemm ',n_loop
+          WRITE(iw,'(T2,A,T50,L5)') 'Row Major',row_major
+          WRITE(iw,'(T2,A,T50,2I7)') 'GRID_2D ',grid_2d
+          WRITE(iw,'(T2,A,T50,L5)') 'Force blocksize ',force_blocksize
+          ! check the return value of pilaenv, too small values limit the performance (assuming pdgemm is the vanilla variant)
+#if defined(__SCALAPACK)
+          WRITE(iw,'(T2,A,T50,I5)') 'PILAENV blocksize',pilaenv(0,'D')
+#endif
        ENDIF
 
        NULLIFY (blacs_env)
@@ -1867,7 +1877,7 @@ CONTAINS
        ENDIF
        CALL cp_fm_struct_create(fmstruct=fmstruct_a, para_env=para_env, context=blacs_env,&
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
-                                nrow_block=nrow_block, ncol_block=ncol_block, error=error)
+                                nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize, error=error)
        CALL cp_fm_struct_get(fmstruct_a,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
        IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix A ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
@@ -1880,7 +1890,7 @@ CONTAINS
        NULLIFY (fmstruct_b)
        CALL cp_fm_struct_create(fmstruct=fmstruct_b, para_env=para_env, context=blacs_env,&
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
-                                nrow_block=nrow_block, ncol_block=ncol_block, error=error)
+                                nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize, error=error)
        CALL cp_fm_struct_get(fmstruct_b,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
        IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix B ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
@@ -1890,7 +1900,7 @@ CONTAINS
        ncol_global=n
        CALL cp_fm_struct_create(fmstruct=fmstruct_c, para_env=para_env, context=blacs_env,&
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
-                                nrow_block=nrow_block, ncol_block=ncol_block, error=error)
+                                nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize, error=error)
        CALL cp_fm_struct_get(fmstruct_c,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
        IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix C ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
@@ -1917,9 +1927,9 @@ CONTAINS
        t2=m_walltime()
 
        IF (iw>0) THEN
-          WRITE(iw,'(T2,A,F12.6)')     "average cp_fm_gemm timing: ",(t2-t1)/N_loop
+          WRITE(iw,'(T2,A,T50,F12.6)')     "average cp_fm_gemm timing: ",(t2-t1)/N_loop
           IF (t2>t1) THEN
-             WRITE(iw,'(T2,A,F12.6)') "cp_fm_gemm Gflops per MPI task: ", &
+             WRITE(iw,'(T2,A,T50,F12.6)') "cp_fm_gemm Gflops per MPI task: ", &
                 2*REAL(m,kind=dp)*REAL(n,kind=dp)*REAL(k,kind=dp)*N_loop / (t2-t1) / 1.0E9_dp / para_env%num_pe
           ENDIF
        ENDIF

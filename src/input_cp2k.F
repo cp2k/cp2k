@@ -1277,6 +1277,12 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="FORCE_BLOCKSIZE",&
+         description="Forces the blocksize, even if this implies that a few processes might have no data",&
+         usage="FORCE_BLOCKSIZE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="GRID_2D",&
          description="Explicitly set the blacs 2D processor layout."//&
                      " If the product differs from the number of MPI ranks,"//&
