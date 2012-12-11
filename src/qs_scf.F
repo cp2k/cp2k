@@ -1183,7 +1183,6 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,nelectron_tota
             "Zeroth order Hamiltonian energy:               ",energy%core,&
             "Kinetic energy:                                ",energy%kinetic,&
             "Charge fluctuation (SCP) energy:               ",energy%hartree,&
-            "SCP self energy:                               ",energy%core_self,&
             "London dispersion energy:                      ",energy%dispersion
        ELSE
          IF( dft_control%do_admm ) THEN

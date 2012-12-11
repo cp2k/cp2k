@@ -259,13 +259,14 @@ CONTAINS
 
          DO l=0,lmaxscp
             pp = (2._dp*l+3._dp)/2._dp
-            norm = 2._dp**l/pi**1.5_dp/dfac(2*l-1) * dvol
+            norm = 2._dp**(l+2)/SQRT(pi)/dfac(2*l+1) * dvol
+            norm = SQRT(0.25_dp*dfac(2*l+1)/pi) * norm*alpha**pp
             DO jj=1,nco(l)
                j = ncoset(l-1) + jj
                DO ii=1,nso(l)
                   i = nsoset(l-1) + ii
                   scpv%vector(ikind)%vmat(i,iatom) = scpv%vector(ikind)%vmat(i,iatom) + &
-                      hab(j,1)*orbtramat(l)%c2s(ii,jj)*norm*alpha**pp
+                      hab(j,1)*orbtramat(l)%c2s(ii,jj)*norm
                END DO
             END DO
          END DO

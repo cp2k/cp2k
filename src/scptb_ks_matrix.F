@@ -43,8 +43,9 @@ MODULE scptb_ks_matrix
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE linear_systems,                  ONLY: solve_system
   USE mathconstants,                   ONLY: oorootpi,&
-                                             pi
+                                             pi, fourpi, dfac
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
@@ -82,8 +83,8 @@ MODULE scptb_ks_matrix
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scptb_types,                     ONLY: &
-       get_scptb_parameter, scp_vector_add, scp_vector_copy, &
-       scp_vector_create, scp_vector_dot, scp_vector_release, &
+       get_scptb_parameter, scp_vector_add, scp_vector_mult, scp_vector_copy,&
+       scp_vector_create, scp_vector_dot, scp_vector_release, scp_vector_p_type,&
        scp_vector_scale, scp_vector_set, scp_vector_type, scptb_parameter_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -230,11 +231,10 @@ CONTAINS
          END IF
       ELSE
          energy%hartree = 0._dp
-         energy%core_self = 0._dp
       END IF
 
       energy%total = energy%core + energy%hartree + energy%qmmm_el + energy%repulsive + &
-                     energy%core_self + energy%dispersion
+                     energy%dispersion
 
       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
          extension=".scfLog",error=error)
@@ -244,7 +244,6 @@ CONTAINS
                "Zeroth order Hamiltonian energy:               ",energy%core,&
                "Total kinetic energy:                          ",energy%kinetic,&
                "Charge fluctuation (SCP) energy:               ",energy%hartree,&
-               "SCP self energy:                               ",energy%core_self,&
                "London dispersion energy:                      ",energy%dispersion
           IF (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -346,7 +345,6 @@ CONTAINS
     use_virial=.FALSE.
 
     energy%hartree = 0._dp
-    energy%core_self = 0._dp
 
     chabs = SUM(ABS(mcharge))
     CALL mp_sum(chabs,para_env%group)
@@ -492,7 +490,7 @@ CONTAINS
                 CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=beta)
                 IF (lmaxscp < 0) CYCLE
                 eta = alpha*beta/(alpha+beta)
-                f0 = 2.0_dp*SQRT(pi**5*(alpha+beta))/(alpha*beta)
+                f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
                 nob = (beta/pi)**1.5_dp
                 t = eta*dr*dr
                 CALL fgamma_0(0,t,f)
@@ -620,7 +618,7 @@ CONTAINS
                   scptb_parameter=scptb_kind)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              eta = alpha*beta/(alpha+beta)
-             f0 = 2.0_dp*SQRT(pi**5*(alpha+beta))/(alpha*beta)
+             f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
              IF (.NOT.defined) CYCLE
              IF (lmaxscp < 0) CYCLE
              nob = (beta/pi)**1.5_dp
@@ -736,7 +734,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_s
     TYPE(qs_rho_type), POINTER               :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: mcharge
+    REAL(KIND=dp), DIMENSION(:), INTENT(inout)  :: mcharge
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: dmcharge
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -746,16 +744,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, iat, iatom, ibas, ikind, is, istat, jat, jatom, jkind, &
-      kint, kmax, lmaxscp, nat, natom, nkind, norb, nsize
+      kint, kmax, lmaxscp, nat, natom, nkind, norb, nsize, l, mdiis, mpos, i, j
+    INTEGER, PARAMETER                       :: ndiis=5
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, lscp, &
                                                 natoms, nbasis
     LOGICAL                                  :: defined, failure, found
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: adef
+    REAL(KIND=dp), PARAMETER                 :: epsrel = 1.e-8_dp
     REAL(KIND=dp)                            :: ak, alpha, bk, chabs, dq, &
-                                                epsabs, epsrel, ff, rhom1, &
-                                                rhom2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeta
-    REAL(KIND=dp), DIMENSION(0:3)            :: pol
+                                                epsabs, ff, rhom1, &
+                                                rhom2, dqv
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeta, charges
+    REAL(KIND=dp), DIMENSION(1:3)            :: pol
+    REAL(KIND=dp), DIMENSION(ndiis+1,1)      :: vdiis
+    REAL(KIND=dp), DIMENSION(ndiis+1,ndiis+1):: bdiis
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -764,7 +766,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(scp_vector_type), POINTER           :: cp, cres, crhs, cvec, cw
+    TYPE(scp_vector_type), POINTER           :: cvec, cpol, cself, cw, cp
+    TYPE(scp_vector_p_type), DIMENSION(ndiis):: cval, cres
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
 
@@ -772,182 +775,156 @@ CONTAINS
          energy=energy,para_env=para_env,error=error)
 
     energy%hartree = 0._dp
-    energy%core_self = 0._dp
 
-    chabs = SUM(ABS(mcharge))
-    IF ( chabs > 1.e-8_dp ) THEN
+    natom = SIZE(mcharge,1)
+    ALLOCATE(charges(natom),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    dqv = 1._dp/SQRT(4._dp*pi)
+    charges = mcharge*dqv
+    scptb_control => dft_control%qs_control%scptb_control
 
-       scptb_control => dft_control%qs_control%scptb_control
+    NULLIFY(cvec,cpol,cself,cp,cw)
 
-       NULLIFY(cvec,crhs,cp,cw,cres)
-
-       epsrel = 1.e-8_dp
-
-       ! Create scp vectors
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-       nkind = SIZE(atomic_kind_set)
-       ALLOCATE(nbasis(nkind),natoms(nkind),lscp(nkind),zeta(nkind),adef(nkind),stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
-          CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
-          IF(defined) THEN
-            norb = (lmaxscp+1)**2
-          ELSE
-            norb = 0
-          END IF
-          natoms(ikind) = nat
-          nbasis(ikind) = norb
-          lscp(ikind)   = lmaxscp
-          zeta(ikind)   = alpha
-          adef(ikind)   = defined
-       END DO
-       CALL scp_vector_create(cvec, nkind, natoms, nbasis, error)
-       CALL scp_vector_set(cvec, 0._dp, error)
-       ! set charge
-       CALL scp_set_charge(cvec,mcharge,adef,natoms,atomic_kind_set)
-       ! Calclulate scp vector
-       IF (scptb_control%do_ewald) THEN
-          kmax = MIN(SUM(nbasis),100) * 10
-          CALL scp_vector_create(crhs, nkind, natoms, nbasis, error)
-          CALL scp_vector_set(crhs, 0._dp, error)
-          ! for ci=0, this creates the RHS of (Ax=b)
-          CALL apply_scp_vector(cvec,crhs,qs_env,calculate_forces=.FALSE.,error=error)
-          CALL scp_vector_scale(-1._dp, crhs, error)
-          ! conjugate gradient optimization
-          CALL scp_vector_create(cres, nkind, natoms, nbasis, error)
-          CALL scp_vector_copy(crhs, cres, error)
-          CALL scp_vector_create(cp, nkind, natoms, nbasis, error)
-          CALL scp_vector_create(cw, nkind, natoms, nbasis, error)
-          ! scp_dot is not using the c0 (charge) term
-          rhom1 = scp_dot(cres,cres)
-          epsabs = epsrel*SQRT(rhom1)
-          DO kint=1,kmax
-             IF(kint==1) THEN
-                CALL scp_vector_copy(cres, cp, error)
-             ELSE
-                bk = rhom1/rhom2
-                CALL scp_vector_scale(bk, cp, error)
-                CALL scp_vector_add(1._dp, cres, cp, error)
-             END IF
-             ! charge term
-             CALL scp_set_charge(cp,mcharge,adef,natoms,atomic_kind_set)
-             ! Ax - b
-             CALL scp_vector_set(cw, 0._dp, error)
-             CALL apply_scp_vector(cp,cw,qs_env,calculate_forces=.FALSE.,error=error)
-             ! add b to get Ax
-             CALL scp_vector_add(1._dp, crhs, cw, error)
-             ! add force from self term ci/ai
-             DO ikind=1,nkind
-               IF(adef(ikind)) THEN
-                 atomic_kind => atomic_kind_set(ikind)
-                 CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
-                 CALL get_scptb_parameter(scptb_kind,pol=pol,lmaxscp=lmaxscp)
-                 DO iat=1,natoms(ikind)
-                   DO ibas=1,nbasis(ikind)
-                      ! this assumes 1 basis function per l qm!!
-                      IF(indso(1,ibas) > 0) THEN
-                         cw%vector(ikind)%vmat(ibas,iat) = cw%vector(ikind)%vmat(ibas,iat) &
-                            + cp%vector(ikind)%vmat(ibas,iat)/pol(indso(1,ibas))
-                      END IF
-                   END DO
-                 END DO
-               END IF
-             END DO
-             !
-             ak = rhom1/scp_dot(cp,cw)
-             CALL scp_vector_add(ak, cp, cvec, error)
-             CALL scp_vector_add(-ak, cw, cres, error)
-             rhom2 = rhom1
-             rhom1 = scp_dot(cres,cres)
-             IF ( SQRT(rhom1) < epsabs ) EXIT
-          END DO
-          ! Coulomb energy
-          CALL scp_set_charge(cvec,mcharge,adef,natoms,atomic_kind_set)
-          CALL scp_vector_set(cw, 0._dp, error)
-          CALL apply_scp_vector(cvec,cw,qs_env,calculate_forces=.FALSE.,error=error)
-          CALL scp_vector_dot(ak, cw, cvec, error)
-          energy%hartree = 0.5_dp*ak
-          ! release scratch vectors
-          CALL scp_vector_release(crhs, error)
-          CALL scp_vector_release(cres, error)
-          CALL scp_vector_release(cp, error)
-          CALL scp_vector_release(cw, error)
+    ! Create scp vectors
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    nkind = SIZE(atomic_kind_set)
+    ALLOCATE(nbasis(nkind),natoms(nkind),lscp(nkind),zeta(nkind),adef(nkind),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
+       CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
+       IF(defined) THEN
+         norb = (lmaxscp+1)**2
        ELSE
-          !debug: do nothing for now
-          ! Coulomb energy
-          energy%hartree = 0._dp
+         norb = 0
        END IF
-       ! Calculate self energy
-       DO ikind=1,nkind
-          IF(adef(ikind)) THEN
-            atomic_kind => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
-            CALL get_scptb_parameter(scptb_kind,pol=pol)
-            DO iat=1,natoms(ikind)
-               DO ibas=1,nbasis(ikind)
-                  ! this assumes 1 basis function per l qm!!
-                  IF(indso(1,ibas) > 0) THEN
-                     energy%core_self = energy%core_self + &
-                        0.5_dp*(cvec%vector(ikind)%vmat(ibas,iat))**2/pol(indso(1,ibas))
-                  END IF
-               END DO
+       natoms(ikind) = nat
+       nbasis(ikind) = norb
+       lscp(ikind)   = lmaxscp
+       zeta(ikind)   = alpha
+       adef(ikind)   = defined
+    END DO
+    NULLIFY(cvec,cself,cpol,cp,cw)
+    CALL scp_vector_create(cvec, nkind, natoms, nbasis, error)
+    CALL scp_vector_set(cvec, 0._dp, error)
+    CALL scp_vector_create(cself, nkind, natoms, nbasis, error)
+    CALL scp_vector_set(cself, 0._dp, error)
+    CALL scp_vector_create(cpol, nkind, natoms, nbasis, error)
+    CALL scp_vector_set(cpol, 0._dp, error)
+    ! set vector of multipoles
+    CALL scp_set_charge(cvec,charges,adef,natoms,atomic_kind_set)
+    DO ikind=1,nkind
+       IF(adef(ikind)) THEN
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
+         CALL get_scptb_parameter(scptb_kind,pol=pol)
+         alpha = zeta(ikind)
+         DO iat=1,natoms(ikind)
+            DO ibas=1,nbasis(ikind)
+               l = indso(1,ibas)
+               IF(l > 0) THEN
+                  cpol%vector(ikind)%vmat(ibas,iat) = 1._dp/pol(l)
+               END IF
+               cself%vector(ikind)%vmat(ibas,iat) = &
+                  4._dp/(2*l+1)/dfac(2*l+1)*SQRT(2._dp*pi)*alpha**(l+0.5_dp)
             END DO
-          END IF
-       END DO
-
-       IF (.NOT.just_energy) THEN
-
-          natom = SIZE(mcharge,1)
-          ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
-
-          ! calculate KS matrix
-          IF (scptb_control%do_ewald) THEN
-             CALL scp_vector_create(cw, nkind, natoms, nbasis, error)
-             CALL scp_set_charge(cvec,mcharge,adef,natoms,atomic_kind_set)
-             CALL scp_vector_set(cw, 0._dp, error)
-             CALL apply_scp_vector(cvec,cw,qs_env,calculate_forces=.FALSE.,error=error)
-
-             nsize = SIZE(ks_matrix)
-             CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
-             DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-                CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
-                ikind = kind_of(iatom)
-                iat   = atom_of_kind(iatom)
-                jkind = kind_of(jatom)
-                jat   = atom_of_kind(jatom)
-                IF (iatom==jatom) THEN
-                  ff = 0.5_dp
-                ELSE
-                  ff = 1.0_dp
-                END IF
-                dq = (cw%vector(ikind)%vmat(1,iat) + cw%vector(jkind)%vmat(1,jat))*ff
-                DO is=1,nsize
-                   NULLIFY(ksblock)
-                   CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is)%matrix,&
-                        row=iatom,col=jatom,block=ksblock,found=found)
-                   ksblock = ksblock + dq*sblock
-                END DO
-             END DO
-             CALL cp_dbcsr_iterator_stop(iter)
-
-             CALL scp_vector_release(cw, error)
-          ELSE
-             ! explicit integrals
-          END IF
-          IF (calculate_forces) THEN
-             ! forces on atoms
-          END IF
+         END DO
        END IF
+    END DO
 
-       CALL scp_vector_release(cvec, error)
-       DEALLOCATE(nbasis,natoms,lscp,zeta,adef,stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ! Calclulate scp vector
+    DO iat=1,ndiis
+       NULLIFY(cval(iat)%vec,cres(iat)%vec)
+       CALL scp_vector_create(cval(iat)%vec, nkind, natoms, nbasis, error)
+       CALL scp_vector_create(cres(iat)%vec, nkind, natoms, nbasis, error)
+    END DO
+    CALL scp_vector_create(cp, nkind, natoms, nbasis, error)
+    CALL scp_vector_create(cw, nkind, natoms, nbasis, error)
+
+    kmax = MIN(SUM(nbasis),100) * 10
+    mdiis = 0
+    DO kint=1,kmax
+       mdiis = MIN(mdiis + 1, ndiis)
+       mpos = MOD(kint-1,ndiis) + 1
+       CALL scp_vector_set(cw, 0._dp, error)
+       CALL apply_scp_vector(cvec,cw,cself,cpol,cp,qs_env,scptb_control%do_ewald,&
+                             calculate_forces=.FALSE.,error=error)
+       rhom1 = scp_dot(cw,cw)
+       IF ( SQRT(rhom1) < epsrel ) EXIT
+       CALL scp_vector_copy(cvec, cval(mpos)%vec, error)
+       CALL scp_vector_copy(cw, cres(mpos)%vec, error)
+       IF (mdiis > 100) THEN
+          vdiis = 0._dp
+          vdiis(mdiis+1,1) = 1._dp
+          bdiis = 0._dp
+          bdiis(mdiis+1,1:mdiis) = 1._dp
+          bdiis(1:mdiis,mdiis+1) = 1._dp
+          DO i=1,mdiis
+             DO j=1,i
+                bdiis(i,j) = scp_dot(cres(i)%vec,cres(j)%vec)
+                bdiis(j,i) = bdiis(i,j)
+             END DO
+          END DO
+          CALL solve_system ( bdiis, mdiis+1, vdiis )
+          CALL scp_vector_set(cvec, 0._dp, error)
+          DO i=1,mdiis
+             CALL scp_vector_add(vdiis(i,1), cval(i)%vec, cvec, error)
+          END DO
+       ELSE
+          CALL scp_vector_add(-0.1_dp, cw, cvec, error)
+       END IF
+       CALL scp_set_charge(cvec,charges,adef,natoms,atomic_kind_set)
+    END DO
+    DO iat=1,ndiis
+       CALL scp_vector_release(cval(iat)%vec, error)
+       CALL scp_vector_release(cres(iat)%vec, error)
+    END DO
+    ! SCP energy
+    CALL scp_vector_set(cw, 0._dp, error)
+    CALL apply_scp_vector(cvec,cw,cself,cpol,cp,qs_env,scptb_control%do_ewald,&
+                          calculate_forces=.FALSE.,error=error)
+    CALL scp_vector_dot(ak, cw, cvec, error)
+    energy%hartree = 0.5_dp*ak
+
+    IF (.NOT.just_energy) THEN
+
+       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
+
+       ! calculate KS matrix
+       nsize = SIZE(ks_matrix)
+       CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+          ikind = kind_of(iatom)
+          iat   = atom_of_kind(iatom)
+          jkind = kind_of(jatom)
+          jat   = atom_of_kind(jatom)
+          dq = 0.5_dp*(cw%vector(ikind)%vmat(1,iat) + cw%vector(jkind)%vmat(1,jat))/SQRT(fourpi)
+          DO is=1,nsize
+             NULLIFY(ksblock)
+             CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is)%matrix,&
+                  row=iatom,col=jatom,block=ksblock,found=found)
+             ksblock = ksblock - dq*sblock
+          END DO
+       END DO
+       CALL cp_dbcsr_iterator_stop(iter)
+
+!      IF (calculate_forces) THEN
+!         ! forces on atoms
+!      END IF
 
     END IF
+
+    CALL scp_vector_release(cself, error)
+    CALL scp_vector_release(cvec, error)
+    CALL scp_vector_release(cpol, error)
+    CALL scp_vector_release(cw, error)
+    CALL scp_vector_release(cp, error)
+    DEALLOCATE(nbasis,natoms,lscp,zeta,adef,charges,stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE scp_coulomb
 
@@ -957,6 +934,7 @@ CONTAINS
 
     INTEGER                                  :: i
 
+    ! dot product without l=0 term
     res = 0._dp
     DO i=1,SIZE(vec1%vector)
       res = res + SUM(vec1%vector(i)%vmat(2:,:)*vec2%vector(i)%vmat(2:,:))
@@ -964,9 +942,9 @@ CONTAINS
 
   END FUNCTION scp_dot
 
-  SUBROUTINE scp_set_charge(vec,mcharge,adef,natoms,atomic_kind_set)
+  SUBROUTINE scp_set_charge(vec,charge,adef,natoms,atomic_kind_set)
     TYPE(scp_vector_type)                    :: vec
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: mcharge
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: charge
     LOGICAL, DIMENSION(:), INTENT(IN)        :: adef
     INTEGER, DIMENSION(:), INTENT(IN)        :: natoms
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -976,8 +954,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-! set charge
-
     nkind = SIZE(adef)
     DO ikind=1,nkind
        IF(adef(ikind)) THEN
@@ -985,7 +961,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind=atomic_kind,atom_list=atom_list)
          DO iat=1,natoms(ikind)
             iatom = atom_list(iat)
-            vec%vector(ikind)%vmat(1,iat) = mcharge(iatom)
+            vec%vector(ikind)%vmat(1,iat) = charge(iatom)
          END DO
        END IF
     END DO
@@ -993,12 +969,30 @@ CONTAINS
   END SUBROUTINE scp_set_charge
 
 ! *****************************************************************************
+  SUBROUTINE scp_print(vec)
+    TYPE(scp_vector_type)                    :: vec
 
-  SUBROUTINE apply_scp_vector(cin,cout,qs_env,calculate_forces,error)
+    INTEGER                                  :: iat, natom, ikind, nkind, iba, nbas
 
-    TYPE(scp_vector_type), POINTER           :: cin, cout
+    nkind = SIZE(vec%vector)
+    DO ikind=1,nkind
+       nbas = SIZE(vec%vector(ikind)%vmat,1)
+       natom = SIZE(vec%vector(ikind)%vmat,2)
+       DO iat=1,natom
+          DO iba=1,nbas
+             WRITE(*,*) "Kind=",ikind,"  Atom=",iat," Pol=",vec%vector(ikind)%vmat(iba,iat) 
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE scp_print
+! *****************************************************************************
+
+  SUBROUTINE apply_scp_vector(cin,cout,cself,cpol,cdum,qs_env,do_ewald,calculate_forces,error)
+
+    TYPE(scp_vector_type), POINTER           :: cin, cout, cself, cpol, cdum
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in)                      :: calculate_forces
+    LOGICAL, INTENT(in)                      :: do_ewald, calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_scp_vector', &
@@ -1009,7 +1003,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: scp_pot, scp_rho, scp_rho_g
+    TYPE(pw_p_type)                          :: scp_pot, scp_rho, scp_rho_g, scpaux
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -1019,43 +1013,42 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,virial=virial,para_env=para_env,error=error)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
-    CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
-                    pw_pools=pw_pools,poisson_env=poisson_env,error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           scp_rho%pw,&
-                           use_data=REALDATA3D,&
-                           in_space=REALSPACE,&
-                           error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           scp_pot%pw, &
-                           use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE,&
-                           error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           scp_rho_g%pw, &
-                           use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE,&
-                           error=error)
+    IF (do_ewald) THEN
+       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
+                       pw_pools=pw_pools,poisson_env=poisson_env,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,scp_rho%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,scp_pot%pw,use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,scp_rho_g%pw,use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
 
-    CALL calculate_scp_charge(scp_rho,qs_env,cin,error)
-    CALL pw_transfer(scp_rho%pw, scp_rho_g%pw, error=error)
+       CALL calculate_scp_charge(scp_rho,qs_env,cin,error)
+       CALL pw_transfer(scp_rho%pw, scp_rho_g%pw, error=error)
 
-    ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
-    ! from the Hartree term if needed.
-    IF (use_virial .AND. calculate_forces) THEN
-       h_stress(:,:) = 0.0_dp
-       CALL pw_poisson_solve(poisson_env,scp_rho_g%pw,ehartree,scp_pot%pw,h_stress=h_stress,error=error)
-       virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe,dp)
+       ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
+       ! from the Hartree term if needed.
+       IF (use_virial .AND. calculate_forces) THEN
+          h_stress(:,:) = 0.0_dp
+          CALL pw_poisson_solve(poisson_env,scp_rho_g%pw,ehartree,scp_pot%pw,h_stress=h_stress,error=error)
+          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe,dp)
+       ELSE
+          CALL pw_poisson_solve(poisson_env,scp_rho_g%pw,ehartree,scp_pot%pw,error=error)
+       END IF
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_rho_g%pw,error=error)
+
+       CALL pw_transfer(scp_pot%pw,scp_rho%pw,error=error)
+       CALL integrate_scp_rspace(scp_rho,qs_env,cout,calculate_forces,error)
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_rho%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_pot%pw,error=error)
+       ! remove self interaction
+       CALL scp_vector_copy(cself, cdum, error)
+       CALL scp_vector_mult(cin, cdum, error)
+       CALL scp_vector_add(-1._dp, cdum, cout, error)
+       ! add scp polarization
+       CALL scp_vector_copy(cpol, cdum, error)
+       CALL scp_vector_mult(cin, cdum, error)
+       CALL scp_vector_add(1._dp, cdum, cout, error)
     ELSE
-       CALL pw_poisson_solve(poisson_env,scp_rho_g%pw,ehartree,scp_pot%pw,error=error)
     END IF
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_rho_g%pw,error=error)
-
-    CALL pw_transfer(scp_pot%pw, scp_rho%pw, error=error)
-    CALL integrate_scp_rspace(scp_rho,qs_env,cout,calculate_forces,error)
-
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_rho%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_pot%pw,error=error)
 
   END SUBROUTINE apply_scp_vector
 

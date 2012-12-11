@@ -70,6 +70,10 @@ MODULE scptb_types
      TYPE(scp_kind_vector_type), DIMENSION(:), POINTER :: vector
   END TYPE scp_vector_type
 
+  TYPE scp_vector_p_type
+     TYPE(scp_vector_type), POINTER    :: vec
+  END TYPE scp_vector_p_type
+
 ! *****************************************************************************
 
   PUBLIC :: scptb_parameter_type, &
@@ -82,10 +86,12 @@ MODULE scptb_types
 
   PUBLIC :: scp_kind_vector_type,&
             scp_vector_type,&
+            scp_vector_p_type,&
             scp_vector_create,&
             scp_vector_release,&
             scp_vector_set,&
             scp_vector_add,&
+            scp_vector_mult,&
             scp_vector_copy,&
             scp_vector_scale,&
             scp_vector_dot,&
@@ -448,6 +454,21 @@ CONTAINS
     END DO
 
   END SUBROUTINE scp_vector_scale
+
+  SUBROUTINE scp_vector_mult(vecx, vecy, error)
+    TYPE(scp_vector_type)                    :: vecx, vecy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_vector_mult', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+    DO i=1,SIZE(vecx%vector)
+      vecy%vector(i)%vmat(:,:) = vecy%vector(i)%vmat(:,:) * vecx%vector(i)%vmat(:,:)
+    END DO
+
+  END SUBROUTINE scp_vector_mult
 
   SUBROUTINE scp_vector_dot(RESULT, vec1, vec2, error)
     REAL(KIND=dp), INTENT(OUT)               :: RESULT
