@@ -439,6 +439,7 @@ CONTAINS
                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
            END SELECT
          END DO
+         IF (dft_control%nspins==2) pab=pab*0.5_dp
 
          DO iatom = 1, natom
             atom_a = atom_list(iatom)

@@ -266,7 +266,6 @@ CONTAINS
           ! add the nlcc densities
           IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
              factor=1.0_dp
-             IF (dft_control%nspins==2) factor=0.5_dp
              DO ispin=1,dft_control%nspins
                 CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
                 CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
@@ -295,7 +294,6 @@ CONTAINS
           ! remove the nlcc densities (keep stuff in original state)
           IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
              factor=-1.0_dp
-             IF (dft_control%nspins==2) factor=-0.5_dp
              DO ispin=1,dft_control%nspins
                 CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
                 CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
