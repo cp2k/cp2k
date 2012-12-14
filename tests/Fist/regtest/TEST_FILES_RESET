@@ -627,3 +627,15 @@ deca_ala_avg2.inp
 water_charge_no_array_pme.inp
 #  
 water_charge_array_pme.inp
+#  
+multipole_ch_dip.dbg_f_real.inp
+#  
+multipole_charge.dbg_f_real.inp
+#  
+multipole_dip_qu.dbg_f_real.inp
+#  
+multipole_dip_qu.dbg_f_rec.inp
+#  
+multipole_dipole.dbg_f_real.inp
+#  
+multipole_quadrupole.dbg_f_real.inp

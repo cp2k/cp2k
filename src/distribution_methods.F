@@ -118,13 +118,13 @@ CONTAINS
       nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nmolecule_local, &
                                                 nparticle_local, work, &
-                                                workload, workload_old
+                                                workload_count, workload_fill
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: found, heap_error
     TYPE(cp_1d_i_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: local_molecule
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(heap_t)                             :: bin_heap
+    TYPE(heap_t)                             :: bin_heap_count, bin_heap_fill
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     CALL timeset(routineN,handle)
@@ -135,15 +135,15 @@ CONTAINS
     mype = logger%para_env%mepos + 1
     npe = logger%para_env%num_pe
 
-    ALLOCATE (workload(npe),STAT=istat)
+    ALLOCATE (workload_count(npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload",npe*int_size)
-    workload(:) = 0
+    workload_count(:) = 0
 
-    ALLOCATE (workload_old(npe),STAT=istat)
+    ALLOCATE (workload_fill(npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_old",npe*int_size)
-    workload_old(:) = 0
+    workload_fill(:) = 0
 
     nmolecule_kind = SIZE(molecule_kind_set)
 
@@ -163,6 +163,24 @@ CONTAINS
                                      "nparticle_local",nparticle_kind*int_size)
     nparticle_local(:) = 0
 
+    nbins=npe
+
+    CALL heap_new (bin_heap_count, nbins, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineN, "Error creating heap.", error=error)
+    CALL heap_fill (bin_heap_count,&
+         (/(bin,bin=1,nbins)/), workload_count , heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineN, "Error initially filling the heap.", error=error)
+
+    CALL heap_new (bin_heap_fill, nbins, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineN, "Error creating heap.", error=error)
+    CALL heap_fill (bin_heap_fill,&
+         (/(bin,bin=1,nbins)/), workload_fill , heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineN, "Error initially filling the heap.", error=error)
+
     DO imolecule_kind=1,nmolecule_kind
 
       molecule_kind => molecule_kind_set(imolecule_kind)
@@ -181,56 +199,34 @@ CONTAINS
 !     *** functions which depends on the method ***
 
       nload = MAX(natom,nsgf)
-
       nmolecule = SIZE(molecule_list)
-
-!     *** Save current estimated work load ***
-
-      workload_old(:) = workload(:)
 
 !     *** Get the number of local molecules of the current molecule kind ***
 
-      nbins=npe
-      CALL heap_new (bin_heap, nbins, heap_error)
-      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-           routineN, "Error creating heap.", error=error)
-      CALL heap_fill (bin_heap,&
-           (/(bin,bin=1,nbins)/), workload , heap_error)
-      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-           routineN, "Error initially filling the heap.", error=error)
-
       DO imolecule=1,nmolecule
-         CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
+         CALL heap_get_first (bin_heap_count, bin, bin_price, found, heap_error)
          CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
               routineN, "Error getting topmost heap element.", error=error)
          CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
               routineN, "No topmost heap element found.", error=error)
 
          ipe = bin
-         CALL cp_assert (bin_price==workload(ipe), cp_fatal_level, cp_internal_error,&
+         CALL cp_assert (bin_price==workload_count(ipe), cp_fatal_level, cp_internal_error,&
               routineN, "inconsistent heap", error=error)
 
-         workload(ipe) = workload(ipe) + nload
+         workload_count(ipe) = workload_count(ipe) + nload
          IF (ipe == mype) THEN
            nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
          END IF
 
-         bin_price = workload(ipe)
-         CALL heap_reset_first (bin_heap, bin_price, heap_error)
+         bin_price = workload_count(ipe)
+         CALL heap_reset_first (bin_heap_count, bin_price, heap_error)
          CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
               routineN, "Error setting price of top heap element.", error=error)
       END DO
 
-      CALL heap_release (bin_heap, heap_error)
-      CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-           routineN, "Error releasing heap.", error=error)
-
-!     *** Reset work load ***
-
-      workload(:) = workload_old(:)
 
 !     *** Distribute the molecules ***
-
       n = nmolecule_local(imolecule_kind)
 
       IF (n > 0) THEN
@@ -245,28 +241,18 @@ CONTAINS
       END IF
 
       imolecule_local = 0
-
-      nbins=npe
-      CALL heap_new (bin_heap, nbins, heap_error)
-      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-           routineN, "Error creating heap.", error=error)
-      CALL heap_fill (bin_heap,&
-           (/(bin,bin=1,nbins)/), workload , heap_error)
-      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-           routineN, "Error initially filling the heap.", error=error)
-
       DO imolecule=1,nmolecule
-         CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
+         CALL heap_get_first (bin_heap_fill, bin, bin_price, found, heap_error)
          CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
               routineN, "Error getting topmost heap element.", error=error)
          CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
               routineN, "No topmost heap element found.", error=error)
 
          ipe = bin
-         CALL cp_assert (bin_price==workload(ipe), cp_fatal_level, cp_internal_error,&
+         CALL cp_assert (bin_price==workload_fill(ipe), cp_fatal_level, cp_internal_error,&
               routineN, "inconsistent heap", error=error)
 
-         workload(ipe) = workload(ipe) + nload
+         workload_fill(ipe) = workload_fill(ipe) + nload
          IF (ipe == mype) THEN
             imolecule_local = imolecule_local + 1
             molecule_a = molecule_list(imolecule)
@@ -279,17 +265,23 @@ CONTAINS
               nparticle_local(kind_a) = nparticle_local(kind_a) + 1
             END DO
          END IF
-         bin_price = workload(ipe)
-         CALL heap_reset_first (bin_heap, bin_price, heap_error)
+         bin_price = workload_fill(ipe)
+         CALL heap_reset_first (bin_heap_fill, bin_price, heap_error)
          CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
               routineN, "Error setting price of top heap element.", error=error)
       END DO
 
-      CALL heap_release (bin_heap, heap_error)
-      CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-           routineN, "Error releasing heap.", error=error)
-
     END DO
+
+    CALL cp_assert (ALL(workload_fill.EQ.workload_count), cp_fatal_level, cp_internal_error,&
+              routineN, "Inconsistent heaps encountered", error=error)
+
+    CALL heap_release (bin_heap_count, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineN, "Error releasing heap.", error=error)
+    CALL heap_release (bin_heap_fill, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineN, "Error releasing heap.", error=error)
 
 !   *** Create the local molecule structure ***
 
@@ -437,11 +429,11 @@ CONTAINS
    END IF
 !   *** Release work storage ***
 
-    DEALLOCATE (workload,STAT=istat)
+    DEALLOCATE (workload_count,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload")
 
-    DEALLOCATE (workload_old,STAT=istat)
+    DEALLOCATE (workload_fill,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_old")
 
