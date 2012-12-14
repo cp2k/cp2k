@@ -44,8 +44,10 @@ MODULE scptb_ks_matrix
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
-  USE mathconstants,                   ONLY: oorootpi,&
-                                             pi, fourpi, dfac
+  USE mathconstants,                   ONLY: dfac,&
+                                             fourpi,&
+                                             oorootpi,&
+                                             pi
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
@@ -83,9 +85,10 @@ MODULE scptb_ks_matrix
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scptb_types,                     ONLY: &
-       get_scptb_parameter, scp_vector_add, scp_vector_mult, scp_vector_copy,&
-       scp_vector_create, scp_vector_dot, scp_vector_release, scp_vector_p_type,&
-       scp_vector_scale, scp_vector_set, scp_vector_type, scptb_parameter_type
+       get_scptb_parameter, scp_vector_add, scp_vector_copy, &
+       scp_vector_create, scp_vector_dot, scp_vector_mult, scp_vector_p_type, &
+       scp_vector_release, scp_vector_set, scp_vector_type, &
+       scptb_parameter_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -734,7 +737,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_s
     TYPE(qs_rho_type), POINTER               :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(inout)  :: mcharge
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(inout)                          :: mcharge
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: dmcharge
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -742,23 +746,23 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_coulomb', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: ndiis = 5
+    REAL(KIND=dp), PARAMETER                 :: epsrel = 1.e-8_dp
 
-    INTEGER :: blk, iat, iatom, ibas, ikind, is, istat, jat, jatom, jkind, &
-      kint, kmax, lmaxscp, nat, natom, nkind, norb, nsize, l, mdiis, mpos, i, j
-    INTEGER, PARAMETER                       :: ndiis=5
+    INTEGER :: blk, i, iat, iatom, ibas, ikind, is, istat, j, jat, jatom, &
+      jkind, kint, kmax, l, lmaxscp, mdiis, mpos, nat, natom, nkind, norb, &
+      nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, lscp, &
                                                 natoms, nbasis
     LOGICAL                                  :: defined, failure, found
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: adef
-    REAL(KIND=dp), PARAMETER                 :: epsrel = 1.e-8_dp
-    REAL(KIND=dp)                            :: ak, alpha, bk, chabs, dq, &
-                                                epsabs, ff, rhom1, &
-                                                rhom2, dqv
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeta, charges
+    REAL(KIND=dp)                            :: ak, alpha, dq, dqv, rhom1
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charges, zeta
     REAL(KIND=dp), DIMENSION(1:3)            :: pol
-    REAL(KIND=dp), DIMENSION(ndiis+1,1)      :: vdiis
-    REAL(KIND=dp), DIMENSION(ndiis+1,ndiis+1):: bdiis
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksblock, sblock
+    REAL(KIND=dp), DIMENSION(ndiis+1, 1)     :: vdiis
+    REAL(KIND=dp), &
+      DIMENSION(ndiis+1, ndiis+1)            :: bdiis
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -766,8 +770,9 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(scp_vector_type), POINTER           :: cvec, cpol, cself, cw, cp
-    TYPE(scp_vector_p_type), DIMENSION(ndiis):: cval, cres
+    TYPE(scp_vector_p_type), &
+      DIMENSION(ndiis)                       :: cres, cval
+    TYPE(scp_vector_type), POINTER           :: cp, cpol, cself, cvec, cw
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
 
@@ -934,7 +939,8 @@ CONTAINS
 
     INTEGER                                  :: i
 
-    ! dot product without l=0 term
+! dot product without l=0 term
+
     res = 0._dp
     DO i=1,SIZE(vec1%vector)
       res = res + SUM(vec1%vector(i)%vmat(2:,:)*vec2%vector(i)%vmat(2:,:))
@@ -972,7 +978,8 @@ CONTAINS
   SUBROUTINE scp_print(vec)
     TYPE(scp_vector_type)                    :: vec
 
-    INTEGER                                  :: iat, natom, ikind, nkind, iba, nbas
+    INTEGER                                  :: iat, iba, ikind, natom, nbas, &
+                                                nkind
 
     nkind = SIZE(vec%vector)
     DO ikind=1,nkind
@@ -1003,7 +1010,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: scp_pot, scp_rho, scp_rho_g, scpaux
+    TYPE(pw_p_type)                          :: scp_pot, scp_rho, scp_rho_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
