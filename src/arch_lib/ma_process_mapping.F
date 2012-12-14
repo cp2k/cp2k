@@ -336,6 +336,7 @@ IF (is_power_three(numtask) .AND. ( numtask .GE. 3**2)) THEN ! the smallest grid
 
 
     ALLOCATE(ranks_order(numtask),stat=stat)
+    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
     ALLOCATE(tmp(grid_dim*grid_dim),stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
 
@@ -369,8 +370,11 @@ IF (is_power_three(numtask) .AND. ( numtask .GE. 3**2)) THEN ! the smallest grid
     ! Create the new communicator
     CALL mp_reordering(mp_comm,mp_new_comm,ranks_order)
 
+    stat = 0
     IF(ASSOCIATED(ranks_order)) DEALLOCATE(ranks_order,stat=stat)
+    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation) 
     IF(ASSOCIATED(tmp)) DEALLOCATE(tmp,stat=stat)
+    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation) 
     IF(ASSOCIATED(original_grid)) DEALLOCATE(original_grid,stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation) 
   ELSE
@@ -401,6 +405,7 @@ SUBROUTINE ma_packed(mp_new_comm,mp_comm)
     ! Get a new MPI rank ordering, reduce comm costs
     CALL mp_environ(numtask,taskid,mp_comm)   
     ALLOCATE(ranks_order(numtask),stat=stat)
+    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation) 
 
    DO i=1, numtask
      ranks_order(i) = i - 1
@@ -443,6 +448,7 @@ SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
       ! Get a new MPI rank ordering, reduce comm costs
        CALL mp_environ(numtask,taskid,mp_comm)
        ALLOCATE(ranks_order(numtask),stat=stat)
+       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
 
      ranks_order(:) = 0
      ind = 1
@@ -464,6 +470,7 @@ SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
       ! Create the new communicator
       CALL mp_reordering(mp_comm,mp_new_comm,ranks_order)
 
+      stat = 0
       IF(ASSOCIATED(ranks_order)) DEALLOCATE(ranks_order,stat=stat)
       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
     ELSE
@@ -559,6 +566,7 @@ SUBROUTINE ma_hilbert_bits(ranks_order,ntask,mp_comm)
       ENDIF 
     ENDDO
 
+    stat = 0
     IF(ASSOCIATED(tmp_order)) DEALLOCATE(tmp_order,stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
 #endif
@@ -1131,6 +1139,7 @@ SUBROUTINE ma_hilbert_peano(mp_new_comm,mp_comm)
   
      IF(taskid==0) THEN
        ALLOCATE(tmp(numtask),stat=stat)
+       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)   
        DO ipe=1,numtask
         tmp(ranks_order(ipe)+1) = ipe -1
        ENDDO
@@ -1158,6 +1167,7 @@ SUBROUTINE ma_hilbert_peano(mp_new_comm,mp_comm)
       coord_order(:) = tmp_order(:)
    
       DEALLOCATE(tmp_order,stat=stat)
+      IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
       ALLOCATE(tmp_order(numtask),stat=stat)
       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
       tmp_order(:) = 0    
@@ -1532,6 +1542,7 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
        coord_order(:) = tmp_order(:)
    
        DEALLOCATE(tmp_order,stat=stat)
+       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
        ALLOCATE(tmp_order(numtask),stat=stat)
        IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
        tmp_order(:) = 0

@@ -87,6 +87,7 @@ INTEGER FUNCTION ma_init_affinity(ma_env, num_threads, core, node) RESULT(istat)
 
   istat = -1
   ALLOCATE(thread_mapping(ma_env%numproc,num_threads),STAT=istat)
+  IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
   CALL ma_create_process(my_info,ma_env,num_threads,core,node)
   CALL ma_set_neighbors(ma_env)
 END FUNCTION ma_init_affinity
@@ -98,9 +99,7 @@ SUBROUTINE ma_finalize_affinity()
 #if defined (__LIBNUMA) || defined (__HWLOC)
   INTEGER  :: istat
      DEALLOCATE(thread_mapping,STAT=istat)
-     IF (istat /= 0) THEN
-          CALL ma_error_stop(ma_error_allocation)
-    ENDIF
+     IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
 #endif
 END SUBROUTINE ma_finalize_affinity
 
@@ -239,10 +238,7 @@ END SUBROUTINE ma_get_mempol
     IF (ma_env%all_proc) THEN
 
       ALLOCATE (all_host(default_string_length,ma_env%numproc),STAT=istat)
-
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
+      IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
 
       all_host(:,:) = 0
       CALL mp_proc_name(host_name)
@@ -772,10 +768,7 @@ END SUBROUTINE ma_get_mempol
     CALL ma_unpack_threads(my_info,thread_recv,thread_mapping)
 
     ALLOCATE (all_host(default_string_length,my_info%mp_info%numproc),STAT=istat)
-
-    IF (istat /= 0) THEN
-       CALL ma_error_stop(ma_error_allocation)
-    END IF
+    IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
 
     all_host(:,:) = 0
     CALL mp_proc_name(host_name)

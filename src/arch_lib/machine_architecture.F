@@ -543,10 +543,7 @@ CONTAINS
       ma_env%all_proc = .TRUE.
 
       ALLOCATE (all_host(default_string_length,ma_env%numproc),STAT=istat)
-
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
+      IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
 
       all_host(:,:) = 0
       CALL mp_proc_name(host_name)
