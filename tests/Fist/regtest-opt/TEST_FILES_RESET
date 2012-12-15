@@ -64,3 +64,5 @@ cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp
 cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp
 #  
 cs_cell_opt_lbfgs_geo_opt_lbfgs.inp
+#  
+cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp
