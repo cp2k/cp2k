@@ -543,9 +543,12 @@ CONTAINS
 
     CHARACTER                                :: matrix_type
     CHARACTER(LEN=80)                        :: matrix_name
-    INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
-      nelement_max, nelement_sum, npe, nrow, stat, tmp(2)
-    INTEGER(KIND=int_8)                      :: nblock_tot
+    INTEGER                                  :: group, handle, ipe, mype, &
+                                                natom, nblock_max, &
+                                                nelement_max, npe, nrow, &
+                                                stat, tmp(2)
+    INTEGER(KIND=int_8)                      :: nblock_sum, nblock_tot, &
+                                                nelement_sum
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: occupation
@@ -585,16 +588,15 @@ CONTAINS
        CALL mp_sum(nblock,group)
        CALL mp_sum(nelement,group)
 
-       nblock_sum = SUM(nblock)
-       nelement_sum = SUM(nelement)
+       nblock_sum = SUM(INT(nblock,KIND=int_8))
+       nelement_sum = SUM(INT(nelement,KIND=int_8))
     ELSE
        nblock_sum = nblock(mype)
        nblock_max = nblock(mype)
        nelement_sum = nelement(mype)
        nelement_max = nelement(mype)
-       tmp=(/nblock_sum,nelement_sum/)
-       CALL mp_sum(tmp,group)
-       nblock_sum=tmp(1) ; nelement_sum=tmp(2)
+       CALL mp_sum(nblock_sum,group)
+       CALL mp_sum(nelement_sum,group)
        tmp=(/nblock_max,nelement_max/)
        CALL mp_max(tmp,group)
        nblock_max=tmp(1) ; nelement_max=tmp(2)
