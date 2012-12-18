@@ -246,13 +246,11 @@ CONTAINS
        DO
           CALL set_list ( particle_set, npart, center, p1, rden, ipart )
           IF ( p1 == 0 ) EXIT
-
-          do_shell = (particle_set(p1)%shell_index/=0)
-          IF(do_shell) CYCLE
+          do_shell = (particle_set(p1)%shell_index /= 0)
+          IF (do_shell) CYCLE
           ! calculate function on small boxes
           CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, is_core=.FALSE.,&
                is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
-
           ! integrate box and potential
           CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fat1 )
           IF (atprop%energy) THEN
@@ -264,6 +262,33 @@ CONTAINS
              atprop%atstress(3,3,p1) = atprop%atstress(3,3,p1) + 0.5_dp*fat1*dvols
           END IF
        END DO
+       ! Core-shell model
+       IF (PRESENT(shell_particle_set).AND.PRESENT(core_particle_set)) THEN
+          ipart = 0
+          DO
+             CALL set_list(shell_particle_set,nshell,shell_center,p1_shell,rden,ipart)
+             IF (p1_shell == 0) EXIT
+             CALL get_patch(shell_particle_set,box,green,npts,p1_shell,rhos,&
+                            is_core=.FALSE.,is_shell=.TRUE.,unit_charge=.FALSE.)
+             CALL dg_sum_patch_force_1d(rpot,rhos,shell_center(:,p1_shell),fat1)
+             p1 = shell_particle_set(p1_shell)%atom_index
+             IF (atprop%energy) THEN
+                atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
+             END IF
+          END DO
+          ipart = 0
+          DO
+             CALL set_list(core_particle_set,nshell,core_center,p1_shell,rden,ipart)
+             IF (p1_shell == 0) EXIT
+             CALL get_patch(core_particle_set,box,green,npts,p1_shell,rhos,&
+                            is_core=.TRUE.,is_shell=.FALSE.,unit_charge=.FALSE.)
+             CALL dg_sum_patch_force_1d(rpot,rhos,core_center(:,p1_shell),fat1)
+             p1 = core_particle_set(p1_shell)%atom_index
+             IF (atprop%energy) THEN
+                atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
+             END IF
+          END DO
+       END IF
        CALL rs_grid_release ( rpot, error=error)
     END IF
 

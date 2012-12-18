@@ -784,7 +784,7 @@ CONTAINS
              CALL bonded_correct_gaussian_low_sh(rca, rsa, cell, &
                   v_bonded_corr, core_particle_set, shell_particle_set, &
                   shell_a, shell_adiabatic, alpha, qcore_a, qshell_a, &
-                  const, pv_bc, use_virial)
+                  const, pv_bc, atprop_env, use_virial)
 
           END DO
        END IF
@@ -882,7 +882,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE bonded_correct_gaussian_low_sh(r1, r2, cell, v_bonded_corr, &
        core_particle_set, shell_particle_set, i, shell_adiabatic, alpha, q1, q2,&
-       const, pv_bc, use_virial)
+       const, pv_bc, atprop_env, use_virial)
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
@@ -892,6 +892,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, const
     REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
+    TYPE(atprop_type), POINTER               :: atprop_env
     LOGICAL, INTENT(IN)                      :: use_virial
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -934,6 +935,9 @@ CONTAINS
 
     ! getting the potential
     v_bonded_corr = v_bonded_corr - q1*q2*efac
+    IF (atprop_env%energy) THEN
+       atprop_env%atener(i) = atprop_env%atener(i) - q1*q2*efac
+    END IF
 
     ! subtracting the force from the total force
     fscalar = q1*q2*ffac

@@ -318,7 +318,7 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius, &
                qeff=q, shell_active=is_shell, shell=shell)
           nparticle_local = local_particles%n_el(iparticle_kind)
-          IF(is_shell) THEN
+          IF (is_shell) THEN
              CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
              ! MI: the core-shell ES interaction, when core and shell belong to the same ion, is excluded
              !     in the nonbond correction term. Therefore, here the self interaction is computed entirely
@@ -351,10 +351,10 @@ CONTAINS
   END SUBROUTINE ewald_self
 
 ! *****************************************************************************
-!> \brief Computes the self interaction and the neutralizing background
+!> \brief Computes the self interaction per atom
 !> \par History
 !>      none
-!> \author JHU from ewlad_self
+!> \author JHU from ewald_self
 ! *****************************************************************************
   SUBROUTINE ewald_self_atom ( ewald_env, cell, atomic_kind_set, local_particles, e_self,&
        charges, error)
@@ -378,31 +378,36 @@ CONTAINS
                                                 nparticle_kind, &
                                                 nparticle_local
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: alpha, mm_radius, q
+    REAL(KIND=dp)                            :: alpha, fself, q, qcore, qshell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, alpha = alpha, error=error)
-    IF ( ewald_type /= do_ewald_none) THEN
-       nparticle_kind = SIZE ( atomic_kind_set )
+    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,error=error)
+
+    fself = alpha*oorootpi
+
+    IF (ewald_type /= do_ewald_none) THEN
+       nparticle_kind = SIZE(atomic_kind_set)
        IF (ASSOCIATED(charges)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Atomic energy not implemented for charges",&
                error=error, error_level=cp_failure_level)
        ELSE
-          DO iparticle_kind = 1, nparticle_kind
+          DO iparticle_kind=1,nparticle_kind
              atomic_kind => atomic_kind_set(iparticle_kind)
              nparticle_local = local_particles%n_el(iparticle_kind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius, &
-                  qeff=q, shell_active=is_shell, shell=shell)
-             IF(is_shell) THEN
-                CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Atomic energy not implemented for shells",&
-                     error=error, error_level=cp_failure_level)
-             ELSE
-                DO iparticle_local = 1, nparticle_local
+             CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=q,&
+                                  shell_active=is_shell,shell=shell)
+             IF (is_shell) THEN
+                CALL get_shell(shell=shell,charge_core=qcore,charge_shell=qshell,error=error)
+                DO iparticle_local=1,nparticle_local
                    ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-                   e_self(ii) = e_self(ii) - q*q*alpha*oorootpi
+                   e_self(ii) = e_self(ii) - (qcore*qcore + qshell*qshell)*fself
+                END DO
+             ELSE
+                DO iparticle_local=1,nparticle_local
+                   ii = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   e_self(ii) = e_self(ii) - q*q*fself
                 END DO
              END IF
           END DO

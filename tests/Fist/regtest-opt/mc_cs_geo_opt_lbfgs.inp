@@ -136,6 +136,16 @@
    &END EACH
   &END STRESS_TENSOR
  &END PRINT
+ &PROPERTIES
+  &ATOMIC
+   ENERGY
+   &PRINT
+    &EACH
+     GEO_OPT 1
+    &END EACH
+   &END PRINT
+  &END ATOMIC
+ &END PROPERTIES
  &SUBSYS
   &CELL
    # Use some weird constructs to test the parser
