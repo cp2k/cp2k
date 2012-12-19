@@ -251,7 +251,7 @@ SUBROUTINE set_hashed(dict, key, value, hash)
     ! check load-factor
     IF(4*dict%size > 3*SIZE(dict%buckets)) THEN ! load-factor > 75%
        CALL change_capacity(dict, 2*SIZE(dict%buckets)) !double capacity
-       idx = MOD(hash, SIZE(dict%buckets)) + 1
+       idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     END IF
     
     
