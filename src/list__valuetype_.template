@@ -1,0 +1,383 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+
+! *****************************************************************************
+!> \brief An array-based list which grows on demand.
+!>        When the internal array is full, a new array of twice the size will be
+!>        allocated and the items are copied over.
+!>	
+!>        This list can also be used as a stack. 
+!>        Have look at list_push(), list_pop() and list_peek().
+!> \note
+!>    
+!>      **** DO NOT MODIFY THE .F FILES ****
+!>      modify list__valuetype_.template instead
+!>
+!> \par History
+!>      12.2012 first version [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+
+MODULE list_[valuetype]
+
+ [USE] 
+ 
+  IMPLICIT NONE
+  PRIVATE
+  
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='list_[valuetype]'
+
+  !this is an internal type
+  TYPE private_item_type
+     PRIVATE
+     [valuetype_out]                   :: value
+  END TYPE private_item_type
+
+  !this is an internal type
+  TYPE private_item_p_type
+     PRIVATE
+     TYPE(private_item_type), POINTER :: p => Null()  
+  END TYPE private_item_p_type
+  
+  ! this is the public type, which holds a list-instance
+  TYPE list_[valuetype]_type
+     PRIVATE
+     TYPE(private_item_p_type), DIMENSION(:), POINTER   :: arr => Null()
+     INTEGER                                       :: size = -1
+  END TYPE list_[valuetype]_type
+  
+  
+  PUBLIC :: list_[valuetype]_type
+  PUBLIC :: list_[valuetype]_init
+  PUBLIC :: list_[valuetype]_push
+  PUBLIC :: list_[valuetype]_pop
+  PUBLIC :: list_[valuetype]_peek
+  PUBLIC :: list_[valuetype]_insert
+  PUBLIC :: list_[valuetype]_set
+  PUBLIC :: list_[valuetype]_get
+  PUBLIC :: list_[valuetype]_del
+  PUBLIC :: list_[valuetype]_clear
+  PUBLIC :: list_[valuetype]_size
+  PUBLIC :: list_[valuetype]_destroy
+  PUBLIC :: list_[valuetype]_isready
+  
+  
+  CONTAINS
+
+
+! *****************************************************************************
+!> \brief Test if the given list has been initialized.
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+FUNCTION list_[valuetype]_isready(list) RESULT(res)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    LOGICAL                                     :: res
+    res = ASSOCIATED(list%arr)
+END FUNCTION list_[valuetype]_isready
+  
+  
+! *****************************************************************************
+!> \brief Allocates the internal data-structures of the given list.
+!>        This has to be called before any of the other routines.
+!>        For deallocation call list_[valuetype]_destroy.
+!> \param initial_capacity The initial size of the internal array (default=11).	
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_init(list, initial_capacity)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    INTEGER, INTENT(in), OPTIONAL               :: initial_capacity
+    INTEGER                                     :: stat
+    INTEGER                                     :: initial_capacity_
+    
+    initial_capacity_ = 11
+    If(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
+    
+    IF(initial_capacity_ < 0) & 
+      STOP "list_[valuetype]_create: initial_capacity < 0"
+      
+    IF(ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_create: list is already initialized."
+    
+    ALLOCATE(list%arr(initial_capacity_), stat=stat)
+    IF (stat/=0) STOP "list_[valuetype]_init: allocation failed"
+    
+    list%size = 0
+END SUBROUTINE list_[valuetype]_init
+
+! *****************************************************************************
+!> \brief Deallocated the internal data-structures of the given list.
+!>        Caution: If the stored values are pointers, their targets will
+!>                 not get deallocated by this routine.
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_destroy(list)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    INTEGER :: i    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_destroy: list is not initialized."
+    
+    do i=1, list%size
+       deallocate(list%arr(i)%p) 
+    end do
+    deallocate(list%arr)
+    list%size = -1
+END SUBROUTINE list_[valuetype]_destroy
+
+
+! *****************************************************************************
+!> \brief Assings the given value to the given position in the list. 
+!>        Thereby, the former value at that position gets overwritten.
+!>        If the position is out of bounds, the program stops.
+!> \param pos Position in the list - musst fulfill 0 < pos < list_size+1.
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_set(list, value, pos)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    [valuetype_in], intent(in) :: value
+    INTEGER, intent(in) :: pos
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_set: list is not initialized."
+    IF(pos < 1) STOP "list_[valuetype]_set: pos < 1"
+    IF(pos > list%size) STOP "list_[valuetype]_set: pos > size"
+    list%arr(pos)%p%value [value_assign] value
+END SUBROUTINE list_[valuetype]_set
+
+
+! *****************************************************************************
+!> \brief Appends the given value at the end of the list.
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_push(list, value)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    [valuetype_in], intent(in)                  :: value
+    INTEGER                                     :: stat
+
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_push: list is not initialized."
+    if(list%size == size(list%arr)) &
+       call change_capacity(list, 2*size(list%arr)+1)
+    
+    list%size = list%size + 1
+    ALLOCATE(list%arr(list%size)%p, stat=stat)
+    IF (stat/=0) STOP "list_[valuetype]_push: allocation failed"
+    list%arr(list%size)%p%value [value_assign] value
+END SUBROUTINE list_[valuetype]_push
+
+
+! *****************************************************************************
+!> \brief Inserts the given value at the givenn position within the list. 
+!>        Values which lay behind the insertion-position move one position up. 
+!> \param pos Position in the list - musst fulfill 0 < pos < list_size+2 .
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_insert(list, value, pos)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    [valuetype_in], intent(in) :: value
+    INTEGER, intent(in) :: pos
+    INTEGER :: i, stat
+        
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_insert: list is not initialized."
+    IF(pos < 1) STOP "list_[valuetype]_insert: pos < 1"
+    IF(pos > list%size+1) STOP "list_[valuetype]_insert: pos > size+1"
+    
+    if(list%size == size(list%arr)) &
+       call change_capacity(list, 2*size(list%arr)+1)
+    
+    list%size = list%size + 1
+    do i=list%size, pos+1, -1
+       list%arr(i)%p => list%arr(i-1)%p 
+    end do
+    
+    ALLOCATE(list%arr(pos)%p, stat=stat)
+     IF (stat/=0) STOP "list_[valuetype]_insert: allocation failed."
+    list%arr(pos)%p%value [value_assign] value
+END SUBROUTINE list_[valuetype]_insert
+
+
+! *****************************************************************************
+!> \brief Returns the last element in the list.
+!>    Is equivalent to: list_[valuetype]_get(list, list_[valuetype]_size(list)) 
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+FUNCTION list_[valuetype]_peek(list) RESULT(value)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    [valuetype_out]  :: value
+    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_peek: list is not initialized."
+    IF(list%size < 1) &
+       STOP "list_[valuetype]_peek: list is empty."
+    
+    value [value_assign] list%arr(list%size)%p%value
+END FUNCTION list_[valuetype]_peek
+
+
+! *****************************************************************************
+!> \brief Returns the last element in the list and removes it.
+!>        Is equivialent to: 
+!> 	      value = list_[valuetype]_get(list, list_[valuetype]_size(list))
+!>            call list_[valuetype]_del(list, list_[valuetype]_size(list))
+!>
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+FUNCTION list_[valuetype]_pop(list) RESULT(value)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    [valuetype_out]  :: value
+    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_pop: list is not initialized."
+    IF(list%size < 1) &
+       STOP "list_[valuetype]_pop: list is empty."
+    
+    value [value_assign] list%arr(list%size)%p%value
+    deallocate(list%arr(list%size)%p)
+    list%size = list%size - 1
+END FUNCTION list_[valuetype]_pop
+
+
+
+! *****************************************************************************
+!> \brief Removes all values from the list. The list itself is not deallocated.
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_clear(list)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    INTEGER :: i
+    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_clear: list is not initialized."
+    
+    do i=1, list%size
+       deallocate(list%arr(i)%p)
+    end do
+    list%size = 0
+END SUBROUTINE list_[valuetype]_clear
+
+
+!
+! *****************************************************************************
+!> \brief Returns the value at the given position from the list.
+!> \param pos Position in the list - musst fulfill 0 < pos < list_size+1 .
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+FUNCTION list_[valuetype]_get(list, pos) RESULT(value)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    INTEGER, intent(in) :: pos
+    [valuetype_out] :: value
+    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_get: list is not initialized."
+    IF(pos < 1) STOP "list_[valuetype]_get: pos < 1"
+    IF(pos > list%size) STOP "list_[valuetype]_get: pos > size"
+    
+    value [value_assign] list%arr(pos)%p%value
+    
+END FUNCTION list_[valuetype]_get
+
+
+! *****************************************************************************
+!> \brief Removes the value at the given position from the list.
+!> \param pos Position in the list - musst fulfill 0 < pos < list_size+1 .
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE list_[valuetype]_del(list, pos)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    INTEGER, intent(in) :: pos
+    INTEGER :: i
+    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_del: list is not initialized."
+    IF(pos < 1) STOP "list_[valuetype]_det: pos < 1"
+    IF(pos > list%size) STOP "list_[valuetype]_det: pos > size"
+    
+    deallocate(list%arr(pos)%p)
+    do i=pos, list%size-1
+       list%arr(i)%p => list%arr(i+1)%p 
+    end do
+    
+    list%size = list%size - 1
+     
+END SUBROUTINE list_[valuetype]_del
+
+! *****************************************************************************
+!> \brief Returns the current size of the list. 
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+FUNCTION list_[valuetype]_size(list) RESULT(size)
+    TYPE(list_[valuetype]_type), intent(inout)  :: list
+    INTEGER :: size
+    
+    IF(.not. ASSOCIATED(list%arr)) &
+       STOP "list_[valuetype]_size: list is not initialized."
+    
+    size = list%size 
+END FUNCTION list_[valuetype]_size
+
+
+! *****************************************************************************
+!> \brief Internal routine for changing the size of the internal array.
+!> \par History
+!>      12.2012 created [ole]
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE change_capacity(list, new_capacity)
+   TYPE(list_[valuetype]_type), intent(inout)  :: list
+   INTEGER, intent(in) :: new_capacity
+   INTEGER :: i, new_cap, stat
+   TYPE(private_item_p_type), DIMENSION(:), POINTER :: old_arr
+   
+   new_cap = new_capacity
+   IF(new_cap < 0) &
+      STOP "list_[valuetype]_change_capacity: new_capacity < 0"
+   IF(new_cap < list%size) &
+      STOP "list_[valuetype]_change_capacity: new_capacity < size"
+   IF(new_cap > HUGE(i)) THEN
+      IF(size(list%arr) == HUGE(i)) &
+   	 STOP "list_[valuetype]_change_capacity: list has reached integer limit."
+      new_cap = HUGE(i) ! grow as far as possible
+   END IF
+      
+   old_arr => list%arr
+   allocate(list%arr(new_cap), stat=stat)
+   IF (stat/=0) STOP "list_[valuetype]_change_capacity: allocation failed"
+   
+   do i=1, list%size
+      allocate(list%arr(i)%p, stat=stat)
+      IF (stat/=0) STOP "list_[valuetype]_change_capacity: allocation failed"
+      list%arr(i)%p%value [value_assign] old_arr(i)%p%value 
+      deallocate(old_arr(i)%p)
+   end do
+   deallocate(old_arr)
+   
+END SUBROUTINE change_capacity
+
+END MODULE list_[valuetype]

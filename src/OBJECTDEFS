@@ -773,4 +773,15 @@ OBJECTS_GENERIC =\
  xc_xpbe_hole_t_c_lr.o\
  xc_xwpbe.o\
  xml_parser.o\
- xray_diffraction.o
+ xray_diffraction.o\
+ timings_types.o\
+ timings_base_type.o\
+ timings_report.o\
+ list_timerenv.o\
+ list_routinestat.o\
+ list_i4.o\
+ list_callstackentry.o\
+ list.o\
+ dict_str_i4.o\
+ dict_i4tuple_callstat.o\
+ dict.o

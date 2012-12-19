@@ -107,9 +107,9 @@ MODULE f77_interface
                                              rm_timer_env,&
                                              timer_env_release,&
                                              timer_env_retain,&
-                                             timer_env_type,&
                                              timeset,&
                                              timestop
+  USE timings_types,                   ONLY: timer_env_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

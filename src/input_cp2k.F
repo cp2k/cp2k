@@ -464,14 +464,7 @@ CONTAINS
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="FLUSH_SHOULD_FLUSH",&
-         description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.",&
-         usage="FLUSH_SHOULD_FLUSH",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
+    
     CALL keyword_create(keyword, name="TRACE_MASTER",&
          description="For parallel TRACEd runs: only the master node writes output.",&
          usage="TRACE_MASTER",&
@@ -484,7 +477,43 @@ CONTAINS
          usage="TRACE_MAX 100",default_i_val=HUGE(0),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="TRACE_ROUTINES",&
+         description="A list of routines to trace. If left empty all routines are traced. Accounting is not influenced.",&
+         usage="TRACE_ROUTINES {routine_name1} {routine_name2} ...", type_of_var=char_t,&
+         n_var=-1, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="FLUSH_SHOULD_FLUSH",&
+         description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.",&
+         usage="FLUSH_SHOULD_FLUSH",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
+    
+    CALL keyword_create(keyword, name="CALLGRAPH",&
+    description="At the end of the run write a callgraph to file, "//&
+         "which contains detailed timing informations. "//&
+         "This callgraph can be viewed e.g. with the open-source program kcachegrind.",&
+         usage="CALLGRAPH <NONE|MASTER|ALL>",&
+         default_i_val=CALLGRAPH_NONE, lone_keyword_i_val=CALLGRAPH_MASTER,&
+         enum_c_vals=s2a("NONE","MASTER","ALL"),&
+         enum_desc=s2a("No callgraph gets written",&
+         "Only the master process writes his callgraph",&
+         "All processes write their callgraph (into a separate files)."), &
+         enum_i_vals=(/CALLGRAPH_NONE, CALLGRAPH_MASTER, CALLGRAPH_ALL/), error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="CALLGRAPH_FILE_NAME",&
+         description="Name of the callgraph file, which is writte a the end of the run. "//&
+         "If not specified the project name will be used as filename.",&
+         usage="CALLGRAPH_FILE_NAME {filename}",default_lc_val="", supported_feature=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
     CALL keyword_create(keyword,name="SEED",&
          description="Initial seed for the global (pseudo)random number "//&
          "generator to create a stream of normally Gaussian "//&

@@ -1,0 +1,40 @@
+[
+{'valuetype':'char',
+'USE': 'USE kinds,       ONLY: default_string_length',
+'valuetype_in':    'CHARACTER(LEN=*)',
+'valuetype_out':   'CHARACTER(LEN=default_string_length)',
+'value_assign':    '=',
+},
+
+{'valuetype':'i4',
+'USE':'USE kinds,       ONLY:int_4',
+'valuetype_in':    'INTEGER(kind=int_4)',
+'valuetype_out':   'INTEGER(kind=int_4)',
+'value_assign':    '=',
+},
+
+{'valuetype':'timerenv',
+'USE':'USE timings_types, ONLY: timer_env_type',
+'valuetype_in':    'TYPE(timer_env_type), POINTER',
+'valuetype_out':   'TYPE(timer_env_type), POINTER',
+'value_assign':    '=>',
+},
+
+{
+'valuetype':'routinestat',
+'USE': "USE timings_base_type,    ONLY: routine_stat_type",
+'valuetype_in':    'TYPE(routine_stat_type), POINTER',
+'valuetype_out':   'TYPE(routine_stat_type), POINTER',
+'value_assign':    '=>',
+},
+
+
+{
+'valuetype':'callstackentry',
+'USE': "USE timings_base_type,    ONLY: callstack_entry_type",
+'valuetype_in':    'TYPE(callstack_entry_type)',
+'valuetype_out':   'TYPE(callstack_entry_type)',
+'value_assign':    '=',
+},
+
+]

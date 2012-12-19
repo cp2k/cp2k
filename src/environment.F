@@ -37,10 +37,11 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       debug_print_level, do_cp2k, do_eip, do_farming, do_fft_cu, &
-       do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
-       high_print_level, id_development_version, low_print_level, &
-       medium_print_level, mol_dyn_run, none_run, silent_print_level
+       callgraph_all, callgraph_none, debug_print_level, do_cp2k, do_eip, &
+       do_farming, do_fft_cu, do_fft_fftw3, do_fft_sg, do_fist, do_qs, &
+       do_test, energy_run, high_print_level, id_development_version, &
+       low_print_level, medium_print_level, mol_dyn_run, none_run, &
+       silent_print_level
   USE input_cp2k,                      ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -86,11 +87,11 @@ MODULE environment
                                              stop_program
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
-                                             timeprint,&
                                              timeset,&
                                              timestop,&
-                                             trace_debug,&
-                                             use_HPM
+                                             timings_setup_tracing
+  USE timings_report,                  ONLY: timings_report_callgraph,&
+                                             timings_report_print
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
@@ -484,11 +485,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_global_section', &
       routineP = moduleN//':'//routineN, start_section_label = "GLOBAL"
 
+    CHARACTER(len=13)                        :: tracing_string
     CHARACTER(len=6)                         :: print_level_string
     CHARACTER(len=default_path_length) :: basis_set_file_name, &
       coord_file_name, geminal_file_name, mm_potential_file_name, &
       potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
       nid, num_threads, output_unit, print_level, trace_max, unit_nr
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
@@ -529,6 +533,12 @@ CONTAINS
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     CALL section_vals_val_get(global_section,"TRACE_MASTER",l_val=trace_MASTER,error=error)
     CALL section_vals_val_get(global_section,"TRACE_MAX",i_val=trace_max,error=error)
+    CALL section_vals_val_get(global_section,"TRACE_ROUTINES",explicit=explicit,error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(global_section,"TRACE_ROUTINES",c_vals=trace_routines,error=error)
+    ELSE
+       NULLIFY(trace_routines)
+    ENDIF
     CALL section_vals_val_get(global_section,"FLUSH_SHOULD_FLUSH",l_val=flush_should_flush,error=error)
     CALL section_vals_val_get(global_section,"ECHO_ALL_HOSTS",l_val=do_echo_all_hosts,error=error)
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
@@ -536,14 +546,18 @@ CONTAINS
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-    IF(trace) THEN
-       IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) THEN
+         
+    IF(trace .AND. (.NOT. trace_master .OR. para_env%mepos==0)) THEN
+       unit_nr = -1
+       IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) &
            unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+       WRITE (tracing_string,"(I6.6,A1,I6.6)") para_env%mepos,":",para_env%num_pe
+       IF(ASSOCIATED(trace_routines))  THEN
+          CALL timings_setup_tracing(trace_max, unit_nr, tracing_string, trace_routines)
        ELSE
-           unit_nr=-1
-       ENDIF
-       CALL trace_debug("start",trace_master,trace_max,unit_nr,para_env)
-    ENDIF
+          CALL timings_setup_tracing(trace_max, unit_nr, tracing_string)
+       END IF
+    ENDIF 
 
     SELECT CASE(i_fft)
     CASE(do_fft_sg)
@@ -940,7 +954,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dev_flag
-    INTEGER                                  :: iw, unit_exit
+    CHARACTER(LEN=default_path_length)       :: cg_filename
+    INTEGER                                  :: iw, unit_exit, cg_mode
     LOGICAL                                  :: delete_it,failure,&
                                                 sort_by_self_time
     REAL(KIND=dp)                            :: r_timings
@@ -1009,17 +1024,35 @@ CONTAINS
     ENDIF
 
     CALL timestop(globenv%handle) ! corresponding the "CP2K" in cp2k_init
-
+    
     IF (.NOT.failure) THEN
        iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&
             extension=".Log",error=error)
        r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
        sort_by_self_time = section_get_lval(root_section,"GLOBAL%TIMINGS%SORT_BY_SELF_TIME",error)
-       CALL timeprint(iw,r_timings,sort_by_self_time,para_env)
+       CALL timings_report_print(iw,r_timings,sort_by_self_time,para_env)
+    
+       !Write the callgraph, if desired by user
+       CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH",i_val=cg_mode,error=error)
+       IF(cg_mode /= CALLGRAPH_NONE) THEN
+          CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH_FILE_NAME",c_val=cg_filename,error=error)
+          IF(LEN_TRIM(cg_filename) == 0) cg_filename=TRIM(logger%iter_info%project_name)
+          IF(cg_mode==CALLGRAPH_ALL)& !incorporate mpi-rank into filename 
+             cg_filename = TRIM(cg_filename)//"_"//TRIM(ADJUSTL(cp_to_string(para_env%mepos)))
+          IF(iw>0) THEN
+             WRITE (UNIT=iw,FMT="(T2,3X,A)") "Writing callgraph to: "//TRIM(cg_filename)//".callgraph"
+             WRITE (UNIT=iw,FMT="()") 
+             WRITE (UNIT=iw,FMT="(T2,A)") "-------------------------------------------------------------------------------"
+          ENDIF
+          IF(cg_mode==CALLGRAPH_ALL .OR. para_env%mepos==para_env%source)&
+             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
+       END IF
+       
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%TIMINGS",error=error)
     END IF
 
+    
     CALL rm_mp_perf_env()
     CALL rm_timer_env()
 

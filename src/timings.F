@@ -9,79 +9,54 @@
 !>      02.2004 made a stacked version (of stacks...) [Joost VandeVondele]
 !>      11.2004 storable timer_envs (for f77 interface) [fawzi]
 !>      10.2005 binary search to speed up lookup in timeset [fawzi]
+!>      12.2012 Complete rewrite based on dictionaries. [ole]	
 !> \author JGH
 ! *****************************************************************************
 MODULE timings
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE dict,                            ONLY: dict_destroy,&
+                                             dict_get,&
+                                             dict_init,&
+                                             dict_items,&
+                                             dict_set,&
+                                             dict_size
+  USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE list,                            ONLY: list_destroy,&
+                                             list_get,&
+                                             list_init,&
+                                             list_isready,&
+                                             list_peek,&
+                                             list_pop,&
+                                             list_push,&
+                                             list_size
+  USE list_timerenv,                   ONLY: list_timerenv_type
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE mathconstants,                   ONLY: zero
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
-                                             mp_sum
-  USE string_utilities,                ONLY: uppercase
-  USE util,                            ONLY: sort
+  USE timings_types,                   ONLY: timer_env_type
+  USE timings_base_type,                  ONLY: call_stat_type,&
+                                             callstack_entry_type,&
+                                             routine_stat_type
 
   IMPLICIT NONE
-
   PRIVATE
 
-  PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
-       use_HPM
+  ! the famous routines
+  PUBLIC :: timeset, timestop, print_stack
 
-  ! used to create a fresh timer_env
-  PUBLIC :: timer_env_type, timer_env_p_type
-  PUBLIC :: add_timer_env, rm_timer_env, get_timer_env
-  PUBLIC :: timer_env_create, timer_env_retain, timer_env_release
+  ! these routines are currently only used by environment.F and f77_interface.F
+  PUBLIC :: add_timer_env, timer_env_create, rm_timer_env, get_timer_env
+  PUBLIC :: timer_env_retain, timer_env_release
+  PUBLIC :: timings_setup_tracing 
+  
 
-  ! want to use HPM if available ? needs care switching true/false (i.e. use_HPM=.true. timeset ... timestop use_HPM=false)
-  LOGICAL :: use_HPM = .FALSE.
-
-  ! hard coded stack sizes
-  INTEGER, PARAMETER :: max_timer_env_stack=10  ! number of stacked timers
-  INTEGER, PARAMETER :: max_stack = 50          ! the calling stack max depth for a given timer env
-  INTEGER, PARAMETER :: max_timer = 2000        ! total number of different callers
-  INTEGER, PARAMETER :: max_clock_name = 80     ! length of strings, needs adjusting of formats as well
-
-! *****************************************************************************
-  TYPE timer_env_type
-     PRIVATE
-     INTEGER                                         :: ref_count, id_nr
-     ! subroutine calling stack
-     INTEGER                                         :: stack_size
-     CHARACTER ( LEN = max_clock_name )              :: routine_stack (max_stack)
-     REAL (KIND=dp)                                  :: wallclock_start (max_stack)
-     INTEGER                                         :: handle_stack (max_stack)
-     ! timing info
-     CHARACTER ( LEN = max_clock_name )              :: clock_name (max_timer)
-     INTEGER                                         :: sort_index ( max_timer )
-     INTEGER                                         :: routine_calls ( max_timer )
-     INTEGER                                         :: routine_stack_depth ( max_timer )
-     INTEGER                                         :: clock_status ( max_timer )
-     REAL (KIND=dp)                                  :: exclusive_wallclock_accu ( max_timer )
-     REAL (KIND=dp)                                  :: inclusive_wallclock_accu ( max_timer )
-     INTEGER                                         :: num_timer
-     CHARACTER ( LEN = 15 )                          :: astring, bstring
-     LOGICAL                                         :: trace,trace_master
-     INTEGER                                         :: mepos,group,num_pe
-     INTEGER                                         :: trace_max, unit_nr
-  END TYPE timer_env_type
-
-! *****************************************************************************
-  TYPE timer_env_p_type
-     TYPE(timer_env_type), POINTER :: timer_env
-  END TYPE timer_env_p_type
-
-  INTEGER, SAVE, PRIVATE :: stack_pointer = 0       ! position in timer_env_stack
-  INTEGER, SAVE, PRIVATE :: last_timer_env_id = 0
-  TYPE(timer_env_p_type), DIMENSION(max_timer_env_stack) :: timer_env_stack
+  ! global variables
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
+  TYPE(list_timerenv_type), SAVE, PRIVATE                  :: timers_stack
+  
 
-CONTAINS
+  CONTAINS
 
 ! *****************************************************************************
 !> \brief adds the given timer_env to the top of the stack
@@ -94,50 +69,35 @@ CONTAINS
   SUBROUTINE add_timer_env(timer_env)
     TYPE(timer_env_type), OPTIONAL, POINTER  :: timer_env
 
-    stack_pointer=stack_pointer+1
-    IF (stack_pointer>max_timer_env_stack) THEN
-       PRINT*,'stack_pointer too large is add_timer_env'
-       STOP 1
-    ENDIF
-    NULLIFY(timer_env_stack(stack_pointer)%timer_env)
-    IF (PRESENT(timer_env)) THEN
-       timer_env_stack(stack_pointer)%timer_env => timer_env
-       IF (ASSOCIATED(timer_env)) THEN
-          CALL timer_env_retain(timer_env)
-       END IF
-    END IF
-    IF (.NOT.ASSOCIATED(timer_env_stack(stack_pointer)%timer_env)) THEN
-       CALL timer_env_create(timer_env_stack(stack_pointer)%timer_env)
-    END IF
+    TYPE(timer_env_type), POINTER            :: timer_env_
+
+    IF(      PRESENT(timer_env)) timer_env_ => timer_env
+    IF(.NOT. PRESENT(timer_env)) CALL timer_env_create(timer_env_)
+    IF(.NOT. ASSOCIATED(timer_env_)) STOP "add_timer_env: not associated"
+         
+    CALL timer_env_retain(timer_env_)
+    IF(.NOT. list_isready(timers_stack)) CALL list_init(timers_stack)
+    CALL list_push(timers_stack, timer_env_)
   END SUBROUTINE add_timer_env
 
 ! *****************************************************************************
 !> \brief creates a new timer env
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE timer_env_create(timer_env)
+  SUBROUTINE timer_env_create(timer_env) 
     TYPE(timer_env_type), POINTER            :: timer_env
 
     INTEGER                                  :: stat
 
-    ALLOCATE(timer_env,stat=stat)
-    IF (stat/=0) THEN
-       PRINT*,moduleN//':timer_env_create error allocationg timer_env'
-       STOP 1
-    END IF
-    last_timer_env_id=last_timer_env_id+1
-    timer_env%id_nr=last_timer_env_id
-    timer_env%ref_count=1
-    timer_env%stack_size=0
-    timer_env%handle_stack=0
-    timer_env%num_timer=0
-    timer_env%trace=.FALSE.
-    timer_env%trace_master=.FALSE.
-    timer_env%group=-1
-    timer_env%mepos=-1
-    timer_env%num_pe=-1
-    timer_env%trace_max=1000
-    timer_env%unit_nr=6
+    ALLOCATE(timer_env, stat=stat)
+    IF (stat/=0) STOP "timer_env_create: allocation failed"
+    timer_env%ref_count   = 0
+    timer_env%trace_max = -1 ! tracing disabled by default
+    timer_env%trace_all = .FALSE.
+    CALL dict_init(timer_env%routine_names)
+    CALL dict_init(timer_env%callgraph)
+    CALL list_init(timer_env%routine_stats)
+    CALL list_init(timer_env%callstack)
   END SUBROUTINE timer_env_create
 
 ! *****************************************************************************
@@ -149,26 +109,20 @@ CONTAINS
 !>      02.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE rm_timer_env()
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in destroy_timer_env'
-       STOP 1
-    ENDIF
-    CALL timer_env_release(timer_env_stack(stack_pointer)%timer_env)
-    stack_pointer=stack_pointer-1
+    TYPE(timer_env_type), POINTER            :: timer_env
+
+    timer_env => list_pop(timers_stack)
+    CALL timer_env_release(timer_env)
   END SUBROUTINE rm_timer_env
 
 ! *****************************************************************************
 !> \brief returns the current timer env from the stack
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION get_timer_env() RESULT(res)
-    TYPE(timer_env_type), POINTER            :: res
+  FUNCTION get_timer_env() RESULT(timer_env)
+    TYPE(timer_env_type), POINTER            :: timer_env
 
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in get_timer_env'
-       STOP 1
-    ENDIF
-    res => timer_env_stack(stack_pointer)%timer_env
+    timer_env => list_peek(timers_stack)
   END FUNCTION get_timer_env
 
 ! *****************************************************************************
@@ -179,15 +133,8 @@ CONTAINS
   SUBROUTINE timer_env_retain(timer_env)
     TYPE(timer_env_type), POINTER            :: timer_env
 
-    IF (.NOT.ASSOCIATED(timer_env)) THEN
-       PRINT*,moduleN,':timer_env_retain ERROR, unassociated timer_env'
-       STOP 1
-    ENDIF
-    IF (timer_env%ref_count<1) THEN
-       PRINT*,moduleN,':timer_env_retain ERROR, timer_env%ref_count=',&
-            timer_env%ref_count
-       STOP 1
-    ENDIF
+    IF(.NOT. ASSOCIATED(timer_env)) STOP "timer_env_retain: not associated"
+    IF (timer_env%ref_count < 0) STOP "timer_env_retain: negativ ref_count"
     timer_env%ref_count=timer_env%ref_count+1
   END SUBROUTINE timer_env_retain
 
@@ -199,147 +146,96 @@ CONTAINS
   SUBROUTINE timer_env_release(timer_env)
     TYPE(timer_env_type), POINTER            :: timer_env
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i
+    TYPE(dict_i4tuple_callstat_item_type), &
+      DIMENSION(:), POINTER                  :: ct_items
+    TYPE(routine_stat_type), POINTER         :: r_stat
 
-    IF (ASSOCIATED(timer_env)) THEN
-       IF (timer_env%ref_count<1) THEN
-          PRINT*,moduleN,':timer_env_release ERROR, timer_env%ref_count=',&
-               timer_env%ref_count,"id_nr=",timer_env%id_nr
-          STOP 1
-       ENDIF
-       timer_env%ref_count=timer_env%ref_count-1
-       IF (timer_env%ref_count==0) THEN
-          timer_env%stack_size=0
-          timer_env%handle_stack=0
-          timer_env%num_timer=0
-          timer_env%trace=.FALSE.
-          timer_env%trace_master=.FALSE.
-          DEALLOCATE(timer_env,stat=stat)
-          IF (stat/=0) THEN
-             PRINT*,moduleN,':timer_env_release ERROR deallocating, stat=',stat
-             STOP 1
-          ENDIF
-       END IF
-    END IF
-    NULLIFY(timer_env)
+    IF(.NOT. ASSOCIATED(timer_env)) STOP "timer_env_release: not associated"
+    IF (timer_env%ref_count < 0) STOP "timer_env_release: negativ ref_count"
+    timer_env%ref_count = timer_env%ref_count - 1
+    IF (timer_env%ref_count > 0) RETURN
+    
+    ! No more references left - let's tear down this timer_env...
+    
+    DO i=1, list_size(timer_env%routine_stats)
+            r_stat => list_get(timer_env%routine_stats, i)
+            DEALLOCATE(r_stat)
+    END DO
+    
+    ct_items => dict_items(timer_env%callgraph)
+    DO i=1, SIZE(ct_items)
+            DEALLOCATE(ct_items(i)%value)
+    END DO
+    DEALLOCATE(ct_items)
+    
+    CALL dict_destroy(timer_env%routine_names)
+    CALL dict_destroy(timer_env%callgraph)
+    CALL list_destroy(timer_env%callstack)
+    CALL list_destroy(timer_env%routine_stats)
+    DEALLOCATE(timer_env)
   END SUBROUTINE timer_env_release
 
+
+  
 ! *****************************************************************************
 !> \brief Start timer
 !> \par History
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timeset ( name, handle )
-    CHARACTER(LEN=*), INTENT(IN)             :: name
+  SUBROUTINE timeset(routineN, handle)
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN
     INTEGER, INTENT(OUT)                     :: handle
 
-    CHARACTER(LEN=20)                        :: mytag
-    CHARACTER(LEN=40)                        :: sformat
     CHARACTER(LEN=400)                       :: line, mystring
-    INTEGER                                  :: i, stack_size
-    INTEGER(KIND=int_8)                      :: mem
+    CHARACTER(LEN=60)                        :: sformat
+    CHARACTER(LEN=default_string_length)     :: routine_name_dsl
+    INTEGER                                  :: routine_id, stack_size
+    TYPE(callstack_entry_type)               :: cs_entry
+    TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
-    REAL(KIND=dp)                            :: wt_now
-#if defined(__HPM)
-#include "f_hpm.h"
-#endif
 
 !$OMP MASTER
-
-    wt_now=m_walltime ()
-
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in timeset'
-       STOP 1
-    ENDIF
-    IF (LEN_TRIM(name)>LEN(timer_env%clock_name)) THEN
-       PRINT *,"timings:timeset, timer name too long: '",TRIM(name),"'"
+    
+    cs_entry%walltime_start = m_walltime()
+    timer_env => list_peek(timers_stack)
+        
+    IF (LEN_TRIM(routineN) > default_string_length) THEN
+       PRINT *,"timings_timeset: routineN too long: '",TRIM(routineN),"'"
        STOP 1
     END IF
-    timer_env => timer_env_stack(stack_pointer)%timer_env
-
-    !..binary search of the timer
-    handle = timer_binsearch(name,timer_env%clock_name,timer_env%sort_index,&
-         1,timer_env%num_timer)
-    IF (handle>0) THEN
-       IF (timer_env%clock_name(timer_env%sort_index(handle))==name) go to 33
-    END IF
-
-    !.. initialize the newly found clock_name
-    IF (timer_env%num_timer>=max_timer) THEN
-       PRINT *,'ERROR hit max_timer in timeset'
-       PRINT *,"name ",name,timer_env%num_timer
-       PRINT *,timer_env%clock_name
-       STOP 1
-    ENDIF
-
-    ! enforce space free timer names, to make the output of trace/timings of a fixed number fields
-    IF (INDEX(name(1:LEN_TRIM(name)),' ').NE.0) THEN
-       PRINT *,"timer name contains spaces",name
-       STOP 1
-    ENDIF
-
-    DO i=timer_env%num_timer,handle+1,-1
-       timer_env%sort_index(i+1)=timer_env%sort_index(i)
-    END DO
-    timer_env%sort_index(handle+1)=timer_env%num_timer+1
-    handle=handle+1
-
-    timer_env%num_timer = timer_env%num_timer + 1
-    timer_env%clock_name ( timer_env%num_timer ) = name
-    timer_env%clock_status ( timer_env%num_timer ) = 0
-    timer_env%exclusive_wallclock_accu ( timer_env%num_timer ) = zero
-    timer_env%inclusive_wallclock_accu ( timer_env%num_timer ) = zero
-    timer_env%routine_calls ( timer_env%num_timer ) = 0
-    timer_env%routine_stack_depth ( timer_env%num_timer ) = 0
-
-    ! this is the handle of the current clock
-33  handle=timer_env%sort_index(handle)
-
-#if defined(__HPM)
-    IF (use_HPM) THEN
-       mytag=TRIM(name)
-       mytag(20:20)=CHAR(0)
-       CALL f_hpmstart(handle,mytag)
-    ENDIF
-#endif
-
-    !..add name to subroutine stack
-    timer_env%stack_size = timer_env%stack_size + 1
-    stack_size = timer_env%stack_size
-    timer_env%routine_stack ( stack_size ) = name
-    timer_env%wallclock_start ( stack_size ) = wt_now
-    timer_env%handle_stack (stack_size) = handle
-
-    ! count the number of active instances (recursion)
-    timer_env%clock_status ( handle ) = timer_env%clock_status ( handle ) + 1
-
-    ! some properties
-    timer_env%routine_calls ( handle ) = timer_env%routine_calls ( handle ) + 1
-    timer_env%routine_stack_depth ( handle ) = timer_env%routine_stack_depth ( handle ) + stack_size
-
-    IF (timer_env%routine_stack(stack_size).NE. timer_env%clock_name(timer_env%handle_stack (stack_size))) THEN
-       STOP "CP2K BUG with timeset/timestop?"
-    ENDIF
-
+    
+    routine_name_dsl = routineN ! converte to default_string_length
+    
+    routine_id = routine_name2id(routine_name_dsl)
+    ! update routine r_stats
+    r_stat => list_get(timer_env%routine_stats, routine_id)
+    stack_size = list_size(timer_env%callstack)
+    r_stat%total_calls = r_stat%total_calls + 1
+    r_stat%active_calls = r_stat%active_calls + 1
+    r_stat%stackdepth_accu = r_stat%stackdepth_accu + stack_size + 1
+    
+    ! add routine to callstack
+    cs_entry%routine_id = routine_id
+    CALL list_push(timer_env%callstack, cs_entry)
+    
     !..if debug mode echo the subroutine name
-    IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
-       WRITE(sformat,*) "(A,",MAX(1,3*stack_size-7),"X,I4,1X,I6,1X,A,A)"
-       WRITE ( mystring, sformat) &
-            timer_env%astring,stack_size, &
-            timer_env%routine_calls ( handle ), &
-            TRIM( timer_env%routine_stack ( stack_size )),"       start"
-       mem=m_memory()
-       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1024*1024-1)/(1024*1024),"Mb"
-       IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
-          WRITE(timer_env%unit_nr,*) TRIM(line)
-          CALL m_flush(timer_env%unit_nr)
-       ENDIF
-    ENDIF
-
+    IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
+        (r_stat%total_calls < timer_env%trace_max)) THEN 
+       WRITE(sformat,*) "(A,A,",MAX(1,3*stack_size-4),"X,I4,1X,I6,1X,A,A)"
+       WRITE ( mystring, sformat) timer_env%trace_str, ">>", stack_size+1, &
+          r_stat%total_calls, TRIM(r_stat%routineN),"       start"
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring), &
+          (m_memory()+1024*1024-1)/(1024*1024),"Mb"
+       WRITE(timer_env%trace_unit,*) TRIM(line)
+       CALL m_flush(timer_env%trace_unit)
+    END IF
+    
+    handle = routine_id
+    
 !$OMP END MASTER
-
+        
   END SUBROUTINE timeset
 
 ! *****************************************************************************
@@ -348,296 +244,125 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timestop( handle )
-    INTEGER                                  :: handle
+  SUBROUTINE timestop(handle)
+    INTEGER, INTENT(in)                      :: handle
 
-    CHARACTER(LEN=40)                        :: sformat
     CHARACTER(LEN=400)                       :: line, mystring
-    INTEGER                                  :: handle_up
-    INTEGER(KIND=int_8)                      :: mem
-    REAL(KIND=dp)                            :: elapsed_wt, wt_now
+    CHARACTER(LEN=60)                        :: sformat
+    INTEGER                                  :: a, routine_id, stack_size
+    INTEGER, DIMENSION(2)                    :: routine_tuple
+    REAL(KIND=dp)                            :: wt_elapsed, wt_now
+    TYPE(call_stat_type), POINTER            :: c_stat
+    TYPE(callstack_entry_type)               :: cs_entry, prev_cs_entry
+    TYPE(routine_stat_type), POINTER         :: prev_stat, r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
 
-#if defined(__HPM)
-#include "f_hpm.h"
-#endif
-
+    routine_id = handle
+     
 !$OMP MASTER
-
+    
     wt_now = m_walltime()
-
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in timestop'
-       STOP  1
-    ENDIF
-
-    timer_env => timer_env_stack(stack_pointer)%timer_env
-
-    IF ( handle /= timer_env%handle_stack (timer_env%stack_size) ) THEN
-       PRINT *, "timer_env%stack_size",timer_env%stack_size," handle ",handle," timer_env%id_nr ",timer_env%id_nr
-       PRINT*,'mismatched timestop '&
-            //TRIM(timer_env%routine_stack(timer_env%stack_size))//&
-            ' in routine timestop'
+    timer_env => list_peek(timers_stack)
+    cs_entry = list_pop(timer_env%callstack)
+    r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
+    
+    IF (handle /= cs_entry%routine_id) THEN
+       PRINT *, "list_size(timer_env%callstack) ",list_size(timer_env%callstack), &
+          " handle ",handle," list_size(timers_stack) ",list_size(timers_stack)
+       PRINT *, 'mismatched timestop '//TRIM(r_stat%routineN)//' in routine timestop'
        STOP 1
     END IF
 
-    IF ( handle > timer_env%num_timer ) THEN
-       ! intermediate work-around
-       PRINT*,'handle > num_timer in routine timestop'
-       STOP 1
-    ENDIF
-
-#if defined(__HPM)
-    IF (use_HPM) THEN
-       CALL f_hpmstop(handle)
-    ENDIF
-#endif
-
     ! add the elapsed time for this timeset/timestop to the time accumulator
-    elapsed_wt = wt_now - timer_env%wallclock_start ( timer_env%stack_size )
-
+    wt_elapsed = wt_now - cs_entry%walltime_start
+    r_stat%active_calls = r_stat%active_calls - 1
+    
     ! if we're the last instance in the stack, we do the accounting of the total time
-    IF (timer_env%clock_status ( handle ) == 1) THEN
-       timer_env%inclusive_wallclock_accu ( handle ) = timer_env%inclusive_wallclock_accu ( handle ) + elapsed_wt
-    ENDIF
+    IF(r_stat%active_calls == 0) &
+       r_stat%incl_walltime_accu = r_stat%incl_walltime_accu + wt_elapsed
 
     ! exclusive time we always sum, since children will correct this time with their total time
-    timer_env%exclusive_wallclock_accu ( handle ) = timer_env%exclusive_wallclock_accu ( handle ) + elapsed_wt
-
-    ! we fixup the clock of the caller
-    IF (timer_env%stack_size>1) THEN
-       handle_up=timer_env%handle_stack (timer_env%stack_size-1)
-       timer_env%exclusive_wallclock_accu ( handle_up ) = timer_env%exclusive_wallclock_accu ( handle_up ) - elapsed_wt
+    r_stat%excl_walltime_accu = r_stat%excl_walltime_accu + wt_elapsed
+    
+    
+    stack_size = list_size(timer_env%callstack)
+    IF(stack_size > 0) THEN
+       prev_cs_entry = list_peek(timer_env%callstack)
+       prev_stat => list_get(timer_env%routine_stats, prev_cs_entry%routine_id)
+       ! we fixup the clock of the caller
+       prev_stat%excl_walltime_accu = prev_stat%excl_walltime_accu - wt_elapsed
+       
+       !update callgraph
+       routine_tuple = (/ prev_cs_entry%routine_id, routine_id /)
+       c_stat => dict_get(timer_env%callgraph, routine_tuple, default_value=Null())
+       IF(.NOT. ASSOCIATED(c_stat)) THEN
+          ALLOCATE(c_stat)
+          c_stat%total_calls = 0
+          c_stat%incl_walltime_accu = 0.0_dp
+          CALL dict_set(timer_env%callgraph, routine_tuple, c_stat)
+       END IF
+       c_stat%total_calls = c_stat%total_calls + 1
+       c_stat%incl_walltime_accu = c_stat%incl_walltime_accu + wt_elapsed
     ENDIF
 
+    
     !..if debug mode echo the subroutine name
-    IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
-       WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-7),"X,I4,1X,I6,1X,A,F12.3)"
-       WRITE ( mystring, sformat) &
-            timer_env%bstring, &
-            timer_env%stack_size, &
-            timer_env%routine_calls ( handle ), &
-            TRIM(timer_env%routine_stack(timer_env%stack_size)),elapsed_wt
-       mem=m_memory()
-       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1024*1024-1)/(1024*1024),"Mb"
-       IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
-          WRITE(timer_env%unit_nr,*) TRIM(line)
-          CALL m_flush(timer_env%unit_nr)
-       ENDIF
+    IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
+        (r_stat%total_calls < timer_env%trace_max)) THEN 
+       WRITE(sformat,*) "(A,A,",MAX(1,3*stack_size-4),"X,I4,1X,I6,1X,A,F12.3)"
+       WRITE (mystring, sformat) timer_env%trace_str, "<<", stack_size+1, &
+            r_stat%total_calls, TRIM(r_stat%routineN), wt_elapsed
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring), &
+            (m_memory()+1024*1024-1)/(1024*1024),"Mb"
+       WRITE(timer_env%trace_unit,*) TRIM(line)
+       CALL m_flush(timer_env%trace_unit)
     ENDIF
 
-    !..remove name from subroutine stack
-    timer_env%clock_status ( handle ) = timer_env%clock_status ( handle ) - 1
-    timer_env%handle_stack (timer_env%stack_size)=0
-    timer_env%stack_size = timer_env%stack_size - 1
+
 
 !$OMP END MASTER
 
   END SUBROUTINE timestop
 
 ! *****************************************************************************
-!> \brief Print accumulated information on timers
-!> \param para_env is needed here because the group in the timer_env is not valid
-!> \par History
-!>      none
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE timeprint(iw,r_timings,sort_by_self_time,para_env)
-    INTEGER, INTENT(IN)                      :: iw
-    REAL(KIND=dp), INTENT(IN)                :: r_timings
-    LOGICAL, INTENT(IN)                      :: sort_by_self_time
-    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
-
-    CHARACTER(LEN=80)                        :: fmt
-    CHARACTER(LEN=max_clock_name)            :: iclock
-    INTEGER                                  :: decimals, i, j, num_timer
-    INTEGER, DIMENSION(max_timer)            :: index
-    REAL(KIND=dp)                            :: asd, imax_ewall, imax_iwall, &
-                                                isum_ewall, isum_iwall, &
-                                                maxtime, mintime
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: max_ewalltime, max_iwalltime, &
-                                                sum_ewalltime, sum_iwalltime
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: max_walltime
-    TYPE(timer_env_type), POINTER            :: timer_env
-
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in time_set'
-       STOP 1
-    ENDIF
-
-    NULLIFY (max_walltime)
-
-    timer_env => timer_env_stack(stack_pointer)%timer_env
-
-    ! find the number of timing events on the parent
-    ! note: we assume that timing events on the parent
-    !       include all possible timing events.. i.e. there
-    !       are no other timing events on the rest of the group.
-    !       If this is the case they will be ignored in the
-    !       timing report.
-    num_timer=timer_env%num_timer
-    CALL mp_bcast(num_timer,para_env%source,para_env%group)
-
-    ALLOCATE(max_iwalltime(num_timer))
-    ALLOCATE(sum_iwalltime(num_timer))
-    ALLOCATE(max_ewalltime(num_timer))
-    ALLOCATE(sum_ewalltime(num_timer))
-
-    ! for each clock_name find the needed quantities over all CPUs.
-    DO i=1,num_timer
-       iclock=timer_env%clock_name(i)
-       CALL mp_bcast(iclock,para_env%source,para_env%group)
-       imax_iwall=0.0_dp
-       isum_iwall=0.0_dp
-       imax_ewall=0.0_dp
-       isum_ewall=0.0_dp
-       DO j=1,timer_env%num_timer
-          IF (timer_env%clock_name(j)==iclock) THEN
-             imax_iwall=timer_env%inclusive_wallclock_accu(j)
-             isum_iwall=timer_env%inclusive_wallclock_accu(j)
-             imax_ewall=timer_env%exclusive_wallclock_accu(j)
-             isum_ewall=timer_env%exclusive_wallclock_accu(j)
-             EXIT
-          ENDIF
-       ENDDO
-       CALL mp_sum(isum_iwall,para_env%group)
-       CALL mp_max(imax_iwall,para_env%group)
-       max_iwalltime(i)=imax_iwall
-       sum_iwalltime(i)=isum_iwall
-
-       CALL mp_sum(isum_ewall,para_env%group)
-       CALL mp_max(imax_ewall,para_env%group)
-       max_ewalltime(i)=imax_ewall
-       sum_ewalltime(i)=isum_ewall
-    ENDDO
-
-    IF ((num_timer > 0).AND.(iw > 0)) THEN
-
-       IF (sort_by_self_time) THEN
-          max_walltime => max_ewalltime
-       ELSE
-          max_walltime => max_iwalltime
-       END IF
-
-       CALL sort(max_walltime,num_timer,index)
-
-       maxtime = max_walltime(num_timer)
-       mintime = maxtime*r_timings
-
-       WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
-       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-       WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
-       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-
-       WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
-            "SUBROUTINE","CALLS"," ASD","SELF TIME","TOTAL TIME"
-       WRITE (UNIT=iw,FMT="(T45,4A9)")&
-            "AVERAGE", "MAXIMUM", "AVERAGE","MAXIMUM"
-
-       ! adjust fmt dynamically based on the max walltime.
-       ! few clocks have more than 3 digits resolution, so stop there
-       IF (num_timer > 0) THEN
-         i = num_timer
-         decimals = 3
-         IF (max_walltime(i) >= 10000)   decimals = 2
-         IF (max_walltime(i) >= 100000)  decimals = 1
-         IF (max_walltime(i) >= 1000000) decimals = 0
-         WRITE (UNIT=fmt,FMT="(A,I0,A)")&
-           "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
-       END IF
-
-       DO i=num_timer,1,-1
-
-          j = INDEX(i)
-
-          IF (max_walltime(i) > mintime) THEN
-
-             ! average stack depth
-             asd = REAL(timer_env%routine_stack_depth(j),KIND=dp)/ &
-                   REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
-
-             IF (sort_by_self_time) THEN
-                WRITE (UNIT=iw,FMT=fmt) &
-                 ADJUSTL(timer_env%clock_name(j)(1:31)),&
-                 timer_env%routine_calls(j),&
-                 ASD,&
-                 sum_ewalltime(j)/para_env%num_pe,&
-                 max_ewalltime(i),&
-                 sum_iwalltime(j)/para_env%num_pe,&
-                 max_iwalltime(j)
-             ELSE
-                WRITE (UNIT=iw,FMT=fmt) &
-                 ADJUSTL(timer_env%clock_name(j)(1:31)),&
-                 timer_env%routine_calls(j),&
-                 ASD,&
-                 sum_ewalltime(j)/para_env%num_pe,&
-                 max_ewalltime(j),&
-                 sum_iwalltime(j)/para_env%num_pe,&
-                 max_iwalltime(i)
-             END IF
-          END IF
-
-       END DO
-       WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",79)
-    END IF
-
-    NULLIFY (max_walltime)
-
-  END SUBROUTINE timeprint
-
-! *****************************************************************************
 !> \brief Set routine tracer
+!> \param trace_max  maximum number of calls reported per routine. 
+!>           Setting this to zero disables tracing. 
+!> \param unit_nr output unit used for printing the trace-messages
+!> \param trace_str short info-string which is printed along with every message
+!> \param routine_names List of routine-names.
+!>                     If provided only these routines will be traced.
+!.                      If not present all routines will traced.
 !> \par History
-!>      none
+!>       12.2012  added ability to trace only certain routines [ole]
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE trace_debug ( set, trace_master, trace_max, unit_nr, para_env )
-    CHARACTER(len=*)                         :: set
-    LOGICAL, INTENT(IN)                      :: trace_master
+  SUBROUTINE timings_setup_tracing (trace_max, unit_nr, trace_str, routine_names)   
     INTEGER, INTENT(IN)                      :: trace_max, unit_nr
-    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
+    CHARACTER(len=13), INTENT(IN)            :: trace_str
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), INTENT(IN), OPTIONAL     :: routine_names
 
-    CHARACTER(len=5)                         :: set2
+    INTEGER                                  :: i, routine_id
+    TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
 
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in trace_debug'
-       STOP 1
-    ENDIF
-
-    timer_env => timer_env_stack(stack_pointer)%timer_env
-
-    set2=TRIM(set)
-    CALL uppercase(set2)
-
-    timer_env%trace_master=trace_master
-    timer_env%trace_max=trace_max
-    timer_env%unit_nr=unit_nr
-    ! this is a hack, timer_env can not retain para_env in a clean way
-    ! as such, there is little guarantee this communicator remains valid
-    timer_env%group=para_env%group
-    timer_env%mepos=para_env%mepos
-    timer_env%num_pe=para_env%num_pe
-
-    SELECT CASE (set2)
-    CASE ("START")
-       timer_env%trace = .TRUE.
-    CASE ("STOP")
-       timer_env%trace = .FALSE.
-    CASE DEFAULT
-       ! intermediate work-around
-       PRINT*,'unknown action requested in routine trace_debug'
-       STOP 1
-    END SELECT
-
-    WRITE (timer_env%astring,"(I6.6,A1,I6.6,A2)") timer_env%mepos,":",&
-         timer_env%num_pe,">>"
-    WRITE (timer_env%bstring,"(I6.6,A1,I6.6,A2)") timer_env%mepos,":",&
-         timer_env%num_pe,"<<"
-
-  END SUBROUTINE trace_debug
+    timer_env => list_peek(timers_stack)
+    timer_env%trace_max       = trace_max
+    timer_env%trace_unit      = unit_nr
+    timer_env%trace_str       = trace_str
+    timer_env%trace_all       = .TRUE.
+    IF(.NOT. PRESENT(routine_names)) RETURN
+        
+    ! setup routine-specific tracing
+    timer_env%trace_all = .FALSE.
+    DO i=1, SIZE(routine_names)
+       routine_id = routine_name2id(routine_names(i))
+       r_stat => list_get(timer_env%routine_stats, routine_id)
+       r_stat%trace = .TRUE. 
+    END DO
+    
+  END SUBROUTINE timings_setup_tracing
 
 ! *****************************************************************************
 !> \brief Print current routine stack
@@ -645,71 +370,68 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE print_stack ( iw )
+  SUBROUTINE print_stack(unit_nr)
+    INTEGER, INTENT(IN)                      :: unit_nr
 
-    INTEGER                                  :: iw
-
-    INTEGER                                  :: i, io
+    INTEGER                                  :: i
+    TYPE(callstack_entry_type)               :: cs_entry
+    TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
 
-    io = iw
-    IF (stack_pointer<1) THEN
-       PRINT*,'no timer env available in print_stack'
-       STOP 1
-    ENDIF
-
-    timer_env => timer_env_stack(stack_pointer)%timer_env
-
-    WRITE ( io , '(/,A,/)') " ===== Routine Calling Stack ===== "
-    DO i = timer_env%stack_size, 1, -1
-       WRITE ( io, '(T10,I4,1X,A)') i,TRIM(timer_env%routine_stack(i))
+    timer_env => list_peek(timers_stack)
+    WRITE (unit_nr, '(/,A,/)') " ===== Routine Calling Stack ===== "
+    DO i = list_size(timer_env%callstack), 1, -1
+       cs_entry  = list_get(timer_env%callstack, i)
+       r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
+       WRITE (unit_nr, '(T10,I4,1X,A)') i, TRIM(r_stat%routineN)
     END DO
-
   END SUBROUTINE print_stack
 
 ! *****************************************************************************
-!> \brief makes a binary search in an array of strings ordered with the index
-!>      diven in ord_idx and returns the index of arr_idx
-!>      where the element is (or the element after which it should be inserted)
-!> \param el the element to search
-!> \param list the list of strings
-!> \param ord_idx indexes that make list ordered in growing order
-!> \param lb lower bound for the search (defaults to 1)
-!> \param ub upper bound for the search (defaults to size(list))
-!> \author fawzi
+!> \brief Internal routine used by timestet and timings_setup_tracing.
+!>        If no routine with given name is found in timer_env%routine_names
+!>        then a new entiry is created.
+!> \author Ole Schuett
 ! *****************************************************************************
-  FUNCTION timer_binsearch(el,list,ord_idx,lb,ub)RESULT(res)
-    CHARACTER(len=*), INTENT(in)             :: el
-    CHARACTER(len=max_clock_name), &
-      DIMENSION(:), INTENT(in)               :: list
-    INTEGER, DIMENSION(:), INTENT(in)        :: ord_idx
-    INTEGER, INTENT(in)                      :: lb, ub
-    INTEGER                                  :: res
+ FUNCTION routine_name2id(routineN) RESULT(routine_id)
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: routineN
+    INTEGER                                  :: routine_id
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'timer_binsearch', &
-      routineP = moduleN//':'//routineN
+    INTEGER                                  :: stat
+    TYPE(routine_stat_type), POINTER         :: r_stat
+    TYPE(timer_env_type), POINTER            :: timer_env
 
-    INTEGER                                  :: li, mi, ui
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    li=lb
-    ui=ub
-    IF (ui>SIZE(list)) THEN
-       PRINT *, "error in timings:timer_binsearch, ui>size(list)",ui,SIZE(list)
+    timer_env => list_peek(timers_stack)
+    routine_id = dict_get(timer_env%routine_names, routineN, default_value=-1)
+    
+    IF(routine_id /= -1) RETURN ! found an id - let's return it
+    ! routine not found - let's create it
+                
+    ! enforce space free timer names, to make the output of trace/timings of a fixed number fields
+    IF (INDEX(routineN(1:LEN_TRIM(routineN)),' ') /= 0) THEN 
+       PRINT *, "timings_name2id: routineN contains spaces: "//routineN
        STOP 1
     END IF
-    DO
-       IF (li>ui) EXIT
-       mi=(li+ui)/2
-       IF (el<list(ord_idx(mi))) THEN
-          ui=mi-1
-       ELSE
-          li=mi+1
-       END IF
-    END DO
-    res=ui
-  END FUNCTION timer_binsearch
-
+     
+    ! register routine_name_dsl with new routine_id
+    routine_id = dict_size(timer_env%routine_names) + 1
+    CALL dict_set(timer_env%routine_names, routineN, routine_id)
+    
+    ALLOCATE(r_stat, stat=stat)
+    IF(stat /= 0) STOP "timings_name2id: allocation failed"
+    r_stat%routine_id = routine_id
+    r_stat%routineN = routineN
+    r_stat%active_calls = 0
+    r_stat%excl_walltime_accu = 0.0_dp
+    r_stat%incl_walltime_accu = 0.0_dp
+    r_stat%total_calls = 0
+    r_stat%stackdepth_accu = 0
+    r_stat%trace = .FALSE.
+    CALL list_push(timer_env%routine_stats, r_stat)
+    IF(list_size(timer_env%routine_stats) /= dict_size(timer_env%routine_names)) &
+       STOP "timings_name2id: assertion failed"
+ END FUNCTION routine_name2id
+ 
 END MODULE timings
 

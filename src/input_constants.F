@@ -901,4 +901,9 @@ MODULE input_constants
                                               do_resp_minus_y_dir=4,& 
                                               do_resp_minus_z_dir=5 
 
+  ! callgraph parameters
+  INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
+                                              callgraph_master=1,&
+                                              callgraph_all=2 
+                                            
 END MODULE input_constants
