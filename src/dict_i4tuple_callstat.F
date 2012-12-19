@@ -234,7 +234,7 @@ SUBROUTINE set_hashed(dict, key, value, hash)
     INTEGER                                  :: idx
     TYPE(private_item_type), POINTER         :: item, new_item
 
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     ! if allready in dict just update its value
     item => dict%buckets(idx)%p
