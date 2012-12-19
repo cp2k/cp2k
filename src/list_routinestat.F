@@ -23,7 +23,7 @@
 
 MODULE list_routinestat
 
-  USE timings_base_type,                  ONLY: routine_stat_type
+  USE timings_base_type,               ONLY: routine_stat_type
 
   IMPLICIT NONE
   PRIVATE

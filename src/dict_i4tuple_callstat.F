@@ -29,7 +29,7 @@
 
 MODULE dict_i4tuple_callstat
   USE kinds,                           ONLY: int_4
-  USE timings_base_type,                  ONLY: call_stat_type
+  USE timings_base_type,               ONLY: call_stat_type
 
   IMPLICIT NONE
   PRIVATE

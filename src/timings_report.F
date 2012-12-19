@@ -29,9 +29,9 @@ MODULE timings_report
                                              mp_max,&
                                              mp_sum
   USE timings,                         ONLY: get_timer_env
-  USE timings_types,                   ONLY: timer_env_type
-  USE timings_base_type,                  ONLY: call_stat_type,&
+  USE timings_base_type,               ONLY: call_stat_type,&
                                              routine_stat_type
+  USE timings_types,                   ONLY: timer_env_type
   USE util,                            ONLY: sort
 
   IMPLICIT NONE

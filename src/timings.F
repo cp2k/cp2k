@@ -34,10 +34,10 @@ MODULE timings
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE timings_types,                   ONLY: timer_env_type
-  USE timings_base_type,                  ONLY: call_stat_type,&
+  USE timings_base_type,               ONLY: call_stat_type,&
                                              callstack_entry_type,&
                                              routine_stat_type
+  USE timings_types,                   ONLY: timer_env_type
 
   IMPLICIT NONE
   PRIVATE

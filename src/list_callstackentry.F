@@ -23,7 +23,7 @@
 
 MODULE list_callstackentry
 
-  USE timings_base_type,                  ONLY: callstack_entry_type
+  USE timings_base_type,               ONLY: callstack_entry_type
 
   IMPLICIT NONE
   PRIVATE
