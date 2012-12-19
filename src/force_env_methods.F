@@ -1310,6 +1310,12 @@ CPSourceFileRef,&
                        mixed_energy=mixed_energy,&
                        error=error)
 
+    !NB: do this for all MIXING_TYPE values, since some need it (e.g. linear mixing 
+    !NB if the first system has fewer atoms than the second)
+    DO iparticle = 1, SIZE(particles_mix%els)
+       particles_mix%els(iparticle)%f(:) = 0.0_dp
+    END DO
+
     CALL section_vals_val_get(mixed_section,"MIXING_TYPE",i_val=mixing_type,error=error)
     SELECT CASE(mixing_type)
     CASE(mix_linear_combination)
@@ -1373,9 +1379,6 @@ CPSourceFileRef,&
        ! Now the hardest part.. map energy with corresponding force_eval
        mixed_energy%pot= evalf(1,force_env%mixed_env%val)
        CPPrecondition(EvalErrType<=0,cp_failure_level,routineP,error,failure)
-       DO iparticle = 1, SIZE(particles_mix%els)
-          particles_mix%els(iparticle)%f(:) = 0.0_dp
-       END DO
        CALL zero_virial(virial_mix, reset=.FALSE.)
        CALL cp_results_erase(results_mix, error=error)
        DO iforce_eval = 1, nforce_eval
