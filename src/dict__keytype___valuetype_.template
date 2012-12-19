@@ -310,7 +310,7 @@ FUNCTION dict_[keytype]_[valuetype]_get(dict, key, default_value) RESULT(value)
        STOP "dict_[keytype]_[valuetype]_get: dictionary is not initialized."
     
     hash = hash_[keytype](key)
-    idx = MOD(hash, size(dict%buckets)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))
@@ -350,7 +350,7 @@ SUBROUTINE dict_[keytype]_[valuetype]_del(dict, key)
        STOP "dict_[keytype]_[valuetype]_del: dictionary is not initialized."
        
     hash = hash_[keytype](key)
-    idx = MOD(hash, size(dict%buckets)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     prev_item => Null()
@@ -412,7 +412,7 @@ FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
     IF(dict%size==0) RETURN
     
     hash = hash_[keytype](key)
-    idx = MOD(hash, size(dict%buckets)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))

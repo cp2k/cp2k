@@ -337,7 +337,7 @@ FUNCTION dict_i4tuple_callstat_get(dict, key, default_value) RESULT(value)
        STOP "dict_i4tuple_callstat_get: dictionary is not initialized."
     
     hash = hash_i4tuple(key)
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
@@ -379,7 +379,7 @@ SUBROUTINE dict_i4tuple_callstat_del(dict, key)
        STOP "dict_i4tuple_callstat_del: dictionary is not initialized."
        
     hash = hash_i4tuple(key)
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     prev_item => Null()
@@ -444,7 +444,7 @@ FUNCTION dict_i4tuple_callstat_haskey(dict, key) RESULT(res)
     IF(dict%size==0) RETURN
     
     hash = hash_i4tuple(key)
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))

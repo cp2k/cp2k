@@ -326,7 +326,7 @@ FUNCTION dict_str_i4_get(dict, key, default_value) RESULT(value)
        STOP "dict_str_i4_get: dictionary is not initialized."
     
     hash = hash_str(key)
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
@@ -367,7 +367,7 @@ SUBROUTINE dict_str_i4_del(dict, key)
        STOP "dict_str_i4_del: dictionary is not initialized."
        
     hash = hash_str(key)
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     prev_item => Null()
@@ -430,7 +430,7 @@ FUNCTION dict_str_i4_haskey(dict, key) RESULT(res)
     IF(dict%size==0) RETURN
     
     hash = hash_str(key)
-    idx = MOD(hash, SIZE(dict%buckets)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
     
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
