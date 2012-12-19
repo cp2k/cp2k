@@ -27,8 +27,8 @@
 ! *****************************************************************************
 MODULE cp_array_i8_sort
    
-  
-  
+  USE kinds,                           ONLY: int_8
+
   IMPLICIT NONE
   PRIVATE
 
@@ -52,12 +52,12 @@ MODULE cp_array_i8_sort
 ! *****************************************************************************
 SUBROUTINE cp_1d_i8_sort(arr, n, indices)
     INTEGER, INTENT(in)                      :: n
-    INTEGER(kind=8), DIMENSION(1:n), &
+    INTEGER(kind=int_8), DIMENSION(1:n), &
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
 
     INTEGER                                  :: i
-    INTEGER(kind=8), &
+    INTEGER(kind=int_8), &
       DIMENSION((SIZE(arr)+1)/2)             :: tmp_arr
     INTEGER, DIMENSION((SIZE(arr)+1)/2)      :: tmp_idx
 
@@ -83,18 +83,18 @@ END SUBROUTINE cp_1d_i8_sort
 !> \author Ole Schuett
 ! *****************************************************************************
 RECURSIVE SUBROUTINE cp_1d_i8_sort_low(arr, indices, tmp_arr, tmp_idx)
-    INTEGER(kind=8), DIMENSION(:), &
+    INTEGER(kind=int_8), DIMENSION(:), &
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(SIZE(arr)), &
       INTENT(inout)                          :: indices
-    INTEGER(kind=8), &
+    INTEGER(kind=int_8), &
       DIMENSION((SIZE(arr)+1)/2), &
       INTENT(inout)                          :: tmp_arr
     INTEGER, DIMENSION((SIZE(arr)+1)/2), &
       INTENT(inout)                          :: tmp_idx
 
     INTEGER                                  :: i, j, k, m, t
-    INTEGER(kind=8)                          :: a
+    INTEGER(kind=int_8)                      :: a
     LOGICAL                                  :: swapped = .TRUE.
 
 ! a,t:  used during swaping of elements in arr and indices
@@ -170,7 +170,7 @@ END SUBROUTINE cp_1d_i8_sort_low
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,lessQ,defines)]
 ! ARGS:
-!  USE = ""
+!  USE = "USE kinds,       ONLY:int_8"
 !  defines = 
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
@@ -178,7 +178,7 @@ END SUBROUTINE cp_1d_i8_sort_low
 !  lib = "cp"
 !  libname = "cp"
 !  nametype1 = "i8"
-!  type1 = "integer(kind=8)"
+!  type1 = "integer(kind=int_8)"
 
 
 END MODULE cp_array_i8_sort

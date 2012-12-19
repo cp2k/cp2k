@@ -27,8 +27,8 @@
 ! *****************************************************************************
 MODULE cp_array_i4_sort
    
-  
-  
+  USE kinds,                           ONLY: int_4
+
   IMPLICIT NONE
   PRIVATE
 
@@ -52,12 +52,12 @@ MODULE cp_array_i4_sort
 ! *****************************************************************************
 SUBROUTINE cp_1d_i4_sort(arr, n, indices)
     INTEGER, INTENT(in)                      :: n
-    INTEGER(kind=4), DIMENSION(1:n), &
+    INTEGER(kind=int_4), DIMENSION(1:n), &
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
 
     INTEGER                                  :: i
-    INTEGER(kind=4), &
+    INTEGER(kind=int_4), &
       DIMENSION((SIZE(arr)+1)/2)             :: tmp_arr
     INTEGER, DIMENSION((SIZE(arr)+1)/2)      :: tmp_idx
 
@@ -83,18 +83,18 @@ END SUBROUTINE cp_1d_i4_sort
 !> \author Ole Schuett
 ! *****************************************************************************
 RECURSIVE SUBROUTINE cp_1d_i4_sort_low(arr, indices, tmp_arr, tmp_idx)
-    INTEGER(kind=4), DIMENSION(:), &
+    INTEGER(kind=int_4), DIMENSION(:), &
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(SIZE(arr)), &
       INTENT(inout)                          :: indices
-    INTEGER(kind=4), &
+    INTEGER(kind=int_4), &
       DIMENSION((SIZE(arr)+1)/2), &
       INTENT(inout)                          :: tmp_arr
     INTEGER, DIMENSION((SIZE(arr)+1)/2), &
       INTENT(inout)                          :: tmp_idx
 
     INTEGER                                  :: i, j, k, m, t
-    INTEGER(kind=4)                          :: a
+    INTEGER(kind=int_4)                      :: a
     LOGICAL                                  :: swapped = .TRUE.
 
 ! a,t:  used during swaping of elements in arr and indices
@@ -170,7 +170,7 @@ END SUBROUTINE cp_1d_i4_sort_low
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,lessQ,defines)]
 ! ARGS:
-!  USE = ""
+!  USE = "USE kinds,       ONLY:int_4"
 !  defines = 
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
@@ -178,7 +178,7 @@ END SUBROUTINE cp_1d_i4_sort_low
 !  lib = "cp"
 !  libname = "cp"
 !  nametype1 = "i4"
-!  type1 = "integer(kind=4)"
+!  type1 = "integer(kind=int_4)"
 
 
 END MODULE cp_array_i4_sort
