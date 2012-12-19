@@ -294,7 +294,7 @@ MODULE timings
        
        !update callgraph
        routine_tuple = (/ prev_cs_entry%routine_id, routine_id /)
-       c_stat => dict_get(timer_env%callgraph, routine_tuple, default_value=Null())
+       c_stat => dict_get(timer_env%callgraph, routine_tuple, default_value=Null(c_stat))
        IF(.NOT. ASSOCIATED(c_stat)) THEN
           ALLOCATE(c_stat)
           c_stat%total_calls = 0
