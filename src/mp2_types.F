@@ -31,6 +31,7 @@ MODULE mp2_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
   PUBLIC :: mp2_type, mp2_direct_type, &
+            integ_mat_buffer_type,&
             mp2_method_none,&
             mp2_method_laplace,&
             mp2_method_direct,&
@@ -100,6 +101,12 @@ MODULE mp2_types
        REAL(dp) :: scale_S
        REAL(dp) :: scale_T
        INTEGER  :: mp2_num_proc
+  END TYPE
+
+  TYPE integ_mat_buffer_type
+    REAL(KIND=dp), DIMENSION(:), POINTER  :: msg
+    INTEGER :: proc
+    INTEGER :: msg_req
   END TYPE
 
   TYPE pair_list_type_mp2
