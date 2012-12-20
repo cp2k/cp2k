@@ -59,7 +59,7 @@ MODULE bibliography
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009
+             Dion2004, Romanperez2009, DelBen2012
 
 CONTAINS
 
@@ -2159,6 +2159,29 @@ CONTAINS
          "UR http://prl.aps.org/abstract/PRL/v103/i9/e096102",&
          "ER"),&
          DOI="10.1103/PhysRevLett.103.096102")
+
+     CALL add_reference(key=DelBen2012, ISI_record=s2a(&
+         "PT J",&
+         "AU Del Ben, M",&
+         "   Hutter, J",&
+         "   VandeVondele, J",&
+         "AF Del Ben, Mauro",&
+         "   Hutter, Jueg",&
+         "   VandeVondele, Joost",&
+         "TI Second-Order Moller-Plesset Perturbation Theory in the Condensed Phase:",&
+         "   An Efficient and Massively Parallel Gaussian and Plane Waves Approach",&
+         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+         "SN 1549-9618",&
+         "PD NOV",&
+         "PY 2012",&
+         "VL 8",&
+         "IS 11",&
+         "BP 4177",&
+         "EP 4188",&
+         "DI 10.1021/ct300531w",&
+         "UT WOS:000311191900019",&
+         "ER"),&
+         DOI="10.1021/ct300531w")
 
   END SUBROUTINE add_all_references
 

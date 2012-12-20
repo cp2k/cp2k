@@ -10,6 +10,7 @@
 !> \author MDB
 ! *****************************************************************************
 MODULE input_cp2k_mp2
+  USE bibliography,                    ONLY: DelBen2012
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -60,6 +61,7 @@ CONTAINS
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
             n_keywords=6, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
+            citations=(/DelBen2012/),&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -67,6 +69,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="METHOD",&
+            citations=(/DelBen2012/),&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD MP2_GPW",&
             enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE"),&

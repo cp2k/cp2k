@@ -15,6 +15,8 @@ MODULE mp2
   USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE bibliography,                    ONLY: DelBen2012,&
+                                             cite_reference
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
@@ -149,6 +151,8 @@ MODULE mp2
     CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
+
+    CALL cite_reference(DelBen2012)
 
     CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
                   particle_set=particle_set, para_env=para_env,   &
