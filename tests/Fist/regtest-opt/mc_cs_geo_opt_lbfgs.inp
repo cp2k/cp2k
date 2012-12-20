@@ -4,7 +4,7 @@
 
 &GLOBAL
  FLUSH_SHOULD_FLUSH
- PRINT_LEVEL low
+ PRINT_LEVEL medium
  PROJECT mc_cs_geo_opt_lbfgs
  RUN_TYPE geo_opt
  WALLTIME 600
@@ -138,7 +138,8 @@
  &END PRINT
  &PROPERTIES
   &ATOMIC
-   ENERGY
+   ENERGY on
+   PRESSURE off
    &PRINT
     &EACH
      GEO_OPT 1

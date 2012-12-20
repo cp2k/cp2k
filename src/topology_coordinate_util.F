@@ -377,6 +377,7 @@ CPSourceFileRef,&
        END IF
        particle_set(i)%atomic_kind => atomic_kind_set(ikind)
        particle_set(i)%r(:) = atom_info%r(:,i) - dims
+       particle_set(i)%atom_index = i
     END DO
     CALL timestop(handle2)
     DEALLOCATE(kind_of,STAT=stat)

@@ -85,8 +85,8 @@ MODULE force_env_methods
        do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, &
        do_stress_analytical, do_stress_diagonal_anal, &
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
-       mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
-       mix_restrained, use_bazant_eip, use_lenosky_eip
+       low_print_level, mix_coupled, mix_generic, mix_linear_combination, &
+       mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type,&
@@ -176,16 +176,21 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: ateps = 1.e-6_dp
+    REAL(kind=dp), PARAMETER                 :: ateps = 1.0E-6_dp
 
-    INTEGER                                  :: nat, ndigits, output_unit, &
-                                                print_forces, stat
+    INTEGER                                  :: i, j, nat, ndigits, &
+                                                output_unit, print_forces, &
+                                                stat
     LOGICAL                                  :: calculate_forces, &
                                                 energy_consistency, eval_ef, &
                                                 failure, my_skip
-    REAL(kind=dp)                            :: e_pot, pvtot
-    REAL(kind=dp), DIMENSION(3)              :: grand_total_force, total_force
-    REAL(kind=dp), DIMENSION(:), POINTER     :: pos
+    REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
+                                                sum_pv_virial, &
+                                                sum_stress_tensor
+    REAL(KIND=dp), DIMENSION(3)              :: grand_total_force, total_force
+    REAL(KIND=dp), DIMENSION(3, 3)           :: atomic_stress_tensor, &
+                                                diff_stress_tensor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
     TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -362,27 +367,77 @@ CONTAINS
        END IF
     END IF
 
-    !atomic properties
+    ! Atomic properties
     output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
-      extension=".Log",error=error)
+                                       extension=".Log",error=error)
     IF (atprop_env%energy) THEN
        CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL force_env_get(force_env, potential_energy=e_pot, error=error)
        IF (output_unit > 0) THEN
-          WRITE(output_unit,*)
-          WRITE(output_unit,*) "ENERGY (ATOMIC) :",SUM(atprop_env%atener(:))
-          WRITE(output_unit,*) "ENERGY (TOTAL)  :",e_pot
-          CPPostcondition(ABS(e_pot-SUM(atprop_env%atener))<ateps*ABS(e_pot),cp_fatal_level,routineP,error,failure)
+          IF (logger%iter_info%print_level > low_print_level) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T6,A,T15,A)") "Atom","Potential energy"
+             WRITE (UNIT=output_unit,FMT="(T2,I8,1X,F20.10)")&
+              (i,atprop_env%atener(i),i=1,SIZE(atprop_env%atener))
+          END IF
+          sum_energy = SUM(atprop_env%atener(:))
+          checksum = ABS(e_pot - sum_energy)
+          WRITE (UNIT=output_unit,FMT="(/,(T2,A,1X,F25.13))")&
+           "Potential energy (Atomic):",sum_energy,&
+           "Potential energy (Total) :",e_pot,&
+           "Difference               :",checksum
+          CPPostcondition((checksum < ateps*ABS(e_pot)),cp_fatal_level,routineP,error,failure)
        END IF
     END IF
     IF (atprop_env%stress) THEN
-       CALL mp_sum(atprop_env%atstress, force_env%para_env%group)
-       pvtot = SUM(virial%pv_virial(:,:))
+       CALL mp_sum(atprop_env%atstress,force_env%para_env%group)
        IF (output_unit > 0) THEN
-          WRITE(output_unit,*)
-          WRITE(output_unit,*) "STRESS (ATOMIC) :",SUM(atprop_env%atstress(:,:,:))
-          WRITE(output_unit,*) "STRESS (TOTAL)  :",pvtot
-          CPPostcondition(ABS(pvtot-SUM(atprop_env%atstress(:,:,:)))<ateps,cp_fatal_level,routineP,error,failure)
+          IF (logger%iter_info%print_level > low_print_level) THEN
+             DO i=1,SIZE(atprop_env%atstress,3)
+                WRITE (UNIT=output_unit,FMT="(/,T2,I0,T11,A1,2(14X,A1))") i,"X","Y","Z"
+                WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(atprop_env%atstress(1,j,i),j=1,3)
+                WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(atprop_env%atstress(2,j,i),j=1,3)
+                WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(atprop_env%atstress(3,j,i),j=1,3)
+                WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Atomic stress tensor):",&
+                 (atprop_env%atstress(1,1,i) + atprop_env%atstress(2,2,i) + atprop_env%atstress(3,3,i))/3.0_dp
+             END DO
+          END IF
+          atomic_stress_tensor(:,:) = 0.0_dp
+          DO i=1,3
+             atomic_stress_tensor(i,i) = SUM(atprop_env%atstress(i,i,:))
+             DO j=i+1,3
+                atomic_stress_tensor(i,j) = SUM(atprop_env%atstress(i,j,:))
+                atomic_stress_tensor(j,i) = atomic_stress_tensor(i,j)
+             END DO
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T11,A1,2(14X,A1))") "Atomic","X","Y","Z"
+          WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(atomic_stress_tensor(1,i),i=1,3)
+          WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(atomic_stress_tensor(2,i),i=1,3)
+          WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(atomic_stress_tensor(3,i),i=1,3)
+          WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Atomic stress tensor):",&
+           (atomic_stress_tensor(1,1) + atomic_stress_tensor(2,2) + atomic_stress_tensor(3,3))/3.0_dp
+          sum_stress_tensor = SUM(atomic_stress_tensor(:,:))
+          IF (virial%pv_availability.AND.calculate_forces) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T2,A,T11,A1,2(14X,A1))") "Total","X","Y","Z"
+             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(virial%pv_virial(1,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(virial%pv_virial(2,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(virial%pv_virial(3,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Total stress tensor): ",&
+              (virial%pv_virial(1,1) + virial%pv_virial(2,2) + virial%pv_virial(3,3))/3.0_dp
+             sum_pv_virial = SUM(virial%pv_virial(:,:))
+             diff_stress_tensor(:,:) = ABS(virial%pv_virial(:,:) - atomic_stress_tensor(:,:))
+             WRITE (UNIT=output_unit,FMT="(/,T2,A,T11,A1,2(14X,A1))") "Diff","X","Y","Z"
+             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(diff_stress_tensor(1,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(diff_stress_tensor(2,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(diff_stress_tensor(3,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Diff)               : ",&
+              (diff_stress_tensor(1,1) + diff_stress_tensor(2,2) + diff_stress_tensor(3,3))/3.0_dp
+             checksum = SUM(diff_stress_tensor(:,:))
+             WRITE (UNIT=output_unit,FMT="(/,(T2,A,1X,F25.13))")&
+              "Checksum stress (Atomic) :",sum_stress_tensor,&
+              "Checksum stress (Total)  :",sum_pv_virial,&
+              "Difference               :",checksum
+             CPPostcondition((checksum < ateps),cp_fatal_level,routineP,error,failure)
+          END IF
        END IF
     END IF
 

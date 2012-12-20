@@ -823,32 +823,36 @@ CONTAINS
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
 
+    INTEGER                                  :: iatom, jatom
     REAL(KIND=dp)                            :: arg, dij, e_arg_arg, errf, &
-                                                fscalar, idij, rijsq, tc
+                                                fscalar, idij, rijsq, tc, vbc
     REAL(KIND=dp), DIMENSION(3)              :: fij_com, rij
+    REAL(KIND=dp), DIMENSION(3, 3)           :: fbc
 
     rij = r1 - r2
-    rij = pbc(rij, cell)
+    rij = pbc(rij,cell)
     rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-    idij = 1.0_dp / SQRT ( rijsq )
-    dij = rijsq * idij
-    arg = alpha * dij
-    e_arg_arg = EXP ( -arg ** 2 )
-    tc = 1.0_dp / ( 1.0_dp + pc * arg )
+    idij = 1.0_dp/SQRT(rijsq)
+    dij = rijsq*idij
+    arg = alpha*dij
+    e_arg_arg = EXP(-arg**2)
+    tc = 1.0_dp/(1.0_dp + pc*arg)
 
     ! Defining errf=1-erfc
-    errf = 1.0_dp &
-         - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+    errf = 1.0_dp - ((((ac5*tc + ac4)*tc + ac3)*tc + ac2)*tc + ac1)*tc*e_arg_arg
 
     ! Getting the potential
-    v_bonded_corr = v_bonded_corr - q1*q2*idij*errf*fac_cor
+    vbc = -q1*q2*idij*errf*fac_cor
+    v_bonded_corr = v_bonded_corr + vbc
     IF (atprop_env%energy) THEN
-       atprop_env%atener(i) = atprop_env%atener(i) - 0.5_dp*q1*q2*idij*errf*fac_cor
-       atprop_env%atener(j) = atprop_env%atener(j) - 0.5_dp*q1*q2*idij*errf*fac_cor
+       iatom = particle_set1(i)%atom_index
+       atprop_env%atener(iatom) = atprop_env%atener(iatom) + 0.5_dp*vbc
+       jatom = particle_set2(j)%atom_index
+       atprop_env%atener(jatom) = atprop_env%atener(jatom) + 0.5_dp*vbc
     END IF
 
     ! Subtracting the force from the total force
-    fscalar = q1 * q2 * idij**2 * (idij*errf-const*e_arg_arg)*fac_cor
+    fscalar = q1*q2*idij**2*(idij*errf - const*e_arg_arg)*fac_cor
 
     particle_set1(i)%f(1) = particle_set1(i)%f(1) - fscalar*rij(1)
     particle_set1(i)%f(2) = particle_set1(i)%f(2) - fscalar*rij(2)
@@ -858,18 +862,27 @@ CONTAINS
     particle_set2(j)%f(2) = particle_set2(j)%f(2) + fscalar*rij(2)
     particle_set2(j)%f(3) = particle_set2(j)%f(3) + fscalar*rij(3)
 
-    IF (use_virial.AND.(shell_adiabatic)) THEN
+    IF (use_virial.AND.shell_adiabatic) THEN
        fij_com = fscalar*rij
-       pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * rij(1)
-       pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * rij(2)
-       pv_bc(1,3) = pv_bc(1,3) - fij_com(1) * rij(3)
-       pv_bc(2,1) = pv_bc(2,1) - fij_com(2) * rij(1)
-       pv_bc(2,2) = pv_bc(2,2) - fij_com(2) * rij(2)
-       pv_bc(2,3) = pv_bc(2,3) - fij_com(2) * rij(3)
-       pv_bc(3,1) = pv_bc(3,1) - fij_com(3) * rij(1)
-       pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * rij(2)
-       pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * rij(3)
+       fbc(1,1) = -fij_com(1)*rij(1)
+       fbc(1,2) = -fij_com(1)*rij(2)
+       fbc(1,3) = -fij_com(1)*rij(3)
+       fbc(2,1) = -fij_com(2)*rij(1)
+       fbc(2,2) = -fij_com(2)*rij(2)
+       fbc(2,3) = -fij_com(2)*rij(3)
+       fbc(3,1) = -fij_com(3)*rij(1)
+       fbc(3,2) = -fij_com(3)*rij(2)
+       fbc(3,3) = -fij_com(3)*rij(3)
+       pv_bc(:,:) = pv_bc(:,:) + fbc(:,:)
+       IF (atprop_env%stress) THEN
+          ! Atomic stress tensors
+          iatom = particle_set1(i)%atom_index
+          atprop_env%atstress(:,:,iatom) = atprop_env%atstress(:,:,iatom) + 0.5_dp*fbc(:,:)
+          jatom = particle_set2(j)%atom_index
+          atprop_env%atstress(:,:,jatom) = atprop_env%atstress(:,:,jatom) + 0.5_dp*fbc(:,:)
+       END IF
     END IF
+
   END SUBROUTINE bonded_correct_gaussian_low
 
 ! *****************************************************************************
@@ -902,10 +915,12 @@ CONTAINS
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
 
+    INTEGER                                  :: iatom
     REAL(KIND=dp)                            :: arg, dij, e_arg_arg, efac, &
                                                 errf, ffac, fscalar, idij, &
-                                                rijsq, tc, tc2, tc4
+                                                rijsq, tc, tc2, tc4, vbc
     REAL(KIND=dp), DIMENSION(3)              :: fr, rij
+    REAL(KIND=dp), DIMENSION(3, 3)           :: fbc
 
     rij = r1 - r2
     rij = pbc(rij,cell)
@@ -934,9 +949,11 @@ CONTAINS
     END IF
 
     ! getting the potential
-    v_bonded_corr = v_bonded_corr - q1*q2*efac
+    vbc = -q1*q2*efac
+    v_bonded_corr = v_bonded_corr + vbc
     IF (atprop_env%energy) THEN
-       atprop_env%atener(i) = atprop_env%atener(i) - q1*q2*efac
+       iatom = shell_particle_set(i)%atom_index
+       atprop_env%atener(iatom) = atprop_env%atener(iatom) + vbc
     END IF
 
     ! subtracting the force from the total force
@@ -951,16 +968,22 @@ CONTAINS
     shell_particle_set(i)%f(2) = shell_particle_set(i)%f(2) + fr(2)
     shell_particle_set(i)%f(3) = shell_particle_set(i)%f(3) + fr(3)
 
-    IF ((shell_adiabatic).AND.use_virial) THEN
-       pv_bc(1,1) = pv_bc(1,1) - fr(1)*rij(1)
-       pv_bc(1,2) = pv_bc(1,2) - fr(1)*rij(2)
-       pv_bc(1,3) = pv_bc(1,3) - fr(1)*rij(3)
-       pv_bc(2,1) = pv_bc(2,1) - fr(2)*rij(1)
-       pv_bc(2,2) = pv_bc(2,2) - fr(2)*rij(2)
-       pv_bc(2,3) = pv_bc(2,3) - fr(2)*rij(3)
-       pv_bc(3,1) = pv_bc(3,1) - fr(3)*rij(1)
-       pv_bc(3,2) = pv_bc(3,2) - fr(3)*rij(2)
-       pv_bc(3,3) = pv_bc(3,3) - fr(3)*rij(3)
+    IF (use_virial.AND.shell_adiabatic) THEN
+       fbc(1,1) = -fr(1)*rij(1)
+       fbc(1,2) = -fr(1)*rij(2)
+       fbc(1,3) = -fr(1)*rij(3)
+       fbc(2,1) = -fr(2)*rij(1)
+       fbc(2,2) = -fr(2)*rij(2)
+       fbc(2,3) = -fr(2)*rij(3)
+       fbc(3,1) = -fr(3)*rij(1)
+       fbc(3,2) = -fr(3)*rij(2)
+       fbc(3,3) = -fr(3)*rij(3)
+       pv_bc(:,:) = pv_bc(:,:) + fbc(:,:)
+       IF (atprop_env%stress) THEN
+          ! Atomic stress tensors
+          iatom = shell_particle_set(i)%atom_index
+          atprop_env%atstress(:,:,iatom) = atprop_env%atstress(:,:,iatom) + fbc(:,:)
+       END IF
     END IF
 
   END SUBROUTINE bonded_correct_gaussian_low_sh
