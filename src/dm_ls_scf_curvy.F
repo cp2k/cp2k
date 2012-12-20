@@ -168,7 +168,7 @@ CONTAINS
 
     IF(curvy_data%line_search_step==1)THEN     
        curvy_data%step_size=MAXVAL(curvy_data%step_size)
-       curvy_data%step_size=MIN(MAX(0.10,0.5_dp*ABS(curvy_data%step_size(1))),0.5_dp)
+       curvy_data%step_size=MIN(MAX(0.10_dp,0.5_dp*ABS(curvy_data%step_size(1))),0.5_dp)
 ! Dynamic eps_filter for newton steps
        filter=MAX(ls_scf_env%eps_filter*curvy_data%min_filter,&
                   ls_scf_env%eps_filter*curvy_data%filter_factor)
