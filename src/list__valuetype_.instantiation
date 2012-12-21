@@ -1,17 +1,4 @@
 [
-{'valuetype':'char',
-'USE': 'USE kinds,       ONLY: default_string_length',
-'valuetype_in':    'CHARACTER(LEN=*)',
-'valuetype_out':   'CHARACTER(LEN=default_string_length)',
-'value_assign':    '=',
-},
-
-{'valuetype':'i4',
-'USE':'USE kinds,       ONLY:int_4',
-'valuetype_in':    'INTEGER(kind=int_4)',
-'valuetype_out':   'INTEGER(kind=int_4)',
-'value_assign':    '=',
-},
 
 {'valuetype':'timerenv',
 'USE':'USE timings_types, ONLY: timer_env_type',

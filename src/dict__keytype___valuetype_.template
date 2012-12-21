@@ -20,20 +20,17 @@
 !> \author Ole Schuett
 ! ****************************************TOP**********************************
 
-!defaults
-#define isequal_[keytype](k1,k2) (k1==k2)
-
 [macros]
 
 MODULE dict_[keytype]_[valuetype]
  [USE]
   
+  USE kinds,                                 ONLY: int_8
+  
   IMPLICIT NONE
   PRIVATE
   
- ! Since fortran doesn't have an unsigned 4 byte int
- ! we compute the hash using an integer with the appropriate range
-  INTEGER, PARAMETER                         :: hashkind = SELECTED_INT_KIND(10)
+  
   
   !this is an internal type
   !Calculating hashes might be expensive, therefore they are stored
@@ -42,7 +39,7 @@ MODULE dict_[keytype]_[valuetype]
      PRIVATE
      [keytype_fort]                            :: key
      [valuetype_fort]                          :: value
-     INTEGER(KIND=hashkind)                    :: hash
+     INTEGER(KIND=int_8)                       :: hash
      TYPE(private_item_type), POINTER          :: next => Null()
   END TYPE private_item_type
 
@@ -95,11 +92,11 @@ MODULE dict_[keytype]_[valuetype]
 ! *****************************************************************************
 FUNCTION hash_str(key) RESULT(hash)
     CHARACTER(LEN=*), INTENT(IN)             :: key
-    INTEGER(KIND=hashkind)                   :: hash
-    INTEGER(KIND=hashkind), PARAMETER        :: b32 = 2_hashkind**32-1_hashkind
+    INTEGER(KIND=int_8)                      :: hash
+    INTEGER(KIND=int_8), PARAMETER           :: b32 = 2_int_8**32-1_int_8
     INTEGER                                  :: i
     
-    hash=0_hashkind
+    hash=0_int_8
     DO i=1,LEN(key)
        hash=IAND(hash+ICHAR(key(i:i))                ,b32)
        hash=IAND(     hash+IAND(ISHFT(hash,10),b32)  ,b32)
@@ -191,7 +188,7 @@ SUBROUTINE dict_[keytype]_[valuetype]_set(dict, key, value)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort],   intent(in)                          :: key
     [valuetype_fort], intent(in)                          :: value
-    INTEGER(KIND=hashkind)                                :: hash
+    INTEGER(KIND=int_8)                                   :: hash
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_set: dictionary is not initialized."
     
@@ -210,11 +207,11 @@ SUBROUTINE set_hashed(dict, key, value, hash)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort],   intent(in)                          :: key
     [valuetype_fort], intent(in)                          :: value
-    INTEGER(KIND=hashkind), intent(in)                    :: hash
+    INTEGER(KIND=int_8), intent(in)                       :: hash
     TYPE(private_item_type), POINTER  :: item, new_item
     INTEGER                      :: idx
    
-    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
     
     ! if allready in dict just update its value
     item => dict%buckets(idx)%p
@@ -231,7 +228,7 @@ SUBROUTINE set_hashed(dict, key, value, hash)
     ! check load-factor
     IF(4*dict%size > 3*size(dict%buckets)) THEN ! load-factor > 75%
        call change_capacity(dict, 2*size(dict%buckets)) !double capacity
-       idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
+       idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
     END IF
     
     
@@ -303,14 +300,14 @@ FUNCTION dict_[keytype]_[valuetype]_get(dict, key, default_value) RESULT(value)
     [valuetype_fort], intent(in), optional                :: default_value
     [valuetype_fort]                                      :: value
     TYPE(private_item_type), POINTER                      :: item
-    INTEGER(KIND=hashkind)                                :: hash
+    INTEGER(KIND=int_8)                                   :: hash
     INTEGER                                               :: idx
     
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_get: dictionary is not initialized."
     
     hash = hash_[keytype](key)
-    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
     
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))
@@ -343,14 +340,14 @@ SUBROUTINE dict_[keytype]_[valuetype]_del(dict, key)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort]                                        :: key
     TYPE(private_item_type), POINTER                      :: item, prev_item
-    INTEGER(KIND=hashkind)                                :: hash
+    INTEGER(KIND=int_8)                                   :: hash
     INTEGER                                               :: idx
     
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_del: dictionary is not initialized."
        
     hash = hash_[keytype](key)
-    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
     
     item => dict%buckets(idx)%p
     prev_item => Null()
@@ -402,7 +399,7 @@ FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
     [keytype_fort]                                        :: key
     LOGICAL                                               :: res
     TYPE(private_item_type), POINTER                      :: item
-    INTEGER(KIND=hashkind)                                :: hash
+    INTEGER(KIND=int_8)                                   :: hash
     INTEGER                                               :: idx
     
     IF(.not. ASSOCIATED(dict%buckets)) &
@@ -412,7 +409,7 @@ FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
     IF(dict%size==0) RETURN
     
     hash = hash_[keytype](key)
-    idx = MOD(hash, INT(size(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
     
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))

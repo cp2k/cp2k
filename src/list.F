@@ -13,7 +13,6 @@
 	
 MODULE list
   USE list_callstackentry
-  USE list_i4
   USE list_routinestat
   USE list_timerenv
 
@@ -28,62 +27,62 @@ MODULE list
 
 
   INTERFACE list_init
-     MODULE PROCEDURE list_i4_init, list_timerenv_init, list_routinestat_init, &
+     MODULE PROCEDURE list_timerenv_init, list_routinestat_init, &
        list_callstackentry_init
   END INTERFACE
   
   INTERFACE list_isready
-     MODULE PROCEDURE list_i4_isready, list_timerenv_isready, &
+     MODULE PROCEDURE list_timerenv_isready, &
         list_routinestat_isready, list_callstackentry_isready
   END INTERFACE
   
   INTERFACE list_push
-     MODULE PROCEDURE list_i4_push, list_timerenv_push, list_routinestat_push, &
+     MODULE PROCEDURE list_timerenv_push, list_routinestat_push, &
        list_callstackentry_push
   END INTERFACE
   
   INTERFACE list_pop
-     MODULE PROCEDURE list_i4_pop, list_timerenv_pop, list_routinestat_pop, &
+     MODULE PROCEDURE list_timerenv_pop, list_routinestat_pop, &
        list_callstackentry_pop
   END INTERFACE
   
   INTERFACE list_peek
-     MODULE PROCEDURE list_i4_peek, list_timerenv_peek, list_routinestat_peek, &
+     MODULE PROCEDURE list_timerenv_peek, list_routinestat_peek, &
        list_callstackentry_peek
   END INTERFACE
     
   INTERFACE list_insert
-     MODULE PROCEDURE list_i4_insert, list_timerenv_insert, & 
+     MODULE PROCEDURE list_timerenv_insert, & 
         list_routinestat_insert, list_callstackentry_insert
   END INTERFACE
 
   INTERFACE list_set
-     MODULE PROCEDURE list_i4_set, list_timerenv_set, list_routinestat_set, &
+     MODULE PROCEDURE list_timerenv_set, list_routinestat_set, &
        list_callstackentry_set
   END INTERFACE
   
   INTERFACE list_get
-     MODULE PROCEDURE list_i4_get, list_timerenv_get, list_routinestat_get, &
+     MODULE PROCEDURE list_timerenv_get, list_routinestat_get, &
        list_callstackentry_get
   END INTERFACE
   
   INTERFACE list_del
-     MODULE PROCEDURE list_i4_del, list_timerenv_del, list_routinestat_del, &
+     MODULE PROCEDURE list_timerenv_del, list_routinestat_del, &
        list_callstackentry_del
   END INTERFACE
   
   INTERFACE list_clear
-     MODULE PROCEDURE list_i4_clear, list_timerenv_clear, list_routinestat_clear,&
+     MODULE PROCEDURE list_timerenv_clear, list_routinestat_clear,&
        list_callstackentry_clear
   END INTERFACE
   
   INTERFACE list_size
-     MODULE PROCEDURE list_i4_size, list_timerenv_size, list_routinestat_size, &
+     MODULE PROCEDURE list_timerenv_size, list_routinestat_size, &
        list_callstackentry_size
   END INTERFACE
   
   INTERFACE list_destroy
-     MODULE PROCEDURE list_i4_destroy, list_timerenv_destroy, &
+     MODULE PROCEDURE list_timerenv_destroy, &
         list_routinestat_destroy, list_callstackentry_destroy
   END INTERFACE
     

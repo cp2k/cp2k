@@ -19,7 +19,7 @@
 ! *****************************************************************************
 MODULE string_table
   USE f77_blas
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length, int_8
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -213,13 +213,12 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: key
     INTEGER                                  :: hash_index
 
-    INTEGER, PARAMETER                       :: k64 = SELECTED_INT_KIND(10)
-    INTEGER(KIND=k64), PARAMETER             :: b32 = 2_k64**32-1_k64
+    INTEGER(KIND=int_8), PARAMETER           :: b32 = 2_int_8**32-1_int_8
 
     INTEGER                                  :: i
-    INTEGER(KIND=k64)                        :: hash
+    INTEGER(KIND=int_8)                      :: hash
 
-    hash=0_k64
+    hash=0_int_8
     DO i=1,LEN(key)
        hash=IAND(hash+ICHAR(key(i:i))                ,b32)
        hash=IAND(     hash+IAND(ISHFT(hash,10),b32)  ,b32)
@@ -230,6 +229,6 @@ CONTAINS
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
     ! hash is the real 32bit hash value of the string,
     ! hash_index is an index in the hash_table
-    hash_index=MOD(hash,INT(hash_table_size,KIND=k64))
+    hash_index=MOD(hash,INT(hash_table_size,KIND=int_8))
   END FUNCTION joaat_hash
 END MODULE string_table

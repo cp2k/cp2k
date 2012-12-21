@@ -20,23 +20,19 @@
 !> \author Ole Schuett
 ! ****************************************TOP**********************************
 
-!defaults
-#define isequal_i4tuple(k1,k2) (k1==k2)
-
 
 #define isequal_i4tuple(a1,a2) ALL(a1==a2)
 #define hash_i4tuple(a) SUM(a)
 
 MODULE dict_i4tuple_callstat
-  USE kinds,                           ONLY: int_4
+  USE kinds,                           ONLY: int_4,&
+                                             int_8
   USE timings_base_type,               ONLY: call_stat_type
 
   IMPLICIT NONE
   PRIVATE
   
- ! Since fortran doesn't have an unsigned 4 byte int
- ! we compute the hash using an integer with the appropriate range
-  INTEGER, PARAMETER                         :: hashkind = SELECTED_INT_KIND(10)
+  
   
   !this is an internal type
   !Calculating hashes might be expensive, therefore they are stored
@@ -45,7 +41,7 @@ MODULE dict_i4tuple_callstat
      PRIVATE
      INTEGER(kind=int_4), DIMENSION(2)                            :: key
      TYPE(call_stat_type), POINTER                          :: value
-     INTEGER(KIND=hashkind)                    :: hash
+     INTEGER(KIND=int_8)                       :: hash
      TYPE(private_item_type), POINTER          :: next => Null()
   END TYPE private_item_type
 
@@ -98,13 +94,13 @@ MODULE dict_i4tuple_callstat
 ! *****************************************************************************
 FUNCTION hash_str(key) RESULT(hash)
     CHARACTER(LEN=*), INTENT(IN)             :: key
-    INTEGER(KIND=hashkind)                   :: hash
+    INTEGER(KIND=int_8)                      :: hash
 
-    INTEGER(KIND=hashkind), PARAMETER :: b32 = 2_hashkind**32-1_hashkind
+    INTEGER(KIND=int_8), PARAMETER           :: b32 = 2_int_8**32-1_int_8
 
     INTEGER                                  :: i
 
-    hash=0_hashkind
+    hash=0_int_8
     DO i=1,LEN(key)
        hash=IAND(hash+ICHAR(key(i:i))                ,b32)
        hash=IAND(     hash+IAND(ISHFT(hash,10),b32)  ,b32)
@@ -206,7 +202,7 @@ SUBROUTINE dict_i4tuple_callstat_set(dict, key, value)
     TYPE(call_stat_type), INTENT(in), &
       POINTER                                :: value
 
-    INTEGER(KIND=hashkind)                   :: hash
+    INTEGER(KIND=int_8)                      :: hash
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_i4tuple_callstat_set: dictionary is not initialized."
@@ -229,12 +225,12 @@ SUBROUTINE set_hashed(dict, key, value, hash)
       INTENT(in)                             :: key
     TYPE(call_stat_type), INTENT(in), &
       POINTER                                :: value
-    INTEGER(KIND=hashkind), INTENT(in)       :: hash
+    INTEGER(KIND=int_8), INTENT(in)          :: hash
 
     INTEGER                                  :: idx
     TYPE(private_item_type), POINTER         :: item, new_item
 
-    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
     
     ! if allready in dict just update its value
     item => dict%buckets(idx)%p
@@ -251,7 +247,7 @@ SUBROUTINE set_hashed(dict, key, value, hash)
     ! check load-factor
     IF(4*dict%size > 3*SIZE(dict%buckets)) THEN ! load-factor > 75%
        CALL change_capacity(dict, 2*SIZE(dict%buckets)) !double capacity
-       idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
+       idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
     END IF
     
     
@@ -330,14 +326,14 @@ FUNCTION dict_i4tuple_callstat_get(dict, key, default_value) RESULT(value)
     TYPE(call_stat_type), POINTER            :: value
 
     INTEGER                                  :: idx
-    INTEGER(KIND=hashkind)                   :: hash
+    INTEGER(KIND=int_8)                      :: hash
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_i4tuple_callstat_get: dictionary is not initialized."
     
     hash = hash_i4tuple(key)
-    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
     
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
@@ -372,14 +368,14 @@ SUBROUTINE dict_i4tuple_callstat_del(dict, key)
     INTEGER(kind=int_4), DIMENSION(2)        :: key
 
     INTEGER                                  :: idx
-    INTEGER(KIND=hashkind)                   :: hash
+    INTEGER(KIND=int_8)                      :: hash
     TYPE(private_item_type), POINTER         :: item, prev_item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_i4tuple_callstat_del: dictionary is not initialized."
        
     hash = hash_i4tuple(key)
-    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
     
     item => dict%buckets(idx)%p
     prev_item => Null()
@@ -434,7 +430,7 @@ FUNCTION dict_i4tuple_callstat_haskey(dict, key) RESULT(res)
     LOGICAL                                  :: res
 
     INTEGER                                  :: idx
-    INTEGER(KIND=hashkind)                   :: hash
+    INTEGER(KIND=int_8)                      :: hash
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
@@ -444,7 +440,7 @@ FUNCTION dict_i4tuple_callstat_haskey(dict, key) RESULT(res)
     IF(dict%size==0) RETURN
     
     hash = hash_i4tuple(key)
-    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=hashkind)) + 1
+    idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
     
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))

@@ -55,14 +55,20 @@ SUBROUTINE cp_1d_i_sort(arr, n, indices)
     INTEGER, DIMENSION(1:n), INTENT(inout)   :: arr
     INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
 
-    INTEGER                                  :: i
-    INTEGER, DIMENSION((SIZE(arr)+1)/2)      :: tmp_arr, tmp_idx
+    INTEGER                                  :: i, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_arr, tmp_idx
 
-! tmp_arr, tmp_idx: scratch space during the merge step
-
+   IF(n == 0) RETURN ! for some reason this is a frequent case in cp2k
+   
+   ! scratch space used during the merge step
+   ALLOCATE(tmp_arr((SIZE(arr)+1)/2), tmp_idx((SIZE(arr)+1)/2), stat=stat)
+   IF(stat /= 0) STOP "cp_1d_i_sort: allocation failed"
+   
    indices = (/ (i, i = 1, SIZE(arr)) /)
-      
+   
    CALL cp_1d_i_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
+   
+   DEALLOCATE(tmp_arr,tmp_idx)
    
 END SUBROUTINE cp_1d_i_sort
 

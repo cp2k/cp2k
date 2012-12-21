@@ -779,7 +779,6 @@ OBJECTS_GENERIC =\
  timings_report.o\
  list_timerenv.o\
  list_routinestat.o\
- list_i4.o\
  list_callstackentry.o\
  list.o\
  dict_str_i4.o\

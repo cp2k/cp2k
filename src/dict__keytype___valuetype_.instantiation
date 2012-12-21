@@ -1,7 +1,7 @@
 [
 {'keytype':'str',
 'valuetype':'i4',
-'macros' : '',
+'macros' : '#define isequal_str(k1,k2) (k1==k2)',
 'USE': 'USE kinds, ONLY: default_string_length, int_4',
 'keytype_fort':    'CHARACTER(LEN=default_string_length)',
 'valuetype_fort':  'INTEGER(kind=int_4)',
