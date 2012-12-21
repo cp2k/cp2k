@@ -34,11 +34,11 @@ MODULE dbcsr_error_handling
   PUBLIC :: dbcsr_no_error, dbcsr_caller_error, dbcsr_wrong_args_error,&
             dbcsr_precondition_failed, dbcsr_internal_error, dbcsr_postcondition_failed,&
             dbcsr_invariant_failed, dbcsr_assertion_failed, dbcsr_unimplemented_error_nr
-  
+
   ! external timing hooks
   PUBLIC :: external_timeset, external_timestop
   PUBLIC :: timeset_interface, timestop_interface
-  
+
   ! interfaces
   INTERFACE dbcsr_assert
      MODULE PROCEDURE dbcsr_int_assert
@@ -103,34 +103,31 @@ MODULE dbcsr_error_handling
      TYPE(dbcsr_error_stack_type) :: stack
   END TYPE dbcsr_error_type
 
-  
+
   ! external timing hooks
-  ! this interface (with subroutines in it) musst to be defined right before 
-  ! the regular subroutines/functions - otherwise prettify.py will screw up. 
+  ! this interface (with subroutines in it) musst to be defined right before
+  ! the regular subroutines/functions - otherwise prettify.py will screw up.
   INTERFACE
     SUBROUTINE timeset_interface(routineN, handle)
     CHARACTER(LEN=*), INTENT(IN)             :: routineN
     INTEGER, INTENT(OUT)                     :: handle
 
     END SUBROUTINE timeset_interface
-    
     SUBROUTINE timestop_interface(handle)
-    INTEGER, INTENT(in)                      :: handle
+    INTEGER, INTENT(IN)                      :: handle
 
-    END SUBROUTINE timestop_interface    
+    END SUBROUTINE timestop_interface
   END INTERFACE
-  
-  PROCEDURE (timeset_interface),  POINTER :: external_timeset  => NULL()
-  PROCEDURE (timestop_interface), POINTER :: external_timestop => NULL()
-  
-  
+
+  PROCEDURE(timeset_interface), POINTER  :: external_timeset  => NULL()
+  PROCEDURE(timestop_interface), POINTER :: external_timestop => NULL()
+
 CONTAINS
 
  !SUBROUTINE foobar(s)
  !   CHARACTER(len=default_string_length)  :: s
  !END SUBROUTINE
-  
-        
+
 ! *****************************************************************************
 !> \brief set the error
 !> \param[in]    name    name of the routine
@@ -140,6 +137,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: name
     INTEGER, INTENT(out)                     :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    PROCEDURE(timeset_interface), POINTER    :: external_timeset => NULL()
 
 !$OMP MASTER
     error%stack%level = error%stack%level + 1
@@ -160,6 +159,8 @@ CONTAINS
   SUBROUTINE dbcsr_error_stop(handler, error)
     INTEGER, INTENT(inout)                   :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    PROCEDURE(timestop_interface), POINTER   :: external_timestop => NULL()
 
 !$OMP MASTER
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
