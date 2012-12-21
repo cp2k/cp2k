@@ -1,7 +1,7 @@
 #
 # gfortran arch file, recommended to use gfortran >= 4.6
 # building libraries (fftw3, libint, libxc, scalapack, smm) is needed to use this arch file, mkl is assumed but can be replaced by standard blas/lapack/scalapack (see pdbg)
-# sopt is intended for production runs with a serial executable
+# ssmp is intended for production runs with an OMP threaded executable
 #
 CC       = cc
 CPP      = 
@@ -13,7 +13,7 @@ AR       = ar -r
 
 CPPFLAGS = 
 DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__HAS_smm_dnn -D__LIBXC
-FCFLAGS  = -O3 -march=native -ffast-math -g -ffree-form $(DFLAGS)
+FCFLAGS  = -fopenmp -O3 -march=native -ffast-math -g -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libsmm/lib/  -L/opt/intel/composerxe-2011.3.174/mkl/lib/intel64  -L/data/vjoost/libxc-1.2.0/install/lib
 LIBS     = -lsmm_dnn -lderiv -lint -lstdc++ -lfftw3 -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lxc
 

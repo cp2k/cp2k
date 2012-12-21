@@ -1,6 +1,7 @@
 #
-# gfortran arch file, currently for testing gfortran (svn version 4.3)
-# status on http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29975
+# gfortran arch file, recommended to use gfortran >= 4.6
+# building libraries (fftw3, libint, libxc, scalapack, smm) is needed to use this arch file
+# sdbg is intended for serial code development, not production
 #
 CC       = cc
 CPP      = 
@@ -11,9 +12,9 @@ LD       = gfortran
 AR       = ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3
-FCFLAGS  = -O0 -ffree-form $(DFLAGS) 
-LDFLAGS  = $(FCFLAGS)
-LIBS     = -llapack -lblas -lfftw3
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__LIBXC 
+FCFLAGS  = -O1 -fstrict-aliasing -fbacktrace -g -fbounds-check -ffree-form $(DFLAGS) 
+LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libxc-1.2.0/install/lib
+LIBS     = -lderiv -lint -lstdc++ -lfftw3 -llapack -lblas -lxc
 
 OBJECTS_ARCHITECTURE = machine_gfortran.o

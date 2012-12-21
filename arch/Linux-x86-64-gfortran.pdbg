@@ -1,0 +1,20 @@
+#
+# gfortran arch file, recommended to use gfortran >= 4.6
+# building libraries (fftw3, libint, libxc, scalapack, smm) is needed to use this arch file
+# pdbg is intended for code development, not production, and is MPI parallel
+#
+CC       = cc
+CPP      = 
+
+FC       = mpif90 
+LD       = mpif90
+
+AR       = ar -r
+
+CPPFLAGS = 
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__LIBXC 
+FCFLAGS  = -O1 -fstrict-aliasing -fbacktrace -g -fbounds-check -ffree-form $(DFLAGS) 
+LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/scalapack/scalapack_installer_1.0.2/install/lib/ -L/data/vjoost/libxc-1.2.0/install/lib
+LIBS     = -lderiv -lint -lstdc++ -lfftw3 -lscalapack -lreflapack -lrefblas -lxc
+
+OBJECTS_ARCHITECTURE = machine_gfortran.o
