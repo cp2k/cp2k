@@ -697,7 +697,6 @@ OBJECTS_GENERIC =\
  thermostat_methods.o\
  thermostat_types.o\
  thermostat_utils.o\
- timings_mp.o\
  timings.o\
  topology_amber.o\
  topology_cif.o\

@@ -13,7 +13,11 @@
 !> - Created 2011-04-05
 ! *****************************************************************************
 MODULE dbcsr_config
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
+       external_timeset, external_timestop, timeset_interface, &
+       timestop_interface
   USE dbcsr_kinds,                     ONLY: dp
   USE dbcsr_machine,                   ONLY: m_walltime
 
@@ -38,7 +42,8 @@ MODULE dbcsr_config
 
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
-
+  PUBLIC :: dbcsr_set_conf_external_timing
+  
   PUBLIC :: driver_is_async
 
   ! These are for DBCSR internal use.
@@ -503,5 +508,25 @@ CONTAINS
     END SELECT
   END FUNCTION driver_is_async
 
+! *****************************************************************************
+!> \brief Set the callback routines for the external timing hooks.
+!> \author  Ole Schuett
+!> \date    2012-12-20
+!>
+!> <b>Modification history:</b>
+!> - Created 2012-12-20
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_conf_external_timing(timeset, timestop, error)
+    PROCEDURE (timeset_interface)            :: timeset
+    PROCEDURE (timestop_interface)           :: timestop
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+! no call to dbcsr_error_set / dbcsr_error_stop here,
+! otherwise thie would lead to mismatched calls to timeset/timestop
+
+    external_timeset  => timeset
+    external_timestop => timestop
+                
+  END SUBROUTINE dbcsr_set_conf_external_timing
 
 END MODULE dbcsr_config

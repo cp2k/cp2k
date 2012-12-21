@@ -30,16 +30,11 @@ MODULE message_passing
                                              m_abort,&
                                              m_flush,&
                                              m_walltime
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
   PRIVATE
-
-
-#if defined(__mp_timeset__)
-  ! Interface to mpi timing routines (wrapper to standard timings routine to work
-  ! with circular dependencies)
-#include "timings_mp.h"
-#endif
 
 #if defined(__parallel)
   INCLUDE "mpif.h"
@@ -537,7 +532,7 @@ CONTAINS
 
 #if defined(__mp_timeset__)
  
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
     t_start = m_walltime()    
 #endif
     ierr = 0
@@ -558,7 +553,7 @@ CONTAINS
   t_end = m_walltime ( )
   CALL add_perf(perf_id=1,count=1)
   CALL add_perf(perf_id=2,time=t_end-t_start)
-  CALL timestop_mp(handle)
+  CALL timestop(handle)
 #endif
   END SUBROUTINE mp_reordering
 
@@ -850,7 +845,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -861,7 +856,7 @@ CONTAINS
     CALL add_perf(perf_id=5,count=1,time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_sync
@@ -885,7 +880,7 @@ CONTAINS
 
     ierr    = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
     numtask = 1
     taskid  = 0
@@ -897,7 +892,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_l" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_environ_l
@@ -917,7 +912,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
     numtask = 1
     task_coor = 0
@@ -930,7 +925,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_environ_c
@@ -950,7 +945,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
     task_coor = 0
@@ -961,7 +956,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_environ_c2
@@ -982,7 +977,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
     pos ( 1:ndims ) = -1
     comm_cart = comm_old
@@ -1017,7 +1012,7 @@ CONTAINS
     comm_cart = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_cart_create
@@ -1036,7 +1031,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
     m = SIZE ( coords )
@@ -1047,7 +1042,7 @@ CONTAINS
     coords = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_cart_coords
@@ -1066,7 +1061,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1077,7 +1072,7 @@ CONTAINS
     dest = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_cart_shift
@@ -1096,7 +1091,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
     RESULT = 0
@@ -1117,7 +1112,7 @@ CONTAINS
     END SELECT
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_comm_compare
@@ -1137,7 +1132,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
     sub_comm = 0
@@ -1146,7 +1141,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_sub @ mp_cart_sub" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_cart_sub
@@ -1164,7 +1159,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1172,7 +1167,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_free @ mp_comm_free" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_comm_free
@@ -1191,7 +1186,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1201,7 +1196,7 @@ CONTAINS
     comm2=comm1
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_comm_dup
@@ -1222,7 +1217,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
     rank = 0
 #if defined(__parallel)
@@ -1247,7 +1242,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_rank_compare
@@ -1266,7 +1261,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1277,7 +1272,7 @@ CONTAINS
     dims = 1
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_dims_create
@@ -1296,7 +1291,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1306,7 +1301,7 @@ CONTAINS
     rank = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_cart_rank
@@ -1331,7 +1326,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1347,7 +1342,7 @@ CONTAINS
     DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_wait
 
@@ -1370,7 +1365,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1387,7 +1382,7 @@ CONTAINS
     DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_waitall_1
 
@@ -1410,7 +1405,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1427,7 +1422,7 @@ CONTAINS
     DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_waitall_2
 
@@ -1449,7 +1444,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
 #if defined(__parallel)
@@ -1466,7 +1461,7 @@ CONTAINS
     DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_waitany
 
@@ -1488,7 +1483,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -1502,7 +1497,7 @@ CONTAINS
     CALL mp_comm_dup(comm,sub_comm)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_comm_split_direct
@@ -1546,7 +1541,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
     ! actual number of groups
@@ -1620,7 +1615,7 @@ CONTAINS
     ngroups=1
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_comm_split
@@ -1667,7 +1662,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 
     ierr = 0
@@ -1687,7 +1682,7 @@ CONTAINS
     CALL add_perf(perf_id=1,time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
 
   END SUBROUTINE mp_group
@@ -1706,7 +1701,7 @@ CONTAINS
     INTEGER                   :: ierr, handle
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN, handle)
+    CALL timeset(routineN, handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime()
@@ -1719,7 +1714,7 @@ CONTAINS
     NULLIFY(window%src_d, window%src_i)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_window_destroy
 
@@ -1743,7 +1738,7 @@ CONTAINS
     INTEGER                   :: exclusivity, assertion
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN, handle)
+    CALL timeset(routineN, handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime()
@@ -1762,7 +1757,7 @@ CONTAINS
     CALL add_perf(perf_id=19, count=1, time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_window_lock
 
@@ -1780,7 +1775,7 @@ CONTAINS
     INTEGER                   :: ierr, handle
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN, handle)
+    CALL timeset(routineN, handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime()
@@ -1791,7 +1786,7 @@ CONTAINS
     CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_window_unlock
 
@@ -1823,7 +1818,7 @@ CONTAINS
     INTEGER                   :: ierr, handle, assertion
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN, handle)
+    CALL timeset(routineN, handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime()
@@ -1847,7 +1842,7 @@ CONTAINS
     CALL add_perf(perf_id=18, count=1, time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_window_fence
 
@@ -1869,7 +1864,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
     msglen = 1
 #if defined(__parallel)
@@ -1880,7 +1875,7 @@ CONTAINS
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_bcast_b
 ! *****************************************************************************
@@ -1895,7 +1890,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
     msglen = SIZE(msg)
 #if defined(__parallel)
@@ -1906,7 +1901,7 @@ CONTAINS
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_bcast_bv
 
@@ -1923,7 +1918,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -1952,7 +1947,7 @@ CONTAINS
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_bcast_av
 
@@ -1970,7 +1965,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2012,7 +2007,7 @@ CONTAINS
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_bcast_am
 
@@ -2044,7 +2039,7 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2059,7 +2054,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_minloc_dv
 
@@ -2090,7 +2085,7 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2105,7 +2100,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_minloc_iv
 
@@ -2137,7 +2132,7 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2152,7 +2147,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_minloc_lv
 
@@ -2183,7 +2178,7 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2198,7 +2193,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_minloc_rv
 
@@ -2230,7 +2225,7 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2245,7 +2240,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_maxloc_dv
 
@@ -2275,7 +2270,7 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2290,7 +2285,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_maxloc_iv
 
@@ -2320,7 +2315,7 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2335,7 +2330,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_maxloc_lv
 
@@ -2365,7 +2360,7 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2380,7 +2375,7 @@ CONTAINS
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_maxloc_rv
 
@@ -2404,7 +2399,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2431,7 +2426,7 @@ CONTAINS
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_bcast_z1_t3e
 ! *****************************************************************************
@@ -2449,7 +2444,7 @@ CONTAINS
 
     ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN,handle)
+    CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -2491,7 +2486,7 @@ CONTAINS
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_bcast_zv_t3e
 

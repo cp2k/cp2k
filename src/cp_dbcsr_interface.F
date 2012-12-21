@@ -41,13 +41,13 @@ MODULE cp_dbcsr_interface
        dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
        dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_cuda_mem, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       detailed_timing, has_cuda, has_mpi, kernel_timing, mm_driver_blas, &
-       mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, &
-       mm_name_smm, mm_thread_workshare
+       dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, detailed_timing, has_cuda, has_mpi, &
+       kernel_timing, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
+       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
+       mm_name_matmul, mm_name_plasma, mm_name_smm, mm_thread_workshare
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -442,6 +442,11 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
+! need to call dbcsr_set_conf_external_timing() before dbcsr_error_set()
+! otherwise this would lead to mismatched calls to timeset/timestop
+
+    CALL dbcsr_set_conf_external_timing(timeset, timestop, error=dbcsr_error)
+    
     CALL dbcsr_error_set (routineN, error_handle, dbcsr_error)
     dbcsr_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%DBCSR",error=error)

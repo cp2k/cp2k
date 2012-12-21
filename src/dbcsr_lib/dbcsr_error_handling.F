@@ -34,6 +34,11 @@ MODULE dbcsr_error_handling
   PUBLIC :: dbcsr_no_error, dbcsr_caller_error, dbcsr_wrong_args_error,&
             dbcsr_precondition_failed, dbcsr_internal_error, dbcsr_postcondition_failed,&
             dbcsr_invariant_failed, dbcsr_assertion_failed, dbcsr_unimplemented_error_nr
+  
+  ! external timing hooks
+  PUBLIC :: external_timeset, external_timestop
+  PUBLIC :: timeset_interface, timestop_interface
+  
   ! interfaces
   INTERFACE dbcsr_assert
      MODULE PROCEDURE dbcsr_int_assert
@@ -79,13 +84,11 @@ MODULE dbcsr_error_handling
 ! *****************************************************************************
   TYPE dbcsr_error_stack_type
      INTEGER :: level = 0
-     CHARACTER(default_string_length) :: pre = ''
-     CHARACTER(default_string_length) :: post = ''
-     CHARACTER(default_string_length), DIMENSION(dbcsr_error_stack_size) :: s = ''
+     CHARACTER(len=default_string_length) :: pre = ''
+     CHARACTER(len=default_string_length) :: post = ''
+     CHARACTER(len=default_string_length), DIMENSION(dbcsr_error_stack_size) :: s = ''
      INTEGER, DIMENSION(dbcsr_error_stack_size) :: handler = 0
-#if defined(__USE_CP2K_TRACE)
-     INTEGER, DIMENSION(dbcsr_error_stack_size) :: cp2k_handler = 0
-#endif
+     INTEGER, DIMENSION(dbcsr_error_stack_size) :: external_handler = 0
   END TYPE dbcsr_error_stack_type
 
 ! *****************************************************************************
@@ -95,13 +98,39 @@ MODULE dbcsr_error_handling
      INTEGER :: etype = 0
      INTEGER :: line = 0
      INTEGER :: level = 0
-     CHARACTER(default_string_length) :: msg
-     CHARACTER(default_string_length) :: routine
+     CHARACTER(len=default_string_length) :: msg
+     CHARACTER(len=default_string_length) :: routine
      TYPE(dbcsr_error_stack_type) :: stack
   END TYPE dbcsr_error_type
 
+  
+  ! external timing hooks
+  ! this interface (with subroutines in it) musst to be defined right before 
+  ! the regular subroutines/functions - otherwise prettify.py will screw up. 
+  INTERFACE
+    SUBROUTINE timeset_interface(routineN, handle)
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN
+    INTEGER, INTENT(OUT)                     :: handle
+
+    END SUBROUTINE timeset_interface
+    
+    SUBROUTINE timestop_interface(handle)
+    INTEGER, INTENT(in)                      :: handle
+
+    END SUBROUTINE timestop_interface    
+  END INTERFACE
+  
+  PROCEDURE (timeset_interface),  POINTER :: external_timeset  => NULL()
+  PROCEDURE (timestop_interface), POINTER :: external_timestop => NULL()
+  
+  
 CONTAINS
 
+ !SUBROUTINE foobar(s)
+ !   CHARACTER(len=default_string_length)  :: s
+ !END SUBROUTINE
+  
+        
 ! *****************************************************************************
 !> \brief set the error
 !> \param[in]    name    name of the routine
@@ -119,9 +148,8 @@ CONTAINS
     error%stack%s(error%stack%level) = name
     handler = error%stack%level
     error%stack%handler(error%stack%level) = handler
-#if defined(__USE_CP2K_TRACE)
-    CALL timeset_mp(name, error%stack%cp2k_handler(error%stack%level) )
-#endif
+    IF (ASSOCIATED(external_timeset)) &
+       CALL external_timeset(name, error%stack%external_handler(error%stack%level) )
 !$OMP END MASTER
   END SUBROUTINE dbcsr_error_set
 
@@ -148,9 +176,8 @@ CONTAINS
        CALL dbcsr_abort (error%stack%level, dbcsr_failure_level, error%routine,&
             "", error%line, error)
     ENDIF
-#if defined(__USE_CP2K_TRACE)
-    CALL timestop_mp(error%stack%cp2k_handler(error%stack%level) )
-#endif
+    IF (ASSOCIATED(external_timestop)) &
+       CALL external_timestop(error%stack%external_handler(error%stack%level) )
     error%stack%s(error%stack%level) = ''
     error%stack%handler(error%stack%level) = 0
     error%stack%level = error%stack%level - 1
