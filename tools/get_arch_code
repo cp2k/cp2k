@@ -40,14 +40,14 @@
         then
           PLATFORM="Darwin-IntelMacintosh-$FORT_C_NAME"
         else
-          PLATFORM="Darwin-IntelMacintosh-g95"
+          PLATFORM="Darwin-IntelMacintosh-gfortran"
         fi;;
       Darwin-*-*-i386)
         if [ -n "$FORT_C_NAME" ] 
         then
           PLATFORM="Darwin-IntelMacintosh-$FORT_C_NAME"
         else
-          PLATFORM="Darwin-IntelMacintosh-g95"
+          PLATFORM="Darwin-IntelMacintosh-gfortran"
         fi;;
       Darwin-*-*-Power\ Macintosh)
         if [ -n "$FORT_C_NAME" ]
@@ -78,32 +78,20 @@
       OSF1-*-*-alpha)
         PLATFORM="DEC_OS";;
       CYGWIN*-*-i686)
-        PLATFORM="Cygwin-i686-g95";;
+        PLATFORM="Cygwin-i686-gfortran";;
       Linux-*-*-i686)
         if [ -n "$FORT_C_NAME" ]
         then
           PLATFORM="Linux-i686-$FORT_C_NAME"
-        elif [ -n "$G95" ] 
-        then
-          PLATFORM="Linux-i686-g95"
-        elif [ -n "$PGI" ] 
-        then
-          PLATFORM="Linux-i686-pgi"
-        elif [ -d /usr/absoft ]
-        then
-          PLATFORM="Linux-i686-absoft"
         else
-          PLATFORM="Linux-i686"
+          PLATFORM="Linux-i686-gfortran"
         fi;;
       Linux-*-*-x86_64)
         if [ -n "$FORT_C_NAME" ]
         then
           PLATFORM="Linux-x86-64-$FORT_C_NAME"
-        elif [ -n "$PGI" ] 
-        then
-          PLATFORM="Linux-x86-64-pgi"
         else
-          PLATFORM="Linux-x86-64-g95"
+          PLATFORM="Linux-x86-64-gfortran"
         fi;;
       Linux-*-*-ia64)
         if [ -n "$FORT_C_NAME" ]
