@@ -4,7 +4,7 @@
 # module load urban/pci-cuda
 # II. explicit
 # Set LIBS to
-# LIBS = timings_mp.o -L/data/urban/sw/gcc-4.4/openmpi-1.4.3/BLACS-1.1/scalapack-1.8.0/scalapack-1.8.0-exe0/lib -lscalapack -L/data/urban/sw/gcc-4.4/openmpi-1.4.3/BLACS-1.1/BLACS-1.1-exe0/lib -lblacsF77init -lblacs -L/data/urban/sw/gcc-4.6.1/compile-libsmm-mkl/lib -lsmm_dnn -L/opt/intel/parallel_studio/composerxe-2011.4.191/mkl/lib/intel64 -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -L/usr/local/cuda/lib64 -lcudart -lrt -lpthread
+# LIBS = -L/data/urban/sw/gcc-4.4/openmpi-1.4.3/BLACS-1.1/scalapack-1.8.0/scalapack-1.8.0-exe0/lib -lscalapack -L/data/urban/sw/gcc-4.4/openmpi-1.4.3/BLACS-1.1/BLACS-1.1-exe0/lib -lblacsF77init -lblacs -L/data/urban/sw/gcc-4.6.1/compile-libsmm-mkl/lib -lsmm_dnn -L/opt/intel/parallel_studio/composerxe-2011.4.191/mkl/lib/intel64 -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -L/usr/local/cuda/lib64 -lcudart -lrt -lpthread
 
 NVCC     = nvcc
 HWTOPO   = yes
@@ -15,14 +15,13 @@ FC       = mpif90
 LD       = $(FC)
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__GFORTRAN  -D__parallel -D__SCALAPACK -D__BLACS -D__FFTSG -D__LIBINT -D__DBCSR_CUDA -D__USE_CP2K_TRACE -D__HAS_smm_dnn -D__HWLOC
+DFLAGS   = -D__GFORTRAN  -D__parallel -D__SCALAPACK -D__BLACS -D__FFTSG -D__LIBINT -D__DBCSR_CUDA -D__HAS_smm_dnn -D__HWLOC
 GFLAGS   = -g -fopenmp -O3 -ffast-math $(DFLAGS)
 FCFLAGS  = -ffree-form -fcray-pointer $(GFLAGS)
 CFLAGS   = $(GFLAGS) -I$(HWLOC_BASE)/include
 LDFLAGS  = $(FCFLAGS) -mkl=sequential
 NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_20
-LIBS     = timings_mp.o \
-           -L$(SCALAPACK_LIB) $(SCALAPACK_LIBS) \
+LIBS     = -L$(SCALAPACK_LIB) $(SCALAPACK_LIBS) \
 	   -L$(BLACS_LIB) $(BLACS_LIBS) \
            -L$(SMM_LIB) $(SMM_LIBS) \
 	   -L$(MKL_LIB) $(MKL_LIBS) \

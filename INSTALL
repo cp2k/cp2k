@@ -249,9 +249,6 @@ How to compile CP2K code
  3d) Additional esoteric, development, and debugging options.  This
      section can be safely skipped over.  Listed here just for
      completeness besides the flags described in this document.
-     -D__USE_CP2K_TRACE     - The DBCSR library should use CP2K's stack &
-                              error tracing.  If enabled, add
-                              timings_mp.o to LIBS.
      -D__NO_STATM_ACCESS    - Do not try to read from /proc/self/statm to
                               get memory usage information.  This is
                               otherwise attempted on several
