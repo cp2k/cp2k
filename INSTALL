@@ -66,8 +66,8 @@ How to compile CP2K code
      of CP2K works with FFTW 3.X (use -D__FFTW3).
          http://www.fftw.org/
      Note that FFTW must know the Fortran compiler you will use in order to
-     install properly (e.g., 'export F77=g95' before configure if you intend
-     to use g95).
+     install properly (e.g., 'export F77=gfortran' before configure if you intend
+     to use gfortran).
      Note that on machines and compilers which support SSE you can configure
      FFTW3 with --enable-sse2.  Compilers/systems that do not align memory
      (NAG f95, Intel IA32/gfortran) should either not use '--enable-sse2'
@@ -78,7 +78,7 @@ How to compile CP2K code
  2f) Hartree-Fock exchange (optional, use -D__LIBINT) requires the libint
      package to be installed.  It is easiest to install with a Fortran compiler
      that supports ISO_C_BINDING and Fortran procedure pointers (recent
-     gfortran, g95, xlf90, ifort).
+     gfortran, xlf90, ifort).
      Additional information can be found in
      cp2k/tools/hfx_tools/libint_tools/README_LIBINT
      Tested against libinit-1.1.4 and currently hardcoded to the default
@@ -145,7 +145,7 @@ How to compile CP2K code
  3a) The location of compiler and libraries needs to be specified.  Examples
      for a number of common architectures examples can be found in cp2k/arch/*.*
      The names of these files match architecture.version (e.g.,
-     Linux-x86-64-g95.sopt).
+     Linux-x86-64-gfortran.sopt).
      Conventionally, there are four versions:
      'sopt' - serial
      'popt' - parallel (only MPI) - recommended for general usage
@@ -158,9 +158,9 @@ How to compile CP2K code
      > cd cp2k/makefiles
      > make -j N ARCH=architecture VERSION=version
      e.g.
-     > make -j N ARCH=Linux-x86-64-g95 VERSION=sopt
+     > make -j N ARCH=Linux-x86-64-gfortran VERSION=sopt
      as a short-cut, you can build several version of the code at once
-     > make -j N ARCH=Linux-x86-64-g95 sopt popt ssmp psmp
+     > make -j N ARCH=Linux-x86-64-gfortran sopt popt ssmp psmp
 
      An executable should appear in cp2k/exe/*
 
@@ -169,9 +169,9 @@ How to compile CP2K code
      > make distclean
      To remove only objects and mod files (i.e., keep exe) for a given
      ARCH/VERSION use, e.g.,
-     > make ARCH=Linux-x86-64-g95 VERSION=sopt clean
+     > make ARCH=Linux-x86-64-gfortran VERSION=sopt clean
      to remove everything for a given ARCH/VERSION use, e.g.,
-     > make ARCH=Linux-x86-64-g95 VERSION=sopt realclean
+     > make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
 
  3b) The following flags should be present (or not) in the arch file
      (see also 3c, next)
@@ -184,7 +184,6 @@ How to compile CP2K code
      -D__FFTW3: FFTW version 3
      -D__FFTCU: CUDA FFT
      various compilers/architectures needing their own machine_* file
-     -D__G95
      -D__NAG
      -D__AIX
      -D__ABSOFT
@@ -195,6 +194,7 @@ How to compile CP2K code
      -D__DEC
      -D__XT3
      -D__XT5
+     -D__G95
      various network interconnections:
      -D__GEMINI
      -D__SEASTAR
@@ -253,7 +253,7 @@ How to compile CP2K code
                               get memory usage information.  This is
                               otherwise attempted on several
                               Linux-based architectures or using with
-                              the NAG, gfortran, and g95 compilers.
+                              the NAG, gfortran, compilers.
      -D__mp_timeset__       - Timing of MPI routines.
      -D__USE_LEGACY_WEIGHTS - Use legacy atomic weights (?)
      -D__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION - Do not assume that
@@ -279,7 +279,7 @@ How to compile CP2K code
      and the script '~/cp2k/tools/get_arch_code' will try to guess your
      architecture.  You can set the 'FORT_C_NAME' to indicate the compiler
      part of the architecture string.
-     > export FORT_C_NAME=g95
+     > export FORT_C_NAME=gfortran
 
  4) If things fail, take a break... have a look at section 3c and go back
     to 3a (or skip to step 7).
