@@ -138,8 +138,6 @@ CONTAINS
     INTEGER, INTENT(out)                     :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    PROCEDURE(timeset_interface), POINTER    :: external_timeset => NULL()
-
 !$OMP MASTER
     error%stack%level = error%stack%level + 1
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
@@ -147,8 +145,10 @@ CONTAINS
     error%stack%s(error%stack%level) = name
     handler = error%stack%level
     error%stack%handler(error%stack%level) = handler
+#if !defined(__HAS_NO_PROCEDURE_POINTER_CALLS)
     IF (ASSOCIATED(external_timeset)) &
        CALL external_timeset(name, error%stack%external_handler(error%stack%level) )
+#endif
 !$OMP END MASTER
   END SUBROUTINE dbcsr_error_set
 
@@ -159,8 +159,6 @@ CONTAINS
   SUBROUTINE dbcsr_error_stop(handler, error)
     INTEGER, INTENT(inout)                   :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    PROCEDURE(timestop_interface), POINTER   :: external_timestop => NULL()
 
 !$OMP MASTER
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
@@ -177,8 +175,10 @@ CONTAINS
        CALL dbcsr_abort (error%stack%level, dbcsr_failure_level, error%routine,&
             "", error%line, error)
     ENDIF
+#if !defined(__HAS_NO_PROCEDURE_POINTER_CALLS)
     IF (ASSOCIATED(external_timestop)) &
        CALL external_timestop(error%stack%external_handler(error%stack%level) )
+#endif
     error%stack%s(error%stack%level) = ''
     error%stack%handler(error%stack%level) = 0
     error%stack%level = error%stack%level - 1
