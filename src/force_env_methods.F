@@ -461,105 +461,142 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: default_dx = 0.001_dp
 
-    INTEGER                                  :: i, ip, iq, iseq, j, k, &
-                                                output_unit, stat
+    INTEGER                                  :: i, ip, iq, istat, j, k, &
+                                                natom, ncore, nshell, &
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx_w
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
     REAL(KIND=dp), DIMENSION(3)              :: s
     REAL(KIND=dp), DIMENSION(3, 3)           :: numer_stress = 0.0_dp
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pos_ref
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ref_pos_atom, ref_pos_core, &
+                                                ref_pos_shell
     TYPE(cell_type), POINTER                 :: cell, cell_local
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(cell_local)
+    NULLIFY (cell_local)
+    NULLIFY (core_particles)
+    NULLIFY (particles)
+    NULLIFY (shell_particles)
+    natom = 0
+    ncore = 0
+    nshell = 0
+
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
     IF (.NOT.failure) THEN
+
        dx_w = default_dx
        IF (PRESENT(dx)) dx_w = dx
        CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)
+       CALL cp_subsys_get(subsys,&
+                          core_particles=core_particles,&
+                          particles=particles,&
+                          shell_particles=shell_particles,&
+                          error=error)
        output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
                                           extension=".stress_tensor",error=error)
        IF (output_unit > 0) THEN
           WRITE (output_unit,'(/A,A/)') ' **************************** ', &
             'NUMERICAL STRESS ********************************'
        END IF
-       ! Copy atomic positions into pos_ref
-       iseq = subsys%particles%n_els
-       ALLOCATE (pos_ref(iseq,3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       iseq = 0
-       particles => subsys%particles%els
-       DO ip = 1, subsys%particles%n_els
-          iseq = iseq + 1
-          pos_ref(iseq,:) = particles(ip)%r
+
+       ! Save all original particle positions
+       natom = particles%n_els
+       ALLOCATE (ref_pos_atom(natom,3),STAT=istat)
+       CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+       DO i=1,natom
+          ref_pos_atom(i,:) = particles%els(i)%r
        END DO
-       CALL force_env_get(force_env,cell=cell,&
-                          virial=virial, error=error)
+       IF (ASSOCIATED(core_particles)) THEN
+          ncore = core_particles%n_els
+          ALLOCATE (ref_pos_core(ncore,3),STAT=istat)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+          DO i=1,ncore
+             ref_pos_core(i,:) = core_particles%els(i)%r
+          END DO
+       END IF
+       IF (ASSOCIATED(shell_particles)) THEN
+          nshell = shell_particles%n_els
+          ALLOCATE (ref_pos_shell(nshell,3),STAT=istat)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+          DO i=1,nshell
+             ref_pos_shell(i,:) = shell_particles%els(i)%r
+          END DO
+       END IF
+       CALL force_env_get(force_env,cell=cell,virial=virial,error=error)
        CALL cell_create(cell_local,error=error)
        CALL cell_clone(cell,cell_local,error=error)
        ! First change box
-       DO ip = 1, 3
-          DO iq = 1, 3
-             IF ( virial%pv_diagonal .AND. ip /= iq ) CYCLE
-             DO k = 1, 2
-                cell%hmat(ip,iq) = cell_local%hmat(ip,iq)  - (-1.0_dp)**k * dx_w
+       DO ip=1,3
+          DO iq=1,3
+             IF (virial%pv_diagonal.AND.(ip /= iq)) CYCLE
+             DO k=1,2
+                cell%hmat(ip,iq) = cell_local%hmat(ip,iq) - (-1.0_dp)**k*dx_w
                 CALL init_cell(cell)
-                iseq = 0
-                ! Then scale positions
-                particles => subsys%particles%els
-                DO j = 1, subsys%particles%n_els
-                   iseq = iseq + 1
-                   CALL real_to_scaled(s,pos_ref(iseq,1:3),cell_local)
-                   CALL scaled_to_real(particles(j)%r,s,cell)
+                ! Scale positions
+                DO i=1,natom
+                   CALL real_to_scaled(s,ref_pos_atom(i,1:3),cell_local)
+                   CALL scaled_to_real(particles%els(i)%r,s,cell)
+                END DO
+                DO i=1,ncore
+                   CALL real_to_scaled(s,ref_pos_core(i,1:3),cell_local)
+                   CALL scaled_to_real(core_particles%els(i)%r,s,cell)
+                END DO
+                DO i=1,nshell
+                   CALL real_to_scaled(s,ref_pos_shell(i,1:3),cell_local)
+                   CALL scaled_to_real(shell_particles%els(i)%r,s,cell)
                 END DO
                 ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
-                CALL force_env_set_cell(force_env, cell=cell, error=error)
+                CALL force_env_set_cell(force_env,cell=cell,error=error)
                 ! Compute energies
-                CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.,&
-                     consistent_energies=.TRUE., error=error)
-                CALL force_env_get(force_env, potential_energy=numer_energy(k), error=error)
+                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                                                 consistent_energies=.TRUE.,error=error)
+                CALL force_env_get(force_env,potential_energy=numer_energy(k),error=error)
                 ! Reset cell
                 cell%hmat(ip,iq) = cell_local%hmat(ip,iq)
              END DO
              CALL init_cell(cell)
-             numer_stress(ip,iq) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*dx_w)
+             numer_stress(ip,iq) = (numer_energy(1) - numer_energy(2))/(2.0_dp*dx_w)
           END DO
        END DO
 
        ! Reset positions and rebuild original environment
-       iseq = 0
-       particles => subsys%particles%els
-       DO ip = 1, subsys%particles%n_els
-          iseq = iseq + 1
-          particles(ip)%r = pos_ref(iseq,:)
+       DO i=1,natom
+          particles%els(i)%r = ref_pos_atom(i,:)
+       END DO
+       DO i=1,ncore
+          core_particles%els(i)%r = ref_pos_core(i,:)
+       END DO
+       DO i=1,nshell
+          shell_particles%els(i)%r = ref_pos_shell(i,:)
        END DO
        CALL force_env_set_cell(force_env,cell=cell,error=error)
        CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.,&
                                         consistent_energies=.TRUE.,&
                                         error=error)
 
-       ! computing pv_test
+       ! Computing pv_test
        virial%pv_virial = 0.0_dp
-       DO i = 1, 3
-          DO j = 1, 3
-             DO k = 1, 3
-                virial%pv_virial(i,j) = virial%pv_virial(i,j) +&
-                     (-1.0_dp)*0.5_dp*(numer_stress(i,k)*cell_local%hmat(j,k)+numer_stress(j,k)*cell_local%hmat(i,k))
+       DO i=1,3
+          DO j=1,3
+             DO k=1,3
+                virial%pv_virial(i,j) = virial%pv_virial(i,j) -&
+                                        0.5_dp*(numer_stress(i,k)*cell_local%hmat(j,k) +&
+                                                numer_stress(j,k)*cell_local%hmat(i,k))
              END DO
           END DO
        END DO
        IF (globenv%run_type_id == debug_run) THEN
           IF (output_unit > 0) THEN
              WRITE (UNIT=output_unit,FMT="((T2,A))") "Numerical pv_virial"
-             WRITE (UNIT=output_unit,FMT="((T3,3F16.10))") (virial%pv_virial(i,1:3), i=1,3)
+             WRITE (UNIT=output_unit,FMT="((T3,3F16.10))") (virial%pv_virial(i,1:3),i=1,3)
           END IF
        END IF
 
@@ -571,11 +608,21 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%STRESS_TENSOR",error=error)
 
-       IF (ASSOCIATED(pos_ref)) THEN
-          DEALLOCATE (pos_ref,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Release storage
+       IF (ASSOCIATED(ref_pos_atom)) THEN
+          DEALLOCATE (ref_pos_atom,STAT=istat)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(ref_pos_core)) THEN
+          DEALLOCATE (ref_pos_core,STAT=istat)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(ref_pos_shell)) THEN
+          DEALLOCATE (ref_pos_shell,STAT=istat)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(cell_local)) CALL cell_release(cell_local,error=error)
+
     END IF
 
   END SUBROUTINE force_env_calc_num_pressure

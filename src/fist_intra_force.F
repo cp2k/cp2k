@@ -199,7 +199,7 @@ CONTAINS
              fscalar = k2_spring + k4_spring*r2/6.0_dp
              pot_shell = pot_shell + energy
              IF (atener) THEN
-                ener_a(index_b) = ener_a(index_b) + energy
+                ener_a(index_a) = ener_a(index_a) + energy
              END IF
              core_particle_set(index_b)%f(1) = core_particle_set(index_b)%f(1) - rij(1)*fscalar
              core_particle_set(index_b)%f(2) = core_particle_set(index_b)%f(2) - rij(2)*fscalar
@@ -213,7 +213,7 @@ CONTAINS
                 CALL get_pv_bond(k1,rij,pv_bond)
              END IF
              IF (atstress) THEN
-               CALL get_pv_bond  ( k1, rij, pv_a(:,:,index_b) )
+                CALL get_pv_bond(k1,rij,pv_a(:,:,index_a))
              END IF
           END DO SHELL
 

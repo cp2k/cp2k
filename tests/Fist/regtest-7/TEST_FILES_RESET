@@ -453,3 +453,5 @@ UO2-4x4x4-fixd.inp
 UO2-4x4x4-core-shell-debug.inp
 #  
 UO2-4x4x4-autofit.inp
+# Bug fix for run type debug
+UO2-4x4x4-core-shell-debug.inp
