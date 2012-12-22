@@ -2084,10 +2084,10 @@ END SUBROUTINE make_full_all_ortho
                                                 thresh_inner = 1.0E-2_dp, &
                                                 thresh_post = 1.0E-5_dp
 
-    INTEGER :: d_offset, handle, istat, k, max_blk_size, max_row_blk_size, &
-      max_vec_size, mp_group, mynode, mypcol, myprow, n, nblkcols_local, &
-      nblkrows_local, nblkrows_total, npcols, nprows, numnodes, &
-      proc_holds_diag_blk
+    INTEGER :: d_offset, handle, istat, k, k_s, max_blk_size, &
+      max_row_blk_size, max_vec_size, mp_group, mynode, mypcol, myprow, n, &
+      nblkcols_local, nblkrows_local, nblkrows_total, npcols, nprows, &
+      numnodes, proc_holds_diag_blk
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: dbg_print_chksum, &
                                                 dbg_print_matrix, failure, &
@@ -2248,7 +2248,8 @@ END SUBROUTINE make_full_all_ortho
     DO k = 1,nblkrows_total
        !write(*,*) 'enter loop k=',k
        tr = .FALSE.
-       CALL cp_dbcsr_get_stored_coordinates (mat_t, k, k, tr, proc_holds_diag_blk)
+       k_s = k
+       CALL cp_dbcsr_get_stored_coordinates (mat_t, k_s, k_s, tr, proc_holds_diag_blk)
        !write(*,*) 'proc_holds_diag_blk',proc_holds_diag_blk, proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)
 
        CALL cpu_time(t(3))

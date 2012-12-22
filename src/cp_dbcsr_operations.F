@@ -986,8 +986,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_unpack_vec', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col, col_size, mynode, nblkcols_total, nblkrows_total, node, &
-      nze, row, row_size, timing_handle
+    INTEGER :: col, col_s, col_size, mynode, nblkcols_total, nblkrows_total, &
+      node, nze, row, row_s, row_size, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: my_do_sum, tr
 
@@ -1019,7 +1019,8 @@ CONTAINS
           nze = row_size*col_size
           ! add block only on the correct node
           tr = .FALSE.
-          CALL cp_dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
+          row_s=row ; col_s=col
+          CALL cp_dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, node)
           IF(node.EQ.mynode) CALL cp_dbcsr_put_block(matrix, row, col, &
                pkd_vec(INT(pkd_vec(row)):INT(pkd_vec(row)+nze-1)), &
                summation=my_do_sum)
@@ -1037,7 +1038,8 @@ CONTAINS
           nze = row_size*col_size
           ! add block only on the correct node
           tr = .FALSE.
-          CALL cp_dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
+          row_s=row ; col_s=col
+          CALL cp_dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, node)
           IF(node.EQ.mynode) CALL cp_dbcsr_put_block(matrix, row, col, &
                pkd_vec(INT(pkd_vec(col)):INT(pkd_vec(col)+nze-1)),&
                summation=my_do_sum)
