@@ -74,7 +74,7 @@
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE DEFAULT
-  			          CALL xyz_to_vab(prefactor, coef_xyz, lp, &
+                               CALL xyz_to_vab(prefactor, coef_xyz, lp, &
                                                   la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, &
                                                   lb_min_local, maxl, lvab, hvab)
@@ -112,7 +112,7 @@
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE DEFAULT
-  			          CALL xyz_to_vab(prefactor, coef_xyz, lp, &
+                               CALL xyz_to_vab(prefactor, coef_xyz, lp, &
                                                   la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, &
                                                   lb_min_local, maxl, lvab, hvab)
@@ -150,7 +150,7 @@
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE DEFAULT
-  			          CALL xyz_to_vab(prefactor, coef_xyz, lp, &
+                               CALL xyz_to_vab(prefactor, coef_xyz, lp, &
                                                   la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, &
                                                   lb_min_local, maxl, lvab, hvab)
@@ -188,7 +188,7 @@
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE DEFAULT
-  			          CALL xyz_to_vab(prefactor, coef_xyz, lp, &
+                               CALL xyz_to_vab(prefactor, coef_xyz, lp, &
                                                   la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, &
                                                   lb_min_local, maxl, lvab, hvab)
@@ -226,20 +226,20 @@
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE DEFAULT
-  			          CALL xyz_to_vab(prefactor, coef_xyz, lp, &
+                               CALL xyz_to_vab(prefactor, coef_xyz, lp, &
                                                   la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, &
                                                   lb_min_local, maxl, lvab, hvab)
                      END SELECT
                CASE DEFAULT
-  			CALL xyz_to_vab(prefactor, coef_xyz, lp, &
-  					 la_max_local, lb_max_local, &
-  					  rp, ra, rab, vab, coset, la_min_local, lb_min_local, maxl, lvab, hvab)
+                               CALL xyz_to_vab(prefactor, coef_xyz, lp, &
+                                           la_max_local, lb_max_local, &
+                                           rp, ra, rab, vab, coset, la_min_local, lb_min_local, maxl, lvab, hvab)
   
            END SELECT
-  	   
+  
       
-      	    END SUBROUTINE call_to_xyz_to_vab
+    END SUBROUTINE call_to_xyz_to_vab
       
 !!! Cloned routines
           ! Fully unrolled version
