@@ -604,6 +604,7 @@ CONTAINS
             file_action="READ",&
             unit_number=hesunit)
        READ(UNIT=hesunit,IOSTAT=stat)mat
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ms_vib%mat_size=mat
     END IF
     CALL mp_bcast(ms_vib%mat_size,para_env%source,para_env%group)
