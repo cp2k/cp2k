@@ -364,7 +364,7 @@ CONTAINS
     CHARACTER                                :: my_symmetry
     INTEGER                                  :: col, error_handle, max_nze, &
                                                 my_data_type, my_proc, &
-                                                numproc, nze, p, row
+                                                numproc, nze, p, row, s_row, s_col
     INTEGER, DIMENSION(4)                    :: iseed = (/4,3,2,1/)
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: quick, tr
@@ -436,52 +436,53 @@ CONTAINS
           ENDIF
           !
           ! build the upper matrix if some symmetry.
+          s_row=row ; s_col=col
           IF (PRESENT (dist)) THEN
              tr = .FALSE.
-             CALL dbcsr_get_stored_coordinates(matrix, row, col, tr, p)
-             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
+             CALL dbcsr_get_stored_coordinates(matrix, s_row, s_col, tr, p)
+             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.LT.s_row) CYCLE
              IF (p .NE. my_proc) CYCLE
           ELSE
-             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
+             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.LT.s_row) CYCLE
           ENDIF
           IF (quick) CALL dlarnv( 1, iseed, 1, value )
           IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
           IF (value(1) .LT. my_sparsity) CYCLE
           IF (quick) THEN
-             nze = rbs(row) * cbs(col)
+             nze = rbs(s_row) * cbs(s_col)
              CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           ENDIF
-          CALL dbcsr_put_block (matrix, row, col, data_values)
-          IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.EQ.row) THEN
+          CALL dbcsr_put_block (matrix, s_row, s_col, data_values)
+          IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.EQ.s_row) THEN
              SELECT CASE(my_symmetry)
              CASE(dbcsr_type_symmetric)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
                      error=error)
              CASE(dbcsr_type_antisymmetric)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
                      scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
                      error=error)
              CASE(dbcsr_type_hermitian)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
                      error=error)
-                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
+                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(s_col), col_size=rbs(s_row), &
                      lb=1, error=error)
              CASE(dbcsr_type_antihermitian)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
                      scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
                      error=error)
-                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
+                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(s_col), col_size=rbs(s_row), &
                      lb=1, error=error)
              CASE DEFAULT
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
                      dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",&
                      __LINE__,error)
              END SELECT
-             CALL dbcsr_put_block (matrix, row, col, data_values_tr, summation=.TRUE.)
+             CALL dbcsr_put_block (matrix, s_row, s_col, data_values_tr, summation=.TRUE.)
           ENDIF
        ENDDO
     ENDDO
