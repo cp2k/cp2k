@@ -687,7 +687,8 @@ MODULE input_constants
                                               lr_current=3
 
   INTEGER, PARAMETER, PUBLIC               :: xc_pbe_orig=11,&
-                                              xc_rev_pbe=12
+                                              xc_pbe_rev=12,&
+                                              xc_pbe_sol=13
 
   ! EIP models
   INTEGER, PARAMETER, PUBLIC               :: use_bazant_eip=1, &

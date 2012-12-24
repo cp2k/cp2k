@@ -13,7 +13,7 @@ MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
-       Perdew1996, Proynov2007, Tao2003, Vosko1980, Zhang1998
+       Perdew1996, Proynov2007, Tao2003, Vosko1980, Zhang1998, Perdew2008
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -494,7 +494,7 @@ CONTAINS
        CALL section_create(subsection,name="PBE",&
             description="Uses the PBE functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            citations=(/Perdew1996,Zhang1998/),&
+            citations=(/Perdew1996,Zhang1998,Perdew2008/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -502,9 +502,13 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"parametrization",&
-            description="switches between the original PBE and the revised PBE "//&
-            "proposed ba Yingkai Zhang and Weitao Yang",&
-            enum_i_vals=(/xc_pbe_orig,xc_rev_pbe/),enum_c_vals=(/"ORIG  ","revPBE"/),&
+            description="switches between the different "//&
+            "parametrizations of the functional",&
+            enum_i_vals=(/xc_pbe_orig,xc_pbe_rev,xc_pbe_sol/),&
+            enum_c_vals=(/"ORIG  ","revPBE","PBEsol"/),&
+            enum_desc=(/"original PBE                        ",&
+                        "revised PBE (revPBE)                ",&
+                        "PBE for solids and surfaces (PBEsol)"/),&
             default_i_val=xc_pbe_orig,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

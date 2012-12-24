@@ -1,0 +1,7 @@
+@SET ELEM He
+@SET CONF (HS) 1s1 2s1
+@SET METH UKS
+@SET FUNC PBE
+
+@INCLUDE PBE_energy.inc
+

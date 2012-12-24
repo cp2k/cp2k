@@ -1,0 +1,67 @@
+&GLOBAL
+  PROGRAM_NAME ATOM
+&END GLOBAL
+&ATOM
+  &AE_BASIS
+     BASIS_TYPE CONTRACTED_GTO
+     BASIS_SET_FILE_NAME ../BASIS_SET
+     BASIS_SET DZVP-ALL
+  &END AE_BASIS
+  &METHOD
+
+@IF $FUNC == PBE
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          PARAMETRIZATION ORIG
+          SCALE_X 1.0
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+@ENDIF
+
+@IF $FUNC == PBEsol
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          PARAMETRIZATION PBESOL
+          SCALE_X 1.0
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+@ENDIF
+
+@IF $FUNC == PBE0
+    &XC
+      &HF
+        FRACTION 0.25
+      &END HF
+      &XC_FUNCTIONAL
+        &PBE
+          PARAMETRIZATION ORIG
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+@ENDIF
+
+@IF $FUNC == PBEsol0
+    &XC
+      &HF
+        FRACTION 0.25
+      &END HF
+      &XC_FUNCTIONAL
+        &PBE
+          PARAMETRIZATION PBESOL
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+@ENDIF
+
+    METHOD_TYPE $METH
+  &END METHOD
+  ELECTRON_CONFIGURATION  $CONF
+  ELEMENT $ELEM
+&END ATOM
+

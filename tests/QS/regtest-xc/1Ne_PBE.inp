@@ -1,0 +1,7 @@
+@SET ELEM Ne
+@SET CONF [Ne]
+@SET METH RKS
+@SET FUNC PBE
+
+@INCLUDE PBE_energy.inc
+

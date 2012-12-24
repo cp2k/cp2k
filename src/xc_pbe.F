@@ -19,10 +19,12 @@
 MODULE xc_pbe
   USE bibliography,                    ONLY: Perdew1996,&
                                              Zhang1998,&
+                                             Perdew2008,&
                                              cite_reference
   USE f77_blas
   USE input_constants,                 ONLY: xc_pbe_orig,&
-                                             xc_rev_pbe
+                                             xc_pbe_rev,&
+                                             xc_pbe_sol
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -105,7 +107,7 @@ CONTAINS
                   "PBE, Perdew-Burke-Ernzerhof xc functional (unpolarized)",sx,sc
           END IF
        END IF
-    CASE(xc_rev_pbe)
+    CASE(xc_pbe_rev)
        CALL cite_reference(Perdew1996)
        CALL cite_reference(Zhang1998)
        IF (sx==1._dp .AND.sc==1._dp) THEN
@@ -122,11 +124,35 @@ CONTAINS
           WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
                "revPBE, Yingkay Zhang and Weitao Yang,",&
                " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)",&
-               sx,sc,"{LDA version}"
+               sx,sc,"{spin unpolarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
              WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LDA)')")&
                   "revPBE, revised PBE xc functional (unpolarized)",sx,sc
+          END IF
+       END IF
+    CASE(xc_pbe_sol)
+       CALL cite_reference(Perdew1996)
+       CALL cite_reference(Perdew2008)
+       IF (sx==1._dp .AND.sc==1._dp) THEN
+          IF ( PRESENT ( reference ) ) THEN
+          reference = "PBEsol, J.P. Perdew et al., "//&
+               "Phys. Rev. Letter, vol 100,n 13, p. 136406, (2008) "//&
+               "{spin unpolarized}"
+          END IF
+          IF ( PRESENT ( shortform ) ) THEN
+             shortform = "PBEsol, PBE for solids and surfaces xc functional (unpolarized)"
+          END IF
+       ELSE
+          IF ( PRESENT ( reference ) ) THEN
+          WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
+               "PBEsol, J.P. Perdew et al., ",&
+               "Phys. Rev. Letter, vol 100,n 13, p. 136406, (2008) ",&
+               sx,sc,"{spin unpolarized}"
+          END IF
+          IF ( PRESENT ( shortform ) ) THEN
+             WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LDA)')")&
+                  "PBEsol, PBE for solids and surfaces xc functional (unpolarized)",sx,sc
           END IF
        END IF
     CASE default
@@ -197,7 +223,7 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
                   "PBE xc functional (spin polarized)",sx,sc
           END IF
        END IF
-    CASE(xc_rev_pbe)
+    CASE(xc_pbe_rev)
        CALL cite_reference(Perdew1996)
        CALL cite_reference(Zhang1998)
        IF (sx==1._dp .AND.sc==1._dp) THEN
@@ -219,6 +245,30 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
           IF ( PRESENT ( shortform ) ) THEN
              WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LSD)')")&
                   "revPBE, revised PBE xc functional (spin polarized)",sx,sc
+          END IF
+       END IF
+    CASE(xc_pbe_sol)
+       CALL cite_reference(Perdew1996)
+       CALL cite_reference(Perdew2008)
+       IF (sx==1._dp .AND.sc==1._dp) THEN
+          IF ( PRESENT ( reference ) ) THEN
+             reference = "PBEsol, J.P. Perdew et al., "//&
+               "Phys. Rev. Letter, vol 100,n 13, p. 136406, (2008) "//&
+               "{spin polarized}"
+          END IF
+          IF ( PRESENT ( shortform ) ) THEN
+             shortform = "PBEsol, PBE for solids and surfaces xc functional (spin polarized)"
+          END IF
+       ELSE
+          IF ( PRESENT ( reference ) ) THEN
+          WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
+               "PBEsol, J.P. Perdew et al., ",&
+               "Phys. Rev. Letter, vol 100,n 13, p. 136406, (2008) ",&
+               sx,sc,"{spin unpolarized}"
+          END IF
+          IF ( PRESENT ( shortform ) ) THEN
+             WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LSD)')")&
+                  "PBEsol, PBE for solids and surfaces xc functional (spin polarized)",sx,sc
           END IF
        END IF
     CASE default
@@ -476,16 +526,28 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
 ! scale_ec, scale_ex, snorm_drho, snorm_drho1rho, snorm_drhorho, srho, &
 
   failure=.FALSE.
+
+  ! Parametrization of PBE
   SELECT CASE(param)
+  ! Original PBE
   CASE (xc_pbe_orig)
      kappa = 0.804e0_dp
-  CASE (xc_rev_pbe)
-     kappa=1.245
+     beta  = 0.66725e-1_dp
+     mu    = beta * pi ** 2 / 0.3e1_dp
+  ! Revised PBE (revPBE)
+  CASE (xc_pbe_rev)
+     kappa = 0.1245e1_dp
+     beta  = 0.66725e-1_dp
+     mu    = beta * pi ** 2 / 0.3e1_dp
+  ! PBE for solids (PBEsol)
+  CASE (xc_pbe_sol)
+     kappa = 0.804e0_dp
+     beta  = 0.46e-1_dp
+     mu    = 0.1e2_dp / 0.81e2_dp
   CASE default
      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
   END SELECT
-  beta = 0.66725e-1_dp
-  mu = beta * pi ** 2 / 0.3e1_dp
+
   gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp
@@ -1572,20 +1634,29 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       t998, t999, tnorm_drho, trhoa, trhoanorm_drho, trhoarhoa, trhoarhob, &
       trhob, trhobnorm_drho, trhobrhob
 
-!, param
-
   failure=.FALSE.
 
+  ! Parametrization of PBE
   SELECT CASE(param)
+  ! Original PBE
   CASE (xc_pbe_orig)
      kappa = 0.804e0_dp
-  CASE (xc_rev_pbe)
-     kappa=1.245
+     beta  = 0.66725e-1_dp
+     mu    = beta * pi ** 2 / 0.3e1_dp
+  ! Revised PBE (revPBE)
+  CASE (xc_pbe_rev)
+     kappa = 0.1245e1_dp
+     beta  = 0.66725e-1_dp
+     mu    = beta * pi ** 2 / 0.3e1_dp
+  ! PBE for solids (PBEsol)
+  CASE (xc_pbe_sol)
+     kappa = 0.804e0_dp
+     beta  = 0.46e-1_dp
+     mu    = 0.1e2_dp / 0.81e2_dp
   CASE default
      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
   END SELECT
-  beta = 0.66725e-1_dp
-  mu = beta * pi ** 2 / 0.3e1_dp
+
   gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp

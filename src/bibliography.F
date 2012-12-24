@@ -47,7 +47,8 @@ MODULE bibliography
              Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999,&
              Frigo2005, Nose1984a, Nose1984b, Brelaz1979, Bussi2007,Genovese2006,&
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
-             VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
+             VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,&
+             Perdew2008,Lee1988,&
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
@@ -1236,6 +1237,29 @@ CONTAINS
          "UT ISI:000071717100066",&
          "ER"),&
          DOI="10.1103/PhysRevLett.80.890")
+
+    CALL add_reference(key=Perdew2008,ISI_record=s2a(&
+         "PT J",&
+         "AU Perdew, JP",&
+         "   Ruzsinszky, A",&
+         "   Csonka, GI",&
+         "   Vydrov, OA",&
+         "   Scuseria, GE",&
+         "   Constantin, LA",&
+         "   Zhou, X",&
+         "   Burke, K",&
+         "TI Restoring the Density-Gradient Expansion for Exchange in Solids and Surfaces",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN ",&
+         "PD APR 04",&
+         "PY 2008",&
+         "VL 100",&
+         "IS 13",&
+         "BP 136406",&
+         "EP 136409",&
+         "UT ",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.100.136406")
 
     CALL add_reference(key=Lee1988,ISI_record=s2a(&
          "PT J",&
