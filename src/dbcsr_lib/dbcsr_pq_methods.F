@@ -623,9 +623,13 @@ CONTAINS
     IF (ASSOCIATED (t%c_locks_dev)) THEN
        CALL dbcsr_cuda_dev_mem_release (t%c_locks_dev, error=error)
     ENDIF
+    ! the target of this pointer was allocated by the master, and shared between all threads
+    !$OMP MASTER
     IF (ASSOCIATED (t%stack_state_dev)) THEN
        CALL dbcsr_cuda_dev_mem_release (t%stack_state_dev, error=error)
     ENDIF
+    !$OMP END MASTER
+    NULLIFY(t%stack_state_dev)
     IF (ASSOCIATED (t%params_dev)) THEN
        CALL dbcsr_cuda_dev_mem_release (t%params_dev, error=error)
     ENDIF

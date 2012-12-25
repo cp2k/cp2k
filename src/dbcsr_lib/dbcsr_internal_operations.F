@@ -2534,6 +2534,7 @@ CONTAINS
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
 
     CALL dbcsr_ps_set_destroy (carrier%param_sets, error=error)
+
     !$OMP MASTER
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        CALL dbcsr_cuda_destroy_streams (error=error)
@@ -4034,6 +4035,7 @@ CONTAINS
        ! Left in for mental accounting
        CALL dbcsr_cuda_dev_mem_hold (stack_state_dev, error=error)
     ENDIF
+    ! all threads share the master's stack_state_dev
     product_target%stack_state_dev => stack_state_dev
     IF (do_master_work) THEN
        product_target%params_dev => params_dev_l
