@@ -13,7 +13,7 @@ MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
-       Perdew1996, Proynov2007, Tao2003, Vosko1980, Zhang1998, Perdew2008
+       Perdew1996, Perdew2008, Proynov2007, Tao2003, Vosko1980, Zhang1998
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants

@@ -18,8 +18,8 @@
 ! *****************************************************************************
 MODULE xc_pbe
   USE bibliography,                    ONLY: Perdew1996,&
-                                             Zhang1998,&
                                              Perdew2008,&
+                                             Zhang1998,&
                                              cite_reference
   USE f77_blas
   USE input_constants,                 ONLY: xc_pbe_orig,&
