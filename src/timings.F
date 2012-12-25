@@ -198,6 +198,7 @@ MODULE timings
     TYPE(timer_env_type), POINTER            :: timer_env
 
 !$OMP MASTER
+!$OMP CRITICAL(time_setstop)
     
     cs_entry%walltime_start = m_walltime()
     timer_env => list_peek(timers_stack)
@@ -234,7 +235,7 @@ MODULE timings
     END IF
     
     handle = routine_id
-    
+!$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
         
   END SUBROUTINE timeset
@@ -261,6 +262,7 @@ MODULE timings
     routine_id = handle
      
 !$OMP MASTER
+!$OMP CRITICAL(time_setstop)
     
     wt_now = m_walltime()
     timer_env => list_peek(timers_stack)
@@ -319,8 +321,7 @@ MODULE timings
        CALL m_flush(timer_env%trace_unit)
     ENDIF
 
-
-
+!$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
 
   END SUBROUTINE timestop
