@@ -493,6 +493,7 @@ CONTAINS
     IF (.NOT. ASSOCIATED (area%d)) THEN
        ALLOCATE (area%d)
     ENDIF
+    !$OMP ATOMIC
     id = id + 1
     !$OMP FLUSH (id)
     area%d%id = id
