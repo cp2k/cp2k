@@ -93,8 +93,10 @@ recursive subroutine [libname]_1d_[nametype1]_sort_low(arr, indices, tmp_arr, tm
    integer, dimension((size(arr)+1)/2), intent(inout) :: tmp_idx
    [type1] :: a 
    integer :: t, m, i,j, k 
-   LOGICAL :: swapped = .TRUE.
+   LOGICAL :: swapped
    ! a,t:  used during swaping of elements in arr and indices
+
+   swapped=.TRUE.
    
    ! If only a few elements are left we switch to bubble-sort for efficiency.
    if (size(arr) <= 7) then ! 7 seems to be a good choice for the moment

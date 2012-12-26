@@ -101,11 +101,13 @@ RECURSIVE SUBROUTINE cp_1d_i8_sort_low(arr, indices, tmp_arr, tmp_idx)
 
     INTEGER                                  :: i, j, k, m, t
     INTEGER(kind=int_8)                      :: a
-    LOGICAL                                  :: swapped = .TRUE.
+    LOGICAL                                  :: swapped
 
 ! a,t:  used during swaping of elements in arr and indices
-! If only a few elements are left we switch to bubble-sort for efficiency.
 
+   swapped=.TRUE.
+   
+   ! If only a few elements are left we switch to bubble-sort for efficiency.
    IF (SIZE(arr) <= 7) THEN ! 7 seems to be a good choice for the moment
           DO j = SIZE(arr)-1, 1, -1
             swapped = .FALSE.
