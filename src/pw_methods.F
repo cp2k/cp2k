@@ -464,7 +464,7 @@ CONTAINS
        cnt = SIZE ( pw%cc )
 
        IF ( i == j ) THEN
-!$omp parallel do private (ig)
+!$omp parallel do private (ig,gg) default(none) shared(i,o3,pw,pwdr2) 
           DO ig = 1, cnt
              gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
              pwdr2%cc(ig) = gg * pw%cc(ig)
@@ -586,7 +586,7 @@ CONTAINS
 
        cnt = SIZE ( pw%cc )
 
-!$omp parallel do private (ig)
+!$omp parallel do private (ig,arg,f) default(none) shared(sigma,ecut,pw)
        DO ig = 1, cnt
           arg = (ecut - pw%pw_grid%gsq(ig))/sigma
           f = EXP(arg)/(1+EXP(arg))
@@ -2208,7 +2208,7 @@ CONTAINS
 
        cnt = SIZE ( sf%cc )
 
-!$omp parallel do private (ig)
+!$omp parallel do private (ig,arg) default(none) shared(sf,r)
        DO ig = 1, cnt
           arg = DOT_PRODUCT(sf%pw_grid%g(:,ig),r)
           sf%cc(ig)=CMPLX(COS(arg),-SIN(arg),KIND=dp)
