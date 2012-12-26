@@ -2325,6 +2325,7 @@ CONTAINS
                GOTO 2345
            ENDIF
 
+        istopg=0
 !$omp parallel  &
 !$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,f2ij,f3ij,f3ik,npjx,npjkx) &
@@ -2336,7 +2337,6 @@ CONTAINS
 !$       iam=omp_get_thread_num()
 
         npjx=300 ; npjkx=6000
-        istopg=0
 
         IF (npr.ne.1) THEN
 ! PARALLEL CASE
