@@ -618,10 +618,11 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
-    LOGICAL, DIMENSION(0:3)                  :: calc = .FALSE.
+    LOGICAL, DIMENSION(0:3)                  :: calc
     REAL(KIND=dp), DIMENSION(0:3)            :: e0, r
 
     order_ = order
+    calc=.FALSE.
 
     IF (order_ >= 0) THEN
        calc(0:order_) = .TRUE.
