@@ -51,6 +51,7 @@ MODULE d3_poly
 
 
 ! cached index -> monomial exponents
+!$OMP THREADPRIVATE(module_initialized,a_mono_exp2,a_mono_exp3,a_reduce_idx3,a_deriv_idx3,a_mono_mult2,a_mono_mult3,a_mono_mult3a)
     LOGICAL, SAVE, PRIVATE :: module_initialized=.FALSE.
     INTEGER, SAVE, DIMENSION(2,cached_dim2) :: a_mono_exp2
     INTEGER, SAVE, DIMENSION(3,cached_dim3) :: a_mono_exp3
