@@ -2533,7 +2533,10 @@ CONTAINS
     !CALL dbcsr_psg_rm_data_c (&
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
 
+    ! maybe a call to dbcsr_psg_rm_data_ab in a critical section would be enough
+    !$OMP CRITICAL (crit_data)
     CALL dbcsr_ps_set_destroy (carrier%param_sets, error=error)
+    !$OMP END CRITICAL (crit_data)
 
     !$OMP MASTER
     IF (mm_driver .EQ. mm_driver_cuda) THEN
