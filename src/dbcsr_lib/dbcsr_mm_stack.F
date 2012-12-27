@@ -976,8 +976,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_process_mm_stack', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, i, k_max, &
-                                                m_max, n_max, stream
+    INTEGER                                  :: error_handle, error_handle2, &
+                                                i, k_max, m_max, n_max, stream
     INTEGER, DIMENSION(:), POINTER           :: params_p
     INTEGER, DIMENSION(stack_size)           :: c_sort, c_sort_ind
     INTEGER, &
@@ -998,7 +998,7 @@ CONTAINS
     stream = owner+1
     !$ IF (.FALSE.) &
     !$      WRITE(*,*)routineN//" Stack size is", stack_size, omp_get_thread_num()
-    IF (careful_mod) &
+ !   IF (careful_mod) &
          CALL dbcsr_error_set (routineN, error_handle, error)
     IF (.NOT. kernel_timing) t_calc_step = t_calc_step - m_walltime()
     IF (kernel_timing) THEN
@@ -1028,7 +1028,8 @@ CONTAINS
     ENDIF
     !========================================
     ! sort the stack. 
-    IF ( stack_size .GT. 1) THEN
+    CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
+    IF (.FALSE. .AND. stack_size .GT. 1) THEN
       params_tmp =  RESHAPE(params, (/dbcsr_ps_width, stack_size/))
       ! sort by the C-blocks
       c_sort = params_tmp(6,:)
@@ -1038,6 +1039,7 @@ CONTAINS
       END DO
       params = RESHAPE(params_sort, (/dbcsr_ps_width*stack_size/))
     ENDIF
+    CALL dbcsr_error_stop (error_handle2, error)
     !========================================
     IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_cp_host_to_dev (params_p,&
@@ -1083,7 +1085,7 @@ CONTAINS
     IF (kernel_timing) index_time = -m_walltime()
     IF (.NOT. kernel_timing) t_calc_step = t_calc_step + m_walltime()
 
-    IF (careful_mod) &
+!    IF (careful_mod) &
          CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE cuda_process_mm_stack
 
