@@ -817,6 +817,11 @@ MODULE hfx_derivatives
       END DO
     END IF
     shm_atomic_pair_list => actual_x_data%atomic_pair_list
+
+    my_bin_size = SIZE(actual_x_data%distribution_forces)
+    DO bin=1,my_bin_size
+       actual_x_data%distribution_forces(bin)%time_forces=0.0_dp
+    ENDDO
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -837,10 +842,6 @@ MODULE hfx_derivatives
     ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    my_bin_size = SIZE(actual_x_data%distribution_forces)
-    DO bin=1,my_bin_size
-       actual_x_data%distribution_forces(bin)%time_forces=0.0_dp
-    ENDDO
     nblocks = load_balance_parameter%nblocks
 
     bins_left = .TRUE.
