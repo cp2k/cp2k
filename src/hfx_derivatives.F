@@ -528,6 +528,7 @@ MODULE hfx_derivatives
     screen_coeffs_kind  => actual_x_data%screen_funct_coeffs_kind
     screen_coeffs_pgf   => actual_x_data%screen_funct_coeffs_pgf
     radii_pgf           => actual_x_data%pair_dist_radii_pgf
+    shm_pmax_block      => actual_x_data%pmax_block
 
 !$OMP END MASTER
 !$OMP BARRIER
@@ -538,7 +539,6 @@ MODULE hfx_derivatives
     !! Load balance the work
     IF( actual_x_data%memory_parameter%recalc_forces ) THEN
       IF( actual_x_data%b_first_load_balance_forces ) THEN
-        shm_pmax_block => actual_x_data%pmax_block
         CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
                               screen_coeffs_set,screen_coeffs_kind,&
                               shm_is_assoc_atomic_block, do_periodic,&

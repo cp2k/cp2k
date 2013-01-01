@@ -844,7 +844,9 @@ MODULE hfx_energy_potential
                                     shm_master_x_data%pair_dist_radii_pgf,&
                                     max_set, max_pgf, n_threads, i_thread, p_work, error)
 
+!$OMP MASTER
       shm_master_x_data%screen_funct_is_initialized = .TRUE.
+!$OMP END MASTER
    END IF
 !$OMP BARRIER
 
