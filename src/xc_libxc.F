@@ -117,7 +117,10 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
           TRIM(func_name(ifunc_name))//": desactivated since probably buggy in v1.2.0 of libxc")
     END IF
+!$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
 
     CALL xc_f90_info_name(xc_info,s1)
     SELECT CASE(xc_f90_info_kind(xc_info))
@@ -221,7 +224,10 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
           TRIM(func_name(ifunc_name))//": desactivated since probably buggy in v1.2.0 of libxc")
     END IF
+!$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_POLARIZED)
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
 
     CALL xc_f90_info_name(xc_info,s1)
     SELECT CASE(xc_f90_info_kind(xc_info))
@@ -336,7 +342,10 @@ CONTAINS
        ENDIF
 
        func_id = get_func_id(func_name(ifunc_name))
+!$OMP CRITICAL(libxc_init)
        CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
 
        SELECT CASE(xc_f90_info_kind(xc_info))
        CASE (XC_KINETIC)
@@ -623,7 +632,10 @@ CONTAINS
        ENDIF
 
        func_id = get_func_id(func_name(ifunc_name))
+!$OMP CRITICAL(libxc_init)
        CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_POLARIZED)
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
 
        SELECT CASE(xc_f90_info_kind(xc_info))
        CASE (XC_KINETIC)
@@ -1167,6 +1179,7 @@ CONTAINS
     TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
 
     func_id = get_func_id(func_name)
+!$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
 
     IF (params(1) < 0.99e20_dp) THEN
@@ -1186,6 +1199,8 @@ CONTAINS
           CALL xc_f90_mgga_x_tb09_set_par(xc_func,params(1))
        END IF
     END IF
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
 
     no_exc = .FALSE.
     IF ((func_id == 160) .OR. (func_id == 182) .OR. (func_id == 207) .OR. &
@@ -1568,6 +1583,7 @@ CONTAINS
     TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
 
     func_id = get_func_id(func_name)
+!$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_POLARIZED)
 
     IF (params(1) < 0.99e20_dp) THEN
@@ -1587,6 +1603,8 @@ CONTAINS
           CALL xc_f90_mgga_x_tb09_set_par(xc_func,params(1))
        END IF
     END IF
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
 
     no_exc = .FALSE.
     IF ((func_id == 160) .OR. (func_id == 182) .OR. (func_id == 207) .OR. &
