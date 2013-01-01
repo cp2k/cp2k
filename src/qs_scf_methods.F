@@ -172,18 +172,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-!    LOGICAL                                  :: use_elpa
 
     CALL timeset(routineN,handle)
 
     NULLIFY (mo_coeff)
     NULLIFY (mo_eigenvalues)
 
-!#if defined (__ELPA)
-!    use_elpa =.TRUE.
-!#else
-!    use_elpa = .FALSE.
-!#endif
 
     ! Diagonalise the Kohn-Sham matrix
 
@@ -294,18 +288,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-!    LOGICAL                                  :: use_elpa
 
     CALL timeset(routineN,handle)
 
     NULLIFY (mo_coeff)
     NULLIFY (mo_eigenvalues)
-
-!#if defined (__ELPA)
-!    use_elpa =.TRUE.
-!#else
-!    use_elpa = .FALSE.
-!#endif
 
 
     CALL get_mo_set(mo_set=mo_set,&

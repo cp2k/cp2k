@@ -380,7 +380,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_diis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istep, iw, &
+    INTEGER                                  :: handle, istep, iw, iw2, &
                                                 max_sd_steps, max_steps, &
                                                 n_diis, stat
     INTEGER, DIMENSION(:), POINTER           :: set_err
@@ -411,6 +411,8 @@ CPSourceFileRef,&
        CALL section_vals_val_get(diis_section,"NO_LS",l_val=skip_ls, error=error)
        CALL section_vals_val_get(diis_section,"MAX_SD_STEPS",i_val=max_sd_steps, error=error)
        CALL section_vals_val_get(diis_section,"CHECK_DIIS",l_val=check_diis, error=error)
+       iw2 = cp_print_key_unit_nr(logger,diis_section,"DIIS_INFO",&
+            extension=".diisLog",error=error)
        ! Initial setup for DIIS
        stepsize = stepsize0
        ! Allocate type for Line Search direction
@@ -466,19 +468,19 @@ CPSourceFileRef,&
           sline%wrk = forces%wrk / norm
           IF (do_ls.AND.(.NOT.skip_ls)) THEN
              CALL neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
-                  vels, particle_set, iw, output_unit, distances, diis_section, error)
-             IF (output_unit>0) &
-                  WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD after linesearch",&
+                  vels, particle_set, iw, output_unit, distances, diis_section, iw2, error)
+             IF (iw2>0) &
+                  WRITE(iw2,'(T2,A,T69,F12.6)')"SD| Stepsize in SD after linesearch",&
                   stepsize
           ELSE
              stepsize = MIN(norm*stepsize0,max_stepsize)
-             IF (output_unit>0) &
-                  WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD no linesearch performed",&
+             IF (iw2>0) &
+                  WRITE(iw2,'(T2,A,T69,F12.6)')"SD| Stepsize in SD no linesearch performed",&
                   stepsize
           END IF
           sline%wrk = stepsize*sline%wrk
           diis_on = accept_diis_step(istep>max_sd_steps,n_diis,err,crr,set_err,sline,coords,&
-                                     output_unit,check_diis,error)
+                                     output_unit,check_diis,iw2,error)
           IF (diis_on) THEN
              neb_env%opt_type_label= "DIIS"
           END IF

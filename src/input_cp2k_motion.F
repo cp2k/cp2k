@@ -3494,12 +3494,12 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, subsubsection
+    TYPE(section_type), POINTER              :: print_key, subsection, subsubsection
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       NULLIFY(keyword, subsection, subsubsection)
+       NULLIFY(keyword, print_key, subsection, subsubsection)
 
        CALL keyword_create(keyword, name="OPT_TYPE",&
             description="Specifies the type optimizer used for the band",&
@@ -3675,6 +3675,14 @@ CONTAINS
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"diis_info",&
+            description="Controls the printing of diis info during a BAND run", &
+            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
     END IF

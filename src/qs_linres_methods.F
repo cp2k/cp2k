@@ -758,10 +758,11 @@ CONTAINS
     CALL cp_fm_get_info(v,ncol_global=ncol,nrow_global=nrow,error=error)
     ! H * v
     CALL cp_dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol,error=error)
-    ! v * e
+    ! v * e  (chc already multiplied by -1)
     CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
     ! S * ve
     CALL cp_dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp,error=error)
+    !Results is H*C1 - S*<iHj>*C1
     !
     CALL timestop(handle)
     !
@@ -858,21 +859,6 @@ CONTAINS
 
        xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
        scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
-       !CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
-       !     i_val=excitations,error=error)
-       !IF (excitations==tddfpt_excitations) THEN
-       !   xc_section => section_vals_get_subs_vals(input,"DFT%TDDFPT%XC",error=error)
-       !   !FM this check should already had happened and section made explicit, give an error?
-       !   CALL section_vals_get(xc_section,explicit=explicit,error=error)
-       !   IF (.NOT.explicit) THEN
-       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-       !   END IF
-       !END IF
-
-       !CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
-       !     l_val=lsd_singlets,error=error)
-       !CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
-       !     i_val=res_etype,error=error)
     END IF
 
     IF (.NOT.failure) THEN
@@ -923,10 +909,7 @@ CONTAINS
        !        "PRINT%TOTAL_DENSITIES", error=error)
        !END IF
 
-       !IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
-       IF (.NOT.(nspins==1 .AND. .TRUE. .AND. &
-       !          res_etype /= tddfpt_singlet )) THEN
-                 lr_triplet )) THEN
+       IF (.NOT.(nspins==1 .AND. lr_triplet )) THEN
           CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
                                  energy_hartree, &
                                  v_hartree_gspace%pw,error=error)
@@ -943,10 +926,7 @@ CONTAINS
          CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
        END IF
 
-       !IF (nspins == 1 .AND. excitations==tddfpt_excitations .AND. &
-       IF (nspins == 1 .AND. .TRUE. .AND. &
-       !    (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
-           (lr_triplet)) THEN
+       IF (nspins == 1 .AND.  (lr_triplet)) THEN
 
           lsd = .TRUE.
           ALLOCATE(rho1_r_pw(2))
@@ -975,10 +955,10 @@ CONTAINS
        bo = rho1_r(1)%pw%pw_grid%bounds_local
        ! create the place where to store the argument for the functionals
        CALL xc_rho_set_create(rho1_set, bo, &
-                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
-                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
-                              tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
-                              error=error)
+                           rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
+                           drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
+                           tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
+                           error=error)
 
        xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
             error=error)
@@ -1001,10 +981,7 @@ CONTAINS
        END DO
 
        fac=0._dp
-       !IF (nspins==1.AND.excitations==tddfpt_excitations) THEN
-       IF (nspins==1.AND. .TRUE.) THEN
-          !IF (lsd_singlets) fac=1.0_dp
-          !IF (res_etype == tddfpt_triplet) fac=-1.0_dp
+       IF (nspins==1) THEN
           IF (lr_triplet) fac=-1.0_dp
        END IF
 
@@ -1040,11 +1017,8 @@ CONTAINS
              v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
                                         v_rspace_new(ispin)%pw%pw_grid%dvol
 
-            !IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
-             IF (.TRUE. .AND. nspins==1) THEN
+             IF ( nspins==1) THEN
 
-                !IF (.NOT.(lsd_singlets .OR. &
-                !        res_etype == tddfpt_triplet)) THEN
                 IF (.NOT.(lr_triplet)) THEN
 
                    v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
@@ -1059,7 +1033,6 @@ CONTAINS
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
                ! add hartree only for SINGLETS
-                !IF (res_etype == tddfpt_singlet) THEN
                 IF (.NOT.lr_triplet) THEN
                    v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
                                                v_hartree_rspace%pw%pw_grid%dvol
@@ -1097,11 +1070,8 @@ CONTAINS
              v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
                                           v_rspace_new(ispin)%pw%pw_grid%dvol
 
-            !IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
-             IF (.TRUE. .AND. nspins==1) THEN
+             IF ( nspins==1) THEN
 
-               !IF (.NOT.(lsd_singlets .OR. &
-               !          res_etype == tddfpt_triplet)) THEN
                 IF(.NOT.(lr_triplet)) THEN
                    v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
 
@@ -1141,10 +1111,7 @@ CONTAINS
 
        IF (gapw) THEN
 
-          !IF (.NOT. (excitations==tddfpt_excitations .AND. (nspins == 1 .AND. &
-          IF (.NOT. (.TRUE. .AND. (nspins == 1 .AND. &
-          !     res_etype == tddfpt_triplet))) THEN
-               lr_triplet))) THEN
+          IF (.NOT. ( (nspins == 1 .AND.  lr_triplet))) THEN
              CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., do_triplet=lr_triplet, &
                                      p_env=p_env,error=error)
 

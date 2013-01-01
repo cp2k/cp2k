@@ -49,7 +49,7 @@ CONTAINS
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
   FUNCTION accept_diis_step(apply_diis, n_diis,err,crr,set_err,sline,coords,&
-       output_unit,check_diis,error) RESULT(accepted)
+       output_unit,check_diis,iw2,error) RESULT(accepted)
     LOGICAL, INTENT(IN)                      :: apply_diis
     INTEGER, INTENT(IN)                      :: n_diis
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: err, crr
@@ -57,6 +57,7 @@ CONTAINS
     TYPE(neb_var_type), POINTER              :: sline, coords
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: check_diis
+    INTEGER, INTENT(IN)                      :: iw2 
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: accepted
 
@@ -85,7 +86,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        ! find the index with the minimum element of the set_err array
        nv = MINLOC(set_err,1)
-       IF (iw>0) WRITE(iw,'(A,I3)')"Entering into the DIIS module. Error vector number:: ",nv
+       IF (iw2>0) WRITE(iw2,'(A,I3)')"Entering into the DIIS module. Error vector number:: ",nv
        set_err(nv) = 1
        eps_svd     = 1.0E-10_dp
        ALLOCATE(step(sline%size_wrk(1)*sline%size_wrk(2)),stat=stat)
@@ -96,11 +97,11 @@ CONTAINS
        crr(:,nv) = RESHAPE(coords%wrk,(/coords%size_wrk(1)*coords%size_wrk(2)/))
        jv = n_diis
        IF (ALL(set_err==1).AND.apply_diis) THEN
-          IF (iw>0) WRITE(iw,'(A)')"Applying DIIS equations"
+          IF (iw2>0) WRITE(iw2,'(A)')"Applying DIIS equations"
           ! Apply DIIS..
           DO jv = 2, n_diis
              np = jv+1
-             IF (iw>0) WRITE(iw,'(A,I5,A)')"Applying DIIS equations with the last",&
+             IF (iw2>0) WRITE(iw2,'(A,I5,A)')"Applying DIIS equations with the last",&
                   jv," error vectors"
              ALLOCATE(wrk(np,np),stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -124,10 +125,10 @@ CONTAINS
                    wrk(j,i) = wrk(i,j)
                 END DO
              END DO
-             IF (iw>0) THEN
+             IF (iw2>0) THEN
                  line="DIIS Matrix"//cp_to_string(np)//"x"//cp_to_string(np)//"."
-                 WRITE(iw,'(A)')TRIM(line)
-                 WRITE(iw,'('//cp_to_string(np)//'F12.6)')wrk
+                 WRITE(iw2,'(A)')TRIM(line)
+                 WRITE(iw2,'('//cp_to_string(np)//'F12.6)')wrk
              END IF
              ! Inverte the DIIS Matrix
              work=TRANSPOSE(wrk)
@@ -182,7 +183,7 @@ CONTAINS
              step = step - crr(:,n_diis)
              ref  = err(:,n_diis)
              increase_error = check_diis_solution(jv,cwrk,step,ref,&
-                                                  output_unit,check_diis,error)
+                                                  iw2,check_diis,error)
              ! possibly enlarge the error space
              IF (increase_error) THEN
                 accepted = .TRUE.
@@ -211,9 +212,9 @@ CONTAINS
              DEALLOCATE(wrk_inv,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END DO
-          IF (iw>0) THEN
+          IF (iw2>0) THEN
              line ="Exiting DIIS accepting"//cp_to_string(MIN(n_diis,jv))//" errors."
-             WRITE(iw,'(A)')TRIM(line)
+             WRITE(iw2,'(A)')TRIM(line)
           END IF
        END IF
        IF (ALL(set_err==1)) THEN
@@ -324,7 +325,7 @@ CONTAINS
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
   SUBROUTINE  neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
-               vels, particle_set, iw, output_unit, distances, diis_section, &
+               vels, particle_set, iw, output_unit, distances, diis_section, iw2, &
                error)
     REAL(KIND=dp), INTENT(INOUT)             :: stepsize
     TYPE(neb_var_type), POINTER              :: sline
@@ -340,6 +341,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: distances
     TYPE(section_vals_type), POINTER         :: diis_section
+    INTEGER, INTENT(IN)                      :: iw2
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_ls', &
@@ -379,7 +381,7 @@ CONTAINS
           b  = ya - 2.0_dp*a*xa
           xc_cray = -b/(2.0_dp*a)
           IF (xc_cray>max_stepsize) THEN
-             IF (output_unit>0) WRITE(output_unit,'(T2,2(A,F6.3),A)')&
+             IF (iw2>0) WRITE(iw2,'(T2,2(A,F6.3),A)')&
                   "LS| Predicted stepsize (",xc_cray,") greater than allowed stepsize (",&
                   max_stepsize,").  Reset!"
              xc_cray = max_stepsize
@@ -387,7 +389,7 @@ CONTAINS
           END IF
           ! No Extrapolation .. only interpolation
           IF ((xc_cray<=MIN(xa,xb) .OR. xc_cray>=MAX(xa,xb)).AND.(ABS(xa-xb)>1.0E-5_dp)) THEN
-             IF (output_unit>0) WRITE(output_unit,'(T2,2(A,I5),A)')&
+             IF (iw2>0) WRITE(iw2,'(T2,2(A,I5),A)')&
                   "LS| Increasing the number of point from ",np," to ",np+1,"."
              np = np + 1
           END IF

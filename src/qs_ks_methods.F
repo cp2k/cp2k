@@ -846,7 +846,7 @@ CONTAINS
           IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
        ENDDO
 
-       ! prepare to add electronic entropic contribution is needed
+       ! prepare to add electronic entropic contribution if needed
        IF (dft_control%smear) THEN
           energy%kTS = 0.0_dp
           energy%efermi = 0.0_dp
