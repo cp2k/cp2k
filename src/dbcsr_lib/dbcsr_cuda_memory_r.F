@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  Urban Borstnik and the CP2K developers group   !
+!   Copyright (C) 2000 - 2013  CP2K developers group   !
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE dev_mem_alloc_r (dev_mem, n, error, stat)
