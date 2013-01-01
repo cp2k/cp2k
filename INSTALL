@@ -10,11 +10,11 @@ How to compile CP2K code
 
     For the trunk (development) version:
 
-    svn co https://cp2k.svn.sourceforge.net/svnroot/cp2k/trunk cp2k
+    svn checkout svn://svn.code.sf.net/p/cp2k/code/trunk cp2k
 
     For released branch versions:
 
-    svn co https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch cp2k
+    svn checkout svn://svn.code.sf.net/p/cp2k/code/branches/cp2k-2_3-branch cp2k
 
     If SVN is not installed on your system get it at
        http://subversion.apache.org/
