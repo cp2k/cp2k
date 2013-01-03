@@ -57,7 +57,7 @@ CONTAINS
     TYPE(neb_var_type), POINTER              :: sline, coords
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: check_diis
-    INTEGER, INTENT(IN)                      :: iw2 
+    INTEGER, INTENT(IN)                      :: iw2
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: accepted
 

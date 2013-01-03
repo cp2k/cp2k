@@ -172,7 +172,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-
     CALL timeset(routineN,handle)
 
     NULLIFY (mo_coeff)
@@ -287,7 +286,6 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-
 
     CALL timeset(routineN,handle)
 
