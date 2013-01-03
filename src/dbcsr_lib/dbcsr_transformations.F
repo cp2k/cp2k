@@ -728,10 +728,13 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     rbs => array_data (dbcsr_row_block_sizes (matrix))
     cbs => array_data (dbcsr_col_block_sizes (matrix))
+    sym_negation = matrix%m%negate_real
+
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(block_data,iter,row,col,tr,blk,row_size,col_size) &
+!$OMP          SHARED(matrix,rbs,cbs,sym_negation,error)
     CALL dbcsr_data_init (block_data)
     CALL dbcsr_data_new (block_data, dbcsr_get_data_type(matrix))
     CALL dbcsr_iterator_start (iter, matrix)
-    sym_negation = matrix%m%negate_real
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, block_data,&
             transposed=tr,&
@@ -759,6 +762,8 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_data_clear_pointer (block_data)
     CALL dbcsr_data_release (block_data)
+!$OMP END PARALLEL
+
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_untransposed_blocks
 
