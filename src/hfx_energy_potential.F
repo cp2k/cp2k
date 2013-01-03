@@ -1093,10 +1093,6 @@ MODULE hfx_energy_potential
                                   actual_x_data%blocks)
     END IF
 
-
-!$OMP END MASTER
-!$OMP BARRIER
-
     my_bin_size = SIZE(actual_x_data%distribution_energy)
     ! reset timings for the new SCF round
     IF (geometry_did_change) THEN
@@ -1106,6 +1102,10 @@ MODULE hfx_energy_potential
         actual_x_data%distribution_energy(bin)%time_forces=0.0_dp
        END DO
     ENDIF
+!$OMP END MASTER
+!$OMP BARRIER
+
+    my_bin_size = SIZE(actual_x_data%distribution_energy)
     nblocks = load_balance_parameter%nblocks
 
     bins_left = .TRUE.
