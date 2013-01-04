@@ -370,9 +370,9 @@ CONTAINS
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
-    INTEGER                                  :: error_handler, f_col, f_k, &
-                                                f_row, i, l_col, l_k, l_row, &
-                                                output_unit
+    INTEGER                                  :: comm, error_handler, f_col, &
+                                                f_k, f_row, i, l_col, l_k, &
+                                                l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, left_set_given, &
       new_left, new_right, plasma_is_set, product_reindex, release_tdist, &
@@ -969,14 +969,19 @@ CONTAINS
     ENDDO
     CALL dbcsr_access_flush (product_matrix, error=error)
     !
-    IF (PRESENT (flop)) flop = 0
     my_flop = 0
     CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
          retain_sparsity=retain_sparsity,&
          filter_eps=filter_eps, error=error,&
          flop=my_flop)
     CALL dbcsr_finalize(product_matrix, error=error)
-    IF (PRESENT (flop)) flop = my_flop
+    IF (PRESENT (flop)) THEN
+       ! return the average number of flops per MPI rank. Variance (which is fairly large) could be computed as well.
+       comm = dbcsr_mp_group (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
+       numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
+       CALL mp_sum(my_flop,comm)
+       flop = (my_flop + numnodes - 1) / numnodes
+    ENDIF
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
     IF (new_right) CALL dbcsr_release (matrix_right)
