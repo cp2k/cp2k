@@ -104,6 +104,7 @@ MODULE dbcsr_internal_operations
        p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, tmr_mult_finish, &
        tmr_mult_finish1, tmr_mult_finish2, tmr_mult_finish3, tmr_sync
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
+  USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, &
        dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, dbcsr_memory_default, &
@@ -2076,10 +2077,11 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: block_estimate, c_nblkcols_local, c_nblkrows_local, data_type, &
-      default_stack, error_handler, i, ithread, k_map, k_size, m_map, m_size, &
-      mem_type, n_map, n_size, n_stack_buffers, n_stack_mem_regions, nstacks, &
-      nthreads, ps_buffer, ps_g, ps_memreg
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: most_common_k, most_common_m, &
+      default_stack, error_handler, i, istack, ithread, k_map, k_size, m_map, &
+      m_size, mem_type, n_map, n_size, n_stack_buffers, n_stack_mem_regions, &
+      nstacks, nthreads, ps_buffer, ps_g, ps_memreg
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: flop_index, flop_list, &
+                                                most_common_k, most_common_m, &
                                                 most_common_n
     INTEGER, DIMENSION(3)                    :: nxstacks
     INTEGER, DIMENSION(:), POINTER           :: c_local_cols, c_local_rows, &
@@ -2393,6 +2395,7 @@ CONTAINS
                 ps_g = (m_map-1)*nxstacks(2)*nxstacks(3) +&
                        (k_map-1)*nxstacks(2) +&
                        n_map
+                ps_g = nstacks-ps_g
                 carrier%stack_map(n_map, k_map, m_map) = ps_g
                 ! Also take care of the stack m, n, k descriptors
                 DO ps_memreg = 1, n_stack_mem_regions
@@ -2436,10 +2439,32 @@ CONTAINS
           ENDDO
        ENDDO
     ENDDO
-    !
     DEALLOCATE (most_common_m)
     DEALLOCATE (most_common_n)
     DEALLOCATE (most_common_k)
+
+    ! sort to make the order fixed... all defined stacks first, default stack
+    ! last. Next, sort according to flops, first stack lots of flops, last
+    ! stack, few flops
+    IF (nstacks>1) THEN
+       ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets, 1, 1, error=error)
+       ALLOCATE(flop_list(nstacks-1),flop_index(nstacks-1))
+       DO istack=1,nstacks-1
+          flop_list(istack)=-2*ps_group%stacks(istack)%s%m*ps_group%stacks(istack)%s%n*ps_group%stacks(istack)%s%k
+       ENDDO
+       CALL sort(flop_list,nstacks-1,flop_index)
+       DO ps_memreg = 1, n_stack_mem_regions
+          DO ps_buffer = 1, n_stack_buffers
+             ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets,&
+                           ps_buffer, ps_memreg, error=error)
+             DO istack=1,nstacks-1
+                ps_group%stacks(istack)%s%size_bin = flop_index(istack)
+             ENDDO
+          ENDDO
+       ENDDO
+       DEALLOCATE(flop_list,flop_index)
+    ENDIF
+
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        DO ps_memreg = 1, carrier%param_sets%nmemregs
           DO ps_buffer = 1, carrier%param_sets%nbuffers
