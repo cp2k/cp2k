@@ -601,6 +601,7 @@ OBJECTS_GENERIC =\
  restraint.o\
  ri_environment_types.o\
  rmsd.o\
+ rpa_communication.o \
  rpa_ri_gpw.o\
  rt_make_propagators.o\
  rt_matrix_exp.o\

@@ -60,7 +60,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
-            n_keywords=6, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=8, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
             citations=(/DelBen2012/),&
             error=error)
 
@@ -122,6 +122,32 @@ CONTAINS
              "A smaller group size (for example the node size), might a better choice if the actual MP2 time is large "//&
              "compared to integral computation time. This is usually the case if the total number of processors is not too large.",&
             usage="GROUP_SIZE 32",&
+            default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="ROW_BLOCK",&
+            variants=(/"ROW_BLOCK_SIZE"/),&
+            description="Size of the row block used in the SCALAPACK block cyclic data distribution."//&
+             "Default is (ROW_BLOCK=-1) is automatic. "//&
+             "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.",&
+            usage="ROW_BLOCK 512",&
+            default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="COL_BLOCK",&
+            variants=(/"COL_BLOCK_SIZE"/),&
+            description="Size of the column block used in the SCALAPACK block cyclic data distribution."//&
+             "Default is (COL_BLOCK=-1) is automatic. "//&
+             "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.",&
+            usage="COL_BLOCK 512",&
             default_i_val=-1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

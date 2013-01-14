@@ -101,6 +101,8 @@ MODULE mp2_types
        REAL(dp) :: scale_S
        REAL(dp) :: scale_T
        INTEGER  :: mp2_num_proc
+       INTEGER  :: block_size_row
+       INTEGER  :: block_size_col
   END TYPE
 
   TYPE integ_mat_buffer_type
