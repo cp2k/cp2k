@@ -975,6 +975,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_process_mm_stack', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: flops_to_sort = 2*13*13*13
 
     INTEGER                                  :: error_handle, error_handle2, &
                                                 i, k_max, m_max, n_max, stream
@@ -985,6 +986,7 @@ CONTAINS
     REAL(kind=dp)                            :: kt
     REAL(kind=dp), SAVE                      :: index_time = 0
 
+! sort for matrices 13x13 and larger, this parameter needs tuning
 !   ---------------------------------------------------------------------------
 
     IF (stack_size .EQ. 0) THEN
@@ -1027,9 +1029,10 @@ CONTAINS
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Thread sync time", kt, "s"
     ENDIF
     !========================================
-    ! sort the stack. 
+    ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
+    ! are not too busy, or GPU gain is very large
     CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
-    IF (.FALSE. .AND. stack_size .GT. 1) THEN
+    IF (2*m*n*k>=flops_to_sort .AND. stack_size .GT. 1) THEN
       params_tmp =  RESHAPE(params, (/dbcsr_ps_width, stack_size/))
       ! sort by the C-blocks
       c_sort = params_tmp(6,:)
