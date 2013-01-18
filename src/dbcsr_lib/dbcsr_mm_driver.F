@@ -325,6 +325,8 @@ MODULE dbcsr_mm_driver
           ENDDO
        ENDDO
     ENDIF
+
+    !$OMP BARRIER
     
     !$OMP MASTER
     IF (mm_driver .EQ. mm_driver_cuda) THEN
