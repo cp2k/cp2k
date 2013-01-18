@@ -23,7 +23,6 @@ LIB3_OBJECTS =\
  dbcsr_example_2.o\
  dbcsr_example_3.o\
  dbcsr_index_operations.o\
- dbcsr_internal_operations.o\
  dbcsr_io.o\
  dbcsr_iterator_operations.o\
  dbcsr_kinds.o\
@@ -50,5 +49,9 @@ LIB3_OBJECTS =\
  min_heap.o\
  smm.o\
  dbcsr_array_i4_sort.o\
- dbcsr_array_i8_sort.o
- 
+ dbcsr_array_i8_sort.o\
+ dbcsr_mm_types.o\
+ dbcsr_mm_cannon.o\
+ dbcsr_mm_multrec.o\
+ dbcsr_mm_csr.o\
+ dbcsr_mm_driver.o

@@ -12,6 +12,7 @@
 !> <b>Modification history:</b>
 !  - Created 2009-05-12
 ! *****************************************************************************
+
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data,&
                                              array_equality,&
@@ -67,8 +68,7 @@ MODULE dbcsr_operations
                                              dbcsr_make_index_list,&
                                              dbcsr_make_index_local_row,&
                                              dbcsr_repoint_index
-  USE dbcsr_internal_operations,       ONLY: dbcsr_insert_blocks,&
-                                             dbcsr_mult_m_e_e
+  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mult_m_e_e
   USE dbcsr_io,                        ONLY: dbcsr_print,&
                                              print_mult_timings
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -4580,6 +4580,71 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handle, error)
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_finalize_lib
+
+  
+
+! *****************************************************************************
+!> \brief Adds blocks to a matrix
+!>
+!>        Existing blocks are replaced (overwritten).
+!> \param[in,out] matrix_a   DBCSR matrix into which blocks are added
+!> \param[in] matrix_b       DBCSR matrix from which blocks are added
+!> \param[in,out] error      error
+!> <b>Modification history:</b>
+!>  - 2013-01    moved here from dbcsr_internal_operations.F  (Ole Schuett)
+! *****************************************************************************
+  SUBROUTINE dbcsr_insert_blocks(matrix_a, matrix_b, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_insert_blocks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, data_type_b, &
+                                                error_handler, nblkrows, &
+                                                nblks, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: b_row_i
+    LOGICAL                                  :: tr
+    TYPE(dbcsr_data_obj)                     :: data_block
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    ! Checks for validity
+    CALL dbcsr_assert (dbcsr_valid_index (matrix_a),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Target matrix A must be valid.", __LINE__, error)
+    CALL dbcsr_assert (dbcsr_valid_index (matrix_b),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Source matrix B must be valid.", __LINE__, error)
+    ! Reserve the blocks to be added
+    nblks = dbcsr_get_num_blocks (matrix_b)
+    nblkrows = dbcsr_nblkrows_total (matrix_b)
+    ALLOCATE (b_row_i(nblks))
+    CALL dbcsr_expand_row_index (matrix_b%m%row_p, b_row_i, nblkrows, nblks)
+    CALL dbcsr_reserve_blocks (matrix_a, b_row_i, matrix_b%m%col_i, error=error)
+    DEALLOCATE (b_row_i)
+    ! Prepare data structures
+    data_type_b = dbcsr_get_data_type (matrix_b)
+    ! Now add the blocks
+    CALL dbcsr_data_init (data_block)
+    CALL dbcsr_data_new (data_block, data_type_b)
+    CALL dbcsr_iterator_start(iter, matrix_b)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
+       CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
+            summation=.FALSE.)
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (data_block)
+    CALL dbcsr_data_release (data_block)
+    !
+    CALL dbcsr_finalize (matrix_a, error=error)
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_insert_blocks
+
 
 
 #include "dbcsr_operations_d_.F"

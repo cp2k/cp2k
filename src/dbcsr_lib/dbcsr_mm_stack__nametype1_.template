@@ -22,7 +22,7 @@
     [type1], DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     [type1], DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), intent(inout)     :: error
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'blas_process_mm_stack_[nametype1]', &
       routineP = moduleN//':'//routineN
@@ -64,7 +64,7 @@
     [type1], DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     [type1], DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), intent(inout)     :: error
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_process_mm_stack_[nametype1]', &
       routineP = moduleN//':'//routineN
@@ -104,7 +104,7 @@
     [type1], DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     [type1], DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), intent(inout)     :: error
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'smm_process_mm_stack_[nametype1]', &
       routineP = moduleN//':'//routineN
@@ -143,7 +143,7 @@
     [type1], DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     [type1], DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), intent(inout)     :: error
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'plasma_process_mm_stack_[nametype1]', &
       routineP = moduleN//':'//routineN
