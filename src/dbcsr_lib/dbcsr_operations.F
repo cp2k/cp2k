@@ -68,7 +68,6 @@ MODULE dbcsr_operations
                                              dbcsr_make_index_list,&
                                              dbcsr_make_index_local_row,&
                                              dbcsr_repoint_index
-  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mult_m_e_e
   USE dbcsr_io,                        ONLY: dbcsr_print,&
                                              print_mult_timings
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -108,6 +107,7 @@ MODULE dbcsr_operations
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
        dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_valid_index
+  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mult_m_e_e
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
