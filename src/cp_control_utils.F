@@ -953,7 +953,7 @@ CPSourceFileRef,&
     CHARACTER(len=20)                        :: tmpStr
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: handle, ifun, ifunc_name, il, &
-                                                myfun, output_unit
+                                                myfun, output_unit, vmajor, vminor
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -1087,7 +1087,9 @@ CPSourceFileRef,&
                                          ifunc_name=1,&
                                          error=error)
              IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
-               WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+               CALL xc_f90_version(vmajor,vminor)
+               WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
+                 ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                il = LEN_TRIM(reference)
                IF (il < 67) THEN
@@ -1108,7 +1110,8 @@ CPSourceFileRef,&
                                              shortform=shortform,&
                                              ifunc_name=ifunc_name,&
                                              error=error)
-                 WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+                 WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
+                  ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
                  WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                  il = LEN_TRIM(reference)
                  IF (il < 67) THEN

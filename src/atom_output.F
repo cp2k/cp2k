@@ -391,7 +391,7 @@ CONTAINS
     CHARACTER(len=20)                        :: tmpStr
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, meth, &
-                                                myfun, reltyp
+                                                myfun, reltyp, vmajor, vminor
     LOGICAL                                  :: failure = .FALSE., lsd
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
@@ -476,7 +476,9 @@ CONTAINS
           CALL xc_functional_get_info(xc_fun,lsd=lsd,reference=reference,&
             shortform=shortform,ifunc_name=1,error=error)
           IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
-            WRITE (iw, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+            CALL xc_f90_version(vmajor,vminor)
+            WRITE (iw, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
+              ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
             WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
             il = LEN_TRIM(reference)
             IF (il < 67) THEN
@@ -493,7 +495,8 @@ CONTAINS
             DO ifunc_name=2, SIZE(func_name)
               CALL xc_functional_get_info(xc_fun,lsd=lsd,reference=reference,&
                 shortform=shortform,ifunc_name=ifunc_name,error=error)
-              WRITE (iw, fmt="(' FUNCTIONAL| LIBXC (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')")
+              WRITE (iw, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
+                ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
               WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
               il = LEN_TRIM(reference)
               IF (il < 67) THEN

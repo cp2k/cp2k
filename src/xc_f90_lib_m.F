@@ -230,10 +230,14 @@ MODULE xc_f90_lib_m
 
     END SUBROUTINE xc_f90_lda_c_xalpha_set_par
 
-    SUBROUTINE xc_f90_lda_x_set_par(p, relativistic)
+    SUBROUTINE xc_f90_lda_x_set_par(p, alpha, relativistic, omega)
       USE xc_f90_types_m
     TYPE(xc_f90_pointer_t), INTENT(inout)    :: p
+    REAL(xc_f90_kind), INTENT(in)            :: alpha
     INTEGER, INTENT(in)                      :: relativistic
+    REAL(xc_f90_kind), INTENT(in)            :: omega
+
+! of Xalpha, set to 4/3 to obtain standard LDA
 
     END SUBROUTINE xc_f90_lda_x_set_par
 
@@ -339,12 +343,49 @@ MODULE xc_f90_lib_m
 
   !----------------------------------------------------------------
   INTERFACE
-    SUBROUTINE xc_f90_hyb_gga_exx_coef(p, coef)
+    SUBROUTINE xc_f90_hyb_exx_coef(p, coef)
       USE xc_f90_types_m
     TYPE(xc_f90_pointer_t), INTENT(in)       :: p
     REAL(xc_f90_kind), INTENT(out)           :: coef
 
-    END SUBROUTINE xc_f90_hyb_gga_exx_coef
+    END SUBROUTINE xc_f90_hyb_exx_coef
+  END INTERFACE
+
+
+  !----------------------------------------------------------------
+  INTERFACE
+    SUBROUTINE xc_f90_gga_x_wpbeh_set_par(p, omega)
+      USE xc_f90_types_m
+    TYPE(xc_f90_pointer_t), INTENT(in)       :: p
+    REAL(xc_f90_kind), INTENT(in)            :: omega
+
+! range separation
+
+    END SUBROUTINE xc_f90_gga_x_wpbeh_set_par
+  END INTERFACE
+
+  !----------------------------------------------------------------
+  INTERFACE
+    SUBROUTINE xc_f90_gga_x_hjs_set_par(p, omega)
+      USE xc_f90_types_m
+    TYPE(xc_f90_pointer_t), INTENT(in)       :: p
+    REAL(xc_f90_kind), INTENT(in)            :: omega
+
+! range separation
+
+    END SUBROUTINE xc_f90_gga_x_hjs_set_par
+  END INTERFACE
+
+  !----------------------------------------------------------------
+  INTERFACE
+    SUBROUTINE xc_f90_hyb_gga_xc_hse_set_par(p, omega)
+      USE xc_f90_types_m
+    TYPE(xc_f90_pointer_t), INTENT(in)       :: p
+    REAL(xc_f90_kind), INTENT(in)            :: omega
+
+! range separation
+
+    END SUBROUTINE xc_f90_hyb_gga_xc_hse_set_par
   END INTERFACE
 
 
@@ -415,24 +456,5 @@ MODULE xc_f90_lib_m
     END SUBROUTINE xc_f90_mgga_x_tb09_set_par
   END INTERFACE
 
-
-  ! the LCAs
-  !----------------------------------------------------------------
-  INTERFACE
-    SUBROUTINE xc_f90_lca(p, rho, v, e, dedd, dedv)
-      USE xc_f90_types_m
-    TYPE(xc_f90_pointer_t), INTENT(in)       :: p
-    REAL(xc_f90_kind), INTENT(in)            :: rho, v
-    REAL(xc_f90_kind), INTENT(out)           :: e, dedd, dedv
-
-! rho(nspin) the density
-! v(3,nspin) the vorticity
-! the energy per unit particle
-! dedd(nspin) the derivative of the energy
-! in terms of the density
-! and in terms of the vorticity
-
-    END SUBROUTINE xc_f90_lca
-  END INTERFACE
 
 END MODULE xc_f90_lib_m
