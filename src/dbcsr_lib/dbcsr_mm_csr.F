@@ -602,6 +602,7 @@ MODULE dbcsr_mm_csr
          error=error)
     
     CALL dbcsr_mm_driver_inner_init(left, right, carrier, error)
+    !$OMP BARRIER
          
   END SUBROUTINE csr_multiply_inner_init
   
