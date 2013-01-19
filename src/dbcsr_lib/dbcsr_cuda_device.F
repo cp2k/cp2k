@@ -125,6 +125,13 @@ MODULE dbcsr_cuda_device
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief Initializes for each thread the device. I.e. assigns the calling
+!>        thread to a device. We assume all threads have devices of the same
+!>        kind
+!>
+!> \param[in] card_num           number of the card
+! *****************************************************************************
   SUBROUTINE dbcsr_cuda_init (card_num, error)
     INTEGER, INTENT(IN), OPTIONAL            :: card_num
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error

@@ -28,10 +28,6 @@ __global__ void zerolocks (
 	}
 }
 
-
-
-
-
 int cuda_error_check (cudaError_t cudaError) {
   if (cudaError != cudaSuccess) {
     printf("CUDA Error: %s\n", cudaGetErrorString(cudaError));
@@ -130,16 +126,9 @@ extern "C" int dc_do_stack_cu(
 {
 
 	int maxt, nmat, careful, nruns;
-	cudaError_t cErr;
-	int myDevice;
 	size_t shared_size;
-	struct cudaDeviceProp devProperties;
 	int mn, mk, nk, maxb, liter;
 	cudaStream_t stream;
-
-	static long num_calls=0;
-
-	//       	num_calls++;
 
 	if (verbose_print) {
 		printf("Locks address %p.\n", c_locks);
@@ -152,12 +141,6 @@ extern "C" int dc_do_stack_cu(
 	stream = dc_get_stream(stream_id);
 
 	maxt = m_max * n_max;
-
-	cErr = cudaGetDevice(&myDevice);
-	if (cuda_error_check (cErr)) return 1;
-
-	cErr = cudaGetDeviceProperties(&devProperties, myDevice);
-	if (cuda_error_check (cErr)) return 1;
 
 	if (maxt > devProperties.maxThreadsPerBlock)
 		return 3;
@@ -183,11 +166,6 @@ extern "C" int dc_do_stack_cu(
 			if (verbose_print)
 				printf("Defined m,n,k: %d %d %d; %d.\n",
 				       m_max, n_max, k_max, stack_size);
-			if (num_calls>0) {
-			  printf("On call %d defined m,n,k: %d %d %d; %d : blocks %d, threads %d\n",
-				 num_calls,m_max, n_max, k_max, stack_size, (stack_size+GROUPING-1)/GROUPING,maxt);
-			  fflush(stdout);
-			}
 			if (0) {
 				mn = m_max * n_max;
 				mk = m_max * k_max;
@@ -212,6 +190,7 @@ extern "C" int dc_do_stack_cu(
 					 (double *) a_data, (double *) b_data, (double *) c_data,
 					 c_locks);
 			} else {
+                             if (1) {
 				mn = m_max * n_max;
 				mk = m_max * k_max;
 				nk = n_max * k_max;
@@ -242,6 +221,7 @@ extern "C" int dc_do_stack_cu(
 				     (double *) a_data, (double *) b_data, (double *) c_data,
 				     c_locks);
 				}
+                            }
 			}
 		} else {
 			//if (verbose_print)

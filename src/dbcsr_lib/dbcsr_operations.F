@@ -4544,13 +4544,18 @@ CONTAINS
        !$OMP          private (t_error) &
        !$OMP          shared (mynode, ngpus, error, &
        !$OMP          group_size, n_stack_mem_regions,stack_size)
-
+  
+       ! use a critical section to allow for threads initializing static
+       ! variables without races
+       !$OMP CRITICAL
        t_error = error
        IF (has_ma) THEN
           CALL dbcsr_cuda_init (card_num=ma_set_gpu_affinity(mynode), error=error)
        ELSE
           CALL dbcsr_cuda_init (card_num=MOD(mynode, ngpus), error=error)
        ENDIF
+       !$OMP END CRITICAL
+
        !allocate host memory
           CALL dbcsr_ps_set_init(group_size, n_stack_mem_regions,stack_size,error=error)
        !$OMP END PARALLEL

@@ -9,8 +9,13 @@
 
 #include "dbcsr_cuda.h"
 
-//static const int verbose_print = 0;
+static cudaStream_t *streams = 0;
+static int nStreams = 0;
 
+struct cudaDeviceProp devProperties;
+#pragma omp threadprivate(devProperties)
+
+//static const int verbose_print = 0;
 
 extern "C" int dc_device_sync_cu() {
 	cudaError_t cErr;
@@ -33,9 +38,17 @@ extern "C" int dc_stream_sync_cu(int stream_id) {
 
 extern "C" int dc_set_device_cu(int device_id) {
 	cudaError_t cErr;
+        int myDevice;
 
 	cErr = cudaSetDevice(device_id);
 	if (cuda_error_check (cErr)) return 1;
+
+        cErr = cudaGetDevice(&myDevice);
+        if (cuda_error_check (cErr)) return 1;
+
+        cErr = cudaGetDeviceProperties(&devProperties, myDevice);
+        if (cuda_error_check (cErr)) return 1;
+
 	return 0;
 }
 

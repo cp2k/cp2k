@@ -16,8 +16,10 @@ int cuda_error_check (cudaError_t cudaError);
 
 #define GROUPING 16
 
-static cudaStream_t *streams;
-static int nStreams = 0;
+/* to get this really threadprivate we need nvcc with --compiler-options -fopenmp 
+ * however, if all devices have the same properties, the only sane thing, this will be OK more generally */
+extern struct cudaDeviceProp devProperties;
+#pragma omp threadprivate(devProperties)
 
 cudaStream_t dc_get_stream (int stream_id);
 
