@@ -63,7 +63,6 @@ MODULE dbcsr_util
   ! Main
   PUBLIC :: dbcsr_checksum, dbcsr_verify_matrix,&
             dbcsr_pack_meta, dbcsr_unpack_meta, meta_from_dist
-  PUBLIC :: dbcsr_set_debug
   ! Block sizes and arrays
   PUBLIC :: dbcsr_copy_block_sizes,&
             convert_sizes_to_offsets, convert_offsets_to_sizes,&
@@ -78,7 +77,6 @@ MODULE dbcsr_util
   PUBLIC :: xtime_set, xtime_start, xtime_stop
 
 
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
 
@@ -181,18 +179,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     n = SIZE (sizes)
-    !IF (bcsr_debug) THEN
-    !   CALL dbcsr_assert (SIZE (offsets_start) .GE. n, dbcsr_failure_level,&
-    !        dbcsr_caller_error, routineN, "Start offset array too small")
-    !   CALL dbcsr_assert (SIZE (offsets_start) .EQ. n, dbcsr_warning_level,&
-    !        dbcsr_caller_error, routineN, "Start offset array too big")
-    !   IF (PRESENT (offsests_stop)) THEN
-    !      CALL dbcsr_assert (SIZE (offsets_stop) .GE. n, dbcsr_failure_level,&
-    !           dbcsr_caller_error, routineN, "Stop offset array too small")
-    !      CALL dbcsr_assert (SIZE (offsets_stop) .EQ. n, dbcsr_warning_level,&
-    !           dbcsr_caller_error, routineN, "Stop offset array too big")
-    !   ENDIF
-    !ENDIF
     IF (n .GT. 0) THEN
        offsets_start(1) = 1
        IF (PRESENT (offsets_stop)) offsets_stop(1) = sizes(1)
@@ -554,35 +540,6 @@ CONTAINS
     matrix%negate_real = BTEST (meta(dbcsr_slot_type), 2)
     matrix%negate_imaginary = BTEST (meta(dbcsr_slot_type), 3)
   END SUBROUTINE dbcsr_unpack_meta
-
-
-
-! *****************************************************************************
-!> \brief Sets debugging for an individual subroutine depending on the
-!>        value of the bcsr_debug module variable, default initialization in
-!>        the declared subroutine, or
-!> \param[in,out] dbg         debug flag
-!> \param[in] on    (optional) turn debugging on or off in this subroutine
-!> \param[in,out] info        print informational messages (less than debug)
-! *****************************************************************************
-  PURE SUBROUTINE dbcsr_set_debug(dbg, on, info)
-    LOGICAL, INTENT(INOUT)                   :: dbg
-    LOGICAL, INTENT(IN), OPTIONAL            :: on
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: info
-
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT (info)) info = info .AND. bcsr_info
-    IF (PRESENT (on)) THEN
-       dbg = on
-       RETURN
-    ENDIF
-    IF (.NOT. bcsr_debug) THEN
-       dbg = .FALSE.
-       RETURN
-    ENDIF
-  END SUBROUTINE dbcsr_set_debug
-
 
 ! *****************************************************************************
 !> \brief Calculates the checksum of a DBCSR matrix.
