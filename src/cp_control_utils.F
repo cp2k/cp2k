@@ -1087,7 +1087,11 @@ CPSourceFileRef,&
                                          ifunc_name=1,&
                                          error=error)
              IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
+#if defined(__LIBXC2)
                CALL xc_f90_version(vmajor,vminor)
+#else
+               vmajor=0 ; vminor=0
+#endif
                WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
                  ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
