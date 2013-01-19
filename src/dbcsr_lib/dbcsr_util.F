@@ -566,7 +566,7 @@ CONTAINS
                                                 error_handler, m, mn, n, ro
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm, pd, tr
-    REAL(KIND=dp)                            :: blk_cs, local_cs
+    REAL(KIND=dp)                            :: blk_cs, local_cs, local_cs_row
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
 
@@ -599,6 +599,11 @@ CONTAINS
     DO br = 1, matrix%m%nblkrows_total
        m = row_blk_size(br)
        ro = dbcsr_blk_row_offset (matrix, br)
+       local_cs_row=0
+       !$OMP PARALLEL DO DEFAULT(NONE) &
+       !$OMP          PRIVATE(bc,m,n,mn,blk_p,blk_cs,tr,co) &
+       !$OMP          SHARED(pd,br,matrix,ro,row_blk_size,col_blk_size,r_dp, r_sp, c_dp,c_sp) &
+       !$OMP           REDUCTION(+:local_cs_row)
        DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
           bc = matrix%m%col_i(blk)
           m = row_blk_size(br)
@@ -650,9 +655,10 @@ CONTAINS
              ELSE
                 blk_cs = 0.0_dp
              ENDIF
-             local_cs = local_cs + blk_cs
+             local_cs_row = local_cs_row + blk_cs
           ENDIF
        ENDDO
+       local_cs=local_cs+local_cs_row
     ENDDO
     checksum = local_cs
     IF (.NOT. nocomm) THEN
