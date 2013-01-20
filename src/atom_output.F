@@ -482,7 +482,7 @@ CONTAINS
             vmajor=0 ; vminor=0
 #endif
             WRITE (iw, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
-              ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
+              &' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
             WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
             il = LEN_TRIM(reference)
             IF (il < 67) THEN
@@ -500,7 +500,7 @@ CONTAINS
               CALL xc_functional_get_info(xc_fun,lsd=lsd,reference=reference,&
                 shortform=shortform,ifunc_name=ifunc_name,error=error)
               WRITE (iw, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
-                ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
+                &' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
               WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
               il = LEN_TRIM(reference)
               IF (il < 67) THEN

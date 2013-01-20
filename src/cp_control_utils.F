@@ -1093,7 +1093,7 @@ CPSourceFileRef,&
                vmajor=0 ; vminor=0
 #endif
                WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
-                 ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
+                 &' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                il = LEN_TRIM(reference)
                IF (il < 67) THEN
@@ -1115,7 +1115,7 @@ CPSourceFileRef,&
                                              ifunc_name=ifunc_name,&
                                              error=error)
                  WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
-                  ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
+                  &' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
                  WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                  il = LEN_TRIM(reference)
                  IF (il < 67) THEN
