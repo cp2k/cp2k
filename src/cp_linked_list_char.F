@@ -1202,19 +1202,19 @@ END FUNCTION cp_sll_char_contains2
 !  USE = "USE kinds, only: default_string_length"
 !  array= = "="
 !  arrayEl = ""
-!  defines =
+!  defines = 
 !    "#define CP_SLL_C_LESS_Q(el1,el2,error) ( el1 < el2 )
 !     #define CP_SLL_C_EQUAL_Q(el1,el2,error) ( el1 == el2 )
 !     "
 !  equalQ = "CP_SLL_C_EQUAL_Q"
 !  lessQ = "CP_SLL_C_LESS_Q"
 !  nametype1 = "char"
-!  private_routines =
+!  private_routines = 
 !    "subroutine write_string(str,unit_nr,error)
 !       character(len=*),intent(in) :: str
 !       integer, intent(in) :: unit_nr
 !       type(cp_error_type), intent(inout) :: error
-!
+!     
 !       write(unit_nr,"(a,a,a)") '"',trim(str),'"'
 !     end subroutine write_string
 !     "

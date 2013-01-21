@@ -988,7 +988,7 @@ SUBROUTINE cp_sll_int_insert_ordered2(sll,el,compare_function,&
   INTERFACE
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
-
+        
        INTEGER :: compare_function
        INTEGER, INTENT(in) :: el1,el2
      END FUNCTION compare_function
@@ -1125,7 +1125,7 @@ FUNCTION cp_sll_int_contains2(sll,el,compare_function,ordered,error)&
   INTERFACE
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
-
+        
        INTEGER :: compare_function
        INTEGER, INTENT(in) :: el1,el2
      END FUNCTION compare_function
@@ -1173,7 +1173,7 @@ END FUNCTION cp_sll_int_contains2
 !  USE = " "
 !  array= = "="
 !  arrayEl = ""
-!  defines =
+!  defines = 
 !    "#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
 !     #define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )
 !     "

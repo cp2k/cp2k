@@ -366,7 +366,7 @@ END FUNCTION cp_1d_r_bsearch
 ! ARGS:
 !  USE = ""
 !  defaultFormatType1 = ""(es14.6)""
-!  defines =
+!  defines = 
 !    "#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_R_LESS_Q"

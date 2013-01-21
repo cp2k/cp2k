@@ -1200,12 +1200,12 @@ END FUNCTION cp_sll_3d_r_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
+!  USE = 
 !    "USE kinds, only: dp
 !     USE cp_array_r_utils, only: cp_3d_r_p_type"
 !  array= = "=>"
 !  arrayEl = "%array"
-!  defines =
+!  defines = 
 !    "! less not much meningful... and defines oly a partial ordering.
 !     #define CP_SLL_R_LESS_Q(el1,el2,error) ( all(el1 < el2) )
 !     #define CP_SLL_R_EQUAL_Q(el1,el2,error) ( all(el1 == el2) )

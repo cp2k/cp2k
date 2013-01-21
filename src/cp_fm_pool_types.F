@@ -81,7 +81,7 @@ MODULE cp_fm_pool_types
      PRIVATE
      INTEGER :: ref_count, id_nr
      TYPE(cp_fm_struct_type), POINTER :: el_struct
-
+     
      TYPE(cp_sll_fm_type), POINTER :: cache
   END TYPE cp_fm_pool_type
 
@@ -132,7 +132,7 @@ CONTAINS
        pool%id_nr=last_fm_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
-
+       
     END IF
   END SUBROUTINE fm_pool_create
 
@@ -266,12 +266,12 @@ CONTAINS
        IF (ASSOCIATED(pool%cache)) THEN
           element => cp_sll_fm_get_first_el(pool%cache,error=error)
           CALL cp_sll_fm_rm_first_el(pool%cache,error=error)
-
+          
        ELSE
           NULLIFY(element)
               CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
        END IF
-
+       
     IF (PRESENT(name)) THEN
       element%name=name
       element%print_count=0
@@ -280,7 +280,7 @@ CONTAINS
       element%print_count=0
       ! guarantee output unicity?
     END IF
-
+    
     END IF
     CPPostcondition(ASSOCIATED(element),cp_failure_level,routineP,error,failure)
     CPPostcondition(element%ref_count==1,cp_warning_level,routineP,error,failure)
@@ -333,7 +333,7 @@ CONTAINS
       END IF
 
        END DO
-
+       
     END IF
   END SUBROUTINE fm_pool_create_fm_vect
 
@@ -611,7 +611,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
       END IF
 
      END DO
-
+     
   END IF
 END SUBROUTINE fm_pools_create_fm_vect
 

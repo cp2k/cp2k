@@ -364,7 +364,7 @@ END FUNCTION cp_1d_logical_bsearch
 ! ARGS:
 !  USE = ""
 !  defaultFormatType1 = ""(l1)""
-!  defines =
+!  defines = 
 !    "#define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )
 !     "
 !  lessQ = "CP_L_LESS_Q"

@@ -1179,7 +1179,7 @@ END FUNCTION cp_sll_val_contains2
 !  USE = "USE input_val_types, only: val_type, val_p_type"
 !  array= = "=>"
 !  arrayEl = "%val"
-!  defines =
+!  defines = 
 !    "#define CP_SLL_VAL_LESS_Q(el1,el2,error) el1%id_nr<el2%id_nr
 !     #define CP_SLL_VAL_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
 !     "

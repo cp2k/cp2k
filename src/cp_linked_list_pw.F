@@ -1183,13 +1183,13 @@ END FUNCTION cp_sll_pw_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
+!  USE = 
 !    "USE kinds, only: dp
 !     USE pw_types, ONLY: pw_type, pw_p_type
 !     USE pw_methods, ONLY: pw_write"
 !  array= = "=>"
 !  arrayEl = "%pw"
-!  defines =
+!  defines = 
 !    "! less not much meaningful...
 !     #define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
 !     #define CP_SLL_PW_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )

@@ -1207,28 +1207,28 @@ END FUNCTION cp_sll_xc_deriv_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
+!  USE = 
 !    "USE kinds, only: dp
 !     USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type"
 !  array= = "=>"
 !  arrayEl = "%deriv"
-!  defines =
+!  defines = 
 !    "#define CP_SLL_DERIV_LESS_Q(el1,el2,error) cp_sll_deriv_less_q(el1,el2,error)
 !     #define CP_SLL_DERIV_EQUAL_Q(el1,el2,error) ( el1%desc == el2%desc )
 !     "
 !  equalQ = "CP_SLL_DERIV_EQUAL_Q"
 !  lessQ = "cp_sll_deriv_less_q"
 !  nametype1 = "xc_deriv"
-!  private_routines =
+!  private_routines = 
 !    "!private compare function
 !     function cp_sll_deriv_less_q(el1,el2,error) result(res)
 !       type(xc_derivative_type), pointer :: el1,el2
 !       type(cp_error_type), intent(inout) :: error
 !       logical :: res
-!
+!     
 !       character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&
 !           routineP=moduleN//':'//routineN
-!
+!     
 !       CPPreconditionNoFail(associated(el1),cp_failure_level,routineP,error)
 !       CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP,error)
 !       CPPreconditionNoFail(associated(el2),cp_failure_level,routineP,error)

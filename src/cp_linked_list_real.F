@@ -1182,7 +1182,7 @@ END FUNCTION cp_sll_real_contains2
 !  USE = "USE kinds, only: dp"
 !  array= = "="
 !  arrayEl = ""
-!  defines =
+!  defines = 
 !    "#define CP_SLL_R_LESS_Q(el1,el2,error) ( el1 < el2 )
 !     #define CP_SLL_R_EQUAL_Q(el1,el2,error) ( el1 == el2 )
 !     "

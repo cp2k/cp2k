@@ -1181,12 +1181,12 @@ END FUNCTION cp_sll_fm_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
+!  USE = 
 !    "USE kinds, only: dp
 !     USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type"
 !  array= = "=>"
 !  arrayEl = "%matrix"
-!  defines =
+!  defines = 
 !    "! less not much meningful...
 !     #define CP_SLL_FM_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
 !     #define CP_SLL_FM_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )
