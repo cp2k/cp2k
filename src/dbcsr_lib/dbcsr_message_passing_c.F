@@ -134,7 +134,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c11v', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -143,7 +143,6 @@
     CALL mpi_alltoallv ( sb, scount, sdispl, MPI_COMPLEX, &
          rb, rcount, rdispl, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ "//routineN )
-    msglen = SUM ( scount ) + SUM ( rcount )
 #else
     rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
@@ -169,7 +168,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c22v', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -177,7 +176,6 @@
     CALL mpi_alltoallv ( sb, scount, sdispl, MPI_COMPLEX, &
          rb, rcount, rdispl, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ "//routineN )
-    msglen = SUM ( scount ) + SUM ( rcount )
 #else
     rb=sb
 #endif
@@ -208,7 +206,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -216,9 +214,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * count * np
 #else
     rb=sb
 #endif
@@ -238,7 +233,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c22', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -246,9 +241,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * SIZE(sb) * np
 #else
     rb=sb
 #endif
@@ -268,7 +260,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c33', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -276,9 +268,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * count * np
 #else
     rb=sb
 #endif
@@ -301,7 +290,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c44', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -309,9 +298,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * count * np
 #else
     rb=sb
 #endif
@@ -334,7 +320,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c45', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -342,9 +328,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * count * np
 #endif
 
   END SUBROUTINE mp_alltoall_c45
@@ -365,7 +348,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c34', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -373,9 +356,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * count * np
 #endif
 
   END SUBROUTINE mp_alltoall_c34
@@ -396,7 +376,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c54', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, msglen, np
+    INTEGER                                  :: ierr
 
     ierr = 0
 
@@ -404,9 +384,6 @@
     CALL mpi_alltoall ( sb, count, MPI_COMPLEX, &
          rb, count, MPI_COMPLEX, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
-    CALL mpi_comm_size ( group, np, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
-    msglen = 2 * count * np
 #endif
 
   END SUBROUTINE mp_alltoall_c54
@@ -1435,8 +1412,6 @@
             comm,send_request,ierr)
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
-
-    msglen = (msglen+SIZE(msgout,1))/2.0_dp
 #else
     send_request=0
     recv_request=0
@@ -1499,8 +1474,6 @@
             comm,send_request,ierr)
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
-
-    msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2.0_dp
 #else
     send_request=0
     recv_request=0
