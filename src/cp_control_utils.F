@@ -953,7 +953,8 @@ CPSourceFileRef,&
     CHARACTER(len=20)                        :: tmpStr
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: handle, ifun, ifunc_name, il, &
-                                                myfun, output_unit, vmajor, vminor
+                                                myfun, output_unit, vmajor, &
+                                                vminor
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -1092,8 +1093,8 @@ CPSourceFileRef,&
 #else
                vmajor=0 ; vminor=0
 #endif
-               WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
-                 &' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
+               WRITE (output_unit, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
+                      ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                il = LEN_TRIM(reference)
                IF (il < 67) THEN
@@ -1114,8 +1115,8 @@ CPSourceFileRef,&
                                              shortform=shortform,&
                                              ifunc_name=ifunc_name,&
                                              error=error)
-                 WRITE (output_unit, fmt="(' FUNCTIONAL| LIBXC version ',i1,'.',i1,&
-                  &' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))')") vmajor, vminor
+               WRITE (output_unit, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
+                      ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
                  WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                  il = LEN_TRIM(reference)
                  IF (il < 67) THEN
