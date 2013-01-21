@@ -207,9 +207,9 @@ CONTAINS
                                                 search_key, tag, vers
     INTEGER                                  :: j, l, n, no_attribs, no_data, &
                                                 tag_count, unrecognized_tags
-    LOGICAL :: endtag, has_A, has_a0, has_ag, has_B, has_C, has_D, &
-      has_energy, has_eta, has_hcore, has_nqm, has_occ, has_z, has_zeff, &
-      tag_over, tag_over2
+    LOGICAL :: endtag, has_A, has_ag, has_B, has_C, has_D, has_energy, &
+      has_eta, has_hcore, has_nqm, has_occ, has_z, has_zeff, tag_over, &
+      tag_over2
     TYPE(XML_PARSE)                          :: xml_info
 
     DATA has_z, has_zeff, has_ag, has_energy, has_hcore, has_occ,   &
