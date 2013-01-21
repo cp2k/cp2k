@@ -37,7 +37,7 @@
 ! *****************************************************************************
 MODULE xc_libxc
 #if defined (__LIBXC)
-This version of CP2K only works with libxc version 2.0
+This version of CP2K ONLY works with libxc version 2.0
 #endif
 #if defined (__LIBXC2)
   USE bibliography,                    ONLY: Marques2012,&
@@ -1173,9 +1173,9 @@ CONTAINS
 
     INTEGER                                  :: func_id, ii
     LOGICAL                                  :: no_exc
-    REAL(KIND=dp) :: exc, my_tau, v2lapl2, v2lapltau, v2rho2, &
-      v2rholapl, v2rhosigma, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, &
-      v2tau2, v3rho3, vlapl, vrho, vsigma, vtau
+    REAL(KIND=dp) :: exc, my_tau, v2lapl2, v2lapltau, v2rho2, v2rholapl, &
+      v2rhosigma, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, v2tau2, &
+      v3rho3, vlapl, vrho, vsigma, vtau
     TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
 
     func_id = get_func_id(func_name)
@@ -1573,8 +1573,10 @@ CONTAINS
 
     INTEGER                                  :: func_id, ii
     LOGICAL                                  :: no_exc
-    REAL(KIND=dp) :: exc, my_norm_drho, my_norm_drhoa, my_norm_drhob, &
-      my_rhoa, my_rhob, my_tau_a, my_tau_b
+    REAL(KIND=dp)                            :: exc, my_norm_drho, &
+                                                my_norm_drhoa, my_norm_drhob, &
+                                                my_rhoa, my_rhob, my_tau_a, &
+                                                my_tau_b
     REAL(KIND=dp), DIMENSION(2, 1)           :: laplace_rhov, rhov, tauv, &
                                                 vlapl, vrho, vtau
     REAL(KIND=dp), DIMENSION(3, 1)           :: sigmav, v2lapl2, v2rho2, &
