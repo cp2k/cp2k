@@ -481,7 +481,7 @@ CONTAINS
 #else
                vmajor=0 ; vminor=0
 #endif
-            WRITE (output_unit, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
+            WRITE (iw, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
                       ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
             WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
             il = LEN_TRIM(reference)
@@ -499,7 +499,7 @@ CONTAINS
             DO ifunc_name=2, SIZE(func_name)
               CALL xc_functional_get_info(xc_fun,lsd=lsd,reference=reference,&
                 shortform=shortform,ifunc_name=ifunc_name,error=error)
-              WRITE (output_unit, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
+              WRITE (iw, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
                       ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
               WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
               il = LEN_TRIM(reference)
