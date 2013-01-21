@@ -59,7 +59,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(scptb_control_type), INTENT(IN)     :: scptb_control
+    TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -196,7 +196,7 @@ CONTAINS
 
     TYPE(scptb_parameter_type), &
       INTENT(INOUT)                          :: scptb_parameter
-    TYPE(scptb_control_type), INTENT(IN)     :: scptb_control
+    TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_from_file', &
@@ -212,8 +212,8 @@ CONTAINS
       tag_over, tag_over2
     TYPE(XML_PARSE)                          :: xml_info
 
-    DATA has_z, has_zeff, has_ag, has_a0, has_energy, has_hcore, has_occ,   &
-                    has_nqm, has_eta, has_A, has_B, has_C, has_D/13*.FALSE./
+    DATA has_z, has_zeff, has_ag, has_energy, has_hcore, has_occ,   &
+                    has_nqm, has_eta, has_A, has_B, has_C, has_D/12*.FALSE./
 
     fname = scptb_control%parameter_file
     IF ( fname /= "" ) THEN
@@ -226,6 +226,8 @@ CONTAINS
         unrecognized_tags = 0
         tag_over = .FALSE.
         found_key = ""
+        author = "unknown author"
+        vers = " v 0.0"
 
         search_key = TRIM(scptb_parameter%key)
         CALL uppercase(search_key)
@@ -259,7 +261,7 @@ CONTAINS
                     END SELECT
                 END DO
 
-                WRITE(scptb_parameter%parameterization,'(A,A)') TRIM(author), TRIM(vers)    
+                WRITE(scptb_parameter%parameterization,'(A,A,A)') TRIM(author), ", ", TRIM(vers)    
 
             CASE ("GENERAL_PARAMETERS") !general params
                 tag_over = .FALSE.
@@ -269,8 +271,12 @@ CONTAINS
                     SELECT CASE (tag)
                     CASE ("GENERAL_PARAMETERS")
                         IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
-                    CASE ("D3_SCALING")
-                        !IF (endtag .eqv. .FALSE.)  !do nothing
+                    CASE ("D3_S6")
+                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(1) 
+                    CASE ("D3_SR6")
+                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(2) 
+                    CASE ("D3_S8")
+                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(3) 
                     CASE DEFAULT
                         unrecognized_tags = unrecognized_tags + 1
                     END SELECT
@@ -300,8 +306,6 @@ CONTAINS
                             IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%zeff ; has_zeff = .TRUE.
                         CASE ("CHARGE_WIDTH")
                             IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%ag ; has_ag = .TRUE.
-                        CASE ("CHARGE_CORR")
-                            !deb IF (endtag .eqv. .FALSE.) READ(data(1),*) scptb_parameter%a0 ; has_a0 = .TRUE.
                         CASE ("ENERGY")
                             IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%energy ; has_energy = .TRUE.
 
@@ -328,9 +332,6 @@ CONTAINS
                                             scptb_parameter%norb(l) = scptb_parameter%norb(l) + 1
                                             IF (l > scptb_parameter%lmaxorb) scptb_parameter%lmaxorb = l
                                         END IF
-                                    CASE ("E_ORB")!not needed, equivalent to H_CORE, do nothing
-                                        !IF (endtag .eqv. .FALSE.) READ(data(1),*) &
-                                        !    scptb_parameter%orbene(n,l) ; has_orbene = .TRUE.
                                     CASE ("H_CORE")    
                                         IF (endtag .EQV. .FALSE.) THEN
                                             READ(DATA(1),*) scptb_parameter%hcore(n,l) 

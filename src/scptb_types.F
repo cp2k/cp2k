@@ -42,7 +42,7 @@ MODULE scptb_types
     INTEGER                                :: lmaxorb    !max angular momentum orbitals
     INTEGER                                :: lmaxscp    !max angular momentum scp density
     INTEGER, DIMENSION(0:3)                :: norb       !number of orbitals per l QN
-    INTEGER, DIMENSION(10,0:3)             :: nqm        !principle quantum numbers
+    INTEGER, DIMENSION(10,0:3)             :: nqm        !principal quantum numbers
     REAL(KIND=dp), DIMENSION(10,0:3)       :: zeta       !orbital exponents
     REAL(KIND=dp), DIMENSION(10,0:3)       :: hcore      !core potential energy
     REAL(KIND=dp), DIMENSION(10,0:3)       :: occupation !free atom occupation

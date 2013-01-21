@@ -1,24 +1,24 @@
 <?xml version="1.0"?>
-<nm12_parameters>
+<nm12_parameters><!-- DO NOT HAVE ANY NEWLINE ABOVE THIS, IT CONFUSES THE PARSER GOD KNOWS WHY -->
 
-    <Meta_info>
+    <Meta_info>                                         <!-- Some common/general info, only part of which is currently read by the code.     -->
         <Version>   0.1         </Version>
         <Author>    RK          </Author>
         <Ref>       unpublished </Ref>
-        <Comment>   First test  </Comment>
+        <Comment>   [01/2013] Exponents for all elements, adjusted D3 scaling, repulsive up to Kr  </Comment>
     </Meta_info>
     
-    <General_parameters>
-        <D3_scaling>    1.0 </D3_scaling>
-    </General_parameters> 
-
-
+    <General_parameters>                                 <!-- A general placeholder for additional common options/parameters we might need. -->
+        <D3_s6>     1.000 </D3_s6>                       <!-- Parameter for scaling of Grimme D3 -->
+        <D3_sr6>    0.400 </D3_sr6>                      <!-- Parameter for scaling of Grimme D3 -->
+        <D3_s8>     0.361 </D3_s8>                       <!-- Parameter for scaling of Grimme D3 -->
+    </General_parameters>                         
+                                                  
     <Element name="H">
         <Z>                      1              </Z>
         <Zeff>           1.0000000           </Zeff>
         <Energy>        -1.2010034         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.2619947           </Zeta>
@@ -32,10 +32,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    4.9477067 </A>
+            <B>    0.0000004 </B>
+            <C>    5.9847203 </C>
+            <D>    3.6924409 </D>
         </Repulsive>
     </Element>
 
@@ -44,7 +44,6 @@
         <Zeff>           2.0000000           </Zeff>
         <Energy>        -5.7585440         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.7025761           </Zeta>
@@ -58,10 +57,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    3.4566280 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   15.0757852 </C>
+            <D>   -47.1990574 </D>
         </Repulsive>
     </Element>
 
@@ -70,7 +69,6 @@
         <Zeff>           3.0000000           </Zeff>
         <Energy>        -13.7118546         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.4079682           </Zeta>
@@ -91,10 +89,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    1.0903659 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   15.0363826 </C>
+            <D>    0.5316258 </D>
         </Repulsive>
     </Element>
 
@@ -103,7 +101,6 @@
         <Zeff>           4.0000000           </Zeff>
         <Energy>        -26.8246421         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.2169987           </Zeta>
@@ -124,10 +121,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    1.6313910 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   -2.2175554 </C>
+            <D>    7.9254221 </D>
         </Repulsive>
     </Element>
 
@@ -136,7 +133,6 @@
         <Zeff>           3.0000000           </Zeff>
         <Energy>        -4.2412512         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.4398720           </Zeta>
@@ -158,10 +154,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    2.4751982 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   15.4576654 </C>
+            <D>   20.6799830 </D>
         </Repulsive>
     </Element>
 
@@ -170,7 +166,6 @@
         <Zeff>           4.0000000           </Zeff>
         <Energy>        -9.1114751         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.6481480           </Zeta>
@@ -192,10 +187,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    2.1481085 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   41.8022909 </C>
+            <D>    3.7633089 </D>
         </Repulsive>
     </Element>
 
@@ -204,7 +199,6 @@
         <Zeff>           5.0000000           </Zeff>
         <Energy>        -16.5300766         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.8686790           </Zeta>
@@ -226,10 +220,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    2.7452685 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   59.0989179 </C>
+            <D>   10.1858118 </D>
         </Repulsive>
     </Element>
 
@@ -238,7 +232,6 @@
         <Zeff>           6.0000000           </Zeff>
         <Energy>        -27.3762533         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.1163084           </Zeta>
@@ -260,10 +253,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    5.2883919 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   636.7273563 </C>
+            <D>   105.6462416 </D>
         </Repulsive>
     </Element>
 
@@ -272,7 +265,6 @@
         <Zeff>           7.0000000           </Zeff>
         <Energy>        -42.5902023         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.3976247           </Zeta>
@@ -295,9 +287,9 @@
  
         <Repulsive>
             <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <B>    1.9080199 </B>
+            <C>   44.0340528 </C>
+            <D>   -29.1011614 </D>
         </Repulsive>
     </Element>
 
@@ -306,7 +298,6 @@
         <Zeff>           8.0000000           </Zeff>
         <Energy>        -62.1129574         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.6425492           </Zeta>
@@ -328,10 +319,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    4.4452439 </A>
+            <B>    0.0152737 </B>
+            <C>   1688.5051052 </C>
+            <D>   -2507.4557410 </D>
         </Repulsive>
     </Element>
 
@@ -340,7 +331,6 @@
         <Zeff>           9.0000000           </Zeff>
         <Energy>        -82.8823013         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.8105518           </Zeta>
@@ -369,10 +359,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    0.9081157 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>    4.0980297 </C>
+            <D>    0.0794680 </D>
         </Repulsive>
     </Element>
 
@@ -381,7 +371,6 @@
         <Zeff>          10.0000000           </Zeff>
         <Energy>        -113.0931943         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.2754809           </Zeta>
@@ -410,10 +399,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    1.2610919 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   -27.8606436 </C>
+            <D>    2.6070195 </D>
         </Repulsive>
     </Element>
 
@@ -422,7 +411,6 @@
         <Zeff>           3.0000000           </Zeff>
         <Energy>        -2.7254956         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.4530111           </Zeta>
@@ -444,10 +432,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    1.4536185 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   16.7615808 </C>
+            <D>    1.0986389 </D>
         </Repulsive>
     </Element>
 
@@ -456,7 +444,6 @@
         <Zeff>           4.0000000           </Zeff>
         <Energy>        -5.2576454         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.6342476           </Zeta>
@@ -478,10 +465,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.6936893 </A>
+            <B>    0.1788321 </B>
+            <C>   16.8644018 </C>
+            <D>   -1.1530541 </D>
         </Repulsive>
     </Element>
 
@@ -490,7 +477,6 @@
         <Zeff>           5.0000000           </Zeff>
         <Energy>        -8.8800378         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.8180881           </Zeta>
@@ -512,10 +498,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.6955180 </A>
+            <B>    0.2621744 </B>
+            <C>   31.6246869 </C>
+            <D>   -3.1074920 </D>
         </Repulsive>
     </Element>
 
@@ -524,7 +510,6 @@
         <Zeff>           6.0000000           </Zeff>
         <Energy>        -13.8411909         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.0141011           </Zeta>
@@ -546,10 +531,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    1.1697324 </A>
+            <B>    0.1247742 </B>
+            <C>   63.3885103 </C>
+            <D>   -9.1255374 </D>
         </Repulsive>
     </Element>
 
@@ -558,7 +543,6 @@
         <Zeff>           7.0000000           </Zeff>
         <Energy>        -20.4180464         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.2149686           </Zeta>
@@ -580,10 +564,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    1.0638882 </A>
+            <B>    0.2080247 </B>
+            <C>   74.6617375 </C>
+            <D>   -11.2549791 </D>
         </Repulsive>
     </Element>
 
@@ -592,7 +576,6 @@
         <Zeff>           8.0000000           </Zeff>
         <Energy>        -28.7945578         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.4161070           </Zeta>
@@ -614,10 +597,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    2.1495850 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   402.5112455 </C>
+            <D>   -97.6948784 </D>
         </Repulsive>
     </Element>
 
@@ -626,7 +609,6 @@
         <Zeff>           9.0000000           </Zeff>
         <Energy>        -38.0938519         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.6229067           </Zeta>
@@ -656,9 +638,9 @@
  
         <Repulsive>
             <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <B>    0.6495129 </B>
+            <C>   192.8637868 </C>
+            <D>   -15.3855991 </D>
         </Repulsive>
     </Element>
 
@@ -667,7 +649,6 @@
         <Zeff>          10.0000000           </Zeff>
         <Energy>        -49.0353545         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.8540196           </Zeta>
@@ -696,10 +677,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.0561988 </A>
+            <B>    0.0754539 </B>
+            <C>   -2.6264422 </C>
+            <D>    0.1130439 </D>
         </Repulsive>
     </Element>
 
@@ -708,7 +689,6 @@
         <Zeff>          11.0000000           </Zeff>
         <Energy>        -63.8413416         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.1146919           </Zeta>
@@ -745,10 +725,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    0.9350846 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   55.5506226 </C>
+            <D>    0.4864720 </D>
         </Repulsive>
     </Element>
 
@@ -757,7 +737,6 @@
         <Zeff>          12.0000000           </Zeff>
         <Energy>        -82.2678581         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.3133471           </Zeta>
@@ -794,10 +773,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
+            <A>    0.1668359 </A>
+            <B>    0.1565977 </B>
             <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <D>    1.6592821 </D>
         </Repulsive>
     </Element>
 
@@ -806,7 +785,6 @@
         <Zeff>          13.0000000           </Zeff>
         <Energy>        -104.1480963         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.5185920           </Zeta>
@@ -843,10 +821,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    0.8741901 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   30.5277917 </C>
+            <D>    0.4521623 </D>
         </Repulsive>
     </Element>
 
@@ -855,7 +833,6 @@
         <Zeff>          14.0000000           </Zeff>
         <Energy>        -130.4404711         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.6801035           </Zeta>
@@ -893,9 +870,9 @@
  
         <Repulsive>
             <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <B>    0.0988670 </B>
+            <C>    4.0980569 </C>
+            <D>   -0.1525404 </D>
         </Repulsive>
     </Element>
 
@@ -904,7 +881,6 @@
         <Zeff>          15.0000000           </Zeff>
         <Energy>        -158.9445662         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.9081692           </Zeta>
@@ -941,10 +917,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    0.9070361 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   25.7066614 </C>
+            <D>    0.5484921 </D>
         </Repulsive>
     </Element>
 
@@ -953,7 +929,6 @@
         <Zeff>          16.0000000           </Zeff>
         <Energy>        -192.0595917         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.1215201           </Zeta>
@@ -990,10 +965,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    1.5938510 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   -26.7859744 </C>
+            <D>   20.2341006 </D>
         </Repulsive>
     </Element>
 
@@ -1002,7 +977,6 @@
         <Zeff>          17.0000000           </Zeff>
         <Energy>        -228.9547872         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.3238410           </Zeta>
@@ -1039,10 +1013,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    0.6626688 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>    8.3702420 </C>
+            <D>    0.0732387 </D>
         </Repulsive>
     </Element>
 
@@ -1051,7 +1025,6 @@
         <Zeff>          18.0000000           </Zeff>
         <Energy>        -269.7206294         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.5338741           </Zeta>
@@ -1089,9 +1062,9 @@
  
         <Repulsive>
             <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <B>    0.0286338 </B>
+            <C>    0.7547595 </C>
+            <D>   -0.0271897 </D>
         </Repulsive>
     </Element>
 
@@ -1100,7 +1073,6 @@
         <Zeff>          11.0000000           </Zeff>
         <Energy>        -122.3429850         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.5707809           </Zeta>
@@ -1123,10 +1095,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.5259738 </A>
+            <B>    0.0000019 </B>
+            <C>    1.8421149 </C>
+            <D>    0.0369486 </D>
         </Repulsive>
     </Element>
 
@@ -1135,7 +1107,6 @@
         <Zeff>          12.0000000           </Zeff>
         <Energy>        -147.5277765         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.7435351           </Zeta>
@@ -1158,10 +1129,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
+            <A>    2.3967934 </A>
             <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <C>   96.6807739 </C>
+            <D>    6.8712798 </D>
         </Repulsive>
     </Element>
 
@@ -1170,7 +1141,6 @@
         <Zeff>           3.0000000           </Zeff>
         <Energy>        -3.0315037         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.0089833           </Zeta>
@@ -1193,9 +1163,9 @@
  
         <Repulsive>
             <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <B>    0.5173470 </B>
+            <C>    2.2986674 </C>
+            <D>    1.5837102 </D>
         </Repulsive>
     </Element>
 
@@ -1204,7 +1174,6 @@
         <Zeff>           4.0000000           </Zeff>
         <Energy>        -5.3035251         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.1568801           </Zeta>
@@ -1226,10 +1195,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.4870201 </A>
+            <B>    0.1820462 </B>
+            <C>   13.5691497 </C>
+            <D>   -1.1706212 </D>
         </Repulsive>
     </Element>
 
@@ -1238,7 +1207,6 @@
         <Zeff>           5.0000000           </Zeff>
         <Energy>        -8.4813680         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.3465917           </Zeta>
@@ -1260,10 +1228,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.3875166 </A>
+            <B>    0.2356515 </B>
+            <C>   21.8017530 </C>
+            <D>   -2.2592151 </D>
         </Repulsive>
     </Element>
 
@@ -1272,7 +1240,6 @@
         <Zeff>           6.0000000           </Zeff>
         <Energy>        -12.6412308         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.5183911           </Zeta>
@@ -1294,10 +1261,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.8141241 </A>
+            <B>    0.1378112 </B>
+            <C>   46.7849142 </C>
+            <D>   -5.4838273 </D>
         </Repulsive>
     </Element>
 
@@ -1306,7 +1273,6 @@
         <Zeff>           7.0000000           </Zeff>
         <Energy>        -17.9425209         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.6950673           </Zeta>
@@ -1328,10 +1294,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.7008122 </A>
+            <B>    0.2006464 </B>
+            <C>   54.7945798 </C>
+            <D>   -6.0487620 </D>
         </Repulsive>
     </Element>
 
@@ -1340,7 +1306,6 @@
         <Zeff>           8.0000000           </Zeff>
         <Energy>        -24.4836220         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.8636990           </Zeta>
@@ -1362,10 +1327,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.7095416 </A>
+            <B>    0.1686406 </B>
+            <C>   63.0721738 </C>
+            <D>   -8.6259099 </D>
         </Repulsive>
     </Element>
 
@@ -1374,7 +1339,6 @@
         <Zeff>           9.0000000           </Zeff>
         <Energy>        -31.1566296         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.0147012           </Zeta>
@@ -1415,7 +1379,6 @@
         <Zeff>          10.0000000           </Zeff>
         <Energy>        -39.3286819         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.2116895           </Zeta>
@@ -1456,7 +1419,6 @@
         <Zeff>          11.0000000           </Zeff>
         <Energy>        -49.2723686         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.3757911           </Zeta>
@@ -1505,7 +1467,6 @@
         <Zeff>          12.0000000           </Zeff>
         <Energy>        -61.0438958         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.5455840           </Zeta>
@@ -1554,7 +1515,6 @@
         <Zeff>          13.0000000           </Zeff>
         <Energy>        -74.7921884         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.7567970           </Zeta>
@@ -1603,7 +1563,6 @@
         <Zeff>          14.0000000           </Zeff>
         <Energy>        -90.7827095         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.9069945           </Zeta>
@@ -1652,7 +1611,6 @@
         <Zeff>          15.0000000           </Zeff>
         <Energy>        -107.3906572         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.0919371           </Zeta>
@@ -1701,7 +1659,6 @@
         <Zeff>          16.0000000           </Zeff>
         <Energy>        -126.6425710         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.2445024           </Zeta>
@@ -1750,7 +1707,6 @@
         <Zeff>          17.0000000           </Zeff>
         <Energy>        -148.2400975         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.4069612           </Zeta>
@@ -1799,7 +1755,6 @@
         <Zeff>          18.0000000           </Zeff>
         <Energy>        -171.8350308         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.5742420           </Zeta>
@@ -1848,7 +1803,6 @@
         <Zeff>          11.0000000           </Zeff>
         <Energy>        -72.2324159         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.7781571           </Zeta>
@@ -1883,7 +1837,6 @@
         <Zeff>          12.0000000           </Zeff>
         <Energy>        -86.6725371         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           1.9191806           </Zeta>
@@ -1918,7 +1871,6 @@
         <Zeff>           3.0000000           </Zeff>
         <Energy>        -2.7142454         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.2084726           </Zeta>
@@ -1952,7 +1904,6 @@
         <Zeff>           4.0000000           </Zeff>
         <Energy>        -4.6559562         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.3594011           </Zeta>
@@ -1986,7 +1937,6 @@
         <Zeff>           5.0000000           </Zeff>
         <Energy>        -7.2863812         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.5169296           </Zeta>
@@ -2020,7 +1970,6 @@
         <Zeff>           6.0000000           </Zeff>
         <Energy>        -10.6940518         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.6735450           </Zeta>
@@ -2054,7 +2003,6 @@
         <Zeff>           7.0000000           </Zeff>
         <Energy>        -14.9433759         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.8197002           </Zeta>
@@ -2088,7 +2036,6 @@
         <Zeff>           8.0000000           </Zeff>
         <Energy>        -20.1247126         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.9702393           </Zeta>
@@ -2110,10 +2057,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.0569200 </A>
+            <B>    0.2288436 </B>
+            <C>   40.1235818 </C>
+            <D>   -3.2205383 </D>
         </Repulsive>
     </Element>
 
@@ -2122,7 +2069,6 @@
         <Zeff>           9.0000000           </Zeff>
         <Energy>        -25.5184976         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.1473747           </Zeta>
@@ -2163,7 +2109,6 @@
         <Zeff>          10.0000000           </Zeff>
         <Energy>        -31.8876064         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.3233375           </Zeta>
@@ -2204,7 +2149,6 @@
         <Zeff>          11.0000000           </Zeff>
         <Energy>        -39.5354690         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.4944998           </Zeta>
@@ -2253,7 +2197,6 @@
         <Zeff>          12.0000000           </Zeff>
         <Energy>        -65.0673065         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           4.9019592           </Zeta>
@@ -2302,7 +2245,6 @@
         <Zeff>           5.0000000           </Zeff>
         <Energy>        -9.6662431         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.0440866           </Zeta>
@@ -2337,7 +2279,6 @@
         <Zeff>           6.0000000           </Zeff>
         <Energy>        -15.6800288         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.0174083           </Zeta>
@@ -2372,7 +2313,6 @@
         <Zeff>           7.0000000           </Zeff>
         <Energy>        -20.6916346         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.1831349           </Zeta>
@@ -2407,7 +2347,6 @@
         <Zeff>           8.0000000           </Zeff>
         <Energy>        -28.1292074         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.2405593           </Zeta>
@@ -2442,7 +2381,6 @@
         <Zeff>           9.0000000           </Zeff>
         <Energy>        -37.0322358         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.2817693           </Zeta>
@@ -2477,7 +2415,6 @@
         <Zeff>          10.0000000           </Zeff>
         <Energy>        -47.0667541         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.3404450           </Zeta>
@@ -2512,7 +2449,6 @@
         <Zeff>          11.0000000           </Zeff>
         <Energy>        -59.8322216         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.2754185           </Zeta>
@@ -2547,7 +2483,6 @@
         <Zeff>          12.0000000           </Zeff>
         <Energy>        -71.1276273         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.4464822           </Zeta>
@@ -2582,7 +2517,6 @@
         <Zeff>           3.0000000           </Zeff>
         <Energy>        -2.9238396         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.7301740           </Zeta>
@@ -2616,7 +2550,6 @@
         <Zeff>           4.0000000           </Zeff>
         <Energy>        -4.8358827         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           2.9106883           </Zeta>
@@ -2650,7 +2583,6 @@
         <Zeff>           5.0000000           </Zeff>
         <Energy>        -7.3632956         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.0743381           </Zeta>
@@ -2684,7 +2616,6 @@
         <Zeff>           6.0000000           </Zeff>
         <Energy>        -10.5748483         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.2220405           </Zeta>
@@ -2718,7 +2649,6 @@
         <Zeff>           7.0000000           </Zeff>
         <Energy>        -14.5776537         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.3895214           </Zeta>
@@ -2752,7 +2682,6 @@
         <Zeff>           8.0000000           </Zeff>
         <Energy>        -19.3660756         </Energy>
         <Charge_width>   0.3000000   </Charge_width>
-        <Charge_corr>    0.1000000    </Charge_corr>
  
         <Electron_shell n="1" l="0">
             <Zeta>           3.5384432           </Zeta>
@@ -2774,10 +2703,10 @@
         </SCP>
  
         <Repulsive>
-            <A>    0.0000000 </A>
-            <B>    0.0000000 </B>
-            <C>    0.0000000 </C>
-            <D>    0.0000000 </D>
+            <A>    0.0483641 </A>
+            <B>    0.2202003 </B>
+            <C>   50.5029865 </C>
+            <D>   -3.2325016 </D>
         </Repulsive>
     </Element>
 

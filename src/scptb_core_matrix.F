@@ -192,6 +192,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_t(1)%matrix,name="CORE HAMILTONIAN MATRIX",error=error)
+    !The band energy elements will be added to the kinetic energy.
 
     ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -237,12 +238,13 @@ CONTAINS
        CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
        dr = SUM(rij(:)**2)
+       !actual core energy determination , eq. 2.17 in my notes ???
        IF (iatom == jatom .AND. dr < 0.0001_dp) THEN
           DO i=1,SIZE(h_block,1)
              h_block(i,i)=h_block(i,i)+hmt(i,ikind)
           END DO
        ELSE
-          NULLIFY(s_block)
+          NULLIFY(s_block) !s_block is overlap [sub]matrix ???
           CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,irow,icol,s_block,found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
           IF ( irow == iatom ) THEN
