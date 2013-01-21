@@ -58,7 +58,6 @@ MODULE dbcsr_transformations
                                              dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: dp,&
                                              sp
-  USE dbcsr_machine,                   ONLY: m_walltime
   USE dbcsr_message_passing,           ONLY: mp_allgather,&
                                              mp_alltoall
   USE dbcsr_methods,                   ONLY: &
@@ -118,9 +117,6 @@ MODULE dbcsr_transformations
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_transformations'
-
-  !@@@
-  REAL(KIND=dp) :: image_time = 0.0_dp
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
@@ -354,7 +350,6 @@ CONTAINS
                                                 row_blk_size, row_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: make_untr, tr
-    REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: recv_data, send_data
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_iterator)                     :: iter
@@ -363,7 +358,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Input matrix is invalid.",__LINE__,error)
@@ -556,7 +550,6 @@ CONTAINS
     desm%m%wms(1)%lastblk = blks - 1
     desm%m%wms(1)%datasize = blk_ps - 1
     CALL dbcsr_finalize(desm, error=error)
-    tstop = m_walltime ()
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
@@ -876,7 +869,6 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: nocopy, release_td, &
                                                 same_dst_p, tr
-    REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: received_data_area, &
                                                 recv_data_area, send_data_area
     TYPE(dbcsr_distribution_obj)             :: old_dist, target_dist
@@ -889,7 +881,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
-    tstart = m_walltime ()
     nocopy = .FALSE.
     IF (PRESENT (no_copy_data)) nocopy = no_copy_data
     sm = ism%m
@@ -1452,13 +1443,7 @@ CONTAINS
     CALL dbcsr_data_release (received_data_area)
     !
     CALL dbcsr_data_release (recv_data_area)
-    !
-    tstop = m_walltime ()
-    !@@@
-    image_time = (image_time + tstop) - tstart
-    !@@@
-    !WRITE(*,'(1X,A,1X,EN12.4)')'make_images time:',tstop-tstart
-    !WRITE(*,'(1X,A,1X,EN12.4)')'make_images cumm. time:',image_time
+    
     CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE make_images
 
@@ -2215,7 +2200,6 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: had_subcomms, &
                                                 i_am_restricted, rest_src, tr
-    REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
                                                 send_data, tmp_data
     TYPE(dbcsr_distribution_obj)             :: target_dist
@@ -2227,7 +2211,6 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_access_flush (matrix, error=error)
-    tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__,error)
@@ -2440,7 +2423,6 @@ CONTAINS
          (rep_type .EQ. dbcsr_repl_row .OR. rep_type .EQ. dbcsr_repl_col)) THEN
        CALL dbcsr_mp_grid_remove (mp_obj)
     ENDIF
-    tstop = m_walltime ()
     DEALLOCATE(recv_count)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
@@ -2505,10 +2487,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: found, my_keep_sparsity, sym, &
                                                 tr, valid_block
-    REAL(kind=dp)                            :: cs1, cs2, t_all, t_blk, &
-                                                t_blk2, t_count, t_fill, &
-                                                t_prolog, t_unpack, t_xfer1, &
-                                                t_xfer2
+    REAL(kind=dp)                            :: cs1, cs2
     TYPE(dbcsr_data_obj)                     :: buff_data, data_block, &
                                                 recv_data, send_data
     TYPE(dbcsr_distribution_obj)             :: dist_new
@@ -2518,8 +2497,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    t_all = m_walltime()
-    t_prolog = t_all
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Input not valid.",__LINE__,error)
@@ -2611,8 +2588,6 @@ CONTAINS
     !cs1 = dbcsr_checksum (matrix)
     !call dbcsr_print(matrix)
     !
-    t_count = m_walltime()
-    t_prolog = t_count - t_prolog
     !
     ! Count initial sizes for sending.
     !
@@ -2643,8 +2618,6 @@ CONTAINS
     ENDDO
     CALL dbcsr_iterator_stop (iter)
     !
-    t_xfer1 = m_walltime()
-    t_count = t_xfer1 - t_count
     !
     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
     ! Allocate data structures needed for data exchange.
@@ -2680,9 +2653,6 @@ CONTAINS
     smp(:) = sm_disp - metalen  ! But smp points to the "working" data, not
                                 ! the next. It is pre-incremented, so we must
                                 ! first rewind it.
-    !
-    t_fill = m_walltime()
-    t_xfer1 = t_fill - t_xfer1
     !
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (data_block, data_type)
@@ -2742,9 +2712,6 @@ CONTAINS
 
     ! Exchange the data and metadata structures.
     !
-    t_xfer2 = m_walltime()
-    t_fill = t_xfer2 - t_fill
-    !
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
@@ -2777,9 +2744,6 @@ CONTAINS
     CALL hybrid_alltoall_i1(send_meta(:), SUM(metalen*total_send_count(1,:)), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
     !
-    t_unpack = m_walltime()
-    t_xfer2 = t_unpack - t_xfer2
-    !
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
          nblks_guess=SUM(recv_count(1,:)),&
@@ -2795,7 +2759,6 @@ CONTAINS
     !blk = 1
     blk_ps = 0
     blks = 0
-    t_blk2 = 0.0_dp
     cnt_fnd = 0 ; cnt_new = 0 ; cnt_skip = 0
     DO src_p = 0, numnodes-1
        data_offset_l = rd_disp(src_p)
@@ -2810,10 +2773,8 @@ CONTAINS
                + recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+6)
 
           CALL dbcsr_data_clear_pointer (data_block)
-          t_blk = m_walltime()
           CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
                data_block, tr, found)
-          t_blk2 = t_blk2 + (m_walltime() - t_blk)
           valid_block = found
 
           IF (found) cnt_fnd = cnt_fnd + 1
@@ -2892,17 +2853,8 @@ CONTAINS
 
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_meta)
-    t_unpack = m_walltime() - t_unpack
-    t_all = MAX(m_walltime() - t_all, 0.001_dp)
-    !write(*,'(A,2(1X,F9.3),F5.1,"%",4(1X,I7))')&
-    !     " Times total, lookup", t_all, t_blk2,&
-    !     100.0_dp*t_blk2/t_all,&
-    !     cnt_fnd, cnt_new, cnt_skip, redist%m%nblks
-    !write(*,'(A,6(1X,F9.3))')" Times              ",&
-    !     t_prolog, t_count, t_xfer1, t_fill, t_xfer2, t_unpack
-    !write(*,*)" "
+   
     !if (dbg) call dbcsr_print(redist)
-    !call dbcsr_print(redist)
     IF (dbg) THEN
        cs2 = dbcsr_checksum (redist, error=error)
        WRITE(*,*)routineN//" Checksums=",cs1, cs2, cs1-cs2

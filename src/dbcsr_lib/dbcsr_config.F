@@ -18,8 +18,6 @@ MODULE dbcsr_config
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
        external_timeset, external_timestop, timeset_interface, &
        timestop_interface
-  USE dbcsr_kinds,                     ONLY: dp
-  USE dbcsr_machine,                   ONLY: m_walltime
 
   IMPLICIT NONE
 
@@ -75,10 +73,8 @@ MODULE dbcsr_config
   PUBLIC :: use_comm_thread, comm_thread_load
 
   !
-  PUBLIC :: detailed_timing, kernel_timing
   PUBLIC :: is_configured
   PUBLIC :: mm_thread_workshare
-  PUBLIC :: epoch_time
 
 
   ! First the constants are declared.
@@ -154,11 +150,7 @@ MODULE dbcsr_config
 
   ! Stack size to use for multiplication parameters
   INTEGER, SAVE :: mm_stack_size = 1000
-
-  ! Whether to print extra timing
-  LOGICAL, SAVE :: detailed_timing = .FALSE.
-  LOGICAL, SAVE :: kernel_timing = .FALSE.
-
+  
   ! Number of stacks to use
   INTEGER, SAVE :: nm_stacks = 0
   INTEGER, SAVE :: nn_stacks = 0
@@ -174,9 +166,6 @@ MODULE dbcsr_config
 
   ! Worksharing between threads
   LOGICAL, SAVE :: mm_thread_workshare = .TRUE.
-
-  REAL(KIND=dp), SAVE :: epoch_time = 0.0_dp
-  !$OMP THREADPRIVATE (epoch_time)
 
 CONTAINS
 
@@ -221,7 +210,6 @@ CONTAINS
     ELSE
        mm_host_driver = mm_driver
     ENDIF
-    epoch_time = m_walltime()
     IF (has_cuda) mm_thread_workshare = .FALSE.
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf

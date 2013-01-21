@@ -15,9 +15,8 @@
 MODULE dbcsr_mm_stack
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
   USE dbcsr_config,                    ONLY: &
-       detailed_timing, driver_is_async, kernel_timing, mm_async, mm_driver, &
-       mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
-       mm_driver_smm, mm_thread_workshare
+       driver_is_async, mm_async, mm_driver, mm_driver_blas, mm_driver_cuda, &
+       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_thread_workshare
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_device_sync,&
                                              dbcsr_cuda_stream_sync
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
@@ -37,8 +36,6 @@ MODULE dbcsr_mm_stack
                                              real_4,&
                                              real_8,&
                                              sp
-  USE dbcsr_machine,                   ONLY: m_flush,&
-                                             m_walltime
   USE dbcsr_pq_methods,                ONLY: &
        dbcsr_pq_add_stack, dbcsr_pq_flush_level_chg, dbcsr_pq_get_any_stack, &
        dbcsr_pq_get_far_stack, dbcsr_pq_get_own_stack, &
@@ -51,19 +48,14 @@ MODULE dbcsr_mm_stack
        dbcsr_pq_type, dbcsr_ps_group_type, dbcsr_ps_obj, dbcsr_ps_set_type, &
        dbcsr_ps_state_empty, dbcsr_ps_state_queued, dbcsr_ps_state_working, &
        dbcsr_ps_target_obj, dbcsr_ps_target_type, dbcsr_ps_type, &
-       dbcsr_ps_width, max_regions, mult_timers, p_a_first, p_b_first, &
-       p_c_first, p_k, p_m, p_n, tmr_get_a_stack, tmr_get_other_stack, &
-       tmr_kernel_time, tmr_process_me, tmr_process_other_stack, &
-       tmr_process_stack, tmr_process_target, tmr_wait_for_empty_stack, &
-       tmr_wait_for_my_target, tmr_wait_for_other_target
+       dbcsr_ps_width, max_regions, p_a_first, p_b_first, p_c_first, p_k, &
+       p_m, p_n
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE dbcsr_util,                      ONLY: xtime_start,&
-                                             xtime_stop
 
   !$ USE OMP_LIB
 
@@ -82,7 +74,7 @@ MODULE dbcsr_mm_stack
   INTEGER :: multrec_calls = 0
 
   LOGICAL, PARAMETER, PUBLIC :: show_levels = .FALSE.
-
+  LOGICAL, PARAMETER :: verbose_acc = .FALSE.
 
   PUBLIC :: enqueue_ps_group
   PUBLIC :: process_queue_mine,&
@@ -97,16 +89,6 @@ MODULE dbcsr_mm_stack
   !> \var max_stack_block_size  The maximal block size to be specially
   !>                            treated.
   INTEGER, PARAMETER :: max_stack_block_size = HUGE (INT (0))
-
-  LOGICAL, PARAMETER, PRIVATE :: verbose_acc = .FALSE.
-
-  REAL(kind=dp), PRIVATE :: index_time
-  LOGICAL, PRIVATE :: do_index_time = .FALSE.
-  LOGICAL, PRIVATE :: print_index_time = .FALSE.
-  LOGICAL, PRIVATE :: measure_idle = .FALSE.
-
-  REAL(KIND=dp), PUBLIC :: t_calc_step, t_dev_idle, t_process_stack,&
-       t_dev_sync
 
   !$ INTEGER(KIND=omp_lock_kind), SAVE :: accel_lock
 
@@ -143,7 +125,6 @@ CONTAINS
     param_group%master%s%driver = mm_driver
     !$ if (dbg) write(*,*)"  lckng targt", OMP_GET_THREAD_NUM(),&
     !$      param_group%master%s%t%t%owner
-    CALL xtime_start (mult_timers(tmr_process_target))
     CALL process_ps_target_low (param_group%master%s%t,&
          param_group%master%s%t%t%product_data_area,&
          param_group%master%s%t%t%zero_first,&
@@ -153,7 +134,6 @@ CONTAINS
          param_group%master%s%t%t%product_data_cuda,&
          param_group%master%s%t%t%c_locks_dev,&
          error)
-    CALL xtime_stop (mult_timers(tmr_process_target))
     DO i = SIZE(param_group%stacks), 1, -1
        param_group%stacks(i)%s%driver = mm_driver
        IF (param_group%stacks(i)%s%stack_p .EQ. 0) THEN
@@ -166,9 +146,7 @@ CONTAINS
           ELSE
              ! If no worksharing is active, just process the stack immediately.
              param_group%stacks(i)%s%driver = mm_driver
-             CALL xtime_start (mult_timers(tmr_process_stack))
              CALL process_ps_stack (param_group%stacks(i)%s, error=error)
-             CALL xtime_stop (mult_timers(tmr_process_stack))
           ENDIF
        ENDIF
     ENDDO
@@ -206,7 +184,6 @@ CONTAINS
     IF (easy) THEN
           max_handoff = queue%handoff - queue%nworking
     ENDIF
-    CALL xtime_start (mult_timers(tmr_get_a_stack))
     DO
        CALL dbcsr_pq_get_own_stack (queue, stack, found,&
             easy = easy, error=error)
@@ -217,18 +194,13 @@ CONTAINS
        ENDIF
        IF (found) THEN
           stack%s%driver = driver
-          CALL xtime_stop (mult_timers(tmr_get_a_stack))
-          CALL xtime_start (mult_timers(tmr_process_stack))
           CALL process_ps_stack(stack%s, error=error)
-          CALL xtime_stop (mult_timers(tmr_process_stack))
-          CALL xtime_start (mult_timers(tmr_get_a_stack))
           cnt = cnt + 1
           IF (easy .AND. cnt .GT. max_handoff) EXIT
        ELSE
           EXIT
        ENDIF
     ENDDO
-    CALL xtime_stop (mult_timers(tmr_get_a_stack))
     !
     IF (careful_mod) &
          CALL dbcsr_error_stop(error_handle, error)
@@ -275,12 +247,10 @@ CONTAINS
     keep_cycling = found .OR.&
          (forever .AND. queue%all_queues%n_working .GT. 0)
     DO WHILE (keep_cycling)
-       CALL xtime_start (mult_timers(tmr_get_other_stack))
        CALL dbcsr_pq_get_any_stack (queue, stack, found,&
             easy = easy,&
             anyways = easy,&
             thread_ptr = thread_ptr, error=error)
-       CALL xtime_stop (mult_timers(tmr_get_other_stack))
        IF (thread_ptr .NE. old_thread_ptr) cnt = 1
        old_thread_ptr = thread_ptr
        IF (found) THEN
@@ -290,9 +260,7 @@ CONTAINS
              !$omp end master
           ENDIF
           stack%s%driver = driver
-          CALL xtime_start (mult_timers(tmr_process_other_stack))
           CALL process_ps_stack(stack%s, error=error)
-          CALL xtime_stop (mult_timers(tmr_process_other_stack))
           cnt = cnt + 1
           t = 0
           !$ t = omp_get_thread_num ()
@@ -351,7 +319,6 @@ CONTAINS
     n = dbcsr_ps_set_get_n_working (param_set, error)
     !$ if (.FALSE. .AND. dbg) &
     !$     write(*,*)routineN, omp_get_thread_num(), n, queue%flush_level
-    CALL xtime_start (mult_timers(tmr_get_a_stack))
     DO WHILE (n .GT. queue%flush_level .AND. found)
        CALL dbcsr_pq_get_far_stack (queue, stack, found, error=error)
        IF (found) THEN
@@ -360,19 +327,14 @@ CONTAINS
              !$ iam = omp_get_thread_num ()
              WRITE(*,*)"Preempt: Found own stack", iam
           ENDIF
-          CALL xtime_stop (mult_timers(tmr_get_a_stack))
-          CALL xtime_start (mult_timers(tmr_process_stack))
           stack%s%driver = driver
           CALL process_ps_stack(stack%s, error=error)
-          CALL xtime_stop (mult_timers(tmr_process_stack))
-          CALL xtime_start (mult_timers(tmr_get_a_stack))
        ENDIF
        IF (dbg) THEN
           n = dbcsr_ps_set_get_n_working (param_set, error)
           IF (n .EQ. 0) WRITE(*,*)"oops"
        ENDIF
     ENDDO
-    CALL xtime_stop (mult_timers(tmr_get_a_stack))
     !
     IF (careful_mod) &
          CALL dbcsr_error_stop(error_handle, error)
@@ -411,7 +373,6 @@ CONTAINS
     LOGICAL                                  :: found
     TYPE(dbcsr_ps_obj)                       :: stack
 
-    CALL xtime_start (mult_timers(tmr_wait_for_empty_stack))
     stack_group => dbcsr_ps_set_get_group_p (param_sets, wait=.FALSE.,&
          error=error)
     IF (mm_thread_workshare) THEN
@@ -432,19 +393,12 @@ CONTAINS
        CALL dbcsr_pq_handoff_level_chg (queue, -MAX((param_sets%group_size*3)/2,1),&
             param_sets)
     ENDIF
-    CALL xtime_start (mult_timers(tmr_get_a_stack))
     DO WHILE (stack_state .GE. dbcsr_ps_state_queued)
        ! Just process the queue until the parameter stack is clear.
        CALL dbcsr_pq_get_far_stack (queue, stack, found, error=error)
        IF (found) THEN
-          CALL xtime_stop (mult_timers(tmr_get_a_stack))
-          CALL xtime_stop (mult_timers(tmr_wait_for_empty_stack))
-          CALL xtime_start (mult_timers(tmr_process_me))
           stack%s%driver = driver
           CALL process_ps_stack(stack%s, error=error)
-          CALL xtime_stop (mult_timers(tmr_process_me))
-          CALL xtime_start (mult_timers(tmr_wait_for_empty_stack))
-          CALL xtime_start (mult_timers(tmr_get_a_stack))
        ENDIF
        IF (mm_thread_workshare) THEN
           !$OMP FLUSH
@@ -452,8 +406,6 @@ CONTAINS
        cnt = cnt + 1
        stack_state = dbcsr_psg_get_state (stack_group, error)
     ENDDO
-    CALL xtime_stop (mult_timers(tmr_get_a_stack))
-    CALL xtime_stop (mult_timers(tmr_wait_for_empty_stack))
   END SUBROUTINE get_stack_or_process_queue
 
 
@@ -494,13 +446,11 @@ CONTAINS
        IF (dbg) WRITE(*,*)"Target too small"
        maxs = zero_last
        IF (mm_thread_workshare) THEN
-          CALL xtime_start (mult_timers(tmr_wait_for_my_target))
           ! Lock the target and wait for others to unlock their
           ! regions.
           CALL dbcsr_ps_target_lock_main (target_desc%t,&
                flush=.TRUE.,&
                error=error)
-          CALL xtime_stop (mult_timers(tmr_wait_for_my_target))
        ENDIF
        IF (dbg) &
             WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
@@ -545,11 +495,6 @@ CONTAINS
           stream_is_synced = .TRUE.
           IF (dbg .OR. info) WRITE(*,*)routineN//" reallocating c_dev",&
                c_size, zero_last
-          IF (detailed_timing) THEN
-             t_dev_sync = t_dev_sync - m_walltime()
-             CALL dbcsr_cuda_device_sync(error=error)
-             t_dev_sync = t_dev_sync + m_walltime()
-          ENDIF
           tmp_i = MAX(zero_last, INT(REAL(zero_last)*resize_factor) )
           IF (verbose_acc) WRITE(*,*)routineN//" reallocating c_dev",&
                tmp_i, c_size
@@ -586,11 +531,6 @@ CONTAINS
           IF (dbg) WRITE(*,*)routineN//" reallocing locks"
           maxs = dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
           IF (dbg) WRITE(*,*)routineN//" lock size", maxs
-          IF (detailed_timing) THEN
-             t_dev_sync = t_dev_sync - m_walltime()
-             CALL dbcsr_cuda_device_sync(error=error)
-             t_dev_sync = t_dev_sync + m_walltime()
-          ENDIF
           IF (dbg) WRITE(*,*)routineN//" reallocing locks"
           IF (verbose_acc .OR. info) WRITE(*,*)routineN//" reallocating locks", maxs
           IF (dbg) WRITE(*,*)routineN//" deallocating..."
@@ -613,11 +553,6 @@ CONTAINS
                error=error)
           !$ IF (mm_thread_workshare) CALL OMP_UNSET_LOCK (accel_lock)
           !--- !$OMP END CRITICAL (crit_cuda)
-          IF (.FALSE.) THEN
-             t_dev_sync = t_dev_sync - m_walltime()
-             CALL dbcsr_cuda_device_sync(error=error)
-             t_dev_sync = t_dev_sync + m_walltime()
-          ENDIF
           !write(*,*)routineN//" done zeroing"
        ENDIF
     ENDIF cuda_process_target
@@ -732,16 +667,10 @@ CONTAINS
 
     INTEGER                                  :: nregions, sp
     LOGICAL, DIMENSION(max_regions)          :: which_locks
-    REAL(KIND=dp)                            :: rnd, t_tmp
+    REAL(KIND=dp)                            :: rnd
 
 !stack_size), INTENT(IN)                :: params
 !   ---------------------------------------------------------------------------
-
-    IF (detailed_timing)  THEN
-     t_tmp=m_walltime()
-     !$OMP ATOMIC
-     t_process_stack = t_process_stack - t_tmp
-    ENDIF
 
     state = dbcsr_ps_state_working
     IF (dbg) THEN
@@ -777,19 +706,16 @@ CONTAINS
     ! conflict there.
     !
     !$ IF (mm_thread_workshare .AND. .NOT. driver_is_async (driver)) THEN
-    !$    CALL xtime_start (mult_timers(tmr_wait_for_other_target))
     !$    CALL dbcsr_ps_target_lock_regions (target_desc,&
     !$    stack_size, params,&
     !$    target_desc%bit_shift,&
     !$    which_locks, nregions,&
     !$    error=error)
-    !$    CALL xtime_stop (mult_timers(tmr_wait_for_other_target))
     !$ ENDIF
     IF (mm_thread_workshare) THEN
        !$OMP FLUSH
     ENDIF
-    IF (.NOT. mm_async) &
-       CALL xtime_start(mult_timers(tmr_kernel_time))
+    
     SELECT CASE (driver)
     CASE (mm_driver_matmul)
        SELECT CASE (product_data_area%d%data_type)
@@ -914,8 +840,6 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Invalid multiplication driver",__LINE__,error)
     END SELECT
-    IF (.NOT. mm_async) &
-       CALL xtime_stop(mult_timers(tmr_kernel_time))
     !
     ! These writes have to be ordered.  Specifically the state should not
     ! be set before the stack has been used and the results written.
@@ -933,11 +857,6 @@ CONTAINS
     !$      which_locks, nregions,&
     !$      error=error)
     !$ ENDIF
-    IF (detailed_timing) THEN
-     t_tmp=m_walltime()
-    !$OMP ATOMIC
-     t_process_stack = t_process_stack + t_tmp
-    ENDIF
   END SUBROUTINE process_mm_stack
 
 
@@ -983,8 +902,6 @@ CONTAINS
     INTEGER, DIMENSION(stack_size)           :: c_sort, c_sort_ind
     INTEGER, &
       DIMENSION(dbcsr_ps_width, stack_size)  :: params_sort, params_tmp
-    REAL(kind=dp)                            :: kt
-    REAL(kind=dp), SAVE                      :: index_time = 0
 
 ! sort for matrices 13x13 and larger, this parameter needs tuning
 !   ---------------------------------------------------------------------------
@@ -1002,32 +919,11 @@ CONTAINS
     !$      WRITE(*,*)routineN//" Stack size is", stack_size, omp_get_thread_num()
  !   IF (careful_mod) &
          CALL dbcsr_error_set (routineN, error_handle, error)
-    IF (.NOT. kernel_timing) t_calc_step = t_calc_step - m_walltime()
-    IF (kernel_timing) THEN
-       index_time = index_time + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Index time", index_time, "s"
-    ENDIF
+    
     params_p => params
-    IF (kernel_timing) kt = -m_walltime()
     IF (m .GT. 0) THEN ; m_max = m ; ELSE ; m_max = -max_m ; ENDIF
     IF (n .GT. 0) THEN ; n_max = n ; ELSE ; n_max = -max_n ; ENDIF
     IF (k .GT. 0) THEN ; k_max = k ; ELSE ; k_max = -max_k ; ENDIF
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Max size time", kt, "s"
-    ENDIF
-    IF (kernel_timing) kt = -m_walltime()
-    IF (kernel_timing) &
-         CALL dbcsr_cuda_device_sync (error=error)
-    IF (measure_idle) THEN
-       t_dev_idle = t_dev_idle - m_walltime()
-       CALL dbcsr_cuda_device_sync (error=error)
-       t_dev_idle = t_dev_idle + m_walltime()
-    ENDIF
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Thread sync time", kt, "s"
-    ENDIF
     !========================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or GPU gain is very large
@@ -1044,31 +940,18 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop (error_handle2, error)
     !========================================
-    IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_cp_host_to_dev (params_p,&
          params_dev%d_i, dbcsr_ps_width*stack_size,&
          async=.TRUE., stream=stream,&
          error=error)
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Parameter copy time", kt, "s"
-    ENDIF
-    !
+    
     ! Schedule the resetting of the state of this stack as soon as the
     ! parameter upload finishes.  N.B. This must be the last change to
     ! the stack: its stack_p must be set to 0 and its data must be
     ! used <em>before</em> the state is set to dbcsr_ps_state_empty.
-    IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_cp_dev_to_host (stack_state_dev%d_i, state,&
          async=.TRUE., stream=stream, error=error)
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"State update time", kt, "s"
-    ENDIF
-    !
-    IF (kernel_timing) CALL m_flush(6)
-    IF (kernel_timing) kt = -m_walltime()
-    !
+    
     !--- !$OMP CRITICAL (crit_cuda)
     !$ IF (mm_thread_workshare) CALL OMP_SET_LOCK (accel_lock)
     CALL dbcsr_cuda_do_mm_stack (params_dev%d_i, stack_size, dbcsr_ps_width,&
@@ -1078,15 +961,6 @@ CONTAINS
     !$ IF (mm_thread_workshare) CALL OMP_UNSET_LOCK (accel_lock)
     !--- !$OMP END CRITICAL (crit_cuda)
     IF (.FALSE.) CALL dbcsr_cuda_device_sync (error=error)
-    IF (kernel_timing) THEN
-       CALL dbcsr_cuda_device_sync (error=error)
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Kernel time", kt, "s"
-       t_calc_step = t_calc_step + kt
-    ENDIF
-    !
-    IF (kernel_timing) index_time = -m_walltime()
-    IF (.NOT. kernel_timing) t_calc_step = t_calc_step + m_walltime()
 
 !    IF (careful_mod) &
          CALL dbcsr_error_stop (error_handle, error)

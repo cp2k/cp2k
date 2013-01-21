@@ -13,8 +13,7 @@
 ! *****************************************************************************
 MODULE dbcsr_mm_types
 
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_1,&
+  USE dbcsr_kinds,                     ONLY: int_1,&
                                              int_4,&
                                              int_8,&
                                              real_8,&
@@ -105,8 +104,6 @@ MODULE dbcsr_mm_types
 !>                        same work matrix variable).
 !> \var original_lastblk  Number of work matrix blocks before addition
 !> \var flop              flop count
-!> \var t_index           Time for indexing
-!> \var t_gemm            Calculation time
 ! *****************************************************************************
   TYPE carrier_type
      INTEGER :: id
@@ -134,7 +131,6 @@ MODULE dbcsr_mm_types
      INTEGER               :: lastblk, datasize
      INTEGER               :: original_lastblk
      INTEGER(kind=int_8)   :: flop
-     REAL(KIND=dp)         :: t_index, t_gemm
      INTEGER, DIMENSION(:,:), POINTER :: right_data_sr, right_data_rr,&
                                          left_data_sr, left_data_rr,&
                                          right_index_sr, right_index_rr,&

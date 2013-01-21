@@ -31,21 +31,20 @@ MODULE dbcsr_mm_csr
                                              mm_thread_workshare,&
                                              use_comm_thread
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_1,&
+  USE dbcsr_kinds,                     ONLY: int_1,&
                                              int_4,&
                                              int_8,&
                                              real_8,&
                                              sp
-  USE dbcsr_machine,                   ONLY: m_walltime
   USE dbcsr_message_passing,           ONLY: mp_testany
   USE dbcsr_mm_driver,                 ONLY: dbcsr_mm_driver_inner_init,&
                                              dbcsr_mm_driver_outer_finalize,&
                                              dbcsr_mm_driver_outer_init
-  USE dbcsr_mm_stack,                  ONLY: &
-       enqueue_ps_group, get_stack_or_process_queue, process_queue_mine, &
-       process_queue_others, process_queue_preempt, t_calc_step, t_dev_idle, &
-       t_dev_sync, t_process_stack
+  USE dbcsr_mm_stack,                  ONLY: enqueue_ps_group,&
+                                             get_stack_or_process_queue,&
+                                             process_queue_mine,&
+                                             process_queue_others,&
+                                             process_queue_preempt
   USE dbcsr_mm_types,                  ONLY: carrier_type,&
                                              ele_type,&
                                              hash_table_type
@@ -60,19 +59,14 @@ MODULE dbcsr_mm_csr
        dbcsr_psg_view_open
   USE dbcsr_pq_types,                  ONLY: &
        dbcsr_pq_type, dbcsr_ps_group_type, dbcsr_ps_set_type, &
-       dbcsr_ps_state_queued, dbcsr_ps_target_obj, dbcsr_ps_width, &
-       mult_timers, p_a_first, p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, &
-       tmr_mult_finish, tmr_mult_finish1, tmr_mult_finish2, tmr_mult_finish3, &
-       tmr_sync
+       dbcsr_ps_state_queued, dbcsr_ps_target_obj, dbcsr_ps_width, p_a_first, &
+       p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_memory_CUDA_host_pinned,&
                                              dbcsr_memory_default,&
                                              dbcsr_type
-  USE dbcsr_util,                      ONLY: map_most_common,&
-                                             xtime_set,&
-                                             xtime_start,&
-                                             xtime_stop
+  USE dbcsr_util,                      ONLY: map_most_common
 
   !$ USE OMP_LIB
         
@@ -81,7 +75,6 @@ MODULE dbcsr_mm_csr
   PRIVATE
  
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_csr'
-  
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
@@ -92,15 +85,10 @@ MODULE dbcsr_mm_csr
   
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
   
-  REAL(kind=dp)  :: index_time
-  LOGICAL, PRIVATE :: do_index_time = .FALSE.
-
-  
   
   PUBLIC :: csr_multiply_outer_init, csr_multiply_outer_finalize
   PUBLIC :: csr_multiply_inner_init, csr_multiply_inner_finalize
   PUBLIC :: csr_multiply_unwrap
-  PUBLIC :: index_time
   
   
   CONTAINS
@@ -206,7 +194,7 @@ MODULE dbcsr_mm_csr
             carrier%stack_map,&
             nstacks, carrier%default_stack, &
             carrier%row_max_epss, csr_a_norms, csr_b_norms,&
-            carrier%flop, carrier%t_gemm, error)
+            carrier%flop, error)
        !
        ! If a stack group was filled up during the csr_multiply call then
        ! we roll around to a new memory region.
@@ -575,12 +563,6 @@ MODULE dbcsr_mm_csr
     INTEGER                                  :: ps_buffer, ps_memreg
     TYPE(dbcsr_ps_group_type), POINTER       :: stack_group
 
-    !$OMP MASTER
-    t_calc_step = 0.0_dp
-    t_process_stack = 0.0_dp
-    t_dev_sync = 0.0_dp
-    t_dev_idle = 0.0_dp
-    !$OMP END MASTER
     !$OMP BARRIER
     
 ! Setup the carrier data that changes in each multiplication step.
@@ -618,8 +600,8 @@ MODULE dbcsr_mm_csr
     LOGICAL                                  :: i_interface
     TYPE(dbcsr_ps_group_type), POINTER       :: stack_group
 
-    CALL xtime_set (mult_timers(tmr_mult_finish))
-    ! Mark myself as done with indexing.
+! Mark myself as done with indexing.
+
     CALL dbcsr_pq_mark_done (carrier%queue, error)
     i_interface = .FALSE.
     IF (mm_thread_workshare) THEN
@@ -650,42 +632,29 @@ MODULE dbcsr_mm_csr
     ! Process my queues now.
     IF (.NOT. i_interface) THEN
        ! Non-master threads just do CPU calculations.
-       CALL xtime_set (mult_timers(tmr_mult_finish1))                           
        CALL process_queue_mine(carrier%queue, driver=mm_host_driver,&
             error=error)
-       CALL xtime_stop (mult_timers(tmr_mult_finish1))
     ELSE
        ! The master thread tries to fill up the accelerator.
-       CALL xtime_set (mult_timers(tmr_mult_finish1))
        CALL process_queue_mine (carrier%queue, driver=mm_driver,&
             error=error)
-       CALL xtime_stop (mult_timers(tmr_mult_finish1))
 
        IF (mm_thread_workshare) THEN
-          CALL xtime_set (mult_timers(tmr_mult_finish2))
           CALL process_queue_others (carrier%queue, forever=.FALSE.,&
                driver=mm_driver, error=error)
-          CALL xtime_stop (mult_timers(tmr_mult_finish2))
        ENDIF
 
-       CALL xtime_set (mult_timers(tmr_mult_finish1))
        CALL process_queue_mine (carrier%queue,&
             driver=mm_host_driver, error=error)
-       CALL xtime_stop (mult_timers(tmr_mult_finish1))
 
        IF (mm_thread_workshare) THEN
-          CALL xtime_set (mult_timers(tmr_mult_finish3))
           CALL process_queue_others (carrier%queue, forever=.TRUE.,&
                driver=mm_driver, error=error)
-          CALL xtime_stop (mult_timers(tmr_mult_finish3))
        ENDIF
     ENDIF
-    CALL xtime_stop (mult_timers(tmr_mult_finish))
     
     IF (mm_thread_workshare) THEN
-       CALL xtime_start (mult_timers(tmr_sync))
        !$OMP BARRIER
-       CALL xtime_stop (mult_timers(tmr_sync))
     ENDIF
     
     !TODO: why is this only called on one stack_group see also csr_multiply_init
@@ -714,7 +683,7 @@ MODULE dbcsr_mm_csr
        nm_stacks, nn_stacks, nk_stacks, stack_map,&
        nstacks, default_stack,&
        row_max_epss, left_norms, right_norms,&
-       flop, t_gemm, error)
+       flop, error)
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, ki, kf, ai, af
     INTEGER, DIMENSION(mi:mf+1), INTENT(IN)  :: a_row_p
     INTEGER, DIMENSION(2, 1:af-ai+1), &
@@ -756,7 +725,6 @@ MODULE dbcsr_mm_csr
     REAL(kind=sp), DIMENSION(*)              :: row_max_epss, left_norms, &
                                                 right_norms
     INTEGER(KIND=int_8), INTENT(INOUT)       :: flop
-    REAL(KIND=dp), INTENT(INOUT)             :: t_gemm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'csr_multiply', &
@@ -773,17 +741,13 @@ MODULE dbcsr_mm_csr
     INTEGER(KIND=int_4)                      :: offset
     LOGICAL                                  :: block_exists, do_preempt, &
                                                 flush_stack, i_interface
-    REAL(kind=dp)                            :: t_gemm_me
     REAL(kind=sp)                            :: a_norm, a_row_eps, b_norm
     TYPE(dbcsr_ps_group_type), POINTER       :: ps_group
 
 !   ---------------------------------------------------------------------------
 
-    IF (do_index_time) &
-         index_time = -m_walltime()
     ithread = 0
     !$ ithread = omp_get_thread_num()
-    t_gemm_me = REAL(0, KIND(t_gemm_me))
     !
     advance_memreg = .FALSE.
     i_interface = .FALSE.
@@ -914,7 +878,6 @@ MODULE dbcsr_mm_csr
              flush_stack = (stack_p(ws) .GE. mm_stack_size-1)
              IF (flush_stack) THEN
                 advance_memreg = .TRUE.
-                IF (do_index_time) index_time = index_time + m_walltime()
                 CALL dbcsr_psg_view_close (ps_group, params_array_direct,&
                      stack_p, zero_first, zero_last, new_blk, error=error)
                 do_preempt = mm_async
@@ -962,7 +925,6 @@ MODULE dbcsr_mm_csr
                 CALL dbcsr_psg_view_open (ps_group, params_array_direct,&
                      stack_p, zero_first, zero_last, new_blk,&
                      param_starts, error=error)
-                IF (do_index_time) index_time = index_time - m_walltime()
              ENDIF
           ENDDO b_blk_cycle ! b
        ENDDO a_blk_cycle ! a_col
@@ -974,10 +936,7 @@ MODULE dbcsr_mm_csr
     CALL dbcsr_psg_view_close (ps_group, params_array_direct,&
          stack_p, zero_first, zero_last, new_blk, error=error)
 
-    !
-    t_gemm = t_gemm + t_gemm_me
-    !
-    IF (do_index_time) index_time = index_time + m_walltime()
+   
   END SUBROUTINE csr_multiply
 
 

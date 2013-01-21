@@ -45,10 +45,8 @@
     left =MODULO(myrank-displ,nprocs)
     tag=17
     msglen = SIZE(msg)
-    t_start = m_walltime ( )
     CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER8,right,tag,left,tag, &
          group,status(1),ierror)
-    t_end = m_walltime ( )
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     DEALLOCATE(status)
 #endif
@@ -98,10 +96,8 @@
     left =MODULO(myrank-displ,nprocs)
     tag=19
     msglen = SIZE(msg)
-    t_start = m_walltime ( )
     CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER8,right,tag,left,&
          tag,group,status(1),ierror)
-    t_end = m_walltime ( )
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     DEALLOCATE(status)
 #endif
@@ -144,11 +140,9 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER8, &
          rb, rcount, rdispl, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ "//routineN )
-    t_end = m_walltime ( )
     msglen = SUM ( scount ) + SUM ( rcount )
 #else
     rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
@@ -180,12 +174,10 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER8, &
          rb, rcount, rdispl, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ "//routineN )
     msglen = SUM ( scount ) + SUM ( rcount )
-    t_end = m_walltime ( )
 #else
     rb=sb
 #endif
@@ -221,14 +213,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * count * np
-    t_end = m_walltime ( )
 #else
     rb=sb
 #endif
@@ -253,14 +243,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * SIZE(sb) * np
-    t_end = m_walltime ( )
 #else
     rb=sb
 #endif
@@ -285,14 +273,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * count * np
-    t_end = m_walltime ( )
 #else
     rb=sb
 #endif
@@ -320,14 +306,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * count * np
-    t_end = m_walltime ( )
 #else
     rb=sb
 #endif
@@ -355,14 +339,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * count * np
-    t_end = m_walltime ( )
 #endif
 
   END SUBROUTINE mp_alltoall_l45
@@ -388,14 +370,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * count * np
-    t_end = m_walltime ( )
 #endif
 
   END SUBROUTINE mp_alltoall_l34
@@ -421,14 +401,12 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
          rb, count, MPI_INTEGER8, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
     CALL mpi_comm_size ( group, np, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
     msglen = 2 * count * np
-    t_end = m_walltime ( )
 #endif
 
   END SUBROUTINE mp_alltoall_l54
@@ -455,10 +433,8 @@
     ierr = 0
     msglen = 1
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_send(msg,msglen,MPI_INTEGER8,dest,tag,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_send_l
 
@@ -481,10 +457,8 @@
     ierr = 0
     msglen = SIZE(msg)
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_send(msg,msglen,MPI_INTEGER8,dest,tag,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_send_lv
 
@@ -513,10 +487,8 @@
     msglen = 1
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
-    t_start = m_walltime ( )
     CALL mpi_recv(msg,msglen,MPI_INTEGER8,source,tag,gid,status,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ "//routineN )
-    t_end = m_walltime ( )
     source = status(MPI_SOURCE)
     tag = status(MPI_TAG)
     DEALLOCATE(status)
@@ -544,10 +516,8 @@
     msglen = SIZE(msg)
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
-    t_start = m_walltime ( )
     CALL mpi_recv(msg,msglen,MPI_INTEGER8,source,tag,gid,status,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ "//routineN )
-    t_end = m_walltime ( )
     source = status(MPI_SOURCE)
     tag = status(MPI_TAG)
     DEALLOCATE(status)
@@ -574,10 +544,8 @@
     ierr = 0
     msglen = 1
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_bcast(msg,msglen,MPI_INTEGER8,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_l
 
@@ -598,10 +566,8 @@
     ierr = 0
     msglen = SIZE(msg)
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_bcast(msg,msglen,MPI_INTEGER8,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_lv
 
@@ -622,10 +588,8 @@
     ierr = 0
     msglen = SIZE(msg)
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_bcast(msg,msglen,MPI_INTEGER8,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_lm
 
@@ -646,10 +610,8 @@
     ierr = 0
     msglen = SIZE(msg)
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_bcast(msg,msglen,MPI_INTEGER8,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_l3
 
@@ -674,11 +636,9 @@
     ierr = 0
     msglen = 1
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_l
 
@@ -700,7 +660,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
     ALLOCATE (res(1:msglen),STAT=ierr)
@@ -710,7 +669,6 @@
     msg = res
     DEALLOCATE (res)
     END IF
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_lv
 
@@ -732,7 +690,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
     m1 = SIZE(msg,1)
@@ -744,7 +701,6 @@
     msg = res
     DEALLOCATE (res)
     END IF
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_lm
 
@@ -766,7 +722,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
     m1 = SIZE(msg,1)
@@ -779,7 +734,6 @@
     msg = res
     DEALLOCATE (res)
     END IF
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_lm3
 
@@ -806,7 +760,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_comm_rank ( gid, taskid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ "//routineN )
     msglen = SIZE(msg)
@@ -822,7 +775,6 @@
     END IF
     DEALLOCATE (res)
     END IF
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_root_lv
 
@@ -846,7 +798,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_comm_rank ( gid, taskid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ "//routineN )
     msglen = SIZE(msg)
@@ -862,7 +813,6 @@
     END IF
     DEALLOCATE (res)
     END IF
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_root_lm
 
@@ -887,12 +837,10 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = 1
     CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_MAX,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_max_l
 
@@ -915,7 +863,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -923,7 +870,6 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_max_lv
 
@@ -948,12 +894,10 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = 1
     CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_MIN,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_min_l
 
@@ -978,7 +922,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -986,7 +929,6 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_min_lv
 
@@ -1012,12 +954,10 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     CALL mpi_scatter(msg_scatter,msglen,MPI_INTEGER8,msg,&
          msglen,MPI_INTEGER8,root,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_scatter @ "//routineN )
-    t_end = m_walltime ( )
 #else
     msg = msg_scatter
 #endif
@@ -1044,12 +984,10 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = 1
     CALL mpi_gather(msg,msglen,MPI_INTEGER8,msg_gather,&
          msglen,MPI_INTEGER8,root,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ "//routineN )
-    t_end = m_walltime ( )
 #else
     msg_gather = msg
 #endif
@@ -1076,12 +1014,10 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     CALL mpi_gather(msg,msglen,MPI_INTEGER8,msg_gather,&
          msglen,MPI_INTEGER8,root,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ "//routineN )
-    t_end = m_walltime ( )
 #else
     msg_gather = msg
 #endif
@@ -1118,12 +1054,10 @@
     ierr = 0
     sendcount = SIZE(sendbuf)
 #if defined(__parallel)
-    t_start = m_walltime()
     CALL mpi_gatherv(sendbuf,sendcount,MPI_INTEGER8,&
          recvbuf,recvcounts,displs,MPI_INTEGER8,&
          root,comm,ierr)
     IF (ierr /= 0) CALL mp_stop(ierr,"mpi_gatherv @ "//routineN)
-    t_end = m_walltime()
 #else
     recvbuf(1+displs(1):) = sendbuf
 #endif
@@ -1323,12 +1257,10 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, MPI_INTEGER8, MPI_SUM, &
          gid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce_scatter @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     msgin = msgout
 #endif
@@ -1359,7 +1291,6 @@
     ierr = 0
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
-    t_start = m_walltime ( )
     msglen_in = SIZE(msgin)
     msglen_out = SIZE(msgout)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
@@ -1368,7 +1299,6 @@
          msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #else
     msgout = msgin
@@ -1396,7 +1326,6 @@
     ierr = 0
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
-    t_start = m_walltime ( )
     msglen_in = SIZE(msgin,1)*SIZE(msgin,2)
     msglen_out = SIZE(msgout,1)*SIZE(msgout,2)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
@@ -1405,7 +1334,6 @@
          msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #else
     msgout = msgin
@@ -1433,7 +1361,6 @@
     ierr = 0
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
-    t_start = m_walltime ( )
     msglen_in = SIZE(msgin)
     msglen_out = SIZE(msgout)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
@@ -1442,7 +1369,6 @@
          msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #else
     msgout = msgin
@@ -1485,7 +1411,6 @@
 
     ierr = 0
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1512,7 +1437,6 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
 
     msglen = (msglen+SIZE(msgout,1))/2.0_dp
-    t_end = m_walltime ( )
 #else
     send_request=0
     recv_request=0
@@ -1549,7 +1473,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1578,7 +1501,6 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
     msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2.0_dp
-    t_end = m_walltime ( )
 #else
     send_request=0
     recv_request=0
@@ -1613,7 +1535,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1628,7 +1549,6 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
@@ -1663,7 +1583,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1679,7 +1598,6 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
@@ -1716,7 +1634,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1733,7 +1650,6 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
@@ -1767,7 +1683,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1782,7 +1697,6 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
@@ -1816,7 +1730,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1832,7 +1745,6 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
@@ -1868,7 +1780,6 @@
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
@@ -1885,7 +1796,6 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ "//routineN )
 
-    t_end = m_walltime ( )
 #else
     CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
@@ -1915,7 +1825,6 @@
 #endif
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     IF (PRESENT (len)) THEN
        winsize = len
@@ -1928,7 +1837,6 @@
     CALL MPI_WIN_CREATE(range, winsize, data_type_size,&
       MPI_INFO_NULL, gid, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ "//routineN)
-    t_end = m_walltime()
 #else
     NULLIFY(window%src_r, window%src_d)
     NULLIFY(window%src_c, window%src_z)
@@ -1959,12 +1867,10 @@
     INTEGER                   :: ierr
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     CALL MPI_GET(storage, len, MPI_INTEGER8, remote,&
          INT (offset, MPI_ADDRESS_KIND), len, MPI_INTEGER8, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get @ "//routineN)
-    t_end = m_walltime()
 #else
     storage(LBOUND(storage,1):LBOUND(storage,1)+len-1) &
          = window%src_l(LBOUND(window%src_i,1)+offset&
@@ -1996,12 +1902,10 @@
 #endif
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     CALL MPI_PUT(storage, len, MPI_INTEGER8, remote,&
          INT (offset, MPI_ADDRESS_KIND), len, MPI_INTEGER8, window, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_put @ "//routineN)
-    t_end = m_walltime()
 #else
     win_data => window%src_l
     win_data(LBOUND(window%src_i,1)+offset &
@@ -2028,7 +1932,6 @@
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
     !$ IF (OMP_GET_THREAD_NUM() .NE. 0) call mp_stop(ierr, routineN)
-    t_start = m_walltime()
     ierr = 0
     NULLIFY(DATA)
     CALL mp_alloc_mem(DATA, len, stat=ierr)
@@ -2037,7 +1940,6 @@
     ELSE
        IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
     ENDIF
-    t_end = m_walltime()
 #else
     ALLOCATE(DATA(len), stat=ierr)
     IF (PRESENT (stat)) THEN
@@ -2063,7 +1965,6 @@
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
     !$ IF (OMP_GET_THREAD_NUM() .NE. 0) call mp_stop(ierr, routineN)
-    t_start = m_walltime()
     ierr = 0
     CALL mp_free_mem(DATA, ierr)
     IF (PRESENT (stat)) THEN
@@ -2072,7 +1973,6 @@
        IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ "//routineN)
     ENDIF
     NULLIFY(DATA)
-    t_end = m_walltime()
 #else
     DEALLOCATE(DATA, stat=ierr)
     IF (PRESENT (stat)) THEN

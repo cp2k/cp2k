@@ -44,10 +44,10 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, detailed_timing, has_cuda, has_mpi, &
-       kernel_timing, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm, mm_thread_workshare
+       dbcsr_set_conf_use_comm_thread, has_cuda, has_mpi, mm_driver_blas, &
+       mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
+       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, &
+       mm_name_smm, mm_thread_workshare
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -464,10 +464,6 @@ CONTAINS
          "mm_driver", i_val=mm_driver, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "mm_thread_workshare", l_val=mm_thread_workshare, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "detailed_timing", l_val=detailed_timing, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "kernel_timing", l_val=kernel_timing, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "n_size_mnk_stacks", i_val=nstacks(1), error=error)
     nstacks(2:3) = nstacks(1)

@@ -17,10 +17,8 @@ MODULE dbcsr_toollib
   USE dbcsr_array_i4_sort,             ONLY: dbcsr_1d_i4_sort
   USE dbcsr_array_i8_sort,             ONLY: dbcsr_1d_i8_sort
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
+  USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8
-  USE dbcsr_machine,                   ONLY: m_walltime
 
   !$ USE OMP_LIB
 
@@ -33,7 +31,6 @@ MODULE dbcsr_toollib
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
 
-  PUBLIC :: dbcsr_sleep
   ! Block sizes and arrays
   PUBLIC :: dbcsr_unpack_i8_2i4, make_coordinate_tuple
   PUBLIC :: swap
@@ -95,23 +92,6 @@ CONTAINS
     a = b
     b = tmp
   END SUBROUTINE bswap
-
-
-! *****************************************************************************
-!> \brief Busy-loop sleep.
-!> \param[in] duration        time to sleep/s.
-! *****************************************************************************
-  SUBROUTINE dbcsr_sleep(duration)
-    REAL(KIND=dp), INTENT(IN)                :: duration
-
-    REAL(KIND=dp)                            :: t_now, t_start
-
-    t_start = m_walltime ()
-    t_now = t_start
-    DO WHILE (t_now .LT. t_start + duration)
-       t_now = m_walltime ()
-    ENDDO
-  END SUBROUTINE dbcsr_sleep
 
 
 ! *****************************************************************************

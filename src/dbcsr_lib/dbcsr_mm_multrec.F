@@ -22,11 +22,9 @@ MODULE dbcsr_mm_multrec
                                              array_equality
   USE dbcsr_config,                    ONLY: mm_thread_workshare
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
+  USE dbcsr_kinds,                     ONLY: int_8,&
                                              real_8,&
                                              sp
-  USE dbcsr_machine,                   ONLY: m_walltime
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_local_cols,&
@@ -37,8 +35,7 @@ MODULE dbcsr_mm_multrec
                                              csr_multiply_inner_init,&
                                              csr_multiply_outer_finalize,&
                                              csr_multiply_outer_init,&
-                                             csr_multiply_unwrap,&
-                                             index_time
+                                             csr_multiply_unwrap
   USE dbcsr_mm_types,                  ONLY: carrier_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: dbcsr_type
@@ -52,35 +49,11 @@ MODULE dbcsr_mm_multrec
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_multrec'
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  INTEGER :: multrec_calls = 0
-  
-
-
-  REAL(kind=dp) :: t_tmp
-  !$OMP THREADPRIVATE (t_tmp)
-            
   PUBLIC :: dbcsr_multrec_init
   PUBLIC :: dbcsr_multrec_sparse                                                                   
   PUBLIC :: dbcsr_multrec_finalize
-  PUBLIC :: get_index_time, reset_index_time
   
 CONTAINS
-
-! *****************************************************************************
-!> \author Ole Schuett
-! *****************************************************************************
-  FUNCTION get_index_time() RESULT(time)
-    INTEGER                                  :: time
-
-     time = index_time
-  END FUNCTION get_index_time
-
-! *****************************************************************************
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE reset_index_time()
-     index_time = 0.0_dp
-  END SUBROUTINE reset_index_time
 
 ! *****************************************************************************
 !> \brief Sets up recursive multiplication
@@ -123,11 +96,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    IF (dbg) THEN
-       multrec_calls = multrec_calls + 1
-       WRITE(*,*)routineN//" multrec calls=", multrec_calls
-    ENDIF
-    !
+    
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
     carrier%id = ithread
@@ -175,8 +144,6 @@ CONTAINS
     carrier%original_lastblk = carrier%lastblk
     carrier%datasize = product%wms(ithread+1)%datasize
     carrier%flop = INT(0, int_8)
-    carrier%t_index = 0.0_dp
-    carrier%t_gemm = 0.0_dp
     carrier%right_data_sr => right_data_sr
     carrier%right_data_rr => right_data_rr
     carrier%right_index_sr => right_index_sr
@@ -308,8 +275,6 @@ CONTAINS
 !> \param[in,out] product     resulting DBCSR product matrix
 !> \param[in] retain_sparsity      (optional) retain the sparsity of the
 !>                                 existing product matrix, default is no
-!> \param[in,out] t_all       accumulated time spent in entire routine
-!> \param[in,out] t_gemm      accumulated time spent just for multiplication
 !> \param[in] a_norms         (optional) norms of left-matrix blocks
 !> \param[in] b_norms         (optional) norms of right-matrix blocks
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
@@ -318,14 +283,12 @@ CONTAINS
 !>                            floating point operations performed
 ! *****************************************************************************
   SUBROUTINE dbcsr_multrec_sparse(left, right, product, carrier, flop,&
-       keep_sparsity, &
-       t_all, t_gemm, a_norms, b_norms, eps, row_max_epss, error)
+       keep_sparsity, a_norms, b_norms, eps, row_max_epss, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     TYPE(carrier_type), INTENT(inout)        :: carrier
     INTEGER(KIND=int_8), INTENT(OUT)         :: flop
     LOGICAL, INTENT(IN)                      :: keep_sparsity
-    REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_gemm
     REAL(kind=sp), DIMENSION(:), &
       INTENT(in), TARGET                     :: a_norms, b_norms
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
@@ -342,14 +305,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: k_locals
     LOGICAL                                  :: local_cols, local_indexing, &
                                                 local_rows
-    REAL(KIND=dp)                            :: epoch
 
 !   ---------------------------------------------------------------------------
 !
 
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
-    epoch = m_walltime()
     carrier%flop = 0
    
     CALL csr_multiply_inner_init(left, right, carrier, error=error)
@@ -465,11 +426,7 @@ CONTAINS
     
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM()
-
-    IF (dbg) THEN
-       multrec_calls = multrec_calls - 1
-       WRITE(*,*)routineN//" multrec calls=", multrec_calls
-    ENDIF
+    
     ! Release the carrier
     DEALLOCATE (carrier%m_sizes)
     DEALLOCATE (carrier%n_sizes)

@@ -41,7 +41,6 @@ MODULE dbcsr_io
        dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_mp_type_from_anytype
-  USE dbcsr_pq_types,                  ONLY: ntmr
   USE dbcsr_transformations,           ONLY: dbcsr_datablock_redistribute
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
@@ -76,7 +75,6 @@ MODULE dbcsr_io
 ! PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Utility printing
   PUBLIC :: all_print
-  PUBLIC :: print_xfer_timings, print_mult_timings
   PUBLIC :: dbcsr_binary_write
   PUBLIC :: dbcsr_binary_read
 
@@ -702,53 +700,6 @@ CONTAINS
     CALL mp_allgather(val, infos, dbcsr_mp_group(mp))
     WRITE(*,fmt)desc,infos
   END SUBROUTINE all_print
-
-  SUBROUTINE print_xfer_timings (timings)
-    REAL(kind=dp), DIMENSION(:, :, :, :), &
-      INTENT(in)                             :: timings
-
-    INTEGER, PARAMETER                       :: id_bytes = 3, id_recv = 2, &
-                                                id_send = 1, id_time = 1, &
-                                                id_waittime = 2
-
-    INTEGER                                  :: tick
-
-    DO tick = 1, SIZE(timings,4)-1
-       WRITE(*,*)"Tick", tick
-       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Left recv",&
-            timings(1,id_send,:,tick),&
-            timings(2,id_send,:,tick)
-       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Left send",&
-            timings(1,id_recv,:,tick),&
-            timings(2,id_recv,:,tick)
-       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Right recv",&
-            timings(3,id_send,:,tick),&
-            timings(4,id_send,:,tick)
-       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Right send",&
-            timings(3,id_recv,:,tick),&
-            timings(4,id_recv,:,tick)
-    ENDDO
-  END SUBROUTINE print_xfer_timings
-
-
-  SUBROUTINE print_mult_timings (times)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: times
-
-    CHARACTER(LEN=16)                        :: fmt
-    INTEGER                                  :: t
-
-    t = 0
-    WRITE(fmt,'("(",I2,"(1X,EN12.3))")')ntmr
-    !$OMP CRITICAL
-    !$ t = omp_get_thread_num()
-    WRITE(*,*)"OMP Timings", t
-    WRITE(*,fmt)times(:)
-    !
-    !WRITE(fmt,'("(",I2,"(1X,EN12.3))")')4
-    !WRITE(*,fmt)times(tmr_fill_stack),times(tmr_process_stack),&
-    !     times(tmr_process_me),times(tmr_mult_local)
-    !$OMP END CRITICAL
-  END SUBROUTINE print_mult_timings
   
 ! *****************************************************************************
 !> \brief Writes a DBCSR matrix in a file

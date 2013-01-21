@@ -15,7 +15,6 @@
 MODULE dbcsr_pq_types
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp
   USE dbcsr_types,                     ONLY: dbcsr_data_obj
 
   !$ USE OMP_LIB
@@ -47,29 +46,7 @@ MODULE dbcsr_pq_types
   ! The maximum number of regions to use for region-based locking of
   ! target data areas.
   INTEGER, PARAMETER :: max_regions = 1024
-
-  ! Timer types
-  INTEGER, PARAMETER, PUBLIC :: tmr_wait_for_empty_stack  = 1,&
-                                tmr_wait_for_my_target    = 2,&
-                                tmr_process_target        = 3,&
-                                tmr_get_a_stack           = 4,&
-                                tmr_get_other_stack       = 5,&
-                                tmr_process_stack         = 6,&
-                                tmr_process_other_stack   = 7,&
-                                tmr_kernel_time           = 8,&
-                                tmr_wait_for_other_target = 9,&
-                                tmr_mult_finish           = 10,&
-                                tmr_sync                  = 11,&
-                                tmr_mult_finish1          = 12,&
-                                tmr_mult_finish2          = 13,&
-                                tmr_mult_finish3          = 14,&
-                                tmr_process_me            = 15,&
-                                ntmr                      = 15
-
-  REAL(KIND=dp), DIMENSION(ntmr), PUBLIC :: mult_timers
-  !$OMP THREADPRIVATE (mult_timers)
-
-
+  
 
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 

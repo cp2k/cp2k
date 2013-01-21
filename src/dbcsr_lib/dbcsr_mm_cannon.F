@@ -19,10 +19,14 @@ MODULE dbcsr_mm_cannon
   USE array_types,                     ONLY: array_data,&
                                              array_exists,&
                                              array_hold
-  USE dbcsr_config,                    ONLY: &
-       detailed_timing, mm_driver, mm_driver_blas, mm_driver_cuda, &
-       mm_driver_plasma, use_CUDA_host_pinned_memory, use_MPI_memory, &
-       use_combined_types, use_comm_thread
+  USE dbcsr_config,                    ONLY: mm_driver,&
+                                             mm_driver_blas,&
+                                             mm_driver_cuda,&
+                                             mm_driver_plasma,&
+                                             use_CUDA_host_pinned_memory,&
+                                             use_MPI_memory,&
+                                             use_combined_types,&
+                                             use_comm_thread
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
@@ -36,14 +40,17 @@ MODULE dbcsr_mm_cannon
   USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                              dbcsr_has_local_row_index,&
                                              dbcsr_repoint_index
-  USE dbcsr_io,                        ONLY: dbcsr_print,&
-                                             print_xfer_timings
-  USE dbcsr_kinds,                     ONLY: &
-       dp, int_4, int_4_size, int_8, real_4, real_4_size, real_8, &
-       real_8_size, sp
+  USE dbcsr_io,                        ONLY: dbcsr_print
+  USE dbcsr_kinds,                     ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size,&
+                                             sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
-                                             m_flush,&
-                                             m_walltime
+                                             m_flush
   USE dbcsr_message_passing,           ONLY: &
        mp_allgather, mp_irecv, mp_isend, mp_request_null, mp_sum, mp_testany, &
        mp_type_descriptor_type, mp_type_free, mp_type_make, mp_waitall
@@ -58,19 +65,11 @@ MODULE dbcsr_mm_cannon
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_valid_index
   USE dbcsr_mm_multrec,                ONLY: dbcsr_multrec_finalize,&
                                              dbcsr_multrec_init,&
-                                             dbcsr_multrec_sparse,&
-                                             get_index_time,&
-                                             reset_index_time
-  USE dbcsr_mm_stack,                  ONLY: t_calc_step,&
-                                             t_dev_idle,&
-                                             t_dev_sync,&
-                                             t_process_stack
+                                             dbcsr_multrec_sparse
   USE dbcsr_mm_types,                  ONLY: carrier_type
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
-  USE dbcsr_pq_types,                  ONLY: mult_timers,&
-                                             tmr_sync
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_memory_CUDA_host_pinned, &
@@ -78,10 +77,7 @@ MODULE dbcsr_mm_cannon
        dbcsr_slot_size, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: count_bins,&
-                                             dbcsr_checksum,&
-                                             xtime_set,&
-                                             xtime_start,&
-                                             xtime_stop
+                                             dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create
 
   !$ USE OMP_LIB
@@ -90,19 +86,12 @@ MODULE dbcsr_mm_cannon
 
   PRIVATE
 
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_cannon'
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
-
-  PUBLIC :: dbcsr_mult_m_e_e
-
-
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  LOGICAL, PRIVATE :: print_index_time = .FALSE.
-  LOGICAL, PRIVATE :: measure_idle = .FALSE.
+  PUBLIC :: dbcsr_mult_m_e_e
 
 
 CONTAINS
@@ -137,8 +126,7 @@ CONTAINS
     INTEGER, PARAMETER :: id_bytes = 3, id_recv = 2, id_send = 1, &
       id_time = 1, id_waittime = 2, idata = 1, ileft = 0, imeta = 2, &
       iright = 2, M_L = 2, M_P = 1, M_R = 3, RC_C = 2, RC_R = 1
-    LOGICAL, PARAMETER                       :: excessive_output = .FALSE., &
-                                                time_xfers = .FALSE.
+    LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
 
     INTEGER :: data_size, data_type, error_handler, error_handler2, &
       flop_metronome, grp, i, ithread, left_col_image, left_col_mult, &
@@ -185,10 +173,7 @@ CONTAINS
     INTEGER, SAVE                            :: mult_id = 0
     LOGICAL                                  :: keep_sparsity, list_indexing, &
                                                 my_use_plasma, otf_filtering
-    REAL(KIND=dp)                            :: checksum, t_all, t_gemm, &
-                                                trun, trun_t, tstart, tstop
-    REAL(kind=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: xfer_timings
+    REAL(KIND=dp)                            :: checksum
     REAL(KIND=real_8)                        :: fill_guess, &
                                                 fill_guess_global, left_fill, &
                                                 right_fill
@@ -223,8 +208,6 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     !
     ALLOCATE (left_buffer_1, left_buffer_2, right_buffer_1, right_buffer_2)
-    t_all = 0.0_dp
-    t_gemm = 0.0_dp
     mult_id=mult_id+1
 
     my_use_plasma = mm_driver_blas .EQ. mm_driver_plasma
@@ -251,8 +234,6 @@ CONTAINS
 !$omp end parallel
 
     output_unit = default_output_unit
-    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
-    t_gemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
     flop_metronome=0
     left_index_send_size=0
@@ -263,7 +244,6 @@ CONTAINS
     right_index_recv_size=0
     left_data_recv_size=0
     right_data_recv_size=0
-    trun_t = m_walltime ()
     ! Set up variables
     data_type = dbcsr_get_data_type (product_matrix)
     left_row_nimages =  left_set%image_dist%i%row_decimation
@@ -488,11 +468,6 @@ CONTAINS
     min_nimages = MIN (left_col_nimages, right_row_nimages)
     nvirt_k = left_npcols * left_col_nimages
     nsteps_k = nvirt_k / min_nimages
-    !
-    ! Timings
-    ALLOCATE (xfer_timings(4, 2, 3, nsteps_k))
-    xfer_timings = 0.0_dp
-    CALL reset_index_time()
     !
     ! Translate the all_sizes to account for pre-distribution.  This
     ! is just done to simplify lookups.
@@ -727,41 +702,16 @@ CONTAINS
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           !
-          CALL xtime_set (xfer_timings(&
-               idata+iright, id_send, id_waittime, metronome-1))
           CALL mp_waitall (right_data_sr)
-          CALL xtime_stop (xfer_timings(&
-               idata+iright, id_send, id_waittime, metronome-1))
-          CALL xtime_stop (xfer_timings(&
-               idata+iright, id_send, id_time, metronome-1))
-          !
-          CALL xtime_set (xfer_timings(&
-               idata+iright, id_recv, id_waittime, metronome-1))
           CALL mp_waitall (right_data_rr)
-          CALL xtime_stop (xfer_timings(&
-               idata+iright, id_recv, id_waittime, metronome-1))
-          CALL xtime_stop (xfer_timings(&
-               idata+iright, id_recv, id_time, metronome-1))
           IF (use_combined_types) THEN
              DO v_ki = 1, right_row_nimages
                 CALL mp_type_free (right_recv_type(v_ki, 1))
                 CALL mp_type_free (right_send_type(v_ki, 1))
              ENDDO
           ELSE
-             CALL xtime_set (xfer_timings(&
-                  imeta+iright, id_send, id_waittime, metronome-1))
              CALL mp_waitall (right_index_sr)
-             CALL xtime_stop (xfer_timings(&
-                  imeta+iright, id_send, id_waittime, metronome-1))
-             CALL xtime_stop (xfer_timings(&
-                  imeta+iright, id_send, id_time, metronome-1))
-             CALL xtime_set (xfer_timings(&
-                  imeta+iright, id_recv, id_waittime, metronome-1))
              CALL mp_waitall (right_index_rr)
-             CALL xtime_stop (xfer_timings(&
-                  imeta+iright, id_recv, id_waittime, metronome-1))
-             CALL xtime_stop (xfer_timings(&
-                  imeta+iright, id_recv, id_time, metronome-1))
           ENDIF
        ENDIF wait_right
        CALL dbcsr_error_stop(error_handler2, error)
@@ -857,40 +807,22 @@ CONTAINS
                 right_recv_subtypes(2) = mp_type_make (right_index_rp)
                 right_send_type(v_ki+1, 1) = mp_type_make (right_send_subtypes)
                 right_recv_type(v_ki+1, 1) = mp_type_make (right_recv_subtypes)
-                CALL xtime_set(xfer_timings(idata+iright, id_recv, id_time, metronome))
                 CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow)
-                CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
                 CALL mp_isend (right_send_type(v_ki+1, 1), right_send_p,&
                      grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow)
              ELSE
-                CALL xtime_set(xfer_timings(idata+iright, id_recv, id_time, metronome))
                 CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow,&
                      error=error)
-                CALL xtime_set(xfer_timings(imeta+iright, id_recv, id_time, metronome))
                 CALL mp_irecv (right_index_rp, right_recv_p,&
                      grp, right_index_rr(v_ki+1, 1), tag=right_src_vrow)
-                CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
                 CALL dbcsr_isend_any (right_data_sp, right_send_p,&
                      grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow,&
                      error=error)
-                CALL xtime_set(xfer_timings(imeta+iright, id_send, id_time, metronome))
                 CALL mp_isend (right_index_sp, right_send_p,&
                      grp, right_index_sr(v_ki+1, 1), tag=right_dst_vrow)
              ENDIF
-             xfer_timings(idata+iright, id_send, id_bytes, metronome) = &
-                xfer_timings(idata+iright, id_send, id_bytes, metronome) + &
-                dbcsr_data_get_size(right_data_sp)
-             xfer_timings(idata+iright, id_recv, id_bytes, metronome) = &
-                xfer_timings(idata+iright, id_recv, id_bytes, metronome) + &
-                dbcsr_data_get_size(right_data_rp)
-             xfer_timings(imeta+iright, id_send, id_bytes, metronome) = &
-                xfer_timings(imeta+iright, id_send, id_bytes, metronome) + &
-                SIZE(right_index_sp)
-             xfer_timings(imeta+iright, id_recv, id_bytes, metronome) = &
-                xfer_timings(imeta+iright, id_recv, id_bytes, metronome) + &
-                SIZE(right_index_rp)
              IF (excessive_output) THEN
                 right_data_send_size = right_data_send_size +&
                      dbcsr_data_get_size(right_data_sp)
@@ -918,41 +850,16 @@ CONTAINS
        CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
-          CALL xtime_set (xfer_timings(&
-               idata+ileft, id_send, id_waittime, metronome-1))
           CALL mp_waitall (left_data_sr)
-          CALL xtime_stop (xfer_timings(&
-               idata+ileft, id_send, id_waittime, metronome-1))
-          CALL xtime_stop (xfer_timings(&
-               idata+ileft, id_send, id_time, metronome-1))
-          !
-          CALL xtime_set (xfer_timings(&
-               idata+ileft, id_recv, id_waittime, metronome-1))
           CALL mp_waitall (left_data_rr)
-          CALL xtime_stop (xfer_timings(&
-               idata+ileft, id_recv, id_waittime, metronome-1))
-          CALL xtime_stop (xfer_timings(&
-               idata+ileft, id_recv, id_time, metronome-1))
           IF (use_combined_types) THEN
              DO v_ki = 1, left_col_nimages
                 CALL mp_type_free (left_send_type(1, v_ki))
                 CALL mp_type_free (left_recv_type(1, v_ki))
              ENDDO
           ELSE
-             CALL xtime_set (xfer_timings(&
-                  imeta+ileft, id_send, id_waittime, metronome-1))
              CALL mp_waitall (left_index_sr)
-             CALL xtime_stop (xfer_timings(&
-                  imeta+ileft, id_send, id_waittime, metronome-1))
-             CALL xtime_stop (xfer_timings(&
-                  imeta+ileft, id_send, id_time, metronome-1))
-             CALL xtime_set (xfer_timings(&
-                  imeta+ileft, id_recv, id_waittime, metronome-1))
              CALL mp_waitall (left_index_rr)
-             CALL xtime_stop (xfer_timings(&
-                  imeta+ileft, id_recv, id_waittime, metronome-1))
-             CALL xtime_stop (xfer_timings(&
-                  imeta+ileft, id_recv, id_time, metronome-1))
           ENDIF
        ENDIF wait_left
        CALL dbcsr_error_stop(error_handler2, error)
@@ -1047,40 +954,22 @@ CONTAINS
                 left_recv_subtypes(2) = mp_type_make (left_index_rp)
                 left_send_type(1, v_ki+1) = mp_type_make (left_send_subtypes)
                 left_recv_type(1, v_ki+1) = mp_type_make (left_recv_subtypes)
-                CALL xtime_set(xfer_timings(idata+ileft, id_recv, id_time, metronome))
                 CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_vcol)
-                CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
                 CALL mp_isend (left_send_type(1, v_ki+1), left_send_p,&
                      grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol)
              ELSE
-                CALL xtime_set(xfer_timings(idata+ileft, id_recv, id_time, metronome))
                 CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_vcol,&
                      error=error)
-                CALL xtime_set(xfer_timings(imeta+ileft, id_recv, id_time, metronome))
                 CALL mp_irecv (left_index_rp, left_recv_p,&
                      grp, left_index_rr(1, v_ki+1), tag=left_src_vcol)
-                CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
                 CALL dbcsr_isend_any (left_data_sp, left_send_p,&
                      grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol,&
                      error=error)
-                CALL xtime_set(xfer_timings(imeta+ileft, id_send, id_time, metronome))
                 CALL mp_isend (left_index_sp, left_send_p,&
                      grp, left_index_sr(1, v_ki+1), tag=left_dst_vcol)
              ENDIF
-             xfer_timings(idata+ileft, id_send, id_bytes, metronome) = &
-                xfer_timings(idata+ileft, id_send, id_bytes, metronome) + &
-                dbcsr_data_get_size(left_data_sp)
-             xfer_timings(idata+ileft, id_recv, id_bytes, metronome) = &
-                xfer_timings(idata+ileft, id_recv, id_bytes, metronome) + &
-                dbcsr_data_get_size(left_data_rp)
-             xfer_timings(imeta+ileft, id_send, id_bytes, metronome) = &
-                xfer_timings(imeta+ileft, id_send, id_bytes, metronome) + &
-                SIZE(left_index_sp)
-             xfer_timings(imeta+ileft, id_recv, id_bytes, metronome) = &
-                xfer_timings(imeta+ileft, id_recv, id_bytes, metronome) + &
-                SIZE(left_index_rp)
              IF (excessive_output) THEN
                 left_data_send_size = left_data_send_size +&
                      dbcsr_data_get_size(left_data_sp)
@@ -1138,7 +1027,6 @@ CONTAINS
                      left_norms, error=error)
              ENDIF
              !
-             tstart = m_walltime ()
              flop_single = 0
              threads_finished = 0
 !$omp parallel if( .NOT. my_use_plasma ) &
@@ -1151,7 +1039,7 @@ CONTAINS
 !$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
 !$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, use_comm_thread,error_handler2) &
 !$omp private (ithread,nthreads, t_error) &
-!$omp reduction (+: flop_single, t_all, t_gemm)
+!$omp reduction (+: flop_single)
              t_error=error
              CALL dbcsr_error_set(routineN//"_multrec_sparse", error_handler2, t_error)
              CALL dbcsr_multrec_sparse(&
@@ -1163,8 +1051,7 @@ CONTAINS
                   flop=flop_single,&
                   a_norms=left_norms, b_norms=right_norms,&
                   eps=filter_eps,&
-                  row_max_epss = row_max_epss, &
-                  t_all=t_all, t_gemm=t_gemm, error=t_error)
+                  row_max_epss = row_max_epss, error=t_error)
              ! once multiplication is complete, thread zero polls MPI until
              ! all other threads have also completed
 !$omp atomic
@@ -1179,46 +1066,11 @@ CONTAINS
 !$omp flush (threads_finished)
                END DO
              END IF
-             CALL xtime_start (mult_timers(tmr_sync))
              !$OMP BARRIER
-             CALL xtime_stop (mult_timers(tmr_sync))
              CALL dbcsr_error_stop(error_handler2, t_error)
 !$omp end parallel
              flop_total = flop_total + flop_single
              flop_metronome=flop_metronome+flop_single
-             tstop = m_walltime ()
-
-
-             IF (tstop-tstart .EQ. 0) tstop = tstart+EPSILON(tstart)
-             IF ((output_unit>0) .AND. detailed_timing) THEN
-                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
-                     "Segment Local Multiplication time ",tstop-tstart," and ",&
-                     (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
-                     " MFLOP/s", REAL(flop_single), "FLOP"
-                t_process_stack = MAX (EPSILON (t_process_stack), t_process_stack)
-                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
-                     " Stack Process Multiplication time ",t_process_stack," and ",&
-                     (REAL(flop_single, dp)/1000000.0_dp)/(t_process_stack),&
-                     " MFLOP/s", REAL(flop_single), "FLOP"
-                t_calc_step = MAX (EPSILON (t_calc_step), t_calc_step)
-                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
-                     "Kernel Process Multiplication time ",t_calc_step," and ",&
-                     (REAL(flop_single, dp)/1000000.0_dp)/(t_calc_step),&
-                     " MFLOP/s", REAL(flop_single), "FLOP"
-                t_dev_sync = MAX (EPSILON (t_dev_sync), t_dev_sync)
-                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
-                     "Device sync ",t_dev_sync," and ",&
-                     (REAL(flop_single, dp)/1000000.0_dp)/(t_dev_sync),&
-                     " MFLOP/s", REAL(flop_single), "FLOP"
-                IF (measure_idle) THEN
-                   t_dev_idle = MAX (EPSILON (t_dev_idle), t_dev_idle)
-                   WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
-                        "Device idle ",t_dev_idle," and ",&
-                        (REAL(flop_single, dp)/1000000.0_dp)/(t_dev_idle),&
-                        " MFLOP/s", REAL(flop_single), "FLOP"
-                ENDIF
-             ENDIF
-             trun = trun + (tstop - tstart)
           ENDDO
 
           IF (excessive_output) THEN
@@ -1241,23 +1093,9 @@ CONTAINS
        CALL dbcsr_switch_sets (left_buffer_calc, left_buffer_comm)
        CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
     ENDDO grouped_k_index
-    trun_t = m_walltime () - trun_t
     IF (excessive_output) CALL m_flush(1000000+mynode)
-    IF (trun_t .EQ. 0) trun_t = 0.000001_dp
-    IF (trun .EQ. 0) trun = 0.000001_dp
-    IF ((output_unit>0) .AND. detailed_timing) THEN
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
-            "  Total Local Multiplication time ",trun,"and ",&
-            (REAL(flop_total, dp)/1000000.0_dp)/trun,&
-            "MFLOP/s"
-       !WRITE(output_unit,'(1X,A,F9.4,1X,A,F9.4,1X,F9.4,"%")')&
-       !     "  Total Local xGEMM time          ",t_gemm,&
-       !     "index time ", t_all - t_gemm, 100.0_dp*(t_all-t_gemm)/t_all
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
-            "        Total Multiplication time ",trun_t,"and ",&
-            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
-            "MFLOP/s"
-    ENDIF
+  
+  
     !
 !$omp parallel &
 !$omp default (none) &
@@ -1332,11 +1170,6 @@ CONTAINS
     flop = flop_total
     DEALLOCATE (left_buffer_1, left_buffer_2, right_buffer_1, right_buffer_2)
     !
-    ! Handle timings
-    xfer_timings(imeta+ileft,:,id_bytes,:) =&
-         xfer_timings(imeta+ileft,:,id_bytes,:) * int_4_size
-    xfer_timings(imeta+iright,:,id_bytes,:) =&
-         xfer_timings(imeta+iright,:,id_bytes,:) * int_4_size
     SELECT CASE (dbcsr_get_data_type (product_matrix))
     CASE (dbcsr_type_real_4)
        i = real_4_size
@@ -1347,15 +1180,6 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        i = real_8_size * 2
     END SELECT
-    xfer_timings(idata+ileft,:,id_bytes,:) =&
-         xfer_timings(idata+ileft,:,id_bytes,:) * i
-    xfer_timings(idata+iright,:,id_bytes,:) =&
-         xfer_timings(idata+iright,:,id_bytes,:) * i
-    IF (time_xfers) &
-         CALL print_xfer_timings(xfer_timings)
-    IF (print_index_time) &
-         WRITE(*,'(1X,A20,1X,EN12.3,1X,A)')"Index time", get_index_time(), "s"
-    DEALLOCATE (xfer_timings)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mult_m_e_e
 

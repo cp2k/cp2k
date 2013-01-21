@@ -37,8 +37,8 @@ MODULE dbcsr_operations
                                              set_block2d_diagonal
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks, dbcsr_init_conf, &
-       detailed_timing, has_cuda, is_configured, mm_async, mm_driver, &
-       mm_driver_cuda, mm_driver_plasma
+       has_cuda, is_configured, mm_async, mm_driver, mm_driver_cuda, &
+       mm_driver_plasma
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_get_n_devices,&
                                              dbcsr_cuda_init
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
@@ -68,8 +68,7 @@ MODULE dbcsr_operations
                                              dbcsr_make_index_list,&
                                              dbcsr_make_index_local_row,&
                                              dbcsr_repoint_index
-  USE dbcsr_io,                        ONLY: dbcsr_print,&
-                                             print_mult_timings
+  USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -77,8 +76,7 @@ MODULE dbcsr_operations
   USE dbcsr_kinds,                     ONLY: &
        dp, int_1_size, int_2_size, int_4_size, int_8, int_8_size, real_4, &
        real_8, sp
-  USE dbcsr_machine,                   ONLY: default_output_unit,&
-                                             m_walltime
+  USE dbcsr_machine,                   ONLY: default_output_unit
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_allgather,&
                                              mp_bcast,&
@@ -114,7 +112,6 @@ MODULE dbcsr_operations
                                              dbcsr_plasma_init
   USE dbcsr_pq_methods,                ONLY: dbcsr_ps_set_finalize,&
                                              dbcsr_ps_set_init
-  USE dbcsr_pq_types,                  ONLY: mult_timers
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_toollib,                   ONLY: ceil_log2,&
@@ -266,8 +263,6 @@ MODULE dbcsr_operations
 
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
-  LOGICAL, PARAMETER :: do_print_mult_timings = .FALSE.
-
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
@@ -377,7 +372,7 @@ CONTAINS
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, left_set_given, &
       new_left, new_right, plasma_is_set, product_reindex, release_tdist, &
       right_set_given, use_dense_mult, use_plasma
-    REAL(KIND=dp)                            :: cs, mult_time
+    REAL(KIND=dp)                            :: cs
     TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, &
       k_vmap, m_map, n_map, old_product_col_blk_offsets, &
       old_product_col_blk_sizes, old_product_row_blk_offsets, &
@@ -407,8 +402,6 @@ CONTAINS
     ENDIF
     !
     CALL dbcsr_error_set(routineN, error_handler, error)
-    mult_timers(:) = 0.0_dp
-    mult_time = -m_walltime()
     !
     ! check parameters
     transa_l = transa
@@ -1063,19 +1056,7 @@ CONTAINS
        CALL dbcsr_plasma_finalize(error)
     ENDIF
     IF (.FALSE.) WRITE(*,*)"Finished with one multiplication."
-    mult_time = mult_time + m_walltime()
     output_unit = default_output_unit
-    IF (detailed_timing .AND. (output_unit>0)) THEN
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
-            "     Complete Multiplication time ",mult_time,"and ",&
-            (REAL(my_flop, dp)/1000000.0_dp)/mult_time,&
-            "MFLOP/s"
-    ENDIF
-    IF (do_print_mult_timings) THEN
-       !$OMP PARALLEL
-       CALL print_mult_timings (mult_timers)
-       !$OMP END PARALLEL
-    ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multiply_anytype
 

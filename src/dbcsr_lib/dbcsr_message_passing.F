@@ -20,8 +20,7 @@ MODULE dbcsr_message_passing
                                              real_8
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_abort,&
-                                             m_flush,&
-                                             m_walltime
+                                             m_flush
 
   !$ USE OMP_LIB
 
@@ -65,8 +64,6 @@ MODULE dbcsr_message_passing
   INTEGER, PARAMETER, PUBLIC :: mpi_integer_size=4
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_message_passing'
-
-  REAL(KIND=dp) :: t_start, t_end
 
   ! parameters that might be needed
 
@@ -601,10 +598,8 @@ CONTAINS
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_barrier ( group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_sync" )
-    t_end = m_walltime ( )
 #endif
 
   END SUBROUTINE mp_sync
@@ -710,7 +705,6 @@ CONTAINS
     comm_cart = comm_old
 #if defined(__parallel)
 
-    t_start = m_walltime ( )
     CALL mpi_comm_size ( comm_old, nodes, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_cart_create" )
 
@@ -730,7 +724,6 @@ CONTAINS
        CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
        IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
     END IF
-    t_end = m_walltime ( )
 #else
     pos ( 1:ndims ) = 0
     dims = 1
@@ -995,13 +988,11 @@ CONTAINS
 
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
-    t_start = m_walltime ( )
 
     CALL mpi_wait(request,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_wait @ mp_wait" )
 
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_wait
@@ -1028,13 +1019,11 @@ CONTAINS
 #if defined(__parallel)
     count=SIZE(requests)
     ALLOCATE(status(MPI_STATUS_SIZE,count))
-    t_start = m_walltime ( )
 
     CALL mpi_waitall(count,requests,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall_1" )
 
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_waitall_1
@@ -1061,13 +1050,11 @@ CONTAINS
 #if defined(__parallel)
     count=SIZE(requests)
     ALLOCATE(status(MPI_STATUS_SIZE,count))
-    t_start = m_walltime ( )
 
     CALL mpi_waitall(count,requests,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall_2" )
 
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_waitall_2
@@ -1093,13 +1080,11 @@ CONTAINS
 #if defined(__parallel)
     count=SIZE(requests)
     ALLOCATE(status(MPI_STATUS_SIZE,count))
-    t_start = m_walltime ( )
 
     CALL mpi_waitany(count,requests,completed,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitany @ mp_waitany" )
 
-    t_end = m_walltime ( )
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_waitany
@@ -1127,7 +1112,6 @@ CONTAINS
 #if defined(__parallel)
     count=SIZE(requests)
     ALLOCATE(status(MPI_STATUS_SIZE,count))
-    !t_start = m_walltime ( )
 
     CALL mpi_testany(count,requests,completed_l,flag_l,status,ierr)
     ! we do not check the status
@@ -1136,7 +1120,6 @@ CONTAINS
     IF (PRESENT(completed)) completed = completed_l
     IF (PRESENT(flag)) flag = flag_l
 
-    !t_end = m_walltime ( )
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_testany
@@ -1201,7 +1184,6 @@ CONTAINS
     ENDIF
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     IF (PRESENT(subgroup_min_size)) THEN
        IF (subgroup_min_size<0) THEN
           CALL mp_abort(routineP//" subgroup_min_size too small")
@@ -1244,7 +1226,6 @@ CONTAINS
     CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
     IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" split")
 
-    t_end = m_walltime ( )
 #else
     CALL mp_comm_dup(comm,sub_comm)
     group_distribution(0)=0
@@ -1272,7 +1253,6 @@ CONTAINS
     ierr = 0
     groupid = base_group
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_comm_group ( base_group, base, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
 
@@ -1281,7 +1261,6 @@ CONTAINS
 
     CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
-    t_end = m_walltime ( )
 #endif
 
   END SUBROUTINE mp_group
@@ -1300,11 +1279,9 @@ CONTAINS
     INTEGER                   :: ierr
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     CALL MPI_WIN_FREE(window, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ mp_window_destroy")
-    t_end = m_walltime()
 #else
     NULLIFY(window%src_d, window%src_i)
 #endif
@@ -1330,7 +1307,6 @@ CONTAINS
     INTEGER                   :: exclusivity, assertion
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     exclusivity = MPI_LOCK_EXCLUSIVE
     IF (PRESENT (shared)) THEN
@@ -1342,7 +1318,6 @@ CONTAINS
     ENDIF
     CALL MPI_WIN_LOCK (exclusivity, remote, assertion, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_lock @ mp_window_lock")
-    t_end = m_walltime()
 #endif
   END SUBROUTINE mp_window_lock
 
@@ -1360,11 +1335,9 @@ CONTAINS
     INTEGER                   :: ierr
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     CALL MPI_WIN_UNLOCK (remote, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock @ mp_window_unlock")
-    t_end = m_walltime()
 #endif
   END SUBROUTINE mp_window_unlock
 
@@ -1396,7 +1369,6 @@ CONTAINS
     INTEGER                   :: ierr, assertion
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     assertion = 0
     IF (PRESENT (nothing_stored)) THEN
@@ -1413,7 +1385,6 @@ CONTAINS
     ENDIF
     CALL MPI_WIN_FENCE (assertion, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_fence @ mp_window_fence")
-    t_end = m_walltime()
 #endif
   END SUBROUTINE mp_window_fence
 
@@ -1520,10 +1491,8 @@ CONTAINS
     ierr = 0
     msglen = 1
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_bcast(msg,msglen,MPI_LOGICAL,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_b
 
@@ -1547,10 +1516,8 @@ CONTAINS
     ierr = 0
     msglen = SIZE(msg)*LEN(msg)
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_charv
 
@@ -1576,11 +1543,9 @@ CONTAINS
     ierr = 0
     msglen = 1
 #if defined(__parallel)
-    t_start = m_walltime ( )
     CALL mpi_allreduce(msg,res,msglen,MPI_LOGICAL,MPI_LOR,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_sum_b
 
@@ -1611,7 +1576,6 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1619,7 +1583,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_minloc_dv
 
@@ -1649,7 +1612,6 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1657,7 +1619,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_minloc_iv
 ! *****************************************************************************
@@ -1686,7 +1647,6 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1694,7 +1654,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_minloc_lv
 
@@ -1724,7 +1683,6 @@ CONTAINS
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1732,7 +1690,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_minloc_rv
 
@@ -1763,7 +1720,6 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1771,7 +1727,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res,STAT=ierr)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_maxloc_dv
 
@@ -1802,7 +1757,6 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1810,7 +1764,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res,STAT=ierr)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_maxloc_iv
 
@@ -1840,7 +1793,6 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1848,7 +1800,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res,STAT=ierr)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_maxloc_lv
 
@@ -1878,7 +1829,6 @@ CONTAINS
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
 #if defined(__parallel)
-    t_start = m_walltime ( )
     msglen = SIZE(msg)
     ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
@@ -1886,7 +1836,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
     DEALLOCATE (res,STAT=ierr)
-    t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_maxloc_rv
 
@@ -1912,14 +1861,12 @@ CONTAINS
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
     CALL mpi_isend(MPI_BOTTOM,1,msgin%type_handle,dest,my_tag,&
             comm,request,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
-    t_end = m_walltime ( )
 #else
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
@@ -1946,14 +1893,12 @@ CONTAINS
     ierr = 0
 
 #if defined(__parallel)
-    t_start = m_walltime ( )
     my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
     CALL mpi_irecv(MPI_BOTTOM,1,msgout%type_handle,source, my_tag,&
          comm,request,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
-    t_end = m_walltime ( )
 #else
     ierr=1
     CALL mp_abort( "mp_irecv called in non parallel case" )
