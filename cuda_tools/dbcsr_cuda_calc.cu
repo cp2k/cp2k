@@ -114,6 +114,17 @@ __global__ void stack_mm_mnk_sq23_d (
 	double *__restrict__ c_data,
 	int *__restrict__ c_locks);
 
+__global__ void stack_mm_mnk_sq5_d (
+        const int *__restrict__ param_stack,
+        const int careful, const int nruns,
+        const int m, const int n, const int k,
+        //const int mn, const int mk, const int kn, const int maxb,
+        const int liter,
+        const double *__restrict__ a_data,
+        const double *__restrict__ b_data,
+        double *__restrict__ c_data,
+        int *__restrict__ c_locks);
+
 /**
  * \brief Bridge routine to call appropriate CUDA kernel.
  */
@@ -212,6 +223,16 @@ extern "C" int dc_do_stack_cu(
 				     liter,
 				     (double *) a_data, (double *) b_data, (double *) c_data,
 				     c_locks);
+                                }else if(m_max==5 && n_max==5 && k_max==5){
+                                  shared_size=0;
+//                                printf("Performing 5x5 product\n");
+//                                stack_mm_mnk_sq5_d <<< ((stack_size+GROUPING-1)/GROUPING), 128, shared_size, stream >>>
+                                  stack_mm_mnk_sq5_d <<< ((stack_size+GROUPING-1)/GROUPING), 32, shared_size, stream >>>
+                                      (param_stack, careful, nruns,
+                                     m_max, n_max, k_max,
+                                     liter,
+                                     (double *) a_data, (double *) b_data, (double *) c_data,
+                                     c_locks);
 				}else{
 				  stack_mm_mnk_d <<< (stack_size+GROUPING-1)/GROUPING, maxt, shared_size, stream >>>
 				    (param_stack, careful, nruns,

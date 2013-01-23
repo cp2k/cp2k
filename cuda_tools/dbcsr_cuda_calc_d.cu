@@ -3,6 +3,8 @@
  *  Copyright (C) 2000 - 2013  Urban Borstnik and the CP2K developers group
  *****************************************************************************/
 
+
+#include "stdio.h"
 #include "dbcsr_cuda.h"
 
 extern __shared__ double cache[];
@@ -292,6 +294,204 @@ __global__ void stack_mm_mnk_sq23_d (
 
 };
 
+
+static __device__ __forceinline__ double dbl_shfl( double r, int lane ) {
+  int hi = __shfl( __double2hiint(r), lane );
+  int lo = __shfl( __double2loint(r), lane );
+  return __hiloint2double( hi, lo );
+}
+
+
+__global__ void 
+__launch_bounds__(32, 16)
+stack_mm_mnk_sq5_d (
+	const int *__restrict__ param_stack,
+	const int careful, const int nruns,
+	const int m, const int n, const int k,
+	//const int mn, const int mk, const int kn, const int maxb,
+	const int liter,
+	const double *__restrict__ a_data,
+	const double *__restrict__ b_data,
+	double *__restrict__ c_data,
+	int *__restrict__ c_locks) {
+	
+	/**
+	 *  \var sp        which stack member this thread block is processing
+	 (= CUDA thread block)
+	 *  \var psp       pointer to first element of parameters
+	 *  \var c_loc     pointer to C data
+	 *  \var run       run number
+         *  \var nrun      number of runs
+	 *  \var my_id     my ID for locking
+	 *  \var tn        thread number (of CUDA thread block)
+	 *  \var mn        product of the block dimensions
+	 *  \var l         multiplication loop index
+	 *  \var c, r      C matrix row, column of this thread
+	 *  \var myc       C matrix accumulator
+	 *  \var buff_l    cache for A data
+	 *  \var buff_r    cache for B data
+	 *  \var c_id      translated C block number (used in locking)
+	 *  \var lock_owner  current C block owner (used in locking)
+	 */ 
+
+//        __shared__ int param[32];
+
+	//int lock_owner, c_id, my_id;
+	int  c_id, my_id;
+	double myc;
+       
+	//int psp, c_loc;
+	int psp;
+
+	int run, nrun;
+
+
+	nrun = GROUPING;
+	if (blockIdx.x == careful)
+        	nrun = nruns;
+
+	/* Set the partial sum to zero (this used to be done in the inner loop, but now we might carry it over loops) */
+        int tid = threadIdx.x;
+        int j = threadIdx.x / 5;         // column index
+        int i = threadIdx.x  - j * 5;    // row index
+
+/*
+        int srcAinit = tid;
+        if(tid < 25) {
+            srcAinit =  tid + i * 5 ;
+            if(srcAinit >= 25) srcAinit = srcAinit - 25;
+        } 
+
+        int srcBinit = tid; 
+        if(tid < 25) {
+            int tmp = i + j; 
+            if (tmp > 5)  tmp = tmp - 5;
+            srcBinit = tmp + 5*j;
+        }
+
+        int srcA = tid;
+        if(tid < 25) {
+             srcA = (j != 4) ? tid + 5 :  tid - 4*5;
+        } 
+          
+        int srcB = tid;
+        if(tid < 25) {
+             srcB = (i != 4) ? tid + 1 :  tid - 4;
+        } 
+*/
+	myc = 0.0;
+
+        int quad = 0;
+
+        /* load the first four parameter sets */
+        psp = 7*(blockIdx.x*GROUPING);
+        //param[tid] = param_stack[psp+tid];
+        int param_r = param_stack[psp+tid];
+
+        //c_id = param[quad+6]-1;
+//        c_id = __shfl(param_r, quad+6)-1;
+
+//        __syncthreads();
+
+	for (run = 0; run < nrun; run ++) {
+
+          // load matrix elements
+          int srcA = __shfl(param_r, quad+3) - 1;
+          int srcB = __shfl(param_r, quad+4) - 1;
+
+          double mya = (tid < 25) ? a_data[srcA + tid] : 0.0;
+          double myb = (tid < 25) ? b_data[srcB + tid] : 0.0;
+
+       //   syncthreads();
+
+          // initialization and first product
+          double tmpA = dbl_shfl(mya, i);        
+          double tmpB = dbl_shfl(myb, j*5);        
+          myc += tmpA * tmpB;
+
+          tmpA = dbl_shfl(mya, i+5);        
+          tmpB = dbl_shfl(myb, j*5+1);        
+          myc += tmpA * tmpB;
+
+          tmpA = dbl_shfl(mya, i+2*5);        
+          tmpB = dbl_shfl(myb, j*5+2);        
+          myc += tmpA * tmpB;
+
+          tmpA = dbl_shfl(mya, i+3*5);        
+          tmpB = dbl_shfl(myb, j*5+3);        
+          myc += tmpA * tmpB;
+
+          tmpA = dbl_shfl(mya, i+4*5);        
+          tmpB = dbl_shfl(myb, j*5+4);        
+          myc += tmpA * tmpB;
+
+          bool flush_c = false; 
+
+          // if we are in the last quadrant, so load the new parameter
+          // set now
+          //c_loc = param[quad+5]-1;
+          int c_loc = __shfl(param_r, quad+5) - 1;
+          //c_id = param[quad+6]-1;
+          c_id = __shfl(param_r, quad+6) - 1;
+
+          if(run == nrun - 1) flush_c = true;
+          if(quad < 3*7) {
+             int next_c = __shfl(param_r, quad+6+7)-1;
+             if(c_id != next_c) flush_c = true;
+             quad+=7;
+          } else {
+              psp = 7*(blockIdx.x*GROUPING + run + 1);
+              //param[tid] = param_stack[psp+tid];
+              param_r = param_stack[psp+tid];
+              quad = 0;
+//              __syncthreads();
+              //if(c_id != param[quad+6]-1) flush_c = true;
+               int next_c = __shfl(param_r, quad+6)-1;
+              if(c_id != next_c) flush_c = true;
+          }
+
+
+          /* Only update c_date if we are in the last iteration, or if the next C-block will be
+	       different to this C-block */
+	  /* param_stack[psp+6] is the current C-block ID, so adding 7 means that param_stack[psp+6+7]
+	       should be the next C-block ID */
+        
+          if(flush_c){
+		  
+	     if (threadIdx.x == 0) {
+                 my_id = blockIdx.x+1;
+                 int lock_owner = 0;
+                 while ((lock_owner != my_id))
+                          lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
+             } 
+		  
+             /* Add our results to the C block. */
+//             syncthreads();
+
+ 
+             if (threadIdx.x < 25) {
+		  c_data[c_loc+threadIdx.x] += myc;
+             }
+//             if(threadIdx.x < 25) printf("%d: 5x5 myc = %g\n", threadIdx.x, myc);
+		  
+             /* Release the lock on the C block. */
+//             syncthreads();
+             if (threadIdx.x == 0) {
+                  c_locks[c_id] = 0;
+             }
+             /* If we have another C-block then we need to reset our partial sum to zero for the new C-block */
+             myc = 0.0;
+          }
+
+//          syncthreads();
+
+//          quad +=8;
+//          if(quad > 3) quad =0;
+//          psp += 7;
+	}
+};
+
+
 __global__ void stack_mm_mnk_d (
 	const int *__restrict__ param_stack,
 	const int careful, const int nruns,
@@ -389,13 +589,12 @@ __global__ void stack_mm_mnk_d (
 		  } 
 		  
 		  
-		  
-		  
 		  /* Add our results to the C block. */
 		  syncthreads();
 		  if (threadIdx.x < mn) {
 		    c_data[c_loc+threadIdx.x] += myc;
 		  }
+//                 if(threadIdx.x < 25) printf("%d: general purpose myc = %g\n", threadIdx.x, myc);
 		  
 		  /* Release the lock on the C block. */
 		  syncthreads();
