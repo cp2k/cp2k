@@ -6,23 +6,24 @@
 ! *****************************************************************************
 !> \brief calculates a functional from libxc and its derivatives
 !> \note
-!>      Only for version v2.0.0 (2012-11-28) of libxc
+!>      Only for version v2.0.1 (2013-01-21) of libxc
 !>      (Marques, Oliveira, Burnus, CPC 183, 2272 (2012)).
 !>
 !>      For subsequent versions of libxc, the following should be updated if
 !>      necessary:
 !>      1) The function get_func_id.
-!>      2) The list of functionals using the laplacian of the density
+!>      2) The files libxc_funcs_m.F and xc_f90_lib_m.F.
+!>      3) The list of functionals using the laplacian of the density
 !>         (in libxc_lda_info, libxc_lsd_info, libxc_lda_eval and
 !>         libxc_lsd_eval).
-!>      3) The list of functionals for which it is possible to provide input
+!>      4) The list of functionals for which it is possible to provide input
 !>         parameters (in libxc_lda_calc and libxc_lsd_calc). For more
 !>         information on the parameters, see subroutines xc_f90_xxx_set_par
-!>         in the file libxc.f90 of the libxc package.
-!>      4) The list of functionals for which exc is not calculated by the
+!>         in libxc.f90 of the libxc package or xc_f90_lib_m.F.
+!>      5) The list of functionals for which exc is not calculated by the
 !>         libxc subroutines (exc=0 is arbitrarily chosen) (in libxc_lda_calc
 !>         and libxc_lsd_calc).
-!>      5) Reactivate the functionals which are working correctly
+!>      6) Reactivate the functionals which are working correctly
 !>         (in libxc_lda_info and libxc_lsd_info).
 !>
 !>      WARNING: In the subroutine libxc_lsd_calc, it could be that the
@@ -37,7 +38,7 @@
 ! *****************************************************************************
 MODULE xc_libxc
 #if defined (__LIBXC)
-This version of CP2K ONLY works with libxc version 2.0
+This version of CP2K ONLY works with libxc version 2.0.1
 #endif
 #if defined (__LIBXC2)
   USE bibliography,                    ONLY: Marques2012,&
@@ -118,12 +119,9 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
           TRIM(func_name(ifunc_name))//": wrong functional name")
     END IF
-    IF ((func_id == 207) .OR. (func_id == 208) .OR. (func_id == 209) .OR. &
-        (func_id == 231) .OR. (func_id == 429) .OR. (func_id == 430) .OR. &
-        (func_id == 431) .OR. (func_id == 432) .OR. (func_id == 525) .OR. &
-        (func_id == 526) .OR. (func_id == 527) .OR. (func_id == 528)) THEN
+    IF ((func_id == 207) .OR. (func_id == 208) .OR. (func_id == 209)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name(ifunc_name))//": desactivated since (probably) buggy in v2.0.0 of libxc")
+          TRIM(func_name(ifunc_name))//": desactivated since (probably) buggy in v2.0.1 of libxc")
     END IF
 !$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
@@ -227,12 +225,9 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
           TRIM(func_name(ifunc_name))//": wrong functional name")
     END IF
-    IF ((func_id == 207) .OR. (func_id == 208) .OR. (func_id == 209) .OR. &
-        (func_id == 231) .OR. (func_id == 429) .OR. (func_id == 430) .OR. &
-        (func_id == 431) .OR. (func_id == 432) .OR. (func_id == 525) .OR. &
-        (func_id == 526) .OR. (func_id == 527) .OR. (func_id == 528)) THEN
+    IF ((func_id == 207) .OR. (func_id == 208) .OR. (func_id == 209)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name(ifunc_name))//": desactivated since (probably) buggy in v2.0.0 of libxc")
+          TRIM(func_name(ifunc_name))//": desactivated since (probably) buggy in v2.0.1 of libxc")
     END IF
 !$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_POLARIZED)
@@ -1202,7 +1197,7 @@ CONTAINS
        ELSE IF ((func_id == 429) .OR. (func_id == 430) .OR. (func_id == 431) .OR. &
                 (func_id == 432) .OR. (func_id == 525) .OR. (func_id == 526) .OR. &
                 (func_id == 527) .OR. (func_id == 528)) THEN
-!          CALL xc_f90_gga_x_hjs_set_par(xc_func,params(1))
+          CALL xc_f90_gga_x_hjs_set_par(xc_func,params(1))
        ELSE IF (func_id == 524) THEN
           CALL xc_f90_gga_x_wpbeh_set_par(xc_func,params(1))
        END IF
@@ -1611,7 +1606,7 @@ CONTAINS
        ELSE IF ((func_id == 429) .OR. (func_id == 430) .OR. (func_id == 431) .OR. &
                 (func_id == 432) .OR. (func_id == 525) .OR. (func_id == 526) .OR. &
                 (func_id == 527) .OR. (func_id == 528)) THEN
-!          CALL xc_f90_gga_x_hjs_set_par(xc_func,params(1))
+          CALL xc_f90_gga_x_hjs_set_par(xc_func,params(1))
        ELSE IF (func_id == 524) THEN
           CALL xc_f90_gga_x_wpbeh_set_par(xc_func,params(1))
        END IF
@@ -2285,7 +2280,8 @@ CONTAINS
 !> \param func_name the name of the functional
 !> \note
 !>      The correspondence between the functional name and identifier must be
-!>      the same as in the file libxc_funcs.f90 of v2.0.0 (2012-11-28) of libxc
+!>      the same as in the file libxc_funcs.f90 of v2.0.1 (2013-01-21) of libxc
+!>      and libxc_funcs_m.F
 !> \author F. Tran
 ! *****************************************************************************
   FUNCTION get_func_id(func_name)

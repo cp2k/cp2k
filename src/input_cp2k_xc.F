@@ -716,7 +716,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="FUNCTIONAL",&
             description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
-                        "The precise list of available functionals depends on the version of libxc interfaced (currently 1.2.0).",&
+                        "The precise list of available functionals depends on the version of libxc interfaced (currently 2.0.1).",&
             usage=usage,&
             required=.TRUE.,type_of_var=char_t,n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)

@@ -1,3 +1,11 @@
+! *****************************************************************************
+!> \brief correspondence between the functional name and identifier
+!> \note
+!>      The correspondence between the functional name and identifier must be
+!>      the same as in the file libxc_funcs.f90 of v2.0.1 (2013-01-21) of libxc
+!>      and function get_func_id in xc_libxc.F
+!> \author F. Tran
+! *****************************************************************************
 MODULE libxc_funcs_m
   IMPLICIT NONE
 
@@ -9,7 +17,7 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_LDA_C_HL          =   4  !  Hedin & Lundqvist            
   INTEGER, PARAMETER :: XC_LDA_C_GL          =   5  !  Gunnarson & Lundqvist        
   INTEGER, PARAMETER :: XC_LDA_C_XALPHA      =   6  !  Slater Xalpha                
-  INTEGER, PARAMETER :: XC_LDA_C_VWN         =   7  !  Vosko, Wilk, & Nussair       
+  INTEGER, PARAMETER :: XC_LDA_C_VWN         =   7  !  Vosko, Wilk, & Nussair (5)   
   INTEGER, PARAMETER :: XC_LDA_C_VWN_RPA     =   8  !  Vosko, Wilk, & Nussair (RPA) 
   INTEGER, PARAMETER :: XC_LDA_C_PZ          =   9  !  Perdew & Zunger              
   INTEGER, PARAMETER :: XC_LDA_C_PZ_MOD      =  10  !  Perdew & Zunger (Modified)   
@@ -28,8 +36,31 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_LDA_C_ML2         =  23  !  Modified LSD (version 2) of Proynov and Salahub 
   INTEGER, PARAMETER :: XC_LDA_C_GOMBAS      =  24  !  Gombas parametrization       
   INTEGER, PARAMETER :: XC_LDA_C_PW_RPA      =  25  !  Perdew & Wang fit of the RPA 
+  INTEGER, PARAMETER :: XC_LDA_C_1D_LOOS     =  26  !  P-F Loos correlation LDA     
+  INTEGER, PARAMETER :: XC_LDA_C_RC04        =  27  !  Ragot-Cortona 
+  INTEGER, PARAMETER :: XC_LDA_C_VWN_1       =  28  !  Vosko, Wilk, & Nussair (1)   
+  INTEGER, PARAMETER :: XC_LDA_C_VWN_2       =  29  !  Vosko, Wilk, & Nussair (2)   
+  INTEGER, PARAMETER :: XC_LDA_C_VWN_3       =  30  !  Vosko, Wilk, & Nussair (3)   
+  INTEGER, PARAMETER :: XC_LDA_C_VWN_4       =  31  !  Vosko, Wilk, & Nussair (4)   
   INTEGER, PARAMETER :: XC_LDA_K_TF          =  50  !  Thomas-Fermi kinetic energy functional 
   INTEGER, PARAMETER :: XC_LDA_K_LP          =  51  !  Lee and Parr Gaussian ansatz           
+  INTEGER, PARAMETER :: XC_GGA_C_OP_XALPHA   =  84  !  one-parameter progressive functional (G96 version)  
+  INTEGER, PARAMETER :: XC_GGA_C_OP_G96      =  85  !  one-parameter progressive functional (G96 version)  
+  INTEGER, PARAMETER :: XC_GGA_C_OP_PBE      =  86  !  one-parameter progressive functional (PBE version)  
+  INTEGER, PARAMETER :: XC_GGA_C_OP_B88      =  87  !  one-parameter progressive functional (B88 version) 
+  INTEGER, PARAMETER :: XC_GGA_C_FT97        =  88  !  Filatov & Thiel correlation 
+  INTEGER, PARAMETER :: XC_GGA_C_SPBE        =  89  !  PBE correlation to be used with the SSB exchange   
+  INTEGER, PARAMETER :: XC_GGA_X_SSB_SW      =  90  !  Swarta, Sola and Bickelhaupt correction to PBE  
+  INTEGER, PARAMETER :: XC_GGA_X_SSB         =  91  !  Swarta, Sola and Bickelhaupt  
+  INTEGER, PARAMETER :: XC_GGA_X_SSB_D       =  92  !  Swarta, Sola and Bickelhaupt dispersion  
+  INTEGER, PARAMETER :: XC_GGA_XC_HCTH_407P  =  93  !  HCTH/407+                                
+  INTEGER, PARAMETER :: XC_GGA_XC_HCTH_P76   =  94  !  HCTH p=7/6                               
+  INTEGER, PARAMETER :: XC_GGA_XC_HCTH_P14   =  95  !  HCTH p=1/4                               
+  INTEGER, PARAMETER :: XC_GGA_XC_B97_GGA1   =  96  !  Becke 97 GGA-1                           
+  INTEGER, PARAMETER :: XC_GGA_XC_HCTH_A     =  97  !  HCTH-A                                   
+  INTEGER, PARAMETER :: XC_GGA_X_BPCCAC      =  98  !  BPCCAC (GRAC for the energy) 
+  INTEGER, PARAMETER :: XC_GGA_C_REVTCA      =  99  !  Tognetti, Cortona, Adamo (revised) 
+  INTEGER, PARAMETER :: XC_GGA_C_TCA         = 100  !  Tognetti, Cortona, Adamo 
   INTEGER, PARAMETER :: XC_GGA_X_PBE         = 101  !  Perdew, Burke & Ernzerhof exchange             
   INTEGER, PARAMETER :: XC_GGA_X_PBE_R       = 102  !  Perdew, Burke & Ernzerhof exchange (revised)   
   INTEGER, PARAMETER :: XC_GGA_X_B86         = 103  !  Becke 86 Xalfa,beta,gamma                      
@@ -48,7 +79,7 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_GGA_X_PBE_SOL     = 116  !  Perdew, Burke & Ernzerhof exchange (solids)    
   INTEGER, PARAMETER :: XC_GGA_X_RPBE        = 117  !  Hammer, Hansen & Norskov (PBE-like) 
   INTEGER, PARAMETER :: XC_GGA_X_WC          = 118  !  Wu & Cohen 
-  INTEGER, PARAMETER :: XC_GGA_X_mPW91       = 119  !  Modified form of PW91 by Adamo & Barone 
+  INTEGER, PARAMETER :: XC_GGA_X_MPW91       = 119  !  Modified form of PW91 by Adamo & Barone 
   INTEGER, PARAMETER :: XC_GGA_X_AM05        = 120  !  Armiento & Mattsson 05 exchange                
   INTEGER, PARAMETER :: XC_GGA_X_PBEA        = 121  !  Madsen (PBE-like) 
   INTEGER, PARAMETER :: XC_GGA_X_MPBE        = 122  !  Adamo & Barone modification to PBE             
@@ -59,20 +90,20 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_GGA_X_2D_B88      = 127  !  Becke 88 in 2D 
   INTEGER, PARAMETER :: XC_GGA_X_2D_B86      = 128  !  Becke 86 Xalfa,beta,gamma                      
   INTEGER, PARAMETER :: XC_GGA_X_2D_PBE      = 129  !  Perdew, Burke & Ernzerhof exchange in 2D          
-  INTEGER, PARAMETER :: XC_GGA_C_PBE         = 130  !  Perdew, Burke & Ernzerhof correlation          
+  INTEGER, PARAMETER :: XC_GGA_C_PBE         = 130  !  Perdew, Burke & Ernzerhof correlation              
   INTEGER, PARAMETER :: XC_GGA_C_LYP         = 131  !  Lee, Yang & Parr 
   INTEGER, PARAMETER :: XC_GGA_C_P86         = 132  !  Perdew 86 
-  INTEGER, PARAMETER :: XC_GGA_C_PBE_SOL     = 133  !  Perdew, Burke & Ernzerhof correlation SOL      
+  INTEGER, PARAMETER :: XC_GGA_C_PBE_SOL     = 133  !  Perdew, Burke & Ernzerhof correlation SOL          
   INTEGER, PARAMETER :: XC_GGA_C_PW91        = 134  !  Perdew & Wang 91 
   INTEGER, PARAMETER :: XC_GGA_C_AM05        = 135  !  Armiento & Mattsson 05 correlation             
-  INTEGER, PARAMETER :: XC_GGA_C_XPBE        = 136  !  xPBE reparametrization by Xu & Goddard         
+  INTEGER, PARAMETER :: XC_GGA_C_XPBE        = 136  !  xPBE reparametrization by Xu & Goddard             
   INTEGER, PARAMETER :: XC_GGA_C_LM          = 137  !  Langreth and Mehl correlation          
   INTEGER, PARAMETER :: XC_GGA_C_PBE_JRGX    = 138  !  JRGX reparametrization by Pedroza, Silva & Capelle 
   INTEGER, PARAMETER :: XC_GGA_X_OPTB88_VDW  = 139  !  Becke 88 reoptimized to be used with vdW functional of Dion et al
   INTEGER, PARAMETER :: XC_GGA_X_PBEK1_VDW   = 140  !  PBE reparametrization for vdW 
   INTEGER, PARAMETER :: XC_GGA_X_OPTPBE_VDW  = 141  !  PBE reparametrization for vdW 
   INTEGER, PARAMETER :: XC_GGA_X_RGE2        = 142  !  Regularized PBE 
-  INTEGER, PARAMETER :: XC_GGA_C_RGE2        = 143  !  Regularized PBE 
+  INTEGER, PARAMETER :: XC_GGA_C_RGE2        = 143  !  Regularized PBE                                    
   INTEGER, PARAMETER :: XC_GGA_X_RPW86       = 144  !  refitted Perdew & Wang 86 
   INTEGER, PARAMETER :: XC_GGA_X_KT1         = 145  !  Keal and Tozer version 1             
   INTEGER, PARAMETER :: XC_GGA_XC_KT2        = 146  !  Keal and Tozer version 2             
@@ -93,7 +124,7 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_GGA_XC_HCTH_93    = 161  !  HCTH functional fitted to  93 molecules  
   INTEGER, PARAMETER :: XC_GGA_XC_HCTH_120   = 162  !  HCTH functional fitted to 120 molecules  
   INTEGER, PARAMETER :: XC_GGA_XC_HCTH_147   = 163  !  HCTH functional fitted to 147 molecules  
-  INTEGER, PARAMETER :: XC_GGA_XC_HCTH_407   = 164  !  HCTH functional fitted to 147 molecules  
+  INTEGER, PARAMETER :: XC_GGA_XC_HCTH_407   = 164  !  HCTH functional fitted to 407 molecules  
   INTEGER, PARAMETER :: XC_GGA_XC_EDF1       = 165  !  Empirical functionals from Adamson, Gill, and Pople 
   INTEGER, PARAMETER :: XC_GGA_XC_XLYP       = 166  !  XLYP functional 
   INTEGER, PARAMETER :: XC_GGA_XC_B97        = 167  !  Becke 97                                 
@@ -115,7 +146,7 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_GGA_X_OL2         = 183  !  Exchange form based on Ou-Yang and Levy v.2 
   INTEGER, PARAMETER :: XC_GGA_X_APBE        = 184  !  mu fixed from the semiclassical neutral atom   
   INTEGER, PARAMETER :: XC_GGA_K_APBE        = 185  !  mu fixed from the semiclassical neutral atom   
-  INTEGER, PARAMETER :: XC_GGA_C_APBE        = 186  !  mu fixed from the semiclassical neutral atom   
+  INTEGER, PARAMETER :: XC_GGA_C_APBE        = 186  !  mu fixed from the semiclassical neutral atom       
   INTEGER, PARAMETER :: XC_GGA_K_TW1         = 187  !  Tran and Wesolowski set 1 (Table II)           
   INTEGER, PARAMETER :: XC_GGA_K_TW2         = 188  !  Tran and Wesolowski set 2 (Table II)           
   INTEGER, PARAMETER :: XC_GGA_K_TW3         = 189  !  Tran and Wesolowski set 3 (Table II)           
@@ -129,6 +160,7 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_GGA_XC_TH_FC      = 197  !  Tozer and Handy v. FC  
   INTEGER, PARAMETER :: XC_GGA_XC_TH_FCFO    = 198  !  Tozer and Handy v. FCFO 
   INTEGER, PARAMETER :: XC_GGA_XC_TH_FCO     = 199  !  Tozer and Handy v. FCO 
+  INTEGER, PARAMETER :: XC_GGA_C_OPTC        = 200  !  Optimized correlation functional of Cohen and Handy 
   INTEGER, PARAMETER :: XC_GGA_K_VW          = 500  !  von Weiszaecker functional 
   INTEGER, PARAMETER :: XC_GGA_K_GE2         = 501  !  Second-order gradient expansion (l = 1/9) 
   INTEGER, PARAMETER :: XC_GGA_K_GOLDEN      = 502  !  TF-lambda-vW form by Golden (l = 13/45) 
@@ -153,7 +185,13 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_GGA_K_LC94        = 521  !  Lembarki & Chermette 
   INTEGER, PARAMETER :: XC_GGA_K_LLP         = 522  !  Lee, Lee & Parr 
   INTEGER, PARAMETER :: XC_GGA_K_THAKKAR     = 523  !  Thakkar 1992 
-  INTEGER, PARAMETER :: XC_HYB_GGA_XC_B3PW91 = 401  !  The original hybrid proposed by Becke 
+  INTEGER, PARAMETER :: XC_GGA_X_WPBEH       = 524  !  short-range version of the PBE 
+  INTEGER, PARAMETER :: XC_GGA_X_HJS_PBE     = 525  !  HJS screened exchange PBE version 
+  INTEGER, PARAMETER :: XC_GGA_X_HJS_PBE_SOL = 526  !  HJS screened exchange PBE_SOL version 
+  INTEGER, PARAMETER :: XC_GGA_X_HJS_B88     = 527  !  HJS screened exchange B88 version 
+  INTEGER, PARAMETER :: XC_GGA_X_HJS_B97X    = 528  !  HJS screened exchange B97x version 
+  INTEGER, PARAMETER :: XC_GGA_X_ITYH        = 529  !  short-range recipe for exchange GGA functionals 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_B3PW91 = 401  !  The original (ACM) hybrid of Becke    
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B3LYP  = 402  !  The (in)famous B3LYP                  
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B3P86  = 403  !  Perdew 86 hybrid similar to B3PW91    
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_O3LYP  = 404  !  hybrid using the optx functional 
@@ -166,11 +204,11 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B1WC   = 412  !  Becke 1-parameter mixture of WC and PBE 
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B97_K  = 413  !  Boese-Martin for Kinetics                
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B97_3  = 414  !  Becke 97-3                               
-  INTEGER, PARAMETER :: XC_HYB_GGA_XC_mPW3PW = 415  !  mixture with the mPW functional 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_MPW3PW = 415  !  mixture with the mPW functional       
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B1LYP  = 416  !  Becke 1-parameter mixture of B88 and LYP 
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_B1PW91 = 417  !  Becke 1-parameter mixture of B88 and PW91 
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_mPW1PW = 418  !  Becke 1-parameter mixture of mPW91 and PW91 
-  INTEGER, PARAMETER :: XC_HYB_GGA_XC_mPW3LYP = 419  !  mixture of mPW and LYP 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_MPW3LYP = 419  !  mixture of mPW and LYP                
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_SB98_1a = 420  !  Schmider-Becke 98 parameterization 1a    
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_SB98_1b = 421  !  Schmider-Becke 98 parameterization 1b    
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_SB98_1c = 422  !  Schmider-Becke 98 parameterization 1c    
@@ -178,10 +216,21 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_SB98_2b = 424  !  Schmider-Becke 98 parameterization 2b    
   INTEGER, PARAMETER :: XC_HYB_GGA_XC_SB98_2c = 425  !  Schmider-Becke 98 parameterization 2c    
   INTEGER, PARAMETER :: XC_HYB_GGA_X_SOGGA11_X = 426  !  Hybrid based on SOGGA11 form 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_HSE03  = 427  !  the 2003 version of the screened hybrid HSE 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_HSE06  = 428  !  the 2006 version of the screened hybrid HSE 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_HJS_PBE = 429  !  HJS hybrid screened exchange PBE version 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_HJS_PBE_SOL = 430  !  HJS hybrid screened exchange PBE_SOL version 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_HJS_B88 = 431  !  HJS hybrid screened exchange B88 version 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_HJS_B97X = 432  !  HJS hybrid screened exchange B97x version 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_CAM_B3LYP = 433  !  CAM version of B3LYP 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_TUNED_CAM_B3LYP = 434  !  CAM version of B3LYP tunes for excitations
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_BHANDH = 435  !  Becke half-and-half 
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_BHANDHLYP = 436  !  Becke half-and-half with B88 exchange
+  INTEGER, PARAMETER :: XC_HYB_GGA_XC_MB3LYP_RC04 = 437  !  B3LYP with RC04 LDA                   
   INTEGER, PARAMETER :: XC_MGGA_X_LTA        = 201  !  Local tau approximation of Ernzerhof & Scuseria 
   INTEGER, PARAMETER :: XC_MGGA_X_TPSS       = 202  !  Perdew, Tao, Staroverov & Scuseria exchange 
-  INTEGER, PARAMETER :: XC_MGGA_X_M06L       = 203  !  Zhao, Truhlar exchange 
-  INTEGER, PARAMETER :: XC_MGGA_X_GVT4       = 204  !  GVT4 from Van Voorhis and Scuseria (exchange part)    
+  INTEGER, PARAMETER :: XC_MGGA_X_M06_L      = 203  !  M06-Local functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_GVT4       = 204  !  GVT4 from Van Voorhis and Scuseria 
   INTEGER, PARAMETER :: XC_MGGA_X_TAU_HCTH   = 205  !  tau-HCTH from Boese and Handy 
   INTEGER, PARAMETER :: XC_MGGA_X_BR89       = 206  !  Becke-Roussel 89  
   INTEGER, PARAMETER :: XC_MGGA_X_BJ06       = 207  !  Becke & Johnson correction to Becke-Roussel 89  
@@ -189,7 +238,37 @@ MODULE libxc_funcs_m
   INTEGER, PARAMETER :: XC_MGGA_X_RPP09      = 209  !  Rasanen, Pittalis, and Proetto correction to Becke & Johnson  
   INTEGER, PARAMETER :: XC_MGGA_X_2D_PRHG07  = 210  !  Pittalis, Rasanen, Helbig, Gross Exchange Functional 
   INTEGER, PARAMETER :: XC_MGGA_X_2D_PRHG07_PRP10 = 211  !  PRGH07 with PRP10 correction 
+  INTEGER, PARAMETER :: XC_MGGA_X_REVTPSS    = 212  !  revised Perdew, Tao, Staroverov & Scuseria exchange 
+  INTEGER, PARAMETER :: XC_MGGA_X_PKZB       = 213  !  Perdew, Kurth, Zupan, and Blaha 
+  INTEGER, PARAMETER :: XC_MGGA_X_M05        = 214  !  M05 functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_M05_2X     = 215  !  M05-2X functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_M06_HF     = 216  !  M06-HF functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_M06        = 217  !  M06 functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_M06_2X     = 218  !  M06-2X functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_M08_HX     = 219  !  M08-HX functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_X_M08_SO     = 220  !  M08-SO functional of Minnesota 
   INTEGER, PARAMETER :: XC_MGGA_C_TPSS       = 231  !  Perdew, Tao, Staroverov & Scuseria correlation 
   INTEGER, PARAMETER :: XC_MGGA_C_VSXC       = 232  !  VSxc from Van Voorhis and Scuseria (correlation part) 
+  INTEGER, PARAMETER :: XC_MGGA_C_M06_L      = 233  !  M06-Local functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_C_M06_HF     = 234  !  M06-HF functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_C_M06        = 235  !  M06 functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_C_M06_2X     = 236  !  M06-2X functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_C_M05        = 237  !  M05 functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_C_M05_2X     = 238  !  M05-2X functional of Minnesota 
+  INTEGER, PARAMETER :: XC_MGGA_C_PKZB       = 239  !  Perdew, Kurth, Zupan, and Blaha 
+  INTEGER, PARAMETER :: XC_MGGA_C_BC95       = 240  !  Becke correlation 95 
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_M05   = 438  !  M05 functional of Minnesota                      
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_M05_2X = 439  !  M05-2X functional of Minnesota                   
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_B88B95 = 440  !  Mixture of B88 with BC95 (B1B95)                 
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_B86B95 = 441  !  Mixture of B86 with BC95                         
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_PW86B95 = 442  !  Mixture of PW86 with BC95                        
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_BB1K  = 443  !  Mixture of B88 with BC95 from Zhao and Truhlar   
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_M06_HF = 444  !  M06-HF functional of Minnesota                   
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_MPW1B95 = 445  !  Mixture of mPW91 with BC95 from Zhao and Truhlar 
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_MPWB1K = 446  !  Mixture of mPW91 with BC95 for kinetics          
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_X1B95 = 447  !  Mixture of X with BC95                           
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_XB1K  = 448  !  Mixture of X with BC95 for kinetics              
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_M06   = 449  !  M06 functional of Minnesota                      
+  INTEGER, PARAMETER :: XC_HYB_MGGA_XC_M06_2X = 450  !  M06-2X functional of Minnesota                   
 
 END MODULE libxc_funcs_m

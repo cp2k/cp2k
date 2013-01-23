@@ -70,6 +70,13 @@ MODULE xc_f90_lib_m
 
   !----------------------------------------------------------------
   INTERFACE
+    SUBROUTINE xc_f90_version(major, minor)
+      INTEGER, INTENT(OUT) :: major, minor
+    END SUBROUTINE xc_f90_version
+  END INTERFACE
+
+  !----------------------------------------------------------------
+  INTERFACE
     INTEGER FUNCTION xc_f90_info_number(info)
       USE xc_f90_types_m
       TYPE(xc_f90_pointer_t), INTENT(in) :: info
