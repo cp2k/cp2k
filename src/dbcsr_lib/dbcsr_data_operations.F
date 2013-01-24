@@ -70,7 +70,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copyall', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, n
+    INTEGER                                  :: error_handle, i, n
     LOGICAL                                  :: shallow_copy
 
 !   ---------------------------------------------------------------------------
@@ -92,9 +92,31 @@ CONTAINS
        CALL dbcsr_data_set_size_referenced(target_area,&
             dbcsr_data_get_size_referenced(source_area))
        n = dbcsr_data_get_size_referenced (source_area)
-       IF (n .GT. 0) THEN
-          CALL dbcsr_blas_copy (n, source_area, 1, target_area, 1)
-       ENDIF
+       SELECT CASE (target_area%d%data_type)
+       CASE (dbcsr_type_real_4)
+          !$OMP PARALLEL DO
+          DO i=1,n
+             target_area%d%r_sp(i)=source_area%d%r_sp(i)
+          ENDDO
+       CASE (dbcsr_type_real_8)
+          !$OMP PARALLEL DO
+          DO i=1,n
+             target_area%d%r_dp(i)=source_area%d%r_dp(i)
+          ENDDO
+       CASE (dbcsr_type_complex_4)
+          !$OMP PARALLEL DO
+          DO i=1,n
+             target_area%d%c_sp(i)=source_area%d%c_sp(i)
+          ENDDO
+       CASE (dbcsr_type_complex_8)
+          !$OMP PARALLEL DO
+          DO i=1,n
+             target_area%d%c_dp(i)=source_area%d%c_dp(i)
+          ENDDO
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+               routineN, "Invalid data type",__LINE__,error)
+       END SELECT
     ENDIF
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_data_copyall
