@@ -134,9 +134,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r11v', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
-
-    ierr = 0
+    INTEGER                                  :: ierr,i
 
     ierr = 0
 #if defined(__parallel)
@@ -144,7 +142,10 @@
          rb, rcount, rdispl, MPI_REAL, group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ "//routineN )
 #else
-    rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(rcount,rdispl,sdispl,rb,sb)
+    DO i=1,rcount(1)
+       rb(rdispl(1)+i)=sb(sdispl(1)+i)
+    ENDDO
 #endif
 
   END SUBROUTINE mp_alltoall_r11v
