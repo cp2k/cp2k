@@ -13,8 +13,7 @@
 MODULE dbcsr_message_passing
   USE dbcsr_c_mpi_calls,               ONLY: mp_alloc_mem,&
                                              mp_free_mem
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
+  USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8,&
                                              real_4,&
                                              real_8

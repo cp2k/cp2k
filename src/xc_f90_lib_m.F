@@ -71,7 +71,8 @@ MODULE xc_f90_lib_m
   !----------------------------------------------------------------
   INTERFACE
     SUBROUTINE xc_f90_version(major, minor)
-      INTEGER, INTENT(OUT) :: major, minor
+    INTEGER, INTENT(OUT)                     :: major, minor
+
     END SUBROUTINE xc_f90_version
   END INTERFACE
 
