@@ -147,13 +147,11 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_l11v', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr, msglen, i
 
-    ierr = 0
 #if defined(__mp_timeset__)
     CALL timeset(routineN,handle)
 #endif
-
     ierr = 0
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -164,7 +162,10 @@
     msglen = SUM ( scount ) + SUM ( rcount )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
-    rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(rcount,rdispl,sdispl,rb,sb)
+    DO i=1,rcount(1)
+       rb(rdispl(1)+i)=sb(sdispl(1)+i)
+    ENDDO
 #endif
 #if defined(__mp_timeset__)
     CALL timestop(handle)
