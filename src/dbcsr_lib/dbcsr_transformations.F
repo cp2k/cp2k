@@ -1178,6 +1178,8 @@ CONTAINS
     ENDDO
 !$omp end master
 !$omp barrier
+    ! add timing call to the packing of the send buffers 
+    CALL dbcsr_error_set(routineN//"_pack", error_handler2, dbcsr_error)
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
     CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
@@ -1326,6 +1328,7 @@ CONTAINS
     ENDDO ! iterator
     CALL dbcsr_iterator_stop(iter)
     DEALLOCATE (lsmp, lsdp)
+    CALL dbcsr_error_stop(error_handler2, dbcsr_error)
 
 !$omp end parallel
     ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same),
