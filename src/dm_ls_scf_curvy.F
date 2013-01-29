@@ -504,7 +504,7 @@ CONTAINS
         CALL cp_dbcsr_add(tmp,Ax,1.0_dp,-fac,error=error)
         devi(i)=cp_dbcsr_frobenius_norm(tmp)
         lin_eq(i,:)=(/fac**2,fac,1.0_dp/)
-        fac=fac1+fac1*(-1.0_dp)**REAL(i)*0.5_dp
+        fac=fac1+fac1*((-1)**i)*0.5_dp
      END DO        
      CALL invmat(lin_eq,info,error) 
      vec=MATMUL(lin_eq,devi)
