@@ -72,9 +72,10 @@ MODULE dm_ls_scf_types
      LOGICAL :: compute_chebyshev
      INTEGER :: n_chebyshev
      INTEGER :: n_gridpoint_dos
-     REAL(KIND=dp) :: min_energy
-     REAL(KIND=dp) :: max_energy
+     REAL(KIND=dp), DIMENSION(:), POINTER :: min_energy=>NULL()
+     REAL(KIND=dp), DIMENSION(:), POINTER :: max_energy=>NULL()
      TYPE(section_vals_type), POINTER :: print_key_dos=>NULL()
+     TYPE(section_vals_type), POINTER :: print_key_cube=>NULL()
   END TYPE
 
   TYPE ls_scf_env_type
@@ -158,6 +159,16 @@ CONTAINS
 
     IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_dos)) &
         CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos,error=error)
+    IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_cube)) &
+        CALL section_vals_release(ls_scf_env%chebyshev%print_key_cube,error=error)
+    IF (ASSOCIATED(ls_scf_env%chebyshev%min_energy)) THEN
+       DEALLOCATE(ls_scf_env%chebyshev%min_energy,stat=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
+       DEALLOCATE(ls_scf_env%chebyshev%max_energy,stat=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
 
     DEALLOCATE(ls_scf_env,stat=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

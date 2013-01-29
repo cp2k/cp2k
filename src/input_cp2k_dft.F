@@ -4720,17 +4720,40 @@ CONTAINS
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
+       ! Energy specific electron density cubes 
+       CALL cp_print_key_section_create(print_key,&
+            name="PRINT_SPECIFIC_E_DENSITY_CUBE",&
+            description="Controls the printing of cube files with "//&
+                        "the electronic density (states) "//&
+                        "contributing to the density of states within "//&
+                        "the specific energy range "//&
+                        "(MIN_ENERGY<= E <=MAX_ENERGY). MIN_ENERGY and MAX_ENERGY need to be specified explicitly.",&
+            print_level=high_print_level,filename="",error=error)
+
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MIN_ENERGY",&
-            description="Energy range of interest (smaller one)",&
-            usage="MIN_ENERGY -1", default_r_val=0.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+            description="Lower bounds of the energy ranges of interest.",&
+            usage="MIN_ENERGY -1.01 -0.62 0.10 .. ", &
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_ENERGY",&
-            description="Energy range of interest (larger one)",&
-            usage="MAX_ENERGY 1", default_r_val=0.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+            description="Upper bounds of the energy ranges of interest.",&
+            usage="MAX_ENERGY -0.81 -0.43 0.22 .. ", &
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
 
     END IF
 

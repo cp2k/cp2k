@@ -39,8 +39,6 @@
         &DOS
            N_GRIDPOINTS 1000
         &END
-        MIN_ENERGY -0.5
-        MAX_ENERGY  0.5
       &END
     &END
     &SCF

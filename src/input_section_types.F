@@ -70,6 +70,7 @@ MODULE input_section_types
 
   PUBLIC :: section_get_ival,&
             section_get_ivals,&
+            section_get_rvals,& 
             section_get_rval,&
             section_get_cval,&
             section_get_lval
@@ -1334,6 +1335,18 @@ CONTAINS
     CALL section_vals_val_get(section_vals, keyword_name, r_val=res, error=error)
 
   END FUNCTION section_get_rval
+
+! *****************************************************************************
+  FUNCTION section_get_rvals(section_vals,keyword_name,error) RESULT(res)
+
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(kind=dp), DIMENSION(:), POINTER     :: res
+
+    CALL section_vals_val_get(section_vals, keyword_name, r_vals=res, error=error)
+
+  END FUNCTION section_get_rvals
 
 ! *****************************************************************************
   FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)

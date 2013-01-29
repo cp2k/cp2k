@@ -603,10 +603,14 @@ CONTAINS
     IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
       CALL section_vals_val_get(chebyshev_section,"N_CHEBYSHEV",i_val=ls_scf_env%chebyshev%n_chebyshev,error=error)
       CALL section_vals_val_get(chebyshev_section,"DOS%N_GRIDPOINTS",i_val=ls_scf_env%chebyshev%n_gridpoint_dos,error=error)
-      CALL section_vals_val_get(chebyshev_section,"MIN_ENERGY",r_val=ls_scf_env%chebyshev%min_energy,error=error)
-      CALL section_vals_val_get(chebyshev_section,"MAX_ENERGY",r_val=ls_scf_env%chebyshev%max_energy,error=error)
-      ls_scf_env%chebyshev%print_key_dos =>  section_vals_get_subs_vals(chebyshev_section,"DOS",error=error)
+
+      ls_scf_env%chebyshev%print_key_dos  => &
+          section_vals_get_subs_vals(chebyshev_section,"DOS",error=error)
       CALL section_vals_retain(ls_scf_env%chebyshev%print_key_dos,error=error)
+
+      ls_scf_env%chebyshev%print_key_cube => &
+          section_vals_get_subs_vals(chebyshev_section,"PRINT_SPECIFIC_E_DENSITY_CUBE",error=error)
+      CALL section_vals_retain(ls_scf_env%chebyshev%print_key_cube,error=error)
     ENDIF
 
     SELECT CASE(ls_scf_env%s_inversion_type)
@@ -900,7 +904,7 @@ CONTAINS
 
     CALL write_mo_free_results(qs_env,error)
 
-    IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(ls_scf_env,error)
+    IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(qs_env,ls_scf_env,error)
 
     IF (.TRUE.) CALL post_scf_experiment(ls_scf_env,error)
 

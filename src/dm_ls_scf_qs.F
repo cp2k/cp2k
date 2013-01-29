@@ -28,6 +28,8 @@ MODULE dm_ls_scf_qs
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_init,&
                                              dbcsr_distribution_mp,&
@@ -46,7 +48,21 @@ MODULE dm_ls_scf_qs
                                              ls_scf_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_methods,                      ONLY: pw_zero
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
+  USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -59,6 +75,7 @@ MODULE dm_ls_scf_qs
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -69,7 +86,8 @@ MODULE dm_ls_scf_qs
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_qs'
 
-  PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs, ls_scf_dm_to_ks, ls_scf_qs_atomic_guess
+  PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs,&
+           ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, write_matrix_to_cube
 
 CONTAINS
 
@@ -485,5 +503,80 @@ CONTAINS
 
   END SUBROUTINE ls_scf_dm_to_ks
 
+
+  SUBROUTINE write_matrix_to_cube(qs_env,ls_scf_env,matrix_p_ls,unit_nr,title,stride,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_p_ls
+    INTEGER, INTENT(IN)                      :: unit_nr
+    CHARACTER(LEN=*), INTENT(IN)             :: title
+    INTEGER, DIMENSION(:), POINTER           :: stride
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_to_cube', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    REAL(KIND=dp)                            :: tot_rho
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_p_qs
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: wf_g, wf_r
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
+    CALL timeset(routineN,handle)
+    
+    NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys)
+
+    CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, error=error)
+    CALL cp_subsys_get(subsys,particles=particles,error=error)     
+
+    ! convert the density matrix (ls style) to QS style
+    ALLOCATE(matrix_p_qs)
+    CALL cp_dbcsr_init(matrix_p_qs,error=error) !initialization
+    CALL cp_dbcsr_copy(matrix_p_qs,qs_env%matrix_ks(1)%matrix,error=error)
+    CALL cp_dbcsr_set(matrix_p_qs,0.0_dp,error=error) !zero matrix creation   
+    CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct,error=error) 
+
+    ! Print total electronic density
+    CALL pw_env_get(pw_env=pw_env,&
+                    auxbas_pw_pool=auxbas_pw_pool,&
+                    pw_pools=pw_pools,&
+                    error=error)
+    CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                          pw=wf_r%pw,&
+                          use_data=REALDATA3D,&
+                          in_space=REALSPACE,&
+                          error=error)
+    CALL pw_zero(wf_r%pw,error=error)
+    CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                          pw=wf_g%pw,&
+                          use_data=COMPLEXDATA1D,&
+                          in_space=RECIPROCALSPACE,&
+                          error=error)
+    CALL pw_zero(wf_g%pw,error=error)
+    CALL calculate_rho_elec(matrix_p=matrix_p_qs,&
+                            rho=wf_r,&
+                            rho_gspace=wf_g,&
+                            total_rho=tot_rho,&
+                            qs_env=qs_env, &
+                            error=error)
+
+    ! write this to a cube
+    CALL pw_to_cube(wf_r%pw, unit_nr=unit_nr, title=title,&
+         particles=particles, stride=stride, error = error)
+     
+    !free memory
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error) 
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw,error=error)   
+    CALL cp_dbcsr_release(matrix_p_qs,error=error)
+    DEALLOCATE(matrix_p_qs)
+
+    CALL timestop(handle)
+    
+  END SUBROUTINE write_matrix_to_cube
 
 END MODULE dm_ls_scf_qs
