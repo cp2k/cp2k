@@ -227,7 +227,8 @@ extern "C" int dc_do_stack_cu(
                                   shared_size=0;
 //                                printf("Performing 5x5 product\n");
 //                                stack_mm_mnk_sq5_d <<< ((stack_size+GROUPING-1)/GROUPING), 128, shared_size, stream >>>
-                                  stack_mm_mnk_sq5_d <<< ((stack_size+GROUPING-1)/GROUPING), 32, shared_size, stream >>>
+//                                stack_mm_mnk_sq5_d <<< ((stack_size+GROUPING-1)/GROUPING), 32, shared_size, stream >>>
+                                  stack_mm_mnk_sq5_d <<< ((stack_size+GROUPING-1)/GROUPING), 128, shared_size, stream >>>
                                       (param_stack, careful, nruns,
                                      m_max, n_max, k_max,
                                      liter,
