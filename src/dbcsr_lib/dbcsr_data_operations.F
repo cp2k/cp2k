@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE dbcsr_data_operations
 
-  USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy
   USE dbcsr_block_operations,          ONLY: dbcsr_block_transpose,&
                                              dbcsr_data_copy,&
                                              dbcsr_data_set
