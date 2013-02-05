@@ -968,8 +968,8 @@ CONTAINS
        CALL keyword_create(keyword,name="TYPE",&
             description="Type of functional.",&
             usage="TYPE DRSLL", &
-            enum_c_vals=s2a("DRSLL","LMKLL"),&
-            enum_i_vals=(/ vdw_nl_DRSLL, vdw_NL_LMKLL /),&
+            enum_c_vals=s2a("DRSLL","LMKLL","RVV10"),&
+            enum_i_vals=(/ vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10 /),&
             default_i_val=vdw_nl_DRSLL, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -990,6 +990,12 @@ CONTAINS
             "of the nonlocal vdW functional [Ry].",&
             usage="CUTOFF 300",required=.FALSE.,&
             default_r_val=-1._dp,unit_str="Ry",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="PARAMETERS",&
+            description="Parameters b and C of the rVV10 functional",&
+            usage="PARAMETERS 6.3 0.0093",required=.FALSE.,&
+            type_of_var=real_t,default_r_vals=(/6.3_dp,0.0093_dp/),n_var=2,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

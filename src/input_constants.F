@@ -526,7 +526,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: vdw_pairpot_dftd2=1,&
                                               vdw_pairpot_dftd3=2
   INTEGER, PARAMETER, PUBLIC               :: vdw_nl_DRSLL=1,&
-                                              vdw_nl_LMKLL=2
+                                              vdw_nl_LMKLL=2,&
+                                              vdw_nl_RVV10=3
 
   ! Input constants for relativistic calculations
   INTEGER, PARAMETER, PUBLIC               :: rel_none=0,&

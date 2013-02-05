@@ -57,6 +57,7 @@ MODULE qs_dispersion_types
                                            :: cnlist
     !vdW-DF variables
     REAL(KIND=dp)                          :: pw_cutoff
+    REAL(KIND=dp)                          :: b_value, c_value !parameters for the rVV10 functional
     INTEGER                                :: nqs, nr_points
                                                        !! The number of q points and radial points
                                                        !! used in generating the kernel phi(q1*r, q2*r)

@@ -12,13 +12,13 @@
 !>  GNU General Public License. See the file `License'
 !>  in the root directory of the present distribution,
 !>  or http://www.gnu.org/copyleft/gpl.txt .
-
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dispersion_nonloc
 
   USE bibliography,                    ONLY: Dion2004,&
                                              Romanperez2009,&
+                                             Sabatini2013,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
@@ -27,6 +27,7 @@ MODULE qs_dispersion_nonloc
   USE f77_blas
   USE input_constants,                 ONLY: vdw_nl_DRSLL,&
                                              vdw_nl_LMKLL,&
+                                             vdw_nl_RVV10,&
                                              xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -61,6 +62,8 @@ MODULE qs_dispersion_nonloc
 
   PRIVATE
 
+  REAL(KIND=dp), PARAMETER :: epsr = 1.e-12_dp
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_nonloc'
 
   PUBLIC :: qs_dispersion_nonloc_init, calculate_dispersion_nonloc
@@ -88,7 +91,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cite_reference(Dion2004)
+    SELECT CASE (dispersion_env%nl_type)
+       CASE DEFAULT
+          STOP 'Unknown vdW-DF functional'
+       CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
+          CALL cite_reference(Dion2004)
+       CASE (vdw_nl_RVV10)
+          CALL cite_reference(Sabatini2013)
+    END SELECT
     CALL cite_reference(RomanPerez2009)
 
     failure = .FALSE.
@@ -148,7 +158,7 @@ CONTAINS
           !
           dispersion_env%q_cut = dispersion_env%q_mesh(nqs)
           dispersion_env%q_min = dispersion_env%q_mesh(1)
-          dispersion_env%dk = 2.0D0*pi/dispersion_env%r_max
+          dispersion_env%dk = 2.0_dp*pi/dispersion_env%r_max
 
     END SELECT
 
@@ -173,10 +183,10 @@ CONTAINS
     INTEGER, DIMENSION(3, 3), PARAMETER :: &
       nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
 
-    INTEGER                                  :: handle, i, idir, ispin, n1, &
+    INTEGER                                  :: handle, i, idir, i_grid, ispin, n1, &
                                                 n2, n3, np, nspin, stat
     LOGICAL                                  :: failure, use_virial
-    REAL(KIND=dp)                            :: Ec_nl
+    REAL(KIND=dp)                            :: beta, b_value, Ec_nl, sumnp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dq0_dgradrho, dq0_drho, hpot, &
                                                 potential, q0, rho
     REAL(KIND=dp), ALLOCATABLE, &
@@ -214,6 +224,9 @@ CONTAINS
     END IF
     CALL get_qs_env(qs_env, dispersion_env=dispersion_env, energy=energy, &
                     para_env=para_env, error=error)
+
+    b_value = dispersion_env%b_value
+    beta = 0.03125_dp * (3.0_dp / (b_value**2.0_dp) )**0.75_dp
 
     ! tempory arrays for FFT
     CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
@@ -255,18 +268,34 @@ CONTAINS
     IF (energy_only) THEN
        ALLOCATE ( q0(np), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_q0_on_grid_eo (rho,drho,q0,dispersion_env)
+       SELECT CASE (dispersion_env%nl_type)
+          CASE DEFAULT
+             STOP 'Unknown vdW-DF functional'
+          CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
+             CALL get_q0_on_grid_eo_vdw (rho,drho,q0,dispersion_env)
+          CASE (vdw_nl_RVV10)
+             CALL get_q0_on_grid_eo_rvv10 (rho,drho,q0,dispersion_env)
+       END SELECT
     ELSE
        ALLOCATE ( q0(np), dq0_drho(np), dq0_dgradrho(np), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_q0_on_grid (rho,drho,q0,dq0_drho,dq0_dgradrho,dispersion_env)
+       SELECT CASE (dispersion_env%nl_type)
+          CASE DEFAULT
+             STOP 'Unknown vdW-DF functional'
+          CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
+             CALL get_q0_on_grid_vdw (rho,drho,q0,dq0_drho,dq0_dgradrho,dispersion_env)
+          CASE (vdw_nl_RVV10)
+             CALL get_q0_on_grid_rvv10 (rho,drho,q0,dq0_drho,dq0_dgradrho,dispersion_env)
+       END SELECT
     END IF
 
     !! ---------------------------------------------------------------------------------------------
-    !! Here we allocate and calculate the theta functions of SOLER equation 11.  Thee are defined as 
-    !! rho * P_i(q0(rho, gradient_rho)) where P_i is a polynomial that interpolates a Kronecker delta 
-    !! function at the point q_i (taken from the q_mesh) and q0 is the saturated version of q.  q is
-    !! defined in equations 11 and 12 of DION and the saturation proceedure is defined in equation 5 
+    !! Here we allocate and calculate the theta functions appearing in equations 8-12 of SOLER.
+    !! They are defined as rho*P_i(q0(rho, gradient_rho)) for vdW and vdW2 or
+    !! constant*rho^(3/4)*P_i(q0(rho, gradient_rho)) for rVV10 where P_i is a polynomial that
+    !! interpolates a Kronecker delta function at the point q_i (taken from the q_mesh) and q0 is
+    !! the saturated version of q.
+    !! q is defined in equations 11 and 12 of DION and the saturation proceedure is defined in equation 5 
     !! of soler.  This is the biggest memory consumer in the method since the thetas array is 
     !! (total # of FFT points)*Nqs complex numbers.  In a parallel run, each processor will hold the 
     !! values of all the theta functions on just the points assigned to it.
@@ -280,11 +309,28 @@ CONTAINS
     !! q0 values we have.
     CALL spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2, q0, thetas)
 
-    !! Form the thetas where theta is defined as rho*p_i(q0)
+    !! Form the thetas where theta is defined as rho*p_i(q0) for vdW and vdW2 or
+    !! constant*rho^(3/4)*p_i(q0) for rVV10
     !! ------------------------------------------------------------------------------------
-    DO i=1,dispersion_env%nqs
-       thetas(:,i) = thetas(:,i) * rho(:)
-    END DO
+    SELECT CASE (dispersion_env%nl_type)
+       CASE DEFAULT
+          STOP 'Unknown vdW-DF functional'
+       CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
+          DO i=1,dispersion_env%nqs
+             thetas(:,i) = thetas(:,i) * rho(:)
+          END DO
+       CASE (vdw_nl_RVV10)
+          DO i_grid=1, np
+             IF (rho(i_grid) > epsr) THEN 
+                DO i=1,dispersion_env%nqs
+                   thetas(i_grid,i) = thetas(i_grid,i) * (1.0_dp / (3.0_dp * sqrt(pi) * &
+                   ( b_value**(3.0_dp/2.0_dp) ) ) ) * (rho(i_grid) / pi)**(3.0_dp/4.0_dp)
+                END DO
+             ELSE
+                thetas(i_grid,:) = 0.0_dp
+             END IF
+          END DO
+    END SELECT
     !! ------------------------------------------------------------------------------------
     !! Get thetas in reciprocal space.
     n1 = SIZE(tmp_r%cr3d,1)
@@ -298,14 +344,21 @@ CONTAINS
        CALL pw_pool_create_pw(pw_pool, thetas_g(i)%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
        CALL pw_transfer ( tmp_r, thetas_g(i)%pw ,error=error)
     END DO
+    grid => thetas_g(1)%pw%pw_grid
     !! ---------------------------------------------------------------------------------------------
     !! Carry out the integration in equation 8 of SOLER.  This also turns the thetas array into the 
     !! precursor to the u_i(k) array which is inverse fourier transformed to get the u_i(r) functions
     !! of SOLER equation 11.  Add the energy we find to the output variable etxc.
     !! --------------------------------------------------------------------------------------------------
+    sumnp = np
+    CALL mp_sum(sumnp,para_env%group)
     IF (use_virial) THEN
        ! calculates kernel contribution to stress
        CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial, error=error)
+       SELECT CASE (dispersion_env%nl_type)
+          CASE (vdw_nl_RVV10)
+             Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
+       END SELECT
        ! calculates energy contribution to stress
        ! potential contribution to stress is calculated together with other potentials (Hxc)
        DO idir=1,3
@@ -313,6 +366,10 @@ CONTAINS
        END DO
     ELSE
        CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, error=error)
+       SELECT CASE (dispersion_env%nl_type)
+          CASE (vdw_nl_RVV10)
+             Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
+       END SELECT
     END IF
     CALL mp_sum(Ec_nl,para_env%group)
     energy%dispersion = Ec_nl
@@ -337,12 +394,17 @@ CONTAINS
        IF(use_virial) THEN
           ! calculates gradient contribution to stress
           grid => tmp_g%pw_grid
-          CALL get_potential(q0, dq0_drho, dq0_dgradrho, thetas, potential, hpot, &
+          CALL get_potential(q0, dq0_drho, dq0_dgradrho, rho, thetas, potential, hpot, &
                              dispersion_env, drho, grid%dvol, virial, error=error)
        ELSE
-          CALL get_potential(q0, dq0_drho, dq0_dgradrho, thetas, potential, hpot, &
+          CALL get_potential(q0, dq0_drho, dq0_dgradrho, rho, thetas, potential, hpot, &
                              dispersion_env, error=error)
        END IF
+       SELECT CASE (dispersion_env%nl_type)
+          CASE (vdw_nl_RVV10)
+             potential = 0.5_dp*potential + beta
+             hpot = 0.5_dp*hpot
+       END SELECT
        CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
        vxc_r%cr3d = RESHAPE(potential,(/n1,n2,n3/))
        DO idir=1,3
@@ -478,6 +540,10 @@ CONTAINS
           IF (use_virial .AND. ig >=grid%first_gne0) THEN
              DO q1_i = 1, Nqs
                  gm = 0.5_dp * G_multiplier * grid%vol*theta(q1_i)*dkernel_of_dk(q1_i,q2_i)*CONJG(theta(q2_i))
+                 SELECT CASE (dispersion_env%nl_type)
+                    CASE (vdw_nl_RVV10)
+                       gm = 0.5_dp*gm
+                 END SELECT
                  DO l = 1, 3
                      DO m = 1, l
                         virial%pv_xc(l,m) = virial%pv_xc(l,m) - gm * (grid%g(l,ig)*grid%g(m,ig)) / g
@@ -517,10 +583,10 @@ CONTAINS
 !! routine, but the derivative of the interpolation polynomials, P_alpha(q),
 !! (SOLER equation 3) with respect to q is interpolated here, along with the 
 !! polynomials themselves.
-  SUBROUTINE get_potential(q0, dq0_drho, dq0_dgradrho, u_vdW, potential, h_prefactor, &
+  SUBROUTINE get_potential(q0, dq0_drho, dq0_dgradrho, total_rho, u_vdW, potential, h_prefactor, &
                          dispersion_env, drho, dvol, virial, error)
 
-    REAL(dp), DIMENSION(:), INTENT(in)       :: q0, dq0_drho, dq0_dgradrho
+    REAL(dp), DIMENSION(:), INTENT(in)       :: q0, dq0_drho, dq0_dgradrho, total_rho
     REAL(dp), DIMENSION(:, :), INTENT(in)    :: u_vdW
     REAL(dp), DIMENSION(:), INTENT(inout)    :: potential, h_prefactor
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
@@ -535,7 +601,7 @@ CONTAINS
     INTEGER                                  :: handle, i_grid, l, m, nqs, &
                                                 P_i, q, q_hi, q_low, stat
     LOGICAL                                  :: failure = .FALSE., use_virial
-    REAL(dp)                                 :: a, b, c, d, dP_dq0, dq, e, f, &
+    REAL(dp)                                 :: a, b, b_value, c, const, d, dP_dq0, dq, e, f, &
                                                 P, prefactor
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: y
     REAL(dp), DIMENSION(:), POINTER          :: q_mesh
@@ -551,6 +617,8 @@ CONTAINS
        use_virial = .FALSE.
     END IF
   
+    b_value = dispersion_env%b_value
+    const = 1.0_dp / (3.0_dp * b_value**(3.0_dp/2.0_dp) * pi**(5.0_dp/4.0_dp) )
     potential = 0.0_dp
     h_prefactor   = 0.0_dp
 
@@ -589,12 +657,29 @@ CONTAINS
           dP_dq0 = (y(q_hi) - y(q_low))/dq - e*d2y_dx2(P_i,q_low) + f*d2y_dx2(P_i,q_hi)
           P = a*y(q_low) + b*y(q_hi) + c*d2y_dx2(P_i,q_low) + d*d2y_dx2(P_i,q_hi)
           !! The first term in equation 13 of SOLER
-          potential(i_grid) = potential(i_grid) + u_vdW(i_grid,P_i)* (P + dP_dq0 * dq0_drho(i_grid))
-          prefactor = u_vdW(i_grid,P_i) * dP_dq0 * dq0_dgradrho(i_grid)
+          SELECT CASE (dispersion_env%nl_type)
+             CASE DEFAULT
+                STOP 'Unknown vdW-DF functional'
+             CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
+                potential(i_grid) = potential(i_grid) + u_vdW(i_grid,P_i)* (P + dP_dq0 * dq0_drho(i_grid))
+                prefactor = u_vdW(i_grid,P_i) * dP_dq0 * dq0_dgradrho(i_grid)
+             CASE (vdw_nl_RVV10)
+                IF (total_rho(i_grid) > epsr) THEN
+                   potential(i_grid) = potential(i_grid) + u_vdW(i_grid,P_i)* &
+                      (const * (3.0_dp/4.0_dp) / (total_rho(i_grid)**(1.0_dp/4.0_dp))  * P + &
+                      const * total_rho(i_grid)**(3.0_dp/4.0_dp) *  dP_dq0 * dq0_drho(i_grid))
+                   prefactor = u_vdW(i_grid,P_i) * const * total_rho(i_grid)**(3.0_dp/4.0_dp) * &
+                      dP_dq0 * dq0_dgradrho(i_grid)
+                ENDIF
+          END SELECT
           IF (q0(i_grid) .NE. q_mesh(Nqs)) THEN
              h_prefactor(i_grid) = h_prefactor(i_grid) + prefactor
           END IF
           IF (use_virial) THEN
+             SELECT CASE (dispersion_env%nl_type)
+                CASE (vdw_nl_RVV10)
+                   prefactor = 0.5_dp*prefactor
+             END SELECT
              prefactor = prefactor*dvol
              DO l = 1, 3
                 DO m = 1, l
@@ -614,9 +699,9 @@ CONTAINS
 
   !! This routine first calculates the q value defined in (DION equations 11 and 12), then
   !! saturates it according to (SOLER equation 5).  
-  SUBROUTINE get_q0_on_grid (total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
+  SUBROUTINE get_q0_on_grid_vdw (total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
   !!
-  !! more specifically it calcultates the following
+  !! more specifically it calculates the following
   !!
   !!     q0(ir) = q0 as defined above
   !!     dq0_drho(ir) = total_rho * d q0 /d rho 
@@ -629,7 +714,7 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     INTEGER, PARAMETER :: m_cut = 12                                
-    REAL(dp), PARAMETER :: epsr = 1.e-12_dp , LDA_A = 0.031091_dp, &
+    REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, &
       LDA_a1 = 0.2137_dp, LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , &
       LDA_b3 = 1.6382_dp, LDA_b4 = 0.49294_dp
 
@@ -721,9 +806,96 @@ CONTAINS
   
     END DO
  
-  END SUBROUTINE get_q0_on_grid
+  END SUBROUTINE get_q0_on_grid_vdw
+
+  SUBROUTINE get_q0_on_grid_rvv10 (total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
+  !!
+  !! more specifically it calculates the following
+  !!
+  !!     q0(ir) = q0 as defined above
+  !!     dq0_drho(ir) = total_rho * d q0 /d rho 
+  !!     dq0_dgradrho = total_rho / |gradient_rho| * d q0 / d |gradient_rho|
+  !!
+    REAL(dp), INTENT(IN)                     :: total_rho(:), &
+                                                gradient_rho(:,:)
+    REAL(dp), INTENT(OUT)                    :: q0(:), dq0_drho(:), &
+                                                dq0_dgradrho(:)
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+
+    INTEGER, PARAMETER :: m_cut = 12
+                                
+    INTEGER                                  :: i_grid, index
+    REAL(dp)                                 :: b_value, C_value, dq0_dq, exponent, &
+                                                q, q_cut, q_min , &
+                                                dw0_dn, dk_dn, gmod2, &
+                                                mod_grad, wp2, wg2, w0, k
+
+    q_cut = dispersion_env%q_cut
+    q_min = dispersion_env%q_min
+    b_value = dispersion_env%b_value
+    C_value = dispersion_env%c_value
+
+    ! initialize q0-related arrays ... 
+    q0(:) = q_cut
+    dq0_drho(:) = 0.0_dp
+    dq0_dgradrho(:) = 0.0_dp
+  
+    DO i_grid = 1, SIZE(total_rho)
+  
+     gmod2 = gradient_rho(i_grid,1)**2+gradient_rho(i_grid,2)**2+gradient_rho(i_grid,3)**2
  
-  SUBROUTINE get_q0_on_grid_eo (total_rho, gradient_rho, q0, dispersion_env)
+     !if (total_rho(i_grid) > epsr .and. gmod2 > epsr) cycle
+     if (total_rho(i_grid) > epsr) then
+     
+       !! Calculate some intermediate values needed to find q
+       !! ------------------------------------------------------------------------------------
+       mod_grad = sqrt(gmod2)
+
+       wp2= 16.0_dp*pi*total_rho(i_grid)
+       wg2 = 4_dp*C_value * (mod_grad/total_rho(i_grid))**4
+
+       k = b_value*3.0_dp* pi* ((total_rho(i_grid)/(9.0_dp*pi))**(1.0_dp/6.0_dp))
+       w0 = sqrt( wg2 + wp2/3.0_dp  )
+
+       q = w0 / k 
+     
+       !! Here, we calculate q0 by saturating q according 
+       !! ---------------------------------------------------------------------------------------
+
+       exponent = 0.0_dp
+       dq0_dq = 0.0_dp
+     
+       do index = 1, m_cut
+        
+          exponent = exponent + ( (q/q_cut)**index)/index
+          dq0_dq = dq0_dq + ( (q/q_cut)**(index-1))
+        
+       end do
+
+       q0(i_grid) = q_cut*(1.0_dp - exp(-exponent))
+       dq0_dq = dq0_dq * exp(-exponent)
+
+       !! ---------------------------------------------------------------------------------------
+
+       if (q0(i_grid) < q_min) then
+         q0(i_grid) = q_min
+       end if
+
+       !!---------------------------------Final values---------------------------------  
+
+       dw0_dn = 1.0_dp / (2.0_dp * w0 ) * ( 16.0_dp/3.0_dp * pi  - 4.0_dp * wg2 / total_rho(i_grid) )                
+       dk_dn = k / ( 6.0_dp * total_rho(i_grid) )
+
+       dq0_drho(i_grid) = dq0_dq * 1.0_dp / (k**2.0) * (dw0_dn * k - dk_dn * w0 )   
+       dq0_dgradrho(i_grid) = dq0_dq * 1.0_dp / ( 2.0_dp * k * w0 ) * 4.0_dp * wg2 / (mod_grad**2)
+
+     endif  
+
+    END DO
+ 
+  END SUBROUTINE get_q0_on_grid_rvv10
+
+  SUBROUTINE get_q0_on_grid_eo_vdw (total_rho, gradient_rho, q0, dispersion_env)
 
     REAL(dp), INTENT(IN)                     :: total_rho(:), &
                                                 gradient_rho(:,:)
@@ -731,7 +903,7 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     INTEGER, PARAMETER :: m_cut = 12                                
-    REAL(dp), PARAMETER :: epsr = 1.e-12_dp , LDA_A = 0.031091_dp, &
+    REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, &
       LDA_a1 = 0.2137_dp, LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , &
       LDA_b3 = 1.6382_dp, LDA_b4 = 0.49294_dp
 
@@ -778,17 +950,17 @@ CONTAINS
        !! This is the q value defined in equations 11 and 12 of DION
        !! ---------------------------------------------------------------
  
-       q = kF + LDA_1 * LOG(1.0D0+1.0D0/LDA_2) + gradient_correction
+       q = kF + LDA_1 * LOG(1.0_dp+1.0_dp/LDA_2) + gradient_correction
  
        !! ---------------------------------------------------------------
        !! Here, we calculate q0 by saturating q according to equation 5 of SOLER.  Also, we find 
        !! the derivative dq0_dq needed for the derivatives dq0_drho and dq0_dgradrh0 discussed below.
        !! ---------------------------------------------------------------------------------------
-       exponent = 0.0D0
+       exponent = 0.0_dp
        DO index = 1, m_cut
           exponent = exponent + ( (q/q_cut)**index)/index
        END DO
-       q0(i_grid) = q_cut*(1.0D0 - EXP(-exponent))
+       q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
        !! ---------------------------------------------------------------------------------------
        !! This is to handle a case with q0 too small.  We simply set it to the smallest q value in
        !! out q_mesh.  Hopefully this doesn't get used often (ever)
@@ -798,7 +970,73 @@ CONTAINS
        END IF
     END DO
  
-  END SUBROUTINE get_q0_on_grid_eo
+  END SUBROUTINE get_q0_on_grid_eo_vdw
+
+
+  SUBROUTINE get_q0_on_grid_eo_rvv10 (total_rho, gradient_rho, q0, dispersion_env)
+
+    REAL(dp), INTENT(IN)                     :: total_rho(:), &
+                                                gradient_rho(:,:)
+    REAL(dp), INTENT(OUT)                    :: q0(:)
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+
+    INTEGER, PARAMETER :: m_cut = 12                                
+
+    INTEGER                                  :: i_grid, index
+    REAL(dp)                                 :: b_value, C_value, exponent, &
+                                                q, q_cut, q_min , &
+                                                dw0_dn, dk_dn, gmod2, &
+                                                mod_grad, wp2, wg2, w0, k
+
+    q_cut = dispersion_env%q_cut
+    q_min = dispersion_env%q_min
+    b_value = dispersion_env%b_value
+    C_value = dispersion_env%c_value
+
+    ! initialize q0-related arrays ... 
+    q0(:) = q_cut
+  
+    DO i_grid = 1, SIZE(total_rho)
+  
+     gmod2 = gradient_rho(i_grid,1)**2+gradient_rho(i_grid,2)**2+gradient_rho(i_grid,3)**2
+ 
+     !if (total_rho(i_grid) > epsr .and. gmod2 > epsr) cycle
+     if (total_rho(i_grid) > epsr) then
+     
+       !! Calculate some intermediate values needed to find q
+       !! ------------------------------------------------------------------------------------
+       mod_grad = sqrt(gmod2)
+
+       wp2= 16.0_dp*pi*total_rho(i_grid)
+       wg2 = 4_dp*C_value * (mod_grad/total_rho(i_grid))**4
+
+       k = b_value*3.0_dp* pi* ((total_rho(i_grid)/(9.0_dp*pi))**(1.0_dp/6.0_dp))
+       w0 = sqrt( wg2 + wp2/3.0_dp  )
+
+       q = w0 / k 
+     
+       !! Here, we calculate q0 by saturating q according 
+       !! ---------------------------------------------------------------------------------------
+
+       exponent = 0.0_dp
+     
+       do index = 1, m_cut
+        
+          exponent = exponent + ( (q/q_cut)**index)/index
+        
+       end do
+
+       q0(i_grid) = q_cut*(1.0_dp - exp(-exponent))
+
+       if (q0(i_grid) < q_min) then
+         q0(i_grid) = q_min
+       end if
+
+     endif  
+
+    END DO
+ 
+  END SUBROUTINE get_q0_on_grid_eo_rvv10
 
   !! This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge University
   !! press, page 97.  It was adapted for Fortran, of course and for the problem at hand, in that it finds
@@ -887,7 +1125,7 @@ CONTAINS
           temp_array(index) = (6.0_dp*temp_array(index)/(x(index+1)-x(index-1)) &
                - temp1*temp_array(index-1))/temp2
        END DO
-       d2y_dx2(P_i,Nx) = 0.0D0
+       d2y_dx2(P_i,Nx) = 0.0_dp
        DO index=Nx-1, 1, -1
           d2y_dx2(P_i,index) = d2y_dx2(P_i,index) * d2y_dx2(P_i,index+1) + temp_array(index)
        END DO

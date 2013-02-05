@@ -36,6 +36,7 @@ MODULE qs_dispersion_pairpot
   USE f77_blas
   USE input_constants,                 ONLY: vdw_nl_DRSLL,&
                                              vdw_nl_LMKLL,&
+                                             vdw_nl_RVV10,&
                                              vdw_pairpot_dftd2,&
                                              vdw_pairpot_dftd3,&
                                              xc_vdw_fun_none,&
@@ -629,6 +630,9 @@ CONTAINS
              CASE (vdw_nl_LMKLL)
                 WRITE (output_unit, &
                  fmt="(' vdW POTENTIAL| ','LMKLL Functional:            K. Lee et al, PRB 82: 081101 (2010)')")
+             CASE (vdw_nl_RVV10)
+                WRITE (output_unit, &
+                 fmt="(' vdW POTENTIAL| ','RVV10 Functional:    R. Sabatini et al, PRB 87: 041108(R) (2013)')")
           END SELECT
           IF ( dispersion_env%verbose ) THEN
              WRITE (output_unit,&

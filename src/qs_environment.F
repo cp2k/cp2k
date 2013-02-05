@@ -425,7 +425,7 @@ CONTAINS
       harris_flag, has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
-    REAL(dp), POINTER                        :: scal(:)
+    REAL(dp), POINTER                        :: params(:), scal(:)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -919,6 +919,9 @@ CONTAINS
         CALL section_vals_val_get(nl_section, "TYPE", i_val=dispersion_env%nl_type, error=error)
         CALL section_vals_val_get(nl_section, "CUTOFF", r_val=dispersion_env%pw_cutoff, error=error)
         dispersion_env%pw_cutoff = 0.5_dp * dispersion_env%pw_cutoff
+        CALL section_vals_val_get(nl_section, "PARAMETERS", r_vals=params, error=error)
+        dispersion_env%b_value = params(1)
+        dispersion_env%c_value = params(2)
         CALL qs_dispersion_nonloc_init(dispersion_env,nl_section,para_env,error)
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)

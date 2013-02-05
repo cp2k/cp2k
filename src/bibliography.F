@@ -60,7 +60,7 @@ MODULE bibliography
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009, DelBen2012
+             Dion2004, Romanperez2009, DelBen2012, Sabatini2013
 
 CONTAINS
 
@@ -2190,7 +2190,7 @@ CONTAINS
          "   Hutter, J",&
          "   VandeVondele, J",&
          "AF Del Ben, Mauro",&
-         "   Hutter, Jueg",&
+         "   Hutter, Juerg",&
          "   VandeVondele, Joost",&
          "TI Second-Order Moller-Plesset Perturbation Theory in the Condensed Phase:",&
          "   An Efficient and Massively Parallel Gaussian and Plane Waves Approach",&
@@ -2206,6 +2206,25 @@ CONTAINS
          "UT WOS:000311191900019",&
          "ER"),&
          DOI="10.1021/ct300531w")
+
+    CALL add_reference(key=Sabatini2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Sabatini, R",&
+         "   Gorni, T",&
+         "   de Gironcoli, S",&
+         "AF Sabatini, Riccardo",&
+         "   Gorni, Tommaso",&
+         "   de Gironcoli, Stefano",&
+         "TI Nonlocal van der Waals density functional made simple and efficient",&
+         "SO Phys. Rev. B",&
+         "PD JAN 15",&
+         "PY 2013",&
+         "VL 87",&
+         "DI 10.1103/PhysRevB.87.041108",&
+         "IS 4",&
+         "AR 041108(R)",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.87.041108")
 
   END SUBROUTINE add_all_references
 
