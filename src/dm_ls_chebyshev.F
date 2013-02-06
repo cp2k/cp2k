@@ -29,7 +29,8 @@ MODULE dm_ls_chebyshev
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE mathconstants,                   ONLY: pi
   USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&
@@ -294,6 +295,7 @@ CONTAINS
           occ=cp_dbcsr_get_occupation(matrix_tmp1)
           t2 = m_walltime()
           IF (unit_nr>0 .AND. MOD(icheb,20)==0) THEN
+             CALL m_flush(unit_nr)
              IF (nwindow>0) THEN
                 WRITE(unit_nr,'(T2,A,I5,1X,A,1X,F8.3,1X,A,1X,F8.6,1X,A,1X,1000F16.8)') &
                      "Iter.",icheb,"time=",t2-t1,"occ=",occ,"traces=",trace_dm(:)
