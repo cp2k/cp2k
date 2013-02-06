@@ -8,12 +8,12 @@
 extern __shared__ double cache[];
 
 __global__ void stack_mm_z
-                   (const int *__restrict__ param_stack,
-		    int stack_size, int nparams,
-		    const double *__restrict__ a_data,
-		    const double *__restrict__ b_data,
-		    double *__restrict__ c_data,
-		    int *__restrict__ c_locks) {
+  (const int *__restrict__ param_stack,
+   int stack_size, int nparams,
+   const double *__restrict__ a_data,
+   const double *__restrict__ b_data,
+   double *__restrict__ c_data, int *__restrict__ c_locks)
+{
 
   /**
    *  \var sp        which stack member this thread block is processing
@@ -30,9 +30,9 @@ __global__ void stack_mm_z
    *  \var buff      cache for A and B data
    *  \var c_id      translated C block number (used in locking)
    *  \var lock_owner  current C block owner (used in locking)
-   */ 
+   */
 
-  int sp; //, lock_owner, c_id, sp_one;
+  int sp;			//, lock_owner, c_id, sp_one;
   int tn, nt;
   int r, c, l;
   int m, n, k;
@@ -51,89 +51,95 @@ __global__ void stack_mm_z
   nt = blockDim.x;
 
   /* Load in the parameters. */
-  for (l = 0; l <= 6/nt; l++) {
-    r = tn+nt*l;
-    if (r < 7)
-      our_params[r] = param_stack[7*sp+r];
-  }
+  for (l = 0; l <= 6 / nt; l++)
+    {
+      r = tn + nt * l;
+      if (r < 7)
+	our_params[r] = param_stack[7 * sp + r];
+    }
 
-  syncthreads();
+  syncthreads ();
   m = our_params[0];
   n = our_params[1];
   k = our_params[2];
 
   /* Load in the buffers. */
-  mk = 2*m*k;
-  kn = 2*k*n;
-  for (l = 0; l <= (mk-1) / nt; l++) {
-    r = tn+nt*l;
-    if (r < mk) {
-      buff[r] = a_data[2*(our_params[3]-1)+r];
+  mk = 2 * m * k;
+  kn = 2 * k * n;
+  for (l = 0; l <= (mk - 1) / nt; l++)
+    {
+      r = tn + nt * l;
+      if (r < mk)
+	{
+	  buff[r] = a_data[2 * (our_params[3] - 1) + r];
+	}
     }
-  }
-  for (l = 0; l <= (kn-1) / nt; l++) {
-    r = tn+nt*l;
-    if (r < kn) {
-      buff[mk+r] = b_data[2*(our_params[4]-1)+r];
+  for (l = 0; l <= (kn - 1) / nt; l++)
+    {
+      r = tn + nt * l;
+      if (r < kn)
+	{
+	  buff[mk + r] = b_data[2 * (our_params[4] - 1) + r];
+	}
     }
-  }
-  mk = m*k;
-  kn = k*n;
+  mk = m * k;
+  kn = k * n;
 
   /* Calculate who I am. */
-  syncthreads();
+  syncthreads ();
 
-  mn = m*n;
+  mn = m * n;
 
   /* Do actual multiplication. */
-  if (tn < mn) {
-    r = tn % m;
-    c = tn / m;
-    myc_r = 0.0l;
-    myc_i = 0.0l;
+  if (tn < mn)
+    {
+      r = tn % m;
+      c = tn / m;
+      myc_r = 0.0l;
+      myc_i = 0.0l;
 
-    for (l = 0; l < k; l++) {
-      myc_r = myc_r +
-	buff[2*(   l*m+r)  ] *
-	buff[2*(mk+c*k+l)  ] -
-	buff[2*(   l*m+r)+1] *
-	buff[2*(mk+c*k+l)+1];
-      myc_i = myc_i +
-	buff[2*(   l*m+r)  ] *
-	buff[2*(mk+c*k+l)+1] +
-	buff[2*(   l*m+r)+1] *
-	buff[2*(mk+c*k+l)  ];
+      for (l = 0; l < k; l++)
+	{
+	  myc_r = myc_r +
+	    buff[2 * (l * m + r)] *
+	    buff[2 * (mk + c * k + l)] -
+	    buff[2 * (l * m + r) + 1] * buff[2 * (mk + c * k + l) + 1];
+	  myc_i = myc_i +
+	    buff[2 * (l * m + r)] *
+	    buff[2 * (mk + c * k + l) + 1] +
+	    buff[2 * (l * m + r) + 1] * buff[2 * (mk + c * k + l)];
+	}
     }
-  }
 
   /* Add results to global C block. */
- if (tn < mn) {
-    atomicAdd(&c_data[2*(our_params[5]-1+tn)  ], myc_r);
-    atomicAdd(&c_data[2*(our_params[5]-1+tn)+1], myc_i);
-  }
+  if (tn < mn)
+    {
+      atomicAdd (&c_data[2 * (our_params[5] - 1 + tn)], myc_r);
+      atomicAdd (&c_data[2 * (our_params[5] - 1 + tn) + 1], myc_i);
+    }
 
- // /* Lock the C block. */
- // syncthreads();
- // if (tn == 0) {
- //   sp_one = sp + 1;
- //   c_id = our_params[6]-1;
- //   lock_owner = 0;
- //   while ((lock_owner != sp_one))
- //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);
- // }
- //
- // /* Add our results to the C block. */
- // syncthreads();
- // if (tn < mn) {
- //   c_data[2*(our_params[5]-1+tn)  ] += myc_r;
- //   c_data[2*(our_params[5]-1+tn)+1] += myc_i;
- // }
- //
- // /* Release the lock on the C block. */
- // syncthreads();
- // if (tn == 0) {
- //   c_locks[c_id] = 0;
- //   //threadfence();
- // }
+  // /* Lock the C block. */
+  // syncthreads();
+  // if (tn == 0) {
+  //   sp_one = sp + 1;
+  //   c_id = our_params[6]-1;
+  //   lock_owner = 0;
+  //   while ((lock_owner != sp_one))
+  //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);
+  // }
+  //
+  // /* Add our results to the C block. */
+  // syncthreads();
+  // if (tn < mn) {
+  //   c_data[2*(our_params[5]-1+tn)  ] += myc_r;
+  //   c_data[2*(our_params[5]-1+tn)+1] += myc_i;
+  // }
+  //
+  // /* Release the lock on the C block. */
+  // syncthreads();
+  // if (tn == 0) {
+  //   c_locks[c_id] = 0;
+  //   //threadfence();
+  // }
 
 };

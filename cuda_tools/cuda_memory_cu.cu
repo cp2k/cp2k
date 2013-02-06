@@ -8,141 +8,178 @@
 #include <cufft.h>
 #include <stdio.h>
 
-static const int max_allocs=20;
+static const int max_allocs = 20;
 static int ioffset[max_allocs];
 static int isize[max_allocs];
 static int n_allocs;
 static int length;
-static float* device_memory;
+static float *device_memory;
 
-extern "C" void cuda_device_mem_init_cu_ (int *memory) {
+extern "C" void
+cuda_device_mem_init_cu_ (int *memory)
+{
 
-  
-  n_allocs=0;
-  length=(*memory)*256;
-  cudaMalloc((void**)&device_memory, sizeof(float)*(length));
+
+  n_allocs = 0;
+  length = (*memory) * 256;
+  cudaMalloc ((void **) &device_memory, sizeof (float) * (length));
 }
 
-extern void cuda_device_mem_alloc_cu_ (float **ptr, int n) {
+extern void
+cuda_device_mem_alloc_cu_ (float **ptr, int n)
+{
 
-  if ( n_allocs==0 && (n) <= length ) {
-    isize[n_allocs] = n;
-    ioffset[n_allocs] = 0;
-    *ptr = device_memory;
-    n_allocs++;
-  }
-  else {
-    if ((n) <= (length - (ioffset[n_allocs-1] + isize[n_allocs-1] ))) { 
-      isize[n_allocs] = (n);
-      ioffset[n_allocs] = ioffset[n_allocs-1] + isize[n_allocs-1];
-      *ptr = device_memory + ioffset[n_allocs];
+  if (n_allocs == 0 && (n) <= length)
+    {
+      isize[n_allocs] = n;
+      ioffset[n_allocs] = 0;
+      *ptr = device_memory;
       n_allocs++;
     }
-    else {
-      *ptr=NULL;
-      printf("NOT ENOUGH GPU DEVICE MEMORY!\n");
-      fflush(stdout);
+  else
+    {
+      if ((n) <= (length - (ioffset[n_allocs - 1] + isize[n_allocs - 1])))
+	{
+	  isize[n_allocs] = (n);
+	  ioffset[n_allocs] = ioffset[n_allocs - 1] + isize[n_allocs - 1];
+	  *ptr = device_memory + ioffset[n_allocs];
+	  n_allocs++;
+	}
+      else
+	{
+	  *ptr = NULL;
+	  printf ("NOT ENOUGH GPU DEVICE MEMORY!\n");
+	  fflush (stdout);
+	}
     }
-  }
 }
 
-extern void cuda_device_mem_alloc_cu_ (double **ptr, int n) {
+extern void
+cuda_device_mem_alloc_cu_ (double **ptr, int n)
+{
 
-  if ( n_allocs==0 && (n) <= length ) {
-    isize[n_allocs] = n;
-    ioffset[n_allocs] = 0;
-    *ptr = (double*)device_memory;
-    n_allocs++;
-  }
-  else {
-    if ((n) <= (length - (ioffset[n_allocs-1] + isize[n_allocs-1] ))) { 
-      isize[n_allocs] = (n);
-      ioffset[n_allocs] = ioffset[n_allocs-1] + isize[n_allocs-1];
-      *ptr = (double*)(device_memory + ioffset[n_allocs]);
+  if (n_allocs == 0 && (n) <= length)
+    {
+      isize[n_allocs] = n;
+      ioffset[n_allocs] = 0;
+      *ptr = (double *) device_memory;
       n_allocs++;
     }
-    else {
-      *ptr=NULL;
-      printf("NOT ENOUGH GPU DEVICE MEMORY!\n");
-      fflush(stdout);
+  else
+    {
+      if ((n) <= (length - (ioffset[n_allocs - 1] + isize[n_allocs - 1])))
+	{
+	  isize[n_allocs] = (n);
+	  ioffset[n_allocs] = ioffset[n_allocs - 1] + isize[n_allocs - 1];
+	  *ptr = (double *) (device_memory + ioffset[n_allocs]);
+	  n_allocs++;
+	}
+      else
+	{
+	  *ptr = NULL;
+	  printf ("NOT ENOUGH GPU DEVICE MEMORY!\n");
+	  fflush (stdout);
+	}
     }
-  }
 }
 
-extern void cuda_device_mem_alloc_cu_ (int **ptr, int n) {
+extern void
+cuda_device_mem_alloc_cu_ (int **ptr, int n)
+{
 
-  if ( n_allocs==0 && (n) <= length ) {
-    isize[n_allocs] = n;
-    ioffset[n_allocs] = 0;
-    *ptr = (int*)device_memory;
-    n_allocs++;
-  }
-  else {
-    if ((n) <= (length - (ioffset[n_allocs-1] + isize[n_allocs-1] ))) { 
-      isize[n_allocs] = (n);
-      ioffset[n_allocs] = ioffset[n_allocs-1] + isize[n_allocs-1];
-      *ptr = (int*)device_memory + ioffset[n_allocs];
+  if (n_allocs == 0 && (n) <= length)
+    {
+      isize[n_allocs] = n;
+      ioffset[n_allocs] = 0;
+      *ptr = (int *) device_memory;
       n_allocs++;
     }
-    else {
-      *ptr=NULL;
-      printf("NOT ENOUGH GPU DEVICE MEMORY!\n");
-      fflush(stdout);
+  else
+    {
+      if ((n) <= (length - (ioffset[n_allocs - 1] + isize[n_allocs - 1])))
+	{
+	  isize[n_allocs] = (n);
+	  ioffset[n_allocs] = ioffset[n_allocs - 1] + isize[n_allocs - 1];
+	  *ptr = (int *) device_memory + ioffset[n_allocs];
+	  n_allocs++;
+	}
+      else
+	{
+	  *ptr = NULL;
+	  printf ("NOT ENOUGH GPU DEVICE MEMORY!\n");
+	  fflush (stdout);
+	}
     }
-  }
 }
 
-extern void cuda_device_mem_free_cu_ (float **ptr) {
+extern void
+cuda_device_mem_free_cu_ (float **ptr)
+{
   int ioffsettmp, zfound, i;
-  
-  zfound=0;
+
+  zfound = 0;
   ioffsettmp = *ptr - device_memory;
-  for (i=0; i < n_allocs; i++) {
-    if (zfound) {
-      ioffset[i-1] = ioffset[i];
-      isize[i-1] = isize[i];
+  for (i = 0; i < n_allocs; i++)
+    {
+      if (zfound)
+	{
+	  ioffset[i - 1] = ioffset[i];
+	  isize[i - 1] = isize[i];
+	}
+      if (ioffsettmp == ioffset[i])
+	zfound = 1;
     }
-    if (ioffsettmp==ioffset[i]) zfound=1;
-  }
   n_allocs--;
-  *ptr=NULL;
+  *ptr = NULL;
 }
 
-extern void cuda_device_mem_free_cu_ (double **ptr) {
+extern void
+cuda_device_mem_free_cu_ (double **ptr)
+{
   int ioffsettmp, zfound, i;
-  
-  zfound=0;
-  ioffsettmp = (float*)(*ptr) - device_memory;
-  for (i=0; i < n_allocs; i++) {
-    if (zfound) {
-      ioffset[i-1] = ioffset[i];
-      isize[i-1] = isize[i];
+
+  zfound = 0;
+  ioffsettmp = (float *) (*ptr) - device_memory;
+  for (i = 0; i < n_allocs; i++)
+    {
+      if (zfound)
+	{
+	  ioffset[i - 1] = ioffset[i];
+	  isize[i - 1] = isize[i];
+	}
+      if (ioffsettmp == ioffset[i])
+	zfound = 1;
     }
-    if (ioffsettmp==ioffset[i]) zfound=1;
-  }
   n_allocs--;
-  *ptr=NULL;
+  *ptr = NULL;
 }
 
-extern void cuda_device_mem_free_cu_ (int **ptr) {
+extern void
+cuda_device_mem_free_cu_ (int **ptr)
+{
   int ioffsettmp, zfound, i;
-  
-  zfound=0;
-  ioffsettmp = (float*)(*ptr) - device_memory;
-  for (i=0; i < n_allocs; i++) {
-    if (zfound) {
-      ioffset[i-1] = ioffset[i];
-      isize[i-1] = isize[i];
+
+  zfound = 0;
+  ioffsettmp = (float *) (*ptr) - device_memory;
+  for (i = 0; i < n_allocs; i++)
+    {
+      if (zfound)
+	{
+	  ioffset[i - 1] = ioffset[i];
+	  isize[i - 1] = isize[i];
+	}
+      if (ioffsettmp == ioffset[i])
+	zfound = 1;
     }
-    if (ioffsettmp==ioffset[i]) zfound=1;
-  }
   n_allocs--;
-  *ptr=NULL;
+  *ptr = NULL;
 }
 
-extern "C" void cuda_device_mem_release_cu_ () {
+extern "C" void
+cuda_device_mem_release_cu_ ()
+{
 
-  cudaFree(device_memory);
+  cudaFree (device_memory);
 
 }
 
