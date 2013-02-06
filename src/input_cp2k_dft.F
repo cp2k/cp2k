@@ -2445,16 +2445,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KG_METHOD",&
-            description="Use a Kim-Gordon-like scheme. MOLECULAR .TRUE. is mandatory to get useful results.",&
+            description="Use a Kim-Gordon-like scheme.",&
             usage="KG_METHOD",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,citations=(/Iannuzzi2006, Brelaz1979/),error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MOLECULAR",&
-            description="Partition the system into molecular blocks",&
-            usage="MOLECULAR",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4457,7 +4450,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"KG_METHOD",&
             description="Specifies the parameters for a Kim-Gordon-like partitioning"//&
-                        "into molecular subunits",&
+                        " into molecular subunits",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             citations=(/Iannuzzi2006, Brelaz1979/),error=error)
       

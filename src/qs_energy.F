@@ -179,10 +179,12 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, error=error)
 
-    ! create neighbor lists with molecular blocks ?
-    molecule_only = (qs_env%dft_control%qs_control%molecular .OR. qs_env%dft_control%qs_control%do_kg)
+    molecule_only = .FALSE.
 
     IF (qs_env%dft_control%qs_control%do_kg) THEN
+
+      ! create neighbor lists with molecular blocks
+      molecule_only = .TRUE.
 
       ! get the set of molecules
       CALL get_qs_env(qs_env=qs_env, molecule_set=molecule_set, natom=natom, error=error)
