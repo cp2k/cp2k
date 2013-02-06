@@ -32,7 +32,7 @@ __global__ void stack_mm_z
    *  \var lock_owner  current C block owner (used in locking)
    */ 
 
-  int sp, lock_owner, c_id, sp_one;
+  int sp; //, lock_owner, c_id, sp_one;
   int tn, nt;
   int r, c, l;
   int m, n, k;
@@ -106,28 +106,34 @@ __global__ void stack_mm_z
     }
   }
 
-  /* Lock the C block. */
-  syncthreads();
-  if (tn == 0) {
-    sp_one = sp + 1;
-    c_id = our_params[6]-1;
-    lock_owner = 0;
-    while ((lock_owner != sp_one))
-      lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);
+  /* Add results to global C block. */
+ if (tn < mn) {
+    atomicAdd(&c_data[2*(our_params[5]-1+tn)  ], myc_r);
+    atomicAdd(&c_data[2*(our_params[5]-1+tn)+1], myc_i);
   }
 
-  /* Add our results to the C block. */
-  syncthreads();
-  if (tn < mn) {
-    c_data[2*(our_params[5]-1+tn)  ] += myc_r;
-    c_data[2*(our_params[5]-1+tn)+1] += myc_i;
-  }
-
-  /* Release the lock on the C block. */
-  syncthreads();
-  if (tn == 0) {
-    c_locks[c_id] = 0;
-    //threadfence();
-  }
+ // /* Lock the C block. */
+ // syncthreads();
+ // if (tn == 0) {
+ //   sp_one = sp + 1;
+ //   c_id = our_params[6]-1;
+ //   lock_owner = 0;
+ //   while ((lock_owner != sp_one))
+ //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);
+ // }
+ //
+ // /* Add our results to the C block. */
+ // syncthreads();
+ // if (tn < mn) {
+ //   c_data[2*(our_params[5]-1+tn)  ] += myc_r;
+ //   c_data[2*(our_params[5]-1+tn)+1] += myc_i;
+ // }
+ //
+ // /* Release the lock on the C block. */
+ // syncthreads();
+ // if (tn == 0) {
+ //   c_locks[c_id] = 0;
+ //   //threadfence();
+ // }
 
 };

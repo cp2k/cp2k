@@ -9,6 +9,7 @@
 
 extern __shared__ double cache[];
 
+
 /* The following are defined in "dbcsr_cuda.h" */
 /* SQUARESIZE, BLOCK, TDIM, NUMTHREADS23SQ, BLOCKSPLIT23SQ, TOTALTHREADS23SQ */
 
@@ -71,7 +72,7 @@ __global__ void stack_mm_mnk_sq23_d (
 	 *  \var lock_owner  current C block owner (used in locking)
 	 */ 
 
-	int lock_owner, c_id, my_id;
+	// int lock_owner, c_id, my_id;
 
 	/* We have received the data from a Fortran code, so we should try to keep
 	   Fortran ordering when considering rows and columns */
@@ -207,14 +208,13 @@ __global__ void stack_mm_mnk_sq23_d (
 		   should be the next C-block ID */
 		if(run==nrun-1 || param_stack[psp+6]-1 != param_stack[psp+6+7]-1) {
 		  c_loc = param_stack[psp+5]-1;
-		  c_id = param_stack[psp+6]-1;
-		  
-		  if (threadIdx.x == 0) {
-		    my_id = blockIdx.x+1;
-		    lock_owner = 0;
-		    while ((lock_owner != my_id))
-		      lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
-		  } 
+		  // c_id = param_stack[psp+6]-1;
+		  // if (threadIdx.x == 0) {
+		  //   my_id = blockIdx.x+1;
+		  //   lock_owner = 0;
+		  //   while ((lock_owner != my_id))
+		  //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
+		  // } 
 		  
 		  /* Here we need to treat the threads differently depending upon whether they are 
 		     in the lower half or the upper half of the thread block in the case of a 128-thread
@@ -267,15 +267,17 @@ __global__ void stack_mm_mnk_sq23_d (
 		    myarrayindex=l*TOTALTHREADS23SQ+threadIdx.x;
 		    if(myarrayindex<(SQUARESIZE*SQUARESIZE)){
 		      buffaddr=myarrayindex + (myarrayindex)/SQUARESIZE;
-		      c_data[c_loc+myarrayindex]+=buff[buffaddr];
+		      // c_data[c_loc+myarrayindex]+=buff[buffaddr];
+		      atomicAdd(&c_data[c_loc+myarrayindex], buff[buffaddr]);
 		    }
 		  }
 
 		  /* Release the lock on the C block. */
 		  syncthreads();
-		  if (threadIdx.x == 0) {
-		    c_locks[c_id] = 0;
-		  }
+		  // if (threadIdx.x == 0) {
+		  //   c_locks[c_id] = 0;
+		  // }
+		
 		  /* If we have another C-block then we need to reset our partial sum to zero for the new C-block */
 		  if(run!=nrun-1){
 		    for(i=0;i<TDIM;i++){
@@ -334,7 +336,7 @@ stack_mm_mnk_sq5_d (
 
        __shared__ double c_s[128];
 
-        int  c_id, my_id;
+        //int  c_id, my_id;
         double myc;
 
         int psp;
@@ -363,12 +365,17 @@ stack_mm_mnk_sq5_d (
 
         param_stack += psp + lid;
 
+        int param_r = 0;
+        if(wid < nrun+wid){
+           param_r = __ldg(param_stack);
+        } 
+
         //for (run = 0; run < nrun; run+=4) {
         for (run = wid; run < nrun+wid; run+=4) {
-          int param_r = 0;
+          //int param_r = 0;
 
           //param_r = __ldg(param_stack+psp+lid);
-          param_r = __ldg(param_stack);
+          //param_r = __ldg(param_stack);
 
           // load matrix elements
           int srcA = __shfl(param_r, quad+3) - 1;
@@ -409,13 +416,14 @@ stack_mm_mnk_sq5_d (
           // if we are in the last quadrant, so load the new parameter
           // set now
           int c_loc = __shfl(param_r, quad+5) - 1;
-          c_id = __shfl(param_r, quad+6) - 1;
+          //c_id = __shfl(param_r, quad+6) - 1;
 
           //if(run + wid >= nrun) flush_c = false;
           if(run  >= nrun) flush_c = false;
 
 
           if(wid == 1 || wid == 3){
+//          if( (wid && 0x1) == 1 ){
             if( c_loc == __shfl(param_r, quad+5-7)-1){
              c_s[tid] = myc;
              flush_c = false;
@@ -427,6 +435,7 @@ stack_mm_mnk_sq5_d (
           syncthreads();
 
           if(wid == 0 || wid == 2){
+//          if((wid && 0x1) == 0){
             if( c_loc == __shfl(param_r, quad+5+7)-1)  myc += c_s[tid+32];
             if( wid == 2) {
              if( c_loc == __shfl(param_r, quad+5-14)-1) {
@@ -448,24 +457,34 @@ stack_mm_mnk_sq5_d (
           /* param_stack[psp+6] is the current C-block ID, so adding 7 means that param_stack[psp+6+7]
                should be the next C-block ID */
 
+          param_stack += 28;
+          param_r = __ldg(param_stack);
+      
+          if(wid == 0 && run+4 < nrun+wid) {
+             if( c_loc == __shfl(param_r, quad + 5)-1) flush_c = false; 
+          } 
+
           if(flush_c){
 
+
+/*
              if (lid == 0) {
                  my_id = 4*blockIdx.x  + wid + 1;
                  int lock_owner = 0;
                     while ((lock_owner != my_id))
                          lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
              }
-
+*/
 
              if (lid < 25) {
-                  c_data[c_loc+lid] += myc;
+                  //c_data[c_loc+lid] += myc;
+                  atomicAdd(&c_data[c_loc+lid], myc);
              }
 
              /* Release the lock on the C block. */
-             if (lid == 0) {
-                  c_locks[c_id] = 0;
-             }
+//             if (lid == 0) {
+//                  c_locks[c_id] = 0;
+//             }
              /* If we have another C-block then we need to reset 
                 our partial sum to zero for the new C-block */
              myc = 0.0;
@@ -473,7 +492,7 @@ stack_mm_mnk_sq5_d (
           }
 
           //psp += 28;
-          param_stack += 28;
+          //param_stack += 28;
         }
 
 };
@@ -508,7 +527,7 @@ __global__ void stack_mm_mnk_d (
 	 *  \var lock_owner  current C block owner (used in locking)
 	 */ 
 
-	int lock_owner, c_id, my_id;
+	//int lock_owner, c_id, my_id;
 	const int mn = m * n;
 	const int mk = m * k;
 	const int kn = n * k;
@@ -564,29 +583,33 @@ __global__ void stack_mm_mnk_d (
 		/* param_stack[psp+6] is the current C-block ID, so adding 7 means that param_stack[psp+6+7]
 		   should be the next C-block ID */
 		if(run==nrun-1 || param_stack[psp+6]-1 != param_stack[psp+6+7]-1) {
-		  c_loc = param_stack[psp+5]-1;
-		  c_id = param_stack[psp+6]-1;
-		  
-		  if (threadIdx.x == 0) {
-		    my_id = blockIdx.x+1;
-		    lock_owner = 0;
-		    while ((lock_owner != my_id))
-		      lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
-		  } 
-		  
-		  
-		  /* Add our results to the C block. */
-		  syncthreads();
-		  if (threadIdx.x < mn) {
-		    c_data[c_loc+threadIdx.x] += myc;
-		  }
-//                 if(threadIdx.x < 25) printf("%d: general purpose myc = %g\n", threadIdx.x, myc);
-		  
-		  /* Release the lock on the C block. */
-		  syncthreads();
-		  if (threadIdx.x == 0) {
-		    c_locks[c_id] = 0;
-		  }
+          /* Add results to global C block. */
+          c_loc = param_stack[psp + 5] - 1;
+          if (threadIdx.x < mn)
+             atomicAdd(&c_data[c_loc + threadIdx.x], myc);
+		
+		  // c_id = param_stack[psp+6]-1;
+		  // 
+		  // if (threadIdx.x == 0) {
+		  //   my_id = blockIdx.x+1;
+		  //   lock_owner = 0;
+		  //   while ((lock_owner != my_id))
+		  //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
+		  // } 
+		  // 
+		  // 
+		  // /* Add our results to the C block. */
+		  // syncthreads();
+		  // if (threadIdx.x < mn) {
+		  //   c_data[c_loc+threadIdx.x] += myc;
+		  // }
+          // //         if(threadIdx.x < 25) printf("%d: general purpose myc = %g\n", threadIdx.x, myc);
+		  // 
+		  // /* Release the lock on the C block. */
+		  // syncthreads();
+		  // if (threadIdx.x == 0) {
+		  //   c_locks[c_id] = 0;
+		  // }
 		  /* If we have another C-block then we need to reset our partial sum to zero for the new C-block */
 		  myc = 0.0l;
 		}
@@ -623,7 +646,7 @@ __global__ void stack_mm_d
    *  \var lock_owner  current C block owner (used in locking)
    */ 
 
-  int sp, lock_owner, c_id, sp_one;
+  int sp; //, lock_owner, c_id, sp_one;
   int tn;
   int r, c, l;
   int m, n, k;
@@ -666,29 +689,34 @@ __global__ void stack_mm_d
     }
   }
 
-  /* Lock the C block. */
-  c_id = param_stack[psp+6]-1;
-  c_loc = param_stack[psp+5]-1;
-  syncthreads();
-  if (tn == 0) {
-    sp_one = sp + 1;
-    lock_owner = 0;
-    while ((lock_owner != sp_one))
-      lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);
-  }
+  /* Add results to global C block. */
+  c_loc = param_stack[psp + 5] - 1;
+  if (tn < mn)
+     atomicAdd(&c_data[c_loc + tn], myc);
 
-  /* Add our results to the C block. */
-  syncthreads();
-  if (tn < mn) {
-    c_data[c_loc+tn] += myc;
-  }
-
-  /* Release the lock on the C block. */
-  syncthreads();
-  if (tn == 0) {
-    c_locks[c_id] = 0;
-    //threadfence();
-  }
+  // /* Lock the C block. */
+  // c_id = param_stack[psp+6]-1;
+  // c_loc = param_stack[psp+5]-1;
+  // syncthreads();
+  // if (tn == 0) {
+  //   sp_one = sp + 1;
+  //   lock_owner = 0;
+  //   while ((lock_owner != sp_one))
+  //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);
+  // }
+  // 
+  // /* Add our results to the C block. */
+  // syncthreads();
+  // if (tn < mn) {
+  //   c_data[c_loc+tn] += myc;
+  // }
+  // 
+  // /* Release the lock on the C block. */
+  // syncthreads();
+  // if (tn == 0) {
+  //   c_locks[c_id] = 0;
+  //   //threadfence();
+  // }
 
 };
 
