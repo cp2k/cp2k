@@ -17,7 +17,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 10
+      MAX_SCF 2
       EPS_SCF 1.0e-4
     &END SCF
     &XC
@@ -26,15 +26,16 @@
           FUNCTIONAL XC_GGA_X_RPW86 XC_GGA_C_PBE
         &END LIBXC
       &END XC_FUNCTIONAL
-      &VDW_POTENTIAL
+      &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL NON_LOCAL
          &NON_LOCAL
            TYPE RVV10
            PARAMETERS 6.3 0.0093
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME ../rVV10_kernel_table.dat
+           CUTOFF  80
          &END NON_LOCAL
-      &END VDW_POTENTIAL
+      &END vdW_POTENTIAL
     &END XC
   &END DFT
   &SUBSYS
@@ -60,7 +61,7 @@
     EXTERNAL_PRESSURE 0.0
     TYPE DIRECT_CELL_OPT
     OPTIMIZER CG
-    MAX_ITER 3
+    MAX_ITER 2
     MAX_DR 0.003
     RMS_DR 0.0015
     MAX_FORCE 0.00045

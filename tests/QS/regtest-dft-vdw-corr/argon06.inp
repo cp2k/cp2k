@@ -16,7 +16,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 10
+      MAX_SCF 2
       EPS_SCF 1.0e-4
     &END SCF
     &XC

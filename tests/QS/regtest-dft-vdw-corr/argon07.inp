@@ -25,7 +25,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 10
+      MAX_SCF 2
       EPS_SCF 1.0e-4
     &END SCF
     &XC
@@ -43,7 +43,7 @@
            TYPE DRSLL
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME ../vdW_kernel_table.dat
-           CUTOFF  175
+           CUTOFF  80
          &END NON_LOCAL
       &END vdW_POTENTIAL
     &END XC

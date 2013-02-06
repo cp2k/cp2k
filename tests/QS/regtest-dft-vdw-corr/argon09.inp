@@ -17,7 +17,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 100
+      MAX_SCF 2
       EPS_SCF 1.0e-4
     &END SCF
     &XC
@@ -61,7 +61,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 5
+    STEPS 2
     TIMESTEP 0.1
     TEMPERATURE 300.0
   &END MD

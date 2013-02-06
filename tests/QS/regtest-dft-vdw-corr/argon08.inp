@@ -17,7 +17,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 10
+      MAX_SCF 2
       EPS_SCF 1.0e-4
     &END SCF
     &XC
@@ -35,7 +35,7 @@
            TYPE DRSLL
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME ../vdW_kernel_table.dat
-           CUTOFF  175
+           CUTOFF  80
          &END NON_LOCAL
       &END vdW_POTENTIAL
     &END XC
@@ -63,7 +63,7 @@
     EXTERNAL_PRESSURE 0.0
     TYPE DIRECT_CELL_OPT
     OPTIMIZER CG
-    MAX_ITER 3
+    MAX_ITER 2
     MAX_DR 0.003
     RMS_DR 0.0015
     MAX_FORCE 0.00045
