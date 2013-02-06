@@ -183,10 +183,11 @@ CONTAINS
     INTEGER, DIMENSION(3, 3), PARAMETER :: &
       nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
 
-    INTEGER                                  :: handle, i, idir, i_grid, ispin, n1, &
-                                                n2, n3, np, nspin, stat
+    INTEGER                                  :: handle, i, i_grid, idir, &
+                                                ispin, n1, n2, n3, np, nspin, &
+                                                stat
     LOGICAL                                  :: failure, use_virial
-    REAL(KIND=dp)                            :: beta, b_value, Ec_nl, sumnp
+    REAL(KIND=dp)                            :: b_value, beta, Ec_nl, sumnp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dq0_dgradrho, dq0_drho, hpot, &
                                                 potential, q0, rho
     REAL(KIND=dp), ALLOCATABLE, &
@@ -323,7 +324,7 @@ CONTAINS
           DO i_grid=1, np
              IF (rho(i_grid) > epsr) THEN 
                 DO i=1,dispersion_env%nqs
-                   thetas(i_grid,i) = thetas(i_grid,i) * (1.0_dp / (3.0_dp * sqrt(pi) * &
+                   thetas(i_grid,i) = thetas(i_grid,i) * (1.0_dp / (3.0_dp * SQRT(pi) * &
                    ( b_value**(3.0_dp/2.0_dp) ) ) ) * (rho(i_grid) / pi)**(3.0_dp/4.0_dp)
                 END DO
              ELSE
@@ -586,7 +587,8 @@ CONTAINS
   SUBROUTINE get_potential(q0, dq0_drho, dq0_dgradrho, total_rho, u_vdW, potential, h_prefactor, &
                          dispersion_env, drho, dvol, virial, error)
 
-    REAL(dp), DIMENSION(:), INTENT(in)       :: q0, dq0_drho, dq0_dgradrho, total_rho
+    REAL(dp), DIMENSION(:), INTENT(in)       :: q0, dq0_drho, dq0_dgradrho, &
+                                                total_rho
     REAL(dp), DIMENSION(:, :), INTENT(in)    :: u_vdW
     REAL(dp), DIMENSION(:), INTENT(inout)    :: potential, h_prefactor
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
@@ -601,8 +603,8 @@ CONTAINS
     INTEGER                                  :: handle, i_grid, l, m, nqs, &
                                                 P_i, q, q_hi, q_low, stat
     LOGICAL                                  :: failure = .FALSE., use_virial
-    REAL(dp)                                 :: a, b, b_value, c, const, d, dP_dq0, dq, e, f, &
-                                                P, prefactor
+    REAL(dp)                                 :: a, b, b_value, c, const, d, &
+                                                dP_dq0, dq, e, f, P, prefactor
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: y
     REAL(dp), DIMENSION(:), POINTER          :: q_mesh
     REAL(dp), DIMENSION(:, :), POINTER       :: d2y_dx2
@@ -714,9 +716,9 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     INTEGER, PARAMETER :: m_cut = 12                                
-    REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, &
-      LDA_a1 = 0.2137_dp, LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , &
-      LDA_b3 = 1.6382_dp, LDA_b4 = 0.49294_dp
+    REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, LDA_a1 = 0.2137_dp, &
+      LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , LDA_b3 = 1.6382_dp, &
+      LDA_b4 = 0.49294_dp
 
     INTEGER                                  :: i_grid, index
     REAL(dp)                                 :: dq0_dq, exponent, &
@@ -822,13 +824,13 @@ CONTAINS
                                                 dq0_dgradrho(:)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
-    INTEGER, PARAMETER :: m_cut = 12
-                                
+    INTEGER, PARAMETER                       :: m_cut = 12
+
     INTEGER                                  :: i_grid, index
-    REAL(dp)                                 :: b_value, C_value, dq0_dq, exponent, &
-                                                q, q_cut, q_min , &
-                                                dw0_dn, dk_dn, gmod2, &
-                                                mod_grad, wp2, wg2, w0, k
+    REAL(dp)                                 :: b_value, C_value, dk_dn, &
+                                                dq0_dq, dw0_dn, exponent, &
+                                                gmod2, k, mod_grad, q, q_cut, &
+                                                q_min, w0, wg2, wp2
 
     q_cut = dispersion_env%q_cut
     q_min = dispersion_env%q_min
@@ -845,17 +847,17 @@ CONTAINS
      gmod2 = gradient_rho(i_grid,1)**2+gradient_rho(i_grid,2)**2+gradient_rho(i_grid,3)**2
  
      !if (total_rho(i_grid) > epsr .and. gmod2 > epsr) cycle
-     if (total_rho(i_grid) > epsr) then
+     IF (total_rho(i_grid) > epsr) THEN
      
        !! Calculate some intermediate values needed to find q
        !! ------------------------------------------------------------------------------------
-       mod_grad = sqrt(gmod2)
+       mod_grad = SQRT(gmod2)
 
        wp2= 16.0_dp*pi*total_rho(i_grid)
        wg2 = 4_dp*C_value * (mod_grad/total_rho(i_grid))**4
 
        k = b_value*3.0_dp* pi* ((total_rho(i_grid)/(9.0_dp*pi))**(1.0_dp/6.0_dp))
-       w0 = sqrt( wg2 + wp2/3.0_dp  )
+       w0 = SQRT( wg2 + wp2/3.0_dp  )
 
        q = w0 / k 
      
@@ -865,21 +867,21 @@ CONTAINS
        exponent = 0.0_dp
        dq0_dq = 0.0_dp
      
-       do index = 1, m_cut
+       DO index = 1, m_cut
         
           exponent = exponent + ( (q/q_cut)**index)/index
           dq0_dq = dq0_dq + ( (q/q_cut)**(index-1))
         
-       end do
+       END DO
 
-       q0(i_grid) = q_cut*(1.0_dp - exp(-exponent))
-       dq0_dq = dq0_dq * exp(-exponent)
+       q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
+       dq0_dq = dq0_dq * EXP(-exponent)
 
        !! ---------------------------------------------------------------------------------------
 
-       if (q0(i_grid) < q_min) then
+       IF (q0(i_grid) < q_min) THEN
          q0(i_grid) = q_min
-       end if
+       END IF
 
        !!---------------------------------Final values---------------------------------  
 
@@ -889,7 +891,7 @@ CONTAINS
        dq0_drho(i_grid) = dq0_dq * 1.0_dp / (k**2.0) * (dw0_dn * k - dk_dn * w0 )   
        dq0_dgradrho(i_grid) = dq0_dq * 1.0_dp / ( 2.0_dp * k * w0 ) * 4.0_dp * wg2 / (mod_grad**2)
 
-     endif  
+     ENDIF  
 
     END DO
  
@@ -903,9 +905,9 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     INTEGER, PARAMETER :: m_cut = 12                                
-    REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, &
-      LDA_a1 = 0.2137_dp, LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , &
-      LDA_b3 = 1.6382_dp, LDA_b4 = 0.49294_dp
+    REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, LDA_a1 = 0.2137_dp, &
+      LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , LDA_b3 = 1.6382_dp, &
+      LDA_b4 = 0.49294_dp
 
     INTEGER                                  :: i_grid, index
     REAL(dp)                                 :: exponent, &
@@ -984,9 +986,8 @@ CONTAINS
 
     INTEGER                                  :: i_grid, index
     REAL(dp)                                 :: b_value, C_value, exponent, &
-                                                q, q_cut, q_min , &
-                                                dw0_dn, dk_dn, gmod2, &
-                                                mod_grad, wp2, wg2, w0, k
+                                                gmod2, k, mod_grad, q, q_cut, &
+                                                q_min, w0, wg2, wp2
 
     q_cut = dispersion_env%q_cut
     q_min = dispersion_env%q_min
@@ -1001,17 +1002,17 @@ CONTAINS
      gmod2 = gradient_rho(i_grid,1)**2+gradient_rho(i_grid,2)**2+gradient_rho(i_grid,3)**2
  
      !if (total_rho(i_grid) > epsr .and. gmod2 > epsr) cycle
-     if (total_rho(i_grid) > epsr) then
+     IF (total_rho(i_grid) > epsr) THEN
      
        !! Calculate some intermediate values needed to find q
        !! ------------------------------------------------------------------------------------
-       mod_grad = sqrt(gmod2)
+       mod_grad = SQRT(gmod2)
 
        wp2= 16.0_dp*pi*total_rho(i_grid)
        wg2 = 4_dp*C_value * (mod_grad/total_rho(i_grid))**4
 
        k = b_value*3.0_dp* pi* ((total_rho(i_grid)/(9.0_dp*pi))**(1.0_dp/6.0_dp))
-       w0 = sqrt( wg2 + wp2/3.0_dp  )
+       w0 = SQRT( wg2 + wp2/3.0_dp  )
 
        q = w0 / k 
      
@@ -1020,19 +1021,19 @@ CONTAINS
 
        exponent = 0.0_dp
      
-       do index = 1, m_cut
+       DO index = 1, m_cut
         
           exponent = exponent + ( (q/q_cut)**index)/index
         
-       end do
+       END DO
 
-       q0(i_grid) = q_cut*(1.0_dp - exp(-exponent))
+       q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
 
-       if (q0(i_grid) < q_min) then
+       IF (q0(i_grid) < q_min) THEN
          q0(i_grid) = q_min
-       end if
+       END IF
 
-     endif  
+     ENDIF  
 
     END DO
  
