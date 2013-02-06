@@ -46,7 +46,6 @@ __global__ void stack_mm_mnk_sq23_d (
 	const int *__restrict__ param_stack,
 	const int careful, const int nruns,
 	const int m, const int n, const int k,
-	//const int mn, const int mk, const int kn, const int maxb,
 	const int liter,
 	const double *__restrict__ a_data,
 	const double *__restrict__ b_data,
@@ -308,7 +307,6 @@ stack_mm_mnk_sq5_d (
 	const int *__restrict__ param_stack,
 	const int careful, const int nruns,
 	const int m, const int n, const int k,
-	//const int mn, const int mk, const int kn, const int maxb,
 	const int liter,
 	const double *__restrict__ a_data,
 	const double *__restrict__ b_data,
@@ -485,7 +483,6 @@ __global__ void stack_mm_mnk_d (
 	const int *__restrict__ param_stack,
 	const int careful, const int nruns,
 	const int m, const int n, const int k,
-	//const int mn, const int mk, const int kn, const int maxb,
 	const int liter,
 	const double *__restrict__ a_data,
 	const double *__restrict__ b_data,
@@ -696,202 +693,3 @@ __global__ void stack_mm_d
 };
 
 
-__global__ void stack_mm_mnk_d_direct (
-	const int *__restrict__ param_stack,
-	const int careful, const int nruns,
-	const int m, const int n, const int k, const int mn,
-	const double *__restrict__ a_data,
-	const double *__restrict__ b_data,
-	double *__restrict__ c_data,
-	int *__restrict__ c_locks) {
-
-	/**
-	 *  \var sp        which stack member this thread block is processing
-	 (= CUDA thread block)
-	 *  \var psp       pointer to first element of parameters
-	 *  \var c_loc     pointer to C data
-	 *  \var run       run number
-         *  \var nrun      number of runs
-	 *  \var my_id     my ID for locking
-	 *  \var tn        thread number (of CUDA thread block)
-	 *  \var mn        product of the block dimensions
-	 *  \var l         multiplication loop index
-	 *  \var c, r      C matrix row, column of this thread
-	 *  \var myc       C matrix accumulator
-	 *  \var buff_l    cache for A data
-	 *  \var buff_r    cache for B data
-	 *  \var c_id      translated C block number (used in locking)
-	 *  \var lock_owner  current C block owner (used in locking)
-	 */ 
-
-	int lock_owner, c_id, my_id;
-	int l;
-	const int r = threadIdx.x % m;
-	const int c = threadIdx.x / m;
-	double myc ;
-	const double *buff_l, *buff_r;
-        
-	int psp, c_loc;
-
-	int run, nrun;
-
-	nrun = GROUPING;
-	if (blockIdx.x == careful)
-		nrun = nruns;
-
-	for (run = 0; run < nrun; run ++) {
-		psp = 7*(blockIdx.x*GROUPING + run);
-
-		buff_l = &(a_data[param_stack[psp+3]-1]);
-		buff_r = &(b_data[param_stack[psp+4]-1]);
-		/* Do actual multiplication. */
-		if (threadIdx.x < mn) {
-			myc = 0.0l;
-
-			for (l = 0; l < k; l++) {
-				myc = myc +
-					buff_l[   l*m+r] *
-					buff_r[   c*k+l];
-			}
-		}
-
-		/* Lock the C block. */
-		c_loc = param_stack[psp+5]-1;
-		syncthreads();
-		c_id = param_stack[psp+6]-1;
-
-		if (threadIdx.x == 0) {
-			my_id = blockIdx.x+1;
-			lock_owner = 0;
-			while ((lock_owner != my_id))
-				lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
-		}
-		
-
-			
-
-		/* Add our results to the C block. */
-		syncthreads();
-		if (threadIdx.x < mn) {
-			c_data[c_loc+threadIdx.x] += myc;
-		}
-
-		/* Release the lock on the C block. */
-		syncthreads();
-		if (threadIdx.x == 0) {
-			c_locks[c_id] = 0;
-			//threadfence();
-		}
-	}
-
-
-};
-
-
-__global__ void stack_mm_mnk_vec_d (
-	const int *__restrict__ param_stack,
-	const int stack_size, const int nmat,
-	const int m, const int n, const int k, const int mn,
-	const double *__restrict__ a_data,
-	const double *__restrict__ b_data,
-	double *__restrict__ c_data,
-	int *__restrict__ c_locks) {
-	
-	/**
-	 *  \var sp        which stack member this thread block is processing
-	 (= CUDA thread block)
-	 *  \var psp       pointer to first element of parameters
-	 *  \var c_loc     pointer to C data
-	 *  \var run       run number
-         *  \var nrun      number of runs
-	 *  \var my_id    translated stack (=sp+1)
-	 *  \var tn        thread number (of CUDA thread block)
-	 *  \var mn        product of the block dimensions
-	 *  \var l         multiplication loop index
-	 *  \var c, r      C matrix row, column of this thread
-	 *  \var myc       C matrix accumulator
-	 *  \var buff_l    cache for A data
-	 *  \var buff_r    cache for B data
-	 *  \var c_id      translated C block number (used in locking)
-	 *  \var lock_owner  current C block owner (used in locking)
-	 */ 
-
-	int lock_owner, c_id, my_id;
-	const int tn = threadIdx.x;
-	int nmat_used;
-	int nt;
-	const int r = threadIdx.x % m;
-	int c, l;
-	double myc[32];
-	double mya[32];
-	__shared__ int our_b[32];
-	const double *buff_l, *buff_r;
-
-	int psp, c_loc;
-//	int run, nrun;
-	const int my_mat_num = threadIdx.x / m;
-	int imat;
-
-	//nrun = GROUPING;
-	//if ((blockIdx.x+1) * GROUPING > stack_size)
-	//	nrun = stack_size - (blockIdx.x)*GROUPING;
-
-	nmat_used = nmat;
-	if ((blockIdx.x+1)*nmat > stack_size)
-		nmat_used = stack_size - (blockIdx.x)*nmat;
-	nt = m * nmat_used;
-
-	//for (run = 0; run < nrun; run ++) {
-	//sp = blockIdx.x*GROUPING + run;
-
-	psp = 7*(blockIdx.x*nmat + my_mat_num);
-
-	buff_l = &(a_data[param_stack[psp+3]-1]);
-	buff_r = &(b_data[param_stack[psp+4]-1]);
-
-	/* Do actual multiplication. */
-	if (tn < nt) {
-		for (l = 0; l < k; l++) {
-			mya[l] = buff_l[ l*m + r ];
-		}
-		for (c = 0; c < n; c++) {
-			if (tn < k)
-				our_b[l] = buff_r[c*k+tn];
-			syncthreads();
-			myc[c] = 0.0l;
-		
-			for (l = 0; l < k; l++) {
-				myc[c] = myc[c] +
-					mya   [   l    ] *
-					our_b [   l    ];
-				//buff_r[   c*k+l];
-			}
-		}
-	}
-	/* Lock the C block. */
-	c_id = param_stack[psp+6]-1;
-	syncthreads();
-	c_loc = param_stack[psp+5]-1;
-	my_id = blockIdx.x + 1;
-	for (imat = 0; imat < nmat_used; imat++) {
-		if (r == 0 && imat == my_mat_num) {
-			lock_owner = 0;
-			while ((lock_owner != my_id))
-				lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
-		}
-
-		/* Add our results to the C block. */
-		syncthreads();
-		if (tn < nt && imat == my_mat_num) {
-			for (c = 0; c < n; c++) {
-				c_data[c_loc+r+c*m] += myc[c];
-			}
-		}
-
-		/* Release the lock on the C block. */
-		syncthreads();
-		if (r == 0 && imat == my_mat_num) {
-			c_locks[c_id] = 0;
-		}
-	}
-};

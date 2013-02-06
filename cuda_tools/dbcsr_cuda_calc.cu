@@ -14,20 +14,6 @@ static const int verbose_print = 0;
 /* The following are defined in "dbcsr_cuda.h" */
 /* BLOCK, TDIM, TOTALTHREADS23SQ */
 
-__global__ void zerolocks (
-	int *__restrict__ locks,
-	const int *__restrict__ param_stack, const int stack_size) {
-
-	int sp, lock_pos;
-
-	sp = blockIdx.x * blockDim.x + threadIdx.x;
-	if (sp < stack_size) {
-		lock_pos = param_stack[sp*7+6]-1;
-		locks[lock_pos] = 0;
-		threadfence();
-	}
-}
-
 int cuda_error_check (cudaError_t cudaError) {
   if (cudaError != cudaSuccess) {
     printf("CUDA Error: %s\n", cudaGetErrorString(cudaError));
@@ -78,26 +64,7 @@ __global__ void stack_mm_mnk_d (
 	const int *__restrict__ param_stack,
 	const int careful, const int nruns,
 	const int m, const int n, const int k,
-//	const int mn, const int mk, const int nk, const int maxb,
 	const int liter,
-	const double *__restrict__ a_data,
-	const double *__restrict__ b_data,
-	double *__restrict__ c_data,
-	int *__restrict__ c_locks);
-
-__global__ void stack_mm_mnk_d_direct (
-	const int *__restrict__ param_stack,
-	const int careful, const int nruns,
-	const int m, const int n, const int k, const int mn,
-	const double *__restrict__ a_data,
-	const double *__restrict__ b_data,
-	double *__restrict__ c_data,
-	int *__restrict__ c_locks);
-
-__global__ void stack_mm_mnk_vec_d (
-	const int *__restrict__ param_stack,
-	const int stack_size, const int nmat,
-	const int m, const int n, const int k, const int mn,
 	const double *__restrict__ a_data,
 	const double *__restrict__ b_data,
 	double *__restrict__ c_data,
@@ -107,7 +74,6 @@ __global__ void stack_mm_mnk_sq23_d (
 	const int *__restrict__ param_stack,
 	const int careful, const int nruns,
 	const int m, const int n, const int k,
-	//const int mn, const int mk, const int kn, const int maxb,
 	const int liter,
 	const double *__restrict__ a_data,
 	const double *__restrict__ b_data,
@@ -118,7 +84,6 @@ __global__ void stack_mm_mnk_sq5_d (
         const int *__restrict__ param_stack,
         const int careful, const int nruns,
         const int m, const int n, const int k,
-        //const int mn, const int mk, const int kn, const int maxb,
         const int liter,
         const double *__restrict__ a_data,
         const double *__restrict__ b_data,
@@ -177,31 +142,7 @@ extern "C" int dc_do_stack_cu(
 			if (verbose_print)
 				printf("Defined m,n,k: %d %d %d; %d.\n",
 				       m_max, n_max, k_max, stack_size);
-			if (0) {
-				mn = m_max * n_max;
-				mk = m_max * k_max;
-				nk = n_max * k_max;
-				nmat = 1;
-				if (m_max > 0)
-					nmat = 128 / m_max;
-				careful = (stack_size/GROUPING);
-				nruns = stack_size - careful * GROUPING;
-				shared_size = 0;
-				stack_mm_mnk_vec_d <<< (stack_size+nmat-1)/nmat, nmat*m_max, shared_size, stream >>>
-					(param_stack, stack_size, nmat,
-					 m_max, n_max, k_max, mn,
-					 (double *) a_data, (double *) b_data, (double *) c_data,
-					 c_locks);
-			} else if (0) {
-				careful = (stack_size/GROUPING);
-				nruns = stack_size - careful * GROUPING;
-				stack_mm_mnk_d_direct <<< (stack_size+GROUPING-1)/GROUPING, maxt, 0, stream >>>
-					(param_stack, careful, nruns,
-					 m_max, n_max, k_max, m_max*n_max,
-					 (double *) a_data, (double *) b_data, (double *) c_data,
-					 c_locks);
-			} else {
-                             if (1) {
+				
 				mn = m_max * n_max;
 				mk = m_max * k_max;
 				nk = n_max * k_max;
@@ -243,8 +184,6 @@ extern "C" int dc_do_stack_cu(
 				     (double *) a_data, (double *) b_data, (double *) c_data,
 				     c_locks);
 				}
-                            }
-			}
 		} else {
 			//if (verbose_print)
 			//	printf("Generic m,n,k: %d %d %d; %d.\n", m_max, n_max, k_max, stack_size);
