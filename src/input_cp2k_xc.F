@@ -966,7 +966,7 @@ CONTAINS
             error=error)
 
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of functional.",&
+            description="Type of functional (the corresponding kernel data file should be selected).",&
             usage="TYPE DRSLL", &
             enum_c_vals=s2a("DRSLL","LMKLL","RVV10"),&
             enum_i_vals=(/ vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10 /),&
@@ -980,7 +980,9 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="KERNEL_FILE_NAME",&
-            description="Name of the kernel data file, may include a path",&
+            description="Name of the kernel data file, may include a path."//&
+                        "vdW_kernel_table.dat is for DRSLL and LMKLL and"//&
+                        "rVV10_kernel_table.dat is for rVV10.",&
             usage="KERNEL_FILE_NAME <FILENAME>",required=.FALSE.,&
             default_lc_val="vdW_kernel_table.dat",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
