@@ -16,7 +16,8 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE force_fields_input
-  USE bibliography,                    ONLY: Tersoff1988,&
+  USE bibliography,                    ONLY: Siepmann1995,&
+                                             Tersoff1988,&
                                              Tosi1964a,&
                                              Tosi1964b,&
                                              Yamada2000,&
@@ -52,8 +53,8 @@ MODULE force_fields_input
        eam_pot_type, ft_pot_type, ft_type, ftd_pot_type, ftd_type, gp_type, &
        gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
        no_potential_single_allocation, pair_potential_p_type, &
-       pair_potential_reallocate, potential_single_allocation, tersoff_type, &
-       wl_type
+       pair_potential_reallocate, potential_single_allocation, siepmann_type, &
+       tersoff_type, wl_type
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
   USE string_utilities,                ONLY: uppercase
@@ -90,8 +91,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngd, &
-      ngp, nimpr, nipbv, nlj, nopbend, nshell, ntersoff, ntors, ntot, nubs, &
-      nwl
+      ngp, nimpr, nipbv, nlj, nopbend, nshell, nsiepmann, ntersoff, ntors, &
+      ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
     REAL(KIND=dp)                            :: min_eps_spline_allowed
@@ -240,6 +241,13 @@ CPSourceFileRef,&
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ntersoff,tersoff=.TRUE.,error=error)
              CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"SIEPMANN",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nsiepmann,error=error)
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nsiepmann,siepmann=.TRUE.,error=error)
+             CALL read_siepmann_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
           END IF
        END IF
 
@@ -1174,6 +1182,52 @@ CPSourceFileRef,&
        END IF
     END DO
   END SUBROUTINE read_tersoff_section
+
+! *****************************************************************************
+!> \brief Reads the siepmann section
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE read_siepmann_section(nonbonded, section, start, siepmann_section,error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(section_vals_type), POINTER         :: siepmann_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_siepmann_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items, n_rep
+    REAL(KIND=dp)                            :: rcut
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL cite_reference(Siepmann1995)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = siepmann_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+
+       CALL section_vals_val_get(siepmann_section,"B",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%B,error=error)
+       CALL section_vals_val_get(siepmann_section,"D",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%D,error=error)
+       CALL section_vals_val_get(siepmann_section,"E",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%E,error=error)
+       CALL section_vals_val_get(siepmann_section,"F",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%F,error=error)
+       CALL section_vals_val_get(siepmann_section,"beta",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%beta,error=error)
+
+     ! ! In case it is defined override the standard specification of RCUT
+      CALL section_vals_val_get ( siepmann_section, "RCUT", n_rep_val=n_rep, error=error)
+      IF(n_rep==1) THEN
+         CALL section_vals_val_get(siepmann_section,"RCUT",r_val=rcut,error=error)
+         nonbonded%pot(start+isec)%pot %rcutsq = rcut**2
+         nonbonded%pot(start+isec)%pot%set(1)%siepmann%rcutsq =  rcut**2
+      END IF
+    END DO
+  END SUBROUTINE read_siepmann_section
 
 ! *****************************************************************************
 !> \brief Reads the Buckingham plus Morse potential section

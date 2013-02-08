@@ -36,3 +36,6 @@ argon_ext.inp             2
 extern_pot-test-01.inp    2
 extern_pot-test-02.inp    2
 extern_pot-test-03.inp    2
+#Siepmann-Sprik potential test
+siepmann_sprik_top.inp    2
+siepmann_sprik_fcc.inp    2

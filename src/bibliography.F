@@ -50,7 +50,7 @@ MODULE bibliography
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,&
              Perdew2008,Lee1988,&
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
-             Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
+             Essmann1995,Ewald1921,Darden1993, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
@@ -527,6 +527,24 @@ CONTAINS
          "UT ISI:A1988Q924400066",&
          "ER"),&
          DOI="10.1103/PhysRevB.38.9902")
+
+    CALL add_reference(key=Siepmann1995, ISI_record=s2a(&
+         "PT J",&
+         "AU SIEPMANN, JI",&
+         "   SPRIK, M   ",&
+         "TI INFLUENCE OF SURFACE TOPOLOGY AND ELECTROSTATIC POTENTIAL ON",&
+         "   WATER/ELECTRODE SYSTEMS",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD JAN 1",&
+         "PY 1995",&
+         "VL 102",&
+         "IS 1",&
+         "BP 511",&
+         "EP 524",&
+         "UT ISI:A1995PZ71400055",&
+         "ER"),&
+         DOI="10.1063/1.469429")
 
     CALL add_reference(key=Bussi2007,ISI_record=s2a(&
          "PT J",&

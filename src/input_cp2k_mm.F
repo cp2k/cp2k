@@ -12,14 +12,9 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k_mm
-  USE bibliography,                    ONLY: Devynck2012,&
-                                             Dick1958,&
-                                             Foiles1986,&
-                                             Mitchell1993,&
-                                             Tersoff1988,&
-                                             Tosi1964a,&
-                                             Tosi1964b,&
-                                             Yamada2000
+  USE bibliography,                    ONLY: &
+       Devynck2012, Dick1958, Foiles1986, Mitchell1993, Siepmann1995, &
+       Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -1388,6 +1383,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_Siepmann_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_NONBONDED_section
@@ -2546,6 +2545,99 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_Tersoff_section
+
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Siepmann-Sprik
+!>        potential type
+!>      (Siepmann and Sprik, J. Chem. Phys. 102(1) 511, 1995)  
+! *****************************************************************************
+ SUBROUTINE create_Siepmann_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_Siepmann_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+   failure=.FALSE.
+
+   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+   IF (.NOT. failure) THEN
+      CALL section_create(section,name="SIEPMANN",&
+           description="This section specifies the input parameters for the Siepmann-Sprik"//&
+                       " potential type. Consist of 4 terms: T1+T2+T3+T4. The terms T1=A/rij^alpha"//&
+                       " and T2=-C/rij^6 have to be given via the GENPOT section. The terms T3+T4"//& 
+                       " are obtained from the SIEPMANN section.",&
+           citations=(/Siepmann1995/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+           error=error)
+
+      NULLIFY(keyword)
+ 
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kind involved in the nonbond potential",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Defines the B parameter of Siepmann potential",&
+            usage="B {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=0.6_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="D",&
+            description="Defines the D parameter of Siepmann potential",&
+            usage="D {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=3.688388_dp,&
+                                           unit_str="internal_cp2k",&
+                                           error=error),&
+            n_var=1, unit_str="internal_cp2k", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="E",&
+            description="Defines the E parameter of Siepmann potential",&
+            usage="E {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=9.069025_dp,&
+                                           unit_str="internal_cp2k",&
+                                           error=error),&
+            n_var=1, unit_str="internal_cp2k", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="F",&
+            description="Defines the F parameter of Siepmann potential",&
+            usage="B {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=13.3_dp,n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+!
+       CALL keyword_create(keyword, name="beta",&
+            description="Defines the beta parameter of Siepmann potential",&
+            usage="beta {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=10.0_dp, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+!
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of Siepmann potential",&
+            usage="RCUT {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=3.2_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+!
+   END IF
+ END SUBROUTINE create_Siepmann_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the qs part

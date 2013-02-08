@@ -68,7 +68,7 @@ MODULE force_fields_all
        pair_potential_lj_create, pair_potential_pp_create, &
        pair_potential_pp_type, pair_potential_single_add, &
        pair_potential_single_clean, pair_potential_single_copy, &
-       pair_potential_single_type, sh_sh, tersoff_type
+       pair_potential_single_type, sh_sh, siepmann_type, tersoff_type
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: bohr
@@ -1956,8 +1956,8 @@ CPSourceFileRef,&
                 IF ( atmname==inp_info%nonbonded%pot(j)%pot %at1.OR.&
                      atmname==inp_info%nonbonded%pot(j)%pot %at2) THEN
                    SELECT CASE(inp_info%nonbonded%pot(j)%pot%type(1))
-                   CASE (ea_type,tersoff_type)
-                      ! Charge is zero for EAM and TERSOFF type potential
+                   CASE (ea_type,tersoff_type,siepmann_type)
+                      ! Charge is zero for EAM, TERSOFF and SIEPMANN  type potential
                       ! Do nothing..
                    CASE DEFAULT
                       only_manybody = .FALSE.
@@ -2093,8 +2093,8 @@ CPSourceFileRef,&
                 IF ( atmname==inp_info%nonbonded%pot(j)%pot %at1.OR.&
                      atmname==inp_info%nonbonded%pot(j)%pot %at2) THEN
                    SELECT CASE(inp_info%nonbonded%pot(j)%pot%type(1))
-                   CASE (ea_type,tersoff_type)
-                      ! Charge is zero for EAM and TERSOFF type potential
+                   CASE (ea_type,tersoff_type,siepmann_type)
+                      ! Charge is zero for EAM, TERSOFF and SIEPMANN type potential
                       ! Do nothing..
                    CASE DEFAULT
                       only_manybody = .FALSE.

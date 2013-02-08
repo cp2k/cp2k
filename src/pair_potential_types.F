@@ -44,9 +44,10 @@ MODULE pair_potential_types
                                 bm_type= 9,&
                                 gp_type=10,&
                                 tersoff_type=11,&
-                                ftd_type=12
+                                ftd_type=12,&
+                                siepmann_type=13
 
-  INTEGER, PUBLIC, PARAMETER, DIMENSION(13) :: list_pot = (/nn_type,&
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(14) :: list_pot = (/nn_type,&
                                                            lj_type,&
                                                            lj_charmm_type,&
                                                            ft_type,&
@@ -58,7 +59,8 @@ MODULE pair_potential_types
                                                            bm_type,&
                                                            gp_type,&
                                                            tersoff_type,&
-                                                           ftd_type /)
+                                                           ftd_type,&
+                                                           siepmann_type /)
   ! Shell model
   INTEGER, PUBLIC, PARAMETER :: nosh_nosh=0,&
                                 nosh_sh=1,&
@@ -99,6 +101,7 @@ MODULE pair_potential_types
             buckmorse_pot_type,&
             gp_pot_type,&
             tersoff_pot_type,&
+            siepmann_pot_type,&
             ftd_pot_type,&
             pot_set_type
 
@@ -216,6 +219,17 @@ MODULE pair_potential_types
   END TYPE tersoff_pot_type
 
 ! *****************************************************************************
+  TYPE siepmann_pot_type
+     REAL (KIND=dp) :: B
+     REAL (KIND=dp) :: D
+     REAL (KIND=dp) :: E
+     REAL (KIND=dp) :: F
+     REAL (KIND=dp) :: alpha
+     REAL (KIND=dp) :: beta
+     REAL (KIND=dp) :: rcutsq
+  END TYPE siepmann_pot_type
+
+! *****************************************************************************
   TYPE pot_set_type
      REAL ( KIND=dp )                      :: rmin, rmax
      TYPE ( ipbv_pot_type ),       POINTER :: ipbv
@@ -228,6 +242,7 @@ MODULE pair_potential_types
      TYPE ( buck4ran_pot_type ),   POINTER :: buck4r
      TYPE ( buckmorse_pot_type ),  POINTER :: buckmo
      TYPE ( tersoff_pot_type ),    POINTER :: tersoff
+     TYPE ( siepmann_pot_type ),   POINTER :: siepmann
      TYPE ( ftd_pot_type ),        POINTER :: ftd
   END TYPE pot_set_type
 
@@ -362,6 +377,14 @@ CONTAINS
                (pot1%set(i)%tersoff%rcutsq  == pot2%set(i)%tersoff%rcutsq  ).AND.&
                (pot1%set(i)%tersoff%bigR    == pot2%set(i)%tersoff%bigR    ).AND.&
                (pot1%set(i)%tersoff%bigD    == pot2%set(i)%tersoff%bigD    )) mycompare=.TRUE.
+       CASE (siepmann_type)
+          IF  ((pot1%set(i)%siepmann%B       == pot2%set(i)%siepmann%B       ).AND.&
+               (pot1%set(i)%siepmann%D       == pot2%set(i)%siepmann%D       ).AND.&
+               (pot1%set(i)%siepmann%E       == pot2%set(i)%siepmann%E       ).AND.&
+               (pot1%set(i)%siepmann%F       == pot2%set(i)%siepmann%F       ).AND.&
+               (pot1%set(i)%siepmann%alpha   == pot2%set(i)%siepmann%alpha   ).AND.&
+               (pot1%set(i)%siepmann%beta    == pot2%set(i)%siepmann%beta    ).AND.&
+               (pot1%set(i)%siepmann%rcutsq  == pot2%set(i)%siepmann%rcutsq  )) mycompare=.TRUE.
        END SELECT
        mycompare = mycompare.AND.&
                   (pot1%set(i)%rmin == pot2%set(i)%rmin ).AND.(pot1%set(i)%rmax == pot2%set(i)%rmax )
@@ -414,6 +437,7 @@ CONTAINS
                    potparm%set(i)%buck4r,&
                    potparm%set(i)%buckmo,&
                    potparm%set(i)%tersoff,&
+                   potparm%set(i)%siepmann,&
                    potparm%set(i)%ftd)
        END DO
        CALL pair_potential_single_clean(potparm, error)
@@ -463,6 +487,7 @@ CONTAINS
        CALL pair_potential_ipbv_clean (potparm%set(i)%ipbv, error=error)
        CALL pair_potential_gp_clean (potparm%set(i)%gp, error=error)
        CALL pair_potential_tersoff_clean (potparm%set(i)%tersoff, error=error)
+       CALL pair_potential_siepmann_clean (potparm%set(i)%siepmann, error=error)
     END DO
   END SUBROUTINE pair_potential_single_clean
 
@@ -519,6 +544,7 @@ CONTAINS
           CALL pair_potential_buckmo_copy (potparm_source%set(i)%buckmo, potparm_dest%set(i)%buckmo, error=error)
           CALL pair_potential_gp_copy (potparm_source%set(i)%gp, potparm_dest%set(i)%gp, error=error)
           CALL pair_potential_tersoff_copy (potparm_source%set(i)%tersoff, potparm_dest%set(i)%tersoff, error=error)
+          CALL pair_potential_siepmann_copy (potparm_source%set(i)%siepmann, potparm_dest%set(i)%siepmann, error=error)
        END DO
     END IF
   END SUBROUTINE pair_potential_single_copy
@@ -568,7 +594,8 @@ CONTAINS
                      (ASSOCIATED(potparm_dest%set(1)%buck4r)).OR.&
                      (ASSOCIATED(potparm_dest%set(1)%buckmo)).OR.&
                      (ASSOCIATED(potparm_dest%set(1)%gp)).OR.&
-                     (ASSOCIATED(potparm_dest%set(1)%tersoff))
+                     (ASSOCIATED(potparm_dest%set(1)%tersoff)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%siepmann))
              IF (.NOT.check) THEN
                 allocate_new = .TRUE.
                 CALL pair_potential_single_release(potparm_dest, error)
@@ -614,6 +641,7 @@ CONTAINS
              CALL pair_potential_buckmo_copy (potparm_tmp%set(i)%buckmo, potparm_dest%set(i)%buckmo, error=error)
              CALL pair_potential_gp_copy (potparm_tmp%set(i)%gp, potparm_dest%set(i)%gp, error=error)
              CALL pair_potential_tersoff_copy (potparm_tmp%set(i)%tersoff, potparm_dest%set(i)%tersoff, error=error)
+             CALL pair_potential_siepmann_copy (potparm_tmp%set(i)%siepmann, potparm_dest%set(i)%siepmann, error=error)
           END DO
           CALL pair_potential_single_release ( potparm_tmp, error )
        END IF
@@ -643,6 +671,7 @@ CONTAINS
           CALL pair_potential_buckmo_copy (potparm_source%set(j)%buckmo, potparm_dest%set(i)%buckmo, error=error)
           CALL pair_potential_gp_copy (potparm_source%set(j)%gp, potparm_dest%set(i)%gp, error=error)
           CALL pair_potential_tersoff_copy (potparm_source%set(j)%tersoff, potparm_dest%set(i)%tersoff, error=error)
+          CALL pair_potential_siepmann_copy (potparm_source%set(j)%siepmann, potparm_dest%set(i)%siepmann, error=error)
        END DO
     END IF
   END SUBROUTINE pair_potential_single_add
@@ -705,6 +734,7 @@ CONTAINS
           CALL pair_potential_buckmo_release   ( potparm%set(i)%buckmo, error=error )
           CALL pair_potential_gp_release       ( potparm%set(i)%gp, error=error )
           CALL pair_potential_tersoff_release  ( potparm%set(i)%tersoff, error=error )
+          CALL pair_potential_siepmann_release ( potparm%set(i)%siepmann, error=error )
        END DO
        DEALLOCATE(potparm%type, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -903,13 +933,14 @@ CONTAINS
 !> \author Teodoro Laino [Teo] 11.2005
 ! *****************************************************************************
   SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,&
-                           goodwin,eam,bmhft,bmhftd,ipbv,buck4r,buckmo,gp,tersoff,error)
+                           goodwin,eam,bmhft,bmhftd,ipbv,buck4r,buckmo,gp,tersoff,&
+                           siepmann,error)
     TYPE(pair_potential_p_type), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, bmhftd, &
                                                 ipbv, buck4r, buckmo, gp, &
-                                                tersoff
+                                                tersoff, siepmann
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
@@ -918,7 +949,7 @@ CONTAINS
     INTEGER                                  :: i, ipot, lb1_old, std_dim, &
                                                 ub1_old
     LOGICAL :: check, failure, lbmhft, lbmhftd, lbuck4r, lbuckmo, leam, &
-      lgoodwin, lgp, lipbv, llj, llj_charmm, ltersoff, lwilliams
+      lgoodwin, lgp, lipbv, llj, llj_charmm, lsiepmann, ltersoff, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -936,77 +967,85 @@ CONTAINS
     lbuckmo   = .FALSE. ; IF (PRESENT(buckmo))    lbuckmo   = buckmo
     lgp       = .FALSE. ; IF (PRESENT(gp))        lgp       = gp
     ltersoff  = .FALSE. ; IF (PRESENT(tersoff))   ltersoff  = tersoff
+    lsiepmann = .FALSE. ; IF (PRESENT(siepmann))  lsiepmann = siepmann
 
     IF (llj) THEN
        ipot  = lj_type
        check = .NOT.(llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft&
-                     .OR.lbmhftd.OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbmhftd.OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff&
+                     .OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (llj_charmm) THEN
        ipot  = lj_charmm_type
        check = .NOT.(llj.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lbmhftd.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lwilliams) THEN
        ipot  = wl_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lbmhftd.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgoodwin) THEN
        ipot  = gw_type
        check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.leam.OR.lbmhft.OR.lbmhftd.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (leam) THEN
        ipot  = ea_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lbmhftd.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhft) THEN
        ipot  = ft_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhftd.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhftd) THEN
        ipot  = ftd_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lipbv) THEN
        ipot  = ip_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lbmhftd&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuck4r) THEN
        ipot  = b4_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lbmhftd&
-                     .OR.lipbv.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                     .OR.lipbv.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuckmo) THEN
        ipot  = bm_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lbmhftd&
-                    .OR.lipbv.OR.lbuck4r.OR.lgp.OR.ltersoff)
+                    .OR.lipbv.OR.lbuck4r.OR.lgp.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (ltersoff) THEN
        ipot  = tersoff_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lbmhftd&
-                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp)
+                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.lsiepmann)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (lsiepmann) THEN
+       ipot  = siepmann_type
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lbmhftd&
+                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgp) THEN
        ipot  = gp_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft.OR.lbmhftd&
-                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.ltersoff)
+                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.ltersoff.OR.lsiepmann)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -1061,6 +1100,8 @@ CONTAINS
              CALL pair_potential_gp_create(p%pot(i)%pot%set(std_dim)%gp, error=error)
           CASE (tersoff_type)
              CALL pair_potential_tersoff_create(p%pot(i)%pot%set(std_dim)%tersoff, error=error)
+          CASE (siepmann_type)
+             CALL pair_potential_siepmann_create(p%pot(i)%pot%set(std_dim)%siepmann, error=error)
           END SELECT
           NULLIFY ( p%pot(i)%pot%spl_f  )
           NULLIFY ( p%pot(i)%pot%pair_spline_data )
@@ -2256,6 +2297,109 @@ CONTAINS
        NULLIFY(tersoff)
     END IF
   END SUBROUTINE pair_potential_tersoff_release
+
+! ***************************************************************************** 
+!> \brief Creates the Siepmann-Sprik potential type
+!>      (Siepmann and Sprik, J. Chem. Phys. 102(1) 511, 1995)  
+! *****************************************************************************
+  SUBROUTINE pair_potential_siepmann_create(siepmann, error)
+    TYPE(siepmann_pot_type), POINTER         :: siepmann
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_siepmann_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CPPostcondition(.NOT.ASSOCIATED(siepmann),cp_failure_level,routineP,error,failure)
+       ALLOCATE(siepmann, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pair_potential_siepmann_clean(siepmann, error=error)
+    END IF
+  END SUBROUTINE pair_potential_siepmann_create
+! *****************************************************************************
+!> \brief Copy two Siepmann potential type
+!>      (Siepmann and Sprik, J. Chem. Phys. 102(1) 511, 1995)  
+! *****************************************************************************
+  SUBROUTINE pair_potential_siepmann_copy(siepmann_source, siepmann_dest, error)
+    TYPE(siepmann_pot_type), POINTER         :: siepmann_source, siepmann_dest
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_siepmann_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(siepmann_source)) RETURN
+       IF (ASSOCIATED(siepmann_dest)) CALL pair_potential_siepmann_release(siepmann_dest, error=error)
+       CALL pair_potential_siepmann_create(siepmann_dest, error=error)
+       siepmann_dest%B       = siepmann_source%B
+       siepmann_dest%D       = siepmann_source%D
+       siepmann_dest%E       = siepmann_source%E
+       siepmann_dest%F       = siepmann_source%F
+       siepmann_dest%alpha   = siepmann_source%alpha
+       siepmann_dest%beta    = siepmann_source%beta
+       siepmann_dest%rcutsq  = siepmann_source%rcutsq
+    END IF
+  END SUBROUTINE pair_potential_siepmann_copy
+
+! *****************************************************************************
+!> \brief Creates the Siepmann-Sprik potential type
+!>      (Siepmann and Sprik, J. Chem. Phys. 102(1) 511, 1995)  
+! *****************************************************************************
+  SUBROUTINE pair_potential_siepmann_clean(siepmann, error)
+    TYPE(siepmann_pot_type), POINTER         :: siepmann
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_siepmann_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF(.NOT.ASSOCIATED(siepmann)) RETURN
+       siepmann%B       = 0.0_dp
+       siepmann%D       = 0.0_dp
+       siepmann%E       = 0.0_dp
+       siepmann%F       = 0.0_dp
+       siepmann%alpha   = 0.0_dp
+       siepmann%beta    = 0.0_dp
+       siepmann%rcutsq  = 0.0_dp
+    END IF
+  END SUBROUTINE pair_potential_siepmann_clean
+
+! *****************************************************************************
+!> \brief Destroys the Siepmann-Sprik potential
+!>      (Siepmann and Sprik, J. Chem. Phys. 102(1) 511, 1995)  
+! *****************************************************************************
+  SUBROUTINE pair_potential_siepmann_release(siepmann, error)
+    TYPE(siepmann_pot_type), POINTER         :: siepmann
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_siepmann_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (ASSOCIATED(siepmann)) THEN
+          DEALLOCATE(siepmann, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       NULLIFY(siepmann)
+    END IF
+  END SUBROUTINE pair_potential_siepmann_release
 
 END MODULE pair_potential_types
 

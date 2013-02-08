@@ -28,7 +28,7 @@ MODULE pair_potential
        b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gp_type, &
        gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, &
        nn_type, pair_potential_pp_type, pair_potential_single_type, &
-       potential_single_allocation, tersoff_type, wl_type
+       potential_single_allocation, siepmann_type, tersoff_type, wl_type
   USE pair_potential_util,             ONLY: ener_pot,&
                                              ener_zbl,&
                                              zbl_matching_polinomial
@@ -171,6 +171,8 @@ CONTAINS
                    b4_type,bm_type,gp_type,ea_type)
                 pot%no_pp = .FALSE.
              CASE (tersoff_type)
+                pot%no_mb = .FALSE.
+             CASE (siepmann_type)
                 pot%no_mb = .FALSE.
              CASE (nn_type)
                 ! Do nothing..
@@ -582,6 +584,8 @@ CPSourceFileRef,&
           nvar = 2 + nvar
        CASE (tersoff_type)
           nvar = 13 + nvar
+       CASE (siepmann_type)
+          nvar = 6 + nvar
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
@@ -683,6 +687,13 @@ CPSourceFileRef,&
                       pot_par(nk,11) = potparm%pot(i,j)%pot%set(1)%tersoff%lambda3
                       pot_par(nk,12) = potparm%pot(i,j)%pot%set(1)%tersoff%bigR
                       pot_par(nk,13) = potparm%pot(i,j)%pot%set(1)%tersoff%bigD
+                   CASE (siepmann_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%siepmann%B
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%siepmann%D
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%siepmann%E
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%siepmann%F
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%siepmann%alpha
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%set(1)%siepmann%beta
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT

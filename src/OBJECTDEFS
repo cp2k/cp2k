@@ -342,6 +342,7 @@ OBJECTS_GENERIC =\
  machine.o\
  manybody_eam.o\
  manybody_potential.o\
+ manybody_siepmann.o\
  manybody_tersoff.o\
  mathconstants.o\
  mathlib.o\

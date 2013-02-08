@@ -19,6 +19,7 @@ MODULE fist_nonbond_env_types
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_pp_release,&
                                              pair_potential_pp_type,&
+                                             siepmann_type,&
                                              tersoff_type
 #include "cp_common_uses.h"
 
@@ -364,6 +365,11 @@ CONTAINS
                    ! TODO: what if 14 is not of tersoff type while the normal
                    ! nonbond is? (or the reverse). We'd better impose
                    ! consistency.
+                   fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
+                   fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
+                END IF
+                IF (ANY(potparm%pot(idim,jdim)%pot%type==siepmann_type)) THEN
+                   ! TODO:see tersoff_type
                    fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
                    fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
                 END IF
