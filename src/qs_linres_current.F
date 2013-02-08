@@ -130,9 +130,9 @@ MODULE qs_linres_current
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
        rs_grid_mult_and_add, rs_grid_release, rs_grid_retain, rs_grid_zero
-  USE task_list_methods,               ONLY: distribute_matrix,&
-                                             distribute_tasks,&
+  USE task_list_methods,               ONLY: distribute_tasks,&
                                              int2pair,&
+                                             rs_distribute_matrix,&
                                              task_list_inner_loop
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -1041,13 +1041,13 @@ CONTAINS
     !-------------------------------------------------------------
 
     IF (distributed_rs_grids) THEN
-        CALL distribute_matrix (rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
+        CALL rs_distribute_matrix (rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        CALL distribute_matrix (rs_descs, deltajp_b, atom_pair_send, atom_pair_recv, &
+        CALL rs_distribute_matrix (rs_descs, deltajp_b, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        CALL distribute_matrix (rs_descs, deltajp_c, atom_pair_send, atom_pair_recv, &
+        CALL rs_distribute_matrix (rs_descs, deltajp_c, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        IF(do_igaim) CALL distribute_matrix (rs_descs, deltajp_d, atom_pair_send, atom_pair_recv, &
+        IF(do_igaim) CALL rs_distribute_matrix (rs_descs, deltajp_d, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
     ENDIF
 

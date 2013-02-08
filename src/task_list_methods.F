@@ -85,7 +85,7 @@ MODULE task_list_methods
   PUBLIC :: distribute_tasks,&
             pair2int,&
             int2pair,&
-            distribute_matrix
+            rs_distribute_matrix
 
 CONTAINS
 
@@ -2083,7 +2083,12 @@ CONTAINS
 
 END SUBROUTINE get_atom_pair
 
-SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
+! *****************************************************************************
+!> \brief redistributes the matrix so that it can be used in realspace operations
+!>        i.e. according to the task lists for collocate and integrate.
+!>        This routine can become a bottleneck in large calculations.
+! *****************************************************************************
+SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      natoms, scatter, error, hmat )
 
 !$ USE omp_lib
@@ -2098,7 +2103,7 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: hmat
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_distribute_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: acol, arow, handle, i, j, k, l, me, nblkcols_total, &
@@ -2408,7 +2413,7 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
 
   DEALLOCATE (first_row, last_row, first_col, last_col)
   CALL timestop(handle)
-END SUBROUTINE distribute_matrix
+END SUBROUTINE rs_distribute_matrix
 
 ! *****************************************************************************
 !> \brief determines the rank of the processor who's real rs grid contains point

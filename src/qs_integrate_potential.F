@@ -102,8 +102,8 @@ MODULE qs_integrate_potential
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scp_vector_type,&
                                              scptb_parameter_type
-  USE task_list_methods,               ONLY: distribute_matrix,&
-                                             int2pair
+  USE task_list_methods,               ONLY: int2pair,&
+                                             rs_distribute_matrix
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -1147,7 +1147,7 @@ CONTAINS
     END DO
 
     IF (distributed_grids .AND. pab_required) THEN
-        CALL distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+        CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
     ENDIF
 
     IF (debug_this_module) &
@@ -1521,7 +1521,7 @@ CONTAINS
        ! Reconstruct H matrix if using distributed RS grids
        ! note send and recv direction reversed WRT collocate
        scatter = .FALSE.
-       CALL distribute_matrix (rs_descs, dh, atom_pair_recv, atom_pair_send,&
+       CALL rs_distribute_matrix (rs_descs, dh, atom_pair_recv, atom_pair_send,&
             natom, scatter, error, h%matrix)
        CALL cp_dbcsr_deallocate_matrix ( dh ,error=error)
 

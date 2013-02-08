@@ -125,8 +125,8 @@ MODULE qs_collocate_density
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scp_vector_type,&
                                              scptb_parameter_type
-  USE task_list_methods,               ONLY: distribute_matrix,&
-                                             int2pair
+  USE task_list_methods,               ONLY: int2pair,&
+                                             rs_distribute_matrix
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -1642,7 +1642,7 @@ END SUBROUTINE calculate_rho_resp_all
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
+       CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
     ENDIF
 
     ! map all tasks on the grids
@@ -2142,7 +2142,7 @@ END SUBROUTINE calculate_rho_resp_all
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
+       CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
                                natoms, scatter=.TRUE., error=error)
     ENDIF
 
