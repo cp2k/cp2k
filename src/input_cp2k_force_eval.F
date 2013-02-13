@@ -16,11 +16,11 @@ MODULE input_cp2k_force_eval
   USE input_constants
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
-                                             create_ep_section,&
-                                             create_properties_section
+                                             create_ep_section
   USE input_cp2k_eip,                  ONLY: create_eip_section
   USE input_cp2k_mixed,                ONLY: create_mix_section
   USE input_cp2k_mm,                   ONLY: create_mm_section
+  USE input_cp2k_properties_dft,       ONLY: create_properties_section
   USE input_cp2k_qmmm,                 ONLY: create_qmmm_section
   USE input_cp2k_subsys,               ONLY: create_subsys_section
   USE input_keyword_types,             ONLY: keyword_create,&

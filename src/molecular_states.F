@@ -76,7 +76,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
-       localization_section, particles, tag, marked_states,error)
+       loc_print_section, particles, tag, marked_states,error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -85,7 +85,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: Hks, matrix_S
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
-    TYPE(section_vals_type), POINTER         :: localization_section
+    TYPE(section_vals_type), POINTER         :: loc_print_section
     TYPE(particle_list_type), POINTER        :: particles
     CHARACTER(LEN=*), INTENT(IN)             :: tag
     INTEGER, DIMENSION(:), POINTER           :: marked_states
@@ -131,17 +131,17 @@ CONTAINS
     para_env => qs_env % para_env
     nproc = para_env%num_pe
     output_unit = cp_logger_get_default_io_unit(logger)
-    CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
+    CALL section_vals_val_get(loc_print_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
                explicit=explicit,error=error)
     IF (explicit) THEN
-       CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
+       CALL section_vals_val_get(loc_print_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
                   r_vals=eval_range,error=error)
     ELSE
        ALLOCATE(eval_range(2))
        eval_range(1)=-HUGE(0.0_dp)
        eval_range(2)=+HUGE(0.0_dp)
     ENDIF
-    CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%MARK_STATES", &
+    CALL section_vals_val_get(loc_print_section,"MOLECULAR_STATES%MARK_STATES", &
              n_rep_val=n_rep, error=error)
     IF(n_rep.GT.0)THEN
        ALLOCATE (mark_states(2,n_rep),STAT=isos)
@@ -153,7 +153,7 @@ CONTAINS
                                           "mark_states",int_size*n_rep)
        END IF
        DO i=1,n_rep
-          CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%MARK_STATES",&
+          CALL section_vals_val_get(loc_print_section,"MOLECULAR_STATES%MARK_STATES",&
                 i_rep_val=i,i_vals=mark_list, error=error)
           mark_states(:,i)=mark_list(:)
        END DO
@@ -165,7 +165,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2.
     !-----------------------------------------------------------------------------
-    unit_report=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES",&
+    unit_report=cp_print_key_unit_nr(logger,loc_print_section,"MOLECULAR_STATES",&
          extension=".data",middle_name="Molecular_DOS",log_filename=.FALSE.,error=error)
     IF (unit_report>0) THEN
        WRITE(unit_report,*) SIZE(mo_eigenvalues)," number of states "
@@ -307,7 +307,7 @@ CONTAINS
          CALL cp_fm_release(D_igk,error=error)
        ENDIF
 
-       IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+       IF ( BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
             "MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
 
           CALL get_qs_env(qs_env=qs_env,&
@@ -327,12 +327,12 @@ CONTAINS
              WRITE(filename,'(a9,I4.4,a1,I5.5,a4)')"MOLECULE_",imol,"_",i,tag
              WRITE(title,'(A,I0,A,I0,A,F14.6,A,I0)') "Mol. Eigenstate ",i," of ",ns," E [a.u.] = ",&
                                                     evals(i)," Orig. index ",ind(i)
-             unit_nr=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES%CUBES",&
+             unit_nr=cp_print_key_unit_nr(logger,loc_print_section,"MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
              CALL pw_to_cube(wf_r%pw,unit_nr,particles=particles,title=title,&
-                  stride=section_get_ivals(localization_section,&
+                  stride=section_get_ivals(loc_print_section,&
                   "MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
-             CALL cp_print_key_finished_output(unit_nr,logger,localization_section,&
+             CALL cp_print_key_finished_output(unit_nr,logger,loc_print_section,&
                   "MOLECULAR_STATES%CUBES",error=error)
           END DO
        ENDIF
@@ -358,7 +358,7 @@ CONTAINS
     END IF
     DEALLOCATE (nstates,STAT=isos)
     IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nstates")
-    CALL cp_print_key_finished_output(unit_report,logger,localization_section,&
+    CALL cp_print_key_finished_output(unit_report,logger,loc_print_section,&
                                       "MOLECULAR_STATES",error=error)
     !------------------------------------------------------------------------------
 

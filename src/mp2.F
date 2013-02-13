@@ -10,9 +10,9 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2
-  USE admm_methods,                    ONLY: admm_correct_for_eigenvalues,&
-                                             admm_uncorrect_for_eigenvalues
   USE admm_types,                      ONLY: admm_type
+  USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
+                                             admm_uncorrect_for_eigenvalues
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: DelBen2012,&

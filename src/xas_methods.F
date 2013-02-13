@@ -82,16 +82,16 @@ MODULE xas_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
-                                             set_loc_centers,&
-                                             set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
                                              qs_print_cubes
-  USE qs_loc_types,                    ONLY: qs_loc_env_create,&
+  USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
+                                             qs_loc_env_create,&
                                              qs_loc_env_new_type,&
                                              qs_loc_env_release
   USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
-                                             qs_loc_env_init
+                                             qs_loc_env_init,&
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
@@ -216,12 +216,12 @@ CONTAINS
     NULLIFY(excvec_coeff, state_of_atom, qs_loc_env, cell)
     NULLIFY(occupation_numbers,matrix_ks)
     NULLIFY(all_vectors,state_of_atom,xas_control)
-    NULLIFY(dft_section, xas_section, loc_section)
+    NULLIFY(dft_section, xas_section, loc_section, print_loc_section)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
     loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-    print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
+    print_loc_section => section_vals_get_subs_vals(loc_section,"PRINT",error=error)
 
     xas_control => dft_control%xas_control
     output_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -631,7 +631,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: mixing_section, &
-                                                print_loc_section, &
+                                                loc_section, &
                                                 smear_section
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
@@ -908,8 +908,8 @@ CONTAINS
         CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
         CALL qs_loc_env_release(qs_loc_env,error=error)
         CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-        print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
-        CALL qs_loc_control_init(qs_loc_env,xas_section,print_loc_section,do_homo=.TRUE.,&
+        loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
+        CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.TRUE.,&
              do_xas=.TRUE.,nloc_xas=nexc_search,error=error)
         IF(.NOT. qs_loc_env%do_localize) THEN
           qs_loc_env%localized_wfn_control%localization_method = do_loc_none
@@ -918,7 +918,7 @@ CONTAINS
           CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
           CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,nspins,error=error)
           CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,&
-          qs_env,myspin=1,do_localize=qs_loc_env%do_localize,error=error)
+               qs_env,myspin=1,do_localize=qs_loc_env%do_localize,error=error)
         END IF
       END IF
 

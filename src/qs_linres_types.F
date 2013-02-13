@@ -21,8 +21,8 @@ MODULE qs_linres_types
   USE kinds,                           ONLY: dp
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
-                                             localized_wfn_control_type
+  USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
+                                             qs_loc_env_release
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
@@ -62,7 +62,7 @@ MODULE qs_linres_types
      LOGICAL                                   :: linres_restart
      LOGICAL                                   :: lr_triplet
      REAL(KIND=dp)                             :: eps
-     TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
+     TYPE(qs_loc_env_new_type), POINTER        :: qs_loc_env
      CHARACTER(LEN=8)                          :: flag
   END TYPE linres_control_type
 
@@ -235,7 +235,7 @@ CONTAINS
        ALLOCATE (linres_control,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=1
-       NULLIFY(linres_control%localized_wfn_control)
+       NULLIFY(linres_control%qs_loc_env)
        linres_control%property            = HUGE(0)!is that used?
        linres_control%preconditioner_type = HUGE(0)
        linres_control%restart_every       = HUGE(0)
@@ -248,7 +248,6 @@ CONTAINS
        linres_control%flag                = ""
        linres_control%do_kernel           = .FALSE.
        linres_control%lr_triplet          = .FALSE.
-!       CALL localized_wfn_control_create(linres_control%localized_wfn_control, error=error)
      END IF
 
   END SUBROUTINE linres_control_create
@@ -271,7 +270,9 @@ CONTAINS
        CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=linres_control%ref_count-1
        IF(linres_control%ref_count<1)THEN
-         CALL localized_wfn_control_release(linres_control%localized_wfn_control, error=error)
+         IF(ASSOCIATED(linres_control%qs_loc_env)) THEN
+           CALL qs_loc_env_release(linres_control%qs_loc_env, error=error)
+         END IF
          DEALLOCATE(linres_control,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF

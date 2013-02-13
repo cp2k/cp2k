@@ -10,6 +10,9 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE qs_mo_methods
+  USE admm_types,                      ONLY: admm_type
+  USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
+                                             admm_uncorrect_for_eigenvalues
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
@@ -24,7 +27,7 @@ MODULE qs_mo_methods
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type, cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk,&
@@ -53,8 +56,12 @@ MODULE qs_mo_methods
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
-  USE qs_mo_types,                     ONLY: mo_set_p_type,&
-                                             mo_set_type
+  USE physcon,                         ONLY: evolt
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type,&
+                                             set_mo_occupation
+  USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -66,7 +73,7 @@ MODULE qs_mo_methods
 
   PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
             make_basis_lowdin, calculate_density_matrix, calculate_subspace_eigenvalues, &
-            calculate_orthonormality, calculate_magnitude
+            calculate_orthonormality, calculate_magnitude, make_mo_eig
 
   INTERFACE calculate_density_matrix
     MODULE PROCEDURE calculate_dm_sparse
@@ -904,5 +911,87 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE calculate_magnitude
+
+! *****************************************************************************
+!> \brief  Calculate KS eigenvalues starting from  OF MOS
+!> \par History
+!>         02.2013 moved from qs_scf_post_gpw
+!>
+! *****************************************************************************
+  SUBROUTINE make_mo_eig(mos,nspins,ks_rmpv,scf_control,mo_derivs,admm_env,ks_aux,error)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_rmpv
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(cp_dbcsr_p_type),  DIMENSION(:), &
+       POINTER                               :: mo_derivs
+    TYPE(admm_type), POINTER, OPTIONAL       :: admm_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER, OPTIONAL                      :: ks_aux
+
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, ispin, nmo, &
+                                                output_unit
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+
+    NULLIFY(mo_coeff_deriv,mo_coeff,mo_eigenvalues)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    DO ispin=1,nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+            eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
+       IF (output_unit>0) WRITE(output_unit,*) " "
+       IF (output_unit>0) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
+       IF (homo .NE. nmo) THEN
+          IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
+       ENDIF
+       IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
+
+       IF(scf_control%use_ot) THEN
+          ! Also rotate the OT derivs, since they are needed for force calculations
+          IF (ASSOCIATED(mo_derivs)) THEN
+             mo_coeff_deriv=>mo_derivs(ispin)%matrix
+          ELSE
+             mo_coeff_deriv=>NULL()
+          ENDIF
+
+          ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+          IF( PRESENT(admm_env) ) THEN
+            CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                              ks_aux(ispin)%matrix, error)
+          END IF
+
+          CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
+               scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
+               co_rotate_dbcsr=mo_coeff_deriv,error=error)
+
+          ! ** If we do ADMM, we restore the original kohn-sham matrix
+          IF( PRESENT(admm_env) ) THEN
+            CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                                ks_aux(ispin)%matrix, error)
+          END IF
+       END IF
+       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
+       IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &
+            "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt
+    ENDDO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE make_mo_eig
 
 END MODULE qs_mo_methods

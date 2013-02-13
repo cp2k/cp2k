@@ -38,6 +38,7 @@ MODULE qs_linres_methods
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -89,14 +90,16 @@ MODULE qs_linres_methods
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_linres_types,                 ONLY: linres_control_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
-                                             set_loc_centers,&
-                                             set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_types,                    ONLY: qs_loc_env_create,&
+  USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
+                                             get_qs_loc_env,&
+                                             qs_loc_env_create,&
                                              qs_loc_env_new_type,&
-                                             qs_loc_env_release
-  USE qs_loc_utils,                    ONLY: qs_loc_env_init
+                                             qs_loc_env_release,&
+                                             qs_loc_env_retain
+  USE qs_loc_utils,                    ONLY: loc_write_restart,&
+                                             qs_loc_control_init,&
+                                             qs_loc_init
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -138,10 +141,10 @@ CONTAINS
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,centers_only,error)
-    TYPE(localized_wfn_control_type), &
-      POINTER                                :: localized_wfn_control
+  SUBROUTINE linres_localize(qs_env,linres_control,nspins,centers_only,error)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -149,54 +152,75 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istate, n_mo(2), &
+    INTEGER                                  :: ispin, istate, istat, n_mo(2), &
                                                 nelectron, nmoloc(2), &
                                                 output_unit
     LOGICAL                                  :: failure, my_centers_only
     REAL(dp)                                 :: maxocc
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_localized
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, lr_section, &
-                                                print_loc_section
+                                                loc_print_section
 
     failure = .FALSE.
-    NULLIFY(logger, lr_section, loc_section)
+    NULLIFY(logger, lr_section, loc_section, loc_print_section,localized_wfn_control)
     logger => cp_error_get_logger(error)
     lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     loc_section => section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
-    print_loc_section => section_vals_get_subs_vals(lr_section,"PRINT",error=error)
+    loc_print_section => section_vals_get_subs_vals(lr_section,"LOCALIZE%PRINT",error=error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".linresLog",error=error)
     my_centers_only = .FALSE.
     IF(PRESENT(centers_only)) my_centers_only = centers_only
+
+    NULLIFY(mos,mo_coeff,qs_loc_env,mos_localized)
+    CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
+    CALL qs_loc_env_create(qs_loc_env,error=error)
+    CALL  qs_loc_env_retain(qs_loc_env, error=error)
+    linres_control% qs_loc_env=> qs_loc_env
+    CALL qs_loc_env_release(qs_loc_env,error=error)
+    qs_loc_env => linres_control% qs_loc_env
+    CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.true.,error=error)
+    CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
+
+    ALLOCATE(mos_localized(nspins),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+      CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+      CALL  cp_fm_create(mos_localized(ispin)%matrix,mo_coeff%matrix_struct,error=error)
+      CALL cp_fm_to_fm(mo_coeff,mos_localized(ispin)%matrix,error=error)
+    END DO
+
+
     nmoloc(1:2) = 0
-    NULLIFY(mos,qs_loc_env)
     IF(my_centers_only) THEN
        localized_wfn_control%set_of_states = state_loc_all
        localized_wfn_control%localization_method = do_loc_none
        localized_wfn_control%operator_type = op_loc_berry
     ENDIF
 
-    CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
-    DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),&
-                       nelectron=nelectron,maxocc=maxocc)
-       IF(localized_wfn_control%set_of_states == state_loc_all) THEN
-          nmoloc(ispin) = NINT(nelectron/maxocc)
-       ELSE
-          nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
-       ENDIF
-    ENDDO  ! ispin
-    CALL set_loc_wfn_lists(localized_wfn_control,nmoloc,n_mo,nspins,error=error)
-    CALL set_loc_centers(localized_wfn_control,nmoloc,nspins,error=error)
-    CALL qs_loc_env_create(qs_loc_env,error=error)
-    CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,do_localize=.TRUE.,error=error)
-    ! The localized orbitals are copied in the mos,
+    CALL qs_loc_init(qs_env, qs_loc_env,loc_section,mos_localized=mos_localized,&
+         do_homo=.true.,error=error)
+
     ! The orbital centers are stored in linres_control%localized_wfn_control
-    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,error=error)
-    CALL qs_loc_env_release(qs_loc_env, error=error)
+    DO ispin = 1,nspins
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,loc_print_section, myspin = ispin,&
+           ext_mo_coeff=mos_localized(ispin)%matrix,error=error)
+      CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+      CALL cp_fm_to_fm(mos_localized(ispin)%matrix,mo_coeff,error=error)
+    END DO
+
+    CALL loc_write_restart(qs_env,qs_loc_env,loc_print_section,mos,&
+                 mos_localized, do_homo=.TRUE., error=error)
+    CALL cp_fm_vect_dealloc(mos_localized,error)
+
 
     ! Write Centers and Spreads on std out
     IF(output_unit > 0) THEN
@@ -214,6 +238,7 @@ CONTAINS
        END DO
        CALL m_flush(output_unit)
     END IF
+
 
   END SUBROUTINE linres_localize
 

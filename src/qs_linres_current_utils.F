@@ -100,6 +100,9 @@ MODULE qs_linres_current_utils
                                              linres_control_type,&
                                              set_current_env
   USE qs_loc_methods,                  ONLY: qs_print_cubes
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                             localized_wfn_control_type,&
+                                             qs_loc_env_new_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -618,12 +621,15 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: current_section, lr_section
@@ -635,7 +641,7 @@ CONTAINS
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control,&
          &  logger, mos, mpools, current_section, particle_set, mo_coeff,&
          &  auxbas_pw_pool, pw_env, jrho1_atom_set, common_center, tmp_fm_struct,&
-         &  para_env)
+         &  para_env, qs_loc_env,localized_wfn_control)
     !
     !
     CALL get_qs_env(qs_env=qs_env,&
@@ -673,10 +679,10 @@ CONTAINS
        IF (nmo.NE.homo) CALL stop_program(routineN,moduleN,__LINE__,"nmo != homo")
        !
        ! check that the nbr of localized states is equal to the nbr of states
-       nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
-       IF (nmoloc.NE.nmo) CALL stop_program(routineN,moduleN,__LINE__,&
-                                            "The nbr of localized functions "//&
-            &                               "is not equal to the nbr of states.")
+!       nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
+!       IF (nmoloc.NE.nmo) CALL stop_program(routineN,moduleN,__LINE__,&
+!                                            "The nbr of localized functions "//&
+!            &                               "is not equal to the nbr of states.")
        !
        ! check that the occupation is uniform
        IF (.NOT.uniform_occupation) CALL stop_program(routineN,moduleN,__LINE__,"nmo != homo")
@@ -775,6 +781,8 @@ CONTAINS
                ' To get CURRENT parameters within PBC you need localized zero order orbitals '
        ENDIF
     ENDIF
+    qs_loc_env => linres_control%qs_loc_env
+    CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
     !
     !
     ALLOCATE(current_env%centers_set(nspins),current_env%center_list(nspins),&
@@ -788,19 +796,19 @@ CONTAINS
     ! if qmmm is selected change the definition of the center of the box 0 -> L/2
     IF(current_env%do_qmmm) THEN
        DO ispin = 1,nspins
-          DO istate = 1,SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
+          DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
              ! just to be sure...
-             r(:) = pbc(linres_control%localized_wfn_control%centers_set(ispin)%array(:,istate),cell)
+             r(:) = pbc(localized_wfn_control%centers_set(ispin)%array(:,istate),cell)
              IF(r(1).LT.0.0_dp) THEN
-                linres_control%localized_wfn_control%centers_set(ispin)%array(1,istate) = &
+                localized_wfn_control%centers_set(ispin)%array(1,istate) = &
                      r(1) + cell%hmat(1,1)
              ENDIF
              IF(r(2).LT.0.0_dp) THEN
-                linres_control%localized_wfn_control%centers_set(ispin)%array(2,istate) = &
+                localized_wfn_control%centers_set(ispin)%array(2,istate) = &
                      r(2) + cell%hmat(2,2)
              ENDIF
              IF(r(3).LT.0.0_dp) THEN
-                linres_control%localized_wfn_control%centers_set(ispin)%array(3,istate) = &
+                localized_wfn_control%centers_set(ispin)%array(3,istate) = &
                      r(3) + cell%hmat(3,3)
              ENDIF
           ENDDO
@@ -842,7 +850,7 @@ CONTAINS
     IF(current_env%do_selected_states) THEN
        selected_states_on_atom_list => current_env%selected_states_on_atom_list
        DO ispin = 1,nspins
-          center_array => linres_control%localized_wfn_control%centers_set(ispin)%array
+          center_array => localized_wfn_control%centers_set(ispin)%array
           nstate = 0
           DO istate = 1,SIZE(center_array,2)
              DO i = 1,SIZE(selected_states_on_atom_list,1)
@@ -861,7 +869,7 @@ CONTAINS
        ENDDO
     ELSE
        DO ispin = 1,nspins
-          center_array => linres_control%localized_wfn_control%centers_set(ispin)%array
+          center_array => localized_wfn_control%centers_set(ispin)%array
           nstate = 0
           DO istate = 1,SIZE(center_array,2)
              nstate = nstate + 1
@@ -884,7 +892,7 @@ CONTAINS
        current_env%center_list(ispin)%array(:,:) = HUGE(0)
        current_env%centers_set(ispin)%array(:,:) = HUGE(0.0_dp)
        !
-       center_array => linres_control%localized_wfn_control%centers_set(ispin)%array
+       center_array => localized_wfn_control%centers_set(ispin)%array
        !
        ! point to the psi0 centers
        SELECT CASE(current_env%orb_center)

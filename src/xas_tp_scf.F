@@ -66,9 +66,9 @@ MODULE xas_tp_scf
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+  USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
+                                             get_qs_loc_env,&
                                              qs_loc_env_new_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -461,7 +461,7 @@ CONTAINS
        CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
             localized_wfn_control=localized_wfn_control,error=error)
        loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-       print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
+       print_loc_section => section_vals_get_subs_vals(loc_section,"PRINT",error=error)
        CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
        ra(1:3) = particle_set(iatom)%r(1:3)
 

@@ -69,16 +69,16 @@ MODULE qs_scf_post_se
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
+  USE qs_loc_methods,                  ONLY: qs_loc_driver
+  USE qs_loc_molecules,                ONLY: wfc_to_molecule
+  USE qs_loc_types,                    ONLY: localized_wfn_control_create,&
+                                             qs_loc_env_create,&
+                                             qs_loc_env_destroy,&
+                                             qs_loc_env_new_type
+  USE qs_loc_utils,                    ONLY: qs_loc_env_init,&
                                              read_loc_section,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
-  USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_molecules,                ONLY: wfc_to_molecule
-  USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                             qs_loc_env_destroy,&
-                                             qs_loc_env_new_type
-  USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
@@ -167,7 +167,7 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: input, localization_section, &
+    TYPE(section_vals_type), POINTER         :: input, loc_print_section, &
                                                 localize_section, print_key
 
     CALL timeset(routineN,handle)
@@ -203,34 +203,34 @@ CONTAINS
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
 
        ! Determine if we need to computer properties using the localized centers
-       localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
        localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
-       print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_DIPOLES",error=error)
+       loc_print_section => section_vals_get_subs_vals(localize_section,"PRINT",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"MOLECULAR_DIPOLES",error=error)
        p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"TOTAL_DIPOLE",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"TOTAL_DIPOLE",error=error)
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CENTERS",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"WANNIER_CENTERS",error=error)
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_SPREADS",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"WANNIER_SPREADS",error=error)
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CUBES",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"WANNIER_CUBES",error=error)
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        CALL section_vals_val_get(localize_section,"_SECTION_PARAMETERS_",l_val=explicit,error=error)
        p_loc=p_loc.OR.explicit
 
        ! Print Molecular States
-       print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"MOLECULAR_STATES",error=error)
        p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        p_loc=p_loc.OR.p_molstates
        ! Print Wannier States
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_STATES",error=error)
+       print_key => section_vals_get_subs_vals(loc_print_section,"WANNIER_STATES",error=error)
        p_wanstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        p_loc=p_loc.OR.p_wanstates
 
        ! Check for cubes MOs and WANNIERS
        do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                    error=error),cp_p_file)
-       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
                         "WANNIER_CUBES",error=error),cp_p_file)
        nlumo=section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error)
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
@@ -292,7 +292,7 @@ CONTAINS
           CALL qs_loc_env_create(qs_loc_env,error=error)
           CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
           CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,&
-               localization_section, qs_loc_env%do_localize, error=error)
+               qs_loc_env%do_localize, error=error)
           IF (qs_loc_env%do_localize) THEN
              ! Some setup for MOs to be localized
              nmoloc = 0
@@ -364,13 +364,13 @@ CPSourceFileRef,&
                         "for OCCUPIED ORBITALS. Spin:",ispin
 
                    scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-                   CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,localization_section,&
+                   CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,loc_print_section,&
                         myspin=ispin,ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
-                   IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+                   IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
                        "MOLECULAR_DIPOLES",error=error),cp_p_file) .OR. p_molstates) THEN
-                      CALL wfc_to_molecule(qs_env, qs_loc_env, localization_section, scenter, molecule_set,&
+                      CALL wfc_to_molecule(qs_env, qs_loc_env, loc_print_section, scenter, molecule_set,&
                            dft_control%nspins, error)
                    END IF
 
@@ -378,7 +378,7 @@ CPSourceFileRef,&
                    IF ( p_molstates ) THEN
                       CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, mo_eigenvalues,&
                            ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env,  wf_r, wf_g,&
-                           localization_section=localization_section, particles=particles, tag="HOMO",&
+                           loc_print_section=loc_print_section, particles=particles, tag="HOMO",&
                            marked_states=marked_states, error=error)
                       IF(ASSOCIATED(marked_states)) DEALLOCATE(marked_states)
                    ENDIF

@@ -25,6 +25,7 @@ MODULE qs_loc_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -39,9 +40,7 @@ MODULE qs_loc_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE particle_types,                  ONLY: particle_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
-                                             localized_wfn_control_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -52,11 +51,6 @@ MODULE qs_loc_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_types'
 
-! *** Public ***
-  PUBLIC :: qs_loc_env_create, qs_loc_env_destroy, &
-            qs_loc_env_release, qs_loc_env_retain, &
-            get_qs_loc_env, set_qs_loc_env
-  PUBLIC :: qs_loc_env_new_type
 
 !****t* qs_loc_types/qs_loc_env_new_type [1.0] *
 
@@ -110,6 +104,58 @@ MODULE qs_loc_types
      REAL (KIND = dp)                            :: weights ( 6 )
      INTEGER                                     :: dim_op
   END TYPE qs_loc_env_new_type
+
+
+! *****************************************************************************
+!> \brief A type that holds controling information for the
+!>    calculation of the spread of wfn and theoptimization of
+!>    the spread functional
+!> \param ref_count:
+!> \param localization_method which algorithm is used for the optimization
+!> \param operator_type how the spread is defined
+!> \param nloc_states number of states on which the spread is computed
+!> \param set_of_states how to choose the states
+!> \param lu_bound_states lower and upper bounds of the set of states
+!>    print_cubes:
+!>    print_centers:
+!>    print_spreads:
+!> \param loc_states list of states on which the spread is computed
+!> \param centers_set arrais containing centers and spreads of the selected wfn
+!> \param centers_file_name output file names
+!> \param spreads_file_name output file names
+! *****************************************************************************
+  TYPE localized_wfn_control_type
+    INTEGER                              :: ref_count
+    INTEGER                              :: min_or_max
+    INTEGER                              :: localization_method
+    INTEGER                              :: operator_type
+    INTEGER, DIMENSION(2)                :: nloc_states
+    INTEGER                              :: set_of_states
+    INTEGER, DIMENSION(2,2)              :: lu_bound_states
+    INTEGER                              :: max_iter
+    INTEGER                              :: out_each
+    REAL(KIND=dp)                        :: eps_localization
+    REAL(KIND=dp)                        :: max_crazy_angle
+    REAL(KIND=dp)                        :: crazy_scale
+    REAL(KIND=dp)                        :: eps_occ
+    REAL(KIND=dp), DIMENSION(2)          :: lu_ene_bound
+    LOGICAL                              :: crazy_use_diag
+    LOGICAL                              :: print_cubes, jacobi_fallback
+    LOGICAL                              :: print_centers
+    LOGICAL                              :: print_spreads
+    LOGICAL                              :: do_homo
+    LOGICAL                              :: loc_restart
+    LOGICAL                              :: use_history
+    INTEGER, POINTER, DIMENSION(:,:)       :: loc_states
+    TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
+  END TYPE localized_wfn_control_type
+
+! *** Public ***
+  PUBLIC :: qs_loc_env_create, qs_loc_env_destroy, &
+            qs_loc_env_release, qs_loc_env_retain, &
+            get_qs_loc_env, set_qs_loc_env,&
+            localized_wfn_control_create, localized_wfn_control_release
+  PUBLIC :: qs_loc_env_new_type,localized_wfn_control_type
 
 CONTAINS
 
@@ -274,6 +320,109 @@ CONTAINS
     END IF
   END SUBROUTINE qs_loc_env_retain
 
+
+
+! *****************************************************************************
+!> \brief create the localized_wfn_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
+  SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
+    ALLOCATE(localized_wfn_control,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    localized_wfn_control%ref_count= 1
+    localized_wfn_control%nloc_states=0
+    localized_wfn_control%lu_bound_states=0
+    localized_wfn_control%lu_ene_bound=0.0_dp
+    localized_wfn_control%print_cubes = .FALSE.
+    localized_wfn_control%print_centers = .FALSE.
+    localized_wfn_control%print_spreads = .FALSE.
+    localized_wfn_control%do_homo = .TRUE.
+    localized_wfn_control%use_history = .FALSE.
+    NULLIFY(localized_wfn_control%loc_states)
+    NULLIFY(localized_wfn_control%centers_set(1)%array)
+    NULLIFY(localized_wfn_control%centers_set(2)%array)
+  END SUBROUTINE localized_wfn_control_create
+
+! *****************************************************************************
+!> \brief release the localized_wfn_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
+  SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
+
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'localized_wfn_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    IF(ASSOCIATED(localized_wfn_control)) THEN
+       CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,error,failure)
+       localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
+       IF (localized_wfn_control%ref_count==0) THEN
+          IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
+               DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) THEN
+               DEALLOCATE(localized_wfn_control%centers_set(1)%array,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) THEN
+               DEALLOCATE(localized_wfn_control%centers_set(2)%array,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          localized_wfn_control%ref_count=0
+          DEALLOCATE(localized_wfn_control,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+    END IF
+  END SUBROUTINE localized_wfn_control_release
+
+! *****************************************************************************
+!> \brief retain the localized_wfn_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
+  SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
+
+    localized_wfn_control%ref_count=localized_wfn_control%ref_count+1
+  END SUBROUTINE localized_wfn_control_retain
+
+
+
 !****f* qs_loc_types/get_qs_loc_env [1.0] *
 
 ! *****************************************************************************
@@ -417,6 +566,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_qs_loc_env
+
 
 END MODULE qs_loc_types
 

@@ -1,6 +1,7 @@
 OBJECTS_GENERIC =\
  admm_methods.o\
  admm_types.o\
+ admm_utils.o\
  ai_angmom.o\
  ai_coulomb.o\
  ai_coulomb_test.o\
@@ -308,6 +309,7 @@ OBJECTS_GENERIC =\
  input_cp2k_mp2.o\
  input_cp2k.o\
  input_cp2k_poisson.o\
+ input_cp2k_properties_dft.o\
  input_cp2k_qmmm.o\
  input_cp2k_resp.o\
  input_cp2k_restarts.o\
@@ -537,7 +539,6 @@ OBJECTS_GENERIC =\
  qs_linres_types.o\
  qs_localization_methods.o\
  qs_local_rho_types.o\
- qs_loc_control.o\
  qs_loc_methods.o\
  qs_loc_molecules.o\
  qs_loc_types.o\

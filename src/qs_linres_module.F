@@ -69,8 +69,6 @@ MODULE qs_linres_module
                                              linres_control_release,&
                                              linres_control_type,&
                                              nmr_env_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
-                                             read_loc_section
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_p_env_methods,                ONLY: p_env_create,&
@@ -177,7 +175,7 @@ CONTAINS
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "Are you sure that you want to calculate the chemical "//&
                   "shift without localized psi0?")
-             CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
+             CALL linres_localize(qs_env, linres_control,&
                   dft_control%nspins,centers_only=.TRUE.,error=error)
           ENDIF
           IF(dft_control%nspins/=2.AND.epr_present) THEN
@@ -256,7 +254,7 @@ CONTAINS
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "Are you sure that you want to calculate the chemical "//&
                   "shift without localized psi0?")
-             CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
+             CALL linres_localize(qs_env,linres_control,&
                   dft_control%nspins,centers_only=.TRUE.,error=error)
           ENDIF
           !
@@ -340,7 +338,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section
 
     failure = .FALSE.
 
@@ -360,11 +358,9 @@ CONTAINS
                        dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho,error=error)
 
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
-       CALL localized_wfn_control_create(linres_control%localized_wfn_control,error=error)
        loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
-       print_loc_section => section_vals_get_subs_vals(lr_section,"PRINT",error=error)
-       CALL read_loc_section(linres_control%localized_wfn_control,loc_section,&
-            print_loc_section,linres_control%localized_psi0, error=error)
+       CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
+               l_val=linres_control%localized_psi0,error=error)
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&
@@ -372,8 +368,7 @@ CONTAINS
                   " before starting the linear response calculation"
          END IF
 
-         CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-               dft_control%nspins,error=error)
+         CALL linres_localize(qs_env, linres_control,dft_control%nspins,error=error)
 
          DO ispin=1,dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set,rho%rho_ao(ispin)%matrix,error=error)

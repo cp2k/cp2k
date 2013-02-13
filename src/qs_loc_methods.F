@@ -84,8 +84,8 @@ MODULE qs_loc_methods
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                             localized_wfn_control_type,&
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: jacobi_rotation_pipek
   USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
@@ -173,7 +173,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo",error=error)
 
     NULLIFY(opvec)
@@ -261,7 +261,7 @@ CONTAINS
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
          ispin, loc_section, print_loc_section, error=error )
     CALL cp_fm_release(opvec,error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
 
     CALL timestop(handle)
 
@@ -304,7 +304,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo",error=error)
 
     NULLIFY(particle_set)
@@ -385,7 +385,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_fm_release(opvec,error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
 
     CALL timestop(handle)
 
@@ -431,7 +431,7 @@ CONTAINS
     IF(PRESENT(only_initial_out)) my_only_init=only_initial_out
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
-    output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo",error=error)
     unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
          middle_name=file_tmp,extension=".data",error=error)
@@ -492,7 +492,7 @@ CONTAINS
     IF (unit_out_s>0 .AND. .NOT. my_only_init) WRITE (unit_out_s,'(A,2F16.10)') " Total ",  sum_spread_i, sum_spread_ii
 
     CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS",error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE centers_spreads_berry
 
@@ -669,6 +669,7 @@ CONTAINS
     END IF
 
     DO ispin = s_spin,l_spin
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
        loc_method = localized_wfn_control%localization_method
        SELECT CASE (localized_wfn_control%operator_type)
        CASE(op_loc_berry)
@@ -676,12 +677,11 @@ CONTAINS
           NULLIFY(tmp_fm_struct,mo_coeff)
           nmosub = localized_wfn_control%nloc_states(ispin)
           IF (PRESENT(ext_mo_coeff)) THEN
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
              CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
                   ncol_global=nmosub,para_env=para_env,context=ext_mo_coeff%matrix_struct%context,&
                   error=error)
           ELSE
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
              CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
                   ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,&
                   error=error)
@@ -728,7 +728,7 @@ CONTAINS
 
        ! give back the localized orbitals
        IF (.NOT.PRESENT(ext_mo_coeff)) THEN
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
        END IF
 
        lb = localized_wfn_control%lu_bound_states(1,ispin)
@@ -773,7 +773,8 @@ CONTAINS
           NULLIFY(bounds, list, list_cubes)
 
          ! Provides boundaries of MOs
-          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LU_BOUNDS",i_vals=bounds,error=error)
+          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LU_BOUNDS",&
+               i_vals=bounds,error=error)
           ncubes = bounds(2) - bounds(1)  + 1
           IF(ncubes > 0) THEN
              list_cubes_setup =.TRUE.
@@ -785,11 +786,13 @@ CONTAINS
           END IF
 
           ! Provides the list of MOs
-          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",n_rep_val=n_rep,error=error)
+          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",&
+               n_rep_val=n_rep,error=error)
           IF (.NOT.list_cubes_setup) THEN
              ncubes = 0
              DO ir = 1,n_rep
-                CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",i_rep_val=ir,i_vals=list,error=error)
+                CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",&
+                     i_rep_val=ir,i_vals=list,error=error)
                 IF(ASSOCIATED(list)) THEN
                    CALL reallocate(list_cubes,1,ncubes+ SIZE(list))
                    DO i = 1, SIZE(list)

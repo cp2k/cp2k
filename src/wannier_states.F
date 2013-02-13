@@ -58,14 +58,14 @@ CONTAINS
 !> \brief constructs wannier states. mo_localized should not be overwritten!
 ! *****************************************************************************
   SUBROUTINE construct_wannier_states(molecule_set, mo_localized, &
-       Hks, qs_env,localization_section,WannierCentres,ns,states,error)
+       Hks, qs_env,loc_print_section,WannierCentres,ns,states,error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(cp_fm_type), INTENT(in), POINTER    :: mo_localized
     TYPE(cp_dbcsr_type), POINTER             :: Hks
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: localization_section
+    TYPE(section_vals_type), POINTER         :: loc_print_section
     TYPE(wannier_centres_type), &
       INTENT(INOUT)                          :: WannierCentres
     INTEGER, INTENT(IN)                      :: ns
@@ -110,7 +110,7 @@ CONTAINS
     iproc=nstates(2)
     NULLIFY(b,c,d,fm_struct_tmp,print_key)
 
-    print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CENTERS",error=error)
+    print_key => section_vals_get_subs_vals(loc_print_section,"WANNIER_CENTERS",error=error)
     CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str,error=error)
     unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
@@ -136,7 +136,7 @@ CONTAINS
       ! try to print the matrix
 
     CALL cp_error_init(suberror,template_error=error)
-       unit_mat=cp_print_key_unit_nr(logger,localization_section,&
+       unit_mat=cp_print_key_unit_nr(logger,loc_print_section,&
        "WANNIER_STATES",extension=".whks",&
        ignore_should_output=.FALSE.,error=error)
     IF (unit_mat > 0) THEN
@@ -156,7 +156,7 @@ CONTAINS
 
     IF (unit_mat > 0) WRITE(unit_mat,*)
     CALL cp_error_reset(suberror)
-    CALL cp_print_key_finished_output(unit_mat,logger,localization_section,&
+    CALL cp_print_key_finished_output(unit_mat,logger,loc_print_section,&
                 "WANNIER_STATES",error=error)
     CALL cp_error_dealloc_ref(suberror)
     IF (output_unit>0) THEN
