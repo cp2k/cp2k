@@ -218,7 +218,7 @@ END SUBROUTINE dict_i4tuple_callstat_set
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE set_hashed(dict, key, value, hash)
+RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     TYPE(dict_i4tuple_callstat_type), &
       INTENT(inout)                          :: dict
     INTEGER(kind=int_4), DIMENSION(2), &
@@ -268,7 +268,7 @@ END SUBROUTINE set_hashed
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE change_capacity(dict, new_capacity)
+RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
     TYPE(dict_i4tuple_callstat_type), &
       INTENT(inout)                          :: dict
     INTEGER, INTENT(in)                      :: new_capacity

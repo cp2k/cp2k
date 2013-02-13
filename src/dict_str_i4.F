@@ -211,7 +211,7 @@ END SUBROUTINE dict_str_i4_set
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE set_hashed(dict, key, value, hash)
+RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     TYPE(dict_str_i4_type), INTENT(inout)    :: dict
     CHARACTER(LEN=default_string_length), &
       INTENT(in)                             :: key
@@ -259,7 +259,7 @@ END SUBROUTINE set_hashed
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE change_capacity(dict, new_capacity)
+RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
     TYPE(dict_str_i4_type), INTENT(inout)    :: dict
     INTEGER, INTENT(in)                      :: new_capacity
 

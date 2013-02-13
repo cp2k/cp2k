@@ -203,7 +203,7 @@ END SUBROUTINE dict_[keytype]_[valuetype]_set
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE set_hashed(dict, key, value, hash)
+RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort],   intent(in)                          :: key
     [valuetype_fort], intent(in)                          :: value
@@ -249,7 +249,7 @@ END SUBROUTINE set_hashed
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE change_capacity(dict, new_capacity)
+RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     INTEGER, intent(in) :: new_capacity
     INTEGER :: i, old_size, new_cap
