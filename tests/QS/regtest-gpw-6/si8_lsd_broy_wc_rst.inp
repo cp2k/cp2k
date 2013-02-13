@@ -53,14 +53,14 @@
       MAX_ITER 30
       EPS_LOCALIZATION 1.0E-10
       RESTART
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
         &LOC_RESTART
         &END
-      &END LOCALIZATION
+      &END 
+    &END
+    &PRINT
     &END
   &END DFT
 

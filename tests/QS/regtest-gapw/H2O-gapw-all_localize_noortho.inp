@@ -34,14 +34,14 @@
     &END XC
     &LOCALIZE
       OUT_ITER_EACH 1
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
         &WANNIER_SPREADS
         &END
       &END
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS

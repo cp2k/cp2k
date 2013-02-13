@@ -49,12 +49,12 @@
       MAX_ITER 1000
       OUT_ITER_EACH 10
       ENERGY_RANGE  -8.6 3.02 
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
-      &END LOCALIZATION
+      &END 
+    &END
+    &PRINT
       &MO
         EIGENVALUES
         OCCUPATION_NUMBERS

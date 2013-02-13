@@ -47,12 +47,12 @@
       METHOD CRAZY
       EPS_LOCALIZATION 1.0E-10
       ENERGY_RANGE -12.6 -2.062
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
-      &END LOCALIZATION
+      &END 
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS

@@ -66,6 +66,8 @@
       &DIIS
        MAX_STEPS 10
        MAX_SD_STEPS 5
+#       &DIIS_INFO SILENT
+#       &END
       &END
     &END
     &REPLICA

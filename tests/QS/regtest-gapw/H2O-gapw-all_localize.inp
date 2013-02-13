@@ -32,12 +32,12 @@
       &END XC_FUNCTIONAL
     &END XC
     &LOCALIZE
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
       &END
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS

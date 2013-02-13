@@ -37,14 +37,14 @@
       EPS_LOCALIZATION 1.0E-10
       STATES UNOCCUPIED
       LIST_UNOCCUPIED 1..4
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
         &MOLECULAR_STATES
         &END
-      &END LOCALIZATION
+      &END 
+    &END
+    &PRINT
       &E_DENSITY_CUBE
       &END
       &MO_CUBES

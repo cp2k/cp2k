@@ -46,12 +46,12 @@
     &LOCALIZE
       METHOD L1SD
       EPS_LOCALIZATION 1.0E-10
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
-      &END LOCALIZATION
+      &END 
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS

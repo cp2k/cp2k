@@ -28,16 +28,16 @@
       STATES ALL
       LIST 1..4
       LIST_UNOCCUPIED 1..4
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
         &MOLECULAR_STATES
            MARK_STATES 1 2
            MARK_STATES 1 1
         &END
-      &END LOCALIZATION
+      &END
+    &END
+    &PRINT
       &MO_CUBES
           NHOMO 4
           NLUMO 4

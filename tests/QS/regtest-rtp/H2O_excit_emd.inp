@@ -27,6 +27,15 @@
       EPS_LOCALIZATION 1.0E-10
       STATES UNOCCUPIED
       LIST_UNOCCUPIED 1..12
+      &PRINT
+        &WANNIER_CENTERS
+        &END
+        &MOLECULAR_STATES
+           MARK_STATES 1 2
+           &CUBES
+           &END
+        &END
+      &END
     &END
     &REAL_TIME_PROPAGATION
        MAX_ITER 8
@@ -43,15 +52,6 @@
         &END
       &END
  
-      &LOCALIZATION
-        &WANNIER_CENTERS
-        &END
-        &MOLECULAR_STATES
-           MARK_STATES 1 2
-           &CUBES
-           &END
-        &END
-      &END LOCALIZATION
       &MO_CUBES
           NHOMO 4
           NLUMO 4

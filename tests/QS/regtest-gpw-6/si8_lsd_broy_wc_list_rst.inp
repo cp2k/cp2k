@@ -54,14 +54,14 @@
       EPS_LOCALIZATION 1.0E-10
       LIST  3 4 5 6 7 8 9 
       RESTART
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
         &LOC_RESTART
         &END
-      &END LOCALIZATION
+      &END
+    &END
+    &PRINT
     &END
   &END DFT
 

@@ -74,6 +74,8 @@
       ATOMS_LIST    2
       ADDED_MOS     20
       &LOCALIZE
+        &PRINT
+        &END
       &END
       &PRINT
          &PROGRAM_RUN_INFO

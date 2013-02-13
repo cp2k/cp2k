@@ -18,9 +18,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &LOCALIZE T
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
           IONS+CENTERS
           FORMAT XMOL
@@ -35,6 +33,8 @@
           REFERENCE COAC
         &END
       &END
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS

@@ -47,12 +47,12 @@
       METHOD JACOBI
       EPS_LOCALIZATION 1.0E-4
       MAX_ITER 100
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
-      &END LOCALIZATION
+      &END 
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS

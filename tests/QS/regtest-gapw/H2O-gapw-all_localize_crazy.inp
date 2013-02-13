@@ -33,12 +33,12 @@
     &END XC
     &LOCALIZE
        METHOD CRAZY
-    &END
-    &PRINT
-      &LOCALIZATION
+      &PRINT
         &WANNIER_CENTERS
         &END
       &END
+    &END
+    &PRINT
     &END
   &END DFT
   &SUBSYS
