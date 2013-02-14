@@ -117,9 +117,7 @@
       Restart false
       States Occupied
       Use_History true
-    &end Localize
-    &Print
-      &Localization
+      &Print
         &Wannier_Centers
           Format xyz
           Ions+Centers true
@@ -158,8 +156,9 @@
           &end each
           add_last numeric
         &end molecular_states
-
-      &end Localization
+      &end 
+    &end Localize
+    &Print
       &MO_Cubes Medium
         &each
           MD 1
