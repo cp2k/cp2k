@@ -23,10 +23,10 @@
   &PROPERTIES
     &LINRES
        &LOCALIZE
-          MAX_ITER 20
+          MAX_ITER 1
            &PRINT
-              &LOC_RESTART
-              &END
+#              &LOC_RESTART
+#              &END
            &END
        &END
        MAX_ITER 10
