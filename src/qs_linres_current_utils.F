@@ -138,7 +138,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: my_pos
-    INTEGER :: handle, i, icenter, idir, ii, iii, ispin, ist_true, istat, &
+    INTEGER :: handle, first_center, i, icenter, idir, ii, iii, ispin, ist_true, istat, &
       istate, j, jcenter, jstate, max_nbr_center, max_states, nao, natom, &
       nbr_center(2), ncubes, nmo, nspins, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
@@ -305,26 +305,18 @@ CONTAINS
     !
     ! load restart file
     !
+    first_center = 0
     IF(linres_control%linres_restart) THEN
        DO idir = 1,3
           ! operator p
           psi1_ptr => psi1_p(:,idir)
-          CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir,error)
+          CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_p",error=error)
           ! operator rxp
           psi1_ptr => psi1_rxp(:,idir)
-          CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir+3,error)
-          ! operator D
-          !IF(current_env%full) THEN
-          !   psi_ptr => psi1_D(:,idir)
-          !   CALL linres_read_restart(qs_env,lr_section,psi_ptr,idir+6,error)
-          !ENDIF
+          CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_rxp",error=error)
        ENDDO
     ENDIF
     !
-    !
-    ! init the restart file for the write
-    !
-    CALL linres_init_write_restart(lr_section,error)
     !
     !
     !
@@ -363,8 +355,7 @@ CONTAINS
        ENDIF ! print response functions
        !
        ! write restart file
-       IF(output_unit>0) WRITE(output_unit,"(T10,A)") "Write the response to file"
-       CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir,error)
+       CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_p",error=error)
     ENDDO ! idir
     !
     ! operator rxp
@@ -395,8 +386,7 @@ CONTAINS
        ENDIF ! print response functions
        !
        ! write restart file
-       IF(output_unit>0) WRITE(output_unit,"(T10,A)") "Write the response to file"
-       CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir+3,error)
+       CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_rxp",error=error)
     ENDDO ! idir
     !
     ! operator D
@@ -405,9 +395,6 @@ CONTAINS
        !
        DO ispin = 1,nspins
           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-          DO idir = 1,3
-             CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
-          ENDDO
        ENDDO
        !
        ! The correction is state depedent a loop over the states is necessary
@@ -436,11 +423,27 @@ CONTAINS
        ENDDO ! ispin
        !
        DO idir = 1,3
+          DO ispin = 1,nspins
+            CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
+          END DO
+          first_center = 0
+          IF(linres_control%linres_restart) THEN
+            psi1_ptr => psi1_D(:,idir)
+            CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_dxp-",ind=first_center,error=error)
+          END IF 
+          IF(first_center>0) THEN
+            IF(output_unit>0) THEN
+                  WRITE(output_unit,"(T10,A,I4,A)")&
+                     & "Response to the perturbation operators (dk-dl)xp up to state ",&
+                     & first_center," have been read from restart"
+            ENDIF
+          END IF
           !
           ! here we run over the max number of states, then we need
           ! to be careful with overflow while doing uks calculations.
           DO icenter = 1,max_nbr_center
              !
+            IF(icenter > first_center) THEN
              IF(output_unit>0) THEN
                 WRITE(output_unit,"(T10,A,I4,A)")&
                      & "Response to the perturbation operator (dk-dl)xp for -state- ",&
@@ -511,6 +514,7 @@ CONTAINS
                      &                  -1.0_dp,fm_work_ii(ispin)%matrix,&
                      &                   error=error)
              ENDDO
+
              !
              ! Optimize the response wavefunctions
              CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
@@ -536,6 +540,14 @@ CONTAINS
                 current_env%full_done(idir*ispin,icenter) = .TRUE.
              ENDDO ! ispin
              !
+           ELSE
+             DO ispin = 1,nspins
+                current_env%full_done(idir*ispin,icenter) = .TRUE.
+             ENDDO ! ispin
+           END IF
+           psi1_ptr => psi1_D(:,idir)
+           CALL  linres_write_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_dxp-",ind=icenter,error=error)
+
           ENDDO ! center
           !
           ! print response functions
@@ -550,9 +562,6 @@ CONTAINS
              ENDDO
           ENDIF ! print response functions
           !
-          ! write restart file
-          !IF(output_unit>0) WRITE(output_unit,"(T10,A)") "Write the response to file"
-          !CALL linres_write_restart(qs_env,lr_section,psi1,idir+6,error)
        ENDDO ! idir
        !
        ! clean up

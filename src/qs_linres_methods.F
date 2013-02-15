@@ -58,6 +58,7 @@ MODULE qs_linres_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast
@@ -109,6 +110,7 @@ MODULE qs_linres_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
+  USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1436,18 +1438,22 @@ CONTAINS
     !
   END SUBROUTINE postortho
 
-  SUBROUTINE linres_write_restart(qs_env,linres_section,vec,ivec,error)
+  SUBROUTINE linres_write_restart(qs_env,linres_section,vec,ivec,tag,ind,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: linres_section
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: vec
     INTEGER, INTENT(IN)                      :: ivec
+    CHARACTER(LEN=*)                         :: tag
+    INTEGER, INTENT(IN), OPTIONAL            :: ind
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_write_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, i_block, ispin, &
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: my_middle, my_pos, my_status
+    INTEGER                                  :: handle, i, i_block, ia, ie, ii, ispin, &
                                                 istat, j, max_block, nao, &
                                                 nmo, nspins, output_unit, &
                                                 rst_unit
@@ -1458,16 +1464,18 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
 
-    NULLIFY(mo_coeff,para_env)
+    NULLIFY(logger, mo_coeff, mos, para_env, print_key, vecbuffer)
 
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
 
-    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART",error=error),&
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART",&
+              used_print_key=print_key,error=error),&
          cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,linres_section,&
@@ -1480,10 +1488,33 @@ CONTAINS
 
        nspins = SIZE(mos)
 
+       my_status = "REPLACE"
+       my_pos= "REWIND"
+       CALL XSTRING(tag,ia,ie)
+       IF(PRESENT(ind)) THEN
+          my_middle = "RESTART-"//tag(ia:ie)//TRIM(ADJUSTL(cp_to_string(ivec)))
+       ELSE
+          my_middle = "RESTART-"//tag(ia:ie)
+          IF(ivec>1) THEN
+            my_status="OLD"
+            my_pos="APPEND"
+          END IF
+       END IF
        rst_unit = cp_print_key_unit_nr(logger,linres_section,"PRINT%RESTART",&
-            extension=".lr",middle_name="RESTART",file_status="OLD",&
-            file_position="APPEND",file_action="WRITE",file_form="UNFORMATTED",&
+            extension=".lr",middle_name=TRIM(my_middle),file_status=TRIM(my_status),&
+            file_position=TRIM(my_pos),file_action="WRITE",file_form="UNFORMATTED",&
             error=error)
+
+
+       filename =  cp_print_key_generate_filename(logger,print_key,&
+            extension=".lr",middle_name=TRIM(my_middle), my_local=.FALSE.,error=error)
+
+       IF(output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,A,/)")&
+               "Linres response functions are written to restart file",&
+                TRIM(filename)
+       END IF
+
        !
        ! write data to file
        ! use the scalapack block size as a default for buffering columns
@@ -1492,11 +1523,13 @@ CONTAINS
        ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       IF(rst_unit>0) WRITE(rst_unit) ivec,nspins,nao
+       IF(PRESENT(ind)) THEN
+         IF(rst_unit>0) WRITE(rst_unit) ind,ivec,nspins,nao
+       ELSE
+         IF(rst_unit>0) WRITE(rst_unit) ivec,nspins,nao
+       END IF
 
        DO ispin=1,nspins
-          !CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-          !CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
           CALL cp_fm_get_info(vec(ispin)%matrix,ncol_global=nmo,error=error)
 
           IF(rst_unit>0) WRITE(rst_unit) nmo
@@ -1509,7 +1542,16 @@ CONTAINS
              ! restarts with a different number of CPUs
              DO j=1,i_block
                 IF(rst_unit>0) WRITE (rst_unit) vecbuffer(1:nao,j)
+!dbg
+!                write(*,*)  ' imo ', j
+!                DO ii = 1,nao
+!                  IF(rst_unit>0) WRITE(*,*)  vecbuffer(1:nao,j)
+!                End do
+!dbg
              ENDDO
+!dbg
+!         stop 'write' 
+!dbg
           ENDDO
        ENDDO
 
@@ -1523,7 +1565,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE linres_write_restart
-
 
   SUBROUTINE linres_init_write_restart(linres_section,error)
     TYPE(section_vals_type), POINTER         :: linres_section
@@ -1565,19 +1606,23 @@ CONTAINS
   END SUBROUTINE linres_init_write_restart
 
 
-  SUBROUTINE linres_read_restart(qs_env,linres_section,vec,ivec,error)
+  SUBROUTINE linres_read_restart(qs_env,linres_section,vec,ivec,tag,ind,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: linres_section
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: vec
     INTEGER, INTENT(IN)                      :: ivec
+    CHARACTER(LEN=*)                         :: tag
+    INTEGER, INTENT(INOUT), OPTIONAL           :: ind
+
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_read_restart', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER :: group, handle, i, i_block, iostat, ispin, istat, iv, ivec_tmp, &
+    CHARACTER(LEN=default_string_length)     :: my_middle
+    INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, istat, iv, iv1, ivec_tmp, &
       j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, &
       nspins_tmp, output_unit, rst_unit, source
     LOGICAL                                  :: failure, file_exists
@@ -1594,7 +1639,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(mos,para_env,logger)
+    NULLIFY(mos,para_env,logger,print_key,vecbuffer)
     logger => cp_error_get_logger(error)
 
     output_unit = cp_print_key_unit_nr(logger,linres_section,&
@@ -1611,14 +1656,25 @@ CONTAINS
 
     rst_unit = -1
     IF(para_env%ionode) THEN
-       CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
+       CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",&
+            n_rep_val=n_rep_val,error=error)
+    
+       CALL XSTRING(tag,ia,ie)
+       IF(PRESENT(ind)) THEN
+          my_middle = "RESTART-"//tag(ia:ie)//TRIM(ADJUSTL(cp_to_string(ivec)))
+       ELSE
+          my_middle = "RESTART-"//tag(ia:ie)
+       END IF
+
        IF(n_rep_val>0) THEN
           CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
+          CALL xstring (filename, ia, ie )
+          filename = filename(ia:ie)//TRIM(my_middle)//".lr"         
        ELSE
          ! try to read from the filename that is generated automatically from the printkey
           print_key => section_vals_get_subs_vals(linres_section,"PRINT%RESTART",error=error)
           filename = cp_print_key_generate_filename(logger,print_key, &
-                      extension=".lr",middle_name="RESTART",my_local=.FALSE., error=error)
+                      extension=".lr",middle_name=TRIM(my_middle),my_local=.FALSE., error=error)
        ENDIF
        INQUIRE(FILE=filename,exist=file_exists)
        !
@@ -1631,8 +1687,8 @@ CONTAINS
                          file_status="OLD",&
                          unit_number=rst_unit)
 
-          IF(output_unit > 0) WRITE(output_unit,"(/,T20,A,I5)")&
-               "Read restart file for ivec ", ivec
+          IF(output_unit > 0) WRITE(output_unit,"(/,T20,A,A)")&
+               "Read response wavefunction from restart file ", TRIM(filename)
        ELSE
           IF(output_unit > 0) WRITE(output_unit,"(/,T10,A)")&
                "Restart file not available filename=<"//TRIM(filename)//'>'
@@ -1650,9 +1706,19 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
        ! read headers
-       DO iv = 1,ivec
+       IF(PRESENT(ind)) THEN
+          iv1 = ivec
+       ELSE
+          iv1=1
+       END IF
+       DO iv = iv1,ivec
 
-          IF(rst_unit>0) READ(rst_unit,IOSTAT=iostat) ivec_tmp,nspins_tmp,nao_tmp
+          IF(PRESENT(ind)) THEN
+            IF(rst_unit>0) READ(rst_unit,IOSTAT=iostat) ind, ivec_tmp,nspins_tmp,nao_tmp
+            CALL mp_bcast(ind,source,group)
+          ELSE
+            IF(rst_unit>0) READ(rst_unit,IOSTAT=iostat) ivec_tmp,nspins_tmp,nao_tmp
+          END IF
           CALL mp_bcast(iostat,source,group)
           IF(iostat.NE.0) EXIT
           CALL mp_bcast(ivec_tmp,source,group)
@@ -1691,7 +1757,8 @@ CONTAINS
        ENDDO
 
        IF(iostat.NE.0) THEN
-          IF(output_unit > 0) WRITE(output_unit,"(/,T10,A,I3,/)") "Restart file: didnt find ",ivec
+          IF(output_unit > 0) WRITE(output_unit,"(/,T10,A,A,/)") &
+                 "Restart file: didnt find ",TRIM(filename)
        ENDIF
 
        DEALLOCATE(vecbuffer,STAT=istat)

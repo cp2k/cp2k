@@ -239,9 +239,6 @@ CONTAINS
        CALL section_create(subsection,"PRINT","printing of information during the linear response calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
-       ! Add printing of wannier infos
-       CALL print_wanniers(subsection, error)
-
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic iteration information during the LINRES calculation", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
