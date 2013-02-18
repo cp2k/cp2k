@@ -79,8 +79,7 @@ CONTAINS
        CALL keyword_create(keyword, name="2D_MOLECULAR_DISTRIBUTION",&
             description="Distribute the atoms so that atoms belonging to a given molecule"//&
                         " are on the same CPU for the 2D distribution. This might give rise to a"//&
-                        " worse distribution but reduces memory needs of finding the optimal distribution."//&
-                        " This is also a required option for KG models.", &
+                        " worse distribution but reduces memory needs of finding the optimal distribution.",&
             usage="2D_MOLECULAR_DISTRIBUTION TRUE",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
