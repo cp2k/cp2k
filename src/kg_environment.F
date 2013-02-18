@@ -409,6 +409,76 @@ CONTAINS
 
   END SUBROUTINE
 
+  ! writes the graph to file using the DIMACS standard format
+  ! for a definition of the file format see 
+  ! mat.gsia.cmu.edu?COLOR/general/ccformat.ps
+  ! in brief:
+  ! c comment line
+  ! p edge NODES EDGES
+  ! with NODES - number of nodes
+  !      EDGES - numer of edges
+  ! e W V
+  ! ...
+  ! there is one edge descriptor line for each edge in the graph
+  ! for an edge (w,v) the fields W and V specify its endpoints
+  SUBROUTINE write_to_file(pairs, nnodes, error)
+    INTEGER(KIND=int_4), ALLOCATABLE, &
+      DIMENSION(:, :), INTENT(IN)            :: pairs
+    INTEGER, INTENT(IN)                      :: nnodes
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_to_file', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, imol, jmol, npairs
+    INTEGER(KIND=int_4), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: sorted_pairs
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    ! get the number of disjunct pairs
+    npairs=SIZE(pairs,2)
+
+    ALLOCATE(sorted_pairs(2,npairs))
+
+    ! reorder pairs such that pairs(1,*) < pairs(2,*) 
+    DO i=1,npairs
+      ! get molecular ids
+      imol = pairs(1,i)
+      jmol = pairs(2,i)
+      IF (imol>jmol) THEN
+        ! switch pair and store
+        sorted_pairs(1,i)=jmol
+        sorted_pairs(2,i)=imol
+      ELSE
+        ! keep ordering just copy
+        sorted_pairs(1,i)=imol
+        sorted_pairs(2,i)=jmol
+      END IF
+    END DO
+
+    ! remove duplicates and get the number of disjunct pairs (number of edges)
+    CALL kg_remove_duplicates(sorted_pairs, npairs)
+
+    ! should now be half as much pairs as before
+    CPPostcondition(npairs==SIZE(pairs,2)/2,cp_failure_level,routineP,error,failure)
+
+    OPEN(33, FILE="graph.col")
+
+    WRITE(33, '(A6,1X,I8,1X,I8)') "p edge", nnodes, npairs
+
+    ! only write out the first npairs entries
+    DO i=1,npairs
+      WRITE(33, '(A1,1X,I8,1X,I8)') "e", sorted_pairs(1,i), sorted_pairs(2,i)
+    END DO
+
+    CLOSE(33)
+
+    DEALLOCATE(sorted_pairs)
+
+  END SUBROUTINE
+
   SUBROUTINE kg_build_subsets(kg_env, para_env, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -528,7 +598,10 @@ CONTAINS
 
       !WRITE(*,'(A48,5X,I10,4X,A2,1X,I10)') " KG| Total number of overlapping molecular pairs",npairs/2,"of",nmol*(nmol-1)/2
 
-      ! third: vertex coloring algorithm
+      ! write to file, nnodes = number of molecules
+      !CALL write_to_file(pairs, SIZE(kg_env%molecule_set), error)
+
+      ! vertex coloring algorithm
       CALL kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node, error)
 
       DEALLOCATE(pairs)

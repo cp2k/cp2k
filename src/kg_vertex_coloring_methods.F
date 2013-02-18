@@ -18,7 +18,16 @@ MODULE kg_vertex_coloring_methods
                                              cite_reference
   USE f77_blas
   USE kg_environment_types,            ONLY: kg_environment_type
-  USE kinds,                           ONLY: int_4
+  USE kg_min_heap,                     ONLY: heap_fill,&
+                                             heap_new,&
+                                             heap_pop,&
+                                             heap_release,&
+                                             heap_reset_node,&
+                                             heap_t,&
+                                             keyt,&
+                                             valt
+  USE kinds,                           ONLY: int_4,&
+                                             int_8
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -32,7 +41,6 @@ MODULE kg_vertex_coloring_methods
     INTEGER :: color
     INTEGER :: degree ! degree (number of neighbors)
     INTEGER :: dsat   ! degree of saturation
-    TYPE (vertex), POINTER :: next => NULL() 
     TYPE (vertex_p_type), DIMENSION(:), POINTER :: neighbors => NULL()
   END TYPE vertex
  
@@ -40,21 +48,12 @@ MODULE kg_vertex_coloring_methods
     TYPE (vertex), POINTER :: vertex
   END TYPE vertex_p_type
 
-  TYPE node_type
-    INTEGER                                   :: color, nstart
-    TYPE (vertex), POINTER                    :: vertex => NULL()
-  END TYPE node_type
-
-  TYPE node_p_type
-    TYPE(node_type), POINTER :: node
-  END TYPE node_p_type
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_vertex_coloring_methods'
 
-  PUBLIC :: kg_create_graph, kg_vertex_coloring, vertex_p_type, vertex, node_type, node_p_type
+  PUBLIC :: kg_vertex_coloring
 
 CONTAINS
-
+  
   SUBROUTINE kg_create_graph(kg_env, pairs, graph)
     TYPE(kg_environment_type), POINTER       :: kg_env
     INTEGER(KIND=int_4), ALLOCATABLE, &
@@ -134,6 +133,7 @@ CONTAINS
 
   END SUBROUTINE
 
+  ! greedy algorithm
   SUBROUTINE color_graph(graph, maxdegree, ncolors)
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
@@ -148,7 +148,7 @@ CONTAINS
 
     nnodes=SIZE(graph)
 
-    ALLOCATE(color_present(nnodes))
+    ALLOCATE(color_present(maxdegree+1))
 
     DO i=1,nnodes
       color_present(:)=.FALSE.
@@ -172,17 +172,6 @@ CONTAINS
     DEALLOCATE(color_present)
 
   END SUBROUTINE
-
-  ! returns the number of items in the todolist 'list'
-  INTEGER FUNCTION nitem(list)
-    TYPE(vertex), POINTER                    :: list, this
-    nitem=0
-    this => list
-    DO WHILE (ASSOCIATED(this%next))
-      this=>this%next
-      nitem=nitem+1
-    END DO
-  END FUNCTION
 
   ! prints the subset info to the screen - useful for vmd visualization
   ! note that the index starts with '0' and not with '1'
@@ -221,78 +210,137 @@ CONTAINS
 
   END SUBROUTINE
 
- ! allocate and initialize the todolist
-  SUBROUTINE init_todo(graph, list)
-    TYPE(vertex_p_type), DIMENSION(:), &
-      POINTER                                :: graph
-    TYPE(vertex), POINTER                    :: list
+  SUBROUTINE kg_heap_new(heap, nnodes, error)
+    TYPE(heap_t), INTENT(OUT)                :: heap
+    INTEGER                                  :: nnodes
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, maxdeg, nnodes
-    TYPE(vertex), POINTER                    :: maxnode, this
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_new', &
+      routineP = moduleN//':'//routineN
 
-    nnodes = SIZE(graph)
+    LOGICAL                                  :: failure, heap_error
 
-    ALLOCATE(list)
+    failure=.FALSE.
 
-    ! find a node of maximum degree
-    maxdeg = 0
-
-    NULLIFY(maxnode)
-
-    DO i=1, nnodes
-      IF (graph(i)%vertex%degree.GT.maxdeg) THEN
-        maxdeg = graph(i)%vertex%degree
-        maxnode => graph(i)%vertex
-      END IF
-    END DO
-
-    IF (ASSOCIATED(maxnode)) THEN
-
-      ! first node in the todolist has max degree
-      list%next => maxnode
-
-      this => maxnode
- 
-      ! add all OTHER nodes in arbitrary order...
-      DO i=1, nnodes
-        IF (graph(i)%vertex%id.NE.maxnode%id) THEN
-          this%next => graph(i)%vertex
-          this => graph(i)%vertex
-        END IF
-      END DO
-
-    ELSE
-      ! no node with degree > 0
-
-      this => list
-
-      ! add all nodes in arbitrary order
-      DO i=1, nnodes
-        this%next => graph(i)%vertex
-        this => graph(i)%vertex
-      END DO
-
-    END IF
+    CALL heap_new(heap, nnodes, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineP, "Error creating heap.", error=error)
 
   END SUBROUTINE
 
-  ! calculates the dsat of the given node
-  SUBROUTINE calculate_dsat(graph, node, dsat) 
+  ELEMENTAL FUNCTION kg_get_value(dsat, degree) RESULT(value)
+    INTEGER, INTENT(IN)                      :: dsat, degree
+    INTEGER(KIND=valt)                       :: value
+
+    INTEGER, PARAMETER                       :: huge_4 = HUGE(int_4) 
+
+! we actually need a max_heap
+
+    value = (huge_4 - INT(dsat,KIND=int_8)) * huge_4 + huge_4-degree
+
+  END FUNCTION
+
+  SUBROUTINE kg_heap_fill(heap, graph, error)
+    TYPE(heap_t), INTENT(INOUT)              :: heap
     TYPE(vertex_p_type), DIMENSION(:), &
-      POINTER                                :: graph
+      INTENT(IN), POINTER                    :: graph
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_fill', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, nnodes
+    INTEGER(kind=valt), ALLOCATABLE, &
+      DIMENSION(:)                           :: values
+    LOGICAL                                  :: failure, heap_error
+
+    failure = .FALSE.
+
+    nnodes = SIZE(graph) 
+
+    ALLOCATE (values(nnodes))
+
+    DO i=1,nnodes
+      values(i) = kg_get_value(0, HUGE(int_4)-graph(i)%vertex%degree)
+    END DO
+
+    ! fill the heap
+    CALL heap_fill (heap, values, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineP, "Error initially filling heap.", error=error)
+
+    DEALLOCATE (values)
+
+  END SUBROUTINE
+
+  SUBROUTINE kg_heap_release(heap, error)
+    TYPE(heap_t)                             :: heap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, heap_error
+
+    failure=.FALSE.
+
+    CALL heap_release(heap, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineP, "Error releasing heap.", error=error)
+
+  END SUBROUTINE
+
+  SUBROUTINE kg_heap_pop(heap, key, error)
+    TYPE(heap_t)                             :: heap
+    INTEGER, INTENT(OUT)                     :: key
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_pop', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER(KIND=valt)                       :: value
+    LOGICAL                                  :: failure, found, heap_error
+
+    failure=.FALSE.
+
+    CALL heap_pop (heap, key, value, found, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineP, "Error getting topmost heap element.", error=error)
+
+  END SUBROUTINE
+
+  SUBROUTINE kg_heap_reset_node(heap, key, value, error)
+    TYPE(heap_t)                             :: heap
+    INTEGER(KIND=keyt), INTENT(IN)           :: key
+    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_reset_node', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: heap_error
+
+    CALL heap_reset_node (heap, key, value, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineP, "Error changing value of heap element.", error=error)
+
+  END SUBROUTINE 
+
+  ! calculates the dsat of the given node
+  SUBROUTINE calculate_dsat(node, maxdegree, dsat) 
     TYPE(vertex), POINTER                    :: node
+    INTEGER, INTENT(in)                      :: maxdegree
     INTEGER, INTENT(out)                     :: dsat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dsat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, i, nneighbors, nnodes
+    INTEGER                                  :: color, i, nneighbors
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
 
-    nnodes = SIZE(graph)
     nneighbors = SIZE(node%neighbors)
  
-    ALLOCATE(color_present(nnodes))
+    ALLOCATE(color_present(maxdegree+1))
  
     color_present(:)=.FALSE.
 
@@ -303,7 +351,7 @@ CONTAINS
 
     dsat=0
 
-    DO i=1,SIZE(color_present)
+    DO i=1,maxdegree+1
       IF (color_present(i)) dsat=dsat+1
     END DO
 
@@ -311,103 +359,32 @@ CONTAINS
 
   END SUBROUTINE
 
-  ! removes a given node from the list,
-  ! if present - does nothing otherwise
-  SUBROUTINE remove(node, list, stat)
-    TYPE(vertex), POINTER                    :: node, list
-    LOGICAL, INTENT(out), OPTIONAL           :: stat
+  SUBROUTINE kg_update_node(heap, node, error)
+    TYPE(heap_t)                             :: heap
+    TYPE(vertex), INTENT(IN), POINTER        :: node
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(vertex), POINTER                    :: this
-
-    stat = .FALSE.
-
-    this => list
-
-    DO WHILE (ASSOCIATED(this%next))
-
-      IF (this%next%id.EQ.node%id) THEN
-        stat=.TRUE.
-        IF (ASSOCIATED(this%next%next)) THEN
-          this%next => this%next%next
-        ELSE
-          this%next => NULL()
-        END IF
-        RETURN
-      END IF 
-
-      this => this%next
-
-    END DO
-
-  END SUBROUTINE
-
-  ! adds a given node to the list, if not already present
-  ! does nothing otherwise
-  SUBROUTINE add(list, node, stat)
-    TYPE(vertex), POINTER                    :: list, node
-    LOGICAL, INTENT(out), OPTIONAL           :: stat
-
-    TYPE(vertex), POINTER                    :: this
-
-    stat = .TRUE.
-    this => list
-
-    DO WHILE (ASSOCIATED(this%next))
-
-      IF (this%next%id.EQ.node%id) THEN
-        stat=.FALSE. ! node already in list
-        RETURN
-      END IF 
-
-      this => this%next
-
-    END DO
-
-    ! add the node at the top of the list
-    node%next => list%next
-    list%next => node
-
-  END SUBROUTINE
-
-  ! update position of a given node in the todolist
-  SUBROUTINE update_todo(graph, list, node)
-    TYPE(vertex_p_type), DIMENSION(:), &
-      POINTER                                :: graph
-    TYPE(vertex), POINTER                    :: list, node
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_todo', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_update_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: degree, dsat
-    LOGICAL                                  :: stat
-    TYPE(vertex), POINTER                    :: this
+    INTEGER                                  :: degree, dsat, id
+    INTEGER(KIND=valt)                       :: value
+    LOGICAL                                  :: heap_error
 
-    degree = node%degree
-    dsat = node%dsat
+    id = node%id
 
-    ! remove node from the list (if already present)
-    CALL remove(node, list, stat)
+    ! only update node if not yet colored
+    IF (heap%index(id)>0) THEN
 
-    IF (stat) THEN 
-      this => list
+      degree = node%degree
+      dsat = node%dsat
   
-      DO WHILE (ASSOCIATED(this%next))
+      value = kg_get_value(dsat, degree)
   
-        IF (this%next%dsat.LE.dsat) THEN
-          IF (this%next%dsat.EQ.dsat) THEN
-            IF (this%next%degree.LE.degree) EXIT
-          ELSE
-            EXIT
-          END IF
-        END IF 
-  
-        this => this%next
-  
-      END DO
-  
-      ! insert node after this
-      node%next => this%next
-      this%next => node
+      CALL kg_heap_reset_node(heap, id, value, error)  
+      CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+           routineP, "Error updating heap.", error=error)
+
     END IF
 
   END SUBROUTINE
@@ -422,18 +399,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_dsatur', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, dsat, handle, i, &
-                                                newcolor, nneighbors, nnodes
-    LOGICAL                                  :: stat
+    INTEGER                                  :: color, dsat, handle, i, key, &
+                                                maxdegree, newcolor, &
+                                                nneighbors, nnodes
+    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
-    TYPE(vertex), POINTER                    :: list, neighbor, this
+    TYPE(heap_t)                             :: heap
+    TYPE(vertex), POINTER                    :: neighbor, this
+
+    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
     CALL cite_reference(Brelaz1979)
 
     ncolors=0
-
+    maxdegree=kg_env%maxdegree
     nnodes=SIZE(graph)
 
     IF (kg_env%maxdegree.EQ.0) THEN
@@ -447,15 +428,20 @@ CONTAINS
       END DO
       
     ELSE
- 
-      CALL init_todo(graph, list)
- 
+
+      ! allocate and fill the heap
+      CALL kg_heap_new(heap, nnodes, error)
+
+      CALL kg_heap_fill(heap, graph, error) 
+
       ALLOCATE(color_present(nnodes))
   
-      DO WHILE (ASSOCIATED(list%next))
-  
-        this => list%next
-  
+      DO WHILE (heap%n>0)  
+
+        CALL kg_heap_pop(heap, key, error)
+
+        this => graph(key)%vertex  
+
         color_present(:)=.FALSE.
  
         newcolor=0
@@ -468,42 +454,69 @@ CONTAINS
             IF (color.NE.0) color_present(color)=.TRUE.
           END DO
         END IF 
-        DO i=1,kg_env%maxdegree+1 !nnodes
+        DO i=1,kg_env%maxdegree+1
           IF (color_present(i).EQV..FALSE.) THEN
             newcolor=i
             EXIT
           END IF
         END DO
+
         this%color = newcolor ! smallest possible
         IF (newcolor.GT.ncolors) ncolors=newcolor
-  
-        ! remove current node from the todolist
-        CALL remove(this, list, stat)
-  
+
         ! update all neighboring nodes
         DO i=1,nneighbors
   
           neighbor => this%neighbors(i)%vertex
   
-          CALL calculate_dsat(graph, neighbor, dsat)
+          CALL calculate_dsat(neighbor, maxdegree, dsat)
           IF (neighbor%dsat.NE.dsat) THEN
   
             ! update dsat
             neighbor%dsat = dsat
-  
-            ! update position of this neighbor in the todolist
-            CALL update_todo(graph, list, neighbor)
+
+            ! change value of node and resort heap
+            CALL kg_update_node(heap, neighbor, error) 
   
           END IF
         END DO
       END DO
   
       DEALLOCATE(color_present)   
-      DEALLOCATE(list)
+
+      ! release the heap
+      CALL kg_heap_release(heap, error)      
 
     END IF
 
     CALL timestop(handle)
+
+  END SUBROUTINE
+
+  SUBROUTINE check_coloring(graph, valid)
+    TYPE(vertex_p_type), DIMENSION(:), &
+      INTENT(in), POINTER                    :: graph
+    LOGICAL, INTENT(out)                     :: valid
+
+    INTEGER                                  :: i, j, nneighbors, nnodes
+    TYPE(vertex), POINTER                    :: neighbor, node
+
+    valid = .TRUE.
+    nnodes = SIZE(graph)
+
+    DO i=1,nnodes
+      node => graph(i)%vertex
+      IF (ASSOCIATED(node%neighbors)) THEN
+        nneighbors = SIZE(node%neighbors)
+        DO j=1,nneighbors
+          neighbor => node%neighbors(j)%vertex
+          IF (neighbor%color==node%color) THEN
+            valid=.FALSE.
+            RETURN
+          END IF
+        END DO
+      END IF
+    END DO
 
   END SUBROUTINE
  
@@ -538,12 +551,14 @@ CONTAINS
 
     INTEGER                                  :: color, handle, i, nnodes, &
                                                 unit_nr
+    LOGICAL                                  :: failure, valid
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
 
-! get a useful output_unit
+    failure = .FALSE.
 
+    ! get a useful output_unit
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
@@ -558,6 +573,11 @@ CONTAINS
     ! CALL color_graph(graph, kg_env%maxdegree, ncolors) ! simple greedy algorithm
     CALL kg_dsatur(kg_env, graph, ncolors, error)
 
+    valid=.FALSE.
+    CALL check_coloring(graph, valid)
+    CALL cp_assert (valid, cp_fatal_level, cp_internal_error,&
+         routineP, "Coloring not valid.", error=error)
+
     nnodes = SIZE(kg_env%molecule_set)
 
     ALLOCATE(color_of_node(nnodes))
@@ -570,15 +590,13 @@ CONTAINS
 
     IF (unit_nr>0) THEN
 
-      WRITE(unit_nr,'()')
       WRITE(unit_nr,'(T2,A,A,A)') REPEAT("-",30)," KG coloring result ",REPEAT("-",29)
       !WRITE(unit_nr,'()')
       !CALL print_subsets(graph, ncolors, unit_nr, error)
       !WRITE(unit_nr,'()')
       WRITE(unit_nr,'(T2, A16,50X,I6,1X,A6)') 'Number of colors', ncolors, 'colors'
-
+      IF (valid) WRITE(unit_nr,'(T2, A17,59X,A3)') 'Coloring verified', 'yes'
       WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
-      WRITE(unit_nr,'()')
 
     END IF
 
