@@ -1019,7 +1019,7 @@ CONTAINS
 
 
   SUBROUTINE  loc_read_restart(qs_loc_env,mos,mos_localized,section, section2,para_env,&
-              do_homo,evals,error)
+              do_homo,restart_found, evals,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1029,6 +1029,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: section, section2
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: do_homo
+    LOGICAL, INTENT(INOUT)                   :: restart_found
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: evals
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1041,8 +1042,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_middle
     INTEGER :: group, handle, homo_read, i, ispin, istat, lfomo_read, &
       max_nloc, n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
-      rst_unit, source
-    LOGICAL                                  :: exist, failure
+      output_unit, rst_unit, source
+    LOGICAL                                  :: file_exists, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1059,6 +1060,8 @@ CONTAINS
 
     group = para_env%group
     source = para_env%source
+    output_unit = cp_print_key_unit_nr(logger,section2,&
+             "PROGRAM_RUN_INFO", extension=".Log",error=error)
 
     IF(do_homo) THEN
       fname_key="LOCHOMO_RESTART_FILE_NAME"
@@ -1070,7 +1073,7 @@ CONTAINS
                        only_ionode=.TRUE.)
     END IF
 
-    exist = .FALSE.
+    file_exists = .FALSE.
     CALL section_vals_val_get(section,fname_key,n_rep_val=n_rep_val,error=error)
     IF (n_rep_val>0) THEN
       CALL section_vals_val_get(section,fname_key,c_val=filename,error=error)
@@ -1087,20 +1090,29 @@ CONTAINS
                   my_local=.FALSE.,error=error)
     END IF
 
-    INQUIRE(FILE=filename,exist=exist)
+    IF (para_env%ionode)  INQUIRE(FILE=filename,exist=file_exists)
 
-    IF (para_env%ionode) THEN
-      CALL open_file(file_name=filename,&
+    IF(file_exists) THEN
+      IF (para_env%ionode) THEN
+        CALL open_file(file_name=filename,&
                      file_action="READ",&
                      file_form="UNFORMATTED",&
                      file_status="OLD",&
                      unit_number=rst_unit)
 
-       READ(rst_unit) qs_loc_env%localized_wfn_control%set_of_states
-       READ(rst_unit) qs_loc_env%localized_wfn_control%lu_bound_states
-       READ(rst_unit) qs_loc_env%localized_wfn_control%nloc_states
-
+         READ(rst_unit) qs_loc_env%localized_wfn_control%set_of_states
+         READ(rst_unit) qs_loc_env%localized_wfn_control%lu_bound_states
+         READ(rst_unit) qs_loc_env%localized_wfn_control%nloc_states
+      END IF
+    ELSE
+       IF(output_unit > 0) WRITE(output_unit,"(/,T10,A)")&
+               "Restart file not available filename=<"//TRIM(filename)//'>'
     END IF
+    CALL mp_bcast(file_exists,source,group)
+
+    IF(file_exists) THEN
+      restart_found = .TRUE.
+
 
     CALL mp_bcast(qs_loc_env%localized_wfn_control%set_of_states,source,group)
     CALL mp_bcast(qs_loc_env%localized_wfn_control%lu_bound_states,source,group)
@@ -1188,8 +1200,12 @@ CONTAINS
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    END IF
+
     ! Close restart file
-    IF (para_env%ionode) CALL close_file(unit_number=rst_unit)
+    IF (para_env%ionode) THEN
+      IF(file_exists)  CALL close_file(unit_number=rst_unit)
+    END IF
 
     CALL timestop(handle)
 
@@ -1249,7 +1265,7 @@ CONTAINS
 
     INTEGER :: handle, homo, i, ilast_intocc, ilow, ispin, iup, n_mo(2), &
       n_mos(2), nao, nelectron, nmoloc(2), nspin, output_unit
-    LOGICAL :: my_do_homo, my_do_mo_cubes
+    LOGICAL :: my_do_homo, my_do_mo_cubes, restart_found
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, mo_derivs
@@ -1285,16 +1301,18 @@ CONTAINS
     ELSE
       my_do_mo_cubes = .FALSE.
     END IF
+    restart_found = .FALSE.
     IF (qs_loc_env%do_localize) THEN
       ! Some setup for MOs to be localized
       CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
       IF(localized_wfn_control%loc_restart) THEN
          CALL loc_read_restart(qs_loc_env,mos,mos_localized,localize_section,&
-              loc_print_section,qs_env%para_env,my_do_homo,evals=evals,error=error)
+              loc_print_section,qs_env%para_env,my_do_homo,restart_found,evals=evals,error=error)
          IF (output_unit>0) WRITE(output_unit,"(/,T2,A,A)") "LOCALIZATION| ",&
                     "   The orbitals to be localized are read from localization restart file."
          nmoloc = localized_wfn_control%nloc_states
-      ELSE
+      END IF
+      IF(.NOT. restart_found) THEN
          nmoloc = 0
          DO ispin = 1,nspin
             CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,homo=homo,nao=nao,&

@@ -1542,16 +1542,7 @@ CONTAINS
              ! restarts with a different number of CPUs
              DO j=1,i_block
                 IF(rst_unit>0) WRITE (rst_unit) vecbuffer(1:nao,j)
-!dbg
-!                write(*,*)  ' imo ', j
-!                DO ii = 1,nao
-!                  IF(rst_unit>0) WRITE(*,*)  vecbuffer(1:nao,j)
-!                End do
-!dbg
              ENDDO
-!dbg
-!         stop 'write' 
-!dbg
           ENDDO
        ENDDO
 
