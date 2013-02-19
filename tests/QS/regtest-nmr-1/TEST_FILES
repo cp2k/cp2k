@@ -4,6 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 H2O-NMR-1.inp 14
+H2O-NMR-1_rst.inp 14
 H2O-NMR-2.inp 14
 H2O-NMR-3.inp 14
 H2O-NMR-4.inp 14

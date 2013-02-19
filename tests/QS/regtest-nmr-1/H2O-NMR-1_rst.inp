@@ -22,14 +22,14 @@
   &END DFT
   &PROPERTIES
     &LINRES
-##       RESTART
+       RESTART
        &LOCALIZE
           MAX_ITER 20
+          RESTART
            &PRINT
               &LOC_RESTART
               &END
            &END
-##           RESTART
        &END
        MAX_ITER 10
        RESTART_EVERY 5
