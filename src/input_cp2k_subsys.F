@@ -645,9 +645,18 @@ CONTAINS
             print_level=high_print_level,filename="__STD_OUT__",unit_str="angstrom",error=error)
 
        CALL keyword_create(keyword, name="POSITION", variants=(/"POS"/),&
-            description="Print the position vector of atom a specified by its index",&
-            usage="POSITION {integer}",n_var=1,repeats=.TRUE.,required=.FALSE.,&
-            type_of_var=integer_t,error=error)
+            description="Print the position vectors in Cartesian coordinates of the atoms specified "//&
+                        "by a list of their indices",&
+            usage="POSITION {integer} {integer} {integer}..{integer}",n_var=-1,repeats=.TRUE.,&
+            required=.FALSE.,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="POSITION_SCALED",variants=(/"POS_SCALED"/),&
+            description="Print the position vectors in scaled coordinates of the atoms specified "//&
+                        "by a list of their indices",&
+            usage="POSITION_SCALED {integer} {integer} {integer}..{integer}",n_var=-1,repeats=.TRUE.,&
+            required=.FALSE.,type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -665,7 +674,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DIHEDRAL_ANGLE", variants=s2a("DIHEDRAL","DIH"),&
+       CALL keyword_create(keyword, name="DIHEDRAL_ANGLE",variants=s2a("DIHEDRAL","DIH"),&
             description="Print the dihedral angle between the planes defined by the atoms (a,b,c) and "//&
             "the atoms (b,c,d) specified by their indices",&
             usage="DIHEDRAL_ANGLE {integer}  {integer} {integer} {integer}",n_var=4,&

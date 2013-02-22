@@ -21,7 +21,8 @@ MODULE particle_types
                                              gto_basis_set_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
-                                             pbc
+                                             pbc,&
+                                             real_to_scaled
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -41,15 +42,18 @@ MODULE particle_types
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              dihedral_angle
+  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort_unique
+  USE util,                            ONLY: sort,&
+                                             sort_unique
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -799,21 +803,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: string, unit_str
-    INTEGER                                  :: handle, i, iw, n, natom, &
-                                                wrk1(1), wrk2(2), wrk3(3), &
-                                                wrk4(4)
-    INTEGER, DIMENSION(:), POINTER           :: atomic_indices
+    INTEGER                                  :: handle, i, i_rep, istat, iw, &
+                                                n, n_rep, n_vals, natom, &
+                                                new_size, old_size, wrk2(2), &
+                                                wrk3(3), wrk4(4)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
+    INTEGER, DIMENSION(:), POINTER           :: atomic_indices, index_list
     LOGICAL                                  :: failure, unique
     REAL(KIND=dp)                            :: conv, dab
-    REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
+    REAL(KIND=dp), DIMENSION(3)              :: r, rab, rbc, rcd, s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY (atomic_indices)
+    NULLIFY (index_list)
     NULLIFY (logger)
     NULLIFY (section)
+    string = ""
 
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger=logger,&
@@ -824,41 +832,102 @@ CONTAINS
 
     CALL section_vals_val_get(input_section,"PRINT%STRUCTURE_DATA%UNIT",c_val=unit_str,error=error)
     conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    CALL uppercase(unit_str)
     IF (iw > 0) THEN
-      natom = SIZE(particle_set)
-      section => section_vals_get_subs_vals(section_vals=input_section,&
-                                            subsection_name="PRINT%STRUCTURE_DATA",&
-                                            error=error)
+       natom = SIZE(particle_set)
+       section => section_vals_get_subs_vals(section_vals=input_section,&
+                                             subsection_name="PRINT%STRUCTURE_DATA",&
+                                             error=error)
 
       WRITE (UNIT=iw,FMT="(/,T2,A)") "REQUESTED STRUCTURE DATA"
       ! Print the requested atomic position vectors
       CALL section_vals_val_get(section_vals=section,&
                                 keyword_name="POSITION",&
-                                n_rep_val=n,&
+                                n_rep_val=n_rep,&
                                 error=error)
-      IF (n > 0) THEN
-        WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
-          "Position vector r(i) of atom i in "//TRIM(unit_str)
-        DO i=1,n
-          CALL section_vals_val_get(section_vals=section,&
-                                    keyword_name="POSITION",&
-                                    i_rep_val=i,&
-                                    i_vals=atomic_indices,&
-                                    error=error)
-          string = ""
-          WRITE (UNIT=string,FMT="(A,I0,A)")&
-            "(",atomic_indices(1),")"
-          wrk1=atomic_indices
-          CALL sort_unique(wrk1, unique)
-          IF (((wrk1(1)>=1).AND.(wrk1(SIZE(wrk1))<=natom)).AND.unique) THEN
+      IF (n_rep > 0) THEN
+         WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
+          "Position vectors r(i) of the atoms i in "//TRIM(unit_str)
+         old_size = 0
+         DO i_rep=1,n_rep
+            CALL section_vals_val_get(section_vals=section,&
+                                      keyword_name="POSITION",&
+                                      i_rep_val=i_rep,&
+                                      i_vals=atomic_indices,&
+                                      error=error)
+            n_vals = SIZE(atomic_indices)
+            new_size = old_size + n_vals
+            CALL reallocate(index_list,1,new_size)
+            index_list(old_size+1:new_size) = atomic_indices(1:n_vals)
+            old_size = new_size
+         END DO
+         ALLOCATE (work(new_size),STAT=istat)
+         CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+         CALL sort(index_list,new_size,work)
+         DEALLOCATE (work,STAT=istat)
+         CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+         DO i=1,new_size
+            WRITE (UNIT=string,FMT="(A,I0,A)") "(",index_list(i),")"
+            IF ((index_list(i) < 1).OR.(index_list(i) > natom)) THEN
+               WRITE (UNIT=iw,FMT="(T3,A)")&
+                "Invalid atomic index "//TRIM(string)//" specified. Print request is ignored."
+               CYCLE
+            END IF
+            IF (i > 1) THEN
+               ! Skip redundant indices
+               IF (index_list(i) == index_list(i-1)) CYCLE
+            END IF
             WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
-              "r"//TRIM(string),"=",&
-              pbc(particle_set(atomic_indices(1))%r(1:3),cell)*conv
-          ELSE
-            WRITE (UNIT=iw,FMT="(T3,A)")&
-              "Invalid atomic index "//TRIM(string)//" specified. Print request is ignored."
-          END IF
-        END DO
+             "r"//TRIM(string),"=",pbc(particle_set(index_list(i))%r(1:3),cell)*conv
+         END DO
+         DEALLOCATE (index_list,STAT=istat)
+         CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+      END IF
+
+      ! Print the requested atomic position vectors in scaled coordinates
+      CALL section_vals_val_get(section_vals=section,&
+                                keyword_name="POSITION_SCALED",&
+                                n_rep_val=n_rep,&
+                                error=error)
+      IF (n_rep > 0) THEN
+         WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
+          "Position vectors s(i) of the atoms i in scaled coordinates"
+         old_size = 0
+         DO i_rep=1,n_rep
+            CALL section_vals_val_get(section_vals=section,&
+                                      keyword_name="POSITION_SCALED",&
+                                      i_rep_val=i_rep,&
+                                      i_vals=atomic_indices,&
+                                      error=error)
+            n_vals = SIZE(atomic_indices)
+            new_size = old_size + n_vals
+            CALL reallocate(index_list,1,new_size)
+            index_list(old_size+1:new_size) = atomic_indices(1:n_vals)
+            old_size = new_size
+         END DO
+         ALLOCATE (work(new_size),STAT=istat)
+         CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+         CALL sort(index_list,new_size,work)
+         DEALLOCATE (work,STAT=istat)
+         CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+         DO i=1,new_size
+            WRITE (UNIT=string,FMT="(A,I0,A)") "(",index_list(i),")"
+            IF ((index_list(i) < 1).OR.(index_list(i) > natom)) THEN
+               WRITE (UNIT=iw,FMT="(T3,A)")&
+                "Invalid atomic index "//TRIM(string)//" specified. Print request is ignored."
+               CYCLE
+            END IF
+            IF (i > 1) THEN
+               ! Skip redundant indices
+               IF (index_list(i) == index_list(i-1)) CYCLE
+            END IF
+            r(1:3) = pbc(particle_set(index_list(i))%r(1:3),cell)
+            CALL real_to_scaled(s,r,cell)
+            WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
+             "s"//TRIM(string),"=",s(1:3)
+         END DO
+         DEALLOCATE (index_list,STAT=istat)
+         CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
       END IF
 
       ! Print the requested distances
