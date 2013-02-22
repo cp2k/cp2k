@@ -92,8 +92,8 @@ MODULE qs_linres_methods
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
-                                             get_qs_loc_env,&
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                             localized_wfn_control_type,&
                                              qs_loc_env_create,&
                                              qs_loc_env_new_type,&
                                              qs_loc_env_release,&
@@ -154,22 +154,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istate, istat, n_mo(2), &
-                                                nelectron, nmoloc(2), &
-                                                output_unit
+    INTEGER                                  :: ispin, istat, istate, &
+                                                nmoloc(2), output_unit
     LOGICAL                                  :: failure, my_centers_only
-    REAL(dp)                                 :: maxocc
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_localized
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(section_vals_type), POINTER         :: loc_section, lr_section, &
-                                                loc_print_section
+    TYPE(section_vals_type), POINTER         :: loc_print_section, &
+                                                loc_section, lr_section
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section, loc_print_section,localized_wfn_control)
@@ -189,7 +187,7 @@ CONTAINS
     linres_control% qs_loc_env=> qs_loc_env
     CALL qs_loc_env_release(qs_loc_env,error=error)
     qs_loc_env => linres_control% qs_loc_env
-    CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.true.,error=error)
+    CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.TRUE.,error=error)
     CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
 
     ALLOCATE(mos_localized(nspins),stat=istat)
@@ -209,7 +207,7 @@ CONTAINS
     ENDIF
 
     CALL qs_loc_init(qs_env, qs_loc_env,loc_section,mos_localized=mos_localized,&
-         do_homo=.true.,error=error)
+         do_homo=.TRUE.,error=error)
 
     ! The orbital centers are stored in linres_control%localized_wfn_control
     DO ispin = 1,nspins
@@ -1453,10 +1451,10 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle, my_pos, my_status
-    INTEGER                                  :: handle, i, i_block, ia, ie, ii, ispin, &
-                                                istat, j, max_block, nao, &
-                                                nmo, nspins, output_unit, &
-                                                rst_unit
+    INTEGER                                  :: handle, i, i_block, ia, ie, &
+                                                ispin, istat, j, max_block, &
+                                                nao, nmo, nspins, &
+                                                output_unit, rst_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1604,8 +1602,7 @@ CONTAINS
       POINTER                                :: vec
     INTEGER, INTENT(IN)                      :: ivec
     CHARACTER(LEN=*)                         :: tag
-    INTEGER, INTENT(INOUT), OPTIONAL           :: ind
-
+    INTEGER, INTENT(INOUT), OPTIONAL         :: ind
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_read_restart', &
@@ -1613,9 +1610,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle
-    INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, istat, iv, iv1, ivec_tmp, &
-      j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, &
-      nspins_tmp, output_unit, rst_unit, source
+    INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, istat, iv, &
+      iv1, ivec_tmp, j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, &
+      nspins, nspins_tmp, output_unit, rst_unit, source
     LOGICAL                                  :: failure, file_exists
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff

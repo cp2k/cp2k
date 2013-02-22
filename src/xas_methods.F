@@ -630,8 +630,7 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: mixing_section, &
-                                                loc_section, &
+    TYPE(section_vals_type), POINTER         :: loc_section, mixing_section, &
                                                 smear_section
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 

@@ -17,11 +17,9 @@ MODULE input_cp2k_properties_dft
   USE input_constants
   USE input_cp2k_atprop,               ONLY: create_atprop_section
   USE input_cp2k_dft,                  ONLY: create_interp_section,&
-                                             create_localize_section,&
-                                             print_wanniers
+                                             create_localize_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_cp2k_xc,                   ONLY: create_xc_section
-
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -30,10 +28,8 @@ MODULE input_cp2k_properties_dft
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: char_t,&
-                                             integer_t,&
+  USE input_val_types,                 ONLY: integer_t,&
                                              lchar_t,&
-                                             logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a

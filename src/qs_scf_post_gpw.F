@@ -127,10 +127,11 @@ MODULE qs_scf_post_gpw
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: loc_write_restart,&
                                              qs_loc_control_init,&
-                                             qs_loc_env_init, qs_loc_init,&
+                                             qs_loc_env_init,&
+                                             qs_loc_init,&
                                              retain_history
   USE qs_mo_methods,                   ONLY: calculate_orthonormality,&
-                                             calculate_subspace_eigenvalues, &
+                                             calculate_subspace_eigenvalues,&
                                              make_mo_eig
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              duplicate_mo_set,&
@@ -220,8 +221,9 @@ CONTAINS
       POINTER                                :: occupied_evals, &
                                                 unoccupied_evals
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: kinetic_m, ks_rmpv, ks_rmpv_aux_fit,&
-                                                matrix_s, mo_derivs
+      POINTER                                :: kinetic_m, ks_rmpv, &
+                                                ks_rmpv_aux_fit, matrix_s, &
+                                                mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, &
       lumo_localized, lumo_ptr, mo_loc_history, occupied_orbs, unoccupied_orbs
     TYPE(cp_fm_type), POINTER                :: mo_coeff

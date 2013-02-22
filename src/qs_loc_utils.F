@@ -48,9 +48,10 @@ MODULE qs_loc_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: &
-        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
-        do_loc_none, energy_loc_range, op_loc_berry, op_loc_boys, &
-        op_loc_pipek, state_loc_all, state_loc_list, state_loc_none, state_loc_range
+       do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
+       do_loc_none, energy_loc_range, op_loc_berry, op_loc_boys, &
+       op_loc_pipek, state_loc_all, state_loc_list, state_loc_none, &
+       state_loc_range
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -1043,7 +1044,7 @@ CONTAINS
     INTEGER :: group, handle, homo_read, i, ispin, istat, lfomo_read, &
       max_nloc, n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
       output_unit, rst_unit, source
-    LOGICAL                                  :: file_exists, failure
+    LOGICAL                                  :: failure, file_exists
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1253,7 +1254,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: localize_section
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_localized
-    LOGICAL , OPTIONAL                       :: do_homo, do_mo_cubes
+    LOGICAL, OPTIONAL                        :: do_homo, do_mo_cubes
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_loc_history
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
@@ -1265,7 +1266,8 @@ CONTAINS
 
     INTEGER :: handle, homo, i, ilast_intocc, ilow, ispin, iup, n_mo(2), &
       n_mos(2), nao, nelectron, nmoloc(2), nspin, output_unit
-    LOGICAL :: my_do_homo, my_do_mo_cubes, restart_found
+    LOGICAL                                  :: my_do_homo, my_do_mo_cubes, &
+                                                restart_found
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, mo_derivs
@@ -1275,9 +1277,8 @@ CONTAINS
       POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(section_vals_type), POINTER         :: loc_print_section
     TYPE(scf_control_type), POINTER          :: scf_control
-
+    TYPE(section_vals_type), POINTER         :: loc_print_section
 
     CALL timeset(routineN,handle)
 
@@ -1444,8 +1445,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list, loc_list
     LOGICAL                                  :: failure, my_do_xas
     REAL(dp), POINTER                        :: ene(:)
-    TYPE(section_vals_type), POINTER         :: loc_print_section
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: loc_print_section
 
     failure=.FALSE.
     my_do_xas=.FALSE.

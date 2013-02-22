@@ -27,7 +27,8 @@ MODULE qs_mo_methods
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type, cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk,&
@@ -926,12 +927,11 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_dbcsr_p_type),  DIMENSION(:), &
-       POINTER                               :: mo_derivs
-    TYPE(admm_type), POINTER, OPTIONAL       :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: ks_aux
-
+      POINTER                                :: mo_derivs
+    TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ks_aux
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', &

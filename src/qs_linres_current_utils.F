@@ -86,8 +86,7 @@ MODULE qs_linres_current_utils
                                              pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_methods,               ONLY: linres_init_write_restart,&
-                                             linres_read_restart,&
+  USE qs_linres_methods,               ONLY: linres_read_restart,&
                                              linres_solver,&
                                              linres_write_restart
   USE qs_linres_op,                    ONLY: set_vecp
@@ -138,9 +137,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: my_pos
-    INTEGER :: handle, first_center, i, icenter, idir, ii, iii, ispin, ist_true, istat, &
-      istate, j, jcenter, jstate, max_nbr_center, max_states, nao, natom, &
-      nbr_center(2), ncubes, nmo, nspins, nstates(2), output_unit
+    INTEGER :: first_center, handle, i, icenter, idir, ii, iii, ispin, &
+      ist_true, istat, istate, j, jcenter, jstate, max_nbr_center, &
+      max_states, nao, natom, nbr_center(2), ncubes, nmo, nspins, nstates(2), &
+      output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list_cubes, rbs
     INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
@@ -606,7 +606,7 @@ CONTAINS
     INTEGER :: handle, homo, i, iao, iatom, ibox, icenter, icount, idir, ii, &
       ini, ir, is, ispin, istat, istate, istate2, istate_next, ix, iy, iz, j, &
       jstate, k, max_nbr_center, max_states, n, n_rep, nao, natom, nbr_box, &
-      ncubes, nmo, nmoloc, nspins, nstate, nstate_list(2), output_unit
+      ncubes, nmo, nspins, nstate, nstate_list(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buff, first_sgf, last_sgf
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: state_list
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, nbox, &

@@ -24,13 +24,11 @@ MODULE input_cp2k_dft
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_powell_section
-  USE input_cp2k_atprop,               ONLY: create_atprop_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
                                              create_neighbor_lists_section
   USE input_cp2k_motion,               ONLY: add_format_keyword
   USE input_cp2k_poisson,              ONLY: create_poisson_section
-  USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -651,7 +649,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, print_section, subsection
+    TYPE(section_type), POINTER              :: print_key, print_section, &
+                                                subsection
 
     failure=.FALSE.
 

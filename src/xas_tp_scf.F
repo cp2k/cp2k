@@ -67,8 +67,8 @@ MODULE xas_tp_scf
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
-                                             get_qs_loc_env,&
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                             localized_wfn_control_type,&
                                              qs_loc_env_new_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
