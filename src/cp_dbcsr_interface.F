@@ -99,7 +99,8 @@ MODULE cp_dbcsr_interface
                                              dbcsr_mp_obj,&
                                              dbcsr_no_transpose,&
                                              dbcsr_scalar_type,&
-                                             dbcsr_type_complex_4
+                                             dbcsr_type_complex_4,&
+                                             dbcsr_type_complex_8
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_verify_matrix
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -359,7 +360,7 @@ CONTAINS
     CALL dbcsr_scalar_fill_all (encapsulated)
     data_type = dbcsr_get_data_type (matrix%matrix)
     CALL cp_assert (data_type .EQ. dbcsr_type_complex_4 .OR.&
-         data_type .EQ. dbcsr_type_complex_4,&
+         data_type .EQ. dbcsr_type_complex_8,&
          cp_fatal_level, cp_wrong_args_error, routineN,&
          "Can not conform a complex to a real number", error=error)
     CALL dbcsr_scalar_set_type (encapsulated, data_type)
@@ -383,7 +384,7 @@ CONTAINS
     CALL dbcsr_scalar_fill_all (encapsulated)
     data_type = dbcsr_get_data_type (matrix%matrix)
     CALL cp_assert (data_type .EQ. dbcsr_type_complex_4 .OR.&
-         data_type .EQ. dbcsr_type_complex_4,&
+         data_type .EQ. dbcsr_type_complex_8,&
          cp_fatal_level, cp_wrong_args_error, routineN,&
          "Can not conform a complex to a real number", error=error)
     CALL dbcsr_scalar_set_type (encapsulated, data_type)

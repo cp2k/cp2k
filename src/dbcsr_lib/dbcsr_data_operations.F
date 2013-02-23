@@ -160,7 +160,7 @@ CONTAINS
     ENDIF
     keep_real = .TRUE.
     IF (PRESENT (drop_real)) keep_real = .NOT. drop_real
-    noimult = .FALSE.
+    noimult = .TRUE. 
     IF (PRESENT (multiply_by_i)) noimult = .NOT. multiply_by_i
     ns = dbcsr_data_get_size (source_area)
     nt = dbcsr_data_get_size (source_area)

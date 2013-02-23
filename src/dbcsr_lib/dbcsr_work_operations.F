@@ -516,16 +516,12 @@ CONTAINS
          error=error)
     ! Copy stuff from the meta-array.  These are not normally needed,
     ! but have to be here for creating matrices from "image" matrices.
-    ! (Matrix type may be "N", but negate_real or negate_imaginary
-    ! should still be honored.
     matrix%m%index(dbcsr_slot_home_prow) = template%m%index(dbcsr_slot_home_prow)
     matrix%m%index(dbcsr_slot_home_rowi) = template%m%index(dbcsr_slot_home_rowi)
     matrix%m%index(dbcsr_slot_home_pcol) = template%m%index(dbcsr_slot_home_pcol)
     matrix%m%index(dbcsr_slot_home_coli) = template%m%index(dbcsr_slot_home_coli)
     matrix%m%index(dbcsr_slot_home_vprow) = template%m%index(dbcsr_slot_home_vprow)
     matrix%m%index(dbcsr_slot_home_vpcol) = template%m%index(dbcsr_slot_home_vpcol)
-    matrix%m%negate_real = template%m%negate_real
-    matrix%m%negate_imaginary = template%m%negate_imaginary
   END SUBROUTINE dbcsr_create_template
 
 
