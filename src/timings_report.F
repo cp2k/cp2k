@@ -22,7 +22,8 @@ MODULE timings_report
   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             int_8
   USE list,                            ONLY: list_get,&
                                              list_size
   USE message_passing,                 ONLY: mp_bcast,&
@@ -216,12 +217,12 @@ MODULE timings_report
     ! use outermost routine as total runtime
     r_stat => list_get(timer_env%routine_stats, 1)
     WRITE (UNIT=unit,FMT="(A)") "events: Walltime"
-    WRITE (UNIT=unit,FMT="(A,I0)") "summary: ", INT(T*r_stat%incl_walltime_accu)
+    WRITE (UNIT=unit,FMT="(A,I0)") "summary: ", INT(T*r_stat%incl_walltime_accu,KIND=int_8)
     
     DO i=1, list_size(timer_env%routine_stats)
        r_stat => list_get(timer_env%routine_stats, i)
        WRITE (UNIT=unit,FMT="(A,I0,A,A)") "fn=(",r_stat%routine_id,") ", r_stat%routineN
-       WRITE (UNIT=unit,FMT="(A,I0)") "1 ", INT(T*r_stat%excl_walltime_accu)
+       WRITE (UNIT=unit,FMT="(A,I0)") "1 ", INT(T*r_stat%excl_walltime_accu,KIND=int_8)
     END DO
     
     ct_items => dict_items(timer_env%callgraph)
@@ -230,7 +231,7 @@ MODULE timings_report
        WRITE (UNIT=unit,FMT="(A,I0,A)") "fn=(", ct_items(i)%key(1), ")"
        WRITE (UNIT=unit,FMT="(A,I0,A)") "cfn=(", ct_items(i)%key(2), ")"
        WRITE (UNIT=unit,FMT="(A,I0,A)") "calls=", c_stat%total_calls, " 1"
-       WRITE (UNIT=unit,FMT="(A,I0)") "1 ", INT(T*c_stat%incl_walltime_accu)
+       WRITE (UNIT=unit,FMT="(A,I0)") "1 ", INT(T*c_stat%incl_walltime_accu,KIND=int_8)
     END DO
     DEALLOCATE(ct_items)
     
