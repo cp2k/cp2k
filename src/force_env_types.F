@@ -812,8 +812,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_set_cell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_eval, nforce_eval
+    INTEGER                                  :: iforce_eval, my_group, &
+                                                nforce_eval
     LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: my_error
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
@@ -865,10 +867,12 @@ CONTAINS
        CASE (use_mixed_force)
           CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
           nforce_eval = SIZE(force_env%sub_force_env)
+          my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
+          my_error = force_env%mixed_env%sub_error(my_group+1)
           DO iforce_eval = 1, nforce_eval
              IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
                 CALL force_env_set_cell(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                     cell=cell, error=error)
+                     cell=cell, error=my_error)
              END IF
           END DO
        CASE default
