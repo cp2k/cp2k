@@ -2775,7 +2775,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
       local_size = limits(my_prow+1) - limits(my_prow)
       IF(MOD(n-1,np_cols) == my_pcol .AND. local_size>0 .AND. nx>1) THEN
         num_chunks  = num_chunks+1
-        CALL mpi_irecv(hh_trans_complex(1,num_hh_vecs+1), nb*local_size, MPI_COMPLEX16, nt, &
+        CALL mpi_irecv(hh_trans_complex(1,num_hh_vecs+1), nb*local_size, MPI_DOUBLE_COMPLEX, nt, &
                        10+n-block_limits(nt), mpi_comm, ireq_hhr(num_chunks), mpierr)
         num_hh_vecs = num_hh_vecs + local_size
       ENDIF
@@ -2840,7 +2840,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
       ! send first column to previous PE
       ! Only the PE owning the diagonal does that (sending 1 element of the subdiagonal block also)
       ab_s(1:nb+1) = ab(1:nb+1,na_s-n_off)
-      CALL mpi_isend(ab_s,nb+1,MPI_COMPLEX16,my_pe-1,1,mpi_comm,ireq_ab,mpierr)
+      CALL mpi_isend(ab_s,nb+1,MPI_DOUBLE_COMPLEX,my_pe-1,1,mpi_comm,ireq_ab,mpierr)
     ENDIF
 
     DO istep=1,na-1-block_limits(my_pe)*nb
@@ -2868,7 +2868,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
       ELSE
         IF(na>na_s) THEN
           ! Receive Householder vector from previous task, from PE owning subdiagonal
-          CALL mpi_recv(hv,nb,MPI_COMPLEX16,my_pe-1,2,mpi_comm,mpi_status,mpierr)
+          CALL mpi_recv(hv,nb,MPI_DOUBLE_COMPLEX,my_pe-1,2,mpi_comm,mpi_status,mpierr)
           tau = hv(1)
           hv(1) = 1.
         ENDIF
@@ -3009,13 +3009,13 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
             IF(my_pe>0 .AND. na_s <= na) THEN
               CALL mpi_wait(ireq_ab,mpi_status,mpierr)
               ab_s(1:nb+1) = ab(1:nb+1,na_s-n_off)
-              CALL mpi_isend(ab_s,nb+1,MPI_COMPLEX16,my_pe-1,1,mpi_comm,ireq_ab,mpierr)
+              CALL mpi_isend(ab_s,nb+1,MPI_DOUBLE_COMPLEX,my_pe-1,1,mpi_comm,ireq_ab,mpierr)
             ENDIF
 
             ! Request last column from next PE
             ne = na_s + nblocks*nb - (max_threads-1) - 1
             IF(istep>=max_threads .AND. ne <= na) THEN
-              CALL mpi_recv(ab(1,ne-n_off),nb+1,MPI_COMPLEX16, &
+              CALL mpi_recv(ab(1,ne-n_off),nb+1,MPI_DOUBLE_COMPLEX, &
               my_pe+1,1,mpi_comm,mpi_status,mpierr)
             ENDIF
 
@@ -3028,7 +3028,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
               CALL mpi_wait(ireq_hv,mpi_status,mpierr)
               hv_s(1) = tau_t(max_threads)
               hv_s(2:) = hv_t(2:,max_threads)
-              CALL mpi_isend(hv_s,nb,MPI_COMPLEX16,my_pe+1,2,mpi_comm,ireq_hv,mpierr)
+              CALL mpi_isend(hv_s,nb,MPI_DOUBLE_COMPLEX,my_pe+1,2,mpi_comm,ireq_hv,mpierr)
             ENDIF
 
             ! "Send" HH vector and TAU to next OpenMP thread
@@ -3083,7 +3083,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
             IF(nr>0) CALL ZGEMV('N',nr,nb-1,tau,ab(nb+1,ns),2*nb-1,hv,1,(0.d0,0.d0),hs,1)
 
             ! ... then request last column ...
-            CALL mpi_recv(ab(1,ne),nb+1,MPI_COMPLEX16,my_pe+1,1,mpi_comm,mpi_status,mpierr)
+            CALL mpi_recv(ab(1,ne),nb+1,MPI_DOUBLE_COMPLEX,my_pe+1,1,mpi_comm,mpi_status,mpierr)
 
             ! ... and complete the result
             hs(1:nr) = hs(1:nr) + ab(2:nr+1,ne)*tau*hv(nb)
@@ -3124,7 +3124,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
               CALL mpi_wait(ireq_hv,mpi_status,mpierr)
               hv_s(1) = tau_new
               hv_s(2:) = hv_new(2:)
-              CALL mpi_isend(hv_s,nb,MPI_COMPLEX16,my_pe+1,2,mpi_comm,ireq_hv,mpierr)
+              CALL mpi_isend(hv_s,nb,MPI_DOUBLE_COMPLEX,my_pe+1,2,mpi_comm,ireq_hv,mpierr)
             ENDIF
 
           ENDIF
@@ -3145,7 +3145,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
 
             CALL mpi_wait(ireq_ab,mpi_status,mpierr)
             ab_s(1:nb+1) = ab(1:nb+1,ns)
-            CALL mpi_isend(ab_s,nb+1,MPI_COMPLEX16,my_pe-1,1,mpi_comm,ireq_ab,mpierr)
+            CALL mpi_isend(ab_s,nb+1,MPI_DOUBLE_COMPLEX,my_pe-1,1,mpi_comm,ireq_ab,mpierr)
 
             ! ... and calculate remaining columns with rank-2 update
             IF(nc>1) CALL ZHER2('L',nc-1,(-1.d0,0.d0),hd(2),1,hv(2),1,ab(1,ns+1),2*nb-1)
@@ -3192,7 +3192,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
           ! Copy vectors into send buffer
           hh_send(:,1:hh_cnt(iblk),iblk) = hh_gath(:,1:hh_cnt(iblk),iblk)
           ! Send to destination
-          CALL mpi_isend(hh_send(1,1,iblk), nb*hh_cnt(iblk), MPI_COMPLEX16, &
+          CALL mpi_isend(hh_send(1,1,iblk), nb*hh_cnt(iblk), MPI_DOUBLE_COMPLEX, &
                          global_id(hh_dst(iblk),MOD(iblk+block_limits(my_pe)-1,np_cols)), &
                          10+iblk, mpi_comm, ireq_hhs(iblk), mpierr)
           ! Reset counter and increase destination row
@@ -3376,7 +3376,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
             DO i=limits(ip)+1,limits(ip+1)
                 src = MOD((i-1)/nblk, np_rows)
                 IF(src < my_prow) THEN
-                    CALL MPI_Recv(row, l_nev, MPI_COMPLEX16, src, 0, mpi_comm_rows, mpi_status, mpierr)
+                    CALL MPI_Recv(row, l_nev, MPI_DOUBLE_COMPLEX, src, 0, mpi_comm_rows, mpi_status, mpierr)
 !$omp parallel do private(my_thread), schedule(static, 1)
                     DO my_thread = 1, max_threads
                         CALL unpack_row(row,i-limits(ip),my_thread)
@@ -3397,7 +3397,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                 IF(MOD((i-1)/nblk, np_rows) == my_prow) THEN
                     src_offset = src_offset+1
                     row(:) = q(src_offset, 1:l_nev)
-                    CALL MPI_Send(row, l_nev, MPI_COMPLEX16, dst, 0, mpi_comm_rows, mpierr)
+                    CALL MPI_Send(row, l_nev, MPI_DOUBLE_COMPLEX, dst, 0, mpi_comm_rows, mpierr)
                 ENDIF
               ENDDO
             ENDDO
@@ -3409,14 +3409,14 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                 IF(src == my_prow) THEN
                     src_offset = src_offset+1
                     row(:) = q(src_offset, 1:l_nev)
-                    CALL MPI_Send(row, l_nev, MPI_COMPLEX16, ip, 0, mpi_comm_rows, mpierr)
+                    CALL MPI_Send(row, l_nev, MPI_DOUBLE_COMPLEX, ip, 0, mpi_comm_rows, mpierr)
                 ENDIF
             ENDDO
             ! Receive all rows from PE ip
             DO i=limits(my_prow)+1,limits(my_prow+1)
                 src = MOD((i-1)/nblk, np_rows)
                 IF(src == ip) THEN
-                    CALL MPI_Recv(row, l_nev, MPI_COMPLEX16, src, 0, mpi_comm_rows, mpi_status, mpierr)
+                    CALL MPI_Recv(row, l_nev, MPI_DOUBLE_COMPLEX, src, 0, mpi_comm_rows, mpi_status, mpierr)
 !$omp parallel do private(my_thread), schedule(static, 1)
                     DO my_thread = 1, max_threads
                         CALL unpack_row(row,i-limits(my_prow),my_thread)
@@ -3443,7 +3443,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
 
     IF(my_prow > 0 .AND. l_nev>0) THEN ! note: row 0 always sends
         DO j = 1, MIN(num_result_buffers, num_result_blocks)
-            CALL MPI_Irecv(result_buffer(1,1,j), l_nev*nblk, MPI_COMPLEX16, 0, result_recv_tag, &
+            CALL MPI_Irecv(result_buffer(1,1,j), l_nev*nblk, MPI_DOUBLE_COMPLEX, 0, result_recv_tag, &
                            mpi_comm_rows, result_recv_request(j), mpierr)
         ENDDO
     ENDIF
@@ -3517,7 +3517,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
             DO i = 1, stripe_count
                 csw = MIN(stripe_width, thread_width-(i-1)*stripe_width) ! "current_stripe_width"
                 b_len = csw*nbw*max_threads
-                CALL MPI_Irecv(bottom_border_recv_buffer(1,i), b_len, MPI_COMPLEX16, my_prow+1, bottom_recv_tag, &
+                CALL MPI_Irecv(bottom_border_recv_buffer(1,i), b_len, MPI_DOUBLE_COMPLEX, my_prow+1, bottom_recv_tag, &
                            mpi_comm_rows, bottom_recv_request(i), mpierr)
             ENDDO
         ENDIF
@@ -3527,7 +3527,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                 bcast_buffer(:,1:current_local_n) = hh_trans_complex(:,current_tv_off+1:current_tv_off+current_local_n)
                 current_tv_off = current_tv_off + current_local_n
             ENDIF
-            CALL mpi_bcast(bcast_buffer, nbw*current_local_n, MPI_COMPLEX16, MOD(sweep,np_cols), mpi_comm_cols, mpierr)
+            CALL mpi_bcast(bcast_buffer, nbw*current_local_n, MPI_DOUBLE_COMPLEX, MOD(sweep,np_cols), mpi_comm_cols, mpierr)
         ELSE
             ! for current_local_n == 1 the one and only HH vector is 0 and not stored in hh_trans_complex
             bcast_buffer(:,1) = 0
@@ -3559,7 +3559,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                 ENDDO
                 IF(next_n_end < next_n) THEN
                     CALL MPI_Irecv(bottom_border_recv_buffer(1,i), csw*nbw*max_threads, &
-                                   MPI_COMPLEX16, my_prow+1, bottom_recv_tag, &
+                                   MPI_DOUBLE_COMPLEX, my_prow+1, bottom_recv_tag, &
                                    mpi_comm_rows, bottom_recv_request(i), mpierr)
                 ENDIF
             ENDIF
@@ -3590,7 +3590,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                     b_len = csw*bottom_msg_length*max_threads
                     bottom_border_send_buffer(1:b_len,i) = &
                         RESHAPE(a(1:csw,n_off+1:n_off+bottom_msg_length,i,:), (/ b_len /))
-                    CALL MPI_Isend(bottom_border_send_buffer(1,i), b_len, MPI_COMPLEX16, my_prow+1, &
+                    CALL MPI_Isend(bottom_border_send_buffer(1,i), b_len, MPI_DOUBLE_COMPLEX, my_prow+1, &
                                    top_recv_tag, mpi_comm_rows, bottom_send_request(i), mpierr)
                 ENDIF
 
@@ -3609,7 +3609,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                     b_len = csw*bottom_msg_length*max_threads
                     bottom_border_send_buffer(1:b_len,i) = &
                       RESHAPE(a(1:csw,n_off+1:n_off+bottom_msg_length,i,:), (/ b_len /))
-                    CALL MPI_Isend(bottom_border_send_buffer(1,i), b_len, MPI_COMPLEX16, my_prow+1, &
+                    CALL MPI_Isend(bottom_border_send_buffer(1,i), b_len, MPI_DOUBLE_COMPLEX, my_prow+1, &
                                    top_recv_tag, mpi_comm_rows, bottom_send_request(i), mpierr)
                 ENDIF
 
@@ -3640,7 +3640,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
             IF(next_top_msg_length > 0) THEN
                 !request top_border data
                 b_len = csw*next_top_msg_length*max_threads
-                CALL MPI_Irecv(top_border_recv_buffer(1,i), b_len, MPI_COMPLEX16, my_prow-1, &
+                CALL MPI_Irecv(top_border_recv_buffer(1,i), b_len, MPI_DOUBLE_COMPLEX, my_prow-1, &
                                top_recv_tag, mpi_comm_rows, top_recv_request(i), mpierr)
             ENDIF
 
@@ -3649,7 +3649,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                 CALL MPI_Wait(top_send_request(i), mpi_status, mpierr)
                 b_len = csw*nbw*max_threads
                 top_border_send_buffer(1:b_len,i) = RESHAPE(a(1:csw,a_off+1:a_off+nbw,i,:), (/ b_len /))
-                CALL MPI_Isend(top_border_send_buffer(1,i), b_len, MPI_COMPLEX16, &
+                CALL MPI_Isend(top_border_send_buffer(1,i), b_len, MPI_DOUBLE_COMPLEX, &
                                my_prow-1, bottom_recv_tag, &
                                mpi_comm_rows, top_send_request(i), mpierr)
             ENDIF
@@ -3700,7 +3700,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
                     DO i = 1, nblk
                         CALL pack_row(result_buffer(:,i,nbuf),j*nblk+i+a_off)
                     ENDDO
-                    CALL MPI_Isend(result_buffer(1,1,nbuf), l_nev*nblk, MPI_COMPLEX16, dst, &
+                    CALL MPI_Isend(result_buffer(1,1,nbuf), l_nev*nblk, MPI_DOUBLE_COMPLEX, dst, &
                                    result_recv_tag, mpi_comm_rows, result_send_request(nbuf), mpierr)
                 ENDIF
             ENDDO
@@ -3732,7 +3732,7 @@ SUBROUTINE trans_ev_tridi_to_band_complex(na, nev, nblk, nbw, q, ldq, mpi_comm_r
 
                 ! Queue result buffer again if there are outstanding blocks left
                 IF(j+num_result_buffers < num_result_blocks) &
-                    CALL MPI_Irecv(result_buffer(1,1,nbuf), l_nev*nblk, MPI_COMPLEX16, 0, result_recv_tag, &
+                    CALL MPI_Irecv(result_buffer(1,1,nbuf), l_nev*nblk, MPI_DOUBLE_COMPLEX, 0, result_recv_tag, &
                                    mpi_comm_rows, result_recv_request(nbuf), mpierr)
 
             ENDDO
@@ -4022,7 +4022,7 @@ SUBROUTINE redist_band(l_real, r_a, c_a, lda, na, nblk, nbw, mpi_comm_rows, mpi_
    IF(l_real) THEN
       CALL MPI_Alltoallv(r_sbuf,ncnt_s,nstart_s,MPI_REAL8,r_rbuf,ncnt_r,nstart_r,MPI_REAL8,mpi_comm,mpierr)
    ELSE
-      CALL MPI_Alltoallv(c_sbuf,ncnt_s,nstart_s,MPI_COMPLEX16,c_rbuf,ncnt_r,nstart_r,MPI_COMPLEX16,mpi_comm,mpierr)
+      CALL MPI_Alltoallv(c_sbuf,ncnt_s,nstart_s,MPI_DOUBLE_COMPLEX,c_rbuf,ncnt_r,nstart_r,MPI_DOUBLE_COMPLEX,mpi_comm,mpierr)
    ENDIF
 
    ! set band from receive buffer
