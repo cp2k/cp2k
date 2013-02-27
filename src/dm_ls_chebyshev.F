@@ -356,9 +356,8 @@ CONTAINS
        ALLOCATE (chev_E(1:n_gridpoint_dos))
        ALLOCATE (chev_Es_dos(1:n_gridpoint_dos))
        ALLOCATE (dummy2(1:nwindow))        
-       ! are these the right bounds, max_ev, min_ev or interval_a,interval_b ?
        DO igrid = 1,n_gridpoint_dos 
-          chev_E(igrid) = interval_b-interval_a+(igrid-1)*2*interval_a/(n_gridpoint_dos-1)
+          chev_E(igrid) = min_ev+(igrid-1)*(max_ev-min_ev)/(n_gridpoint_dos-1)
           chev_Es_dos(igrid) = (chev_E(igrid) - interval_b)/interval_a
        END DO
        DO igrid= 1,n_gridpoint_dos
