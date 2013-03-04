@@ -8,7 +8,6 @@
   &DBCSR
     n_size_mnk_stacks 2
     n_stack_buffers 4
-    n_stack_memory_regions 5
   &END DBCSR
 &END GLOBAL
 &TEST

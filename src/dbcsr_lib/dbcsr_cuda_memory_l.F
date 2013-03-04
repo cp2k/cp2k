@@ -3,6 +3,9 @@
 !   Copyright (C) 2000 - 2013  Urban Borstnik and the CP2K developers group   !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_alloc_l (dev_mem, n, error, stat)
     TYPE(dbcsr_cuda_mem_type_i8), &
       INTENT(OUT)                                   :: dev_mem
@@ -28,18 +31,16 @@
 #endif
     IF (istat /= 0) THEN
        dev_mem%len = -1
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not allocate GPU device memory",&
-               __LINE__, error=error)
-       ENDIF
+       STOP "dev_mem_alloc_l: Could not allocate GPU device memory"
     ENDIF
     IF (PRESENT (stat)) stat = istat
     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dev_mem_alloc_l
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_dealloc_l (dev_mem, error, stat)
     TYPE(dbcsr_cuda_mem_type_i8), INTENT(INOUT) :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL      :: error
@@ -63,19 +64,16 @@
     ELSE
        istat = 0
     ENDIF
-    IF (istat /= 0) THEN
-       IF (PRESENT (error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not deallocate GPU device memory",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
+    IF (istat /= 0) &
+       STOP "dev_mem_dealloc_l: Could not deallocate GPU device memory"
     IF (PRESENT (stat)) stat = istat
     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dev_mem_dealloc_l
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_realloc_l (dev_mem, n, error, stat, memory_crunch)
     TYPE(dbcsr_cuda_mem_type_i8), &
       INTENT(INOUT)                          :: dev_mem
@@ -112,108 +110,134 @@
 #endif
     IF (istat /= 0) THEN
        dev_mem%len = -1
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not reallocate GPU device memory",&
-               __LINE__, error=error)
-       ENDIF
+       STOP "dev_mem_realloc_l: Could not reallocate GPU device memory"
     ENDIF
     IF (PRESENT (stat)) stat = istat
     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dev_mem_realloc_l
 
 
-  SUBROUTINE host_mem_alloc_l (host_mem, n, write_combined, all_contexts, error, stat)
-    INTEGER(KIND=int_8), DIMENSION(:), &
-      POINTER                                :: host_mem
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+  SUBROUTINE host_mem_alloc_l (host_mem, n, error)
+    INTEGER(KIND=int_8), DIMENSION(:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n
-    LOGICAL, INTENT(IN), OPTIONAL            :: write_combined, all_contexts
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
-    INTEGER, INTENT(OUT), OPTIONAL           :: stat
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_alloc_l', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=c_int)                      :: all_flag, wc_flag
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
-    IF (PRESENT (write_combined)) THEN
-       wc_flag = 1
-    ELSE
-       wc_flag = 0
-    ENDIF
-    IF (PRESENT (all_contexts)) THEN
-       all_flag = 1
-    ELSE
-       all_flag = 0
-    ENDIF
-#if defined (__DBCSR_CUDA)
-    istat = cuda_host_mem_alloc_cu(host_mem_c_ptr,&
-         INT(MAX(1,n)*int_8_size, KIND=C_SIZE_T),&
-         wc_flag, all_flag)
-#else
-    istat = -1
-#endif
-    IF (istat /= 0 .AND. PRESENT (error)) THEN
-       CALL dbcsr_assert (istat, "EQ", 0,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Could not allocate host pinned memory",&
-            __LINE__, error=error)
-       NULLIFY (host_mem)
-    ELSE
-#if defined (__DBCSR_CUDA)
-       CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
-#endif
-    ENDIF
-    IF (PRESENT (stat)) stat = istat
-    IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
+    CALL host_mem_alloc_raw(host_mem_c_ptr, MAX(1,n)*int_8_size, error)
+    CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
   END SUBROUTINE host_mem_alloc_l
 
 
-  SUBROUTINE host_mem_dealloc_l (host_mem, error, stat)
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+  SUBROUTINE host_mem_alloc_l_2D (host_mem, n1, n2, error)
+    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER           :: host_mem
+    INTEGER, INTENT(IN)                      :: n1, n2
+    TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
+    TYPE(C_PTR)                              :: host_mem_c_ptr
+    INTEGER                                  :: n_bytes
+    n_bytes = MAX(1,n1)*MAX(1,n2)*int_8_size
+    CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+    CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
+  END SUBROUTINE host_mem_alloc_l_2D
+
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+  SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
+    INTEGER(KIND=int_8), DIMENSION(:,:,:,:), POINTER           :: host_mem
+    INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
+    TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
+    TYPE(C_PTR)                              :: host_mem_c_ptr
+    INTEGER                                  :: n_bytes
+    n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*MAX(1,n4)*int_8_size
+    CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+    CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
+                               (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
+  END SUBROUTINE host_mem_alloc_l_4D
+
+
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+  SUBROUTINE host_mem_dealloc_l (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: host_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
-    INTEGER, INTENT(OUT), OPTIONAL           :: stat
-
     CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l', &
       routineP = moduleN//':'//routineN
-
     INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=int_8), POINTER                         :: host_first_el
-    TYPE(C_PTR)                              :: host_mem_c_ptr
 
-!   ---------------------------------------------------------------------------
-
+    IF (SIZE (host_mem) == 0) RETURN
     IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
 #if defined (__DBCSR_CUDA)
-    IF (SIZE (host_mem) .GT. 0) THEN
-       host_first_el => host_mem(1)
-       host_mem_c_ptr = C_LOC (host_first_el)
-    ENDIF
-    IF (SIZE (host_mem) .GT. 0) THEN
-       istat = cuda_host_mem_dealloc_cu (host_mem_c_ptr)
-    ENDIF
+    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1)))
+    IF (istat /= 0 ) &
+       STOP "host_mem_dealloc_l: Error deallocating host pinned memory"
 #else
-    istat = -1
+    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
 #endif
-    IF (istat /= 0 .AND. PRESENT (error)) THEN
-       CALL dbcsr_assert (istat, "EQ", 0,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Error deallocating host pinned memory",&
-            __LINE__, error=error)
-    ENDIF
-    IF (PRESENT (stat)) stat = istat
-    IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
+     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE host_mem_dealloc_l
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+  SUBROUTINE host_mem_dealloc_l_2D (host_mem, error)
+    INTEGER(KIND=int_8), DIMENSION(:,:), &
+      POINTER                                :: host_mem
+    TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l_2D', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: error_handle, istat
 
+    IF (SIZE (host_mem) == 0) RETURN
+    IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
+    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1)))
+    IF (istat /= 0 ) &
+       STOP "host_mem_dealloc_l_2D: Error deallocating host pinned memory"
+#else
+    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
+#endif
+     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE host_mem_dealloc_l_2D
+
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+  SUBROUTINE host_mem_dealloc_l_4D (host_mem, error)
+    INTEGER(KIND=int_8), DIMENSION(:,:,:,:), &
+      POINTER                                :: host_mem
+    TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l_4D', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: error_handle, istat
+
+    IF (SIZE (host_mem) == 0) RETURN
+    IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
+    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1,1)))
+    IF (istat /= 0 ) &
+       STOP "host_mem_dealloc_l_4D: Error deallocating host pinned memory"
+#else
+    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
+#endif
+     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE host_mem_dealloc_l_4D
+
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_zero_l (dev_mem, first, last, error)
     TYPE(dbcsr_cuda_mem_type_i8), &
       INTENT(INOUT)                          :: dev_mem

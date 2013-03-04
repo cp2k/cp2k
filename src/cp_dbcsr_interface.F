@@ -46,8 +46,7 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
        dbcsr_set_conf_use_comm_thread, has_cuda, has_mpi, mm_driver_blas, &
        mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, &
-       mm_name_smm, mm_thread_workshare
+       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -433,8 +432,7 @@ CONTAINS
 
     INTEGER                                  :: comm_thread_load, &
                                                 error_handle, mm_driver, &
-                                                mm_ss, n_mem_regions, &
-                                                n_stack_buffers
+                                                mm_ss, n_stack_buffers
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_combtypes, &
                                                 use_comm_thread, &
@@ -464,14 +462,10 @@ CONTAINS
     CALL section_vals_val_get(dbcsr_section,&
          "mm_driver", i_val=mm_driver, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "mm_thread_workshare", l_val=mm_thread_workshare, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
          "n_size_mnk_stacks", i_val=nstacks(1), error=error)
     nstacks(2:3) = nstacks(1)
     CALL section_vals_val_get(dbcsr_section,&
          "n_stack_buffers", i_val=n_stack_buffers, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "n_stack_memory_regions", i_val=n_mem_regions, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "use_comm_thread", l_val=use_comm_thread, error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -482,8 +476,7 @@ CONTAINS
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
     CALL dbcsr_set_conf_cuda_mem (use_cuda_mem, error=dbcsr_error)
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
-    CALL dbcsr_set_conf_nstacks(nstacks, n_stack_buffers, n_mem_regions,&
-         error=dbcsr_error)
+    CALL dbcsr_set_conf_nstacks(nstacks, n_stack_buffers, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
     CALL dbcsr_error_stop (error_handle, dbcsr_error)
@@ -504,11 +497,10 @@ CONTAINS
 
     CHARACTER(len=default_string_length) :: comm_thread_load_str, mm_name, &
       mm_ss_str, use_combtypes_str, use_comm_thread_str, use_cuda_mem_str, &
-      use_k_stacks, use_m_stacks, use_mem_regions, use_mpi_mem_str, &
-      use_n_stacks, use_stack_buffers, use_subcomms_str
+      use_k_stacks, use_m_stacks, use_mpi_mem_str, use_n_stacks, &
+      use_stack_buffers, use_subcomms_str
     INTEGER                                  :: comm_thread_load, mm_driver, &
-                                                mm_ss, nbuffers, nmemregions, &
-                                                unit_num
+                                                mm_ss, nbuffers, unit_num
     INTEGER, DIMENSION(3)                    :: n_mnk_stacks
     LOGICAL                                  :: use_combtypes, &
                                                 use_comm_thread, &
@@ -544,10 +536,8 @@ CONTAINS
     use_comm_thread_str = l2str_r(use_comm_thread,info_len)
     comm_thread_load_str = int2str_r(comm_thread_load,info_len)
 
-    CALL dbcsr_get_conf_nstacks (n_mnk_stacks, nbuffers, nmemregions,&
-         error=dbcsr_error)
+    CALL dbcsr_get_conf_nstacks (n_mnk_stacks, nbuffers, error=dbcsr_error)
     use_stack_buffers = int2str_r (nbuffers, info_len)
-    use_mem_regions = int2str_r (nmemregions, info_len)
     use_m_stacks = int2str_r (n_mnk_stacks(1), info_len)
     use_n_stacks = int2str_r (n_mnk_stacks(2), info_len)
     use_k_stacks = int2str_r (n_mnk_stacks(3), info_len)
@@ -562,10 +552,6 @@ CONTAINS
        WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Multiplication driver",     mm_name(1:info_len),&
             plabel, "Multiplication stack size", mm_ss_str(1:info_len)
-       IF (nmemregions .NE. 1) &
-            WRITE(UNIT=unit_num, FMT=o_fmt) &
-            plabel, "Multiplication stack memory regions",&
-            use_mem_regions(1:info_len)
        IF (nbuffers .NE. 1) &
             WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Multiplication stack buffers",&

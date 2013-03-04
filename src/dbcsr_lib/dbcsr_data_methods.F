@@ -292,17 +292,13 @@ CONTAINS
     CASE (dbcsr_memory_CUDA_host_pinned)
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_4)
-          CALL dbcsr_cuda_host_mem_alloc (area%r_sp, sizes(1), stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_alloc (area%r_sp, sizes(1), error=error)
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_cuda_host_mem_alloc (area%r_dp, sizes(1), stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_alloc (area%r_dp, sizes(1), error=error)
        CASE (dbcsr_type_complex_4)
-          CALL dbcsr_cuda_host_mem_alloc (area%c_sp, sizes(1), stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_alloc (area%c_sp, sizes(1), error=error)
        CASE (dbcsr_type_complex_8)
-          CALL dbcsr_cuda_host_mem_alloc (area%c_dp, sizes(1), stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_alloc (area%c_dp, sizes(1), error=error)
        CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
             dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
           CALL dbcsr_assert (.FALSE.,&
@@ -399,20 +395,16 @@ CONTAINS
     CASE (dbcsr_memory_CUDA_host_pinned)
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_4)
-          CALL dbcsr_cuda_host_mem_dealloc (area%r_sp, stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_dealloc (area%r_sp, error=error)
           NULLIFY (area%r_sp)
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_cuda_host_mem_dealloc (area%r_dp, stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_dealloc (area%r_dp, error=error)
           NULLIFY (area%r_dp)
        CASE (dbcsr_type_complex_4)
-          CALL dbcsr_cuda_host_mem_dealloc (area%c_sp, stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_dealloc (area%c_sp, error=error)
           NULLIFY (area%c_sp)
        CASE (dbcsr_type_complex_8)
-          CALL dbcsr_cuda_host_mem_dealloc (area%c_dp, stat=stat,&
-               error=error)
+          CALL dbcsr_cuda_host_mem_dealloc (area%c_dp, error=error)
           NULLIFY (area%c_dp)
        CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
             dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)

@@ -28,7 +28,7 @@ MODULE input_cp2k
        dbcsr_get_conf_use_comm_thread, has_blas, has_cuda, has_plasma, &
        has_smm_gemm, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm, mm_thread_workshare
+       mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -802,7 +802,7 @@ CONTAINS
 
     CHARACTER(len=64)                        :: a_blas, a_cuda, a_plasma, &
                                                 a_smm
-    INTEGER                                  :: n_buffers, n_mem_regions
+    INTEGER                                  :: n_buffers
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: failure
     TYPE(dbcsr_error_type)                   :: dbcsr_error
@@ -904,7 +904,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
-    CALL dbcsr_get_conf_nstacks (nstacks, n_buffers, n_mem_regions, dbcsr_error)
+    CALL dbcsr_get_conf_nstacks (nstacks, n_buffers, dbcsr_error)
     CALL keyword_create(keyword, name="n_size_mnk_stacks",&
          description="Number of stacks to use for distinct atomic sizes" &
          // " (e.g., 2 for a system of mostly waters).",&
@@ -919,36 +919,7 @@ CONTAINS
          default_i_val=n_buffers,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="n_stack_memory_regions",&
-         description="Number of memory regions to use for stacks" &
-         // " (e.g., number of GPU cards per MPI process)",&
-         usage="n_stack_memory_regions 2",&
-         default_i_val=n_mem_regions,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
-    CALL keyword_create(keyword, name="mm_thread_workshare",&
-         description="Share matrix multiplication work between multiple threads",&
-         usage="mm_thread_workshare T",&
-         variants=(/"MM_WORKSHARE"/),&
-         default_l_val=mm_thread_workshare,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
-    CALL keyword_create(keyword, name="detailed_timing",&
-         description="Output multiplication timing (development)",&
-         usage="detailed_timing T",&
-         default_l_val=.FALSE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
-    CALL keyword_create(keyword, name="kernel_timing",&
-         description="Time multiplication kernel (development)",&
-         usage="kernel_timing T",&
-         default_l_val=.FALSE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
+    
     CALL keyword_create(keyword, name="use_comm_thread",&
          description="During multiplication, use a thread to periodically poll" &
          // " MPI to progress outstanding message completions.  This is" &

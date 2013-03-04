@@ -12,7 +12,7 @@ __global__ void stack_mm_z
    int stack_size, int nparams,
    const double *__restrict__ a_data,
    const double *__restrict__ b_data,
-   double *__restrict__ c_data, int *__restrict__ c_locks)
+   double *__restrict__ c_data, int *__restrict__ c_locks, int lock_offset)
 {
 
   /**
@@ -121,7 +121,7 @@ __global__ void stack_mm_z
   // /* Lock the C block. */
   // syncthreads();
   // if (tn == 0) {
-  //   sp_one = sp + 1;
+  //   sp_one = lock_offset + sp + 1;
   //   c_id = our_params[6]-1;
   //   lock_owner = 0;
   //   while ((lock_owner != sp_one))

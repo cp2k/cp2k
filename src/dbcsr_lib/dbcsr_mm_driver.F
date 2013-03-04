@@ -5,378 +5,604 @@
 
 ! *****************************************************************************
 !> \brief  Fourth layer of the dbcsr matrix-matrix multiplication.
-!> 	   It hides the differences between performing calculations on the 
-!>         GPU or the CPU.	
+!>         It hides the differences between performing calculations on the
+!>         GPU or the CPU.
 !>
 !> \author  Urban Borstnik
-!>	
+!>
 !> <b>Modification history:</b>
 !>  - 2010-02-23 Moved from dbcsr_operations
 !>  - 2011-11    Moved parameter-stack processing routines to
 !>               dbcsr_mm_methods.
-!>  - 2013-01    reorganized code (Ole Schuett)
+!>  - 2013-01    extensive refactoring (Ole Schuett)
 ! *****************************************************************************
 
 
 MODULE dbcsr_mm_driver
-
-  USE dbcsr_block_operations,          ONLY: block_add
-  USE dbcsr_config,                    ONLY: mm_driver,&
+  USE dbcsr_block_operations,          ONLY: block_add,&
+                                             dbcsr_data_clear
+  USE dbcsr_config,                    ONLY: dbcsr_get_conf_nstacks,&
+                                             mm_driver,&
                                              mm_driver_cuda,&
-                                             mm_stack_size,&
-                                             mm_thread_workshare
+                                             mm_stack_size
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_create_streams,&
-                                             dbcsr_cuda_destroy_streams
+                                             dbcsr_cuda_destroy_streams,&
+                                             dbcsr_cuda_device_sync,&
+                                             dbcsr_cuda_init
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
-                                             dbcsr_cuda_dev_mem_hold,&
+                                             dbcsr_cuda_dev_mem_dealloc,&
                                              dbcsr_cuda_dev_mem_new,&
+                                             dbcsr_cuda_dev_mem_realloc,&
                                              dbcsr_cuda_dev_mem_release,&
-                                             dbcsr_cuda_dev_mem_zero
+                                             dbcsr_cuda_dev_mem_zero,&
+                                             dbcsr_cuda_host_mem_alloc,&
+                                             dbcsr_cuda_host_mem_dealloc
   USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_get_alloc
   USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_cp_dev_to_host,&
                                              dbcsr_cuda_cp_host_to_dev
-  USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
+  USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_p_type,&
+                                             dbcsr_cuda_mem_type
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size,&
                                              dbcsr_data_get_type,&
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
-                                             dbcsr_data_release
+                                             dbcsr_data_release,&
+                                             dbcsr_data_set_size_referenced
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_4,&
+  USE dbcsr_kinds,                     ONLY: dp,&
                                              int_8,&
                                              real_8
-  USE dbcsr_mm_types,                  ONLY: carrier_type
-  USE dbcsr_pq_methods,                ONLY: dbcsr_ps_set_get_group_p,&
-                                             dbcsr_ps_target_add_data_cuda,&
-                                             dbcsr_psg_add_data_cuda_ab,&
-                                             dbcsr_psg_rm_data_cuda_ab
-  USE dbcsr_pq_types,                  ONLY: dbcsr_ps_group_type,&
-                                             dbcsr_ps_state_empty,&
-                                             dbcsr_ps_target_obj,&
-                                             dbcsr_ps_target_type,&
-                                             dbcsr_ps_width
+  USE dbcsr_mm_stack,                  ONLY: process_mm_stack_cpu,&
+                                             process_mm_stack_cuda
+  USE dbcsr_mm_types,                  ONLY: dbcsr_ps_state_empty,&
+                                             dbcsr_ps_state_working,&
+                                             dbcsr_ps_width,&
+                                             driver_carrier_type,&
+                                             stack_descriptor_type
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type,&
                                              dbcsr_type_int_4
 
  !$ USE OMP_LIB
-        
+
   IMPLICIT NONE
- 
+
   PRIVATE
- 
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_driver'
-            
-  PUBLIC :: dbcsr_mm_driver_outer_init, dbcsr_mm_driver_outer_finalize 
-  PUBLIC :: dbcsr_mm_driver_inner_init
-  
+
+  PUBLIC :: dbcsr_mm_driver_lib_init,   dbcsr_mm_driver_lib_finalize
+  PUBLIC :: dbcsr_mm_driver_outer_init, dbcsr_mm_driver_outer_finalize
+  PUBLIC :: dbcsr_mm_driver_inner_init, dbcsr_mm_driver_inner_finalize
+  PUBLIC :: dbcsr_mm_driver_process_stack
+
+  ! ===== Global Cuda Memory =====
+  ! Allocating memory for cuda (on the card and host-pinned) is slow.
+  ! Therefore, the memory is allocated once and stored in global variables.
+  ! Variable cuda_mem_in_use should prevent concurred use of this global memory.
+  LOGICAL cuda_mem_in_use
+  !$OMP THREADPRIVATE(cuda_mem_in_use)
+  TYPE(dbcsr_cuda_mem_type), POINTER :: cuda_dev_c_data, cuda_dev_c_locks
+  !$OMP THREADPRIVATE(cuda_dev_c_data, cuda_dev_c_locks)
+  TYPE(dbcsr_cuda_mem_p_type), DIMENSION(:), POINTER :: cuda_dev_stacklist_data
+  !$OMP THREADPRIVATE(cuda_dev_stacklist_data)
+  INTEGER, DIMENSION(:,:,:,:), POINTER     :: cuda_host_stackgrid_data
+  !$OMP THREADPRIVATE(cuda_host_stackgrid_data)
+  INTEGER, DIMENSION(:,:), POINTER         :: cuda_host_stackgrid_state
+  !$OMP THREADPRIVATE(cuda_host_stackgrid_state)
+
+  !These are shared between threads
+  TYPE(dbcsr_cuda_mem_type), POINTER, SAVE :: cuda_dev_a_data => Null()
+  TYPE(dbcsr_cuda_mem_type), POINTER, SAVE :: cuda_dev_b_data => Null()
+  TYPE(dbcsr_cuda_mem_type), POINTER, SAVE :: cuda_dev_state_empty => Null()
+
+
+  !INTEGER , SAVE :: num_cpu_stacks = 0
+  !INTEGER , SAVE :: num_gpu_stacks = 0
+  !INTEGER(kind=int_8), SAVE   :: gpu_flop = 0
+  !INTEGER(kind=int_8), SAVE   :: cpu_flop = 0
+
   CONTAINS
-  
-  
-   
+
+
 ! *****************************************************************************
-!> \brief Moved out of internal_operations
-!>        This loads the data for matrizes A and B onto the card.        
-!> \author Ole Schuett
+! \brief Initialize the library
+! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_driver_inner_init(left, right, carrier, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
-    TYPE(carrier_type), INTENT(INOUT)        :: carrier
+  SUBROUTINE dbcsr_mm_driver_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_driver_inner_init', &
-      routineP = moduleN//':'//routineN
+    INTEGER                                  :: i, ithread, n_stack_buffers, &
+                                                nstacks, nthreads
+    INTEGER, DIMENSION(1), TARGET            :: tmp_arr
+    INTEGER, DIMENSION(3)                    :: nxstacks
+    INTEGER, DIMENSION(:), POINTER           :: tmp_ptr
 
-    IF (mm_driver .EQ. mm_driver_cuda) THEN
-       !$OMP MASTER
-       CALL dbcsr_cuda_cp_host_to_dev(&            
-            left%data_area,&
-            carrier%param_sets%groups(1,1)%master%s%left_data_cuda,&
-            async = .TRUE.,&
-            error=error)
-       CALL dbcsr_cuda_cp_host_to_dev(&
-            right%data_area,&
-            carrier%param_sets%groups(1,1)%master%s%right_data_cuda,&
-            async = .TRUE.,&
-            error=error)
-       !$OMP END MASTER
+    nthreads = 1; ithread = 0
+    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+
+     IF (mm_driver == mm_driver_cuda) THEN
+         CALL dbcsr_get_conf_nstacks(nxstacks, n_stack_buffers, error)
+         nstacks = nxstacks(1) * nxstacks(2) * nxstacks(3) + 1
+
+         !Ensure that lock_offset in dbcsr_cuda_calc.cu won't overflow (it's a int4).
+         ! TODO: Check this code, before you start to used locking again.
+         IF(4*mm_stack_size > 2**17)& ! The "4" due to stack_mm_mnk_sq5_d
+            STOP "dbcsr_mm_driver_lib_init: mm_stack_size is too large"
+         IF(nthreads*nstacks*n_stack_buffers > 2**15)&
+            STOP "dbcsr_mm_driver_lib_init: nthreads*nstacks*n_stack_buffers is too large"
+
+        !TODO: do we want to support multiple cards? Search: ma_set_gpu_affinity
+        CALL dbcsr_cuda_init(error=error)
+
+        ! 1. Things that are shared between threads.
+        !-----------------------------------------------------------------------
+        !$OMP BARRIER
+        !$OMP MASTER
+        CALL dbcsr_cuda_create_streams(nthreads*nstacks*n_stack_buffers, error)
+
+        ! Constant dbcsr_ps_state_empty needed on card to signal completed transfers.
+        tmp_arr = dbcsr_ps_state_empty
+        tmp_ptr =>  tmp_arr
+        CALL dbcsr_cuda_dev_mem_new(cuda_dev_state_empty, dbcsr_type_int_4, error=error)
+        CALL dbcsr_cuda_dev_mem_alloc(cuda_dev_state_empty, 1, error=error)
+        CALL dbcsr_cuda_cp_host_to_dev(host_mem=tmp_ptr, dev_mem=cuda_dev_state_empty%d_i, n=1,&
+           async=.FALSE.,error=error)
+        !$OMP END MASTER
+        !$OMP BARRIER
+
+        ! 2. Things that are local to each thread
+        !------------------------------------------------------------------------
+        ! Allocate the parameter stack on the card
+        ALLOCATE(cuda_dev_stacklist_data(nstacks*n_stack_buffers))
+        DO i=1, nstacks*n_stack_buffers
+           NULLIFY(cuda_dev_stacklist_data(i)%p)
+           CALL dbcsr_cuda_dev_mem_new(cuda_dev_stacklist_data(i)%p, dbcsr_type_int_4, error)
+           CALL dbcsr_cuda_dev_mem_alloc(cuda_dev_stacklist_data(i)%p,&
+                           dbcsr_ps_width*mm_stack_size, error=error)
+        END DO
+
+        ! Allocate the parameter stack on the host with pinned memory
+        CALL dbcsr_cuda_host_mem_alloc(cuda_host_stackgrid_data, &
+           dbcsr_ps_width, mm_stack_size, nstacks, n_stack_buffers, error=error)
+        CALL dbcsr_cuda_host_mem_alloc(cuda_host_stackgrid_state, &
+           nstacks, n_stack_buffers, error=error)
+
+        ! Size of the C-Blocks unkown at this point, allocation is done late.
+        NULLIFY(cuda_dev_c_data, cuda_dev_c_locks)
+
+        !Setup safety guard against overlapping multiplications.
+        cuda_mem_in_use = .FALSE.
     ENDIF
-    
-  END SUBROUTINE dbcsr_mm_driver_inner_init
-  
+
+  END SUBROUTINE dbcsr_mm_driver_lib_init
+
+
 ! *****************************************************************************
-!> \brief Moved out of dbcsr_multrec_init (actually csr_multiply_outer_init)
-!>        This allocates the memory for the matrizes A and B on the card and
-!>        and leaves pointers to them in every stack.         
+! \brief Finalize the library
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_driver_lib_finalize(error)
+     USE ISO_C_BINDING
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i
+
+   IF (mm_driver == mm_driver_cuda) THEN
+       ! Releasing host pinned memory of stackgrid on the host
+       CALL dbcsr_cuda_host_mem_dealloc(cuda_host_stackgrid_data, error)
+       CALL dbcsr_cuda_host_mem_dealloc(cuda_host_stackgrid_state, error)
+
+       ! releasing stuff on the card if necessary
+       IF(ASSOCIATED(cuda_dev_c_data))&
+          CALL dbcsr_cuda_dev_mem_release(cuda_dev_c_data, error=error)
+       IF(ASSOCIATED(cuda_dev_c_locks))&
+          CALL dbcsr_cuda_dev_mem_release(cuda_dev_c_locks, error=error)
+
+       DO i=1, SIZE(cuda_dev_stacklist_data)
+          CALL dbcsr_cuda_dev_mem_release(cuda_dev_stacklist_data(i)%p, error=error)
+       END DO
+       DEALLOCATE(cuda_dev_stacklist_data)
+
+       !$OMP BARRIER
+       !$OMP MASTER
+       IF(ASSOCIATED(cuda_dev_a_data))&
+          CALL dbcsr_cuda_dev_mem_release(cuda_dev_a_data, error=error)
+       IF(ASSOCIATED(cuda_dev_b_data))&
+          CALL dbcsr_cuda_dev_mem_release(cuda_dev_b_data, error=error)
+       CALL dbcsr_cuda_dev_mem_release(cuda_dev_state_empty, error=error)
+       CALL dbcsr_cuda_destroy_streams(error=error)
+
+       !How much memory is still allocated on the card?
+       !istat = dbcsr_cuda_dev_mem_info(mem_free, mem_avail)
+       !WRITE (*,*) "after outer_finalize cuda mem: ",mem_free, mem_avail, istat
+       !$OMP END MASTER
+       !$OMP BARRIER
+
+   END IF
+
+
+   ! !$OMP MASTER
+   !  WRITE (*,*) "num_stacks gpu:", num_gpu_stacks, " cpu: ",num_cpu_stacks, " ratio: ",REAL(num_gpu_stacks)/REAL(num_cpu_stacks)
+   !  WRITE (*,*) "flop gpu:", gpu_flop, " cpu: ",cpu_flop, " ratio: ",REAL(gpu_flop)/REAL(cpu_flop)
+   ! !$OMP END MASTER
+  END SUBROUTINE dbcsr_mm_driver_lib_finalize
+
+
+
+
+! *****************************************************************************
+!> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_driver_outer_init(left, right, product, product_target, carrier, fill_guess, error)
+  SUBROUTINE dbcsr_mm_driver_outer_init(left, right, product, drv_carrier,&
+               fill_guess, nstacks, n_stack_buffers, stackgrid_data, stackgrid_state, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    TYPE(dbcsr_ps_target_obj), INTENT(INOUT) :: product_target
-    TYPE(carrier_type), INTENT(INOUT)        :: carrier
+    TYPE(driver_carrier_type), INTENT(INOUT) :: drv_carrier
     REAL(KIND=real_8)                        :: fill_guess
+    INTEGER, INTENT(IN)                      :: nstacks, n_stack_buffers
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: stackgrid_data
+    INTEGER, DIMENSION(:, :), POINTER        :: stackgrid_state
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_driver_outer_init', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_driver_outer_init'
 
-    INTEGER                                  :: data_type, nthreads, &
-                                                ps_buffer, ps_memreg
-    TYPE(dbcsr_cuda_mem_type), POINTER, SAVE :: a_dev, b_dev
-    TYPE(dbcsr_ps_group_type), POINTER       :: ps_group
+    INTEGER :: a_data_size, allocated_datasize, b_data_size, c_data_size, &
+      c_locks_size, data_type, error_handler, ithread, nthreads, used_datasize
 
-    nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS ()
-                
-               
-    ! first driver init part --------------------------------------------------- 
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
-    IF (mm_driver .EQ. mm_driver_cuda) THEN
-       !$OMP MASTER
-       !
-       ! Setup threads<->streams
-       CALL dbcsr_cuda_create_streams (nthreads, error)
-       !
-       data_type = dbcsr_data_get_type (left%data_area)
-       CALL dbcsr_cuda_dev_mem_new (a_dev, data_type, error=error)
-       CALL dbcsr_cuda_dev_mem_new (b_dev, data_type, error=error)
-       CALL dbcsr_cuda_dev_mem_alloc (a_dev,&
-            dbcsr_data_get_size (left%data_area), error=error)
-       CALL dbcsr_cuda_dev_mem_alloc (b_dev,&
-            dbcsr_data_get_size (right%data_area), error=error)
-       !$OMP END MASTER
-       CALL init_card_c (product, product_target%t,fill_guess, error)
-       !$OMP BARRIER
-       IF (.FALSE.) THEN
-          ! Left in for mental accounting
-          !$OMP CRITICAL
-          CALL dbcsr_cuda_dev_mem_hold (a_dev, error=error)
-          CALL dbcsr_cuda_dev_mem_hold (b_dev, error=error)
-          !$OMP END CRITICAL
-       ENDIF
+    nthreads = 1; ithread = 0
+    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+
+    data_type = dbcsr_data_get_type(left%data_area)
+
+    drv_carrier%product_wm => product%wms(ithread+1) !TODO: why do we need this ref?
+    used_datasize = drv_carrier%product_wm%datasize
+    allocated_datasize = dbcsr_data_get_size(drv_carrier%product_wm%data_area)
+
+    ! The product's data_area could already contain some data.
+    ! ( see: keep_product_data in dbcsr_operations.F )
+    ! But this data might not occupy all the allocated memory in the data_area.
+    ! Since, we don't want to keep track of unitialized memory we just zero it now.
+    CALL dbcsr_data_clear(drv_carrier%product_wm%data_area, lb=used_datasize+1, ub=allocated_datasize)
+
+    IF (mm_driver /= mm_driver_cuda) THEN
+       ALLOCATE(stackgrid_data(dbcsr_ps_width, mm_stack_size, nstacks, n_stack_buffers))
+       ALLOCATE(stackgrid_state(nstacks, n_stack_buffers))
     ELSE
-       !$OMP MASTER
-       NULLIFY (a_dev, b_dev)
-       !$OMP END MASTER
-       !$OMP BARRIER
-    ENDIF
-    ! end of first part of driver init ----------------------------------------- 
-    
-    ! second part of driver init -----------------------------------------------
-     IF (mm_driver .EQ. mm_driver_cuda) THEN
-       DO ps_memreg = 1, carrier%param_sets%nmemregs
-          DO ps_buffer = 1, carrier%param_sets%nbuffers
-             ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets,&
-                  ps_buffer, ps_memreg, error=error)
-             !$OMP CRITICAL (crit_data_card)
-             CALL dbcsr_psg_add_data_cuda_ab (ps_group,&
-                  a_dev, b_dev, error=error)
-             !$OMP END CRITICAL (crit_data_card)
-          ENDDO
-       ENDDO
-       IF (.FALSE.) THEN
-          ! Left in for mental accounting
-          !$OMP CRITICAL
-          CALL dbcsr_cuda_dev_mem_release (a_dev, error=error)
-          CALL dbcsr_cuda_dev_mem_release (b_dev, error=error)
-          !$OMP END CRITICAL
-       ENDIF
+       ! 0. Making shure there is only one multiplication going on at a time.
+       !------------------------------------------------------------------------
+       IF(.NOT. ASSOCIATED(cuda_dev_state_empty)) &
+            STOP "dbcsr_mm_driver_outer_init: dbcsr not initialized"
+       IF(cuda_mem_in_use) STOP "dbcsr_mm_driver: found overlapping multiplications"
+       cuda_mem_in_use = .TRUE.
+
+       ! 1. Things that are shared between threads.
+       !------------------------------------------------------------------------
        !$OMP BARRIER
        !$OMP MASTER
-       CALL dbcsr_cuda_dev_mem_release (a_dev, error=error)
-       CALL dbcsr_cuda_dev_mem_release (b_dev, error=error)
+       ! (re)Allocate Memory for A and B blocks on the Card
+       a_data_size = dbcsr_data_get_size(left%data_area)
+       b_data_size = dbcsr_data_get_size(right%data_area)
+       CALL cuda_prepare_mem(cuda_dev_a_data, data_type, a_data_size, error=error)
+       CALL cuda_prepare_mem(cuda_dev_b_data, data_type, b_data_size, error=error)
        !$OMP END MASTER
+       !$OMP BARRIER
+
+
+       ! 2. Things that are local to each thread
+       !------------------------------------------------------------------------
+       IF(SIZE(cuda_host_stackgrid_data, 1) /= dbcsr_ps_width  .OR. &
+          SIZE(cuda_host_stackgrid_data, 2) /= mm_stack_size   .OR. &
+          SIZE(cuda_host_stackgrid_data, 3) /= nstacks         .OR. &
+          SIZE(cuda_host_stackgrid_data, 4) /= n_stack_buffers ) &
+             STOP "dbcsr_mm_driver_outer_init: cuda_host_stackgrid_data wrong dims"
+
+       IF(SIZE(cuda_host_stackgrid_state, 1) /= nstacks  .OR. &
+          SIZE(cuda_host_stackgrid_state, 2) /= n_stack_buffers ) &
+             STOP "dbcsr_mm_driver_outer_init: cuda_host_stackgrid_state wrong dims"
+
+       stackgrid_data  => cuda_host_stackgrid_data
+       stackgrid_state => cuda_host_stackgrid_state
+
+       ! (re)Allocate Memory for C blocks on the Card and zero it.
+       c_data_size = dbcsr_data_get_size(product%wms(ithread+1)%data_area)
+       CALL cuda_prepare_mem(cuda_dev_c_data, data_type, c_data_size, zero=.TRUE., error=error)
+
+       ! (re)Allocate and zero C locks on GPU.
+       c_locks_size = INT(product%nblkcols_local,KIND=int_8)* &
+                  INT(product%nblkrows_local,KIND=int_8) * fill_guess + 1
+       CALL cuda_prepare_mem(cuda_dev_c_locks, dbcsr_type_int_4, c_locks_size, zero=.TRUE., error=error)
+
     ENDIF
-  
+
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mm_driver_outer_init
 
-   
+
 ! *****************************************************************************
-!> \brief Moved out of dbcsr_multrec_finalize (actually csr_multiply_outer_finalize)
-!>        Copies the result matrix C back from the card,
-!>        deallocates the memory on the card, and destroys the streams.         
+! \brief Helper routine used by dbcsr_mm_driver_outer_init().
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cuda_prepare_mem(dev_mem, data_type, data_size, zero, error)
+    TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
+    INTEGER, INTENT(IN)                      :: data_type, data_size
+    LOGICAL, INTENT(IN), OPTIONAL            :: zero
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+     IF (.NOT. ASSOCIATED(dev_mem)) THEN
+        !WRITE (*,*) "cuda_prepare_mem: allocting for the first time"
+        CALL dbcsr_cuda_dev_mem_new(dev_mem, data_type, error=error)
+        CALL dbcsr_cuda_dev_mem_alloc(dev_mem, data_size, error=error)
+     END IF
+
+     IF (dev_mem%data_type /= data_type) THEN
+        !WRITE (*,*) "cuda_prepare_mem: changing datatype"
+        CALL dbcsr_cuda_dev_mem_release(dev_mem, error=error)
+        CALL dbcsr_cuda_dev_mem_new(dev_mem, data_type, error=error)
+        CALL dbcsr_cuda_dev_mem_alloc(dev_mem, data_size, error=error)
+     END IF
+
+     IF (dbcsr_cuda_dev_mem_get_alloc(dev_mem) < data_size) THEN
+        !WRITE (*,*) "cuda_prepare_mem: growing dev_mem"
+        CALL dbcsr_cuda_dev_mem_dealloc(dev_mem, error=error)
+        CALL dbcsr_cuda_dev_mem_alloc(dev_mem, data_size, error=error)
+     END IF
+
+     IF(PRESENT(zero)) THEN
+        IF(zero) CALL dbcsr_cuda_dev_mem_zero(dev_mem, first=1, &
+                    last=dbcsr_cuda_dev_mem_get_alloc(dev_mem), error=error)
+     END IF
+  END SUBROUTINE
+
+
+! *****************************************************************************
+!> \brief Initializes a multiplication cycle for a new set of A- and B-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_driver_outer_finalize(carrier, product, error)
-    TYPE(carrier_type), INTENT(INOUT)        :: carrier
-    TYPE(dbcsr_type), INTENT(inout)          :: product
+  SUBROUTINE dbcsr_mm_driver_inner_init(left, right, drv_carrier, error)
+    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+    TYPE(driver_carrier_type), INTENT(INOUT) :: drv_carrier
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: data_size, data_type, &
-                                                ithread, ps_buffer, ps_memreg
-    TYPE(dbcsr_data_obj)                     :: tmp_data
-    TYPE(dbcsr_ps_group_type), POINTER       :: ps_group
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_driver_inner_init'
 
-   IF (mm_driver .EQ. mm_driver_cuda) THEN
-       ! this part is from dbcsr_internal_operations ---------------------------
-                      
-       ithread = 0
-       !$ ithread = omp_get_thread_num()
-       
-       ! Transfer data from GPU to host.
-       CALL dbcsr_data_init (tmp_data)
-       CALL dbcsr_data_new (tmp_data,&
-            data_type = dbcsr_data_get_type(product%wms(ithread+1)%data_area),&
-            data_size = carrier%datasize)
-       CALL dbcsr_cuda_cp_dev_to_host(&
-            carrier%param_sets%groups(1,1)%master%s%t%t%product_data_cuda,&
-            !product%wms(1)%data_area,&
-            tmp_data,&
-            error=error)
-       CALL dbcsr_data_ensure_size(product%wms(ithread+1)%data_area,&
-            carrier%datasize, error=error)
-       CALL block_add (product%wms(ithread+1)%data_area, tmp_data,&
-            len=carrier%datasize, error=error)
-       CALL dbcsr_data_release (tmp_data)
-       ! end of part from dbcsr_internal_operations ----------------------------
-    
-       ! this part is from dbcsr_multrec_finalize ------------------------------
-       DO ps_memreg = 1, carrier%param_sets%nmemregs
-          DO ps_buffer = 1, carrier%param_sets%nbuffers
-             ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets,&
-                  ps_buffer, ps_memreg, error=error)
-             !$OMP CRITICAL (crit_data_card)
-             CALL dbcsr_psg_rm_data_cuda_ab (ps_group, error=error)
-             !$OMP END CRITICAL (crit_data_card)
-          ENDDO
-       ENDDO
-    ENDIF
+    INTEGER                                  :: error_handler
 
-    !$OMP BARRIER
-    
-    !$OMP MASTER
-    IF (mm_driver .EQ. mm_driver_cuda) THEN
-       CALL dbcsr_cuda_destroy_streams (error=error)
-    ENDIF
-    !$OMP END MASTER
-    
-  END SUBROUTINE dbcsr_mm_driver_outer_finalize
- 
- 
- 
-! *****************************************************************************
-!> \brief Perform allocations and setup needed for multiplication on an
-!>        accelerator card.
-! *****************************************************************************
-  SUBROUTINE init_card_c (host_matrix, product_target, fill_guess, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: host_matrix
-    TYPE(dbcsr_ps_target_type), &
-      INTENT(INOUT)                          :: product_target
-    REAL(KIND=real_8)                        :: fill_guess
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_card_c', &
-      routineP = moduleN//':'//routineN
+    drv_carrier%left_data_area    = left%data_area
+    drv_carrier%right_data_area   = right%data_area
 
-    INTEGER                                  :: clocks_size, data_size, &
-                                                data_type, error_handle, &
-                                                ithread
-    INTEGER, POINTER                         :: state_tmp
-    INTEGER, TARGET                          :: state_tmp_tgt
-    LOGICAL                                  :: do_master_work
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: c_dev, c_locks_dev, &
-                                                params_dev_l
-    TYPE(dbcsr_cuda_mem_type), POINTER, SAVE :: params_dev, stack_state_dev
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handle, error)
-
-    ! Only the master thread does common work in when threads share work.
-    do_master_work = .NOT. mm_thread_workshare
-    do_master_work = .TRUE.
-    !$OMP MASTER
-    do_master_work = .TRUE.
-    !$OMP END MASTER
-
-    ithread = 0
-    !$ ithread = OMP_GET_THREAD_NUM ()
-    data_type = dbcsr_data_get_type (host_matrix%wms(ithread+1)%data_area)
-    data_size = dbcsr_data_get_size (host_matrix%wms(ithread+1)%data_area)
-    !
-    ! Allocate space for product data on the card.
-    CALL dbcsr_cuda_dev_mem_new (c_dev, data_type, error)
-    CALL dbcsr_cuda_dev_mem_alloc (c_dev, data_size, error=error)
-    !
-    ! To finish allocations before the zeroing is launched.
-    !
-    !$OMP BARRIER
-    !
-    ! Zero C data on card.  This assumes that data will be
-    ! summed with the host data after the multiplication is done.
-    CALL dbcsr_cuda_dev_mem_zero(c_dev, first=1,&
-         last=data_size, error=error)
-    !
-    ! Attach C data on card to the product target descriptor
-    CALL dbcsr_ps_target_add_data_cuda (product_target, c_dev, error)
-    CALL dbcsr_cuda_dev_mem_release (c_dev, error=error)
-    !
-    ! Allocate C locks on GPU.  Locks should be cleared as soon as
-    ! allocated.
-    CALL dbcsr_cuda_dev_mem_new (c_locks_dev,&
-         dbcsr_type_int_4, error)
-    clocks_size = INT(host_matrix%nblkcols_local,KIND=int_8)* &
-                  INT(host_matrix%nblkrows_local,KIND=int_8)* &
-                  fill_guess
-    clocks_size = MAX(1,INT(clocks_size, KIND=int_4))
-    CALL dbcsr_cuda_dev_mem_alloc (c_locks_dev,INT(clocks_size,KIND=int_4), error=error)
-    CALL dbcsr_cuda_dev_mem_zero (c_locks_dev,&
-         first=1,last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
-         error=error)
-    product_target%c_locks_dev =>  c_locks_dev
-    !
-    ! Have a source from which to update states and setup the on-card
-    ! parameter stacks.
-    !
-    !$OMP MASTER
-    CALL dbcsr_cuda_dev_mem_new (stack_state_dev, dbcsr_type_int_4,&
-         error=error)
-    CALL dbcsr_cuda_dev_mem_alloc (stack_state_dev, 1, error=error)
-    state_tmp_tgt = dbcsr_ps_state_empty
-    state_tmp => state_tmp_tgt
-    CALL dbcsr_cuda_cp_host_to_dev (state_tmp, stack_state_dev%d_i, error=error)
-    !$OMP END MASTER
-    IF (do_master_work) THEN
-       ! Allocate the on-card parameter stack.
-       CALL dbcsr_cuda_dev_mem_new (params_dev_l, dbcsr_type_int_4, error)
-       CALL dbcsr_cuda_dev_mem_alloc (params_dev_l, mm_stack_size*dbcsr_ps_width,&
-            error=error)
+    IF (mm_driver == mm_driver_cuda) THEN
+       !$OMP BARRIER
        !$OMP MASTER
-       params_dev => params_dev_l
+       !TODO: could be async if we use events to make the other streams wait
+       !      for a and b to be uploaded.
+       CALL dbcsr_cuda_cp_host_to_dev(host_mem=left%data_area,&
+            dev_mem=cuda_dev_a_data, async = .FALSE., error=error)
+       CALL dbcsr_cuda_cp_host_to_dev(host_mem=right%data_area,&
+            dev_mem=cuda_dev_b_data, async = .FALSE., error=error)
        !$OMP END MASTER
+       !$OMP BARRIER
     ENDIF
-    !$OMP BARRIER
-    !$OMP CRITICAL (crit_data_card)
-    !
-    IF (.FALSE.) THEN
-       ! Left in for mental accounting
-       CALL dbcsr_cuda_dev_mem_hold (stack_state_dev, error=error)
+
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_mm_driver_inner_init
+
+
+! *****************************************************************************
+!> \brief Finalizes a multiplication cycle for a set of A- and B-blocks.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_driver_inner_finalize(drv_carrier, error)
+    TYPE(driver_carrier_type), INTENT(INOUT) :: drv_carrier
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    IF (mm_driver == mm_driver_cuda) THEN
+       !TODO: waiting for ALL streams - should only wait for those of this thread
+       !$OMP BARRIER
+       CALL dbcsr_cuda_device_sync(error)
+       !$OMP BARRIER
+    END IF
+  END SUBROUTINE dbcsr_mm_driver_inner_finalize
+
+
+! *****************************************************************************
+!> \brief Finalizes a multiplication cycle for a set of C-blocks.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_driver_outer_finalize(drv_carrier, product,stackgrid_data, stackgrid_state, error)
+    USE ISO_C_BINDING
+    TYPE(driver_carrier_type), INTENT(INOUT) :: drv_carrier
+    TYPE(dbcsr_type), INTENT(inout)          :: product
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: stackgrid_data
+    INTEGER, DIMENSION(:, :), POINTER        :: stackgrid_state
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: data_type, datasize, ithread
+    TYPE(dbcsr_data_obj)                     :: tmp_data
+
+   ithread = 0
+   !$ ithread = omp_get_thread_num()
+
+   IF (mm_driver /= mm_driver_cuda) THEN
+      DEALLOCATE(stackgrid_data)
+      DEALLOCATE(stackgrid_state)
+   ELSE
+       ! Host-pinned memory not dealloced, will be reused by next multiplication
+       NULLIFY(stackgrid_data, stackgrid_state)
+
+       ! Transfer C-data from GPU to host and adding it to host's result
+       datasize = product%wms(ithread+1)%datasize
+       data_type = dbcsr_data_get_type(product%wms(ithread+1)%data_area)
+
+       CALL dbcsr_data_init(tmp_data)
+       CALL dbcsr_data_new(tmp_data, data_type=data_type, data_size=datasize)
+       CALL dbcsr_cuda_cp_dev_to_host(dev_mem=cuda_dev_c_data,&
+            host_mem=tmp_data, error=error)
+       CALL block_add(product%wms(ithread+1)%data_area, tmp_data,&
+            len=datasize, error=error)
+       CALL dbcsr_data_release(tmp_data)
+
+       cuda_mem_in_use = .FALSE.
     ENDIF
-    ! all threads share the master's stack_state_dev
-    product_target%stack_state_dev => stack_state_dev
-    IF (do_master_work) THEN
-       product_target%params_dev => params_dev_l
-    ELSE
-       product_target%params_dev => params_dev
-    ENDIF
-    CALL dbcsr_cuda_dev_mem_hold (product_target%params_dev, error=error)
-    IF (.FALSE.) THEN
-       ! Left in for mental accounting
-       CALL dbcsr_cuda_dev_mem_release (stack_state_dev, error=error)
-    ENDIF
-    !
-    !$OMP END CRITICAL (crit_data_card)
-    !$OMP BARRIER
-    IF (do_master_work) THEN
-       !$OMP CRITICAL (crit_data_card)
-       CALL dbcsr_cuda_dev_mem_release (params_dev_l, error=error)
-       !$OMP END CRITICAL (crit_data_card)
-    ENDIF
-    !
-    CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE init_card_c
-  
-  
+  END SUBROUTINE dbcsr_mm_driver_outer_finalize
+
+
+! *****************************************************************************
+! \brief Processes a given stack.
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_driver_process_stack(drv_carrier, driver, stack_data,&
+                    stack_fillcount, stack_state, stack_descr, stack_id, error)
+    TYPE(driver_carrier_type), INTENT(INOUT) :: drv_carrier
+    INTEGER, INTENT(IN)                      :: driver
+    INTEGER, DIMENSION(:, :), POINTER        :: stack_data
+    INTEGER, POINTER                         :: stack_fillcount, stack_state
+    TYPE(stack_descriptor_type), POINTER     :: stack_descr
+    INTEGER, INTENT(IN)                      :: stack_id
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    REAL, PARAMETER                          :: resize_factor = 1.618034
+
+    INTEGER                                  :: allocated_datasize, nblks, &
+                                                new_c_size, new_locks_size, &
+                                                old_c_size, stacked_datasize
+    !INTEGER(kind=int_8)                      :: flop
+
+!TODO: make difference clear between driver, mm_driver and mm_host_driver.
+! collect statistics
+
+    stack_descr%total_entries = stack_descr%total_entries + stack_fillcount
+
+     stacked_datasize   = drv_carrier%product_wm%datasize
+     allocated_datasize = dbcsr_data_get_size(drv_carrier%product_wm%data_area)
+
+     ! tell the data_area how much of its memory is actually beeing used.
+     CALL dbcsr_data_set_size_referenced(drv_carrier%product_wm%data_area, stacked_datasize)
+
+     ! Resizing the product data (on host and card) ---------------------------
+     IF (stacked_datasize > allocated_datasize) THEN
+
+       ! Resize the target data area if the stack references a target
+       ! matrix data element outside of its current range.  When
+       ! appropriate a lock on the data area is taken.
+       !WRITE (*,*) "dbcsr_mm_driver_process_stack: We need to resize c data"
+
+       !IF (dbg) &
+       !     WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
+       CALL dbcsr_data_ensure_size(drv_carrier%product_wm%data_area,&
+           stacked_datasize, factor=resize_factor, zero_pad=.TRUE., error=error)
+
+       IF(stacked_datasize > dbcsr_data_get_size(drv_carrier%product_wm%data_area))&
+          STOP "dbcsr_mm_driver_process_stack: resizing failed"
+
+       ! Cuda on-device resizing
+       IF (mm_driver == mm_driver_cuda) THEN
+          ! All kernels in the stream must be finished before
+          ! reallocation is performed.
+          !TODO: waiting for ALL streams - should only wait for those of this thread
+          CALL dbcsr_cuda_device_sync(error)
+
+          ! dbcsr_data_ensure_size oversizes the array - we need to know how much.
+          old_c_size = dbcsr_cuda_dev_mem_get_alloc(cuda_dev_c_data)
+          new_c_size = dbcsr_data_get_size(drv_carrier%product_wm%data_area)
+          CALL dbcsr_cuda_dev_mem_realloc(cuda_dev_c_data, new_c_size, error=error)
+          CALL dbcsr_cuda_dev_mem_zero(cuda_dev_c_data,&
+               first=old_c_size, last=new_c_size, error=error)
+        END IF
+     END IF
+
+     ! Resizing the product locks (only on the card) --------------------------
+     IF (mm_driver == mm_driver_cuda) THEN
+       ! Resize locks, which are equal to the new block count.
+       nblks = drv_carrier%product_wm%lastblk 
+       IF (nblks > dbcsr_cuda_dev_mem_get_alloc(cuda_dev_c_locks)) THEN
+          !WRITE (*,*) "dbcsr_mm_driver_process_stack: We need to resize c_locks_cuda"
+          ! All kernels in the stream must be finished before
+          ! reallocation is performed.
+          !TODO: waiting for ALL streams - should only wait for those of this thread
+          CALL dbcsr_cuda_device_sync(error)
+          new_locks_size = INT(REAL(nblks*4,kind=dp)*resize_factor)
+          CALL dbcsr_cuda_dev_mem_realloc(cuda_dev_c_locks, new_locks_size, error=error)
+          CALL dbcsr_cuda_dev_mem_zero(cuda_dev_c_locks,&
+                                     first=1, last=new_locks_size, error=error)
+        END IF
+     END IF
+
+     !!From here on there is no boundary checking due to assumed-SIZE-arguments.
+     !!This is usefull to check stack parameters, BUT it works only for kind=dp 
+     !DO sp = 1, stack_fillcount
+     !   IF(stack_data(p_a_first,sp) > SIZE(drv_carrier%left_data_area%d%r_dp)) &
+     !      STOP "left data out of range"
+     !   IF(stack_data(p_b_first,sp) > SIZE(drv_carrier%right_data_area%d%r_dp)) &
+     !      STOP "right data out of range"
+     !   IF(stack_data(p_c_first,sp) > SIZE(drv_carrier%product_wm%data_area%d%r_dp)) THEN
+     !      WRITE (*,*) "blub: ",stack_data(p_c_first,sp) , SIZE(drv_carrier%product_wm%data_area%d%r_dp), &
+     !        dbcsr_data_get_size(drv_carrier%product_wm%data_area), stacked_datasize
+     !      STOP "product data out of range"
+     !   END IF
+     !END DO
+
+     ! Submitting the stack for processing -------------------------------------
+     stack_state = dbcsr_ps_state_working
+
+     ! flop = 2*stack_fillcount*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
+     IF (driver == mm_driver_cuda) THEN
+        ! !$OMP critical
+        !    num_gpu_stacks = num_gpu_stacks + 1
+        !    gpu_flop = gpu_flop + flop
+        ! !$OMP end critical
+        CALL process_mm_stack_cuda(params=stack_data,&
+                                   stack_size=stack_fillcount,&
+                                   data_a_dev=cuda_dev_a_data,&
+                                   data_b_dev=cuda_dev_b_data,&
+                                   data_c_dev=cuda_dev_c_data,&
+                                   c_locks=cuda_dev_c_locks,&
+                                   params_dev=cuda_dev_stacklist_data(stack_id)%p,&
+                                   m=stack_descr%m,&
+                                   n=stack_descr%n,&
+                                   k=stack_descr%k,&
+                                   max_m=stack_descr%max_m,&
+                                   max_n=stack_descr%max_n,&
+                                   max_k=stack_descr%max_k,&
+                                   defined_mnk=stack_descr%defined_mnk,&
+                                   state=stack_state,&
+                                   stack_state_dev=cuda_dev_state_empty,&
+                                   stack_id=stack_id,&
+                                   error=error)
+      ELSE
+        ! !$OMP critical
+        !    num_cpu_stacks = num_cpu_stacks + 1
+        !    cpu_flop = cpu_flop + flop
+        ! !$OMP end critical
+        CALL process_mm_stack_cpu(params=stack_data,&
+                                  driver=driver,&
+                                  stack_size=stack_fillcount, &
+                                  left_data_area=drv_carrier%left_data_area,&
+                                  right_data_area=drv_carrier%right_data_area,&
+                                  product_data_area=drv_carrier%product_wm%data_area,&
+                                  state=stack_state,&
+                                  m=stack_descr%m,&
+                                  n=stack_descr%n,&
+                                  k=stack_descr%k,&
+                                  max_m=stack_descr%max_m,&
+                                  max_n=stack_descr%max_n,&
+                                  max_k=stack_descr%max_k,&
+                                  defined_mnk=stack_descr%defined_mnk,&
+                                  stack_id=stack_id,&
+                                  error=error)
+     END IF
+
+     stack_fillcount = 0 !otherwise the stackcolumn gets processed again.
+
+
+  END SUBROUTINE dbcsr_mm_driver_process_stack
+
+
 END MODULE dbcsr_mm_driver
+

@@ -35,16 +35,11 @@ MODULE dbcsr_operations
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
-  USE dbcsr_config,                    ONLY: &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks, dbcsr_init_conf, &
-       has_cuda, is_configured, mm_async, mm_driver, mm_driver_cuda, &
-       mm_driver_plasma
-  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_get_n_devices,&
-                                             dbcsr_cuda_init
-  USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
-                                             dbcsr_cuda_dev_mem_dealloc
-  USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_setup
-  USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
+  USE dbcsr_config,                    ONLY: dbcsr_init_conf,&
+                                             is_configured,&
+                                             mm_async,&
+                                             mm_driver,&
+                                             mm_driver_plasma
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
@@ -80,7 +75,6 @@ MODULE dbcsr_operations
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_allgather,&
                                              mp_bcast,&
-                                             mp_environ,&
                                              mp_recv,&
                                              mp_send,&
                                              mp_sum
@@ -105,13 +99,13 @@ MODULE dbcsr_operations
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
        dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_valid_index
-  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mult_m_e_e
+  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_lib_finalize,&
+                                             dbcsr_mm_cannon_lib_init,&
+                                             dbcsr_mm_cannon_multiply
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
                                              dbcsr_plasma_init
-  USE dbcsr_pq_methods,                ONLY: dbcsr_ps_set_finalize,&
-                                             dbcsr_ps_set_init
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_toollib,                   ONLY: ceil_log2,&
@@ -126,15 +120,14 @@ MODULE dbcsr_operations
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_conjugate_transpose, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_filter_frobenius, &
-       dbcsr_imagedistribution_obj, dbcsr_iterator, &
-       dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, dbcsr_memory_default, &
-       dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
-       dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, &
-       dbcsr_repl_row, dbcsr_scalar_type, dbcsr_transpose, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_symmetric
+       dbcsr_imagedistribution_obj, dbcsr_iterator, dbcsr_memory_MPI, &
+       dbcsr_memory_default, dbcsr_mp_obj, dbcsr_no_transpose, &
+       dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_gershgorin, &
+       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
+       dbcsr_repl_none, dbcsr_repl_row, dbcsr_scalar_type, dbcsr_transpose, &
+       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
                                              find_block_of_element
@@ -142,8 +135,6 @@ MODULE dbcsr_operations
                                              dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
-  USE ma_affinity,                     ONLY: ma_set_gpu_affinity
-  USE machine_architecture_types,      ONLY: has_ma
 
   !$ USE OMP_LIB
 
@@ -158,7 +149,7 @@ MODULE dbcsr_operations
 
   PUBLIC :: dbcsr_init_lib, dbcsr_finalize_lib
   PUBLIC :: dbcsr_multiply,&
-            dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
+            dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
             dbcsr_copy_submatrix, dbcsr_copy_into_existing,&
             dbcsr_get_diag, dbcsr_set_diag, &
@@ -378,7 +369,6 @@ CONTAINS
       old_product_col_blk_sizes, old_product_row_blk_offsets, &
       old_product_row_blk_sizes
     TYPE(dbcsr_2d_array_type), POINTER       :: m2s_left, m2s_right
-    TYPE(dbcsr_cuda_mem_type)                :: a_tmp
     TYPE(dbcsr_distribution_obj)             :: dense_product_distribution, &
                                                 old_product_distribution
     TYPE(dbcsr_imagedistribution_obj)        :: dense_rdist_left, &
@@ -388,19 +378,6 @@ CONTAINS
       matrix_left, matrix_right, matrix_tmp, product_matrix
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
-!   ---------------------------------------------------------------------------
-! Pre-init card for nicer time acconting.
-
-    IF (has_cuda) THEN
-       IF(mm_driver .NE. mm_driver_cuda) CALL dbcsr_ps_set_finalize(error=error)
-    ENDIF
-
-    IF (mm_driver .EQ. mm_driver_cuda) THEN
-       CALL dbcsr_cuda_dev_mem_setup (a_tmp, dbcsr_type_real_8)
-       CALL dbcsr_cuda_dev_mem_alloc(a_tmp, 1, error=error)
-       CALL dbcsr_cuda_dev_mem_dealloc(a_tmp, error=error)
-    ENDIF
-    !
     CALL dbcsr_error_set(routineN, error_handler, error)
     !
     ! check parameters
@@ -963,7 +940,7 @@ CONTAINS
     CALL dbcsr_access_flush (product_matrix, error=error)
     !
     my_flop = 0
-    CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
+    CALL dbcsr_mm_cannon_multiply(m2s_left, m2s_right, product_matrix,&
          retain_sparsity=retain_sparsity,&
          filter_eps=filter_eps, error=error,&
          flop=my_flop)
@@ -4478,12 +4455,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_lib', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: error_handle, group_size, mem_type, mynode, n_stack_buffers, &
-      n_stack_mem_regions, ngpus, nstacks, numnode, stack_size
-    INTEGER, DIMENSION(3)                    :: nxstacks
-    TYPE(dbcsr_error_type)                   :: t_error
+    INTEGER                                  :: error_handle
 
+!n_stack_buffers,mem_type, n_stack_mem_regions, stack_size, nstacks,&
+!INTEGER, DIMENSION(3)                    :: nxstacks
 !   ---------------------------------------------------------------------------
+!TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
 
     IF (is_configured) RETURN
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -4504,45 +4481,13 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Incorrect assumption of a 64-bit integer size!",&
          __LINE__, error=error)
-    !
+
     CALL dbcsr_init_conf (error)
-    !
 
-       CALL mp_environ (numnode, mynode, group)
-#if defined (__DBCSR_CUDA)
-    IF (has_cuda) THEN
-       ngpus = dbcsr_cuda_get_n_devices (error)
-       mem_type = dbcsr_memory_CUDA_host_pinned
-       CALL dbcsr_get_conf_nstacks (nxstacks, n_stack_buffers, n_stack_mem_regions,&
-            error)
+    !$omp parallel default(none)  shared(error)
+    CALL dbcsr_mm_cannon_lib_init(error)
+    !$omp end parallel
 
-        nstacks = nxstacks(1) * nxstacks(2) * nxstacks(3) + 1
-        stack_size = dbcsr_get_conf_mm_stacksize()*n_stack_buffers*nstacks
-        group_size = n_stack_buffers*nstacks
-
-
-       !$OMP PARALLEL default (none), &
-       !$OMP          private (t_error) &
-       !$OMP          shared (mynode, ngpus, error, &
-       !$OMP          group_size, n_stack_mem_regions,stack_size)
-  
-       ! use a critical section to allow for threads initializing static
-       ! variables without races
-       !$OMP CRITICAL
-       t_error = error
-       IF (has_ma) THEN
-          CALL dbcsr_cuda_init (card_num=ma_set_gpu_affinity(mynode), error=error)
-       ELSE
-          CALL dbcsr_cuda_init (card_num=MOD(mynode, ngpus), error=error)
-       ENDIF
-       !$OMP END CRITICAL
-
-       !allocate host memory
-          CALL dbcsr_ps_set_init(group_size, n_stack_mem_regions,stack_size,error=error)
-       !$OMP END PARALLEL
-    ENDIF
-#endif
-    !
     is_configured = .TRUE.
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_init_lib
@@ -4562,12 +4507,20 @@ CONTAINS
 
     INTEGER                                  :: error_handle
 
-    CALL dbcsr_ps_set_finalize(error=error)
+!TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
+
+    IF (.NOT. is_configured) RETURN
     CALL dbcsr_error_set(routineN, error_handle, error)
+
+    !$omp parallel default(none) shared(error)
+    CALL dbcsr_mm_cannon_lib_finalize(error)
+    !$omp end parallel
+
+    is_configured = .FALSE.
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_finalize_lib
 
-  
+
 
 ! *****************************************************************************
 !> \brief Adds blocks to a matrix

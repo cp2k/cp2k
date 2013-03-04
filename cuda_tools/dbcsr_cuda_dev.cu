@@ -56,6 +56,9 @@ dc_set_device_cu (int device_id)
   if (cuda_error_check (cErr))
     return 1;
 
+  if (myDevice != device_id)
+    return 1;
+
   cErr = cudaGetDeviceProperties (&devProperties, myDevice);
   if (cuda_error_check (cErr))
     return 1;

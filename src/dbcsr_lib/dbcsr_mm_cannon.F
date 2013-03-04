@@ -63,10 +63,12 @@ MODULE dbcsr_mm_cannon
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_valid_index
-  USE dbcsr_mm_multrec,                ONLY: dbcsr_multrec_finalize,&
-                                             dbcsr_multrec_init,&
-                                             dbcsr_multrec_sparse
-  USE dbcsr_mm_types,                  ONLY: carrier_type
+  USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
+                                             dbcsr_mm_multrec_init,&
+                                             dbcsr_mm_multrec_lib_finalize,&
+                                             dbcsr_mm_multrec_lib_init,&
+                                             dbcsr_mm_multrec_multiply
+  USE dbcsr_mm_types,                  ONLY: multrec_carrier_type
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
@@ -91,10 +93,33 @@ MODULE dbcsr_mm_cannon
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  PUBLIC :: dbcsr_mult_m_e_e
+
+  PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
+  PUBLIC :: dbcsr_mm_cannon_multiply
 
 
-CONTAINS
+  CONTAINS
+
+! *****************************************************************************
+! \brief Initialize the library
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_cannon_lib_init(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+     CALL dbcsr_mm_multrec_lib_init(error)
+  END SUBROUTINE
+
+
+! *****************************************************************************
+! \brief Finalize the library
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_cannon_lib_finalize(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+     CALL dbcsr_mm_multrec_lib_finalize(error)
+  END SUBROUTINE
 
 
 ! *****************************************************************************
@@ -108,7 +133,7 @@ CONTAINS
 !>                                 existing product matrix; default is no
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mult_m_e_e (left_set, right_set, product_matrix,&
+  SUBROUTINE dbcsr_mm_cannon_multiply(left_set, right_set, product_matrix,&
        error, retain_sparsity, &
        filter_eps, flop)
     TYPE(dbcsr_2d_array_type), POINTER       :: left_set, right_set
@@ -118,7 +143,7 @@ CONTAINS
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: filter_eps
     INTEGER(KIND=int_8), INTENT(OUT)         :: flop
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_m_e_e', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cannon_multiply', &
       routineP = moduleN//':'//routineN
     CHARACTER(LEN=80), PARAMETER :: &
       fdata = '(A,1X,I4,"(",2(I3),"x",2(I3),")","(",I3,"x",I3,")")', fxfer = &
@@ -179,7 +204,6 @@ CONTAINS
                                                 right_fill
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
                                                 row_max_epss
-    TYPE(carrier_type), SAVE                 :: carrier
     TYPE(dbcsr_2d_array_type), POINTER :: left_buffer_1, left_buffer_2, &
       left_buffer_calc, left_buffer_comm, right_buffer_1, right_buffer_2, &
       right_buffer_calc, right_buffer_comm
@@ -199,8 +223,9 @@ CONTAINS
                                                 left_send_subtypes, &
                                                 right_recv_subtypes, &
                                                 right_send_subtypes
+    TYPE(multrec_carrier_type), SAVE         :: multrec_carrier
 
-!$OMP THREADPRIVATE (carrier)
+!$OMP THREADPRIVATE (multrec_carrier)
 
 
 !   ---------------------------------------------------------------------------
@@ -659,13 +684,11 @@ CONTAINS
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
 !$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
 !$omp shared (a_dev, b_dev) firstprivate (error)
-    CALL dbcsr_multrec_init(&
+    CALL dbcsr_mm_multrec_init(&
          left_buffer_comm%mats(1, 1)%m,&
          right_buffer_comm%mats(1, 1)%m,&
          product_matrix%m,&
-         carrier,&
-         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
-         right_index_sr, right_index_rr, left_index_sr, left_index_rr, &
+         multrec_carrier,&
          keep_sparsity=keep_sparsity,&
          eps=filter_eps,&
          row_max_epss = row_max_epss,&
@@ -1042,16 +1065,15 @@ CONTAINS
 !$omp reduction (+: flop_single)
              t_error=error
              CALL dbcsr_error_set(routineN//"_multrec_sparse", error_handler2, t_error)
-             CALL dbcsr_multrec_sparse(&
+             CALL dbcsr_mm_multrec_multiply(&
                   left_buffer_calc%mats(1, v_ki+1)%m,&
                   right_buffer_calc%mats(v_ki+1, 1)%m,&
                   product_matrix%m,&
-                  carrier,&
-                  keep_sparsity=keep_sparsity,&
+                  multrec_carrier,&
+                  keep_sparsity=keep_sparsity,&             
                   flop=flop_single,&
                   a_norms=left_norms, b_norms=right_norms,&
-                  eps=filter_eps,&
-                  row_max_epss = row_max_epss, error=t_error)
+                  error=t_error)
              ! once multiplication is complete, thread zero polls MPI until
              ! all other threads have also completed
 !$omp atomic
@@ -1062,7 +1084,14 @@ CONTAINS
 !$           nthreads = omp_get_num_threads()
              IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
                DO WHILE (threads_finished .NE. nthreads)
-                 CALL progress_comms(carrier)
+                  CALL mp_testany(right_data_sr)
+                  CALL mp_testany(right_data_rr)
+                  CALL mp_testany(left_data_sr)
+                  CALL mp_testany(left_data_rr)
+                  CALL mp_testany(right_index_sr)
+                  CALL mp_testany(right_index_rr)
+                  CALL mp_testany(left_index_sr)
+                  CALL mp_testany(left_index_rr)
 !$omp flush (threads_finished)
                END DO
              END IF
@@ -1097,14 +1126,14 @@ CONTAINS
   
   
     !
-!$omp parallel &
+!$omp parallel &                                                      
 !$omp default (none) &
 !$omp private (t_error) &
 !$omp shared (product_matrix, error)
     !
     t_error = error
     ! Finalize multiplication
-    CALL dbcsr_multrec_finalize (carrier, product_matrix%m, t_error)
+    CALL dbcsr_mm_multrec_finalize(multrec_carrier, product_matrix%m, t_error)
 !$omp end parallel
     !
     IF (ALLOCATED (right_norms)) THEN
@@ -1181,7 +1210,7 @@ CONTAINS
        i = real_8_size * 2
     END SELECT
     CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_mult_m_e_e
+  END SUBROUTINE dbcsr_mm_cannon_multiply
 
 
 ! ******************************************************************************
@@ -1725,24 +1754,6 @@ CONTAINS
        !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE calculate_norms
-
-
-
-! *****************************************************************************
-!> \brief Call in MPI to progrss any outstanding communications
-! *****************************************************************************
-  SUBROUTINE progress_comms(carrier)
-    TYPE(carrier_type), INTENT(inout)        :: carrier
-
-    CALL mp_testany(carrier%right_data_sr)
-    CALL mp_testany(carrier%right_data_rr)
-    CALL mp_testany(carrier%left_data_sr)
-    CALL mp_testany(carrier%left_data_rr)
-    CALL mp_testany(carrier%right_index_sr)
-    CALL mp_testany(carrier%right_index_rr)
-    CALL mp_testany(carrier%left_index_sr)
-    CALL mp_testany(carrier%left_index_rr)
-  END SUBROUTINE
 
 #include "dbcsr_mm_cannon_d.F"
 #include "dbcsr_mm_cannon_z.F"

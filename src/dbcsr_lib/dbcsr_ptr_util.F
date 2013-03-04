@@ -302,7 +302,7 @@ CONTAINS
     CASE (dbcsr_memory_MPI)
        CALL mp_allocate(mem, n, stat=stat)
     CASE (dbcsr_memory_CUDA_host_pinned)
-       CALL dbcsr_cuda_host_mem_alloc(mem, n, stat=stat, error=error)
+       CALL dbcsr_cuda_host_mem_alloc(mem, n, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
@@ -344,7 +344,7 @@ CONTAINS
     CASE (dbcsr_memory_MPI)
        CALL mp_deallocate(mem, stat=stat)
     CASE (dbcsr_memory_CUDA_host_pinned)
-       CALL dbcsr_cuda_host_mem_dealloc(mem, stat=stat, error=error)
+       CALL dbcsr_cuda_host_mem_dealloc(mem, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
                dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&

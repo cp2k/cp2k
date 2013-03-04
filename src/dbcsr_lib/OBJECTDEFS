@@ -34,8 +34,6 @@ LIB3_OBJECTS =\
  dbcsr_operations.o\
  dbcsr_performance_multiply.o\
  dbcsr_plasma_interface.o\
- dbcsr_pq_methods.o\
- dbcsr_pq_types.o\
  dbcsr_ptr_util.o\
  dbcsr_test_add.o\
  dbcsr_test_methods.o\

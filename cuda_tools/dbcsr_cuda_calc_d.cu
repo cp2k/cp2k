@@ -50,7 +50,8 @@ stack_mm_mnk_sq23_d (const int *__restrict__ param_stack,
 		     const int liter,
 		     const double *__restrict__ a_data,
 		     const double *__restrict__ b_data,
-		     double *__restrict__ c_data, int *__restrict__ c_locks)
+		     double *__restrict__ c_data, int *__restrict__ c_locks,
+		     int lock_offset)
 {
 
 	/**
@@ -227,7 +228,7 @@ stack_mm_mnk_sq23_d (const int *__restrict__ param_stack,
 	  c_loc = param_stack[psp + 5] - 1;
 	  // c_id = param_stack[psp+6]-1;
 	  // if (threadIdx.x == 0) {
-	  //   my_id = blockIdx.x+1;
+	  //   my_id = lock_offset + blockIdx.x+1;
 	  //   lock_owner = 0;
 	  //   while ((lock_owner != my_id))
 	  //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
@@ -347,7 +348,8 @@ stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
 		    const int liter,
 		    const double *__restrict__ a_data,
 		    const double *__restrict__ b_data,
-		    double *__restrict__ c_data, int *__restrict__ c_locks)
+		    double *__restrict__ c_data, int *__restrict__ c_locks,
+		    int lock_offset)
 {
 
 	/**
@@ -519,7 +521,8 @@ stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
 
 /*
              if (lid == 0) {
-                 my_id = 4*blockIdx.x  + wid + 1;
+                // TODO: make shure 2^16 is enough as lock_offset stepsize
+                 my_id = lock_offset + 4*blockIdx.x  + wid + 1;
                  int lock_owner = 0;
                     while ((lock_owner != my_id))
                          lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
@@ -556,7 +559,8 @@ stack_mm_mnk_d (const int *__restrict__ param_stack,
 		const int liter,
 		const double *__restrict__ a_data,
 		const double *__restrict__ b_data,
-		double *__restrict__ c_data, int *__restrict__ c_locks)
+		double *__restrict__ c_data, int *__restrict__ c_locks,
+		int lock_offset)
 {
 
 	/**
@@ -646,7 +650,7 @@ stack_mm_mnk_d (const int *__restrict__ param_stack,
 	  // c_id = param_stack[psp+6]-1;
 	  // 
 	  // if (threadIdx.x == 0) {
-	  //   my_id = blockIdx.x+1;
+	  //   my_id = lock_offset + blockIdx.x+1;
 	  //   lock_owner = 0;
 	  //   while ((lock_owner != my_id))
 	  //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
@@ -682,7 +686,7 @@ __global__ void stack_mm_d
    int stack_size, int nparams,
    const double *__restrict__ a_data,
    const double *__restrict__ b_data,
-   double *__restrict__ c_data, int *__restrict__ c_locks)
+   double *__restrict__ c_data, int *__restrict__ c_locks, int lock_offset)
 {
 
   /**
@@ -754,7 +758,7 @@ __global__ void stack_mm_d
   // c_loc = param_stack[psp+5]-1;
   // syncthreads();
   // if (tn == 0) {
-  //   sp_one = sp + 1;
+  //   sp_one = lock_offset + sp + 1;
   //   lock_owner = 0;
   //   while ((lock_owner != sp_one))
   //     lock_owner = atomicCAS (&(c_locks[c_id]), 0, sp_one);

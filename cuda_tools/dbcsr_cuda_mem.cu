@@ -280,3 +280,15 @@ dc_memzero_cu (void *dev_mem, size_t offset, size_t length)
      if (cuda_error_check (cudaGetLastError())) return 1; */
   return 0;
 }
+
+extern "C" int
+dc_dev_mem_info_cu (size_t * free, size_t * avail)
+{
+  cudaError_t cErr;
+  cErr = cudaMemGetInfo (free, avail);
+  if (cuda_error_check (cErr))
+    return 1;
+  if (cuda_error_check (cudaGetLastError ()))
+    return 1;
+  return 0;
+}

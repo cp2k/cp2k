@@ -61,7 +61,7 @@ MODULE dbcsr_cuda_memory
   PUBLIC :: dbcsr_cuda_dev_mem_init
   PUBLIC :: dbcsr_cuda_dev_mem_new, dbcsr_cuda_dev_mem_release,&
             dbcsr_cuda_dev_mem_hold
-
+  PUBLIC :: dbcsr_cuda_dev_mem_info
 
   INTERFACE dbcsr_cuda_dev_mem_alloc
      MODULE PROCEDURE dev_mem_alloc_any
@@ -88,12 +88,24 @@ MODULE dbcsr_cuda_memory
      MODULE PROCEDURE host_mem_alloc_i, host_mem_alloc_l
      MODULE PROCEDURE host_mem_alloc_r, host_mem_alloc_d
      MODULE PROCEDURE host_mem_alloc_c, host_mem_alloc_z
+     MODULE PROCEDURE host_mem_alloc_i_2D, host_mem_alloc_l_2D
+     MODULE PROCEDURE host_mem_alloc_r_2D, host_mem_alloc_d_2D
+     MODULE PROCEDURE host_mem_alloc_c_2D, host_mem_alloc_z_2D
+     MODULE PROCEDURE host_mem_alloc_i_4D, host_mem_alloc_l_4D
+     MODULE PROCEDURE host_mem_alloc_r_4D, host_mem_alloc_d_4D
+     MODULE PROCEDURE host_mem_alloc_c_4D, host_mem_alloc_z_4D
   END INTERFACE
 
   INTERFACE dbcsr_cuda_host_mem_dealloc
      MODULE PROCEDURE host_mem_dealloc_i, host_mem_dealloc_l
      MODULE PROCEDURE host_mem_dealloc_r, host_mem_dealloc_d
      MODULE PROCEDURE host_mem_dealloc_c, host_mem_dealloc_z
+     MODULE PROCEDURE host_mem_dealloc_i_2D, host_mem_dealloc_l_2D
+     MODULE PROCEDURE host_mem_dealloc_r_2D, host_mem_dealloc_d_2D
+     MODULE PROCEDURE host_mem_dealloc_c_2D, host_mem_dealloc_z_2D
+     MODULE PROCEDURE host_mem_dealloc_i_4D, host_mem_dealloc_l_4D
+     MODULE PROCEDURE host_mem_dealloc_r_4D, host_mem_dealloc_d_4D
+     MODULE PROCEDURE host_mem_dealloc_c_4D, host_mem_dealloc_z_4D
   END INTERFACE
 
   INTERFACE dbcsr_cuda_dev_mem_zero
@@ -105,6 +117,17 @@ MODULE dbcsr_cuda_memory
 
 
 #if defined (__DBCSR_CUDA)
+
+
+  INTERFACE
+     FUNCTION dbcsr_cuda_dev_mem_info(free, avail) RESULT (istat) BIND(C, name="dc_dev_mem_info_cu")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), INTENT(OUT)         :: free, avail
+    INTEGER(KIND=C_INT)                      :: istat
+
+    END FUNCTION dbcsr_cuda_dev_mem_info
+  END INTERFACE
+
 
   INTERFACE
      FUNCTION cuda_dev_mem_alloc_cu(mem, n) RESULT (istat) BIND(C, name="dc_dev_mem_alloc")
@@ -177,6 +200,17 @@ MODULE dbcsr_cuda_memory
 
 CONTAINS
 
+#if ! defined (__DBCSR_CUDA)
+ FUNCTION dbcsr_cuda_dev_mem_info(free, avail) RESULT (istat)
+    INTEGER, INTENT(OUT)                     :: free, avail
+    INTEGER                                  :: istat
+
+       free = 0
+       avail = 0
+       istat = -1
+ END FUNCTION dbcsr_cuda_dev_mem_info
+#endif
+        
 
 #include "dbcsr_cuda_memory_i.F"
 #include "dbcsr_cuda_memory_l.F"
@@ -189,6 +223,35 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Encapsulated memory routines for the device
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
+ SUBROUTINE host_mem_alloc_raw (host_mem_c_ptr, n_bytes, error)
+    TYPE(C_PTR), INTENT(OUT)                 :: host_mem_c_ptr
+    INTEGER, INTENT(IN)                      :: n_bytes
+    TYPE(dbcsr_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_alloc_raw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, istat
+
+    IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
+    istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &
+               INT(n_bytes, KIND=C_SIZE_T), 0_c_int, 0_c_int)
+    IF (istat /= 0) STOP "host_mem_alloc_raw: Could not allocate host pinned memory"
+#else
+    STOP "host_mem_alloc_raw: DBCSR_CUDA not compiled in."
+#endif
+    IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE host_mem_alloc_raw
+
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dbcsr_cuda_dev_mem_init (dev_mem, error)
     TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -196,14 +259,16 @@ CONTAINS
     NULLIFY (dev_mem)
   END SUBROUTINE dbcsr_cuda_dev_mem_init
 
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dbcsr_cuda_dev_mem_new (dev_mem, data_type, error)
     TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
     INTEGER, INTENT(IN), OPTIONAL            :: data_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: stat
-
-    ALLOCATE (dev_mem, stat=stat)
+    ALLOCATE (dev_mem)
     dev_mem%data_type = 0
     dev_mem%refcount = 1
     IF (PRESENT (data_type)) THEN
@@ -211,6 +276,10 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_cuda_dev_mem_new
 
+
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dbcsr_cuda_dev_mem_hold (dev_mem, error)
     TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -219,21 +288,25 @@ CONTAINS
   END SUBROUTINE dbcsr_cuda_dev_mem_hold
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dbcsr_cuda_dev_mem_release (dev_mem, error)
     TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: stat
-
     dev_mem%refcount = dev_mem%refcount - 1
     IF (dev_mem%refcount == 0) THEN
        CALL dev_mem_dealloc_any (dev_mem, error=error)
-       DEALLOCATE (dev_mem, stat=stat)
+       DEALLOCATE (dev_mem)
        NULLIFY (dev_mem)
     ENDIF
   END SUBROUTINE dbcsr_cuda_dev_mem_release
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_alloc_any (dev_mem, n, error, stat)
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
     INTEGER, INTENT(IN)                      :: n
@@ -245,13 +318,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle
-    TYPE(dbcsr_error_type)                   :: my_error
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT (error)) my_error = error
-    CALL dbcsr_error_set (routineN, error_handle, my_error)
-    IF (PRESENT (error)) error = my_error
+    IF (PRESENT (error)) CALL dbcsr_error_set(routineN, error_handle, error)
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
     CASE (dbcsr_type_int_4)
@@ -273,19 +343,16 @@ CONTAINS
        CALL dbcsr_cuda_dev_mem_alloc (dev_mem%d_z, n,&
             error=error, stat=stat)
     CASE default
-       IF (PRESENT (error)) my_error = error
-       CALL dbcsr_assert (.FALSE.,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type", __LINE__, error=my_error)
-       IF (PRESENT (error)) error = my_error
+       STOP "dev_mem_alloc_any: Invalid data type"
     END SELECT
 
-    IF (PRESENT (error)) my_error = error
-    CALL dbcsr_error_stop (error_handle, my_error)
-    IF (PRESENT (error)) error = my_error
+    IF (PRESENT (error)) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dev_mem_alloc_any
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_realloc_any (dev_mem, n, error, stat)
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
     INTEGER, INTENT(IN)                      :: n
@@ -297,13 +364,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle
-    TYPE(dbcsr_error_type)                   :: my_error
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT (error)) my_error = error
-    CALL dbcsr_error_set (routineN, error_handle, my_error)
-    IF (PRESENT (error)) error = my_error
+    IF (PRESENT (error)) CALL dbcsr_error_set(routineN, error_handle, error)
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
     CASE (dbcsr_type_int_4)
@@ -325,19 +389,16 @@ CONTAINS
        CALL dbcsr_cuda_dev_mem_realloc (dev_mem%d_z, n,&
             error=error, stat=stat)
     CASE default
-       IF (PRESENT (error)) my_error = error
-       CALL dbcsr_assert (.FALSE.,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type", __LINE__, error=my_error)
-       IF (PRESENT (error)) error = my_error
+       STOP "dev_mem_realloc_any: Invalid data type"
     END SELECT
 
-    IF (PRESENT (error)) my_error = error
-    CALL dbcsr_error_stop (error_handle, my_error)
-    IF (PRESENT (error)) error = my_error
+    IF (PRESENT (error)) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dev_mem_realloc_any
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_dealloc_any (dev_mem, error, stat)
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), &
@@ -348,13 +409,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle
-    TYPE(dbcsr_error_type)                   :: my_error
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT (error)) my_error = error
-    CALL dbcsr_error_set (routineN, error_handle, my_error)
-    IF (PRESENT (error)) error = my_error
+    IF (PRESENT (error)) CALL dbcsr_error_set(routineN, error_handle, error)
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
     CASE (dbcsr_type_int_4)
@@ -376,19 +434,16 @@ CONTAINS
        CALL dbcsr_cuda_dev_mem_dealloc (dev_mem%d_z,&
             error=error, stat=stat)
     CASE default
-       IF (PRESENT (error)) my_error = error
-       CALL dbcsr_assert (.FALSE.,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type", __LINE__, error=my_error)
-       IF (PRESENT (error)) error = my_error
+       STOP "dev_mem_dealloc_any: Invalid data type"
     END SELECT
 
-    IF (PRESENT (error)) my_error = error
-    CALL dbcsr_error_stop (error_handle, my_error)
-    IF (PRESENT (error)) error = my_error
+    IF (PRESENT (error)) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dev_mem_dealloc_any
 
 
+! *****************************************************************************
+!> \brief
+! *****************************************************************************
   SUBROUTINE dev_mem_zero_any (dev_mem, first, last, error)
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
     INTEGER, INTENT(IN)                      :: first, last

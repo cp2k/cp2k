@@ -39,25 +39,25 @@ __global__ void stack_mm_r
    int stack_size, int nparams,
    const float *__restrict__ a_data,
    const float *__restrict__ b_data,
-   float *__restrict__ c_data, int *__restrict__ c_locks);
+   float *__restrict__ c_data, int *__restrict__ c_locks, int lock_offset);
 __global__ void stack_mm_d
   (const int *__restrict__ param_stack,
    int stack_size, int nparams,
    const double *__restrict__ a_data,
    const double *__restrict__ b_data,
-   double *__restrict__ c_data, int *__restrict__ c_locks);
+   double *__restrict__ c_data, int *__restrict__ c_locks, int lock_offset);
 __global__ void stack_mm_c
   (const int *__restrict__ param_stack,
    int stack_size, int nparams,
    const float *__restrict__ a_data,
    const float *__restrict__ b_data,
-   float *__restrict__ c_data, int *__restrict__ c_locks);
+   float *__restrict__ c_data, int *__restrict__ c_locks, int lock_offset);
 __global__ void stack_mm_z
   (const int *__restrict__ param_stack,
    int stack_size, int nparams,
    const double *__restrict__ a_data,
    const double *__restrict__ b_data,
-   double *__restrict__ c_data, int *__restrict__ c_locks);
+   double *__restrict__ c_data, int *__restrict__ c_locks, int lock_offset);
 
 __global__ void stack_mm_mnk_d (const int *__restrict__ param_stack,
 				const int careful, const int nruns,
@@ -66,7 +66,7 @@ __global__ void stack_mm_mnk_d (const int *__restrict__ param_stack,
 				const double *__restrict__ a_data,
 				const double *__restrict__ b_data,
 				double *__restrict__ c_data,
-				int *__restrict__ c_locks);
+				int *__restrict__ c_locks, int lock_offset);
 
 __global__ void stack_mm_mnk_sq23_d (const int *__restrict__ param_stack,
 				     const int careful, const int nruns,
@@ -75,7 +75,8 @@ __global__ void stack_mm_mnk_sq23_d (const int *__restrict__ param_stack,
 				     const double *__restrict__ a_data,
 				     const double *__restrict__ b_data,
 				     double *__restrict__ c_data,
-				     int *__restrict__ c_locks);
+				     int *__restrict__ c_locks,
+				     int lock_offset);
 
 __global__ void stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
 				    const int careful, const int nruns,
@@ -84,7 +85,8 @@ __global__ void stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
 				    const double *__restrict__ a_data,
 				    const double *__restrict__ b_data,
 				    double *__restrict__ c_data,
-				    int *__restrict__ c_locks);
+				    int *__restrict__ c_locks,
+				    int lock_offset);
 
 /**
  * \brief Bridge routine to call appropriate CUDA kernel.
@@ -129,7 +131,8 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 	return 4;
       stack_mm_r <<< stack_size, maxt, shared_size, stream >>>
 	(param_stack, stack_size, nparams,
-	 (float *) a_data, (float *) b_data, (float *) c_data, c_locks);
+	 (float *) a_data, (float *) b_data, (float *) c_data, c_locks,
+	 pow (2, 15) * stream_id);
       break;
     case 3:
       /* Real, double precision */
@@ -164,7 +167,9 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 		shared_size, stream >>> (param_stack, careful, nruns, m_max,
 					 n_max, k_max, liter,
 					 (double *) a_data, (double *) b_data,
-					 (double *) c_data, c_locks);
+					 (double *) c_data, c_locks, pow (2,
+									  15)
+					 * stream_id);
 	    }
 	  else if (m_max == 5 && n_max == 5 && k_max == 5)
 	    {
@@ -177,7 +182,8 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 					      m_max, n_max, k_max, liter,
 					      (double *) a_data,
 					      (double *) b_data,
-					      (double *) c_data, c_locks);
+					      (double *) c_data, c_locks,
+					      pow (2, 15) * stream_id);
 	    }
 	  else
 	    {
@@ -187,7 +193,9 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 					 //mn, mk, nk, maxb, liter,
 					 liter,
 					 (double *) a_data, (double *) b_data,
-					 (double *) c_data, c_locks);
+					 (double *) c_data, c_locks, pow (2,
+									  15)
+					 * stream_id);
 	    }
 	}
       else
@@ -200,7 +208,7 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 	  stack_mm_d <<< stack_size, maxt, shared_size, stream >>>
 	    (param_stack, stack_size, nparams,
 	     (double *) a_data, (double *) b_data, (double *) c_data,
-	     c_locks);
+	     c_locks, pow (2, 15) * stream_id);
 	}
       break;
     case 5:
@@ -210,7 +218,8 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 	return 4;
       stack_mm_c <<< stack_size, maxt, shared_size, stream >>>
 	(param_stack, stack_size, nparams,
-	 (float *) a_data, (float *) b_data, (float *) c_data, c_locks);
+	 (float *) a_data, (float *) b_data, (float *) c_data, c_locks,
+	 pow (2, 15) * stream_id);
       break;
     case 7:
       /* Complex, double precision */
@@ -219,7 +228,8 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 	return 4;
       stack_mm_z <<< stack_size, maxt, shared_size, stream >>>
 	(param_stack, stack_size, nparams,
-	 (double *) a_data, (double *) b_data, (double *) c_data, c_locks);
+	 (double *) a_data, (double *) b_data, (double *) c_data, c_locks,
+	 pow (2, 15) * stream_id);
       break;
     default:
       return 2;

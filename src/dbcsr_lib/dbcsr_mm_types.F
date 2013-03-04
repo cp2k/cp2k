@@ -18,9 +18,8 @@ MODULE dbcsr_mm_types
                                              int_8,&
                                              real_8,&
                                              sp
-  USE dbcsr_pq_types,                  ONLY: dbcsr_pq_type,&
-                                             dbcsr_ps_set_type
-  USE dbcsr_types,                     ONLY: dbcsr_work_type
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_work_type
 
   IMPLICIT NONE
 
@@ -28,7 +27,23 @@ MODULE dbcsr_mm_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_types'
 
-  PUBLIC :: carrier_type, hash_table_type, ele_type
+  PUBLIC :: multrec_carrier_type, csr_carrier_type 
+  PUBLIC :: driver_carrier_type, stack_descriptor_type
+  PUBLIC :: hash_table_type, ele_type
+
+  INTEGER, PARAMETER, PUBLIC :: dbcsr_ps_state_empty   = 42424242
+  INTEGER, PARAMETER, PUBLIC :: dbcsr_ps_state_working = 1234567890
+
+ ! Definitions for the members of a parameter stack.
+  INTEGER, PARAMETER, PUBLIC :: dbcsr_ps_width = 7
+  INTEGER, PARAMETER, PUBLIC :: p_m = 1
+  INTEGER, PARAMETER, PUBLIC :: p_n = 2
+  INTEGER, PARAMETER, PUBLIC :: p_k = 3
+  INTEGER, PARAMETER, PUBLIC :: p_a_first = 4
+  INTEGER, PARAMETER, PUBLIC :: p_b_first = 5
+  INTEGER, PARAMETER, PUBLIC :: p_c_first = 6
+  INTEGER, PARAMETER, PUBLIC :: p_c_blk = 7
+
 
 ! *****************************************************************************
 !> \brief Types needed for the hashtable.
@@ -37,7 +52,7 @@ MODULE dbcsr_mm_types
      INTEGER :: c=0
      INTEGER :: p=0
   END TYPE ele_type
-  
+
   TYPE hash_table_type
      TYPE(ele_type), DIMENSION(:), POINTER :: table
      INTEGER :: nele=0
@@ -45,15 +60,58 @@ MODULE dbcsr_mm_types
      INTEGER :: prime=0
   END TYPE hash_table_type
 
-  
+
+! *****************************************************************************
+!>
+! *****************************************************************************
+  TYPE stack_descriptor_type
+     INTEGER :: m, n, k, max_m ,max_n, max_k
+     INTEGER :: total_entries
+     LOGICAL :: defined_mnk
+  END TYPE stack_descriptor_type
+
+
+! *****************************************************************************
+!>
+! *****************************************************************************
+  TYPE driver_carrier_type
+    ! for cpu based drivers
+    TYPE(dbcsr_data_obj)      :: left_data_area, right_data_area
+    TYPE(dbcsr_work_type), POINTER :: product_wm
+    ! for the cuda driver
+  END TYPE driver_carrier_type
+
+
+! *****************************************************************************
+!>
+! *****************************************************************************
+  TYPE csr_carrier_type
+     TYPE(hash_table_type), DIMENSION(:), POINTER  :: c_hashes
+     INTEGER                        :: nm_stacks, nn_stacks, nk_stacks
+     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: m_size_maps,&
+                                                   n_size_maps,&
+                                                   k_size_maps
+     INTEGER                        :: max_m, max_n, max_k
+     INTEGER                        :: m_size_maps_size,&
+                                       n_size_maps_size,&
+                                       k_size_maps_size
+
+     INTEGER(KIND=int_1), DIMENSION(:,:,:), POINTER :: stack_map
+
+     INTEGER, DIMENSION(:,:,:,:), POINTER           :: stackgrid_data
+     INTEGER, DIMENSION(:,:), POINTER               :: stackgrid_fillcount
+     INTEGER, DIMENSION(:,:), POINTER               :: stackgrid_state
+     TYPE(stack_descriptor_type), DIMENSION(:), POINTER :: stackrow_descr
+     TYPE(driver_carrier_type)                      :: drv_carrier
+  END TYPE csr_carrier_type
+
+
 ! *****************************************************************************
 !> \brief Used to carry data among the various calls.  Each thread has
 !>        its own private copy.
-!> \var id                Unique ID of each carrier_type instance
 !> \var c_has_symmetry    The product matrix has symmetry
 !> \var keep_sparsity     Sparsity of C matrix should be kept
 !> \var use_eps           Use on-the-fly filtering
-!> \var param_sets        Set of parameter stacks
 !> \var local_indexing    The A and B matrix indices and C matrix work indices
 !>                        are not global but local to process rows and columns
 !> \var m_sizes           Block sizes of A and C matrix rows, indexed locally
@@ -92,7 +150,6 @@ MODULE dbcsr_mm_types
 !> \var nk_stacks         The number of most common k blocks sizes.
 !> \var stack_map         Map from most common (n,k,m) block sizes to a stack
 !>                        number within a stack group.
-!> \var default_stack     Stack to use when stack members do not have common
 !>                        m, n, and k sizes.
 !> \var row_max_epss      Maximum eps to be used for one row.
 !> \var a_norms           Norms of A matrix blocks.
@@ -105,38 +162,18 @@ MODULE dbcsr_mm_types
 !> \var original_lastblk  Number of work matrix blocks before addition
 !> \var flop              flop count
 ! *****************************************************************************
-  TYPE carrier_type
-     INTEGER :: id
+  TYPE multrec_carrier_type
      LOGICAL :: c_has_symmetry, keep_sparsity, use_eps
      LOGICAL :: local_indexing
-     TYPE(hash_table_type), DIMENSION(:), POINTER  :: c_hashes
-     TYPE(dbcsr_pq_type), POINTER                  :: queue
-     TYPE(dbcsr_ps_set_type)                       :: param_sets
      INTEGER, DIMENSION(:), POINTER :: m_sizes, n_sizes, k_sizes
      INTEGER, DIMENSION(:), POINTER :: c_local_rows, c_local_cols, k_locals,&
                                        c_global_rows, c_global_cols
-     INTEGER                        :: max_m, max_n, max_k
-     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: m_size_maps,&
-                                                   n_size_maps,&
-                                                   k_size_maps
-     INTEGER                        :: m_size_maps_size,&
-                                       n_size_maps_size,&
-                                       k_size_maps_size
-     INTEGER                        :: nm_stacks, nn_stacks, nk_stacks
-     INTEGER(KIND=int_1), DIMENSION(:,:,:), POINTER :: stack_map
-     INTEGER                                        :: default_stack
+
      REAL(KIND=sp), DIMENSION(:), POINTER :: row_max_epss, a_norms, b_norms
      REAL(KIND=real_8)     :: eps
-     TYPE(dbcsr_work_type) :: my_wm
-     INTEGER               :: lastblk, datasize
      INTEGER               :: original_lastblk
      INTEGER(kind=int_8)   :: flop
-     INTEGER, DIMENSION(:,:), POINTER :: right_data_sr, right_data_rr,&
-                                         left_data_sr, left_data_rr,&
-                                         right_index_sr, right_index_rr,&
-                                         left_index_sr, left_index_rr
-  END TYPE carrier_type
+      TYPE(csr_carrier_type)        :: csr_carrier
+  END TYPE multrec_carrier_type
 
-  
-  
 END MODULE dbcsr_mm_types

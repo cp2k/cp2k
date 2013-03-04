@@ -32,7 +32,10 @@ MODULE dbcsr_cuda_types
   PUBLIC :: dbcsr_cuda_mem_type_i4, dbcsr_cuda_mem_type_i8,&
             dbcsr_cuda_mem_type_r4, dbcsr_cuda_mem_type_r8,&
             dbcsr_cuda_mem_type_c4, dbcsr_cuda_mem_type_c8
+            
+  PUBLIC :: dbcsr_cuda_mem_p_type
 
+  ! TODO: these datastructures are pointless. They hold C_PTR anyways. 
   TYPE dbcsr_cuda_mem_type_i4
      TYPE(C_PTR) :: ref
      INTEGER :: len, req_len
@@ -74,7 +77,10 @@ MODULE dbcsr_cuda_types
      TYPE(dbcsr_cuda_mem_type_c8) :: d_z
      INTEGER :: refcount
   END TYPE dbcsr_cuda_mem_type
-
-
+ 
+ 
+  TYPE dbcsr_cuda_mem_p_type
+    TYPE(dbcsr_cuda_mem_type), POINTER :: p 
+  END TYPE dbcsr_cuda_mem_p_type
 
 END MODULE dbcsr_cuda_types

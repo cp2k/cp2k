@@ -69,12 +69,11 @@ MODULE dbcsr_config
             mm_name_smm,&
             mm_name_plasma,&
             mm_name_cuda
-  PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers, nstackmemregions
+  PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers
   PUBLIC :: use_comm_thread, comm_thread_load
 
   !
   PUBLIC :: is_configured
-  PUBLIC :: mm_thread_workshare
 
 
   ! First the constants are declared.
@@ -156,16 +155,13 @@ MODULE dbcsr_config
   INTEGER, SAVE :: nn_stacks = 0
   INTEGER, SAVE :: nk_stacks = 0
   INTEGER, SAVE :: nstackbuffers = 1
-  INTEGER, SAVE :: nstackmemregions = 1
-
+  
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
   INTEGER, SAVE :: comm_thread_load = 100
 
   LOGICAL, SAVE :: is_configured = .FALSE.
 
-  ! Worksharing between threads
-  LOGICAL, SAVE :: mm_thread_workshare = .TRUE.
 
 CONTAINS
 
@@ -201,16 +197,12 @@ CONTAINS
     !
     use_comm_thread = .TRUE.
     comm_thread_load = 100
-    mm_thread_workshare = .FALSE.
-    !$ mm_thread_workshare = .TRUE.
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
        mm_host_driver = mm_driver_smm
-       mm_thread_workshare = .FALSE.
     ELSE
        mm_host_driver = mm_driver
     ENDIF
-    IF (has_cuda) mm_thread_workshare = .FALSE.
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf
 
@@ -390,8 +382,8 @@ CONTAINS
   END FUNCTION dbcsr_get_conf_mm_stacksize
 
 
-  SUBROUTINE dbcsr_set_conf_nstacks (nstacks, nbuffers, nmemregs, error)
-    INTEGER, INTENT(IN)                      :: nstacks(:), nbuffers, nmemregs
+  SUBROUTINE dbcsr_set_conf_nstacks (nstacks, nbuffers, error)
+    INTEGER, INTENT(IN)                      :: nstacks(:), nbuffers
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_nstacks', &
@@ -407,12 +399,11 @@ CONTAINS
     nn_stacks        = nstacks(2)
     nk_stacks        = nstacks(3)
     nstackbuffers    = nbuffers
-    nstackmemregions = nmemregs
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_nstacks
 
-  SUBROUTINE dbcsr_get_conf_nstacks (nstacks, nbuffers, nmemregs, error)
-    INTEGER, INTENT(OUT)                     :: nstacks(:), nbuffers, nmemregs
+  SUBROUTINE dbcsr_get_conf_nstacks (nstacks, nbuffers, error)
+    INTEGER, INTENT(OUT)                     :: nstacks(:), nbuffers
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_nstacks', &
@@ -428,7 +419,6 @@ CONTAINS
     nstacks(2) = nn_stacks
     nstacks(3) = nk_stacks
     nbuffers   = nstackbuffers
-    nmemregs   = nstackmemregions
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
 

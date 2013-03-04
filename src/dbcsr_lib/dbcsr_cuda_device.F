@@ -149,7 +149,7 @@ CONTAINS
     IF (PRESENT (card_num)) THEN
        icard = card_num
     ELSE
-
+       icard = 0
     ENDIF
     istat = cuda_set_device_cu (icard)
 #else
@@ -212,14 +212,7 @@ CONTAINS
 #else
     istat = -1
 #endif
-    IF (istat /= 0) THEN
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not synchronize all threads",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
+    IF (istat /= 0) STOP "dbcsr_cuda_device_sync: Could not synchronize all threads"
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_cuda_device_sync
 
@@ -241,14 +234,7 @@ CONTAINS
 #else
     istat = -1
 #endif
-    IF (istat /= 0) THEN
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not synchronize stream",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
+    IF (istat /= 0) STOP "dbcsr_cuda_stream_sync: Could not synchronize stream"
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_cuda_stream_sync
 
@@ -271,14 +257,7 @@ CONTAINS
 #else
     istat = -1
 #endif
-    IF (istat /= 0) THEN
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not create streams",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
+    IF (istat /= 0) STOP "dbcsr_cuda_create_streams: Could not create streams"
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_cuda_create_streams
 
@@ -299,14 +278,7 @@ CONTAINS
 #else
     istat = -1
 #endif
-    IF (istat /= 0) THEN
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not destroy streams",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
+    IF (istat /= 0) STOP "dbcsr_cuda_destroy_streams: Could not destroy streams"
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_cuda_destroy_streams
 
