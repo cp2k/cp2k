@@ -127,7 +127,11 @@
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
     CALL host_mem_alloc_raw(host_mem_c_ptr, MAX(1,n)*int_8_size, error)
+#if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
+#else
+    STOP "host_mem_alloc_l_4D: DBCSR_CUDA not compiled in."
+#endif
   END SUBROUTINE host_mem_alloc_l
 
 
@@ -142,7 +146,11 @@
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*int_8_size
     CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+#if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
+#else
+    STOP "host_mem_alloc_l_4D: DBCSR_CUDA not compiled in."
+#endif
   END SUBROUTINE host_mem_alloc_l_2D
 
 
@@ -157,8 +165,12 @@
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*MAX(1,n4)*int_8_size
     CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+#if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
+#else
+    STOP "host_mem_alloc_l_4D: DBCSR_CUDA not compiled in."
+#endif
   END SUBROUTINE host_mem_alloc_l_4D
 
 
