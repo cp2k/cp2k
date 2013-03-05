@@ -7,7 +7,7 @@
 !> \brief Handles all functions related to the CELL
 !> \par History
 !>      11.2008 Teodoro Laino [tlaino] - deeply cleaning cell_type from units
-!> \author MK (16.01.2002, based on a earlier version of CJM and JGH)
+!> \author Matthias KracK (16.01.2002, based on a earlier version of CJM, JGH)
 ! *****************************************************************************
 MODULE cell_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -22,10 +22,22 @@ MODULE cell_types
                                              cp_units_rad
   USE f77_blas
   USE input_constants,                 ONLY: &
-       do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
+       cell_sym_none, cell_sym_orthorhombic, cell_sym_rhombohedral, &
+       cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
+       cell_sym_tetragonal_bc, cell_sym_triclinic, do_cell_cp2k, do_cell_xsc, &
+       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
+       use_perd_y, use_perd_yz, use_perd_z
   USE input_cp2k,                      ONLY: parsed_cp2k_input
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_cp2k_subsys,               ONLY: create_cell_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
@@ -33,7 +45,8 @@ MODULE cell_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: degree
+  USE mathconstants,                   ONLY: degree,&
+                                             sqrt3
   USE mathlib,                         ONLY: angle,&
                                              det_3x3,&
                                              inv_3x3
@@ -46,34 +59,34 @@ MODULE cell_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
 
-  INTEGER, SAVE, PRIVATE :: last_cell_id=0
+  INTEGER, SAVE, PRIVATE :: last_cell_id = 0
 
 ! *****************************************************************************
 !> \brief   Type defining parameters related to the simulation cell
 !> \version 1.0
 ! *****************************************************************************
   TYPE cell_type
-     INTEGER                           :: ref_count, id_nr
+     INTEGER                           :: ref_count,id_nr
+     INTEGER                           :: symmetry_id
      LOGICAL                           :: orthorhombic
      REAL(KIND = dp)                   :: deth
      INTEGER, DIMENSION(3)             :: perd
      REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
-   END TYPE cell_type
+  END TYPE cell_type
 
-! *****************************************************************************
-   TYPE cell_p_type
-      TYPE(cell_type),POINTER :: cell
-   END TYPE cell_p_type
+  TYPE cell_p_type
+     TYPE(cell_type),POINTER :: cell
+  END TYPE cell_p_type
 
-! *** Public subroutines ***
+  ! Public subroutines
   PUBLIC :: get_cell, get_cell_param, init_cell, read_cell,&
             write_cell, cell_create, cell_retain, cell_release,&
             cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param
 
-! *** Public functions ***
+  ! Public functions
   PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real
 
-! *** Public data types ***
+  ! Public data types
   PUBLIC :: cell_type, cell_p_type
 
   INTERFACE pbc
@@ -84,6 +97,7 @@ CONTAINS
 
 ! *****************************************************************************
   FUNCTION compare_cells (cell_1, cell_2, error) RESULT(compare)
+
     TYPE(cell_type), POINTER                 :: cell_1, cell_2
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: compare
@@ -93,22 +107,22 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(cell_1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_2),cp_failure_level,routineP,error,failure)
 
-    compare = (&
-         (cell_2%deth == cell_1%deth).AND.&
-         (ALL(cell_2%perd == cell_1%perd)).AND.&
-         (ALL(cell_2%hmat == cell_1%hmat)).AND.&
-         (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
-         (((.NOT.cell_2%orthorhombic) .OR.       cell_1%orthorhombic).AND.&
-                (cell_2%orthorhombic  .OR. (.NOT.cell_1%orthorhombic))))
+    compare = ((cell_2%deth == cell_1%deth).AND.&
+               (ALL(cell_2%perd == cell_1%perd)).AND.&
+               (ALL(cell_2%hmat == cell_1%hmat)).AND.&
+               (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
+               (cell_2%orthorhombic.EQV.cell_1%orthorhombic).AND.&
+               (cell_2%symmetry_id == cell_1%symmetry_id))
 
   END FUNCTION compare_cells
 
 ! *****************************************************************************
   SUBROUTINE cell_clone (cell_in, cell_out, error)
+
     TYPE(cell_type), POINTER                 :: cell_in, cell_out
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -117,22 +131,25 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
 
-    cell_out%deth =                cell_in%deth
-    cell_out%perd =                cell_in%perd
-    cell_out%hmat =                cell_in%hmat
-    cell_out%h_inv =               cell_in%h_inv
-    cell_out%orthorhombic =        cell_in%orthorhombic
-    cell_out%ref_count = 1
-    last_cell_id = last_cell_id + 1
-    cell_out%id_nr = last_cell_id
+    cell_out%deth         = cell_in%deth
+    cell_out%perd         = cell_in%perd
+    cell_out%hmat         = cell_in%hmat
+    cell_out%h_inv        = cell_in%h_inv
+    cell_out%orthorhombic = cell_in%orthorhombic
+    cell_out%symmetry_id  = cell_in%symmetry_id
+    cell_out%ref_count    = 1
+    last_cell_id          = last_cell_id + 1
+    cell_out%id_nr        = last_cell_id
+
   END SUBROUTINE cell_clone
 
 ! *****************************************************************************
   SUBROUTINE cell_copy (cell_in, cell_out, error)
+
     TYPE(cell_type), POINTER                 :: cell_in, cell_out
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -141,15 +158,17 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
 
-    cell_out%deth =                cell_in%deth
-    cell_out%perd =                cell_in%perd
-    cell_out%hmat =                cell_in%hmat
-    cell_out%h_inv =               cell_in%h_inv
-    cell_out%orthorhombic =        cell_in%orthorhombic
+    cell_out%deth         = cell_in%deth
+    cell_out%perd         = cell_in%perd
+    cell_out%hmat         = cell_in%hmat
+    cell_out%h_inv        = cell_in%h_inv
+    cell_out%orthorhombic = cell_in%orthorhombic
+    cell_out%symmetry_id  = cell_in%symmetry_id
+
   END SUBROUTINE cell_copy
 
 ! *****************************************************************************
@@ -174,22 +193,25 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    READ(input_line,*)cell_itimes, cell_time,&
+    READ (input_line,*) cell_itimes, cell_time,&
          h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
     DO i = 1, 3
        DO j = 1, 3
           h(j,i) = cp_unit_to_cp2k(h(j,i), "angstrom", error=error)
        END DO
     END DO
+
   END SUBROUTINE parse_cell_line
 
 ! *****************************************************************************
 !> \brief   Get informations about a simulation cell.
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell(cell,alpha,beta,gamma,deth,orthorhombic,abc,periodic,h,h_inv,id_nr)
+  SUBROUTINE get_cell(cell,alpha,beta,gamma,deth,orthorhombic,abc,periodic,&
+                      h,h_inv,id_nr,symmetry_id)
+
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, gamma, deth
     LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic
@@ -199,7 +221,7 @@ CONTAINS
       OPTIONAL                               :: periodic
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h, h_inv
-    INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr, symmetry_id
 
     IF (PRESENT(deth)) deth = cell%deth
     IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
@@ -207,7 +229,7 @@ CONTAINS
     IF (PRESENT(h)) h(:,:) = cell%hmat(:,:)
     IF (PRESENT(h_inv)) h_inv(:,:) = cell%h_inv(:,:)
 
-    !   *** Calculate the lengths of the cell vectors a, b, and c ***
+    ! Calculate the lengths of the cell vectors a, b, and c
     IF (PRESENT(abc)) THEN
        abc(1) = SQRT(cell%hmat(1,1)*cell%hmat(1,1) +&
                      cell%hmat(2,1)*cell%hmat(2,1) +&
@@ -220,29 +242,34 @@ CONTAINS
                      cell%hmat(3,3)*cell%hmat(3,3))
     END IF
 
-    !   *** Angles between the cell vectors a, b, and c   ***
-    !   *** alpha = <(b,c) ***
+    ! Angles between the cell vectors a, b, and c
+    ! alpha = <(b,c)
     IF (PRESENT(alpha)) alpha = angle(cell%hmat(:,2),cell%hmat(:,3))*degree
-    !   *** beta = <(a,c) ***
+    ! beta = <(a,c)
     IF (PRESENT(beta))   beta = angle(cell%hmat(:,1),cell%hmat(:,3))*degree
-    !   *** gamma = <(a,b) ***
+    ! gamma = <(a,b)
     IF (PRESENT(gamma)) gamma = angle(cell%hmat(:,1),cell%hmat(:,2))*degree
-    IF (PRESENT(id_nr)) id_nr=cell%id_nr
+    IF (PRESENT(id_nr)) id_nr = cell%id_nr
+    IF (PRESENT(symmetry_id)) symmetry_id = cell%symmetry_id
 
   END SUBROUTINE get_cell
 
 ! *****************************************************************************
 !> \brief   Access internal type variables
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    04.04.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell_param(cell,cell_length,cell_angle,units_angle,error)
+  SUBROUTINE get_cell_param(cell,cell_length,cell_angle,units_angle,periodic,&
+                            error)
+
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: cell_angle
     INTEGER, INTENT(IN), OPTIONAL            :: units_angle
+    INTEGER, DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: periodic
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_cell_param', &
@@ -256,9 +283,11 @@ CONTAINS
       CALL get_cell(cell=cell,alpha=alpha,beta=beta,gamma=gamma)
       cell_angle(:) = (/alpha,beta,gamma/)
       IF (PRESENT(units_angle)) THEN
-         IF(units_angle==cp_units_rad) cell_angle = cell_angle/degree
+         IF (units_angle == cp_units_rad) cell_angle = cell_angle/degree
       END IF
     END IF
+
+    IF (PRESENT(periodic)) CALL get_cell(cell=cell,periodic=periodic)
 
   END SUBROUTINE get_cell_param
 
@@ -270,9 +299,13 @@ CONTAINS
 !> \author  Teodoro Laino
 !> \date    03.2008
 ! *****************************************************************************
-  SUBROUTINE set_cell_param(cell,cell_length,cell_angle,do_init_cell,error)
+  SUBROUTINE set_cell_param(cell,cell_length,cell_angle,periodic,do_init_cell,&
+                            error)
+
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: cell_length, cell_angle
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: periodic
     LOGICAL, INTENT(IN)                      :: do_init_cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -290,36 +323,47 @@ CONTAINS
     cos_beta  = COS(cell_angle(2)); IF (ABS(cos_beta )<EPSILON(0.0_dp)) cos_beta  = 0.0_dp
     cos_alpha = COS(cell_angle(1)); IF (ABS(cos_alpha)<EPSILON(0.0_dp)) cos_alpha = 0.0_dp
 
-    cell%hmat(:,1)=(/   1.0_dp,                                   0.0_dp,  0.0_dp/)
-    cell%hmat(:,2)=(/cos_gamma,                                sin_gamma,  0.0_dp/)
-    cell%hmat(:,3)=(/ cos_beta, (cos_alpha-cos_gamma*cos_beta)/sin_gamma,  0.0_dp/)
-    cell%hmat(3,3)=SQRT(1.0_dp-cell%hmat(1,3)**2-cell%hmat(2,3)**2)
+    cell%hmat(:,1) = (/   1.0_dp,                                   0.0_dp,  0.0_dp/)
+    cell%hmat(:,2) = (/cos_gamma,                                sin_gamma,  0.0_dp/)
+    cell%hmat(:,3) = (/ cos_beta, (cos_alpha-cos_gamma*cos_beta)/sin_gamma,  0.0_dp/)
+    cell%hmat(3,3) = SQRT(1.0_dp-cell%hmat(1,3)**2-cell%hmat(2,3)**2)
 
-    cell%hmat(:,1)=cell%hmat(:,1)*cell_length(1)
-    cell%hmat(:,2)=cell%hmat(:,2)*cell_length(2)
-    cell%hmat(:,3)=cell%hmat(:,3)*cell_length(3)
-    IF (do_init_cell) CALL init_cell(cell)
+    cell%hmat(:,1) = cell%hmat(:,1)*cell_length(1)
+    cell%hmat(:,2) = cell%hmat(:,2)*cell_length(2)
+    cell%hmat(:,3) = cell%hmat(:,3)*cell_length(3)
+
+    IF (do_init_cell) THEN
+       IF (PRESENT(periodic)) THEN
+          CALL init_cell(cell=cell,periodic=periodic)
+       ELSE
+          CALL init_cell(cell=cell)
+       END IF
+    END IF
 
   END SUBROUTINE set_cell_param
 
 ! *****************************************************************************
 !> \brief   Initialise/readjust a simulation cell after hmat has been changed
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_cell(cell,hmat,periodic,orthorhombic)
+  SUBROUTINE init_cell(cell,hmat,periodic)
+
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
-    LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cell', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dim
+    REAL(KIND=dp)                            :: a, acosa, acosah, alpha, &
+                                                asina, asinah, beta, norm, &
+                                                norm_c
+    REAL(KIND=dp), DIMENSION(3)              :: abc
 
     IF (PRESENT(hmat)) cell%hmat(:,:) = hmat(:,:)
     IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
@@ -327,21 +371,90 @@ CONTAINS
     cell%deth = ABS(det_3x3(cell%hmat))
 
     IF (cell%deth < 1.0E-10_dp) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "An invalid set of cell vectors was specified. "//&
-                        "The determinant det(h) is too small")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid set of cell vectors was specified. "//&
+                         "The determinant det(h) is too small")
     END IF
     cell%h_inv = inv_3x3(cell%hmat)
 
-    cell%orthorhombic = .FALSE.
+    SELECT CASE (cell%symmetry_id)
+    CASE (cell_sym_cubic,&
+          cell_sym_tetragonal_ab,&
+          cell_sym_tetragonal_ac,&
+          cell_sym_tetragonal_bc,&
+          cell_sym_orthorhombic)
+       CALL get_cell(cell=cell,abc=abc)
+       abc(2) = plane_distance(0,1,0,cell=cell)
+       abc(3) = plane_distance(0,0,1,cell=cell)
+       SELECT CASE (cell%symmetry_id)
+       CASE (cell_sym_cubic)
+          abc(1:3) = SUM(abc(1:3))/3.0_dp
+       CASE (cell_sym_tetragonal_ab,&
+             cell_sym_tetragonal_ac,&
+             cell_sym_tetragonal_bc)
+          SELECT CASE (cell%symmetry_id)
+          CASE (cell_sym_tetragonal_ab)
+             a = 0.5_dp*(abc(1) + abc(2))
+             abc(1) = a
+             abc(2) = a
+          CASE (cell_sym_tetragonal_ac)
+             a = 0.5_dp*(abc(1) + abc(3))
+             abc(1) = a
+             abc(3) = a
+          CASE (cell_sym_tetragonal_bc)
+             a = 0.5_dp*(abc(2) + abc(3))
+             abc(2) = a
+             abc(3) = a
+          END SELECT
+       END SELECT
+       cell%hmat(1,1) = abc(1); cell%hmat(1,2) = 0.0_dp; cell%hmat(1,3) = 0.0_dp
+       cell%hmat(2,1) = 0.0_dp; cell%hmat(2,2) = abc(2); cell%hmat(2,3) = 0.0_dp
+       cell%hmat(3,1) = 0.0_dp; cell%hmat(3,2) = 0.0_dp; cell%hmat(3,3) = abc(3)
+    CASE (cell_sym_hexagonal)
+       CALL get_cell(cell=cell,abc=abc)
+       a = 0.5_dp*(abc(1) + abc(2))
+       acosa = 0.5_dp*a
+       asina = sqrt3*acosa
+       cell%hmat(1,1) = a     ; cell%hmat(1,2) = acosa ; cell%hmat(1,3) = 0.0_dp
+       cell%hmat(2,1) = 0.0_dp; cell%hmat(2,2) = asina ; cell%hmat(2,3) = 0.0_dp
+       cell%hmat(3,1) = 0.0_dp; cell%hmat(3,2) = 0.0_dp; cell%hmat(3,3) = abc(3)
+    CASE (cell_sym_rhombohedral)
+       CALL get_cell(cell=cell,abc=abc)
+       a = SUM(abc(1:3))/3.0_dp
+       alpha = (angle(cell%hmat(:,3),cell%hmat(:,2)) +&
+                angle(cell%hmat(:,1),cell%hmat(:,3)) +&
+                angle(cell%hmat(:,1),cell%hmat(:,2)))/3.0_dp
+       acosa = a*COS(alpha)
+       asina = a*SIN(alpha)
+       acosah = a*COS(0.5_dp*alpha)
+       asinah = a*SIN(0.5_dp*alpha)
+       norm = acosa/acosah
+       norm_c = SQRT(1.0_dp - norm*norm)
+       cell%hmat(1,1) = a     ; cell%hmat(1,2) = acosa ; cell%hmat(1,3) = acosah*norm
+       cell%hmat(2,1) = 0.0_dp; cell%hmat(2,2) = asina ; cell%hmat(2,3) = asinah*norm
+       cell%hmat(3,1) = 0.0_dp; cell%hmat(3,2) = 0.0_dp; cell%hmat(3,3) = a*norm_c
+    CASE (cell_sym_monoclinic)
+       CALL get_cell(cell=cell,abc=abc)
+       beta = angle(cell%hmat(:,1),cell%hmat(:,3))
+       cell%hmat(1,1) = abc(1); cell%hmat(1,2) = 0.0_dp; cell%hmat(1,3) = abc(3)*COS(beta)
+       cell%hmat(2,1) = 0.0_dp; cell%hmat(2,2) = abc(2); cell%hmat(2,3) = 0.0_dp
+       cell%hmat(3,1) = 0.0_dp; cell%hmat(3,2) = 0.0_dp; cell%hmat(3,3) = abc(3)*SIN(beta)
+    CASE (cell_sym_triclinic)
+       ! Nothing to do
+    END SELECT
+
     IF ((cell%hmat(1,2) == 0.0_dp).AND.(cell%hmat(1,3) == 0.0_dp).AND.&
         (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
-        (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) cell%orthorhombic = .TRUE.
-    IF ( PRESENT ( orthorhombic ) ) cell % orthorhombic = orthorhombic
+        (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) THEN
+       cell%orthorhombic = .TRUE.
+    ELSE
+       cell%orthorhombic = .FALSE.
+    END IF
+
     dim = COUNT(cell%perd == 1)
-    IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
+    IF ((dim /= 3).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Not ortho and not periodic")
+                         "Non-orthorhombic and not periodic")
     END IF
 
   END SUBROUTINE init_cell
@@ -349,11 +462,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculate the distance between two lattice planes as defined by
 !>          a triple of Miller indices (hkl).
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    18.11.2004
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION plane_distance(h,k,l,cell) RESULT(distance)
+
     INTEGER, INTENT(IN)                      :: h, k, l
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp)                            :: distance
@@ -409,11 +523,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Apply the periodic boundary conditions defined by a simulation
 !>          cell to a position vector r.
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION pbc1(r,cell) RESULT(r_pbc)
+
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
@@ -441,11 +556,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Apply the periodic boundary conditions defined by a simulation
 !>          cell to a position vector r subtracting nl from the periodic images
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION pbc2(r,cell,nl) RESULT(r_pbc)
+
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nl
@@ -477,11 +593,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Apply the periodic boundary conditions defined by the simulation
 !>          cell cell to the vector pointing from atom a to atom b.
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    11.03.2004
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION pbc3(ra,rb,cell) RESULT(rab_pbc)
+
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3)              :: rab_pbc
@@ -525,6 +642,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE read_cell( cell, cell_ref, use_ref_cell, cell_section,&
+
     check_for_ref, para_env, error)
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
@@ -550,17 +668,18 @@ CONTAINS
     IF (.NOT.failure) THEN
        IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell,error=error)
        IF (.NOT.ASSOCIATED(cell_ref)) CALL cell_create(cell_ref,error=error)
-       IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
+       IF (PRESENT(check_for_ref)) my_check = check_for_ref
 
-       cell%deth = 0.0_dp
-       cell%orthorhombic = .TRUE.
-       cell%perd(:)    = 1
-       cell%hmat(:,:)  = 0.0_dp
-       cell%h_inv(:,:) = 0.0_dp
-       cell_read_file  = .FALSE.
-       cell_read_a     = .FALSE.
-       cell_read_b     = .FALSE.
-       cell_read_c     = .FALSE.
+       cell%deth         = 0.0_dp
+       cell%orthorhombic = .FALSE.
+       cell%perd(:)      = 1
+       cell%symmetry_id  = cell_sym_none
+       cell%hmat(:,:)    = 0.0_dp
+       cell%h_inv(:,:)   = 0.0_dp
+       cell_read_file    = .FALSE.
+       cell_read_a       = .FALSE.
+       cell_read_b       = .FALSE.
+       cell_read_c       = .FALSE.
        ! Trying to read cell info from file
        CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",explicit=cell_read_file,error=error)
        IF (cell_read_file) CALL read_cell_from_external_file(cell_section, para_env, error)
@@ -631,6 +750,9 @@ CPSourceFileRef,&
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
+       ! Load requested cell symmetry
+       CALL section_vals_val_get(cell_section,"SYMMETRY",i_val=cell%symmetry_id,error=error)
+
        ! Initialize cell
        CALL init_cell(cell)
 
@@ -646,6 +768,7 @@ CPSourceFileRef,&
           IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .FALSE.
        END IF
     END IF
+
   END SUBROUTINE read_cell
 
 ! *****************************************************************************
@@ -655,6 +778,7 @@ CPSourceFileRef,&
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_multiple_unit_cell(cell, multiple_unit_cell, error)
+
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -686,6 +810,7 @@ CPSourceFileRef)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_cell_from_external_file(cell_section, para_env, error)
+
     TYPE(section_vals_type), POINTER         :: cell_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -760,16 +885,18 @@ CPSourceFileRef,&
     ! Unset possible keywords
     CALL section_vals_val_unset(cell_section,"ABC",error=error)
     CALL section_vals_val_unset(cell_section,"ALPHA_BETA_GAMMA",error=error)
+
   END SUBROUTINE read_cell_from_external_file
 
 ! *****************************************************************************
 !> \brief   Transform real to scaled cell coordinates.
 !>          s=h_inv*r
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE real_to_scaled(s,r,cell)
+
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
@@ -789,11 +916,12 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief   Transform scaled cell coordinates real coordinates.
 !>          r=h*s
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE scaled_to_real(r,s,cell)
+
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
     TYPE(cell_type), POINTER                 :: cell
@@ -812,13 +940,14 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief   Write the cell parameters to the output unit.
-!> \author  MK
+!> \author  Matthias Krack
 !> \date    02.06.2000
 !> \version 1.0
 !> \par     History
 !>    - 11.2008 Teodoro Laino [tlaino] - rewrite and enabling user driven units
 ! *****************************************************************************
   RECURSIVE SUBROUTINE write_cell(cell,subsys_section,cell_ref,label,error)
+
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
@@ -833,39 +962,62 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: alpha, beta, gamma, val
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
 
-    NULLIFY(logger)
+    NULLIFY (enum)
+    NULLIFY (keyword)
+    NULLIFY (logger)
+    NULLIFY (section)
     logger => cp_error_get_logger(error)
     my_label = "CELL|"
     IF (PRESENT(label)) my_label = TRIM(label)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%CELL",&
-         extension=".Log",error=error)
+                                       extension=".Log",error=error)
     CALL section_vals_val_get(subsys_section,"PRINT%CELL%UNIT",c_val=unit_str,error=error)
-    IF (output_unit>0) THEN
+    IF (output_unit > 0) THEN
        CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
        WRITE (UNIT=output_unit, FMT='( )')
        val = cp_unit_from_cp2k(cell%deth,TRIM(unit_str)//"^3",error=error)
        WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
-            TRIM(my_label)//" Volume ["//TRIM(unit_str)//"^3]:",val
+        TRIM(my_label)//" Volume ["//TRIM(unit_str)//"^3]:",val
        val = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
-            TRIM(my_label)//" Vector a ["//TRIM(unit_str)//"]:", cell%hmat(:,1)*val,&
-            "|a| = ",abc(1)*val,&
-            TRIM(my_label)//" Vector b ["//TRIM(unit_str)//"]:",cell%hmat(:,2)*val,&
-            "|b| = ",abc(2)*val,&
-            TRIM(my_label)//" Vector c ["//TRIM(unit_str)//"]:",cell%hmat(:,3)*val,&
-            "|c| = ",abc(3)*val
+        TRIM(my_label)//" Vector a ["//TRIM(unit_str)//"]:",cell%hmat(:,1)*val,&
+        "|a| = ",abc(1)*val,&
+        TRIM(my_label)//" Vector b ["//TRIM(unit_str)//"]:",cell%hmat(:,2)*val,&
+        "|b| = ",abc(2)*val,&
+        TRIM(my_label)//" Vector c ["//TRIM(unit_str)//"]:",cell%hmat(:,3)*val,&
+        "|c| = ",abc(3)*val
        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-            TRIM(my_label)//" Angle (b,c), alpha [degree]: ",alpha,&
-            TRIM(my_label)//" Angle (a,c), beta  [degree]: ",beta,&
-            TRIM(my_label)//" Angle (a,b), gamma [degree]: ",gamma
+        TRIM(my_label)//" Angle (b,c), alpha [degree]: ",alpha,&
+        TRIM(my_label)//" Angle (a,c), beta  [degree]: ",beta,&
+        TRIM(my_label)//" Angle (a,b), gamma [degree]: ",gamma
+        IF (cell%symmetry_id /= cell_sym_none) THEN
+           CALL create_cell_section(section,error=error)
+           keyword => section_get_keyword(section,"SYMMETRY",error=error)
+           CALL keyword_get(keyword,enum=enum,error=error)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+            TRIM(my_label)//" Requested initial symmetry: ",&
+            ADJUSTR(TRIM(enum_i2c(enum,cell%symmetry_id,error=error)))
+           CALL section_release(section,error=error)
+        ELSE
+           IF (cell%orthorhombic) THEN
+              WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
+               TRIM(my_label)//" Orthorhombic: ","YES"
+           ELSE
+              WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
+               TRIM(my_label)//" Orthorhombic: "," NO"
+           END IF
+        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%CELL",error=error)
 
     IF (PRESENT(cell_ref)) THEN
        CALL write_cell(cell_ref, subsys_section, label="CELL_REF|", error=error)
-    ENDIF
+    END IF
 
   END SUBROUTINE write_cell
 
@@ -880,13 +1032,13 @@ CPSourceFileRef,&
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cell_create(cell,hmat,periodic, orthorhombic, error)
+  SUBROUTINE cell_create(cell,hmat,periodic,error)
+
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
-    LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
@@ -895,19 +1047,26 @@ CPSourceFileRef,&
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-    ALLOCATE(cell,stat=stat)
+    ALLOCATE (cell,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    last_cell_id=last_cell_id+1
-    cell%id_nr=last_cell_id
-    cell%ref_count=1
-    cell % perd = 1
-    IF (.NOT. PRESENT(hmat)) RETURN
-    IF (.NOT. failure) THEN
-       CALL init_cell(cell,hmat,periodic,orthorhombic)
+    last_cell_id = last_cell_id + 1
+    cell%id_nr = last_cell_id
+    cell%ref_count = 1
+    IF (PRESENT(periodic)) THEN
+       cell%perd = periodic
+    ELSE
+       cell%perd = 1
     END IF
+    cell%orthorhombic = .FALSE.
+    cell%symmetry_id = cell_sym_none
+    IF (.NOT.PRESENT(hmat)) RETURN
+    IF (.NOT.failure) THEN
+       CALL init_cell(cell,hmat,periodic)
+    END IF
+
   END SUBROUTINE cell_create
 
 ! *****************************************************************************
@@ -920,6 +1079,7 @@ CPSourceFileRef,&
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cell_retain(cell,error)
+
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -928,13 +1088,14 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
        cell%ref_count=cell%ref_count+1
     END IF
+
   END SUBROUTINE cell_retain
 
 ! *****************************************************************************
@@ -947,6 +1108,7 @@ CPSourceFileRef,&
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cell_release(cell,error)
+
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -956,7 +1118,7 @@ CPSourceFileRef,&
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     IF (ASSOCIATED(cell)) THEN
        CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
@@ -966,6 +1128,7 @@ CPSourceFileRef,&
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
+
   END SUBROUTINE cell_release
 
 END MODULE cell_types

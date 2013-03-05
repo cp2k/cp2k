@@ -472,8 +472,8 @@ MODULE dbcsr_mm_driver
     INTEGER                                  :: allocated_datasize, nblks, &
                                                 new_c_size, new_locks_size, &
                                                 old_c_size, stacked_datasize
-    !INTEGER(kind=int_8)                      :: flop
 
+!INTEGER(kind=int_8)                      :: flop
 !TODO: make difference clear between driver, mm_driver and mm_host_driver.
 ! collect statistics
 

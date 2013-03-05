@@ -21,6 +21,10 @@ MODULE cell_opt_utils
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set_cell,&
                                              force_env_type
+  USE input_constants,                 ONLY: &
+       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
+       cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
+       cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic
   USE input_cp2k,                      ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -35,6 +39,8 @@ MODULE cell_opt_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: sqrt3
+  USE mathlib,                         ONLY: angle
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -58,6 +64,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_ut_cell_matrix', &
       routineP = moduleN//':'//routineN
 
+    INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_angle, cell_length
     TYPE(cell_type), POINTER                 :: cell
@@ -66,9 +73,11 @@ CONTAINS
     CALL force_env_get(force_env, cell=cell, error=error)
     ! orthorhombic cells are diagonal, and should stay exactly like this
     IF (.NOT. cell%orthorhombic) THEN
-      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,error=error)
-      CALL set_cell_param(cell,cell_length,cell_angle,do_init_cell=.TRUE.,error=error)
-    ENDIF
+      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,periodic=periodic,&
+                          error=error)
+      CALL set_cell_param(cell,cell_length,cell_angle,periodic=periodic,&
+                          do_init_cell=.TRUE.,error=error)
+    END IF
     CALL force_env_set_cell(force_env, cell=cell, error=error)
 
   END SUBROUTINE get_ut_cell_matrix
@@ -240,7 +249,9 @@ CPSourceFileRef,&
 !> \param Computes the derivatives for the cell
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_angles,pres_int,error)
+  SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_angles,&
+                       keep_symmetry,pres_int,error)
+
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: av_ptens
@@ -248,7 +259,7 @@ CPSourceFileRef,&
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mtrx
-    LOGICAL, INTENT(IN), OPTIONAL            :: keep_angles
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_angles, keep_symmetry
     REAL(KIND=dp), INTENT(OUT)               :: pres_int
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -256,23 +267,27 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_keep_angles
-    REAL(KIND=dp)                            :: norm, norm_b, norm_c
+    LOGICAL                                  :: failure, my_keep_angles, &
+                                                my_keep_symmetry
+    REAL(KIND=dp)                            :: a, cosa, cosah, g, norm, &
+                                                norm_b, norm_c, sina, sinah
     REAL(KIND=dp), DIMENSION(3, 3)           :: correction, pten_hinv_old, &
                                                 ptens
 
-    failure       = .FALSE.
+    failure = .FALSE.
     my_keep_angles = .FALSE.
     IF (PRESENT(keep_angles)) my_keep_angles =  keep_angles
+    my_keep_symmetry = .FALSE.
+    IF (PRESENT(keep_symmetry)) my_keep_symmetry =  keep_symmetry
     gradient = 0.0_dp
-    ptens      = av_ptens
+    ptens = av_ptens
 
     ! Evaluating the internal pressure
     pres_int = 0.0_dp
     DO i=1,3
-       pres_int=pres_int+ptens(i,i)
+       pres_int = pres_int + ptens(i,i)
     ENDDO
-    pres_int=pres_int/3.0_dp
+    pres_int = pres_int/3.0_dp
 
     ptens(1,1) = av_ptens(1,1) - pres_ext
     ptens(2,2) = av_ptens(2,2) - pres_ext
@@ -297,15 +312,86 @@ CPSourceFileRef,&
        norm_c        = DOT_PRODUCT(cell%hmat(:,3),cell%hmat(:,3))
        norm          = DOT_PRODUCT(cell%hmat(1:3,3),gradient(4:6))
        gradient(4:6) = cell%hmat(1:3,3)/norm_c*norm
-       !  retain an exact orthorhombic cell
+       ! Retain an exact orthorhombic cell
        ! (off-diagonal elements must remain zero identically to keep QS fast)
        IF (cell%orthorhombic) THEN
           gradient(2) = 0.0_dp
           gradient(4) = 0.0_dp
           gradient(5) = 0.0_dp
-       ENDIF
+       END IF
     END IF
-    gradient = - gradient
+
+    IF (my_keep_symmetry) THEN
+       SELECT CASE (cell%symmetry_id)
+       CASE (cell_sym_cubic,&
+             cell_sym_tetragonal_ab,&
+             cell_sym_tetragonal_ac,&
+             cell_sym_tetragonal_bc,&
+             cell_sym_orthorhombic)
+          SELECT CASE (cell%symmetry_id)
+          CASE (cell_sym_cubic)
+             g = (gradient(1) + gradient(3) + gradient(6))/3.0_dp
+             gradient(1) = g
+             gradient(3) = g
+             gradient(6) = g
+          CASE (cell_sym_tetragonal_ab,&
+                cell_sym_tetragonal_ac,&
+                cell_sym_tetragonal_bc)
+             SELECT CASE (cell%symmetry_id)
+             CASE (cell_sym_tetragonal_ab)
+                g = 0.5_dp*(gradient(1) + gradient(3))
+                gradient(1) = g
+                gradient(3) = g
+             CASE (cell_sym_tetragonal_ac)
+                g = 0.5_dp*(gradient(1) + gradient(6))
+                gradient(1) = g
+                gradient(6) = g
+             CASE (cell_sym_tetragonal_bc)
+                g = 0.5_dp*(gradient(3) + gradient(6))
+                gradient(3) = g
+                gradient(6) = g
+             END SELECT
+          CASE (cell_sym_orthorhombic)
+             ! Nothing else to do
+          END SELECT
+          gradient(2) = 0.0_dp
+          gradient(4) = 0.0_dp
+          gradient(5) = 0.0_dp
+       CASE (cell_sym_hexagonal)
+          g = 0.5_dp*(gradient(1) + 0.5_dp*(gradient(2) + sqrt3*gradient(3)))
+          gradient(1) = g
+          gradient(2) = 0.5_dp*g
+          gradient(3) = sqrt3*gradient(2)
+          gradient(4) = 0.0_dp
+          gradient(5) = 0.0_dp
+       CASE (cell_sym_rhombohedral)
+          a = (angle(cell%hmat(:,3),cell%hmat(:,2)) +&
+               angle(cell%hmat(:,1),cell%hmat(:,3)) +&
+               angle(cell%hmat(:,1),cell%hmat(:,2)))/3.0_dp
+          cosa = COS(a)
+          sina = SIN(a)
+          cosah = COS(0.5_dp*a)
+          sinah = SIN(0.5_dp*a)
+          norm = cosa/cosah
+          norm_c = SQRT(1.0_dp - norm*norm)
+          g = (gradient(1) + gradient(2)*cosa + gradient(3)*sina +&
+               gradient(4)*cosah*norm + gradient(5)*sinah*norm + gradient(6)*norm_c)/3.0_dp
+          gradient(1) = g
+          gradient(2) = g*cosa
+          gradient(3) = g*sina
+          gradient(4) = g*cosah*norm
+          gradient(5) = g*sinah*norm
+          gradient(6) = g*norm_c
+       CASE (cell_sym_monoclinic)
+          gradient(2) = 0.0_dp
+          gradient(5) = 0.0_dp
+       CASE (cell_sym_triclinic)
+          ! Nothing to do
+       END SELECT
+    END IF
+
+    gradient = -gradient
+
   END SUBROUTINE get_dg_dh
 
 END MODULE cell_opt_utils

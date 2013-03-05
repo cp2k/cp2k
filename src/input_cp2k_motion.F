@@ -931,9 +931,16 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="KEEP_SYMMETRY",&
+         description="Keep the requested initial cell symmetry (e.g. during a cell optimisation). "//&
+                     "See cell section for how to impose a cell symmetry.",&
+         usage="KEEP_SYMMETRY yes",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="PRESSURE_TOLERANCE",&
          description="Specifies the Pressure tolerance (compared to the external pressure) to achieve "//&
-         " during the cell optimization.",&
+                     "during the cell optimization.",&
          usage="PRESSURE_TOLERANCE {REAL}",unit_str="bar",&
          default_r_val=cp_unit_to_cp2k(100.0_dp,"bar",error=error),error=error)
     CALL section_add_keyword(section,keyword,error=error)

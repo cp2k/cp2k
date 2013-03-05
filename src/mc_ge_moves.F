@@ -1426,9 +1426,9 @@ CONTAINS
          hmat_test(1,1,ibox)=new_cell_length(1,ibox)
          hmat_test(2,2,ibox)=new_cell_length(2,ibox)
          hmat_test(3,3,ibox)=new_cell_length(3,ibox)
-         NULLIFY(cell_test(ibox)%cell)
-         CALL cell_create(cell_test(ibox)%cell,hmat_test(:,:,ibox),&
-              cell(ibox)%cell%perd,cell(ibox)%cell%orthorhombic,error=error)
+         NULLIFY (cell_test(ibox)%cell)
+         CALL cell_create(cell_test(ibox)%cell,hmat=hmat_test(:,:,ibox),&
+              periodic=cell(ibox)%cell%perd,error=error)
          CALL force_env_set_cell(force_env(ibox)%force_env,&
               cell_test(ibox)%cell,error=error)
       ENDDO

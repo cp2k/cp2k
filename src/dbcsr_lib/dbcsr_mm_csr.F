@@ -654,7 +654,6 @@ MODULE dbcsr_mm_csr
 
     INTEGER                                  :: i
 
-
 ! The driver deallocates stackgrid_data and stackgrid_state as it might be host-pinned.
 
     CALL dbcsr_mm_driver_outer_finalize(drv_carrier=csr_carrier%drv_carrier,&
@@ -725,13 +724,12 @@ SUBROUTINE process_stacks(csr_carrier, driver, min_fill, max_stacks, start_below
     LOGICAL, INTENT(IN), OPTIONAL            :: start_below
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i, j, n_stack_buffers, &
-                                                nstacks, num_processed
+    INTEGER                                  :: i, j, j_end, j_incr, j_start, &
+                                                n_stack_buffers, nstacks, &
+                                                num_processed
     INTEGER, DIMENSION(:, :), POINTER        :: stack_data
     INTEGER, POINTER                         :: stack_fillcount, stack_state
     TYPE(stack_descriptor_type), POINTER     :: stack_descr
-
-    INTEGER                                  ::j_start, j_end, j_incr
 
     num_processed = 0
     nstacks = SIZE(csr_carrier%stackgrid_data, 3)

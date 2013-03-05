@@ -82,8 +82,7 @@ CONTAINS
                                                 isym, iw, jj, natom, &
                                                 natom_orig, newsize
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: check, failure, found, &
-                                                my_end, orthorhombic
+    LOGICAL                                  :: check, failure, found, my_end
     REAL(KIND=dp)                            :: pfactor
     REAL(KIND=dp), DIMENSION(3)              :: cell_angles, cell_lengths, r, &
                                                 r1, r2, s, transl_vec
@@ -171,15 +170,11 @@ CPSourceFileRef)
     CALL parser_get_object(parser,cell_angles(3),error=error)
     cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg",error=error)
 
-    ! Determine if the cell is orthorhombic
-    orthorhombic = (cell_angles(1)==cp_unit_to_cp2k(90.0_dp,"deg",error=error)).AND.&
-                   (cell_angles(2)==cp_unit_to_cp2k(90.0_dp,"deg",error=error)).AND.&
-                   (cell_angles(3)==cp_unit_to_cp2k(90.0_dp,"deg",error=error))
-
     ! Create cell
-    NULLIFY(cell)
-    CALL cell_create(cell,periodic=periodic,orthorhombic=orthorhombic,error=error)
-    CALL set_cell_param(cell,cell_lengths,cell_angles,do_init_cell=.TRUE.,error=error)
+    NULLIFY (cell)
+    CALL cell_create(cell,error=error)
+    CALL set_cell_param(cell,cell_lengths,cell_angles,periodic=periodic,&
+                        do_init_cell=.TRUE.,error=error)
     CALL write_cell(cell,subsys_section,label="CELL_XTL|",error=error)
 
     ! Parse atoms info and fractional coordinates

@@ -184,7 +184,7 @@ CONTAINS
       CALL cp_assert((.NOT.use_mod_hes),cp_warning_level,cp_assertion_failed,routineP,&
                      "No model Hessian available for core-shell models. "//&
                      "An unit matrix is used for the initial Hessian.",&
-                      error,failure)
+                      only_ionode=.TRUE.)
       use_mod_hes = .FALSE.
     END IF
 

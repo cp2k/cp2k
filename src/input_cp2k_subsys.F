@@ -179,6 +179,30 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SYMMETRY",&
+            description="Imposes an initial cell symmetry.",&
+            usage="SYMMETRY monoclinic",&
+            enum_desc=s2a("No cell symmetry",&
+                          "Triclinic",&
+                          "Monoclinic",&
+                          "Orthorhombic",&
+                          "Tetragonal, a = b",&
+                          "Tetragonal, a = c",&
+                          "Tetragonal, b = c",&
+                          "Tetragonal (alias for TETRAGONAL_AB)",&
+                          "Rhombohedral",&
+                          "Hexagonal",&
+                          "Cubic, a = b = c"),&
+            enum_c_vals=s2a("NONE","TRICLINIC","MONOCLINIC","ORTHORHOMBIC","TETRAGONAL_AB","TETRAGONAL_AC",&
+                            "TETRAGONAL_BC","TETRAGONAL","HEXAGONAL","RHOMBOHEDRAL","CUBIC"),&
+            enum_i_vals=(/cell_sym_none,cell_sym_triclinic,cell_sym_monoclinic,cell_sym_orthorhombic,&
+                          cell_sym_tetragonal_ab,cell_sym_tetragonal_ac,cell_sym_tetragonal_bc,&
+                          cell_sym_tetragonal_ab,cell_sym_hexagonal,cell_sym_rhombohedral,cell_sym_cubic/),&
+            default_i_val=cell_sym_none,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        IF (TRIM(my_label)=="CELL") THEN
           CALL create_cell_section(subsection,periodic,"CELL_REF",error=error)
           CALL section_add_subsection(section,subsection,error=error)

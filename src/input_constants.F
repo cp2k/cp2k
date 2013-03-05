@@ -908,4 +908,16 @@ MODULE input_constants
                                               callgraph_master=1,&
                                               callgraph_all=2 
                                             
+  ! Impose cell symmetry
+  INTEGER, PARAMETER, PUBLIC               :: cell_sym_none=0,&
+                                              cell_sym_triclinic=1,&
+                                              cell_sym_monoclinic=2,&
+                                              cell_sym_orthorhombic=3,&
+                                              cell_sym_tetragonal_ab=4,&
+                                              cell_sym_tetragonal_ac=5,&
+                                              cell_sym_tetragonal_bc=6,&
+                                              cell_sym_rhombohedral=7,&
+                                              cell_sym_hexagonal=8,&
+                                              cell_sym_cubic=9
+
 END MODULE input_constants

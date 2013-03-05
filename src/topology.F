@@ -650,8 +650,7 @@ CPSourceFileRef,&
        hmat_ref(:,3) = cell%hmat(:,3)/multiple_unit_cell(3)
 
        ! Create the MUC cell
-       CALL cell_create(cell_muc,hmat=hmat_ref,periodic=cell%perd,&
-                        orthorhombic=cell%orthorhombic,error=error)
+       CALL cell_create(cell_muc,hmat=hmat_ref,periodic=cell%perd,error=error)
        CALL write_cell(cell_muc,subsys_section,label="CELL_UC|",error=error)
     ELSE
        ! If a multiple_unit_cell was not requested just point to the original cell

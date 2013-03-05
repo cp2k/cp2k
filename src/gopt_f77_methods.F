@@ -214,9 +214,11 @@ CPSourceFileRef,&
                 CALL apply_cell_change(gopt_env,cell,gradient,update_forces=.TRUE.,error=error)
                 cell_gradient => gradient(nsize+1:nsize+6)
                 cell_gradient = 0.0_dp
-                CALL get_dg_dh(cell_gradient,av_ptens,gopt_env%cell_env%pres_ext,cell,&
-                               gopt_env%cell_env%mtrx,keep_angles=gopt_env%cell_env%keep_angles,&
-                               pres_int=gopt_env%cell_env%pres_int,error=error)
+                CALL get_dg_dh(cell_gradient,av_ptens,gopt_env%cell_env%pres_ext,cell,gopt_env%cell_env%mtrx,&
+                               keep_angles=gopt_env%cell_env%keep_angles,&
+                               keep_symmetry=gopt_env%cell_env%keep_symmetry,&
+                               pres_int=gopt_env%cell_env%pres_int,&
+                               error=error)
              END IF
           END IF
           CALL virial_release(virial_avg,error=error)
@@ -297,7 +299,9 @@ CPSourceFileRef,&
                 CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
                 ! Compute the gradients on the cell
                 CALL get_dg_dh(gradient,av_ptens,gopt_env%cell_env%pres_ext,cell,gopt_env%cell_env%mtrx,&
-                               keep_angles=gopt_env%cell_env%keep_angles,pres_int=gopt_env%cell_env%pres_int,&
+                               keep_angles=gopt_env%cell_env%keep_angles,&
+                               keep_symmetry=gopt_env%cell_env%keep_symmetry,&
+                               pres_int=gopt_env%cell_env%pres_int,&
                                error=error)
              END IF
           END IF
