@@ -37,14 +37,15 @@ MODULE mp2
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE hfx_types,                       ONLY: hfx_basis_info_type,&
-                                             hfx_basis_type,&
-                                             hfx_create_basis_types,&
-                                             hfx_release,&
-                                             hfx_release_basis_types
+  USE hfx_types,                       ONLY: &
+       alloc_containers, dealloc_containers, hfx_basis_info_type, &
+       hfx_basis_type, hfx_container_type, hfx_create_basis_types, &
+       hfx_init_container, hfx_release_basis_types, hfx_type
   USE input_constants,                 ONLY: cholesky_inverse,&
-                                             do_mp2_potential_TShPSC
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             do_mp2_potential_TShPSC,&
+                                             hfx_do_eval_energy
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -107,13 +108,16 @@ MODULE mp2
     CHARACTER(len=*), PARAMETER :: routineN = 'mp2_main', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cholesky_method, dimen, handle, iatom, ikind, ispin, max_nset, &
+    INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, &
+      iatom, ikind, irep, ispin, max_nset, my_bin_size, n_rep_hf, n_threads, &
       nao, natom, ncol_block, nelec_alpha, nelec_beta, nelectron, &
       nfullcols_total, nfullrows_total, nkind, nmo, nrow_block, nspins, stat, &
       unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: calc_ex, failure
+    LOGICAL                                  :: calc_ex, &
+                                                do_dynamic_load_balancing, &
+                                                failure
     REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
       Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
       Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2
@@ -135,6 +139,10 @@ MODULE mp2
     TYPE(hfx_basis_info_type)                :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
+    TYPE(hfx_container_type), DIMENSION(:), &
+      POINTER                                :: integral_containers
+    TYPE(hfx_container_type), POINTER        :: maxval_container
+    TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_mp2
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -147,6 +155,8 @@ MODULE mp2
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
+
+!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -330,6 +340,44 @@ MODULE mp2
 
     CALL build_index_table(natom,max_nset,mp2_biel%index_table,basis_parameter,kind_of)
 
+    ! free the hfx_container
+    IF (ASSOCIATED(qs_env%x_data)) THEN
+      CALL timeset(routineN//"_free_hfx",handle2)
+      CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+      i_thread = 0
+!$  i_thread = omp_get_thread_num()
+      n_threads = 1
+!$  n_threads = omp_get_max_threads()
+
+      DO irep = 1, n_rep_hf
+        actual_x_data => qs_env%x_data(irep, i_thread + 1)
+
+        do_dynamic_load_balancing = .TRUE.
+        IF( n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage ) do_dynamic_load_balancing = .FALSE.
+
+        IF( do_dynamic_load_balancing ) THEN
+          my_bin_size = SIZE(actual_x_data%distribution_energy)
+        ELSE
+          my_bin_size = 1
+        END IF
+
+        IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
+          CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
+          CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+         
+          DO bin=1, my_bin_size
+            maxval_container => actual_x_data%maxval_container(bin)
+            integral_containers => actual_x_data%integral_containers(:,bin)
+            CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+            DO i=1,64
+              CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+            END DO
+          END DO
+        END IF
+      END DO
+      CALL timestop(handle2)
+    END IF
+
     Emp2=0.D+00
     Emp2_Cou=0.D+00
     Emp2_ex=0.D+00
@@ -452,11 +500,6 @@ MODULE mp2
        END IF
 
      CASE (mp2_method_gpw)
-       ! free Hartree Fock stuff, if associated
-       IF (ASSOCIATED(qs_env%x_data)) THEN
-          CALL hfx_release(qs_env%x_data, error=error)
-       ENDIF
-
        ! check if calculate the exchange contribution
        IF(mp2_env%scale_T==0.0_dp) calc_ex=.FALSE.
 
@@ -465,11 +508,6 @@ MODULE mp2
                           mos_mp2,para_env,unit_nr,calc_ex,error)
 
      CASE (ri_mp2_method_gpw)
-       ! free Hartree Fock stuff, if associated
-       IF (ASSOCIATED(qs_env%x_data)) THEN
-          CALL hfx_release(qs_env%x_data, error=error)
-       ENDIF
-
        ! check if calculate the exchange contribution
        IF(mp2_env%scale_T==0.0_dp) calc_ex=.FALSE.
 
@@ -482,11 +520,6 @@ MODULE mp2
        ! is actually equal to the RI-MP2-GPW we decided to put RPA in the MP2
        ! section to avoid code replication)
 
-       ! free Hartree Fock stuff, if associated
-       IF (ASSOCIATED(qs_env%x_data)) THEN
-          CALL hfx_release(qs_env%x_data, error=error)
-       ENDIF
-
        calc_ex=.FALSE.
 
        ! go with ri_rpa_gpw
@@ -496,11 +529,6 @@ MODULE mp2
      CASE(ri_mp2_laplace) 
        ! perform RI-SOS-Laplace-MP2 energy calculation, most part of the code in common
        ! with the RI-RPA part
-     
-       ! free Hartree Fock stuff, if associated
-       IF (ASSOCIATED(qs_env%x_data)) THEN
-          CALL hfx_release(qs_env%x_data, error=error)
-       ENDIF
 
        ! In SOS-MP2 only the coulomb-like contribution of the MP2 energy is computed
        calc_ex=.FALSE.
