@@ -108,6 +108,7 @@ MODULE cp2k_runs
   USE reference_manager,               ONLY: print_all_references,&
                                              print_format_html
   USE rt_propagation,                  ONLY: rt_prop_setup
+  USE string_utilities,                ONLY: html_entity_table
   USE tamc_run,                        ONLY: qs_tamc
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1033,7 +1034,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, unit_number
+    INTEGER                                  :: i, ie, is, unit_number
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: root_section
 
@@ -1050,6 +1051,19 @@ CONTAINS
       WRITE (UNIT=unit_number,FMT="(A)")&
         "<?xml version=""1.0"" encoding=""ISO-8859-1""?>",&
         "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>",&
+        "<!DOCTYPE documentElement["
+
+      DO i=1,SIZE(html_entity_table),2
+         is = INDEX(html_entity_table(i),"&") + 1
+         CPPostcondition((is > 0),cp_failure_level,routineP,error,failure)
+         ie = INDEX(html_entity_table(i),";") - 1
+         CPPostcondition((ie >= is),cp_failure_level,routineP,error,failure)
+         WRITE (UNIT=unit_number,FMT="(A)")&
+          "<!ENTITY "//html_entity_table(i)(is:ie)//" """//TRIM(html_entity_table(i+1))//""">"
+      END DO
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        "]>",&
         "<CP2K_INPUT>",&
         " <CP2K_VERSION>"//TRIM(cp2k_version)//"</CP2K_VERSION>",&
         " <CP2K_YEAR>"//TRIM(cp2k_year)//"</CP2K_YEAR>",&

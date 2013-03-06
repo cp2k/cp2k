@@ -183,16 +183,16 @@ CONTAINS
             description="Imposes an initial cell symmetry.",&
             usage="SYMMETRY monoclinic",&
             enum_desc=s2a("No cell symmetry",&
-                          "Triclinic",&
-                          "Monoclinic",&
-                          "Orthorhombic",&
-                          "Tetragonal, a = b",&
-                          "Tetragonal, a = c",&
-                          "Tetragonal, b = c",&
+                          "Triclinic (a &ne; b &ne; c &ne; a, &alpha; &ne; &beta; &ne; &gamma; &ne; &alpha; &ne; 90&deg;)",&
+                          "Monoclinic (a &ne; b &ne; c &ne; a, &alpha; = &gamma; = 90&deg;, &beta; &ne; 90&deg;)",&
+                          "Orthorhombic (a &ne; b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)",&
+                          "Tetragonal (a = b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)",&
+                          "Tetragonal (a = c &ne; b, &alpha; = &beta; = &gamma; = 90&deg;)",&
+                          "Tetragonal (a &ne; b = c, &alpha; = &beta; = &gamma; = 90&deg;)",&
                           "Tetragonal (alias for TETRAGONAL_AB)",&
-                          "Rhombohedral",&
-                          "Hexagonal",&
-                          "Cubic, a = b = c"),&
+                          "Rhombohedral (a = b = c, &alpha; = &beta; = &gamma; &ne; 90&deg;)",&
+                          "Hexagonal (a = b &ne; c, &alpha; = &beta; = 90&deg;, &gamma; = 60&deg;)",&
+                          "Cubic (a = b = c, &alpha; = &beta; = &gamma; = 90&deg;)"),&
             enum_c_vals=s2a("NONE","TRICLINIC","MONOCLINIC","ORTHORHOMBIC","TETRAGONAL_AB","TETRAGONAL_AC",&
                             "TETRAGONAL_BC","TETRAGONAL","RHOMBOHEDRAL","HEXAGONAL","CUBIC"),&
             enum_i_vals=(/cell_sym_none,cell_sym_triclinic,cell_sym_monoclinic,cell_sym_orthorhombic,&

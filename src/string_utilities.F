@@ -24,6 +24,23 @@ MODULE string_utilities
   CHARACTER(len=1), PARAMETER :: star      = '*'
   CHARACTER(len=1), PARAMETER :: question  = '?'
 
+  INTEGER, PARAMETER :: maxlen_entity_name = 9
+  CHARACTER(LEN=maxlen_entity_name), DIMENSION(84), PARAMETER :: html_entity_table =&
+   (/"&Gamma;  ", "&#915;   ", "&Delta;  ", "&#916;   ", "&Theta;  ", "&#920;   ",&
+     "&Lambda; ", "&#923;   ", "&Xi;     ", "&#926;   ", "&Pi;     ", "&#928;   ",&
+     "&Sigma;  ", "&#931;   ", "&Phi;    ", "&#934;   ", "&Chi;    ", "&#935;   ",&
+     "&Psi;    ", "&#936;   ", "&Omega;  ", "&#937;   ", "&alpha;  ", "&#945;   ",&
+     "&beta;   ", "&#946;   ", "&gamma;  ", "&#947;   ", "&delta;  ", "&#948;   ",&
+     "&epsilon;", "&#949;   ", "&zeta;   ", "&#950;   " ,"&eta;    ", "&#951;   ",&
+     "&theta;  ", "&#952;   ", "&iota;   ", "&#953;   ", "&kappa;  ", "&#954;   ",&
+     "&lambda; ", "&#955;   ", "&mu;     ", "&#956;   ", "&nu;     ", "&#957;   ",&
+     "&xi;     ", "&#958;   ", "&omicron;", "&#959;   ", "&pi;     ", "&#960;   ",&
+     "&rho;    ", "&#961;   ", "&sigmaf; ", "&#962;   ", "&sigma;  ", "&#963;   ",&
+     "&tau;    ", "&#964;   ", "&upsilon;", "&#965;   ", "&phi;    ", "&#966;   ",&
+     "&chi;    ", "&#967;   ", "&psi;    ", "&#968;   ", "&omega;  ", "&#969;   ",&
+     "&asymp;  ", "&#8776;  ", "&ne;     ", "&#8800;  ", "&equiv;  ", "&#8801;  ",&
+     "&le;     ", "&#8804;  ", "&ge;     ", "&#8805;  ", "&deg;    ", "&#176;   "/)
+
   PUBLIC :: ascii_to_string,&
             compress,&
             integer_to_string,&
@@ -39,7 +56,8 @@ MODULE string_utilities
             star,&
             question,&
             remove_word,&
-            is_whitespace
+            is_whitespace,&
+            html_entity_table
 
   INTERFACE s2a
      MODULE PROCEDURE s2a_1,s2a_2,s2a_3, s2a_4,  s2a_5,  s2a_6,  s2a_7,  s2a_8,  s2a_9, &
@@ -710,11 +728,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Substitute special XML tokens like "<" or ">" in inp_string.
-!>           Optionally convert also all lowercase characters to uppercase, if
-!>           ltu is true.
-!> \author  MK
+!>         Optionally convert also all lowercase characters to uppercase, if
+!>         ltu is true.
+!> \author  Matthias Krack (MK)
 !> \date    10.03.2005
-!> \version 1.0
+!> \version 1.1
+!> \par History
+!>      - Enable the use of HTML entity names (06.03.13,MK)
 ! *****************************************************************************
   SUBROUTINE substitute_special_xml_tokens(inp_string,out_string,ltu)
 
@@ -723,7 +743,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: ltu
 
     CHARACTER(LEN=LEN(inp_string))           :: string
-    INTEGER                                  :: i, j
+    CHARACTER(LEN=maxlen_entity_name)        :: entity_name
+    INTEGER                                  :: i, ientry, ilen, j, k
 
     string = inp_string
     out_string = ""
@@ -732,8 +753,11 @@ CONTAINS
        IF (ltu) CALL uppercase(string)
     END IF
 
+    i = 0
     j = 1
-    DO i=1,LEN_TRIM(string)
+    loop_i: DO
+       i = i + 1
+       IF (i > LEN_TRIM(string)) EXIT loop_i
        IF (string(i:i) == "<") THEN
           out_string(j:j+3) = "&lt;"
           j = j + 4
@@ -741,8 +765,27 @@ CONTAINS
           out_string(j:j+3) = "&gt;"
           j = j + 4
        ELSE IF (string(i:i) == "&") THEN
-          out_string(j:j+4) = "&amp;"
-          j = j + 5
+          ! Substitute HTML entity names by the corresponding entity number
+          ilen = INDEX(string(i:),";")
+          IF ((ilen > 2).AND.(ilen <= maxlen_entity_name)) THEN
+             entity_name(1:) = string(i:i+ilen-1)
+             ientry = 0
+             loop_k: DO k=1,SIZE(html_entity_table),2
+                IF (entity_name == html_entity_table(k)) THEN
+                   ientry = k + 1
+                   EXIT loop_k
+                END IF
+             END DO loop_k
+             i = i + ilen - 1
+             IF (ientry > 0) THEN
+                ilen = LEN_TRIM(html_entity_table(ientry))
+                out_string(j:j+ilen-1) = TRIM(ADJUSTL(html_entity_table(ientry)))
+                j = j + ilen
+             END IF
+          ELSE
+             out_string(j:j+4) = "&amp;"
+             j = j + 5
+          END IF
        ELSE IF (string(i:i) == """") THEN
           out_string(j:j+5) = "&quot;"
           j = j + 6
@@ -750,7 +793,7 @@ CONTAINS
           out_string(j:j) = string(i:i)
           j = j + 1
        END IF
-    END DO
+    END DO loop_i
 
   END SUBROUTINE substitute_special_xml_tokens
 
