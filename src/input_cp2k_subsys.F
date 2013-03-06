@@ -194,10 +194,10 @@ CONTAINS
                           "Hexagonal",&
                           "Cubic, a = b = c"),&
             enum_c_vals=s2a("NONE","TRICLINIC","MONOCLINIC","ORTHORHOMBIC","TETRAGONAL_AB","TETRAGONAL_AC",&
-                            "TETRAGONAL_BC","TETRAGONAL","HEXAGONAL","RHOMBOHEDRAL","CUBIC"),&
+                            "TETRAGONAL_BC","TETRAGONAL","RHOMBOHEDRAL","HEXAGONAL","CUBIC"),&
             enum_i_vals=(/cell_sym_none,cell_sym_triclinic,cell_sym_monoclinic,cell_sym_orthorhombic,&
                           cell_sym_tetragonal_ab,cell_sym_tetragonal_ac,cell_sym_tetragonal_bc,&
-                          cell_sym_tetragonal_ab,cell_sym_hexagonal,cell_sym_rhombohedral,cell_sym_cubic/),&
+                          cell_sym_tetragonal_ab,cell_sym_rhombohedral,cell_sym_hexagonal,cell_sym_cubic/),&
             default_i_val=cell_sym_none,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
