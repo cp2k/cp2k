@@ -896,7 +896,7 @@ MODULE qs_rho_atom_methods
       END IF
 
 !     *** calculate the radial grid ***
-      CALL create_grid_atom(grid_atom,nr,na,llmax,quadrature)
+      CALL create_grid_atom(grid_atom,nr,na,llmax,ll,quadrature)
 
       grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
       DO ir = 1,nr

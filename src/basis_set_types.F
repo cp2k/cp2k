@@ -21,8 +21,6 @@ MODULE basis_set_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_list_get,&
                                              section_vals_type,&
@@ -135,13 +133,14 @@ MODULE basis_set_types
   ! Public subroutines
   PUBLIC :: allocate_gto_basis_set,&
             deallocate_gto_basis_set,&
+            get_gto_basis_set_info,&
             get_gto_basis_set,&
             init_aux_basis_set,&
             init_cphi_and_sphi,&
             init_orb_basis_set,&
             read_gto_basis_set,&
+            copy_gto_basis_set,&
             set_gto_basis_set,&
-            write_aux_basis_set,&
             write_gto_basis_set,&
             write_orb_basis_set
 
@@ -298,6 +297,150 @@ CONTAINS
   END SUBROUTINE deallocate_gto_basis_set
 
 ! *****************************************************************************
+  SUBROUTINE copy_gto_basis_set(basis_set_in, basis_set_out, error)
+
+    ! Copy a Gaussian-type orbital (GTO) basis set data set.
+
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_in, basis_set_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'copy_gto_basis_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: maxco, maxpgf, maxshell, &
+                                                ncgf, nset, nsgf, stat
+    LOGICAL                                  :: failure
+    TYPE(gto_basis_set_type), POINTER        :: bin, bout
+
+    failure = .FALSE.
+
+    CALL deallocate_gto_basis_set(basis_set_out,error)
+    ALLOCATE (basis_set_out,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_set_in),cp_failure_level,routineP,error,failure)
+
+    bin => basis_set_in
+    bout => basis_set_out
+
+    bout%name = bin%name
+    bout%kind_radius = bin%kind_radius
+    bout%norm_type = bin%norm_type
+    bout%nset = bin%nset
+    bout%ncgf = bin%ncgf
+    bout%nsgf = bin%nsgf
+    nset = bin%nset
+    ncgf = bin%ncgf
+    nsgf = bin%nsgf
+    ALLOCATE (bout%cgf_symbol(ncgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ALLOCATE (bout%sgf_symbol(nsgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%cgf_symbol = bin%cgf_symbol
+    bout%sgf_symbol = bin%sgf_symbol
+    ALLOCATE (bout%norm_cgf(ncgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%norm_cgf = bin%norm_cgf
+    ALLOCATE (bout%set_radius(nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%set_radius = bin%set_radius
+    ALLOCATE (bout%lmax(nset),bout%lmin(nset),bout%npgf(nset),bout%nshell(nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%lmax = bin%lmax
+    bout%lmin = bin%lmin
+    bout%npgf = bin%npgf
+    bout%nshell = bin%nshell
+    ALLOCATE (bout%lx(ncgf),bout%ly(ncgf),bout%lz(ncgf),bout%m(nsgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%lx = bin%lx
+    bout%ly = bin%ly
+    bout%lz = bin%lz
+    bout%m = bin%m
+    ALLOCATE (bout%ncgf_set(nset),bout%nsgf_set(nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%ncgf_set = bin%ncgf_set
+    bout%nsgf_set = bin%nsgf_set
+    maxco = SIZE(bin%cphi,1)
+    ALLOCATE (bout%cphi(maxco,ncgf),bout%sphi(maxco,nsgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%cphi = bin%cphi
+    bout%sphi = bin%sphi
+    maxpgf = MAXVAL(bin%npgf)
+    ALLOCATE (bout%pgf_radius(maxpgf,nset),bout%zet(maxpgf,nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%pgf_radius = bin%pgf_radius
+    bout%zet = bin%zet
+    maxshell = MAXVAL(bin%nshell)
+    ALLOCATE (bout%first_cgf(maxshell,nset),bout%first_sgf(maxshell,nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ALLOCATE (bout%last_cgf(maxshell,nset),bout%last_sgf(maxshell,nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%first_cgf = bin%first_cgf
+    bout%first_sgf = bin%first_sgf
+    bout%last_cgf = bin%last_cgf
+    bout%last_sgf = bin%last_sgf
+    ALLOCATE (bout%n(maxshell,nset),bout%l(maxshell,nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%n = bin%n
+    bout%l = bin%l
+    ALLOCATE (bout%gcc(maxpgf,maxshell,nset),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%gcc = bin%gcc
+
+  END SUBROUTINE copy_gto_basis_set
+
+! *****************************************************************************
+  SUBROUTINE get_gto_basis_set_info(gto_basis,maxco,maxl,maxsgf,maxder)
+
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: gto_basis
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxco, maxl, maxsgf
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_gto_basis_set_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ibas, nbas, val
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+
+! -------------------------------------------------------------------------
+
+    IF (ASSOCIATED(gto_basis)) THEN
+       nbas = SIZE(gto_basis)
+       IF (PRESENT(maxco)) THEN
+          maxco = 0
+          DO ibas=1,nbas
+             gto_basis_set => gto_basis(ibas)%gto_basis_set
+             IF (PRESENT(maxder)) THEN
+                CALL get_gto_basis_set(gto_basis_set,maxco=val,maxder=maxder)
+             ELSE
+                CALL get_gto_basis_set(gto_basis_set,maxco=val)
+             END IF
+             maxco = MAX(val,maxco)
+          END DO
+       END IF
+       IF (PRESENT(maxl)) THEN
+          maxl = 0
+          DO ibas=1,nbas
+             gto_basis_set => gto_basis(ibas)%gto_basis_set
+             CALL get_gto_basis_set(gto_basis_set,maxl=val)
+             maxl = MAX(val,maxl)
+          END DO
+       END IF
+       IF (PRESENT(maxsgf)) THEN
+          maxsgf = 0
+          DO ibas=1,nbas
+             gto_basis_set => gto_basis(ibas)%gto_basis_set
+             CALL get_gto_basis_set(gto_basis_set,nsgf=val)
+             maxsgf = MAX(val,maxsgf)
+          END DO
+       END IF
+    ELSE
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer gto_basis is not associated")
+    END IF
+
+  END SUBROUTINE get_gto_basis_set_info
+! *****************************************************************************
   SUBROUTINE get_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
        nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,lmin,lx,ly,lz,&
        m,ncgf_set,npgf,nsgf_set,nshell,cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
@@ -347,9 +490,7 @@ CONTAINS
        IF (PRESENT(name)) name = gto_basis_set%name
        IF (PRESENT(norm_type)) norm_type = gto_basis_set%norm_type
        IF (PRESENT(kind_radius)) kind_radius = gto_basis_set%kind_radius
-       IF (PRESENT(short_kind_radius)) THEN
-          short_kind_radius = gto_basis_set%short_kind_radius
-       END IF
+       IF (PRESENT(short_kind_radius)) short_kind_radius = gto_basis_set%short_kind_radius
        IF (PRESENT(ncgf)) ncgf = gto_basis_set%ncgf
        IF (PRESENT(nset)) nset = gto_basis_set%nset
        IF (PRESENT(nsgf)) nsgf = gto_basis_set%nsgf
@@ -1329,69 +1470,7 @@ CONTAINS
   END SUBROUTINE set_gto_basis_set
 
 ! *****************************************************************************
-  SUBROUTINE write_aux_basis_set(aux_basis_set,output_unit,error)
-
-    ! Write an auxiliary Gaussian-type orbital (GTO) basis set data set to the
-    ! output unit.
-
-    ! - Creation (09.01.2002,MK)
-
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_aux_basis_set', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: icgf, ico, ipgf, iset, ishell
-
-    IF (ASSOCIATED(aux_basis_set).AND.(output_unit>0)) THEN
-
-       WRITE (UNIT=output_unit,FMT="(/,T8,A,T31,A30)")&
-            "Auxiliary basis set information for",TRIM(aux_basis_set%name)
-
-       WRITE (UNIT=output_unit,FMT="(T8,A,I6)")&
-            "Number of orbital shell sets:            ",&
-            aux_basis_set%nset,&
-            "Number of orbital shells:                ",&
-            SUM(aux_basis_set%nshell(:)),&
-            "Number of primitive Cartesian functions: ",&
-            SUM(aux_basis_set%npgf(:)),&
-            "Number of Cartesian basis functions:     ",&
-            aux_basis_set%ncgf,&
-            "Number of spherical basis functions:     ",&
-            aux_basis_set%nsgf,&
-            "Norm type:                               ",&
-            aux_basis_set%norm_type
-
-       WRITE (UNIT=output_unit,FMT="(/,T8,A,/,T25,A)")&
-            "Normalised Cartesian auxiliary functions:",&
-            "Set   Shell   Function           Exponent    Coefficient"
-
-       icgf = 0
-
-       DO iset=1,aux_basis_set%nset
-          DO ishell=1,aux_basis_set%nshell(iset)
-             WRITE (UNIT=output_unit,FMT="(A)") ""
-             DO ico=1,nco(aux_basis_set%l(ishell,iset))
-                icgf = icgf + 1
-                WRITE (UNIT=output_unit,&
-                     FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
-                     iset,ishell,&
-                     aux_basis_set%cgf_symbol(icgf),&
-                     (aux_basis_set%zet(ipgf,iset),&
-                     aux_basis_set%norm_cgf(icgf)*&
-                     aux_basis_set%gcc(ipgf,ishell,iset),&
-                     ipgf=1,aux_basis_set%npgf(iset))
-             END DO
-          END DO
-       END DO
-    END IF
-
-  END SUBROUTINE write_aux_basis_set
-
-! *****************************************************************************
-  SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,error)
+  SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,header,error)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
     ! unit.
@@ -1400,6 +1479,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, INTENT(in)                      :: output_unit
+    CHARACTER(len=*), OPTIONAL               :: header
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ipgf, iset, ishell
@@ -1407,6 +1487,26 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
+
+       IF(PRESENT(header)) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
+              TRIM(header),TRIM(gto_basis_set%name)
+       END IF
+
+       WRITE (UNIT=output_unit,FMT="(/,(T8,A,T71,I10))")&
+            "Number of orbital shell sets:            ",&
+            gto_basis_set%nset,&
+            "Number of orbital shells:                ",&
+            SUM(gto_basis_set%nshell(:)),&
+            "Number of primitive Cartesian functions: ",&
+            SUM(gto_basis_set%npgf(:)),&
+            "Number of Cartesian basis functions:     ",&
+            gto_basis_set%ncgf,&
+            "Number of spherical basis functions:     ",&
+            gto_basis_set%nsgf,&
+            "Norm type:                               ",&
+            gto_basis_set%norm_type
+
        WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/,/,T25,A)")&
             "GTO basis set information for",TRIM(gto_basis_set%name),&
             "Set   Shell     n   l            Exponent    Coefficient"
@@ -1428,9 +1528,10 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_gto_basis_set
+
 ! *****************************************************************************
 
-  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,basis_set_id, error)
+  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,header,error)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
     ! unit.
@@ -1439,27 +1540,16 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     INTEGER, INTENT(in)                      :: output_unit
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    CHARACTER(len=*), OPTIONAL               :: header
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: icgf, ico, ipgf, iset, &
-                                                ishell, my_basis_set_id
-
-    IF( PRESENT(basis_set_id)) THEN
-      my_basis_set_id = basis_set_id
-    ELSE
-      my_basis_set_id = use_orb_basis_set
-    END IF
+    INTEGER                                  :: icgf, ico, ipgf, iset, ishell
 
     IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
+       IF(PRESENT(header)) THEN
          WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
-              "Orbital basis set information for",TRIM(orb_basis_set%name)
-       CASE (use_aux_fit_basis_set)
-         WRITE (UNIT=output_unit,FMT="(/,T6,A,T61,A20)")&
-              "Basis set info for auxiliary density matrix method",TRIM(orb_basis_set%name)
-       END SELECT
+              TRIM(header),TRIM(orb_basis_set%name)
+       END IF
 
        WRITE (UNIT=output_unit,FMT="(/,(T8,A,T71,I10))")&
             "Number of orbital shell sets:            ",&
@@ -1471,7 +1561,9 @@ CONTAINS
             "Number of Cartesian basis functions:     ",&
             orb_basis_set%ncgf,&
             "Number of spherical basis functions:     ",&
-            orb_basis_set%nsgf
+            orb_basis_set%nsgf,&
+            "Norm type:                               ",&
+            orb_basis_set%norm_type
 
        WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T25,A)")&
             "Normalised Cartesian orbitals:",&

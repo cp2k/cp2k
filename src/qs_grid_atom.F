@@ -10,6 +10,7 @@ MODULE qs_grid_atom
                                              do_gapw_gct,&
                                              do_gapw_log
   USE kinds,                           ONLY: dp
+  USE lebedev,                         ONLY: lebedev_grid
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE termination,                     ONLY: stop_program
@@ -191,15 +192,16 @@ CONTAINS
   END SUBROUTINE deallocate_grid_atom
 
 ! *****************************************************************************
-  SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,quadrature)
+  SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,ll,quadrature)
 
     TYPE(grid_atom_type), POINTER            :: grid_atom
-    INTEGER, INTENT(IN)                      :: nr, na, llmax, quadrature
+    INTEGER, INTENT(IN)                      :: nr, na, llmax, ll, quadrature
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_grid_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, l
+    INTEGER                                  :: handle, ia, ir, l
+    REAL(dp)                                 :: cosia, phi
     REAL(dp), DIMENSION(:), POINTER          :: rad, rad2, wr
 
     CALL timeset(routineN,handle)
@@ -238,6 +240,47 @@ CONTAINS
           grid_atom%rad2l(:,l)=grid_atom%rad2l(:,l-1)*rad(:)
           grid_atom%oorad2l(:,l)=grid_atom%oorad2l(:,l-1)/rad(:)
        ENDDO
+
+       IF (ll > 0) THEN
+          grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
+          DO ir = 1,nr
+             DO ia= 1,na
+                grid_atom%weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
+             END DO
+          END DO
+
+          DO ia = 1,na
+             cosia = lebedev_grid(ll)%r(3,ia)
+             grid_atom%cos_phi(ia)   =   cosia
+             IF ( ABS(lebedev_grid(ll)%r(2,ia)) < EPSILON(1.0_dp) .AND. &
+                  ABS(lebedev_grid(ll)%r(1,ia)) < EPSILON(1.0_dp) ) THEN
+                grid_atom%theta(ia)     =  0.0_dp
+             ELSE
+             grid_atom%theta(ia)     =  &
+                  ATAN2( lebedev_grid(ll)%r(2,ia) , lebedev_grid(ll)%r(1,ia) )
+             END IF
+             grid_atom%cos_theta(ia) = COS( grid_atom%theta(ia) )
+             phi =  ACOS(cosia)
+             IF( grid_atom%sin_phi(ia) < 0.0_dp ) phi = - phi
+             grid_atom%phi(ia) = phi
+             grid_atom%sin_phi(ia)  = SIN(grid_atom%phi(ia))
+             IF(ABS(grid_atom%sin_phi(ia)) > EPSILON(1.0_dp)) THEN
+                grid_atom%cotan_phi(ia) = &
+                     grid_atom%cos_phi(ia)/grid_atom%sin_phi(ia)
+             ELSE
+                grid_atom%cotan_phi(ia) = 0.0_dp
+             END IF
+
+             grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) )
+             IF(ABS(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
+                grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
+             ELSE
+                grid_atom%usin_theta(ia) = 1.0_dp
+             END IF
+
+          ENDDO
+
+       END IF
 
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&

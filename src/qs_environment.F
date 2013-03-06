@@ -18,14 +18,12 @@ MODULE qs_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             check_atomic_kind_set,&
-                                             get_atomic_kind_set,&
-                                             init_atomic_kind_set,&
-                                             init_gapw_basis_set,&
-                                             read_atomic_kind_set,&
-                                             write_atomic_kind_set,&
-                                             write_gto_basis_sets
+  USE atomic_kind_types,               ONLY: &
+       atomic_kind_type, check_atomic_kind_set, get_atomic_kind, &
+       get_atomic_kind_set, init_atomic_kind_set, init_gapw_basis_set, &
+       read_atomic_kind_set, write_atomic_kind_set, write_gto_basis_sets
+  USE basis_set_types,                 ONLY: copy_gto_basis_set,&
+                                             gto_basis_set_type
   USE bibliography,                    ONLY: Iannuzzi2006,&
                                              Iannuzzi2007,&
                                              cite_reference
@@ -101,18 +99,23 @@ MODULE qs_environment
   USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
-       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_mndo, &
-       do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-       do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
-       do_multipole_none, general_roks, restart_guess, use_aux_fit_basis_set, &
-       vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_vdw_fun_none, &
-       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lripaw, &
+       do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
+       do_method_scptb, do_multipole_none, general_roks, restart_guess, &
+       use_aux_fit_basis_set, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_environment,                  ONLY: kg_env_create
   USE kinds,                           ONLY: dp
+  USE lri_environment_types,           ONLY: lri_atom_init,&
+                                             lri_basis_init,&
+                                             lri_env_create,&
+                                             lri_environment_type,&
+                                             write_lripaw_basis_sets
   USE machine,                         ONLY: m_flush
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
@@ -231,17 +234,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: method_id, natom
-    LOGICAL :: do_et, do_hfx, do_hfx_ri, harris_flag, mp2_present, my_qmmm, &
-      my_qmmm_periodic, use_ref_cell
+    INTEGER                                  :: ikind, istat, method_id, &
+                                                natom, nkind
+    LOGICAL :: do_et, do_hfx, do_hfx_ri, failure, harris_flag, mp2_present, &
+      my_qmmm, my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: my_subsys
     TYPE(ga_environment_type), POINTER       :: ga_env
+    TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
+    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -255,6 +262,7 @@ CONTAINS
       et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
       kind_section, mp2_section
 
+    failure = .FALSE.
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section, ga_env)
@@ -375,7 +383,7 @@ CONTAINS
     IF (mp2_present) THEN
        CALL mp2_env_create(qs_env%mp2_env,error)
        CALL read_mp2_section(qs_env%input,qs_env%mp2_env,error)
-    ENDIF
+    END IF
 
     IF (qs_env%dft_control%qs_control%do_kg) THEN
       CALL cite_reference(Iannuzzi2006)
@@ -387,7 +395,41 @@ CONTAINS
     CALL section_vals_get(et_coupling_section,explicit=do_et,error=error)
     IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
 
-! GA option
+    ! lri env
+    IF (method_id == do_method_lripaw) THEN
+       NULLIFY(lri_env)
+       CALL lri_env_create(lri_env,error)
+       ! initialize the basic basis sets (orb and ri)
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+       nkind = SIZE(atomic_kind_set)
+       ALLOCATE(lri_env%orb_basis(nkind),lri_env%ri_basis(nkind),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          NULLIFY(orb_basis_set,lri_basis_set)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               orb_basis_set=orb_basis_set,&
+                               lri_basis_set=lri_basis_set)
+          NULLIFY(lri_env%orb_basis(ikind)%gto_basis_set)
+          NULLIFY(lri_env%ri_basis(ikind)%gto_basis_set)
+          IF (ASSOCIATED(orb_basis_set)) THEN
+             CALL copy_gto_basis_set(orb_basis_set,lri_env%orb_basis(ikind)%gto_basis_set,error)
+             CALL copy_gto_basis_set(lri_basis_set,lri_env%ri_basis(ikind)%gto_basis_set,error)
+          END IF
+       END DO
+       ! initialize the secondary basis sets (ri_soft,paw,proj)
+       CALL lri_basis_init(lri_env,qs_env%dft_control%qs_control%lripaw_control,atomic_kind_set,error)
+       ! atomic grids
+       ALLOCATE(lri_env%atom(nkind),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL lri_atom_init(lri_env,qs_env%dft_control%qs_control%lripaw_control,atomic_kind_set,error)
+       ! Print the unnormalized basis set information (input data)
+       CALL write_lripaw_basis_sets(lri_env,atomic_kind_set,subsys_section,error)
+       !
+       CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
+    END IF
+
+    ! GA option
     CALL init_ga_env ( ga_env, error )
     CALL set_qs_env ( qs_env, ga_env=ga_env, error=error )
     CALL se_ga_pair_list_init ( qs_env, error )
@@ -628,6 +670,10 @@ CONTAINS
        lmax_sphere = 2*maxlgto
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
+    IF(dft_control%qs_control%method == "LRIPAW") THEN
+      ! 4 is hard coded from lri_environment_types%build_projector_basis
+      lmax_sphere = MAX(lmax_sphere,4)
+    END IF
     maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere) + 1
 
     CALL init_orbital_pointers(maxl)
@@ -651,12 +697,12 @@ CONTAINS
     CALL init_md_ftable(maxl)
 
     !   *** Initialize the atomic interaction radii ***
-    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,&
-         error)
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,error)
 
     CALL write_pgf_orb_radii("orb",atomic_kind_set,subsys_section,error)
     CALL write_geminal_radii(atomic_kind_set,subsys_section,error)
     CALL write_pgf_orb_radii("aux",atomic_kind_set,subsys_section,error)
+    CALL write_pgf_orb_radii("lri",atomic_kind_set,subsys_section,error)
     CALL write_core_charge_radii(atomic_kind_set,subsys_section,error)
     CALL write_ppl_radii(atomic_kind_set,subsys_section,error)
     CALL write_ppnl_radii(atomic_kind_set,subsys_section,error)
@@ -775,6 +821,8 @@ CONTAINS
           !       *** Allocate and Initialize the local coulomb term ***
           CALL init_coulomb_local(qs_env%hartree_local,natom,error=error)
        END IF
+    ELSE IF (dft_control%qs_control%method_id == do_method_lripaw) THEN
+       ! allocate local ri environment
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
        NULLIFY(se_store_int_env, se_nddo_mpole, se_nonbond_env)
        natom = SIZE(particle_set)
@@ -847,6 +895,7 @@ CONTAINS
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+        dft_control%qs_control%method_id == do_method_lripaw .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1196,6 +1245,7 @@ CONTAINS
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+        dft_control%qs_control%method_id == do_method_lripaw .OR. &
         dft_control%qs_control%method_id == do_method_scptb .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       CALL write_dispersion(qs_env,error)
@@ -1211,7 +1261,7 @@ CONTAINS
     END IF
 
     ! Print the unnormalized basis set information (input data)
-    CALL write_gto_basis_sets(atomic_kind_set,subsys_section,error)
+    CALL write_gto_basis_sets(atomic_kind_set,subsys_section,error=error)
 
     ! Print the atomic kind set
     CALL write_atomic_kind_set(atomic_kind_set,subsys_section,error)
@@ -1322,12 +1372,17 @@ CONTAINS
             "- Atoms:                         ",natom
        END IF
 
-       IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
+       IF ((maxlppl > -1).AND.(maxlppnl > -1)) THEN
           WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T75,I6))")&
                "Maximum angular momentum of the",&
                "- Orbital basis functions:                   ",maxlgto,&
                "- Local part of the GTH pseudopotential:     ",maxlppl,&
                "- Non-local part of the GTH pseudopotential: ",maxlppnl
+       ELSEIF (maxlppl > -1) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T75,I6))")&
+               "Maximum angular momentum of the",&
+               "- Orbital basis functions:                   ",maxlgto,&
+               "- Local part of the GTH pseudopotential:     ",maxlppl
        ELSE
           WRITE (UNIT=output_unit,FMT="(/,T3,A,T75,I6)")&
                "Maximum angular momentum of the orbital basis functions: ",maxlgto

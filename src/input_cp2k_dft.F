@@ -1174,6 +1174,26 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,&
+            name="soo_list",&
+            description="Activates the printing of RI orbital-orbital "//&
+            "neighbor lists ",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="sip_list",&
+            description="Activates the printing of RI basis-projector interaction "//&
+            "neighbor lists ",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -2400,7 +2420,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EPSFIT",&
             variants=(/"EPS_FIT"/),&
-            description="GAPW : precision to give the extention of a hard gaussian ",&
+            description="GAPW and LRIPAW: precision to give the extention of a hard gaussian ",&
             usage="EPSFIT real", default_r_val=1.0E-4_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2432,7 +2452,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ALPHA0_HARD",&
             variants=s2a("ALPHA0_H","ALPHA0"),&
-            description="GAPW : Exponent for hard compensation charge",&
+            description="GAPW and LRIPAW : Exponent for hard compensation charge",&
             usage="ALPHA0_HARD real", default_r_val=0.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2531,7 +2551,7 @@ CONTAINS
 
        ! Characters
        CALL keyword_create(keyword, name="QUADRATURE",&
-            description="GAPW: algorithm to construct the atomic radial grids",&
+            description="GAPW and LRIPAW: algorithm to construct the atomic radial grids",&
             usage="QUADRATURE GC_SIMPLE",&
             enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
             enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
@@ -2620,11 +2640,12 @@ CONTAINS
        CALL keyword_create(keyword, name="METHOD",&
             description="Specifies the electronic structure method that should be employed",&
             usage="METHOD GAPW",&
-            enum_c_vals=s2a("GAPW","GAPW_XC","GPW",&
+            enum_c_vals=s2a("GAPW","GAPW_XC","GPW","LRIPAW",&
             "MNDO","MNDOD","AM1","PM3","PM6","PDG","RM1","PNNL","DFTB","OFGPW","SCPTB"),&
             enum_desc=s2a("Gaussian and augmented plane waves method",&
                           "Gaussian and augmented plane waves method only for XC",&
                           "Gaussian and plane waves method",&
+                          "Local resolution of identity projector augmented wave method",&
                           "MNDO semiempirical","MNDO-d semiempirical","AM1 semiempirical",&
                           "PM3 semiempirical","PM6 semiempirical","PDG semiempirical",&
                           "RM1 semiempirical",&
@@ -2632,7 +2653,7 @@ CONTAINS
                           "DFTB Density Functional based Tight-Binding",&
                           "OFGPW Orbital-free GPW method",&
                           "SCPTB Self-Consistent-Polarization Tight-Binding"),&
-            enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+            enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lripaw,&
             do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
             do_method_pm6, do_method_pdg, do_method_rm1, do_method_pnnl, do_method_dftb, &
             do_method_ofgpw, do_method_scptb/),&

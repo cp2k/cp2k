@@ -91,6 +91,10 @@ MODULE qs_environment_types
   USE kg_environment_types,            ONLY: kg_env_release,&
                                              kg_environment_type
   USE kinds,                           ONLY: dp
+  USE lri_environment_types,           ONLY: lri_density_release,&
+                                             lri_density_type,&
+                                             lri_env_release,&
+                                             lri_environment_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -408,8 +412,12 @@ MODULE qs_environment_types
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
     TYPE(admm_type), POINTER                              :: admm_env
+    ! LRI
+    TYPE(lri_environment_type), POINTER                   :: lri_env
+    TYPE(lri_density_type), POINTER                       :: lri_density
     ! HFX RI
     TYPE(ri_environment_type), POINTER                    :: hfx_ri_env
+    ! Empirical dispersion
     TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
     ! Semi-empirical and DFTB types
     TYPE(ewald_environment_type),POINTER                  :: ewald_env
@@ -460,11 +468,11 @@ CONTAINS
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,natom,nelectron_total,nelectron_spin,efield,&
+       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
-       hfx_ri_env,dispersion_env, vee,mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,error)
+       lri_env,lri_density,hfx_ri_env,dispersion_env, vee,mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -561,7 +569,7 @@ CONTAINS
                                                 mo_loc_history
     TYPE(tddfpt_control_type), OPTIONAL, &
       POINTER                                :: tddfpt_control
-    INTEGER, OPTIONAL                        :: natom, nelectron_total
+    INTEGER, OPTIONAL                        :: nkind, natom, nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(efield_berry_type), OPTIONAL, &
       POINTER                                :: efield
@@ -594,6 +602,10 @@ CONTAINS
     TYPE(fist_nonbond_env_type), OPTIONAL, &
       POINTER                                :: se_nonbond_env
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
+    TYPE(lri_environment_type), OPTIONAL, &
+      POINTER                                :: lri_env
+    TYPE(lri_density_type), OPTIONAL, &
+      POINTER                                :: lri_density
     TYPE(ri_environment_type), OPTIONAL, &
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
@@ -713,6 +725,8 @@ CONTAINS
     IF (PRESENT(se_nddo_mpole)) se_nddo_mpole => qs_env%se_nddo_mpole
     IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
     IF (PRESENT(admm_env)) admm_env => qs_env%admm_env
+    IF (PRESENT(lri_env)) lri_env => qs_env%lri_env
+    IF (PRESENT(lri_density)) lri_density => qs_env%lri_density
     IF (PRESENT(hfx_ri_env)) hfx_ri_env => qs_env%hfx_ri_env
     IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
@@ -754,6 +768,7 @@ CONTAINS
                       error=error)
 
     IF (PRESENT(natom)) natom=SIZE(particles%els)
+    IF (PRESENT(nkind)) nkind=SIZE(atomic_kinds%els)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
@@ -883,6 +898,8 @@ CONTAINS
     NULLIFY (qs_env%se_nonbond_env)
     NULLIFY (qs_env%admm_env)
     NULLIFY (qs_env%efield)
+    NULLIFY (qs_env%lri_env)
+    NULLIFY (qs_env%lri_density)
     NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
@@ -950,7 +967,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
-       hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,atprop,error)
+       lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -1059,6 +1076,10 @@ CONTAINS
       POINTER                                :: se_nonbond_env
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
     TYPE(ls_scf_env_type), OPTIONAL, POINTER :: ls_scf_env
+    TYPE(lri_environment_type), OPTIONAL, &
+      POINTER                                :: lri_env
+    TYPE(lri_density_type), OPTIONAL, &
+      POINTER                                :: lri_density
     TYPE(ri_environment_type), OPTIONAL, &
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
@@ -1344,6 +1365,8 @@ CONTAINS
        qs_env%se_nonbond_env => se_nonbond_env
     END IF
     IF( PRESENT(admm_env) ) qs_env%admm_env => admm_env
+    IF( PRESENT(lri_env) ) qs_env%lri_env => lri_env
+    IF( PRESENT(lri_density) ) qs_env%lri_density => lri_density
     IF( PRESENT(hfx_ri_env) ) qs_env%hfx_ri_env => hfx_ri_env
     IF( PRESENT(dispersion_env) ) qs_env%dispersion_env => dispersion_env
     IF( PRESENT(WannierCentres) ) qs_env%WannierCentres => WannierCentres
@@ -1767,6 +1790,12 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%admm_env)) THEN
             CALL admm_env_release(qs_env%admm_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%lri_env)) THEN
+            CALL lri_env_release(qs_env%lri_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%lri_density)) THEN
+             CALL lri_density_release(qs_env%lri_density, error)
           END IF
           IF (ASSOCIATED(qs_env%hfx_ri_env)) THEN
             CALL ri_env_release(qs_env%hfx_ri_env, error)

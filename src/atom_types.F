@@ -332,7 +332,7 @@ CONTAINS
     CALL section_vals_val_get(basis_section,"GRID_POINTS",i_val=ngp,error=error)
     CALL cp_assert(ngp > 0,cp_failure_level,cp_assertion_failed,routineP,&
                    "# point radial grid < 0",error,failure)
-    CALL create_grid_atom(basis%grid,ngp,1,1,quadtype)
+    CALL create_grid_atom(basis%grid,ngp,1,1,0,quadtype)
     basis%grid%nr = ngp
     basis%geometrical = .FALSE.
     basis%aval  = 0._dp

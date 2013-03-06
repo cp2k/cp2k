@@ -96,6 +96,8 @@ MODULE qs_core_hamiltonian
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp
+  USE lri_environment_methods,         ONLY: build_lri_matrices
+  USE lri_environment_types,           ONLY: lri_environment_type
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -147,7 +149,7 @@ CONTAINS
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
     LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
-      ofdft, ppl_present, use_virial
+      lripaw, ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -156,6 +158,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_aux_fit, &
                                                 sab_aux_fit_vs_orb, sab_orb, &
@@ -202,6 +205,8 @@ CONTAINS
 
     ! is this a orbital-free method calculation
     ofdft = qs_env%dft_control%qs_control%ofgpw
+    ! is this a LRI method calculation
+    lripaw = qs_env%dft_control%qs_control%lripaw
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -399,18 +404,25 @@ CONTAINS
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
-    eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
-    eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
     ! *** compute the ppnl contribution to the core hamiltonian ***
     IF(qs_env%rel_control%rel_method==rel_none)THEN
+      eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
       CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
     END IF
 
+    ! *** GAPW one-center-expansion (oce) matrices
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
+      eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
       IF (ASSOCIATED(sap_oce)) &
          CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,&
               sap_oce,eps_fit,error)
+    END IF
+
+    ! *** LRI and PAW matrices
+    IF(lripaw) THEN
+       CALL get_qs_env(qs_env=qs_env,lri_env=lri_env,error=error)
+       CALL build_lri_matrices(lri_env,qs_env,error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***

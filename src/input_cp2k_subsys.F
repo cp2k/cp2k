@@ -1150,6 +1150,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="LRI_BASIS_SET",&
+            variants=s2a("LRI_BASIS"),&
+            description="The local resolution of identity basis set (GTO type)",&
+            usage="LRI_BASIS_SET DZVP", default_c_val=" ", &
+            n_var=1, required=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="AUX_FIT_BASIS_SET",&
             variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"),&
             description="The auxliliary basis set (GTO type) for auxiliary density matrix method",&

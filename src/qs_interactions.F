@@ -94,8 +94,9 @@ CONTAINS
                                                 nprj, nprj_ppnl, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
     LOGICAL                                  :: llsd, lpot, p_aux, p_ccr, &
-                                                p_gem, p_orb, p_paw, p_ppl, &
-                                                p_ppnl, p_soft, paw_atom
+                                                p_gem, p_lri, p_orb, p_paw, &
+                                                p_ppl, p_ppnl, p_soft, &
+                                                paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
       core_charge_radius, gcca, kind_radius, ppl_radius, ppnl_radius, rcprj, &
       zab, zd, zeta
@@ -114,17 +115,17 @@ CONTAINS
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
-                                                aux_fit_basis_set, &
+                                                aux_fit_basis_set, lri_basis, &
                                                 orb_basis_set, soft_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
     CALL timeset(routineN,handle)
 
     NULLIFY ( atomic_kind, all_potential, gth_potential, &
-              orb_basis_set, aux_basis_set, soft_basis, geminal_basis_set, paw_proj_set)
+              orb_basis_set, aux_basis_set, soft_basis, lri_basis, &
+              geminal_basis_set, paw_proj_set)
     NULLIFY (npgf, nprj_ppnl, nshell, lshell, nprj)
-    NULLIFY (alpha_ppnl, cexp_ppl, set_radius, cprj_ppnl, pgf_radius, zet, &
-         gcc)
+    NULLIFY (alpha_ppnl, cexp_ppl, set_radius, cprj_ppnl, pgf_radius, zet, gcc)
 
     p_orb  = .FALSE.
     p_aux  = .FALSE.
@@ -134,6 +135,7 @@ CONTAINS
     p_soft = .FALSE.
     p_paw  = .FALSE.
     p_gem  = .FALSE.
+    p_lri  = .FALSE.
 
     nkind = SIZE(atomic_kind_set)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -151,6 +153,7 @@ CONTAINS
                            aux_basis_set=aux_basis_set,&
                            aux_fit_basis_set=aux_fit_basis_set,&
                            orb_basis_set=orb_basis_set,&
+                           lri_basis_set=lri_basis,&
                            soft_basis_set=soft_basis,&
                            paw_proj_set=paw_proj_set,&
                            geminal_basis_set=geminal_basis_set,&
@@ -343,6 +346,12 @@ CONTAINS
           CALL init_interaction_radii_orb_basis(soft_basis,qs_control%eps_pgf_orb,error=error)
 
         END IF
+      END IF
+
+      ! Calculate the lri basis function radii
+      IF (ASSOCIATED(lri_basis)) THEN
+          p_lri = .TRUE.
+          CALL init_interaction_radii_orb_basis(lri_basis,qs_control%eps_pgf_orb,error=error)
       END IF
 
       ! Calculate the paw projector basis function radii
@@ -635,11 +644,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, lri_basis_set, &
+                                                orb_basis_set
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    NULLIFY(aux_basis_set,orb_basis_set)
+    NULLIFY(aux_basis_set,orb_basis_set,lri_basis_set)
     bas=" "
     bas(1:3) = basis(1:3)
     CALL uppercase ( bas )
@@ -647,6 +657,8 @@ CONTAINS
       bas="ORBITAL   "
     ELSE IF ( bas(1:3) == "AUX" ) THEN
       bas="AUXILLIARY"
+    ELSE IF ( bas(1:3) == "LRI" ) THEN
+      bas="LOCAL RI"
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Undefined basis set type")
@@ -680,6 +692,14 @@ CONTAINS
                                aux_basis_set=aux_basis_set)
           IF(ASSOCIATED(aux_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                                   kind_radius=kind_radius)
+          END IF
+        ELSE IF ( bas(1:3) == "LOC" ) THEN
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name,&
+                               lri_basis_set=lri_basis_set)
+          IF(ASSOCIATED(lri_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
                                    kind_radius=kind_radius)
           END IF
         ELSE
@@ -722,6 +742,15 @@ CONTAINS
                                aux_basis_set=aux_basis_set)
           IF(ASSOCIATED(aux_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                                   nset=nset,&
+                                   set_radius=set_radius)
+          END IF
+        ELSE IF ( bas(1:3) == "LOC" ) THEN
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name,&
+                               lri_basis_set=lri_basis_set)
+          IF(ASSOCIATED(lri_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
                                    nset=nset,&
                                    set_radius=set_radius)
           END IF
@@ -769,11 +798,22 @@ CONTAINS
                                    npgf=npgf,&
                                    pgf_radius=pgf_radius)
           END IF
+        ELSE IF ( bas(1:3) == "LOC" ) THEN
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name,&
+                               lri_basis_set=lri_basis_set)
+          IF(ASSOCIATED(lri_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
+                                   nset=nset,&
+                                   npgf=npgf,&
+                                   pgf_radius=pgf_radius)
+          END IF
         ELSE
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Undefined basis type")
         END IF
-        IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
+        IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set).OR. &
+           ASSOCIATED(lri_basis_set)) THEN
           DO iset=1,nset
             WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,T63,I5,(T69,F12.6))")&
               ikind,name,iset,&
@@ -1042,7 +1082,7 @@ CONTAINS
                name=name,&
                paw_atom=paw_atom,&
                paw_proj_set=paw_proj_set)
-          IF (paw_atom) THEN
+          IF (paw_atom .AND. ASSOCIATED(paw_proj_set)) THEN
              CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
                   rcprj=rcprj)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&

@@ -225,6 +225,7 @@ MODULE input_constants
                                               do_method_gapw=1,&
                                               do_method_gapw_xc=2,&
                                               do_method_gpw=3,&
+                                              do_method_lripaw=4,&
                                               do_method_mndo=7,&
                                               do_method_am1=8,&
                                               do_method_pm3=9,&
@@ -784,7 +785,8 @@ MODULE input_constants
                                               use_aux_fit_basis_set=2,&
                                               use_aux_basis_set=3,&
                                               use_scp_basis_set=4,&
-                                              use_ri_aux_basis_set=5
+                                              use_ri_aux_basis_set=5,&
+                                              use_lri_basis_set=6
   ! ADMM PARAMETER
   ! This parameter the method to use in order to get an auxiliary density matrix
   INTEGER, PARAMETER, PUBLIC               ::  do_admm_basis_set_projection=1,&

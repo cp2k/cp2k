@@ -260,7 +260,7 @@ CONTAINS
     ngp = 400
     quadtype = do_gapw_log
     CALL allocate_grid_atom(grid,error)
-    CALL create_grid_atom(grid,ngp,1,1,quadtype)
+    CALL create_grid_atom(grid,ngp,1,1,0,quadtype)
     grid%nr = ngp
     basis%grid => grid
 
@@ -756,7 +756,7 @@ CONTAINS
     ngp = 400
     quadtype = do_gapw_log
     CALL allocate_grid_atom(grid,error)
-    CALL create_grid_atom(grid,ngp,1,1,quadtype)
+    CALL create_grid_atom(grid,ngp,1,1,0,quadtype)
     grid%nr = ngp
     basis%grid => grid
 
