@@ -1,12 +1,24 @@
-#!/bin/bash
+#!/bin/bash -e
 
 echo "using the following settings"
 
 cat config.in
 
+#
+# load parameters
+#
+source config.in
+
 echo "Starting lib generation in 3 stages"
 
 bash ./do_generate_tiny
+
+#
+# stops if tiny part was not completed
+#
+if [ "$target" = "source" -o "$target" = "compile" -o "$run_cmd" = "batch_cmd" ]; then
+    exit
+fi
 
 bash ./do_generate_small
 

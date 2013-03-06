@@ -1,9 +1,10 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #
 # load parameters
 #
 source config.in
+dims_tiny=`echo ${dims_tiny} | tr "\n" " "` # remove \n
 
 #
 # compile the generator of tiny mults
@@ -11,81 +12,152 @@ source config.in
 ${host_compile}  -c mults.f90 
 ${host_compile}  mults.o tiny_gen.f90 -o tiny_gen.x
 
-#
-# generate list of loop bounds to generate for the tiny library
-#
-postfixes=""
-for m in ${dims_tiny}  ; do
-for n in ${dims_tiny}  ; do
-for k in ${dims_tiny}  ; do
- postfixes="$postfixes ${m}_${n}_${k}"
-done
-done
-done
+make_file="Makefile.tiny"${type_label}
+if [ -n "${mic+xxxx}" ]; then
+make_file="Makefile_${mic}.tiny"${type_label}
+
+fi
 
 #
 # for easy parallelism go via a Makefile
 #
-rm -f Makefile.tiny
+rm -f ${make_file}
+
+#
+# Create the directory to store all files
+#
+tiny_dir="run_tiny"${type_label}
+mkdir -p ${tiny_dir}
 
 (
 #
-# a two stage approach, first compile in parallel, once done,
-# execute in parallel
+# a two stage approach, first generate and compile in parallel, 
+# once done, execute in parallel
 #
+
+#
+# generate the list of indices files
+#
+printf "DIMS_TINY    = ${dims_tiny}\n"
+printf "DIMS_INDICES = \$(foreach m,\$(DIMS_TINY),\$(foreach n,\$(DIMS_TINY),\$(foreach k,\$(DIMS_TINY),\$m_\$n_\$k)))"
+printf "\n\n"
+
+#
+# consider only a sub-range of all indices
+#
+printf "SI = 1\n"
+printf "EI = \$(words \$(DIMS_INDICES))\n"
+printf "INDICES = \$(wordlist \$(SI),\$(EI),\$(DIMS_INDICES))\n\n"
+
+#
+# output directory for compiled and results files
+#
+printf "OUTDIR=${out_dir}\n\n"
+
+#
+# list of source files
+#
+printf "SRCFILES=\$(patsubst %%,tiny_find_%%.f90,\$(INDICES)) \n"
+
+#
+# list of executables
+#
+printf "EXEFILES=\$(patsubst %%,\$(OUTDIR)/tiny_find_%%.x,\$(INDICES)) \n"
+
+#
+# list of output files
+#
+printf "OUTFILES=\$(patsubst %%,\$(OUTDIR)/tiny_find_%%.out,\$(INDICES)) \n\n"
+
+
 printf "all: bench \n\n"
 
-printf "compile: "
-for pf in $postfixes ; do
-    printf "comp_${pf} "
+#
+# generation source rule
+#
+printf "source: \$(SRCFILES) \n\n"
+
+printf "%%.f90: \n"
+printf '\t .././tiny_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
+printf " ${transpose_flavor} ${data_type} > \$@\n\n"
+
+printf "compile: \$(EXEFILES) \n\n"
+
+#
+# compile rule
+#
+printf "\$(OUTDIR)/%%.x: %%.f90 \n"
+printf "\t ${target_compile} \$< -o \$@  \n\n"
+
+printf "bench: \$(OUTFILES) \n\n"
+
+#
+# execute rule
+#
+printf "\$(OUTDIR)/%%.out: \$(OUTDIR)/%%.x \n"
+printf "\t ${mic_cmd} ./\$< > \$@ \n\n"
+
+) > ${make_file}
+
+cd ${tiny_dir}
+
+#
+# make the output dir
+#
+
+mkdir -p ${out_dir}
+
+#
+# execute makefile compiling all variants and executing them.
+# Execution in several jobs
+#
+ndims=`echo ${dims_tiny} | wc -w`
+nelements=$((ndims*ndims*ndims))
+nelements_in=$((nelements / jobs))
+nelements_out=$((nelements % jobs))
+element_start=1
+element_end=0
+
+echo "# Elements = ${ndims}^3 = ${nelements} split in ${jobs} jobs."
+
+for (( ijob=1 ; ijob<=jobs; ijob++ )); do
+
+    element_end=$(( element_end + nelements_in ))
+
+    if [ ${ijob} -le ${nelements_out} ]; then
+	element_end=$(( element_end + 1))
+    fi
+
+    test_name=${tiny_dir}_job${ijob}
+    echo "Launching elements ${element_start} --> ${element_end} (${test_name})"
+
+    ${run_cmd} make -j ${tasks} -f ../${make_file} ${target} SI=${element_start} EI=${element_end}
+
+    element_start=$(( element_end + 1))
+
 done
-printf "\n\n"
 
 #
-# all compile rules
+# Stop the execution if the output files were not produced
 #
-for m in ${dims_tiny}  ; do
-for n in ${dims_tiny}  ; do
-for k in ${dims_tiny}  ; do
-    printf "comp_${m}_${n}_${k}:\n"
-    printf "\t mkdir -p run_tiny_${m}_${n}_${k}\n"
-    printf "\t ./tiny_gen.x ${m} ${n} ${k} ${transpose_flavor} ${data_type} > run_tiny_${m}_${n}_${k}/tiny_find.f90\n"
-    printf "\t cd run_tiny_${m}_${n}_${k} ; ${target_compile} tiny_find.f90 -o tiny_find.x  \n\n"
-done ; done ; done
-
-printf "bench: "
-for pf in $postfixes ; do
-    printf "bench_${pf} "
-done
-printf "\n\n"
-
-#
-# all execute rules
-#
-for m in ${dims_tiny}  ; do
-for n in ${dims_tiny}  ; do
-for k in ${dims_tiny}  ; do
-    printf "bench_${m}_${n}_${k}: compile\n"
-    printf "\t cd run_tiny_${m}_${n}_${k} ; ./tiny_find.x > tiny_find.out \n\n"
-done ; done ; done
-
-) > Makefile.tiny
-
-#
-# execute makefile compiling all variants and executing them
-#
-
-make -j $tasks -f Makefile.tiny all
+if [ "$target" = "source" -o "$target" = "compile" -o "$run_cmd" = "batch_cmd" ]; then
+    exit
+fi
 
 #
 # analyse results finding optimal tiny mults
 #
+out_file="tiny_gen_optimal"
+if [ -n "${mic+xxxx}" ]; then
+out_file="${out_file}_${mic}"
+fi
+
 (
 for m in ${dims_tiny}  ; do
 for n in ${dims_tiny}  ; do
 for k in ${dims_tiny}  ; do
-    file=run_tiny_${m}_${n}_${k}/tiny_find.out
-    res=`tail -n 1 $file`
+    file=tiny_find_${m}_${n}_${k}.out
+    res=`tail -n 1 ${out_dir}/$file`
     echo "$m $n $k $res"
 done ; done ; done
-) > tiny_gen_optimal.out
+) > ../${out_file}${type_label}.out

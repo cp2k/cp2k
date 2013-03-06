@@ -8,17 +8,19 @@
 ! 5) multrec 2
 ! 6) multrec 3
 ! 7) multrec 4
+! 8) multvec
 !
 PROGRAM small_gen
    USE mults
    USE multrec_gen
    IMPLICIT NONE
    
-   INTEGER :: M,N,K,nline,iline,max_dim, best_square(4),i,isquare, opts(4), transpose_flavor, data_type
+   INTEGER :: M,N,K,nline,iline,max_dim, best_square(4),i,isquare, opts(4), transpose_flavor, data_type, SIMD_size
    INTEGER, DIMENSION(:,:), ALLOCATABLE :: tiny_opts
    REAL, DIMENSION(:), ALLOCATABLE :: tiny_perf,square_perf
    REAL :: tmp
    CHARACTER(LEN=1024) :: arg,filename,line,label
+   INTEGER :: ibest_square=3
    
    CALL GET_COMMAND_ARGUMENT(1,arg)
    READ(arg,*) M
@@ -30,24 +32,35 @@ PROGRAM small_gen
    READ(arg,*) transpose_flavor
    CALL GET_COMMAND_ARGUMENT(5,arg)
    READ(arg,*) data_type
-   
+   CALL GET_COMMAND_ARGUMENT(6,arg)
+   READ(arg,*) SIMD_size
+   CALL GET_COMMAND_ARGUMENT(7,filename)
+
    ! generation of the tiny version
    write(label,'(A,I0)') "_",1
-   CALL mult_versions(M,N,K,1,label,transpose_flavor,data_type)
+   CALL mult_versions(M,N,K,1,label,transpose_flavor,data_type,SIMD_size,filename)
 
    ! generation of the matmul version
    write(label,'(A,I0)') "_",2
-   CALL mult_versions(M,N,K,2,label,transpose_flavor,data_type)
+   CALL mult_versions(M,N,K,2,label,transpose_flavor,data_type,SIMD_size,filename)
 
    ! generation of the dgemm version
    write(label,'(A,I0)') "_",3
-   CALL mult_versions(M,N,K,3,label,transpose_flavor,data_type)
+   CALL mult_versions(M,N,K,3,label,transpose_flavor,data_type,SIMD_size,filename)
 
    ! generation of the multrec versions (4)
-   DO isquare=1,4
-      write(label,'(A,I0)') "_",3+isquare
-      CALL mult_versions(M,N,K,3+isquare,label,transpose_flavor,data_type)
+   DO isquare=1,SIZE(best_square)
+      write(label,'(A,I0)') "_",ibest_square+isquare
+      CALL mult_versions(M,N,K,ibest_square+isquare,label,transpose_flavor,data_type,SIMD_size,filename)
    ENDDO
+   
+   ! generation of the vector version, 
+   ! only in the case of SIMD_size=32(i.e. AVX) and SIMD_size=64(i.e. MIC)
+   IF ((SIMD_size==32 .OR. SIMD_size==64) .AND. transpose_flavor==1 .AND. data_type<=2) THEN
+      ibest_square=ibest_square+1
+      write(label,'(A,I0)') "_",ibest_square+SIZE(best_square)
+      CALL mult_versions(M,N,K,ibest_square+SIZE(best_square),label,transpose_flavor,data_type,SIMD_size,filename)
+   ENDIF
 
    ! test function
    CALL write_test_fun(M,N,K,transpose_flavor,data_type)
@@ -56,7 +69,7 @@ PROGRAM small_gen
    write(6,*)                    " PROGRAM small_find"
    write(6,*)                    "    IMPLICIT NONE"
    write(6,'(A,I0,A,I0,A,I0,A,I0)') "    INTEGER, PARAMETER :: M=",&
-         M,",N=",N,",K=",K,",Nmin=5,versions=",3+SIZE(best_square)
+         M,",N=",N,",K=",K,",Nmin=5,versions=",ibest_square+SIZE(best_square)
    CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
    write(6,*)                    "    REAL         :: timing(versions), best_time, test"
    write(6,*)                    "    REAL(KIND=KIND(0.D0)) :: flops,gflop"
@@ -66,22 +79,22 @@ PROGRAM small_gen
    CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
    write(6,*)                    "      END SUBROUTINE"
    write(6,*)                    "    END INTERFACE"
-   DO i=1,3+SIZE(best_square)
+   DO i=1,ibest_square+SIZE(best_square)
       write(6,'(A,I0,A,I0,A,I0,A,I0)') "PROCEDURE(X) :: smm_"//trstr(transpose_flavor,data_type)//"_",&
           M,"_",N,"_",K,"_",i
    ENDDO
    write(6,*)                    ""
    write(6,*)                    "    flops=2*REAL(M,KIND=KIND(0.D0))*N*K"
    write(6,*)                    "    gflop=1000.0D0*1000.0D0*1000.0D0"
-   write(6,*)                    "    ! assume we would like to do 10 Gflop for testing a subroutine"
-   write(6,*)                    "    Niter=MAX(1,CEILING(MIN(100000000.0D0,5*gflop/flops)))"
+   write(6,*)                    "    ! assume we would like to do 1 Gflop for testing a subroutine"
+   write(6,*)                    "    Niter=MAX(1,CEILING(MIN(100000000.0D0,1*gflop/flops)))"
    write(6,*)                    ""
    write(6,*)                    "    best_time=HUGE(best_time)"
    write(6,*)                    "    timing=best_time"
    write(6,*)                    "    C=0 ; A=0 ; B=0  "
    write(6,*)                    ""
    write(6,*)                    "    DO imin=1,Nmin"
-   DO i=1,3+SIZE(best_square)
+   DO i=1,ibest_square+SIZE(best_square)
           write(6,*) "       timing(",i,")= &"
           write(6,*) "       MIN(timing(",i,"), &"
           write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "   TEST(smm_"//trstr(transpose_flavor,data_type)//"_",&

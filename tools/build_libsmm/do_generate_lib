@@ -1,9 +1,21 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #
 # load parameters
 #
 source config.in
+
+#
+# run in batch
+#
+
+if [ $# -eq 0 -a "$run_cmd" = "batch_cmd" ]; then
+    test_name="$(basename $0)"
+    ${run_cmd} ./$0 1
+    exit
+fi
+
+dims_small=`echo ${dims_small} | tr "\n" " "` # remove \n
 
 #
 # compile the generator of small mults
@@ -16,6 +28,12 @@ ${host_compile} mults.o multrec_gen.o lib_gen.f90 -o lib_gen.x
 # directory for the library
 #
 mkdir -p lib
+
+#
+# Create the directory to store all files
+#
+lib_dir="run_lib"${type_label}
+mkdir -p ${lib_dir}
 
 #
 # generate the generic caller
@@ -110,10 +128,12 @@ fi
 filetrans="${filetype}${filetrans}"
 file="smm_${filetrans}.f90"
 
-cd lib
+cd ${lib_dir}
 
 rm -f ${file}
-printf "SUBROUTINE smm_${filetrans}(M,N,K,A,B,C)\n INTEGER :: M,N,K,LDA,LDB\n ${strdat} :: C(M,N), ${decl}\n" >> ${file}
+
+printf "SUBROUTINE smm_${filetrans}(M,N,K,A,B,C)\n" >> ${file}
+printf " INTEGER :: M,N,K,LDA,LDB\n ${strdat} :: C(M,N), ${decl}\n" >> ${file}
 printf " INTEGER, PARAMETER :: indx(0:$maxsize)=&\n $eles\n" >> ${file}
 printf " INTEGER :: im,in,ik,itot\n" >> ${file}
 printf " $strdat, PARAMETER :: one=1\n" >> ${file}
@@ -145,65 +165,125 @@ done
 printf " END SELECT\n" >> ${file}
 printf " RETURN\n" >> ${file}
 printf "999 CONTINUE \n CALL ${gemm}('%s','%s',M,N,K,one,A,LDA,B,LDB,one,C,M)\n" $ta $tb >> ${file}
-
-printf "END SUBROUTINE smm_${filetrans}" >> ${file}
+printf "END SUBROUTINE smm_${filetrans}\n\n" >> ${file}
 
 cd ..
 
-#
-# generate list of loop bounds to generate for the small library
-#
-postfixes=""
-for m in ${dims_small}  ; do
-for n in ${dims_small}  ; do
-for k in ${dims_small}  ; do
- postfixes="$postfixes ${m}_${n}_${k}"
-done
-done
-done
+
+make_file="Makefile.lib"${type_label}
+library="smm"${type_label}
+if [ -n "${mic+xxxx}" ]; then
+make_file="Makefile_${mic}.lib"${type_label}
+library=${library}_${mic}
+fi
+archive="../lib/lib${library}.a"
 
 #
 # for easy parallelism go via a Makefile
 #
-rm -f Makefile.lib
+rm -f ${make_file}
+
+#
+# Input tiny and small optimal file
+#
+in_tiny_file="tiny_gen_optimal"
+in_small_file="small_gen_optimal"
+if [ -n "${mic+xxxx}" ]; then
+in_tiny_file="${in_tiny_file}_${mic}"
+in_small_file="${in_small_file}_${mic}"
+fi
+in_tiny_file=${in_tiny_file}${type_label}
+in_small_file=${in_small_file}${type_label}
 
 (
 #
 # a two stage approach, first compile in parallel, once done,
 # execute in parallel
 #
-printf "all: archive\n"
 
-printf "driver:\n"
-printf "\t cd lib/ ; $target_compile -c ${file} \n\n"
-
-printf "archive: compile driver \n"
-printf "\t cd lib/ ; ar -r libsmm_${filetrans}.a smm_${filetrans}*.o \n\n"
-
-printf "compile: "
-for pf in $postfixes ; do
-    printf "comp_${pf} "
-done
+#
+# generate the list of indices files
+#
+printf "DIMS_SMALL    = ${dims_small}\n"
+printf "DIMS_INDICES = \$(foreach m,\$(DIMS_SMALL),\$(foreach n,\$(DIMS_SMALL),\$(foreach k,\$(DIMS_SMALL),\$m_\$n_\$k)))"
 printf "\n\n"
 
 #
-# all compile rules
+# consider only a sub-range of all indices
 #
-for m in ${dims_small}  ; do
-for n in ${dims_small}  ; do
-for k in ${dims_small}  ; do
-    printf "comp_${m}_${n}_${k}: \n"
-    printf "\t ./lib_gen.x ${m} ${n} ${k} ${transpose_flavor} ${data_type} > lib/smm_${filetrans}_${m}_${n}_${k}.f90\n"
-    printf "\t cd lib/ ; $target_compile -c smm_${filetrans}_${m}_${n}_${k}.f90 \n\n"
-done ; done ; done
+printf "SI = 1\n"
+printf "EI = \$(words \$(DIMS_INDICES))\n"
+printf "INDICES = \$(wordlist \$(SI),\$(EI),\$(DIMS_INDICES))\n\n"
 
-) > Makefile.lib
+#
+# output directory for compiled and results files
+#
+printf "OUTDIR=${out_dir}\n\n"
+
+#
+# driver file
+#
+printf "DRIVER=${file%.*}.o \n\n"
+
+#
+# list of source files
+#
+printf "SRCFILES=\$(patsubst %%,smm_${filetrans}_%%.f90,\$(INDICES)) \n"
+
+#
+# list of obj files
+#
+printf "OBJFILES=\$(patsubst %%,\$(OUTDIR)/smm_${filetrans}_%%.o,\$(INDICES)) \n\n"
+
+printf ".PHONY: \$(OUTDIR)/\$(DRIVER) \n\n"
+
+printf "all: archive \n\n"
+
+#
+# generation source rule
+#
+printf "source: \$(SRCFILES) \n\n"
+
+printf "%%.f90: \n"
+printf '\t .././lib_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
+printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${in_small_file}.out ../${in_tiny_file}.out > \$@\n\n"
+
+printf "compile: \$(OBJFILES) \n\n"
+
+#
+# compile rule
+#
+printf "\$(OUTDIR)/%%.o: %%.f90 \n"
+printf "\t ${target_compile} -c \$< -o \$@ \n\n"
+
+printf "\$(OUTDIR)/\$(DRIVER): \n"
+printf "\t ${target_compile} -c \$(notdir \$*).f90 -o \$@ \n\n"
+
+printf "archive: ${archive} \n\n"
+
+printf "${archive}: \$(OBJFILES) \$(OUTDIR)/\$(DRIVER) \n"
+printf "\t ar -r \$@ \$^ \n\n"
+
+) > ${make_file}
+
+cd ${lib_dir}
+
+#
+# make the output dir
+#
+mkdir -p ${out_dir}
 
 #
 # execute makefile compiling all variants and executing them
 #
+make -B -j ${tasks} -f ../${make_file} ${target}
 
-make -j $tasks -f Makefile.lib all
+#
+# Stop the execution if the output files were not produced
+#
+if [ "$target" = "source" -o "$target" = "compile" ]; then
+    exit
+fi
 
 #
 # a final test program. Checking correctness and final performance comparison
@@ -319,26 +399,35 @@ cat << EOF >> test_smm_${filetrans}.f90
 END PROGRAM
 EOF
 
+
 #
 # compile the benchmarking and testing program for the smm library
 #
-${target_compile} test_smm_${filetrans}.f90 -o test_smm_${filetrans}.x -Llib -lsmm_${filetrans} ${blas_linking}
+${target_compile} test_smm_${filetrans}.f90 -o test_smm_${filetrans}.x -L../lib -l${library} ${blas_linking}
 
 #
 # run and compile the final test
 #
-./test_smm_${filetrans}.x | tee ./test_smm_${filetrans}.out
+test_out_file="test_smm_${filetrans}"
+if [ -n "${mic+xxxx}" ]; then
+test_out_file="${test_out_file}_${mic}"
+mic_cmd=ssh_mic_cmd
+fi
+test_out_file="${test_out_file}.out"
+
+${mic_cmd} ./test_smm_${filetrans}.x | tee ../${test_out_file}
 
 #
 # We're done... protect the user from bad compilers
 #
-grep 'BLAS and smm yield different results' ./test_smm_${filetrans}.out >& /dev/null
+set +e
+grep "BLAS and smm yield different results" ../${test_out_file} >& /dev/null
 if [ "$?" == "0" ]; then
    echo "Library is miscompiled ... removing lib/libsmm_${filetrans}.a"
-   rm -f lib/libsmm_${filetrans}.a
+   rm -f ${archive}
 else
-   pathhere=`pwd`
-   echo "Done... check performance looking at test_smm_${filetrans}.out"
-   echo "Final library can be linked as -L${pathhere}/lib -lsmm_${filetrans}"
+   pathhere=`cd ..; pwd`
+   echo "Done... check performance looking at ${test_out_file}"
+   echo "Final library can be linked as -L${pathhere}/lib -l${library}"
 fi
 

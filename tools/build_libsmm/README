@@ -8,18 +8,78 @@ Generation requires extensive compilation and timing runs, and is machine specif
 i.e. the library should be constructed on the architecture it is supposed to run.
 Using an 8 core machine, generation takes approx. 4 hours.
 
-How to generate the library (on a computer that allows for both execution and compilation)
+There are 3 possible methods to generate the library:
+a) execution on a single computer that allows for both execution and compilation (by Joost VandeVondele)
+b) execution in a cluster, where each computer allows for both execution and 
+   compilation (by Alfio Lazzaro, alazzaro@cray.com (2013))
+c) cross-compilation and execution for the Intel Xeon Phi (by Alfio Lazzaro, alazzaro@cray.com (2013))
 
-1) Modify config.in to set options such as compiler, compilation flags, blas library,
-   matrix sizes, and the number of available cores.
+Below you can find the detailed instructions per each method.
 
-2) Run the master script ./do_all
+====================================================================================================================
+a) How to generate the library on a computer that allows for both execution and compilation
 
-(Alternatively, edit config.mk and run the Makefile through GNU make.)
+   1) Modify config.in to set options such as compiler, compilation flags, blas library,
+      matrix sizes, and the number of available cores. In particular, some variables 
+      you may want to change are:
+      target_compile        --> compiler and compilation flags. For example:
+                                ifort -O2 -funroll-loops -vec-report2 -warn -mavx -fno-inline-functions -nogen-interfaces
+      SIMD_size             --> SIMD registers size (in bytes). Set to 32 (AVX) or 64 (Xeon Phi) to generate an 
+                                optimized vector version. Any other value (e.g. 16 for SSE) will not generate the vector version.
+                                Note that in the case of compilation for Intel Xeon Phi, the value 64 is automatically set.
+				The vector version is only generated for single and double precision real and no transpose matrices.
+      blas_linking          --> blas library. For example (Intel compiler case): -static-intel -mkl=sequential
+      dims_small, dims_tiny --> Matrix dimensions 
+      tasks                 --> Number of parallel tasks used by the make command
 
-3) the library is generated, check test_smm_*.out for performance, and correctness.
+   2) Run the master script ./do_all
 
-4) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
+      (Alternatively, edit config.mk and run the Makefile through GNU make.)
+
+   3) The library is generated, check test_smm_*.out for performance, and correctness.
+
+   4) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
+
+
+====================================================================================================================
+b) How to generate the library running several jobs in a cluster, where each computer allows for both execution and
+   compilation
+
+   1) Follow the instructions in the point 1) of the method a). Furthermore, it requires to set in the config.in:
+      - the number of jobs (variable jobs)
+      - the command to run in batch inside the batch_cmd function. By default is PBS in a CRAY environment
+
+   2) Uncomment the line 'run_cmd=batch_cmd' in the config.in
+
+   3) Run ./do_generate_tiny, which will submit the batch jobs
+
+   4) Once all jobs have completed their execution, comment in config.in 'run_cmd=batch_cmd' and uncomment 'run_cmd=true'
+
+   5) Run again ./do_generate_tiny. At this time it will run on the local node, collecting all results (it can take a while)
+
+   6) Repeat points 3), 4), and 5) running ./do_generate_small
+
+   7) Finally run ./do_generate_lib. The library is generated, check test_smm_*.out for performance, and correctness.
+
+   8) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
+
+
+====================================================================================================================
+c) How to generate the library for the Intel Xeon Phi
+
+   1) First of all you need to connect to the host system of the Intel Xeon Phi.
+
+   2) Follow the instructions in the point 1) of the method a). Furthermore, it requires to set in the config.in:
+      - the target_compile variable with the flag -mmic, e.g.:
+        target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces"
+      - the variable MICFS to the exported directory between host and Intel Xeon Phi, e.g. MICFS=~
+  
+   3) Run the master script ./do_all
+
+   4) The library is generated, check test_smm_*_MIC.out for performance, and correctness.
+
+   5) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean   
+
 
 The following copyright covers code and generated library
 !====================================================================================================================

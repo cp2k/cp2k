@@ -142,7 +142,7 @@ run_tiny_%/tiny_find.out: run_tiny_%/tiny_find.x | do.compile.tiny
 .PRECIOUS : run_small_%/small_find.f90
 run_small_%/small_find.f90: $(VERYLOOSE) tiny_gen_optimal.out $(LOOSE) small_gen.x
 	mkdir -p run_small_$*
-	./small_gen.x $(subst _, ,$*) $(transpose_flavor) $(data_type) > $@
+	./small_gen.x $(subst _, ,$*) $(transpose_flavor) $(data_type) $(SIMD_size) "tiny_gen_optimal.out" > $@
 
 # Compile and link small source files
 .PRECIOUS : run_small_%/small_find.x
@@ -214,7 +214,7 @@ lib/smm_m_$(filetrans)_%.o: lib/smm_m_$(filetrans)_%.f90
 # Small MM source
 .PRECIOUS: lib/smm_m_$(filetrans)_%.f90
 lib/smm_m_$(filetrans)_%.f90: lib_gen.x small_gen_optimal.out | libdir
-	./lib_gen.x $(subst _, ,$*) $(transpose_flavor) $(data_type) > $@.tmp
+	./lib_gen.x $(subst _, ,$*) $(transpose_flavor) $(data_type) $(SIMD_size) "small_gen_optimal.out" "tiny_gen_optimal.out" > $@.tmp
 	@mv $@.tmp $@
 
 

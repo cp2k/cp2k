@@ -4,11 +4,11 @@ PROGRAM lib_gen
    IMPLICIT NONE
    
    INTEGER :: M,N,K
-   CHARACTER(LEN=1024) :: arg,filename,line,label
+   CHARACTER(LEN=1024) :: arg,filename_small,filename_tiny,line,label
    REAL :: tmp
    INTEGER, DIMENSION(:,:), ALLOCATABLE ::  small_opts
    REAL, DIMENSION(:), ALLOCATABLE :: small_perf
-   INTEGER :: opt,iline,nline,transpose_flavor,data_type
+   INTEGER :: opt,iline,nline,transpose_flavor,data_type, SIMD_size
    
    CALL GET_COMMAND_ARGUMENT(1,arg)
    READ(arg,*) M
@@ -20,13 +20,16 @@ PROGRAM lib_gen
    READ(arg,*) transpose_flavor
    CALL GET_COMMAND_ARGUMENT(5,arg)
    READ(arg,*) data_type
+   CALL GET_COMMAND_ARGUMENT(6,arg)
+   READ(arg,*) SIMD_size
+   CALL GET_COMMAND_ARGUMENT(7,filename_small)
+   CALL GET_COMMAND_ARGUMENT(8,filename_tiny)
 
    !
    ! filename is the result of small optimization (cat small_gen_optimal.out )
    ! 6 13 6    4    0.756046       6.613
    !
-   filename="small_gen_optimal.out"
-   OPEN(UNIT=10,FILE=filename)
+   OPEN(UNIT=10,FILE=filename_small)
    REWIND(10)
    nline=0
    DO
@@ -46,7 +49,7 @@ PROGRAM lib_gen
    CALL find_small_opt(opt,small_opts,m,n,k)
 
    label=""
-   CALL mult_versions(M,N,K,opt,label,transpose_flavor,data_type)
+   CALL mult_versions(M,N,K,opt,label,transpose_flavor,data_type,SIMD_size,filename_tiny)
 
 CONTAINS
 

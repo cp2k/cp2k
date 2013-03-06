@@ -1,94 +1,178 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #
 # load parameters
 #
 source config.in
+dims_small=`echo ${dims_small} | tr "\n" " "` # remove \n
 
 #
 # compile the generator of small mults
 #
-${host_compile}  -c mults.f90 
-${host_compile}  -c multrec_gen.f90 
+${host_compile}  -c mults.f90
+${host_compile}  -c multrec_gen.f90
 ${host_compile}  mults.o multrec_gen.o small_gen.f90 -o small_gen.x
 
+make_file="Makefile.small"${type_label}
+if [ -n "${mic+xxxx}" ]; then
+make_file="Makefile_${mic}.small"${type_label}
 
-
-#
-# generate list of loop bounds to generate for the small library
-#
-postfixes=""
-for m in ${dims_small}  ; do
-for n in ${dims_small}  ; do
-for k in ${dims_small}  ; do
- postfixes="$postfixes ${m}_${n}_${k}"
-done
-done
-done
+fi
 
 #
 # for easy parallelism go via a Makefile
 #
-rm -f Makefile.small
+rm -f ${make_file}
+
+#
+# Create the directory to store all files
+#
+small_dir="run_small"${type_label}
+mkdir -p ${small_dir}
+
+#
+# Input tiny optimal file
+#
+in_tiny_file="tiny_gen_optimal"
+if [ -n "${mic+xxxx}" ]; then
+in_tiny_file="${in_tiny_file}_${mic}"
+fi
+in_tiny_file=${in_tiny_file}${type_label}
 
 (
 #
 # a two stage approach, first compile in parallel, once done,
 # execute in parallel
 #
+
+#
+# generate the list of indices files
+#
+printf "DIMS_SMALL    = ${dims_small}\n"
+printf "DIMS_INDICES = \$(foreach m,\$(DIMS_SMALL),\$(foreach n,\$(DIMS_SMALL),\$(foreach k,\$(DIMS_SMALL),\$m_\$n_\$k)))"
+printf "\n\n"
+
+#
+# consider only a sub-range of all indices
+#
+printf "SI = 1\n"
+printf "EI = \$(words \$(DIMS_INDICES))\n"
+printf "INDICES = \$(wordlist \$(SI),\$(EI),\$(DIMS_INDICES))\n\n"
+
+#
+# output directory for compiled and results files
+#
+printf "OUTDIR=${out_dir}\n\n"
+
+#
+# list of source files
+#
+printf "SRCFILES=\$(patsubst %%,small_find_%%.f90,\$(INDICES)) \n"
+
+#
+# list of executables
+#
+printf "EXEFILES=\$(patsubst %%,\$(OUTDIR)/small_find_%%.x,\$(INDICES)) \n"
+
+#
+# list of output files
+#
+printf "OUTFILES=\$(patsubst %%,\$(OUTDIR)/small_find_%%.out,\$(INDICES)) \n\n"
+
+
 printf "all: bench \n\n"
 
-printf "compile: "
-for pf in $postfixes ; do
-    printf "comp_${pf} "
+#
+# generation source rule
+#
+printf "source: \$(SRCFILES) \n\n"
+
+printf "%%.f90: \n"
+printf '\t .././small_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
+printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${in_tiny_file}.out > \$@\n\n"
+
+printf "compile: \$(EXEFILES) \n\n"
+
+#
+# compile rule
+#
+printf "\$(OUTDIR)/%%.x: %%.f90 \n"
+printf "\t ${target_compile} \$< -o \$@ ${blas_linking} \n\n"
+
+printf "bench: \$(OUTFILES) \n\n"
+
+#
+# execute rule
+#
+printf "\$(OUTDIR)/%%.out: \$(OUTDIR)/%%.x \n"
+printf "\t ${mic_cmd} ./\$<"
+if [[ ( -n ${mic_cmd} ) && ( -n ${OMP_NUM_THREADS} ) ]]; then
+    printf " -e \"OMP_NUM_THREADS=${OMP_NUM_THREADS}\""
+fi
+printf " > \$@ \n\n"
+
+) > ${make_file}
+
+
+cd ${small_dir}
+
+#
+# make the output dir
+#
+
+mkdir -p ${out_dir}
+
+#
+# execute makefile compiling all variants and executing them.
+# Execution in several jobs
+#
+ndims=`echo ${dims_small} | wc -w`
+nelements=$((ndims*ndims*ndims))
+nelements_in=$((nelements / jobs))
+nelements_out=$((nelements % jobs))
+element_start=1
+element_end=0
+
+echo "# Elements = ${ndims}^3 = ${nelements} split in ${jobs} jobs."
+
+for (( ijob=1 ; ijob<=jobs; ijob++ )); do
+
+    element_end=$(( element_end + nelements_in ))
+
+    if [ ${ijob} -le ${nelements_out} ]; then
+        element_end=$(( element_end + 1))
+    fi
+
+    test_name=${small_dir}_job${ijob}
+    echo "Launching elements ${element_start} --> ${element_end} (${test_name})"
+
+    ${run_cmd} make -B -j ${tasks} -f ../${make_file} ${target} SI=${element_start} EI=${element_end}
+
+    element_start=$(( element_end + 1))
+
 done
-printf "\n\n"
 
 #
-# all compile rules
+# Stop the execution if the output files were not produced
 #
-for m in ${dims_small}  ; do
-for n in ${dims_small}  ; do
-for k in ${dims_small}  ; do
-    printf "comp_${m}_${n}_${k}:\n"
-    printf "\t mkdir -p run_small_${m}_${n}_${k}\n"
-    printf "\t ./small_gen.x ${m} ${n} ${k} ${transpose_flavor} ${data_type}  > run_small_${m}_${n}_${k}/small_find.f90\n"
-    printf "\t cd run_small_${m}_${n}_${k} ; ${target_compile} small_find.f90 -o small_find.x ${blas_linking} \n\n"
-done ; done ; done
-
-printf "bench: "
-for pf in $postfixes ; do
-    printf "bench_${pf} "
-done
-printf "\n\n"
-
-#
-# all execute rules
-#
-for m in ${dims_small}  ; do
-for n in ${dims_small}  ; do
-for k in ${dims_small}  ; do
-    printf "bench_${m}_${n}_${k}: compile\n"
-    printf "\t cd run_small_${m}_${n}_${k} ; ./small_find.x > small_find.out \n\n"
-done ; done ; done
-
-) > Makefile.small
-
-#
-# execute makefile compiling all variants and executing them
-#
-
-make -j $tasks -f Makefile.small all
+if [ "$target" = "source" -o "$target" = "compile" -o "$run_cmd" = "batch_cmd" ]; then
+    exit
+fi
 
 #
 # analyse results finding optimal small mults
 #
+out_file="small_gen_optimal"
+if [ -n "${mic+xxxx}" ]; then
+out_file="${out_file}_${mic}"
+fi
+
 (
 for m in ${dims_small}  ; do
 for n in ${dims_small}  ; do
 for k in ${dims_small}  ; do
-    file=run_small_${m}_${n}_${k}/small_find.out
-    res=`tail -n 1 $file`
+    file=small_find_${m}_${n}_${k}.out
+    res=`tail -n 1 ${out_dir}/$file`
     echo "$m $n $k $res"
 done ; done ; done
-) > small_gen_optimal.out
+) > ../${out_file}${type_label}.out

@@ -28,6 +28,14 @@ data_type=1
 FC ?= gfortran
 FCFLAGS ?= -O2 -funroll-loops -ffast-math -ftree-vectorize -march=native -fno-inline-functions
 target_compile= $(FC) $(FCFLAGS)
+
+#
+# SIMD registers size (in bytes)
+# Set to 32 (AVX) or 64 (Xeon Phi) to generate an optimized vector version
+# Any other value will not generate the vector version. 
+#
+SIMD_size=0
+
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)
 # blas is used as a fall back option for sizes not included in the library or in those cases where it is faster

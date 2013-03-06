@@ -8,6 +8,7 @@
 ! 5) multrec 2
 ! 6) multrec 3
 ! 7) multrec 4
+! 8) Vector version
 !
 MODULE multrec_gen
   USE mults
@@ -59,8 +60,85 @@ CONTAINS
     ENDIF
   END SUBROUTINE MULTREC
 
-  SUBROUTINE mult_versions(M,N,K,version,label,transpose_flavor,data_type)
-     INTEGER :: m,n,k,version,transpose_flavor,data_type
+  FUNCTION trsum(last)
+    LOGICAL :: last
+    CHARACTER(LEN=25) :: trsum
+    IF (last) THEN
+       trsum=""
+    ELSE
+       trsum="+ &"
+    ENDIF
+  END FUNCTION trsum
+  
+  SUBROUTINE MULTVECTOR(M,N,K,data_type,nSIMD,stride)
+    INTEGER :: M,N,K,sj,je,ji,sl,le,li
+    INTEGER :: data_type,nSIMD,stride
+    INTEGER :: multElements,modElements
+
+    multElements=(M/nSIMD)*nSIMD
+    modElements=MOD(M,nSIMD)
+
+    IF (modElements>0.AND.nSIMD>0.AND.stride>0) THEN
+       write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type)//":: Cbuffer(",nSIMD,",",stride,")"
+    ENDIF
+    
+    write(6,'(A)') "      INTEGER :: i"
+
+    sj=stride ! blocking dimension in N
+    sl=stride ! blocking dimension in K
+
+    DO je=1,N,sj
+
+       DO le=1,K,sl
+
+          IF (multElements>0) THEN
+             write(6,*) "     DO i=",1,",",multElements,",",1
+             DO ji=je,MIN(je+sj-1,N),1
+                write(6,'(A,I0,A,I0,A)') "       C(i,",ji,")=C(i,",ji,")+ &"
+                DO li=le,MIN(le+sl-1,K),1
+                   write (6,'(A,I0,A,I0,A,I0,A)') "         A(i,",&
+                     li,")*B(",li,",",ji,")"//trsum(li==MIN(le+sl-1,K))
+                ENDDO
+             ENDDO
+             write(6,*) "     ENDDO "
+          ENDIF
+
+          ! consider remaining elements
+          IF (modElements>0) THEN
+             write(6,*) "     DO i=",1,",",nSIMD,",",1
+             DO ji=je,MIN(je+sj-1,N),1
+                IF (le>1) THEN
+                   write(6,'(A,I0,A,I0,A)') "       Cbuffer(i,",&
+                     MOD(ji-1,sj)+1,")=Cbuffer(i,",MOD(ji-1,sj)+1,")+ &"
+                ELSE
+                   write(6,'(A,I0,A,I0,A,I0,A)') "       Cbuffer(i,",&
+                     MOD(ji-1,sj)+1,")=C(i+",multElements,",",ji,")+ &"
+                ENDIF
+
+                DO li=le,MIN(le+sl-1,K),1
+                   write (6,'(A,I0,A,I0,A,I0,A,I0,A)') "         A(i+",&
+                     multElements,",",li,")*B(",li,",",ji,")"//trsum(li==MIN(le+sl-1,K))
+                ENDDO
+             ENDDO
+             write(6,*) "     ENDDO "
+          
+          ENDIF
+       ENDDO
+
+       ! copy the remaining elements
+       IF (modElements>0) THEN
+          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') "      C(",&
+            1+multElements,":",M,",",je,":",MIN(je+sj-1,N),")=Cbuffer(", &
+            1,":",modElements,",1:",MIN(je+sj,N+1)-je,")"
+          
+       ENDIF
+
+    ENDDO
+
+  END SUBROUTINE MULTVECTOR
+
+  SUBROUTINE mult_versions(M,N,K,version,label,transpose_flavor,data_type,SIMD_size,filename)
+     INTEGER :: m,n,k,version,transpose_flavor,data_type,SIMD_size
      INTEGER, ALLOCATABLE, DIMENSION(:,:) :: tiny_opts
      INTEGER :: best_square(4)
      REAL, ALLOCATABLE, DIMENSION(:)      :: tiny_perf,square_perf
@@ -68,12 +146,28 @@ CONTAINS
      CHARACTER(LEN=*) :: label
      INTEGER :: opts(4),blocksize,i,iline,nline,max_dim,isquare
      REAL :: tmp
+     INTEGER :: size_type, nSIMD
+     INTEGER, PARAMETER :: stride=8 ! used for the unrolling
+     size_type=0; nSIMD=0
+
+     ! only in the case of SIMD_size=32(i.e. AVX) and SIMD_size=64(i.e. MIC)
+     IF ((SIMD_size==32 .OR. SIMD_size==64) .AND. transpose_flavor==1 .AND. data_type<=2 .AND. &
+          (LABEL=="" .OR. version==8)) THEN
+
+        SELECT CASE(data_type)
+        CASE(1)
+           size_type=8 !double precision bytes
+        CASE(2)
+           size_type=4 !single precision bytes
+        END SELECT
+     
+        nSIMD=SIMD_size/size_type
+     ENDIF
 
      !
      ! filename is the result of tiny optimization (cat tiny_gen_optimal.out)
      ! 1 1 1    5   1   1   1    0.376023       0.532
      !
-     filename="tiny_gen_optimal.out"
      OPEN(UNIT=10,FILE=filename)
      REWIND(10)
      nline=0
@@ -169,6 +263,15 @@ CONTAINS
        blocksize=best_square(isquare)
        CALL MULTREC(1,M,1,N,1,K,blocksize,tiny_opts,transpose_flavor,data_type)
        write(6,'(A)') "   END SUBROUTINE"
+     CASE(8)
+        ! generation of the vector version
+        IF (nSIMD>0) THEN
+           write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+                M,"_",N,"_",K,TRIM(label),"(A,B,C)"
+           CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
+           CALL MULTVECTOR(M,N,K,data_type,nSIMD,stride)
+           write(6,'(A)') "   END SUBROUTINE"
+        ENDIF
      CASE DEFAULT
        STOP "MISSING CASE mult_versions"
      END SELECT

@@ -1,5 +1,6 @@
-rm -fR run_tiny_*_*_*/
-rm -fR run_small_*_*_*/
-rm -fR lib/*.o
-rm -fR lib/*.f90
-rm -fR rm *.mod Makefile.* *.x *.o test_smm_*.f90
+rm -fR run_tiny_*/
+rm -fR run_small_*/
+rm -fR run_lib_*/
+
+rm -f *.mod Makefile.* *.x *.o test_smm_*.f90
+rm -f *~ Makefile_MIC.*
