@@ -5,6 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Calculation of Overlap and Hamiltonian matrices in DFTB
+!>        major bug fix 09/03/2013
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dftb_matrices
@@ -409,10 +410,10 @@ CONTAINS
            IF ( irow == iatom ) THEN
              CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
              CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-             CALL turnsk(sblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+             CALL turnsk(sblock,skabji,skabij,rij,dr,lmaxi,lmaxj)
              CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
              CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-             CALL turnsk(fblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+             CALL turnsk(fblock,skabji,skabij,rij,dr,lmaxi,lmaxj)
            ELSE
              CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
              CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
@@ -436,10 +437,10 @@ CONTAINS
                IF ( irow == iatom ) THEN
                  CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
                  CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                 CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                 CALL turnsk(dsblock,skabji,skabij,rij,dr,lmaxi,lmaxj)
                  CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
                  CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                 CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                 CALL turnsk(dfblock,skabji,skabij,rij,dr,lmaxi,lmaxj)
                ELSE
                  CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
                  CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
@@ -455,10 +456,10 @@ CONTAINS
                IF ( irow == iatom ) THEN
                  CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
                  CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                 CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                 CALL turnsk(dsblock,skabji,skabij,rij,dr,lmaxi,lmaxj)
                  CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
                  CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                 CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                 CALL turnsk(dfblock,skabji,skabij,rij,dr,lmaxi,lmaxj)
                ELSE
                  CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
                  CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
