@@ -375,7 +375,7 @@ CONTAINS
           DO iwindow=1,nwindow
           gdensity(igrid,iwindow) =kernel_g(1)*aitchev_T(1,iwindow) +2.0_dp*dummy2(iwindow)
           END DO
-          WRITE(unit_dos,'(10F16.8)') chev_E(igrid), dos(igrid), gdensity(igrid,:)
+          WRITE(unit_dos,'(1000F16.8)') chev_E(igrid), dos(igrid), gdensity(igrid,:)
        END DO
        DEALLOCATE (chev_Es_dos, chev_E, dos, gdensity)
     ENDIF
