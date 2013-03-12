@@ -189,6 +189,7 @@ MODULE qs_scf
                                              do_special_diag
   USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
   USE qs_scf_methods,                  ONLY: scf_env_density_mixing
+  USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
   USE qs_scf_types,                    ONLY: &
@@ -397,7 +398,7 @@ CONTAINS
             IF     (dft_control%qs_control%semi_empirical) THEN
                CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
             ELSEIF (dft_control%qs_control%dftb) THEN
-               ! Do Nothing
+               CALL scf_post_calculation_dftb (dft_section, scf_env, qs_env, error)
             ELSEIF (dft_control%qs_control%scptb) THEN
                ! Do Nothing
             ELSEIF (dft_control%qs_control%ofgpw) THEN

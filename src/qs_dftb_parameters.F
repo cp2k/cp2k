@@ -620,7 +620,7 @@ CPSourceFileRef,&
             found = .TRUE.
             ra = ra/angstrom
             da = da/kcalmol
-            CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,xi=ra,di=da,error=error)
+            CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,name=iname,xi=ra,di=da,error=error)
             EXIT
           END IF
         END DO

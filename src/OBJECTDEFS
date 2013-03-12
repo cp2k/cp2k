@@ -583,6 +583,7 @@ OBJECTS_GENERIC =\
  qs_scf_lanczos.o\
  qs_scf_methods.o\
  qs_scf.o\
+ qs_scf_post_dftb.o\
  qs_scf_post_gpw.o\
  qs_scf_post_se.o\
  qs_scf_types.o\
