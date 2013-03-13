@@ -14,7 +14,8 @@
 MODULE gauss_colloc
   USE d3_poly
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE lgrid_types,                     ONLY: lgrid_type
 
   !$ USE OMP_LIB
@@ -36,6 +37,10 @@ PUBLIC :: collocGauss, collocGauss_safe,sphRad2,calc_max_r2,&
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gauss_colloc'
 
     REAL(dp), PARAMETER :: small=TINY(1.0_dp)
+
+  ! keep prettify happy (does not see the include)
+  INTEGER(KIND=int_8), PARAMETER           :: unused_import_of_int_8=1
+
 
 CONTAINS
 
@@ -400,13 +405,16 @@ SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
     REAL(dp), DIMENSION(0:2), INTENT(in), &
       OPTIONAL                               :: poly_shift
     REAL(dp), INTENT(in), OPTIONAL           :: scale
-    TYPE(lgrid_type), INTENT(inout), OPTIONAL :: lgrid
+    TYPE(lgrid_type), INTENT(inout), &
+      OPTIONAL                               :: lgrid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocGauss', &
-        routineP=moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+
 
 #include "colloc_int_body.f90"
+
 END SUBROUTINE
 
 ! *****************************************************************************

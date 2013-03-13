@@ -94,7 +94,7 @@
     det=(h(0,0)*(h(1,1)*h(2,2)-h(1,2)*h(2,1))&
         -h(1,0)*(h(0,1)*h(2,2)-h(0,2)*h(2,1))&
         +h(2,0)*(h(0,1)*h(1,2)-h(0,2)*h(1,1)))
-    g_scale=g_scale*ABS(det)/REAL(ndim(0)*ndim(1)*ndim(2),dp)
+    g_scale=g_scale*ABS(det)/REAL(INT(ndim(0),KIND=int_8)*INT(ndim(1),KIND=int_8)*INT(ndim(2),KIND=int_8),dp)
 #endif
     IF (PRESENT(local_bounds)) THEN
         DO i=0,2
