@@ -859,7 +859,7 @@ CPSourceFileRef)
 
        colvar%rmsd_param%nr_frames=nr_frame
        ! Calculation is aborted if reference frame are less than 2
-       CPPostcondition((nr_frame>=2),cp_failure_level,routineP,error,failure)
+       CPPostcondition((nr_frame>=1.AND.nr_frame<=2),cp_failure_level,routineP,error,failure)
        CALL read_frames(frame_section,para_env,nr_frame,colvar%rmsd_param%r_ref,&
               colvar%rmsd_param%n_atoms,error=error)
 
@@ -906,7 +906,7 @@ CPSourceFileRef)
              colvar%rmsd_param%n_atoms = ndim
           ELSE
              CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms and a list of weight need to be provided "//&
+                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms needs to be provided "//&
                   CPSourceFileRef)
           END IF
           CALL section_vals_val_get(rmsd_section,"WEIGHTS",n_rep_val=n_var,error=error)
@@ -930,7 +930,7 @@ CPSourceFileRef)
              CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
           ELSE
              CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms and a list of weight need to be provided. "//&
+                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. "//&
                   CPSourceFileRef)
           END IF
 
@@ -939,7 +939,6 @@ CPSourceFileRef)
                "CV RMSD: unknown SUBSET_TYPE."//&
                CPSourceFileRef)
        END IF
-       CALL section_vals_val_get(rmsd_section,"ALIGN_FRAMES",l_val=colvar%rmsd_param%align_frames,error=error)
     ELSE IF (my_subsection(17)) THEN
        ! Work on XYZ positions of atoms
        wrk_section => xyz_diag_section
@@ -4669,14 +4668,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-
-    CPPrecondition(colvar%rmsd_param%nr_frames>=2,cp_failure_level,routineP,error,failure)
-    IF(colvar%rmsd_param%nr_frames==2) THEN
-      CALL rmsd_ab_colvar(colvar,subsys,particles,error)
-    ELSE
-!     NYI
-    END IF
-
+    CALL rmsd_colvar_low(colvar,subsys,particles,error)
   END SUBROUTINE rmsd_colvar
 
 ! *****************************************************************************
@@ -4687,8 +4679,9 @@ CPSourceFileRef,&
 !>        as selected by the input keyword LIST
 !> \author MI
 !> \date  12.2009
+!> \history TL 2012 (generalized to any number of frames)
 ! *****************************************************************************
-  SUBROUTINE rmsd_ab_colvar(colvar,subsys,particles,error)
+  SUBROUTINE rmsd_colvar_low(colvar,subsys,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
@@ -4696,16 +4689,17 @@ CPSourceFileRef,&
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_ab_colvar', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_colvar_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, istat, natom
+    INTEGER                                  :: i, ii, natom, nframes, stat
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: cv_val, dera, derb, f1, &
-                                                ftmp(3), rmsdA, rmsdB
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: r, r0a, r0b
+    REAL(kind=dp)                            :: cv_val, f1, ftmp(3)
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: der, r, rmsd
     REAL(kind=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: drmsdA, drmsdB
+      DIMENSION(:, :)                        :: r0
+    REAL(kind=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: drmsd
     REAL(kind=dp), DIMENSION(:), POINTER     :: weights
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
@@ -4724,61 +4718,86 @@ CPSourceFileRef,&
     END IF
 
     natom = SIZE(my_particles)
-    ALLOCATE (drmsdA(3,natom),STAT=istat)
-    drmsdA = 0.0_dp
-    ALLOCATE (drmsdB(3,natom),STAT=istat)
-    drmsdB = 0.0_dp
+    nframes=colvar%rmsd_param%nr_frames
+    ALLOCATE (drmsd(3,natom,nframes),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    drmsd = 0.0_dp
 
-    ALLOCATE (r0a(3*natom),STAT=istat)
-    ALLOCATE (r0b(3*natom),STAT=istat)
-    ALLOCATE (r(3*natom),STAT=istat)
+    ALLOCATE (r0(3*natom,nframes),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (rmsd(nframes),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (der(nframes),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (r(3*natom),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     weights => colvar%rmsd_param%weights
     DO i = 1,natom
       ii = (i-1)*3
-      r0a(ii+1) = colvar%rmsd_param%r_ref(ii+1,1)
-      r0a(ii+2) = colvar%rmsd_param%r_ref(ii+2,1)
-      r0a(ii+3) = colvar%rmsd_param%r_ref(ii+3,1)
-      r0b(ii+1) = colvar%rmsd_param%r_ref(ii+1,2)
-      r0b(ii+2) = colvar%rmsd_param%r_ref(ii+2,2)
-      r0b(ii+3) = colvar%rmsd_param%r_ref(ii+3,2)
       r(ii+1) = my_particles(i)%r(1)
       r(ii+2) = my_particles(i)%r(2)
       r(ii+3) = my_particles(i)%r(3)
     END DO
-    rmsdA = 0.0_dp
-    rmsdB = 0.0_dp
+    r0 = colvar%rmsd_param%r_ref
+    rmsd = 0.0_dp
 
-    CALL rmsd3(my_particles,r,r0a,output_unit=-1,weights=weights,my_val=rmsdA,rotate=.FALSE.,drmsd3=drmsdA,error=error)
-    CALL rmsd3(my_particles,r,r0b,output_unit=-1,weights=weights,my_val=rmsdB,rotate=.FALSE.,drmsd3=drmsdB,error=error)
+    CALL rmsd3(my_particles,r,r0(:,1),output_unit=-1,weights=weights,my_val=rmsd(1),rotate=.FALSE.,drmsd3=drmsd(:,:,1),error=error)
 
-    f1 = 1.0_dp/(rmsdA+rmsdB)
-    ! (rmsdA-rmsdB)/(rmsdA+rmsdB)
-    cv_val = (rmsdA-rmsdB)*f1
-    ! (rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
-    dera = f1-cv_val*f1
-    ! -(rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
-    derb = -f1-cv_val*f1
+    IF (nframes==2) THEN
+       CALL rmsd3(my_particles,r,r0(:,2),output_unit=-1,weights=weights,my_val=rmsd(2),rotate=.FALSE.,drmsd3=drmsd(:,:,2),&
+                  error=error)
 
-    DO i = 1,colvar%rmsd_param%n_atoms
-      ii = colvar%rmsd_param%i_rmsd(i)
-      IF(weights(ii)>0.0_dp) THEN
-        ftmp(1) = dera*drmsdA(1,ii)+derb*drmsdB(1,ii)
-        ftmp(2) = dera*drmsdA(2,ii)+derb*drmsdB(2,ii)
-        ftmp(3) = dera*drmsdA(3,ii)+derb*drmsdB(3,ii)
-        CALL put_derivative(colvar, i, ftmp)
-      END IF
-    END DO
+       f1 = 1.0_dp/(rmsd(1)+rmsd(2))
+       ! (rmsdA-rmsdB)/(rmsdA+rmsdB)
+       cv_val = (rmsd(1)-rmsd(2))*f1
+       ! (rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
+       der(1) = f1-cv_val*f1
+       ! -(rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
+       der(2) = -f1-cv_val*f1
 
+       DO i = 1,colvar%rmsd_param%n_atoms
+         ii = colvar%rmsd_param%i_rmsd(i)
+         IF(weights(ii)>0.0_dp) THEN
+           ftmp(1) = der(1)*drmsd(1,ii,1)+der(2)*drmsd(1,ii,2)
+           ftmp(2) = der(1)*drmsd(2,ii,1)+der(2)*drmsd(2,ii,2)
+           ftmp(3) = der(1)*drmsd(3,ii,1)+der(2)*drmsd(3,ii,2)
+           CALL put_derivative(colvar, i, ftmp)
+         END IF
+       END DO
+    ELSE IF (nframes==1) THEN
+       ! Protect in case of numerical issues (for two identical frames!)
+       rmsd(1)=ABS(rmsd(1))
+       cv_val = SQRT(rmsd(1))
+       f1     = 0.0_dp
+       IF (cv_val /= 0.0_dp) f1 = 0.5_dp/cv_val
+       DO i = 1,colvar%rmsd_param%n_atoms
+         ii = colvar%rmsd_param%i_rmsd(i)
+         IF(weights(ii)>0.0_dp) THEN
+           ftmp(1) = f1*drmsd(1,ii,1)
+           ftmp(2) = f1*drmsd(2,ii,1)
+           ftmp(3) = f1*drmsd(3,ii,1)
+           CALL put_derivative(colvar, i, ftmp)
+         END IF
+       END DO
+    ELSE
+        CALL cp_unimplemented_error(fromWhere=routineP, &
+             message="RMSD implemented only for 1 and 2 reference frames!", error=error, error_level=cp_failure_level)
+    END IF
     colvar%ss=cv_val
 
-    DEALLOCATE(r0a,STAT=istat)
-    DEALLOCATE(r0b,STAT=istat)
-    DEALLOCATE(r,STAT=istat)
-    DEALLOCATE(drmsdA,STAT=istat)
-    DEALLOCATE(drmsdB,STAT=istat)
+    DEALLOCATE(der,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(r0,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(r,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(drmsd,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(rmsd,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE rmsd_ab_colvar
+  END SUBROUTINE rmsd_colvar_low
 
 ! *****************************************************************************
 !> \brief evaluates the force from ring puckering collective variables

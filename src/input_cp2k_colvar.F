@@ -1605,7 +1605,9 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="rmsd",&
             description="Section to define a CV as function of RMSD computed with respect to"//&
-            " given reference configurations",&
+            " given reference configurations. For 2 configurations the colvar is equal to:"//&
+            " ss = (RMSDA-RMSDB)/(RMSDA+RMSDB), while if only 1 configuration is given, then the"//&
+            " colvar is just the RMSD from that frame.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
@@ -1616,13 +1618,6 @@ CONTAINS
             enum_c_vals=s2a( "ALL","LIST", "WEIGHT_LIST"),&
             enum_i_vals=(/ rmsd_all, rmsd_list, rmsd_weightlist/),&
             default_i_val=rmsd_all, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ALIGN_FRAMES",&
-            description="Whether the reference frames should be aligned to minimize the RMSD",&
-            usage="ALIGN_FRAME",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1641,7 +1636,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="FRAME",&
-            description="Specify coordinates of the frame",&
+            description="Specify coordinates of the frame (number of frames can be either 1 or 2)",&
             repeats=.TRUE., required=.TRUE., error=error)
 
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&
