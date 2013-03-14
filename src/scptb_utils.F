@@ -97,6 +97,10 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS",error=error)
     END IF
 
+    ! read global parameters from xml file
+    IF(para_env%ionode) CALL scptb_global_parameter_from_file(scptb_control,error)
+    CALL scptb_global_parameter_broadcast(scptb_control,para_env,error)
+
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
       atomic_kind => atomic_kind_set(ikind)
@@ -192,6 +196,107 @@ CONTAINS
 
   END SUBROUTINE scptb_parameter_init
 
+  SUBROUTINE scptb_global_parameter_from_file(scptb_control,error)
+
+    TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'scptb_global_parameter_from_file', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: attribs(2,10), author, &
+                                                DATA(10), fname, found_key, &
+                                                tag, vers
+    INTEGER                                  :: no_attribs, no_data, &
+                                                tag_count, unrecognized_tags
+    LOGICAL :: endtag, has_A, has_ag, has_B, has_C, has_D, has_energy, &
+      has_eta, has_hcore, has_nqm, has_occ, has_z, has_zeff, tag_over
+    TYPE(XML_PARSE)                          :: xml_info
+
+    DATA has_z, has_zeff, has_ag, has_energy, has_hcore, has_occ,   &
+                    has_nqm, has_eta, has_A, has_B, has_C, has_D/12*.FALSE./
+
+    fname = scptb_control%parameter_file
+    IF ( fname /= "" ) THEN
+        CALL xml_open(xml_info, fname, .TRUE.)
+       
+        tag_count = 0
+        tag=""
+        DATA=""
+        attribs=""
+        unrecognized_tags = 0
+        tag_over = .FALSE.
+        found_key = ""
+        author = "unknown author"
+        vers = " v 0.0"
+
+        DO WHILE ( xml_ok(xml_info) )   !Until the file is read entirely
+            CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+            CALL uppercase(tag)
+            SELECT CASE (TRIM(tag)) !Decide on the first-level tag
+            CASE ("")
+                !just garbage from the parser
+            CASE ("NM12_PARAMETERS")
+                !just the header, do nothing
+            CASE ("META_INFO")
+                tag_over = .FALSE.
+                DO WHILE (tag_over .EQV. .FALSE.)
+                    CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                    CALL uppercase(tag)
+                    SELECT CASE (tag)
+                    CASE ("META_INFO")
+                        IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
+                    CASE ("VERSION")
+                        IF (endtag .EQV. .FALSE.) vers = DATA(1)
+                    CASE ("AUTHOR")
+                        IF (endtag .EQV. .FALSE.) author = DATA(1)
+                    CASE ("REF")
+                        !IF (endtag .eqv. .FALSE.)  !do nothing
+                    CASE ("COMMENT")
+                        !IF (endtag .eqv. .FALSE.)  !do nothing
+                    CASE DEFAULT
+                        unrecognized_tags = unrecognized_tags + 1
+                    END SELECT
+                END DO
+
+!deb            WRITE(scptb_parameter%parameterization,'(A,A,A)') TRIM(author), ", ", TRIM(vers)    
+
+            CASE ("GENERAL_PARAMETERS") !general params
+                tag_over = .FALSE.
+                DO WHILE (tag_over .EQV. .FALSE.)
+                    CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                    CALL uppercase(tag)
+                    SELECT CASE (tag)
+                    CASE ("GENERAL_PARAMETERS")
+                        IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
+                    CASE ("D3_S6")
+                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(1) 
+                    CASE ("D3_SR6")
+                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(2) 
+                    CASE ("D3_S8")
+                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(3) 
+                    CASE DEFAULT
+                        unrecognized_tags = unrecognized_tags + 1
+                    END SELECT
+                END DO
+
+            CASE ("ELEMENT") !now find the element we are looking for
+                tag_count=tag_count+1
+                tag_over = .FALSE.
+                
+           CASE DEFAULT
+                unrecognized_tags = unrecognized_tags + 1
+           END SELECT
+
+       END DO
+
+       CALL xml_close(xml_info) !That's it, close the file.
+        
+    END IF
+
+  END SUBROUTINE scptb_global_parameter_from_file
+
   SUBROUTINE scptb_parameter_from_file(scptb_parameter,scptb_control,error)
 
     TYPE(scptb_parameter_type), &
@@ -272,11 +377,11 @@ CONTAINS
                     CASE ("GENERAL_PARAMETERS")
                         IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
                     CASE ("D3_S6")
-                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(1) 
+                        ! do nothing in this sweep of data
                     CASE ("D3_SR6")
-                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(2) 
+                        ! do nothing in this sweep of data
                     CASE ("D3_S8")
-                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_control%sd3(3) 
+                        ! do nothing in this sweep of data
                     CASE DEFAULT
                         unrecognized_tags = unrecognized_tags + 1
                     END SELECT
@@ -426,6 +531,32 @@ CONTAINS
     END IF
 
   END SUBROUTINE scptb_parameter_from_file
+
+  SUBROUTINE scptb_global_parameter_broadcast(scptb_control,para_env,error)
+
+    TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'scptb_global_parameter_broadcast', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: group, source
+    LOGICAL                                  :: failure = .FALSE.
+
+    source = para_env%source
+    group = para_env%group
+    
+    IF(para_env%ionode) THEN
+       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,error,failure)
+    ELSE
+       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL mp_bcast(scptb_control%sd3,source,group)
+
+  END SUBROUTINE scptb_global_parameter_broadcast
 
   SUBROUTINE scptb_parameter_broadcast(scptb_parameter,para_env,error)
 
