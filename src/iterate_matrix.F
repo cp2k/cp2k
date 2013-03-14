@@ -637,8 +637,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, unit_nr
-    REAL(KIND=dp)                            :: frob_norm,mytrace
-    TYPE(cp_dbcsr_type)                      :: matrix, matrix_tmp,matrix_tmp1
+    REAL(KIND=dp)                            :: frob_norm
+    TYPE(cp_dbcsr_type)                      :: matrix, matrix_tmp, &
+                                                matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
