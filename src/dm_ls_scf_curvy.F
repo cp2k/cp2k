@@ -25,6 +25,7 @@ MODULE dm_ls_scf_curvy
   USE f77_blas
   USE input_constants,                 ONLY: ls_scf_line_search_3point,&
                                              ls_scf_line_search_3point_2d
+  USE iterate_matrix,                  ONLY: purify_mcweeny
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: ifac
@@ -374,7 +375,6 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_dp_old,error=error)
     CALL cp_dbcsr_create(matrix_dp_old,template=matrix_dp(1),matrix_type=dbcsr_type_no_symmetry,error=error)
 
-
     DO ispin=1,nspin
        CALL cp_dbcsr_copy(matrix_dp_old,matrix_dp(ispin),error=error)
 
@@ -396,7 +396,7 @@ CONTAINS
 ! Setup some values to check convergence and safty checks for eigenvalue shifting
       CALL cp_dbcsr_norm(matrix_res,which_norm=2,norm_scalar=old_conv,error=error)
       old_conv=cp_dbcsr_frobenius_norm(matrix_res)
-      shift=MIN(10.0_dp,MAX(min_shift,0.1_dp*old_conv))
+      shift=MIN(10.0_dp,MAX(min_shift,0.05_dp*old_conv))
       conv_val=MAX(0.010_dp*old_conv,100.0_dp*eps_filter)
       old_conv=100.0_dp
       IF(fix_shift(ispin))THEN
@@ -737,77 +737,32 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    TYPE(cp_dbcsr_type)                      :: matrix_work
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_work
 
     CALL timeset(routineN,handle)
 
     CALL cp_dbcsr_init(matrix_work,error=error)
     CALL cp_dbcsr_create(matrix_work,template=matrix(1),matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_init(matrix_tmp,error=error)
+    CALL cp_dbcsr_create(matrix_tmp,template=matrix(1),matrix_type=dbcsr_type_no_symmetry,error=error)
 
     DO ispin=1,SIZE(matrix)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix(ispin), matrix_trafo,&
             0.0_dp, matrix_work, filter_eps=eps_filter, error=error)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_work,&
-            0.0_dp, matrix(ispin),filter_eps=eps_filter, error=error)
+            0.0_dp, matrix_tmp,filter_eps=eps_filter, error=error)
+       ! symmetrize results (this is again needed to make sure everything is stable)
+       CALL cp_dbcsr_transposed(matrix_work,matrix_tmp,error=error)
+       CALL cp_dbcsr_add(matrix_tmp,matrix_work,0.5_dp,0.5_dp,error=error)
+       CALL cp_dbcsr_copy(matrix(ispin),matrix_tmp,error=error)   
     END DO
 
+    CALL cp_dbcsr_release(matrix_tmp,error=error)
     CALL cp_dbcsr_release(matrix_work,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE
        
-        
- 
-  SUBROUTINE purify_mcweeny(matrix_p,threshold,max_steps,error)
-    TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p
-    REAL(KIND=dp)                            :: threshold
-    INTEGER                                  :: max_steps
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, ispin, unit_nr
-    REAL(KIND=dp)                            :: frob_norm
-    TYPE(cp_dbcsr_type)                      :: matrix, matrix_tmp
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-      unit_nr=-1
-    ENDIF
-
-    CALL cp_dbcsr_init(matrix_tmp,error=error)
-    CALL cp_dbcsr_create(matrix_tmp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_init(matrix,error=error)
-    CALL cp_dbcsr_create(matrix,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
-    DO ispin=1,SIZE(matrix_p)
-       DO i=1,max_steps
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p(ispin),matrix_p(ispin),&
-                0.0_dp, matrix_tmp, filter_eps=threshold,error=error)
-           CALL cp_dbcsr_copy(matrix,matrix_tmp,error=error)
-           CALL cp_dbcsr_add(matrix_tmp,matrix_p(ispin),1.0_dp,-1.0_dp,error=error)
-           frob_norm=cp_dbcsr_frobenius_norm(matrix_tmp)
-           IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,f16.8)')"McWeeny: Deviation of idempotency",frob_norm
-           IF(frob_norm.gt.1000_dp*threshold.OR.i==1)THEN
-              CALL cp_dbcsr_copy(matrix_tmp,matrix,error=error)
-              CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix,matrix_p(ispin),&
-                   3.0_dp, matrix_tmp, filter_eps=threshold,error=error)
-              CALL cp_dbcsr_copy(matrix_p(ispin),matrix_tmp,error=error)
-           ELSE
-              EXIT
-           END IF
-       END DO
-    END DO
-
-    CALL cp_dbcsr_release(matrix_tmp,error)
-    CALL cp_dbcsr_release(matrix,error)
-    CALL timestop(handle)
-  END SUBROUTINE purify_mcweeny
-
   SUBROUTINE deallocate_curvy_data(curvy_data,error)
     TYPE(ls_scf_curvy_type)                  :: curvy_data
     TYPE(cp_error_type), INTENT(INOUT)       :: error

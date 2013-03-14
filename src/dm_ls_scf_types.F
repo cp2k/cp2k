@@ -102,6 +102,7 @@ MODULE dm_ls_scf_types
 
      REAL(KIND=dp)         :: mixing_fraction
      INTEGER               :: max_scf
+     REAL(KIND=dp)         :: energy_init
 
      TYPE(cp_dbcsr_type)   :: matrix_s_inv
      TYPE(cp_dbcsr_type)   :: matrix_s

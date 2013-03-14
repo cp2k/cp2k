@@ -54,7 +54,8 @@ MODULE dm_ls_scf
                                              section_vals_type,&
                                              section_vals_val_get
   USE iterate_matrix,                  ONLY: invert_Hotelling,&
-                                             matrix_sqrt_newton_schulz
+                                             matrix_sqrt_newton_schulz,&
+                                             purify_mcweeny
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: binomial
@@ -303,7 +304,7 @@ CONTAINS
     ! if there is no history go for the atomic guess, otherwise extrapolate the dm history
     IF (unit_nr>0) WRITE(unit_nr,'()')
     IF (ls_scf_env%scf_history%istore==0) THEN
-       CALL ls_scf_qs_atomic_guess(qs_env,energy,error)
+       CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init,error)
     ELSE
        CALL cite_reference(Kolafa2004)
        naspc=MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
@@ -335,14 +336,18 @@ CONTAINS
                                 ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
              ENDIF
           ENDIF
+          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
        ENDDO
 
+       CALL purify_mcweeny(ls_scf_env%matrix_p,ls_scf_env%matrix_s,ls_scf_env%eps_filter,3,error)
+       IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(1),2.0_dp,error=error)
+
        ! compute corresponding energy and ks matrix
-       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy,error)
+       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,error)
     ENDIF
 
     IF (unit_nr>0) THEN
-       WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",energy
+       WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",ls_scf_env%energy_init
        WRITE(unit_nr,'()')
     ENDIF
 
@@ -631,6 +636,11 @@ CONTAINS
       ls_scf_env%has_s_preconditioner=.TRUE.
     END SELECT
 
+    CALL cp_assert(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%has_s_preconditioner,cp_warning_level,cp_assertion_failed,&
+                      routineP,"S Preconditioning not implemented in combination with CURVY_STEPS."//&
+                       CPSourceFileRef,&
+                       only_ionode=.TRUE.)
+
     ! an undocumented feature ... allows for just doing the initial guess, no expensive stuff
     IF (ls_scf_env%max_scf<0) THEN
         ls_scf_env%needs_s_inv=.FALSE.
@@ -755,6 +765,7 @@ CONTAINS
     ls_scf_env%lumo_spin(:) = 0.0_dp
 
     energy_old=0.0_dp
+    IF(ls_scf_env%scf_history%istore>0)energy_old=ls_scf_env%energy_init
     check_convergence=.TRUE.
     iscf=0
 
@@ -781,11 +792,11 @@ CONTAINS
          ENDIF
          CALL cp_dbcsr_filter(ls_scf_env%matrix_ks(ispin),ls_scf_env%eps_filter,error=error)
       ENDDO
-
-      ! turn the KS matrix in a density matrix
-      IF(iscf>1.AND.ls_scf_env%curvy_steps)THEN
+      ! run curvy steps if required. Needs an idempotent DM (either perification or restart)
+      IF((iscf>1.OR.ls_scf_env%scf_history%istore>0).AND.ls_scf_env%curvy_steps)THEN
          CALL dm_ls_curvy_optimization(ls_scf_env,energy_old,check_convergence,error)
       ELSE
+         ! turn the KS matrix in a density matrix
          DO ispin=1,nspin
             IF (iscf==1) THEN
                ! initialize the mixing matrix with the current state if needed

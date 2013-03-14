@@ -272,3 +272,22 @@ ace_ala_nme_pm6_10.inp
 ace_ala_nme_pm6_11.inp
 #  
 ace_ala_nme_pm6_12.inp
+# change in extrapolation and resymmetrize S1/2
+H2-big-1.inp 
+H2-big-2.inp 
+H2-big-7.inp 
+H2-big-8.inp 
+H2-big-9.inp 
+H2-big-10.inp 
+H2-big-11.inp 
+H2-big-12.inp 
+H2O-32-dftb-ls-2-2.inp 
+H2O-32-dftb-trs4.inp 
+H2O-32-dftb-ls-5.inp 
+H2O-32-dftb-ls-7.inp 
+H2O-32-dftb-ls-8.inp 
+H2O-32-dftb-trs4-dyn.inp 
+H2_curvy-1.inp 
+H2_curvy-2.inp 
+H2_curvy-3.inp 
+H2O-dft-ecube.inp
