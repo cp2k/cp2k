@@ -28,7 +28,7 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="0">      0.2363000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -53,7 +53,7 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="0">      0.5367000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -85,7 +85,7 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="0">      0.0830700         </Eta>
         </SCP>
  
         <Repulsive>
@@ -117,7 +117,7 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="0">      0.1832000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -149,8 +149,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1452100         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -182,8 +182,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1794300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -215,8 +215,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2472100         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -248,8 +248,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2448300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -281,8 +281,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2767200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -314,8 +314,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.4440700         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -354,8 +354,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.0907200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -394,8 +394,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1727600         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -427,8 +427,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1234200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -460,8 +460,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1431700         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -493,8 +493,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1583400         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -526,8 +526,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1732600         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -559,8 +559,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1895200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -592,8 +592,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.3661800         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -632,8 +632,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.0743200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -672,8 +672,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1424500         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -719,9 +719,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1383000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -767,9 +767,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1356500         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -815,9 +815,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1333200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -863,9 +863,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1092800         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -911,9 +911,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1290900         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -959,9 +959,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1276300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1007,9 +1007,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1262900         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1055,9 +1055,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1237600         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1089,9 +1089,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1256200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1123,9 +1123,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2026000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1157,8 +1157,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1236200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1190,8 +1190,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1354400         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1223,8 +1223,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1459500         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1256,8 +1256,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1562300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1289,8 +1289,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1674100         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1322,8 +1322,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.3211200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1362,8 +1362,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.0704100         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1402,8 +1402,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1319200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1449,9 +1449,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1307800         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1497,9 +1497,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1283900         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1545,9 +1545,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1236200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1593,9 +1593,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1033300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1641,9 +1641,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1102300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1689,9 +1689,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1009300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1737,9 +1737,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.0916400         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1785,9 +1785,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1615100         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1819,9 +1819,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1200300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1853,9 +1853,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.1980500         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1887,8 +1887,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1080300         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1920,8 +1920,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1185700         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1953,8 +1953,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1271800         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -1986,8 +1986,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1360200         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2019,8 +2019,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.1445400         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2052,8 +2052,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2710900         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2092,8 +2092,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2132,8 +2132,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2179,9 +2179,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2227,9 +2227,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2261,9 +2261,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2295,9 +2295,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2329,9 +2329,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2363,9 +2363,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2397,9 +2397,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2431,9 +2431,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2465,9 +2465,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2499,9 +2499,9 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
-            <Eta l="2">      0.4000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
+            <Eta l="2">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2533,8 +2533,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2566,8 +2566,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2599,8 +2599,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2632,8 +2632,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2665,8 +2665,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
@@ -2698,8 +2698,8 @@
         </Electron_shell>
  
         <SCP>
-            <Eta l="0">      0.3000000         </Eta>
-            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="0">      0.2000000         </Eta>
+            <Eta l="1">      0.0000000         </Eta>
         </SCP>
  
         <Repulsive>
