@@ -319,6 +319,11 @@ CONTAINS
              CALL cp_dbcsr_add(ls_scf_env%matrix_p(ispin), ls_scf_env%scf_history%matrix(ispin,istore), 1.0_dp, alpha, error=error)
           ENDDO
 
+          ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
+          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
+          CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin),ls_scf_env%eps_filter,3,error)
+          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
+
           IF (ls_scf_env%use_s_sqrt) THEN
              ! need to get P in the non-orthogonal basis if it was stored differently
              CALL cp_dbcsr_init(matrix_tmp1,error=error)
@@ -336,11 +341,7 @@ CONTAINS
                                 ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
              ENDIF
           ENDIF
-          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
        ENDDO
-
-       CALL purify_mcweeny(ls_scf_env%matrix_p,ls_scf_env%matrix_s,ls_scf_env%eps_filter,3,error)
-       IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(1),2.0_dp,error=error)
 
        ! compute corresponding energy and ks matrix
        CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,error)
