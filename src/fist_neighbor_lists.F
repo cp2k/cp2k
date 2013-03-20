@@ -570,6 +570,10 @@ CONTAINS
                    is_full = full_nl(ikind,jkind)
                    IF (is_full) THEN
                       atom_order = (atom_a==atom_b)
+                   ELSE
+                      IF (ik<0)           CYCLE
+                      IF (ik==0.AND.ij<0) CYCLE
+                      IF (ij==0.AND.ii<0) CYCLE
                    END IF
                 END IF
                 IF (subcell000.AND.atom_order) CYCLE

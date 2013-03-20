@@ -1,0 +1,102 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &PRINT
+      &NEIGHBOR_LISTS
+      &END
+    &END
+    &FORCEFIELD
+      &CHARGE
+        ATOM Pt
+        CHARGE 0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE 0
+      &END CHARGE
+
+      &SPLINE
+       EPS_SPLINE 1.E-5
+       #EMAX_SPLINE 2.0
+      &END
+
+       &NONBONDED
+        &TERSOFF
+         ATOMS  O Pt
+         RCUT 3.2
+        &END
+
+        &EAM
+         atoms Pt Pt
+         PARM_FILE_NAME ../EAM_LIB/Pt.pot
+        &END
+
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 0.0
+          SIGMA 3.166
+          RCUT 12
+        &END LENNARD-JONES
+     #&LENNARD-JONES
+     #  atoms Pt Pt
+     #  EPSILON 0.0
+     #  SIGMA 3.166
+     #  RCUT 12
+     #&END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 3.166
+          RCUT 12
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H O
+          EPSILON 0.0
+          SIGMA 3.166
+          RCUT 12
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H Pt
+          EPSILON 0.0
+          SIGMA 3.166
+          RCUT 12
+        &END LENNARD-JONES
+      &END
+
+    &END FORCEFIELD
+
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .44
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  10.0 10.0 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+O 6.631 6.403 0.17
+H 7.41859 5.87177 0.17
+H 5.86762 5.83753 0.17
+Pt 6.63115 6.403 -2.21036
+Pt 5.24522 4.0025 -2.21036
+Pt 8.01708 4.0025 -2.21036
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT mult_forceeval
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  FLUSH_SHOULD_FLUSH
+&END GLOBAL
+
