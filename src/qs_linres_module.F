@@ -191,55 +191,63 @@ CONTAINS
           CALL current_operators(current_env,qs_env,error=error)
           CALL current_response(current_env,p_env,qs_env,error)
           !
-          !Initialize the nmr environment
-          IF(nmr_present) THEN
-             nmr_env%ref_count=0
-             CALL nmr_env_init(nmr_env,qs_env,error=error)
-          ENDIF
-          !
-          !Initialize the epr environment
-          IF(epr_present) THEN
-             epr_env%ref_count=0
-             CALL epr_env_init(epr_env,qs_env,error=error)
-             CALL epr_g_zke(epr_env,qs_env,error=error)
-             CALL epr_nablavks(epr_env,qs_env,error=error)
-          ENDIF
-          !
-          ! Build the rs_gauge if needed
-          !CALL current_set_gauge(current_env,qs_env,error=error)
-          !
-          ! Loop over field direction
-          DO iB = 1,3
-             !
-             ! Build current response and succeptibility
-             CALL current_build_current(current_env,qs_env,iB,error=error)
-             CALL current_build_chi(current_env,qs_env,iB,error=error)
-             !
-             ! Compute NMR shift
+          IF(current_env%all_pert_op_done) THEN
+             !Initialize the nmr environment
              IF(nmr_present) THEN
-                CALL nmr_shift(nmr_env,current_env,qs_env,iB,error=error)
+                nmr_env%ref_count=0
+                CALL nmr_env_init(nmr_env,qs_env,error=error)
              ENDIF
              !
-             ! Compute EPR
+             !Initialize the epr environment
              IF(epr_present) THEN
-                CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error=error)
-                CALL epr_g_so(epr_env,current_env,qs_env,iB,error=error)
-                CALL epr_g_soo(epr_env,current_env,qs_env,iB,error=error)
+                epr_env%ref_count=0
+                CALL epr_env_init(epr_env,qs_env,error=error)
+                CALL epr_g_zke(epr_env,qs_env,error=error)
+                CALL epr_nablavks(epr_env,qs_env,error=error)
              ENDIF
-          ENDDO
-          !
-          ! Finalized the nmr environment
-          IF(nmr_present) THEN
-             CALL nmr_shift_print(nmr_env,current_env,qs_env,error=error)
-             CALL nmr_env_cleanup(nmr_env,error=error)
-          ENDIF
-          !
-          ! Finalized the epr environment
-          IF(epr_present) THEN
-             CALL epr_g_print(epr_env,qs_env,error=error)
-             CALL epr_env_cleanup(epr_env,error=error)
-          ENDIF
-          !
+             !
+             ! Build the rs_gauge if needed
+             !CALL current_set_gauge(current_env,qs_env,error=error)
+             !
+             ! Loop over field direction
+             DO iB = 1,3
+                !
+                ! Build current response and succeptibility
+                CALL current_build_current(current_env,qs_env,iB,error=error)
+                CALL current_build_chi(current_env,qs_env,iB,error=error)
+                !
+                ! Compute NMR shift
+                IF(nmr_present) THEN
+                   CALL nmr_shift(nmr_env,current_env,qs_env,iB,error=error)
+                ENDIF
+                !
+                ! Compute EPR
+                IF(epr_present) THEN
+                   CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error=error)
+                   CALL epr_g_so(epr_env,current_env,qs_env,iB,error=error)
+                   CALL epr_g_soo(epr_env,current_env,qs_env,iB,error=error)
+                ENDIF
+             ENDDO
+             !
+             ! Finalized the nmr environment
+             IF(nmr_present) THEN
+                CALL nmr_shift_print(nmr_env,current_env,qs_env,error=error)
+                CALL nmr_env_cleanup(nmr_env,error=error)
+             ENDIF
+             !
+             ! Finalized the epr environment
+             IF(epr_present) THEN
+                CALL epr_g_print(epr_env,qs_env,error=error)
+                CALL epr_env_cleanup(epr_env,error=error)
+             ENDIF
+             !
+          ELSE
+            IF(output_unit>0) THEN
+               WRITE(output_unit,"(T10,A,/T20,A,/)")&
+                 "CURRENT: Not all responses to perturbation operators could be calculated.",&
+                 " Hence: NO nmr and NO epr possible."
+            END IF
+          END IF
           ! Finalized the current environment
           CALL current_env_cleanup(current_env,qs_env,error=error)
        ENDIF

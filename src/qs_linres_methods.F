@@ -22,6 +22,7 @@ MODULE qs_linres_methods
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -60,7 +61,8 @@ MODULE qs_linres_methods
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_flush
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE message_passing,                 ONLY: mp_bcast
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
@@ -250,12 +252,13 @@ CONTAINS
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, error)
+  SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop, error)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi1, h1_psi0, psi0_order
+    LOGICAL, INTENT(OUT)                     :: should_stop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver', &
@@ -265,7 +268,7 @@ CONTAINS
                                                 maxnmo, maxnmo_o, nao, ncol, &
                                                 nmo, nspins, output_unit
     LOGICAL                                  :: failure, restart
-    REAL(dp)                                 :: norm_res
+    REAL(dp)                                 :: norm_res, t1, t2
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
                                                 tr_rz1
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -294,6 +297,7 @@ CONTAINS
     NULLIFY(Sc,chc)
 
     logger => cp_error_get_logger(error)
+    t1 = m_walltime()
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_ks=matrix_ks,&
@@ -320,6 +324,7 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".linresLog",error=error)
+
     !
     CALL check_p_env_init(p_env,linres_control,nspins,error=error)
     !
@@ -383,9 +388,9 @@ CONTAINS
     !
     ! header
     IF(output_unit>0) THEN
-       WRITE(output_unit,"(/,T3,A,T20,A,T34,A,T49,A,T69,A,/,T3,A)")&
-            "Iteration","Method","Restart","Stepsize","Convergence",&
-            REPEAT("-",77)
+       WRITE(output_unit,"(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)")&
+            "Iteration","Method","Restart","Stepsize","Convergence","Time",&
+            REPEAT("-",80)
     ENDIF
     !
     ! orthogonalize x with respect to the psi0
@@ -455,6 +460,7 @@ CONTAINS
     !
     alpha(:) = 0.0_dp
     restart = .FALSE.
+    should_stop = .FALSE.
     iteration: DO iter = 1,linres_control%max_iter
        !
        ! check convergence
@@ -463,10 +469,11 @@ CONTAINS
           linres_control%converged = .TRUE.
        ENDIF
        !
-       IF(iter.EQ.1.OR.MOD(iter,1).EQ.0.OR.linres_control%converged.OR.restart) THEN
+       t2 = m_walltime()
+       IF(iter.EQ.1.OR.MOD(iter,1).EQ.0.OR.linres_control%converged.OR.restart.OR.should_stop) THEN
           IF(output_unit>0) THEN
-             WRITE(output_unit,"(T5,I5,T22,A3,T37,L1,T49,1E8.2,T60,F20.10)")&
-                  iter,linres_control%flag,restart,MAXVAL(alpha),norm_res
+             WRITE(output_unit,"(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)")&
+                  iter,linres_control%flag,restart,MAXVAL(alpha),norm_res,t2-t1
              CALL m_flush(output_unit)
           ENDIF
        ENDIF
@@ -476,6 +483,12 @@ CONTAINS
              WRITE(output_unit,"(/,T2,A,I4,A,/)") "The linear solver converged in ",iter," iterations."
              CALL m_flush(output_unit)
           ENDIF
+          EXIT iteration
+       ELSE IF(should_stop) THEN
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(/,T2,A,I4,A,/)") "The linear solver did NOT converge! External stop"
+             CALL m_flush(output_unit)
+          END IF
           EXIT iteration
        ENDIF
        !
@@ -488,14 +501,15 @@ CONTAINS
           ENDIF
           linres_control%converged = .FALSE.
        ENDIF
+!       t1 = m_walltime()
        !
        !
        ! Apply the operators that do not depend on the perturbation
        CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf,error)
        !
        !
-       ! proj Ap onto the virtual subspace
-       CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
+!       ! proj Ap onto the virtual subspace
+!       CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
        !
        !
        DO ispin = 1,nspins
@@ -513,6 +527,9 @@ CONTAINS
           ELSE
              alpha(ispin) = tr_rz0(ispin) / tr_pAp(ispin)
           ENDIF
+!dbg
+!   write(*,*) 'alpha', tr_rz0(ispin),  tr_pAp(ispin), alpha(ispin) 
+!dbg
           !
           ! x_j+1 = x_j + alpha * p_j
           CALL cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,alpha(ispin),p(ispin)%matrix,error=error)
@@ -536,6 +553,8 @@ CONTAINS
           !
           restart = .TRUE.
        ELSE
+!       ! proj Ap onto the virtual subspace
+          CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
           !
           ! r_j+1 = r_j - alpha * Ap_j
           DO ispin = 1,nspins
@@ -578,11 +597,20 @@ CONTAINS
           ELSE
              beta(ispin) = tr_rz1(ispin) / tr_rz0(ispin)
           ENDIF
+!dbg
+!   write(*,*) 'beta', tr_rz1(ispin),  tr_rz0(ispin),  beta(ispin)
+!dbg
           !
           ! p_j+1 = z_j+1 + beta * p_j
           CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,z(ispin)%matrix,error=error)
           tr_rz0(ispin) = tr_rz1(ispin)
        ENDDO
+
+       ! ** can we exit the SCF loop  ?
+       CALL external_control(should_stop,"LINRES",target_time=qs_env%target_time, &
+               start_time=qs_env%start_time,error=error)
+
+
     ENDDO iteration
     !
     ! proj psi1

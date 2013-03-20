@@ -539,6 +539,8 @@ CONTAINS
 
     END DO
 
+1000  CONTINUE  ! END of Calculation
+
     ! Set back the original method for the optimize
     IF(ch_method_flags) THEN
       scf_env%method = method0
@@ -550,7 +552,6 @@ CONTAINS
     DEALLOCATE(op_sm,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-1000  CONTINUE  ! END of Calculation
 
     DO ispin = 1,dft_control%nspins
        CALL set_mo_set(mos(ispin)%mo_set, homo=my_homo(ispin),&

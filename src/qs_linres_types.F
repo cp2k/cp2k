@@ -98,7 +98,8 @@ MODULE qs_linres_types
 
   TYPE current_env_type
      LOGICAL                                     :: full,simple_done(6),simple_converged(6),do_qmmm
-     LOGICAL                                     :: use_old_gauge_atom,chi_pbc,do_selected_states,gauge_init
+     LOGICAL                                     :: use_old_gauge_atom,chi_pbc,do_selected_states,&
+                                                    gauge_init, all_pert_op_done 
      LOGICAL, DIMENSION(:,:), POINTER            :: full_done
      INTEGER                                     :: ref_count,nao,nstates(2),gauge,orb_center,nbr_center(2)
      INTEGER, DIMENSION(:    ), POINTER          :: list_cubes,selected_states_on_atom_list

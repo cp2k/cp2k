@@ -144,7 +144,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list_cubes, rbs
     INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
-    LOGICAL                                  :: append_cube, failure, ionode
+    LOGICAL                                  :: append_cube, failure, ionode, should_stop
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
@@ -320,8 +320,11 @@ CONTAINS
     !
     !
     !
+    should_stop =.FALSE.
+    current_env%all_pert_op_done =.FALSE.
     ! operator p
     DO idir = 1,3
+       IF(should_stop) EXIT
        IF(output_unit>0) THEN
           WRITE(output_unit,"(T10,A)") "Response to the perturbation operator P_"//ACHAR(idir+119)
        ENDIF
@@ -332,7 +335,7 @@ CONTAINS
        !
        !
        linres_control%converged = .FALSE.
-       CALL linres_solver(p_env,qs_env,psi1_ptr,hpsi0_ptr,psi0_order,error=error)
+       CALL linres_solver(p_env,qs_env,psi1_ptr,hpsi0_ptr,psi0_order,should_stop,error=error)
        !
        !
        ! print response functions
@@ -360,6 +363,7 @@ CONTAINS
     !
     ! operator rxp
     DO idir = 1,3
+       IF(should_stop) EXIT
        IF(output_unit>0) THEN
           WRITE(output_unit,"(T10,A)") "Response to the perturbation operator L_"//ACHAR(idir+119)
        ENDIF
@@ -370,7 +374,7 @@ CONTAINS
        !
        !
        linres_control%converged = .FALSE.
-       CALL linres_solver(p_env,qs_env,psi1_ptr,hpsi0_ptr,psi0_order,error=error)
+       CALL linres_solver(p_env,qs_env,psi1_ptr,hpsi0_ptr,psi0_order,should_stop,error=error)
        !
        ! print response functions
        IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
@@ -388,9 +392,11 @@ CONTAINS
        ! write restart file
        CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir,"nmr_rxp",error=error)
     ENDDO ! idir
+    IF(.NOT. should_stop) current_env%all_pert_op_done =.TRUE.
     !
     ! operator D
     IF(current_env%full) THEN
+       current_env%all_pert_op_done =.FALSE.
        !
        !
        DO ispin = 1,nspins
@@ -423,6 +429,7 @@ CONTAINS
        ENDDO ! ispin
        !
        DO idir = 1,3
+          IF(should_stop) EXIT
           DO ispin = 1,nspins
             CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
           END DO
@@ -443,6 +450,7 @@ CONTAINS
           ! to be careful with overflow while doing uks calculations.
           DO icenter = 1,max_nbr_center
              !
+            IF(should_stop) EXIT
             IF(icenter > first_center) THEN
              IF(output_unit>0) THEN
                 WRITE(output_unit,"(T10,A,I4,A)")&
@@ -517,7 +525,7 @@ CONTAINS
 
              !
              ! Optimize the response wavefunctions
-             CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
+             CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
              !
              IF(output_unit>0) THEN
                 WRITE(output_unit,"(T10,A,/)")&
@@ -563,6 +571,7 @@ CONTAINS
           ENDIF ! print response functions
           !
        ENDDO ! idir
+       IF(.NOT. should_stop) current_env%all_pert_op_done =.TRUE.
        !
        ! clean up
        DO ispin = 1,nspins

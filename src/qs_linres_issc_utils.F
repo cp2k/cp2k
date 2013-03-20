@@ -113,7 +113,7 @@ CONTAINS
                                                 istat, jdir, nao, nmo, &
                                                 nspins, output_unit
     LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
-                                                failure
+                                                failure, should_stop
     REAL(dp)                                 :: chk, fro
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fc_psi0, h1_psi0, psi0_order, &
@@ -195,6 +195,7 @@ CONTAINS
        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     ENDDO
     chk = 0.0_dp
+    should_stop =.FALSE.
     !
     ! operator efg
     IF(do_sd) THEN
@@ -225,7 +226,7 @@ CONTAINS
           linres_control%lr_triplet = .FALSE.
           linres_control%do_kernel  = .FALSE.
           linres_control%converged  = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
           !
           !
           ! copy the response
@@ -283,7 +284,7 @@ CONTAINS
           linres_control%lr_triplet = .FALSE. ! we do singlet response
           linres_control%do_kernel  = .FALSE. ! we do uncoupled response
           linres_control%converged  = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
           !
           !
           ! copy the response
@@ -339,7 +340,7 @@ CONTAINS
        linres_control%lr_triplet = .TRUE. ! we do triplet response
        linres_control%do_kernel  = .TRUE. ! we do coupled response
        linres_control%converged  = .FALSE.
-       CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
+       CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
        !
        !
        ! copy the response
@@ -397,7 +398,7 @@ CONTAINS
           linres_control%lr_triplet = .FALSE. ! we do singlet response
           linres_control%do_kernel  = .TRUE.  ! we do uncoupled response
           linres_control%converged  = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
           !
           !
           ! copy the response
