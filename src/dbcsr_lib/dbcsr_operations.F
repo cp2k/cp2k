@@ -127,8 +127,7 @@ MODULE dbcsr_operations
        dbcsr_repl_none, dbcsr_repl_row, dbcsr_scalar_type, dbcsr_transpose, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_type_hermitian, &
-       dbcsr_type_antihermitian
+       dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
                                              find_block_of_element
@@ -2725,9 +2724,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: repl_type
+    CHARACTER                                :: new_matrix_type, repl_type
     INTEGER                                  :: error_handler, new_type
-    CHARACTER                                :: new_matrix_type
     LOGICAL                                  :: keep_sparse, shallow
 
 !   ---------------------------------------------------------------------------
@@ -3719,6 +3717,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter_anytype', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: data_c
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: data_z
     INTEGER                                  :: blk, blk_nze, col, col_size, &
                                                 error_handler, my_method, &
                                                 row, row_size
@@ -3726,11 +3728,8 @@ CONTAINS
     REAL(KIND=real_4)                        :: nrm_s, sdot
     REAL(KIND=real_4), DIMENSION(:), POINTER :: data_s
     REAL(KIND=real_8)                        :: ddot, my_absolute, nrm_d
-    REAL(KIND=real_8), EXTERNAL              :: SCNRM2
-    REAL(KIND=real_8), EXTERNAL              :: DZNRM2
     REAL(KIND=real_8), DIMENSION(:), POINTER :: data_d
-    COMPLEX(KIND=real_4), DIMENSION(:), POINTER :: data_c
-    COMPLEX(KIND=real_8), DIMENSION(:), POINTER :: data_z
+    REAL(KIND=real_8), EXTERNAL              :: DZNRM2, SCNRM2
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
