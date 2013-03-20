@@ -127,7 +127,8 @@ MODULE dbcsr_operations
        dbcsr_repl_none, dbcsr_repl_row, dbcsr_scalar_type, dbcsr_transpose, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_type_hermitian, &
+       dbcsr_type_antihermitian
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
                                              find_block_of_element
@@ -2627,6 +2628,74 @@ CONTAINS
   END SUBROUTINE dbcsr_set_diag_anytype
 
 
+! *****************************************************************************
+!> \brief checks if matrix symmetry and data_type are consistent
+!> \brief note: does not check the symmetry of the data itself
+! *****************************************************************************
+  LOGICAL FUNCTION symmetry_consistent(matrix_type,data_type,error)
+    CHARACTER, INTENT(IN)                    :: matrix_type
+    INTEGER, INTENT(IN)                      :: data_type
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'symmetry_consistent', &
+      routineP = moduleN//':'//routineN
+
+    symmetry_consistent = .FALSE.
+
+    SELECT CASE (data_type)
+    CASE(dbcsr_type_real_4,dbcsr_type_real_8)
+      SELECT CASE (matrix_type)
+        CASE (dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric)
+          symmetry_consistent = .TRUE.
+      END SELECT
+    CASE(dbcsr_type_complex_4,dbcsr_type_complex_8)
+      SELECT CASE (matrix_type)
+        CASE (dbcsr_type_no_symmetry, dbcsr_type_hermitian, dbcsr_type_antihermitian)
+          symmetry_consistent = .TRUE.
+      END SELECT
+    CASE DEFAULT
+      CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+           routineN, "Invalid data type.",__LINE__,error)
+    END SELECT 
+
+  END FUNCTION symmetry_consistent
+
+! *****************************************************************************
+!> \brief checks if symmetries of two matrices are compatible for copying
+!> \brief data from matrix_a(source) to matrix_b(target)
+! *****************************************************************************
+  LOGICAL FUNCTION symmetry_compatible(matrix_type_a,matrix_type_b,error)
+    CHARACTER, INTENT(IN)                    :: matrix_type_a, matrix_type_b
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'symmetry_compatible', &
+      routineP = moduleN//':'//routineN
+
+    symmetry_compatible = .FALSE.
+
+    SELECT CASE (matrix_type_a)
+    CASE (dbcsr_type_no_symmetry)
+      SELECT CASE(matrix_type_b)
+      CASE(dbcsr_type_no_symmetry)
+        symmetry_compatible = .TRUE.
+      END SELECT
+    CASE(dbcsr_type_symmetric, dbcsr_type_hermitian)
+      SELECT CASE(matrix_type_b)
+      CASE(dbcsr_type_symmetric, dbcsr_type_hermitian)
+        symmetry_compatible = .TRUE.
+      END SELECT
+    CASE(dbcsr_type_antisymmetric, dbcsr_type_antihermitian)
+      SELECT CASE(matrix_type_b)
+      CASE(dbcsr_type_antisymmetric, dbcsr_type_antihermitian)
+        symmetry_compatible = .TRUE.
+      END SELECT
+    CASE DEFAULT
+      CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+           dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
+    END SELECT
+
+  END FUNCTION symmetry_compatible
+
 
 ! *****************************************************************************
 !> \brief copy a matrix
@@ -2640,14 +2709,17 @@ CONTAINS
 !> \param[in]    keep_imaginary  (optional) when copy from complex to real,&
 !>                               the default is to keep only the real part; if
 !>                               this flag is set, the imaginary part is used
+!> \param[in]    matrix_type     'N' for normal, 'T' for transposed, 'S' for
+!>                               symmetric, and 'A' for antisymmetric
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, keep_sparsity,&
-       shallow_data, keep_imaginary, error)
+       shallow_data, keep_imaginary, matrix_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity, shallow_data, &
                                                 keep_imaginary
+    CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
@@ -2655,11 +2727,16 @@ CONTAINS
 
     CHARACTER                                :: repl_type
     INTEGER                                  :: error_handler, new_type
+    CHARACTER                                :: new_matrix_type
     LOGICAL                                  :: keep_sparse, shallow
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert (symmetry_consistent(dbcsr_get_matrix_type(matrix_a),&
+                                           dbcsr_get_data_type(matrix_a), error),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Source matrix symmetry not consistent with its data type.",__LINE__,error)
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
@@ -2684,15 +2761,31 @@ CONTAINS
           new_type = dbcsr_get_data_type (matrix_a)
           repl_type = dbcsr_get_replication_type(matrix_a)
        ENDIF
+       new_matrix_type = dbcsr_get_matrix_type (matrix_a)
+       IF (PRESENT (matrix_type)) THEN
+         CALL dbcsr_assert (symmetry_compatible(dbcsr_get_matrix_type(matrix_a),&
+                                                matrix_type, error),&
+              dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+              "Specified target matrix symmetry "//matrix_type//&
+               " not compatible with source matrix type "//dbcsr_get_matrix_type(matrix_a),&
+              __LINE__,error)
+         new_matrix_type = matrix_type
+       END IF
+       CALL dbcsr_assert (symmetry_consistent(new_matrix_type,new_type,error),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Target matrix symmetry "//new_matrix_type//" not consistent with its data type.",&
+            __LINE__,error)
        IF(PRESENT(name)) THEN
           CALL dbcsr_create(matrix_b, name=TRIM(name), &
                template = matrix_a,&
+               matrix_type = new_matrix_type,&
                data_type = new_type,&
                error=error)
        ELSE
           CALL dbcsr_create(matrix_b,&
                name='copy of '//TRIM(dbcsr_name(matrix_a)),&
                data_type = new_type,&
+               matrix_type = new_matrix_type,&
                template = matrix_a, error=error)
        ENDIF
        CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index),&
@@ -3633,7 +3726,11 @@ CONTAINS
     REAL(KIND=real_4)                        :: nrm_s, sdot
     REAL(KIND=real_4), DIMENSION(:), POINTER :: data_s
     REAL(KIND=real_8)                        :: ddot, my_absolute, nrm_d
+    REAL(KIND=real_8), EXTERNAL              :: SCNRM2
+    REAL(KIND=real_8), EXTERNAL              :: DZNRM2
     REAL(KIND=real_8), DIMENSION(:), POINTER :: data_d
+    COMPLEX(KIND=real_4), DIMENSION(:), POINTER :: data_c
+    COMPLEX(KIND=real_8), DIMENSION(:), POINTER :: data_z
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -3698,11 +3795,44 @@ CONTAINS
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                      routineN,"Only Frobenius based filtering",__LINE__,error)
              END SELECT
-             !CASE (dbcsr_type_complex_4)
-             !CASE (dbcsr_type_complex_8)
+
+          CASE (dbcsr_type_complex_4)
+               CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk, &
+                  row_size, col_size)
+             blk_nze = row_size * col_size
+             IF (blk_nze .EQ. 0) CYCLE ! Skip empty blocks
+             SELECT CASE(my_method)
+             CASE(dbcsr_filter_frobenius)
+                !
+                ! Frobenius based
+                nrm_d = SCNRM2(SIZE(data_c), data_c(1), 1)
+                IF(nrm_d.LT.my_absolute*eps%r_dp) &
+                     CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
+             CASE DEFAULT
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                     routineN,"Only Frobenius based filtering",__LINE__,error)
+             END SELECT
+
+          CASE (dbcsr_type_complex_8)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk, &
+                  row_size, col_size)
+             blk_nze = row_size * col_size
+             IF (blk_nze .EQ. 0) CYCLE ! Skip empty blocks
+             SELECT CASE(my_method)
+             CASE(dbcsr_filter_frobenius)
+                !
+                ! Frobenius based
+                nrm_d = DZNRM2(SIZE(data_z), data_z(1), 1)
+                IF(nrm_d.LT.my_absolute*eps%r_dp) &
+                     CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
+             CASE DEFAULT
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                     routineN,"Only Frobenius based filtering",__LINE__,error)
+             END SELECT
+
           CASE DEFAULT
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                  routineN,"Only real filtering",__LINE__,error)
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+                  routineN,"Wrong data type",__LINE__,error)
           END SELECT
        ENDDO
        CALL dbcsr_iterator_stop(iter)

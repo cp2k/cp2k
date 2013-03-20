@@ -2494,13 +2494,14 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_binary_read
 
   SUBROUTINE cp_dbcsr_copy(matrix_b, matrix_a, name, error, keep_sparsity,&
-       shallow_data, keep_imaginary)
+       shallow_data, keep_imaginary, matrix_type)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity, shallow_data, &
                                                 keep_imaginary
+    CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy', &
       routineP = moduleN//':'//routineN
@@ -2517,7 +2518,7 @@ CONTAINS
             error=error)
     ENDIF
     CALL dbcsr_copy(matrix_b%matrix, matrix_a%matrix, name, keep_sparsity,&
-         shallow_data, keep_imaginary, dbcsr_error)
+         shallow_data, keep_imaginary, matrix_type, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_copy
 

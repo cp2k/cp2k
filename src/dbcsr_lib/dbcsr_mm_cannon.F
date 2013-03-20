@@ -1710,6 +1710,7 @@ MODULE dbcsr_mm_cannon
                local=matrix%m%local_indexing,&
                local2global_rows=local_rows,&
                local2global_cols=local_cols)
+       CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
        END SELECT
@@ -1747,6 +1748,7 @@ MODULE dbcsr_mm_cannon
                dbcsr_get_data_p_z (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
                local2global=local_rows)
+       CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
        END SELECT
