@@ -216,6 +216,7 @@ CONTAINS
     NULLIFY(excvec_coeff, state_of_atom, qs_loc_env, cell)
     NULLIFY(occupation_numbers,matrix_ks)
     NULLIFY(all_vectors,state_of_atom,xas_control)
+    NULLIFY(vecbuffer,op_sm)
     NULLIFY(dft_section, xas_section, loc_section, print_loc_section)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -547,10 +548,12 @@ CONTAINS
     END IF
 
   ! Release what has to be released
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(op_sm,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF(ASSOCIATED(vecbuffer)) THEN
+        DEALLOCATE(vecbuffer,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(op_sm,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
 
     DO ispin = 1,dft_control%nspins
