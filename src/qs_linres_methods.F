@@ -509,7 +509,7 @@ CONTAINS
        !
        !
 !       ! proj Ap onto the virtual subspace
-!       CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
+       CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
        !
        !
        DO ispin = 1,nspins
