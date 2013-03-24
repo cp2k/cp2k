@@ -42,7 +42,7 @@ CONTAINS
 !\> Interface to LAPACK larnv
   SUBROUTINE dbcsr_lapack_larnv( idist, iseed, n, x, error )
     INTEGER, INTENT(IN)                      :: idist
-    INTEGER, DIMENSION(:), INTENT(IN)        :: iseed
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: iseed
     INTEGER, INTENT(IN)                      :: n
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: x
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
