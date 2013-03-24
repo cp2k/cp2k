@@ -1,0 +1,19 @@
+#
+# gfortran arch file, for testing lto with gfortran 4.8.1
+# status PR56706
+#
+CC       = cc
+CPP      = 
+
+FC       = gfortran -flto=jobserver -use-linker-plugin
+LD       = gfortran -flto=jobserver -use-linker-plugin
+
+AR       = ar -r
+
+CPPFLAGS = 
+DFLAGS   = -D__GFORTRAN -D__FFTSG
+FCFLAGS  = -O1 -g -ffree-form $(DFLAGS)
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -llapack -lblas
+
+OBJECTS_ARCHITECTURE = machine_gfortran.o
