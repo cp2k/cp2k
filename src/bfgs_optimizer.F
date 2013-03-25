@@ -192,7 +192,7 @@ CONTAINS
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp,error=error)
        CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error=error)
        DO its=1,SIZE(eigval)
          IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
        END DO
@@ -286,7 +286,7 @@ CONTAINS
        ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
 
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error=error)
        IF(use_rfo)THEN
           CALL set_hes_eig(ndf,eigval,work)
           dx = eigval

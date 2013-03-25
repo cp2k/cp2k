@@ -503,7 +503,7 @@ CONTAINS
        CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp,error=error)
        CALL cp_fm_upper_to_full(tmp,eigvec_H,error)
 
-       CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error)
+       CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error=error)
 
        eigval_H(:)=one/eigval_H(:)
        CALL backtransform_matrix(eigval_H,eigvec_H,S_inv,error)

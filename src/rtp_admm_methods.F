@@ -479,7 +479,7 @@ CONTAINS
     CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
                                 admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)
@@ -683,7 +683,7 @@ CONTAINS
     CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
                                 admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)

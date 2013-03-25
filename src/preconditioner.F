@@ -897,7 +897,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp,error=error)
        CALL cp_fm_create(matrix_tmp2,matrix_tmp%matrix_struct,name="matrix_tmp2",error=error)
        ALLOCATE(evals(n))
-       CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error)
+       CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error=error)
 
        CALL cp_fm_release(matrix_tmp2,error=error)
        WRITE(6,*) "evals ",evals
@@ -1593,7 +1593,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
        CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp,error=error)
        CALL cp_fm_create(matrix_tmp2,matrix_tmp%matrix_struct,name="matrix_tmp2",error=error)
        ALLOCATE(evals(n))
-       CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error)
+       CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error=error)
        CALL cp_fm_release(matrix_tmp2,error=error)
        WRITE(6,*) "evals ",evals
        DEALLOCATE(evals)

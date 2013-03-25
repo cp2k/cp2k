@@ -324,7 +324,7 @@ CONTAINS
 
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,mat_ks,error=error)
        CALL cp_fm_cholesky_reduce(mat_ks,S_chol,error=error)
-       CALL cp_fm_syevd(mat_ks,mat_tmp,eigenvalues,error)
+       CALL cp_fm_syevd(mat_ks,mat_tmp,eigenvalues,error=error)
        CALL cp_fm_cholesky_restore(mat_tmp,nrow_global,S_chol,eigenvectors,"SOLVE",error=error)
 
        ! virtuals

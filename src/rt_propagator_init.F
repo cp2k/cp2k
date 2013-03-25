@@ -207,7 +207,7 @@ CONTAINS
        CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_minus_half,tmp_mat_H,zero,&
             H_fm,error)
 
-       CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H,error)
+       CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H,error=error)
        min_eval=MINVAL(eigval_H)
        max_eval=MAXVAL(eigval_H)
        norm2=2.0_dp*MAX(ABS(min_eval),ABS(max_eval))

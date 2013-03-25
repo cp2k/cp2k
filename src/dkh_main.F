@@ -174,7 +174,7 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv,error=error)
-    CALL cp_fm_syevd(matrix_t,matrix_eig,tt,error)
+    CALL cp_fm_syevd(matrix_t,matrix_eig,tt,error=error)
 
     !-----------------------------------------------------------------------
     !     Calculate kinetic part of Hamiltonian in T-basis

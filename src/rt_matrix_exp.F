@@ -398,7 +398,7 @@ CONTAINS
     CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat,zero,&
          H_fm,error)
 
-    CALL cp_fm_syevd(H_fm,eigvec_H,eigval_H,error)
+    CALL cp_fm_syevd(H_fm,eigvec_H,eigval_H,error=error)
 
     exp_eig_val(:,1)=COS(eigval_H(:))
     exp_eig_val(:,2)=SIN(eigval_H(:))

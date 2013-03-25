@@ -902,7 +902,7 @@ CONTAINS
       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap,error=error)
-      CALL choose_eigv_solver(overlap,evecs,evals,error)
+      CALL choose_eigv_solver(overlap,evecs,evals,error=error)
       mo_mag_min=MIN(MINVAL(evals),mo_mag_min)
       mo_mag_max=MAX(MAXVAL(evals),mo_mag_max)
       CALL cp_fm_release(overlap,error=error)

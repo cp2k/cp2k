@@ -502,7 +502,7 @@ MODULE admm_methods
                       admm_env%lambda(ispin)%matrix,error)
       CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
       CALL cp_fm_syevd(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%R(ispin)%matrix,&
-                       admm_env%eigvals_lambda(ispin)%eigvals%data,error)
+                       admm_env%eigvals_lambda(ispin)%eigvals%data,error=error)
       ALLOCATE(eig_work(nmo), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO i=1,nmo
@@ -1774,7 +1774,7 @@ MODULE admm_methods
     CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
                                 admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)
@@ -2094,7 +2094,7 @@ MODULE admm_methods
     CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
                                 admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)
@@ -2238,7 +2238,7 @@ MODULE admm_methods
     CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
                                 admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)
@@ -2366,7 +2366,7 @@ MODULE admm_methods
     CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
                                 admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)

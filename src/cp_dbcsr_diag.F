@@ -94,7 +94,7 @@ CONTAINS
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
-    CALL choose_eigv_solver(fm_matrix,fm_eigenvectors,eigenvalues,error)
+    CALL choose_eigv_solver(fm_matrix,fm_eigenvectors,eigenvalues,error=error)
 
     CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, error=error)
 
