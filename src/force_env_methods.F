@@ -483,6 +483,9 @@ CONTAINS
     NULLIFY (core_particles)
     NULLIFY (particles)
     NULLIFY (shell_particles)
+    NULLIFY (ref_pos_atom)
+    NULLIFY (ref_pos_core)
+    NULLIFY (ref_pos_shell)
     natom = 0
     ncore = 0
     nshell = 0
