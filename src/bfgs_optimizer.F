@@ -102,8 +102,8 @@ CONTAINS
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: handle, hesunit_read, indf, &
-                                                iter_nr, its, maxiter, ndf, &
-                                                nfree, output_unit, stat
+                                                info, iter_nr, its, maxiter, &
+                                                ndf, nfree, output_unit, stat
     LOGICAL                                  :: cell_opt, conv, failure, &
                                                 hesrest, ionode, &
                                                 shell_present, should_stop, &
@@ -286,7 +286,17 @@ CONTAINS
        ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
 
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error=error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info,error=error)
+
+       ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
+       IF(info/=0) THEN
+          IF(output_unit>0) WRITE(output_unit,*) &
+             "BFGS: Matrix diagonalization failed, resetting Hessian to unity."
+          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
+          CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
+          CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error=error)
+       END IF
+
        IF(use_rfo)THEN
           CALL set_hes_eig(ndf,eigval,work)
           dx = eigval
