@@ -207,6 +207,7 @@ CONTAINS
     skip_scf = .FALSE.
     converged = .TRUE.
     should_stop = .FALSE.
+    ch_method_flags = .FALSE.
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
