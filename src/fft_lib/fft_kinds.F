@@ -7,16 +7,8 @@
 !> \brief Defines the basic variable types
 !> \author Teodoro Laino - 01.2011
 ! *****************************************************************************
-! moved to fft_kinds_pre.F by NB (needs to be compiled first so that MKL_DFTI module exists)
-! #if defined ( __FFTMKL )
-! #include "mkl_dfti.f90"
-! #endif
 
 MODULE fft_kinds
-
-#if defined ( __FFTMKL )
-  USE MKL_DFTI
-#endif
 
   IMPLICIT NONE
   PRIVATE
@@ -24,20 +16,12 @@ MODULE fft_kinds
   INTEGER, PARAMETER, PUBLIC :: wp = KIND(0.0)
   INTEGER, PARAMETER, PUBLIC :: dp = KIND(0.0)
   INTEGER, PARAMETER, PUBLIC :: sp = KIND(0.0)
-#if defined ( __FFTMKL )
-  INTEGER, PARAMETER, PUBLIC :: dft_prec = DFTi_SINGLE
-#else
   INTEGER, PARAMETER, PUBLIC :: dft_prec = HUGE(0)
-#endif
 #else
   INTEGER, PARAMETER, PUBLIC :: wp = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER, PUBLIC :: dp = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER, PUBLIC :: sp = KIND(0.0)
-#if defined ( __FFTMKL )
-  INTEGER, PARAMETER, PUBLIC :: dft_prec = DFTi_DOUBLE
-#else
   INTEGER, PARAMETER, PUBLIC :: dft_prec = HUGE(0)
-#endif
 #endif
 
 #if defined (__NAG)

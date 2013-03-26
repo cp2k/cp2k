@@ -1,5 +1,4 @@
 LIB2_OBJECTS = ctrig.o\
-               fft_kinds_pre.o\
                fft_kinds.o\
                fft_lib.o\
                fft_plan.o\

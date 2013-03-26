@@ -13,10 +13,6 @@
 !> \author JGH
 ! *****************************************************************************
 
-!#if defined ( __FFTCU ) || defined ( __CUDA )
-!#include "mkl_dfti.f90"
-!#endif
-
 SUBROUTINE fftcu_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE
