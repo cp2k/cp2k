@@ -10,5 +10,3 @@ LIB2_OBJECTS = ctrig.o\
                fftw3_lib.o\
                mltfftsg_tools.o\
                mltfftsg.o
-
-fft_kinds.o : fft_kinds_pre.o
