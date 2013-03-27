@@ -54,7 +54,7 @@ CONTAINS
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env,&
+  RECURSIVE SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env,&
                           x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param

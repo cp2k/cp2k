@@ -520,7 +520,7 @@ CPSourceFileRef,&
 !> \author Fawzi Mohamed
 !>      @version 2.2002
 ! *****************************************************************************
-  SUBROUTINE cp_opt_gopt_step(optimizer,n_iter,f,last_f,&
+  RECURSIVE SUBROUTINE cp_opt_gopt_step(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, geo_section, input, force_env,&
        gopt_param, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
@@ -822,7 +822,7 @@ CPSourceFileRef,&
 !> \author Fawzi Mohamed
 !>      @version 2.2002
 ! *****************************************************************************
-  FUNCTION cp_opt_gopt_next(optimizer,n_iter,f,last_f,&
+  RECURSIVE FUNCTION cp_opt_gopt_next(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, geo_section,input, force_env,&
        gopt_param, error) RESULT(res)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
