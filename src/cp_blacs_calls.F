@@ -74,6 +74,11 @@ SUBROUTINE cp_blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
    INTEGER, INTENT(OUT) :: nprow,npcol,myprow,mypcol
 #if defined(__BLACS)
    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+#else
+   nprow = 1
+   npcol = 1
+   myprow = 0
+   mypcol = 0
 #endif
 END SUBROUTINE cp_blacs_gridinfo
 
@@ -101,6 +106,8 @@ SUBROUTINE cp_blacs_get(context,what,val)
    INTEGER, INTENT(OUT) :: val
 #if defined(__BLACS)
    CALL blacs_get(context,what,val)
+#else
+   val = 0
 #endif
 END SUBROUTINE cp_blacs_get
 
@@ -125,6 +132,9 @@ SUBROUTINE cp_blacs_pinfo(mype,npe)
    INTEGER, INTENT(OUT) :: mype,npe
 #if defined(__BLACS)
    CALL blacs_pinfo(mype,npe)
+#else
+   npe = 1
+   mype = 0
 #endif
 END SUBROUTINE cp_blacs_pinfo
 

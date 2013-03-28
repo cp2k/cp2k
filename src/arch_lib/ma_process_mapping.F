@@ -1836,9 +1836,9 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
    mp_new_comm = mp_comm
  ENDIF ! end power of two and square
 
+#endif
 #else
  mp_new_comm = mp_comm 
-#endif
 #endif
 
 END SUBROUTINE ma_cannon

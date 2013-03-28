@@ -929,6 +929,11 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
      ks_j = 0.0_dp
      CALL nga_get(ga_env % g_d_info,ilo,ihi,dens_i_info,ihi(1))
      CALL nga_get(ga_env % g_d_info,jlo,jhi,dens_j_info,jhi(1))
+#else
+     isize = 1
+     jsize = 1
+     ioff = 0
+     joff = 0
 #endif
     END SUBROUTINE se_ga_allocate_local_2
 ! *****************************************************************************
@@ -964,6 +969,9 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ks_i = 0.0_dp
      END IF
+#else
+     isize = 1
+     IF ( PRESENT ( ioff ) )   ioff = 0
 #endif
     END SUBROUTINE se_ga_allocate_local_1
 
@@ -979,6 +987,8 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
      IF ( PRESENT ( lzero ) ) my_lzero = lzero
      IF ( my_lzero ) CALL ga_zero ( ga_handle )
      nbin = nga_read_inc ( ga_handle, one, one )
+#else
+     nbin = 1
 #endif
     END SUBROUTINE se_ga_get_nbin
 
