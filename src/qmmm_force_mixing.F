@@ -107,7 +107,7 @@ IF (debug_this_module) PRINT *, "BOB got cur_labels ",SIZE(cur_labels)
 
     ! read from input 
     ![NB] breakable bonds will come from here, too
-    NULLIFY(r_core, r_qm, r_buf, adaptive_exclude_molecules)
+    NULLIFY(r_core, r_qm, r_buf, adaptive_exclude_molecules,broken_bonds)
     CALL section_vals_val_get(force_mixing_section,"R_CORE",r_vals=r_core,error=error)
     CALL section_vals_val_get(force_mixing_section,"R_QM",r_vals=r_qm,error=error)
     CALL section_vals_val_get(force_mixing_section,"QM_EXTENDED_SEED_IS_ONLY_CORE_LIST",&

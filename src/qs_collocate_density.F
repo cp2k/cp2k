@@ -1131,7 +1131,7 @@ SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
   CALL timeset(routineN,handle)
 
   NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
-          para_env)
+          para_env,cores)
 
   ALLOCATE (pab(1,1),STAT=ierr)
   IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
