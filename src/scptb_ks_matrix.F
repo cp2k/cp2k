@@ -8,6 +8,7 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE scptb_ks_matrix
+  USE ai_coulomb,                      ONLY: coulomb2_new
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -50,7 +51,8 @@ MODULE scptb_ks_matrix
                                              pi
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
-  USE orbital_pointers,                ONLY: indso
+  USE orbital_pointers,                ONLY: indso, ncoset, nsoset
+  USE orbital_transformation_matrices, ONLY: c2s_tramat
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -917,9 +919,10 @@ CONTAINS
        END DO
        CALL cp_dbcsr_iterator_stop(iter)
 
-!      IF (calculate_forces) THEN
-!         ! forces on atoms
-!      END IF
+       IF (calculate_forces) THEN
+          ! forces on atoms
+          CALL cp_unimplemented_error(routineP,"No forces available",error)
+       END IF
 
     END IF
 
@@ -975,12 +978,14 @@ CONTAINS
   END SUBROUTINE scp_set_charge
 
 ! *****************************************************************************
-  SUBROUTINE scp_print(vec)
+  SUBROUTINE scp_print(vec,message)
     TYPE(scp_vector_type)                    :: vec
+    CHARACTER (LEN=*), INTENT(IN)            :: message
 
     INTEGER                                  :: iat, iba, ikind, natom, nbas, &
                                                 nkind
 
+    WRITE(*,*) message
     nkind = SIZE(vec%vector)
     DO ikind=1,nkind
        nbas = SIZE(vec%vector(ikind)%vmat,1)
@@ -1005,18 +1010,36 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_scp_vector', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: use_virial
-    REAL(KIND=dp)                            :: ehartree
+    LOGICAL                                  :: use_virial, defined, failure
+    INTEGER                                  :: nkind, ikind, jkind, nai, naj,&
+                                                lmaxscp, li, lj, ni, nj, istat,&
+                                                iatom, jatom, ia, ja, i, j
+    INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
+    REAL(KIND=dp)                            :: ehartree, alpha, beta
+    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(16)             :: normi, normj
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
+    REAL(KIND=dp), DIMENSION(:, :), &
+      ALLOCATABLE                            :: aintegral
+    REAL(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: coi, coj, cii, cij
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind, atkindi, atkindj
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: scp_pot, scp_rho, scp_rho_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,virial=virial,para_env=para_env,error=error)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -1046,18 +1069,146 @@ CONTAINS
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_rho%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_pot%pw,error=error)
-       ! remove self interaction
-       CALL scp_vector_copy(cself, cdum, error)
-       CALL scp_vector_mult(cin, cdum, error)
-       CALL scp_vector_add(-1._dp, cdum, cout, error)
-       ! add scp polarization
-       CALL scp_vector_copy(cpol, cdum, error)
-       CALL scp_vector_mult(cin, cdum, error)
-       CALL scp_vector_add(1._dp, cdum, cout, error)
     ELSE
+       ! direct sum
+       NULLIFY(atomic_kind_set,particle_set,cell)
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+                       particle_set=particle_set,cell=cell,error=error)
+       nkind = SIZE(atomic_kind_set)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nai,atom_list=atomi_list,&
+               scptb_parameter=scptb_kind)
+          CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
+          IF (.NOT.defined) CYCLE
+          IF (lmaxscp < 0) CYCLE
+          li = lmaxscp
+          ni = (li+1)**2
+          atkindi => atomic_kind
+          coi => cout%vector(ikind)%vmat
+          cii => cin%vector(ikind)%vmat
+          CALL calc_norm(normi,li,alpha)
+          DO jkind=1,ikind
+             atomic_kind => atomic_kind_set(jkind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,natom=naj,atom_list=atomj_list,&
+                  scptb_parameter=scptb_kind)
+             CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
+             IF (.NOT.defined) CYCLE
+             IF (lmaxscp < 0) CYCLE
+             lj = lmaxscp
+             nj = (lj+1)**2
+             atkindj => atomic_kind
+             coj => cout%vector(jkind)%vmat
+             cij => cin%vector(jkind)%vmat
+             ALLOCATE (aintegral(ni,nj),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CALL calc_norm(normj,lj,beta)
+             DO iatom=1,nai
+                ia = atkindi%atom_list(iatom)
+                DO jatom=1,naj
+                   ja = atkindj%atom_list(jatom)
+                   IF(ikind==jkind .AND. jatom > iatom) CYCLE
+                   rij = particle_set(ia)%r - particle_set(ja)%r
+                   rij = pbc(rij,cell)
+                   CALL calc_int(aintegral,rij,alpha,li,beta,lj,error)
+                   ! add normalization constants to integrals
+                   DO i=1,ni
+                      DO j=1,nj
+                         aintegral(i,j) = aintegral(i,j)*normi(i)*normj(j)
+                      END DO
+                   END DO
+                   ! add contribution to vector
+                   coi(1:ni,iatom) = coi(1:ni,iatom) + MATMUL(aintegral(1:ni,1:nj),cij(1:nj,jatom))
+                   IF(ikind==jkind .AND. jatom == iatom) CYCLE
+                   coj(1:nj,jatom) = coj(1:nj,jatom) + MATMUL(cii(1:ni,iatom),aintegral(1:ni,1:nj))
+                END DO
+             END DO
+             DEALLOCATE (aintegral,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END DO
+       END DO
+
     END IF
 
+    ! remove self interaction
+    CALL scp_vector_copy(cself, cdum, error)
+    CALL scp_vector_mult(cin, cdum, error)
+    CALL scp_vector_add(-1._dp, cdum, cout, error)
+    ! add scp polarization
+    CALL scp_vector_copy(cpol, cdum, error)
+    CALL scp_vector_mult(cin, cdum, error)
+    CALL scp_vector_add(1._dp, cdum, cout, error)
+
   END SUBROUTINE apply_scp_vector
+
+  SUBROUTINE calc_int(aintegral,rij,alpha,li,beta,lj,error)
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+       INTENT(inout)                         :: aintegral
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    INTEGER, INTENT(IN)                      :: li
+    REAL(KIND=dp), INTENT(IN)                :: beta
+    INTEGER, INTENT(IN)                      :: lj
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_int', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: ni, nj, mi, mj, nl, istat
+    REAL(KIND=dp)                            :: dr2
+    REAL(KIND=dp), DIMENSION(1)              :: zi, zj
+    REAL(KIND=dp), DIMENSION(0:9)            :: f
+    REAL(KIND=dp), DIMENSION(:,:), &
+       ALLOCATABLE                           :: vij
+    REAL(KIND=dp), DIMENSION(:,:,:), &
+       ALLOCATABLE                           :: v
+
+    failure = .FALSE.
+    dr2 = SUM(rij(:)**2)
+    zi(1) = alpha
+    zj(1) = beta
+    nl = li + lj + 1
+    ni = ncoset(li)
+    nj = ncoset(lj)
+    ALLOCATE (vij(ni,nj),v(ni,nj,nl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! cartesian integrals
+    CALL coulomb2_new(li,1,zi,0,lj,1,zj,0,rij,dr2,vij,v,f)
+    ! transform to spherical
+    mi = nsoset(li)
+    mj = nsoset(lj)
+    v(1:ni,1:mj,1) = MATMUL(vij(1:ni,1:nj),TRANSPOSE(c2s_tramat(1:mj,1:nj)))
+    aintegral(1:mi,1:mj) = MATMUL(c2s_tramat(1:mi,1:ni),v(1:ni,1:mj,1))
+
+    DEALLOCATE (vij,v,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE calc_int
+
+  SUBROUTINE calc_norm(anorm,lm,alpha)
+
+    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: anorm
+    INTEGER, INTENT(IN)                      :: lm
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_norm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, l, il
+
+    anorm = 0.0_dp
+    i = 0
+    DO l=0,lm
+       DO il=1,2*l+1
+          i = i + 1
+          anorm(i) = 2.0_dp**(l+2)*oorootpi/dfac(2*l+1) * alpha**(l+1.5_dp)
+       END DO
+    END DO
+
+  END SUBROUTINE calc_norm
 
 ! *****************************************************************************
 
