@@ -637,8 +637,13 @@ CONTAINS
       ls_scf_env%has_s_preconditioner=.TRUE.
     END SELECT
 
-    CALL cp_assert(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%has_s_preconditioner,cp_warning_level,cp_assertion_failed,&
-                      routineP,"S Preconditioning not implemented in combination with CURVY_STEPS."//&
+    ! verify some requirements for the curvy steps
+    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
+                      routineP,"S Preconditioning not implemented in combination with CURVY_STEPS. "//&
+                       CPSourceFileRef,&
+                       only_ionode=.TRUE.)
+    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%use_s_sqrt),cp_failure_level,cp_assertion_failed,&
+                      routineP,"CURVY_STEPS requires the use of the sqrt inversion. "//&
                        CPSourceFileRef,&
                        only_ionode=.TRUE.)
 
