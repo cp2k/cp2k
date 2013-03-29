@@ -395,11 +395,11 @@ CONTAINS
                                                 handle, i, j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
     LOGICAL                                  :: converged, do_dyn_threshold
-    REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_gap, &
-      est_threshold, frob_id, frob_x, gam, homo, lumo, max_eig, &
-      max_threshold, maxdev, maxev, min_eig, minev, mmin, mu, mu_a, mu_b, &
-      mu_c, mu_fa, mu_fc, occ_matrix, scaled_homo_bound, scaled_lumo_bound, &
-      shift1, shift2, t1, t2, trace_fx, trace_gx, xi
+    REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_threshold, &
+      frob_id, frob_x, gam, homo, lumo, max_eig, max_threshold, maxdev, &
+      maxev, min_eig, minev, mmin, mu, mu_a, mu_b, mu_c, mu_fa, mu_fc, &
+      occ_matrix, scaled_homo_bound, scaled_lumo_bound, shift1, shift2, t1, &
+      t2, trace_fx, trace_gx, xi
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
                                                 matrix_xidsq, matrix_xsq, &
@@ -463,7 +463,6 @@ CONTAINS
     ! scale bounds for HOMO/LUMO
     scaled_homo_bound = (eps_max-(e_homo+maxdev))/(eps_max-eps_min)
     scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
-    est_gap = scaled_homo_bound - scaled_lumo_bound
     current_threshold = threshold
 
 
