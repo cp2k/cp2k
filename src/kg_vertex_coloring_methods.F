@@ -369,7 +369,6 @@ CONTAINS
 
     INTEGER                                  :: degree, dsat, id
     INTEGER(KIND=valt)                       :: value
-    LOGICAL                                  :: heap_error
 
     id = node%id
 
@@ -382,8 +381,6 @@ CONTAINS
       value = kg_get_value(dsat, degree)
   
       CALL kg_heap_reset_node(heap, id, value, error)  
-      CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-           routineP, "Error updating heap.", error=error)
 
     END IF
 
