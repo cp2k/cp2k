@@ -311,6 +311,7 @@ CONTAINS
        WRITE(unit_nr,*)
        WRITE(unit_nr,'(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ",converged," threshold:",threshold_lanczos
        WRITE(unit_nr,'(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:",max_ev,min_ev
+       WRITE(unit_nr,'(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev,EPSILON(min_ev))
     ENDIF
     ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
     ! and adjust the scaling to be on the safe side
