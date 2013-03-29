@@ -51,7 +51,9 @@ MODULE scptb_ks_matrix
                                              pi
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
-  USE orbital_pointers,                ONLY: indso, ncoset, nsoset
+  USE orbital_pointers,                ONLY: indso,&
+                                             ncoset,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: c2s_tramat
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -980,7 +982,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE scp_print(vec,message)
     TYPE(scp_vector_type)                    :: vec
-    CHARACTER (LEN=*), INTENT(IN)            :: message
+    CHARACTER(LEN=*), INTENT(IN)             :: message
 
     INTEGER                                  :: iat, iba, ikind, natom, nbas, &
                                                 nkind
@@ -1010,22 +1012,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_scp_vector', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: use_virial, defined, failure
-    INTEGER                                  :: nkind, ikind, jkind, nai, naj,&
-                                                lmaxscp, li, lj, ni, nj, istat,&
-                                                iatom, jatom, ia, ja, i, j
+    INTEGER                                  :: i, ia, iatom, ikind, istat, &
+                                                j, ja, jatom, jkind, li, lj, &
+                                                lmaxscp, nai, naj, ni, nj, &
+                                                nkind
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
-    REAL(KIND=dp)                            :: ehartree, alpha, beta
-    REAL(KIND=dp), DIMENSION(3)              :: rij
+    LOGICAL                                  :: defined, failure, use_virial
+    REAL(KIND=dp)                            :: alpha, beta, ehartree
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: aintegral
     REAL(KIND=dp), DIMENSION(16)             :: normi, normj
+    REAL(KIND=dp), DIMENSION(3)              :: rij
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
-    REAL(KIND=dp), DIMENSION(:, :), &
-      ALLOCATABLE                            :: aintegral
-    REAL(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: coi, coj, cii, cij
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cii, cij, coi, coj
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind, atkindi, atkindj
+    TYPE(atomic_kind_type), POINTER          :: atkindi, atkindj, atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
@@ -1144,7 +1146,7 @@ CONTAINS
   SUBROUTINE calc_int(aintegral,rij,alpha,li,beta,lj,error)
 
     REAL(KIND=dp), DIMENSION(:, :), &
-       INTENT(inout)                         :: aintegral
+      INTENT(inout)                          :: aintegral
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), INTENT(IN)                :: alpha
     INTEGER, INTENT(IN)                      :: li
@@ -1155,15 +1157,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_int', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: istat, mi, mj, ni, nj, nl
     LOGICAL                                  :: failure
-    INTEGER                                  :: ni, nj, mi, mj, nl, istat
     REAL(KIND=dp)                            :: dr2
-    REAL(KIND=dp), DIMENSION(1)              :: zi, zj
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vij
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: v
     REAL(KIND=dp), DIMENSION(0:9)            :: f
-    REAL(KIND=dp), DIMENSION(:,:), &
-       ALLOCATABLE                           :: vij
-    REAL(KIND=dp), DIMENSION(:,:,:), &
-       ALLOCATABLE                           :: v
+    REAL(KIND=dp), DIMENSION(1)              :: zi, zj
 
     failure = .FALSE.
     dr2 = SUM(rij(:)**2)
@@ -1197,7 +1199,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_norm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, l, il
+    INTEGER                                  :: i, il, l
 
     anorm = 0.0_dp
     i = 0

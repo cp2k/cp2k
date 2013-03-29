@@ -27,8 +27,8 @@ MODULE orbital_transformation_matrices
   USE mathlib,                         ONLY: binomial
   USE orbital_pointers,                ONLY: co,&
                                              nco,&
-                                             nso,&
                                              ncoset,&
+                                             nso,&
                                              nsoset
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol

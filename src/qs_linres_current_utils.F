@@ -144,7 +144,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list_cubes, rbs
     INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
-    LOGICAL                                  :: append_cube, failure, ionode, should_stop
+    LOGICAL                                  :: append_cube, failure, ionode, &
+                                                should_stop
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
