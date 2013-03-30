@@ -7,14 +7,17 @@
 MODULE atom_basis
   USE atom_fit,                        ONLY: atom_fit_basis
   USE atom_output,                     ONLY: atom_print_basis,&
-                                             atom_print_info
+                                             atom_print_info,&
+                                             atom_print_method,&
+                                             atom_print_potential
   USE atom_types,                      ONLY: &
        atom_basis_type, atom_integrals, atom_optimization_type, &
        atom_orbitals, atom_p_type, atom_potential_type, atom_state, &
        create_atom_orbs, create_atom_type, init_atom_basis, &
        init_atom_potential, read_atom_opt_section, release_atom_basis, &
        release_atom_potential, release_atom_type, set_atom
-  USE atom_utils,                      ONLY: atom_set_occupation,&
+  USE atom_utils,                      ONLY: atom_consistent_method,&
+                                             atom_set_occupation,&
                                              get_maxl_occ,&
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -55,10 +58,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: do_eric, do_erie, handle, i, &
-                                                ierr, im, in, iw, k, maxl, &
-                                                mb, method, mo, n_meth, &
-                                                n_rep, reltyp, zcore, zval, zz
+    INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iunit, iw, k, maxl, &
+      mb, method, mo, n_meth, n_rep, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -189,7 +190,7 @@ CONTAINS
         END DO
 
         ! is there a pseudo potential
-        pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
+        pp_calc = ANY(INDEX(tmpstringlist(1:),"CORE") /= 0)
         IF ( pp_calc ) THEN
           ! get and set the core occupations
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
@@ -216,6 +217,23 @@ CONTAINS
         CALL set_atom(atom_info(in,im)%atom,coulomb_integral_type=do_eric,&
                       exchange_integral_type=do_erie,error=error)
 
+        IF (atom_consistent_method(method,state%multiplicity)) THEN
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
+          CALL atom_print_method(atom_info(in,im)%atom,iw,error)
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
+          IF (pp_calc) THEN
+            IF (iw > 0) CALL atom_print_potential(p_pot,iw,error)
+          ELSE
+            IF (iw > 0) CALL atom_print_potential(ae_pot,iw,error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
+        ELSE
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                         "METHOD_TYPE and MULTIPLICITY are incompatible",&
+                         only_ionode=.TRUE.,error=error)
+        END IF
+
         NULLIFY(orbitals)
         mo = MAXVAL(state%maxn_calc)
         mb = MAXVAL(atom_info(in,im)%atom%basis%nbas)
@@ -227,16 +245,18 @@ CONTAINS
 
     ! Start the Optimization
     powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_BASIS",extension=".log",error=error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
+    iunit = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_BASIS",extension=".log",error=error)
     IF ( had_ae ) THEN
       pp_calc = .FALSE.
-      CALL atom_fit_basis(atom_info,ae_basis,pp_calc,iw,powell_section,error)
+      CALL atom_fit_basis(atom_info,ae_basis,pp_calc,iunit,iw,powell_section,error)
     END IF
     IF ( had_pp ) THEN
       pp_calc = .TRUE.
-      CALL atom_fit_basis(atom_info,pp_basis,pp_calc,iw,powell_section,error)
+      CALL atom_fit_basis(atom_info,pp_basis,pp_calc,iunit,iw,powell_section,error)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_BASIS",error=error)
+    CALL cp_print_key_finished_output(iunit,logger,atom_section,"PRINT%FIT_BASIS",error=error)
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%BASIS_SET",extension=".log",error=error)
     IF(iw > 0) THEN
       CALL atom_print_basis(ae_basis,iw," All Electron Basis",error)

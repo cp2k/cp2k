@@ -154,12 +154,13 @@ CONTAINS
 
   END SUBROUTINE atom_fit_density
 ! *****************************************************************************
-  SUBROUTINE atom_fit_basis (atom_info,basis,pptype,iunit,powell_section,error)
+  SUBROUTINE atom_fit_basis (atom_info,basis,pptype,iunit,iw,powell_section,&
+                             error)
     TYPE(atom_p_type), DIMENSION(:, :), &
       POINTER                                :: atom_info
     TYPE(atom_basis_type), POINTER           :: basis
     LOGICAL, INTENT(IN)                      :: pptype
-    INTEGER, INTENT(IN)                      :: iunit
+    INTEGER, INTENT(IN)                      :: iunit, iw
     TYPE(section_vals_type), POINTER         :: powell_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -350,7 +351,7 @@ CONTAINS
                 END DO
               END DO
          END SELECT
-         CALL basis_fit (atom_info,basis,pptype,ostate%f,error)
+         CALL basis_fit (atom_info,basis,pptype,ostate%f,iw,error)
          fopt = MIN(fopt,ostate%f)
       END IF
 
@@ -917,19 +918,20 @@ CONTAINS
 
   END SUBROUTINE density_fit
 ! *****************************************************************************
-  SUBROUTINE basis_fit (atom_info,basis,pptype,afun,error)
+  SUBROUTINE basis_fit (atom_info,basis,pptype,afun,iw,error)
     TYPE(atom_p_type), DIMENSION(:, :), &
       POINTER                                :: atom_info
     TYPE(atom_basis_type), POINTER           :: basis
     LOGICAL, INTENT(IN)                      :: pptype
     REAL(dp), INTENT(OUT)                    :: afun
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'basis_fit', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: do_eric, do_erie, ierr, im, &
-                                                in, iw, nm, nn, reltyp, zval
+                                                in, nm, nn, reltyp, zval
     LOGICAL                                  :: eri_c, eri_e, &
                                                 failure = .FALSE.
     TYPE(atom_integrals), POINTER            :: atint
@@ -976,7 +978,6 @@ CONTAINS
       CALL atom_relint_setup(atint,basis,reltyp,zcore=REAL(zval,dp),error=error)
     END IF
 
-    iw = 0
     afun = 0._dp
 
     DO in=1,nn
