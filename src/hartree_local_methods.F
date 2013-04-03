@@ -210,7 +210,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iat, iatom, ikind, ipgf1, is1, iset1, iso, &
-      istat, l_ang, llmax, lmax0, lmax_0, m1, max_iso, max_iso_not0, max_nr, &
+      istat, l_ang, llmax, lmax0, lmax_0, m1, max_iso, max_iso_not0, &
       max_s_harm, maxl, maxso, mepos, n1, nat, natom, nchan_0, nkind, nr, &
       nset, nsotot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
@@ -299,14 +299,8 @@ CONTAINS
        ENDIF
     END IF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
-
-    ALLOCATE(gexp(max_nr),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     atenergy=.FALSE.
     IF (ASSOCIATED(qs_env%atprop)) THEN
@@ -339,7 +333,12 @@ CONTAINS
          llmax = harmonics%llmax
 
          nsotot = maxso*nset
-         CALL reallocate(gsph,1,max_nr,1,nsotot)
+         ALLOCATE(gsph(nr,nsotot),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(gexp(nr),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(sqrtwr(nr),g0_h_w(nr,0:lmax_0),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
          NULLIFY(Vh1_h,Vh1_s)
          ALLOCATE(Vh1_h(nr,max_iso_not0),STAT=istat)
@@ -441,6 +440,12 @@ CONTAINS
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(cg_list,cg_n_list,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(gsph,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(gexp,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(sqrtwr,g0_h_w,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       ELSE
 !===========   NO  PAW   ===============
@@ -450,17 +455,6 @@ CONTAINS
     END DO  ! ikind
 
     CALL mp_sum(energy_hartree_1c,para_env%group)
-
-    DEALLOCATE(gexp,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    IF(ASSOCIATED(gsph)) THEN
-       DEALLOCATE(gsph,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    DEALLOCATE(g0_h_w,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(sqrtwr,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
