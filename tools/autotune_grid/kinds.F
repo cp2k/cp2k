@@ -6,21 +6,12 @@ MODULE kinds
   PUBLIC :: sp, dp, dp_size, sp_size, int_size, int_8
   PUBLIC :: default_string_length, default_path_length
 
-#if __SGL 
-  INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 6, 30 )
-  ! we rely on this (libraries) but do not check this
-  INTEGER, PARAMETER :: dp_size  = 4,&
-                        int_size = BIT_SIZE(0)/8,&
-                        sp_size  = 4
-#else
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
   ! we rely on this (libraries) but do not check this
   INTEGER, PARAMETER :: dp_size  = 8,&
                         int_size = BIT_SIZE(0)/8,&
                         sp_size  = 4
-#endif
 
   ! this int holds more than the normal 4byte ints
   ! on standard machines it ought to be an 8byte int but this is not guaranteed

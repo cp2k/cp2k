@@ -26,7 +26,7 @@
                                     la_min_local, lb_min_local, &
                                     maxl, lvab, hvab)
       
-              USE lib_kinds,                        ONLY: wp,dp
+              USE lib_kinds,                        ONLY: dp
       
              REAL(KIND=dp), INTENT(IN) :: prefactor
              REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
@@ -249,7 +249,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -291,7 +291,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -502,7 +502,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -747,7 +747,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -1101,7 +1101,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -1588,7 +1588,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -1803,7 +1803,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -2151,7 +2151,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -2750,7 +2750,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -3673,7 +3673,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -3811,7 +3811,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -4083,7 +4083,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -4715,7 +4715,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -5851,7 +5851,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -5989,7 +5989,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -6127,7 +6127,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -6535,7 +6535,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -7538,7 +7538,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -7676,7 +7676,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -7814,7 +7814,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -7952,7 +7952,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
-       USE lib_kinds,                        ONLY: wp,dp
+       USE lib_kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -8533,7 +8533,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -8671,7 +8671,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -8809,7 +8809,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -8947,7 +8947,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE lib_kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -9087,7 +9087,7 @@
                              la_min_local, lb_min_local, maxl, &
                              lvab, hvab)
       
-              USE lib_kinds,                        ONLY: wp,dp
+              USE lib_kinds,                        ONLY: dp
               
          IMPLICIT NONE
       

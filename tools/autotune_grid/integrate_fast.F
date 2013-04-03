@@ -2,11 +2,7 @@
 
     IMPLICIT NONE
 
-#if defined(__SGL)
-  INTEGER, PARAMETER :: wp = KIND(0.0)
-#else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
     integer, INTENT(IN)     :: lp
     integer, INTENT(IN)     :: cmax
     integer, INTENT(IN)     :: gridbounds(2,3)
@@ -100,11 +96,7 @@
 
     IMPLICIT NONE
 
-#if defined(__SGL)
-  INTEGER, PARAMETER :: wp = KIND(0.0)
-#else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
     integer, PARAMETER      :: lp=0
     integer, INTENT(IN)     :: cmax
     integer, INTENT(IN)     :: gridbounds(2,3)
@@ -192,11 +184,7 @@
 
     IMPLICIT NONE
 
-#if defined(__SGL)
-  INTEGER, PARAMETER :: wp = KIND(0.0)
-#else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
     integer, PARAMETER      :: lp=1
     integer, INTENT(IN)     :: cmax
     integer, INTENT(IN)     :: gridbounds(2,3)
@@ -284,11 +272,7 @@
 
     IMPLICIT NONE
 
-#if defined(__SGL)
-  INTEGER, PARAMETER :: wp = KIND(0.0)
-#else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
     integer, PARAMETER      :: lp=2
     integer, INTENT(IN)     :: cmax
     integer, INTENT(IN)     :: gridbounds(2,3)

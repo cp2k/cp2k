@@ -277,13 +277,8 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_type_int_4 = 17         !10001
   INTEGER, PARAMETER          :: dbcsr_type_int_8 = 19         !10011
 
-#ifndef __SGL
   INTEGER, PARAMETER          :: dbcsr_type_real_default = dbcsr_type_real_8
   INTEGER, PARAMETER          :: dbcsr_type_complex_default = dbcsr_type_complex_8
-#else
-  INTEGER, PARAMETER          :: dbcsr_type_real_default = dbcsr_type_real_4
-  INTEGER, PARAMETER          :: dbcsr_type_complex_default = dbcsr_type_complex_4
-#endif
 
   ! Different method for dbcsr_filter
   INTEGER, PARAMETER            :: dbcsr_filter_frobenius = 1

@@ -21,9 +21,9 @@ SUBROUTINE fftcu_get_lengths ( DATA, max_length )
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, DIMENSION(:), ALLOCATABLE       :: dlocal, idx
-  INTEGER                                  :: h, i, j, k, m, maxn, &
+  INTEGER                                  :: i, maxn, &
                                               maxn_fac, &
-                                              ndata, nmax, number
+                                              ndata, number
 
   maxn_fac = 15
   maxn = 37748736
@@ -105,26 +105,12 @@ SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
 
-  INTEGER                                              :: ifft_in_place
-
-  REAL(KIND=dp), POINTER                               :: ptr
-  INTEGER                                              :: status, lmem
-
 #if defined ( __FFTCU )  || defined ( __CUDA )
-#if defined(__SGL) || defined(__FFTSGL)
-
-  ifft_in_place=0
-  IF (fft_in_place) ifft_in_place=1
-
-  CALL fftcu3d_cu(ifft_in_place, fsign, scale, n, zin, zout)
-
-#else
 
   WRITE(*,*) 'FFTCU only works in single precision'
   CALL flush(6)
   STOP
 
-#endif
 #else
   fsign = 0
 #endif
@@ -141,31 +127,14 @@ SUBROUTINE fftcu1dm ( fsign, trans, n, m, zin, zout, scale )
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
-  INTEGER                                              :: status, itrans
-  INTEGER                                            :: ii(3),di,io(3),DO
 
 
 #if defined ( __FFTCU ) || defined ( __CUDA )
-#if defined(__SGL) || defined(__FFTSGL)
-
-  itrans=0
-!  if (trans) itrans=1
-  IF (trans) THEN
-    WRITE(*,*) 'FFTCU 1D tranpose FFT has not been implimented'
-    CALL flush(6)
-    STOP
-  ENDIF
-
-  WRITE(*,*) 'WARNING: FFTCU 1D FFT has not been tested!'
-  CALL fftcu1dm_cu(fsign, itrans, n, m, zin, zout, scale)
-
-#else
 
   WRITE(*,*) 'FFTCU only works in single precision'
   CALL flush(6)
   STOP
 
-#endif
 #else
 
   fsign = 0

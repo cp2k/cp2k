@@ -23,15 +23,9 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
   n2 = n ( 1 ) * n ( 2 )
   n3 = n2 * n ( 3 )
   scr ( 1:n2 ) = CMPLX ( 0._wp, KIND = wp )
-#if defined (__SGL)
-  CALL cgeru ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
-  CALL cscal ( n3, za, cmat, 1 )
-  CALL cgeru ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
-#else
   CALL zgeru ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
   CALL zscal ( n3, za, cmat, 1 )
   CALL zgeru ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
-#endif
 
 END SUBROUTINE rankup
 

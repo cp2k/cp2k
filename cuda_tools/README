@@ -9,8 +9,7 @@ BASIC:
 
 1)  Add a line "NVCC = nvcc" pointing the makefile to the nvcc compiler.
 
-2)  Add -D__CUDAPW and -D__FFTCU to the DFLAGS and NVFLAGS environmental variables;
-    optionally add -D__FFTSGL for faster single precision FFTs.
+2)  Add -D__CUDAPW and -D__FFTCU to the DFLAGS and NVFLAGS environmental variables.
 
 3)  Add libcudart.so, libcufft.so, and cublas to the LIBS variable.
 
@@ -31,9 +30,9 @@ DBCSR (experimental, with limitations):
 
 Then, compile as normal.
 
-Alternatively one can comile with support for running DGEMM and DSYMM on the gpu, but nothing else.  This is accomplised as above, but instead of __CUDAPW and __FFTSGL one should include __CUBLASDP.
+Alternatively one can comile with support for running DGEMM and DSYMM on the gpu, but nothing else.  This is accomplised as above, but instead of __CUDAPW one should include __CUBLASDP.
 
 Features
 --------
-At the moment, the only portion of the calculation which can be performed on the graphics card is the FFT, the associated scatter/gather operations, and some linear algebra.  Because NVIDIA graphics cards only reach full performance for single precision floating point arithmetic, the FFT must be performed in single precision (hence the -D__FFTSGL option.)
+At the moment, the only portion of the calculation which can be performed on the graphics card is the FFT, the associated scatter/gather operations, and some linear algebra.
 

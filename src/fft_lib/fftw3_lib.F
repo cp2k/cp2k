@@ -9,19 +9,11 @@
 #define __COLLAPSE3 collapse(3)
 #endif
 
-#if defined(__SGL) || defined(__FFTSGL)
-#define XFFTW_PLAN_WITH_NTHREADS sfftw_plan_with_nthreads
-#define XFFTW_PLAN_DFT_3D sfftw_plan_dft_3d
-#define XFFTW_PLAN_GURU_DFT sfftw_plan_guru_dft
-#define XFFTW_EXECUTE_DFT sfftw_execute_dft
-#define XFFTW_DESTROY_PLAN sfftw_destroy_plan
-#else
 #define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
 #define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d
 #define XFFTW_PLAN_GURU_DFT dfftw_plan_guru_dft
 #define XFFTW_EXECUTE_DFT dfftw_execute_dft
 #define XFFTW_DESTROY_PLAN dfftw_destroy_plan
-#endif
 
 
 ! *****************************************************************************
@@ -137,8 +129,6 @@ SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
              fft_direction, fftw_plan_type, hm_rank
   LOGICAL, INTENT(OUT)                               :: valid
 
-  INTEGER                                            :: plan_style
-
 #if defined (__FFTW3)
 
   CALL XFFTW_PLAN_GURU_DFT(plan,fft_rank, &
@@ -170,49 +160,7 @@ SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,
          INTEGER, INTENT(IN) :: nrows,nt 
          INTEGER, INTENT(OUT)    :: rows_per_thread,rows_per_thread_r 
          INTEGER, INTENT(OUT)    :: remaining, th_planA, th_planB
-         INTEGER              :: excess, total_excess
 
-#if defined(__SGL) || defined(__FFTSGL)
-         ! In the SGL case the last thread will do the remaining rows
-         IF (MOD(nrows,nt) .EQ. 0 .AND. MOD(nrows/nt,2) .EQ. 0) THEN
-            rows_per_thread = nrows/nt
-            rows_per_thread_r = 0
-            th_planA = nt
-            th_planB = 0
-            remaining = 0 
-         ELSE
-            rows_per_thread   = nrows/(nt - 1)
-            rows_per_thread_r = MOD(nrows,nt-1)
-            th_planA = nt - 1
-            th_planB = 1
-            remaining = MOD(nrows,nt) 
-         ENDIF
-         ! Balance threads to avoid an even number of rows in planA
-         IF ((MOD(rows_per_thread,2) .GT. 0) .AND. (rows_per_thread .GT. 1)) THEN
-             excess = MOD(rows_per_thread,2)
-             total_excess = excess * th_planA
-             rows_per_thread = rows_per_thread - excess
-             rows_per_thread_r = rows_per_thread_r +  total_excess 
-         ELSE IF (rows_per_thread .EQ. 1) THEN
-             rows_per_thread = nrows
-             rows_per_thread_r = 0
-             th_planA = 1
-             th_planB = nt - 1  
-         ELSE
-             ! All rows are even or only the last one is odd
-             ! Nothing to do here
-         ENDIF
- 
-
-         ! Swap if only last thread has rows
-         IF (rows_per_thread .EQ. 0 .AND. rows_per_thread_r .GT. 0) THEN
-            rows_per_thread = rows_per_thread_r
-            rows_per_thread_r = 0
-            th_planA = 1
-            th_planB = nt - 1
-            remaining = 1
-         ENDIF
-#else
          IF (MOD(nrows,nt) .EQ. 0) THEN
             rows_per_thread = nrows/nt
             rows_per_thread_r = 0
@@ -226,7 +174,6 @@ SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,
             remaining = MOD(nrows,nt) 
             th_planB = nt - th_planA
          ENDIF
-#endif
 
 END SUBROUTINE
 
@@ -250,7 +197,6 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
              fft_direction, fftw_plan_type
   INTEGER, INTENT(IN)                    :: rows_per_th
   INTEGER, INTENT(IN)                    :: rows_per_th_r
-  INTEGER                                :: rows
   LOGICAL                                :: valid
 
     ! First remaining_rows plans will have an additional row
@@ -293,7 +239,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
   INTEGER                                            :: plan_style
-  LOGICAL                                            :: guru_supported, valid
+  LOGICAL                                            :: guru_supported
   INTEGER                                            :: n1,n2,n3
   INTEGER                                            :: nt
   INTEGER                                            :: rows_per_th, remaining 
@@ -553,7 +499,6 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
   COMPLEX(KIND=dp), POINTER                            :: xout(:)
   COMPLEX(KIND=dp), ALLOCATABLE                        :: tmp1(:)
   INTEGER, INTENT(OUT)                                 :: stat
-  COMPLEX(KIND=dp)                                     :: t
   INTEGER                                              :: n1, n2, n3
   INTEGER                                              :: tid, nt
   INTEGER                                              :: i,j,k
@@ -618,11 +563,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 
 
   IF ( scale /= 1.0_dp ) THEN
-#if defined(__SGL) || defined(__FFTSGL)
-      CALL csscal(n1*n2*n3,scale,xout,1)
-#else
       CALL zdscal(n1*n2*n3,scale,xout,1)
-#endif
   END IF
 
 #else
@@ -685,13 +626,7 @@ num_rows = plan%m / num_threads
 !$   num_rows = 1
 !$   plan%num_threads_needed = plan%m
 !$ ENDIF
-#if defined(__SGL) || defined(__FFTSGL)
-! Check for odd numbers of elements per thread (for SSE alignment issues)
-!$ IF (MOD(num_rows*plan%n, 2) .EQ. 1 .AND. plan%num_threads_needed .NE. 1) THEN
-!$   num_rows = num_rows + 1
-!$   plan%num_threads_needed = (plan%m + num_rows - 1) / num_rows
-!$ ENDIF
-#endif
+
 ! Check for total number of rows not divisible by num_threads
 !$ IF (num_rows*plan%num_threads_needed .NE. plan%m) THEN
 !$   plan%need_alt_plan = .TRUE.
@@ -710,15 +645,6 @@ num_rows = plan%m / num_threads
     DO = 1
   END IF
 
-#if defined(__SGL) || defined(__FFTSGL)
-  IF ( plan%fsign == +1 ) THEN
-    CALL sfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
-              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
-  ELSE
-    CALL sfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
-              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
-  END IF
-#else
   IF ( plan%fsign == +1 ) THEN
     CALL dfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
               zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
@@ -726,19 +652,9 @@ num_rows = plan%m / num_threads
     CALL dfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
               zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
   END IF
-#endif
 
 !$ IF (plan%need_alt_plan) THEN
 !$  plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
-#if defined(__SGL) || defined(__FFTSGL)
-!$  IF ( plan%fsign == +1 ) THEN
-!$    CALL sfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
-!$              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
-!$  ELSE
-!$    CALL sfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
-!$              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
-!$  END IF
-#else
 !$  IF ( plan%fsign == +1 ) THEN
 !$    CALL dfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
 !$              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
@@ -746,7 +662,6 @@ num_rows = plan%m / num_threads
 !$    CALL dfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
 !$              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
 !$  END IF
-#endif
 !$ END IF
 
 #endif
@@ -848,15 +763,6 @@ zscal_ptr => zout(scal_offset)
 !$OMP MASTER
   stat=1
 !$OMP END MASTER
-#if defined(__SGL) || defined(__FFTSGL)
-  CALL sfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
-!$ endif
-! all theads need to meet at this barrier
-!$omp barrier
-!$ if (my_id < plan%num_threads_needed) then
-  IF ( scale /= 1.0_dp ) CALL csscal(plan%n*num_rows,scale,zscal_ptr,1)
-!$ endif
-#else
   CALL dfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
 !$ endif
 ! all theads need to meet at this barrier
@@ -864,7 +770,6 @@ zscal_ptr => zout(scal_offset)
 !$ if (my_id < plan%num_threads_needed) then
   IF ( scale /= 1.0_dp ) CALL zdscal(plan%n*num_rows,scale,zscal_ptr,1)
 !$ endif
-#endif
 
 #else
 
@@ -925,11 +830,7 @@ END SUBROUTINE fftw31dm
          INTEGER iunit
          EXTERNAL fftw_write_char
 #if defined ( __FFTW3 )
-#if defined (__SGL) || defined(__FFTSGL)
-         CALL sfftw_export_wisdom(fftw_write_char, iunit)
-#else
          CALL dfftw_export_wisdom(fftw_write_char, iunit)
-#endif
 #endif
       END
 
@@ -973,10 +874,6 @@ END SUBROUTINE fftw31dm
          EXTERNAL fftw_read_char
          isuccess=0
 #if defined ( __FFTW3 )
-#if defined (__SGL) || defined(__FFTSGL)
-         CALL sfftw_import_wisdom(isuccess, fftw_read_char, iunit)
-#else
          CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
-#endif
 #endif
       END

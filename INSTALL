@@ -217,8 +217,6 @@ How to compile CP2K code
                              use them with OpenMP code anyways.
      -D__NO_MPI_MEMORY     - Do not use MPI memory allocation/deallocation
                              routines.
-     And others...
-     -D__FFTSGL            - Use single precision FFT (unsure of status)
 
  3c) CP2K currently assumes full Fortran 95 compliance and expects the
      ISO_C_BINDING module of Fortran 2003 to be present, which
@@ -264,8 +262,6 @@ How to compile CP2K code
      -D__cray_pointers      - cray pointers will be be used in preference
                               to the ISO_C_BINDINGS call to
                               MPI_ALLOC_MEM.
-     -D__SGL                - use single precision as the default real type
-                              (abandoned, probably does not work)
      -D__PLASMA             - plasma support for DBCSR (neglected, may not work)
      -D__USE_PAT            - craypat profiling (?)
      -D__HMD                - ?

@@ -46,12 +46,6 @@ MODULE fft_tools
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_tools'
 
-#if defined(__FFTSGL)
-  INTEGER, PARAMETER :: lp = sp
-#else
-  INTEGER, PARAMETER :: lp = dp
-#endif
-
 #if defined(__HAS_NO_OMP_3)
 #define __COLLAPSE2
 #else
@@ -86,18 +80,18 @@ MODULE fft_tools
      ! to be used in cube_transpose_* routines
      INTEGER, DIMENSION(2)                :: cart_sub_comm=mp_comm_null, dim, pos
      ! to be used in fft3d_s
-     COMPLEX(KIND=lp), DIMENSION(:, :, :), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
                                           :: ziptr, zoptr
      ! to be used in fft3d_ps : block distribution
-     COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
             :: p1buf, p2buf, p3buf, p4buf, p5buf, p6buf, p7buf
      ! to be used in fft3d_ps : plane distribution
-     COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
                                           :: r1buf, r2buf
-     COMPLEX(KIND=lp), DIMENSION(:, :, :), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
                                           :: tbuf
      ! to be used in fft3d_pb
-     COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
             :: a1buf, a2buf, a3buf, a4buf, a5buf, a6buf
      ! to be used in communication routines
      INTEGER, DIMENSION(:), POINTER       :: scount, rcount, sdispl, rdispl
@@ -105,11 +99,11 @@ MODULE fft_tools
      INTEGER, DIMENSION(:), POINTER       :: xzcount, yzcount, xzdispl, yzdispl
      INTEGER                              :: in, mip
      REAL(KIND=dp)                        :: rsratio
-     COMPLEX(KIND=lp), DIMENSION(:), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:), POINTER &
                                           :: xzbuf, yzbuf
      COMPLEX(KIND=sp), DIMENSION(:), POINTER &
                                           :: xzbuf_sgl, yzbuf_sgl
-     COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
+     COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
             :: rbuf1, rbuf2, rbuf3, rbuf4, rbuf5, rbuf6, rr
      COMPLEX(KIND=sp), DIMENSION(:, :), POINTER &
                                           :: ss, tt
@@ -361,15 +355,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_s', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(1, 1, 1), &
+    COMPLEX(KIND=dp), DIMENSION(1, 1, 1), &
       TARGET                                 :: zdum
-    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
-      POINTER                                :: ziptr, zoptr
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: zoptr
     INTEGER                                  :: handle, ld(3), lo(3), sign, &
                                                 stat
     LOGICAL                                  :: fft_in_place, test
     REAL(KIND=dp)                            :: in_sum, out_sum
-    REAL(KIND=lp)                            :: norm
+    REAL(KIND=dp)                            :: norm
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
@@ -378,7 +372,7 @@ CONTAINS
     IF ( PRESENT ( scale ) ) THEN
        norm = scale
     ELSE
-       norm = 1.0_lp
+       norm = 1.0_dp
     END IF
 
     IF ( PRESENT ( debug ) ) THEN
@@ -408,28 +402,7 @@ CONTAINS
 
     sign = fsign
     CALL get_fft_scratch(fft_scratch,tf_type=400,n=n,error=error)
-#if defined(__FFTSGL)
-    ziptr => fft_scratch%ziptr
-    ziptr(:,:,:) = zin(:,:,:)
-    IF ( fft_in_place ) THEN
-       zoptr => zdum
-       IF ( fsign == FWFFT ) THEN
-          CALL fft_3d( fft_scratch%fft_plan(1), norm, ziptr, zoptr, stat )
-       ELSE
-          CALL fft_3d( fft_scratch%fft_plan(2), norm, ziptr, zoptr, stat )
-       ENDIF
-       zin(:,:,:) = ziptr(:,:,:)
-    ELSE
-       zoptr => fft_scratch%zoptr
-       IF ( fsign == FWFFT ) THEN
-          CALL fft_3d( fft_scratch%fft_plan(3), norm, ziptr, zoptr, stat )
-       ELSE
-          CALL fft_3d( fft_scratch%fft_plan(4), norm, ziptr, zoptr, stat )
-       ENDIF
-       zout(:,:,:) = zoptr(:,:,:)
-    END IF
 
-#else
     IF ( fft_in_place ) THEN
        zoptr => zdum
        IF ( fsign == FWFFT ) THEN
@@ -444,7 +417,7 @@ CONTAINS
           CALL fft_3d( fft_scratch%fft_plan(4), norm, zin, zout, stat )
        ENDIF
     END IF
-#endif
+
     CALL release_fft_scratch(fft_scratch,error)
 
     IF ( PRESENT ( zout ) ) THEN
@@ -506,9 +479,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_ps', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: pbuf, qbuf, rbuf, sbuf
-    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: tbuf
     INTEGER :: g_pos, handle, ierr, iout, lb, lg, lmax, mcx2, mcz1, mcz2, mg, &
       mmax, mx1, mx2, my1, my_id, mz2, n1, n2, nmax, num_threads, numtask, &
@@ -516,7 +489,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: sum_data
-    REAL(KIND=lp)                            :: norm
+    REAL(KIND=dp)                            :: norm
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
@@ -547,7 +520,7 @@ CONTAINS
     IF ( PRESENT ( scale ) ) THEN
        norm = scale
     ELSE
-       norm = 1.0_lp
+       norm = 1.0_dp
     END IF
 
     sign = fsign
@@ -681,7 +654,7 @@ CONTAINS
           pbuf => fft_scratch%p4buf
 
           ! FFT along y
-          CALL fft_1dm ( fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_lp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp , stat)
 
           qbuf => fft_scratch%p5buf
 
@@ -706,15 +679,7 @@ CONTAINS
           END IF
 
           ! FFT along x
-#if defined(__FFTSGL)
-          pbuf => fft_scratch%p6buf
-
-          CALL fft_1dm ( fft_scratch%fft_plan(3), qbuf, pbuf, 1.0_lp , stat)
-          gin(:,:) = pbuf(:,:)
-
-#else
-          CALL fft_1dm ( fft_scratch%fft_plan(3), qbuf, gin, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(3), qbuf, gin, 1.0_dp , stat)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( gin ) )
@@ -742,16 +707,7 @@ CONTAINS
           pbuf => fft_scratch%p7buf
 
           ! FFT along x
-#if defined(__FFTSGL)
-          qbuf => fft_scratch%p6buf
-
-          qbuf = gin
-
-          CALL fft_1dm ( fft_scratch%fft_plan(4), qbuf, pbuf, norm , stat)
-
-#else
           CALL fft_1dm ( fft_scratch%fft_plan(4), gin, pbuf, norm , stat)
-#endif
 
           qbuf => fft_scratch%p4buf
 
@@ -778,7 +734,7 @@ CONTAINS
           rbuf => fft_scratch%p3buf
 
           ! FFT along y
-          CALL fft_1dm ( fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_lp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp , stat)
 
           pbuf => fft_scratch%p2buf
 
@@ -804,12 +760,7 @@ CONTAINS
           qbuf => fft_scratch%p1buf
 
           ! FFT along z
-#if defined(__FFTSGL)
-          CALL fft_1dm ( fft_scratch%fft_plan(6), pbuf, qbuf, 1.0_lp , stat)
-          CALL copy_cz(n(3)*mx1*my1,qbuf,cin)
-#else
-          CALL fft_1dm ( fft_scratch%fft_plan(6), pbuf, cin, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(6), pbuf, cin, 1.0_dp , stat)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( cin ) )
@@ -873,14 +824,8 @@ CONTAINS
           END IF
 
           ! FFT along y and z
-#if defined(__FFTSGL)
-          CALL copy_zc(nx*ny*nz,cin,tbuf)
-          CALL fft_1dm ( fft_scratch%fft_plan(1), tbuf, sbuf, 1._lp , stat)
-          CALL fft_1dm ( fft_scratch%fft_plan(2), sbuf, tbuf, 1._lp , stat)
-#else
-          CALL fft_1dm ( fft_scratch%fft_plan(1), cin, sbuf, 1._lp , stat)
-          CALL fft_1dm ( fft_scratch%fft_plan(2), sbuf, tbuf, 1._lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(1), cin, sbuf, 1._dp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(2), sbuf, tbuf, 1._dp , stat)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( tbuf ) )
@@ -903,13 +848,7 @@ CONTAINS
           END IF
 
           ! FFT along x
-#if defined(__FFTSGL)
-          rbuf => fft_scratch%r2buf
-          CALL fft_1dm ( fft_scratch%fft_plan(3), sbuf, rbuf, norm , stat)
-          gin = rbuf
-#else
           CALL fft_1dm ( fft_scratch%fft_plan(3), sbuf, gin, norm , stat)
-#endif
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( gin ) )
@@ -934,13 +873,7 @@ CONTAINS
           END IF
 
           ! FFT along x
-#if defined(__FFTSGL)
-          rbuf => fft_scratch%r2buf
-          rbuf = gin
-          CALL fft_1dm ( fft_scratch%fft_plan(4),rbuf, sbuf, norm , stat)
-#else
           CALL fft_1dm ( fft_scratch%fft_plan(4), gin, sbuf, norm , stat)
-#endif
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( sbuf ) )
@@ -963,14 +896,8 @@ CONTAINS
           END IF
 
           ! FFT along y and z
-#if defined(__FFTSGL)
-          CALL fft_1dm ( fft_scratch%fft_plan(5), tbuf, sbuf, 1._lp , stat)
-          CALL fft_1dm ( fft_scratch%fft_plan(6), sbuf, tbuf, 1._lp , stat)
-          CALL copy_cz(nx*ny*nz,tbuf,cin)
-#else
-          CALL fft_1dm ( fft_scratch%fft_plan(5), tbuf, sbuf, 1._lp , stat)
-          CALL fft_1dm ( fft_scratch%fft_plan(6), sbuf, cin, 1._lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(5), tbuf, sbuf, 1._dp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(6), sbuf, cin, 1._dp , stat)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( cin ) )
@@ -1018,7 +945,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_pb', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: abuf, bbuf
     INTEGER                                  :: handle, lg(2), lz(3), mcx2, &
                                                 mcy3, mcz1, mcz2, mx1, mx2, &
@@ -1027,7 +954,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: sum_data
-    REAL(KIND=lp)                            :: norm
+    REAL(KIND=dp)                            :: norm
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
@@ -1054,9 +981,6 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-#if defined(__FFTSGL)
-    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-#endif
 
     CALL mp_environ ( np, dim, pos, group )
     CALL mp_cart_rank ( group, pos, my_pos )
@@ -1070,7 +994,7 @@ CONTAINS
     IF ( PRESENT ( scale ) ) THEN
        norm = scale
     ELSE
-       norm = 1.0_lp
+       norm = 1.0_dp
     END IF
 
     sign = fsign
@@ -1131,7 +1055,6 @@ CONTAINS
        IF ( sign == FWFFT ) THEN
           ! Stage 1 -> 3
 
-          abuf => fft_scratch%a1buf
           bbuf => fft_scratch%a2buf
 
           IF ( test ) THEN
@@ -1144,14 +1067,8 @@ CONTAINS
              END IF
           END IF
 
-#if defined(__FFTSGL)
-          CALL copy_zc(n(3)*mx1*my1,zin,abuf)
-          ! FFT along z
-          CALL fft_1dm ( fft_scratch%fft_plan(1), abuf, bbuf, norm , stat)
-#else
           ! FFT along z
           CALL fft_1dm ( fft_scratch%fft_plan(1), zin, bbuf, norm , stat)
-#endif
 
           abuf => fft_scratch%a3buf
 
@@ -1177,7 +1094,7 @@ CONTAINS
           END IF
 
           ! FFT along y
-          CALL fft_1dm ( fft_scratch%fft_plan(2), abuf, bbuf, 1.0_lp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp , stat)
 
           abuf => fft_scratch%a5buf
 
@@ -1191,8 +1108,6 @@ CONTAINS
 
           CALL cube_transpose_4 ( bbuf, group, bo(:,:,:,2), bo(:,:,:,3), abuf, fft_scratch, error )
 
-          bbuf => fft_scratch%a6buf
-
           IF ( test ) THEN
              sum_data = ABS ( SUM ( abuf ) )
              CALL mp_sum ( sum_data, group )
@@ -1203,14 +1118,8 @@ CONTAINS
           END IF
 
 
-#if defined(__FFTSGL)
           ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(3), abuf, bbuf, 1.0_lp , stat)
-          CALL copy_cz(n(1)*my3*mz3,bbuf,gin)
-#else
-          ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(3), abuf, gin, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(3), abuf, gin, 1.0_dp , stat)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( gin ) )
@@ -1223,7 +1132,6 @@ CONTAINS
        ELSEIF ( sign == BWFFT ) THEN
           ! Stage 3 -> 1
 
-          abuf => fft_scratch%a6buf
           bbuf => fft_scratch%a5buf
 
           IF ( test ) THEN
@@ -1236,14 +1144,8 @@ CONTAINS
              END IF
           END IF
 
-#if defined(__FFTSGL)
-          CALL copy_zc(n(1)*my3*mz3,gin,abuf)
           ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(4), abuf, bbuf, 1.0_lp , stat)
-#else
-          ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(4), gin, bbuf, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(4), gin, bbuf, 1.0_dp , stat)
 
           abuf => fft_scratch%a4buf
 
@@ -1269,7 +1171,7 @@ CONTAINS
           END IF
 
           ! FFT along y
-          CALL fft_1dm ( fft_scratch%fft_plan(5), abuf, bbuf, 1.0_lp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp , stat)
 
           abuf => fft_scratch%a2buf
 
@@ -1283,8 +1185,6 @@ CONTAINS
 
           CALL cube_transpose_1 ( bbuf, group, bo(:,:,:,2), bo(:,:,:,1), abuf, fft_scratch, error )
 
-          bbuf => fft_scratch%a1buf
-
           IF ( test ) THEN
              sum_data = ABS ( SUM ( abuf ) )
              CALL mp_sum ( sum_data, group )
@@ -1294,14 +1194,8 @@ CONTAINS
              END IF
           END IF
 
-#if defined(__FFTSGL)
-          ! FFT along z
-          CALL fft_1dm ( fft_scratch%fft_plan(6), abuf, bbuf, norm , stat)
-          CALL copy_cz(n(3)*mx1*my1,bbuf,zin)
-#else
           ! FFT along z
           CALL fft_1dm ( fft_scratch%fft_plan(6), abuf, zin, norm , stat)
-#endif
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( zin ) )
@@ -1340,22 +1234,11 @@ CONTAINS
              END IF
           END IF
 
-#if defined(__FFTSGL)
-          bbuf => fft_scratch%a1buf
-          abuf => fft_scratch%a2buf
-          CALL copy_zc(n(3)*mx1*my1,zin,bbuf)
-          ! FFT along z
-          CALL fft_1dm ( fft_scratch%fft_plan(1), bbuf, abuf, norm , stat)
-          bbuf => fft_scratch%a4buf
-          ! FFT along y
-          CALL fft_1dm ( fft_scratch%fft_plan(2), abuf, bbuf, 1.0_lp , stat)
-#else
           abuf => fft_scratch%a3buf
           bbuf => fft_scratch%a4buf
           ! FFT along z and y
           CALL fft_1dm ( fft_scratch%fft_plan(1), zin, abuf, norm , stat)
-          CALL fft_1dm ( fft_scratch%fft_plan(2), abuf, bbuf, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp , stat)
 
           abuf => fft_scratch%a5buf
 
@@ -1369,8 +1252,6 @@ CONTAINS
 
           CALL cube_transpose_6 ( bbuf, group, bo(:,:,:,1), bo(:,:,:,3), abuf, fft_scratch, error )
 
-          bbuf => fft_scratch%a6buf
-
           IF ( test ) THEN
              sum_data = ABS ( SUM ( abuf ) )
              CALL mp_sum ( sum_data, group )
@@ -1380,14 +1261,8 @@ CONTAINS
              END IF
           END IF
 
-#if defined(__FFTSGL)
           ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(3), abuf, bbuf, 1.0_lp , stat)
-          CALL copy_cz(n(1)*my3*mz3,bbuf,gin)
-#else
-          ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(3), abuf, gin, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(3), abuf, gin, 1.0_dp , stat)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( gin ) )
@@ -1410,17 +1285,10 @@ CONTAINS
              END IF
           END IF
 
-          abuf => fft_scratch%a6buf
           bbuf => fft_scratch%a5buf
 
-#if defined(__FFTSGL)
-          CALL copy_zc(n(1)*my3*mz3,gin,abuf)
           ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(4), abuf, bbuf, 1.0_lp , stat)
-#else
-          ! FFT along x
-          CALL fft_1dm ( fft_scratch%fft_plan(4), gin, bbuf, 1.0_lp , stat)
-#endif
+          CALL fft_1dm ( fft_scratch%fft_plan(4), gin, bbuf, 1.0_dp , stat)
 
           abuf => fft_scratch%a4buf
 
@@ -1447,17 +1315,10 @@ CONTAINS
           END IF
 
           ! FFT along y
-          CALL fft_1dm ( fft_scratch%fft_plan(5), abuf, bbuf, 1.0_lp , stat)
+          CALL fft_1dm ( fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp , stat)
 
-#if defined(__FFTSGL)
-          abuf => fft_scratch%a1buf
-          ! FFT along z
-          CALL fft_1dm ( fft_scratch%fft_plan(6), bbuf, abuf, norm , stat)
-          CALL copy_cz(n(3)*mx1*my1,abuf,zin)
-#else
           ! FFT along z
           CALL fft_1dm ( fft_scratch%fft_plan(6), bbuf, zin, norm , stat)
-#endif
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( zin ) )
@@ -1496,14 +1357,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, INTENT(IN)                      :: group, my_pos
     INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: tb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -1511,7 +1372,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'x_to_yz', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rr
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: ss, tt
@@ -1600,14 +1461,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: tb
     INTEGER, INTENT(IN)                      :: group, my_pos
     INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: sb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -1615,7 +1476,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_x', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rr
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: ss, tt
@@ -1705,7 +1566,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(2), INTENT(IN)        :: dims
@@ -1714,7 +1575,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: tb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -1722,7 +1583,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_xz', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: xzbuf_sgl, yzbuf_sgl
     INTEGER                                  :: handle, icrs, ip, ipl, ipr, &
                                                 ir, ix, iz, jj, jx, jy, jz, &
@@ -1907,7 +1768,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(2), INTENT(IN)        :: dims
@@ -1916,7 +1777,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: tb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -1924,7 +1785,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xz_to_yz', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: xzbuf_sgl, yzbuf_sgl
     INTEGER                                  :: handle, icrs, ip, ipl, ir, &
                                                 ix, ixx, iz, jj, jx, jy, jz, &
@@ -2099,11 +1960,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -2111,7 +1972,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_1', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, is, ixy, &
                                                 iz, mip, mz, np, nx, ny, nz, &
@@ -2186,11 +2047,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -2198,7 +2059,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_2', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, ixy, iz, &
                                                 mip, mz, np, nx, ny, nz, &
@@ -2271,11 +2132,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -2283,7 +2144,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_3', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, is, ixz, &
                                                 iy, lb, mip, my, my_id, np, &
@@ -2344,7 +2205,7 @@ CONTAINS
     IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-      rbuf(:,lb:ub) = 0.0_lp
+      rbuf(:,lb:ub) = 0.0_dp
     END IF
 !$omp end parallel
 
@@ -2373,11 +2234,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -2385,7 +2246,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_4', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, iy, izx, &
                                                 lb, mip, my, my_id, np, &
@@ -2425,7 +2286,7 @@ CONTAINS
     IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-      rbuf(:,lb:ub) = 0.0_lp
+      rbuf(:,lb:ub) = 0.0_dp
     END IF
 !$omp barrier
 
@@ -2471,11 +2332,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -2483,7 +2344,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_5', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, is, ixz, iy, &
                                                 lb, mip, my, my_id, np, &
@@ -2535,7 +2396,7 @@ CONTAINS
     IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-      rbuf(:,lb:ub) = 0.0_lp
+      rbuf(:,lb:ub) = 0.0_dp
     END IF
 !$omp end parallel
 
@@ -2564,11 +2425,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error )
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
@@ -2576,7 +2437,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_6', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, iy, izx, lb, &
                                                 mip, my, my_id, np, &
@@ -2609,7 +2470,7 @@ CONTAINS
     IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-      rbuf(:,lb:ub) = 0.0_lp
+      rbuf(:,lb:ub) = 0.0_dp
     END IF
 !$omp barrier
 
@@ -3237,17 +3098,10 @@ CONTAINS
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
              !set up fft plans
-#if defined(__FFTSGL)
-             CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
-                  fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf, fft_plan_style)
-             CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx1*mz1, &
-                  fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a4buf, fft_plan_style)
-#else
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
                   fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf, fft_plan_style)
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx1*mz1, &
                   fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf, fft_plan_style)
-#endif
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), my3*mz3, &
                   fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf, fft_plan_style)
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), my3*mz3, &
@@ -3269,6 +3123,7 @@ CONTAINS
              mg    = fft_sizes%mg
              np    = fft_sizes%numtask
              nmray = fft_sizes%nmray
+             nyzray= fft_sizes%nyzray
              ALLOCATE ( fft_scratch_new%fft_scratch%r1buf(mmax,lmax),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%tbuf(ny,nz,nx),STAT=ierr)
@@ -3292,9 +3147,9 @@ CONTAINS
                   fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., ny, nx*nz, &
                   fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
-             CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), fft_sizes%nyzray, &
+             CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), nyzray, &
                   fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf, fft_plan_style)
-             CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), fft_sizes%nyzray, &
+             CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), nyzray, &
                   fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., ny, nx*nz, &
                   fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
@@ -3408,7 +3263,7 @@ CONTAINS
                   fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p1buf, fft_plan_style)
 
 
-          CASE (400)    ! serial FFT_SGL
+          CASE (400)    ! serial FFT
              np = 0
              ALLOCATE ( fft_scratch_new%fft_scratch%ziptr(n(1),n(2),n(3)),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -3484,13 +3339,13 @@ CONTAINS
 
 ! *****************************************************************************
  SUBROUTINE sparse_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
-    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: rs
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: rs
     INTEGER, DIMENSION(:), POINTER           :: scount, sdispl
-    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: rq
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: rq
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
-    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: msgin, msgout
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: msgin, msgout
     INTEGER                                  :: ip, n, nr, ns, pos, rn, sn
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rreq, sreq
 

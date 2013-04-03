@@ -5,12 +5,7 @@
 
 ! *****************************************************************************
 MODULE mltfftsg_tools
-
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE fft_kinds,                         ONLY: dp
 
   PRIVATE
   PUBLIC :: matmov, zgetmo, get_cache_size, scaled
@@ -20,9 +15,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE matmov ( n, m, a, lda, b, ldb )
     INTEGER                                  :: n, m, lda
-    COMPLEX(dbl)                             :: a( lda, * )
+    COMPLEX(dp)                              :: a( lda, * )
     INTEGER                                  :: ldb
-    COMPLEX(dbl)                             :: b( ldb, * )
+    COMPLEX(dp)                              :: b( ldb, * )
 
     b ( 1:n , 1:m ) = a ( 1:n, 1:m )
   END SUBROUTINE matmov
@@ -30,9 +25,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE zgetmo ( a, lda, m, n, b, ldb )
     INTEGER                                  :: lda, m, n
-    COMPLEX(dbl)                             :: a( lda, n )
+    COMPLEX(dp)                              :: a( lda, n )
     INTEGER                                  :: ldb
-    COMPLEX(dbl)                             :: b( ldb, m )
+    COMPLEX(dp)                              :: b( ldb, m )
 
     b ( 1:n, 1:m ) = TRANSPOSE ( a ( 1:m, 1:n ) )
   END SUBROUTINE zgetmo
@@ -40,15 +35,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE scaled ( n, sc, a )
     IMPLICIT NONE
-    INTEGER  :: n
-    COMPLEX(dbl) :: a ( n )
-    REAL(dbl) :: sc
+    INTEGER     :: n
+    COMPLEX(dp) :: a ( n )
+    REAL(dp)    :: sc
 
-#if defined(__SGL) || defined(__FFTSGL)
-    CALL sscal(n,sc,a,1)
-#else
     CALL dscal(n,sc,a,1)
-#endif
 
   END SUBROUTINE scaled
 

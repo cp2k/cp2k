@@ -6,28 +6,23 @@
 ! *****************************************************************************
 SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign, scale )
 
+  USE fft_kinds,                    ONLY: dp
   USE mltfftsg_tools
   !$ USE OMP_LIB
-
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
 
 ! Arguments
   CHARACTER ( LEN = 1 ), INTENT ( IN ) :: transa*1, transb*1
   INTEGER, INTENT ( IN ) :: ldax, lday, ldbx, ldby, n, m, isign
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: a ( ldax, lday ), b ( ldbx, ldby )
-  REAL ( dbl ), INTENT ( IN ) :: scale
+  COMPLEX ( dp ), INTENT ( INOUT ) :: a ( ldax, lday ), b ( ldbx, ldby )
+  REAL ( dp ), INTENT ( IN ) :: scale
 
 ! Variables
   INTEGER, SAVE :: ncache
   INTEGER :: after ( 20 ), now ( 20 ), before ( 20 )
-  REAL ( dbl ) :: trig ( 2, 1024 )
+  REAL ( dp ) :: trig ( 2, 1024 )
   LOGICAL :: tscal
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: z
-  INTEGER :: length, isig, ic, lot, itr, nfft, i, inzee, j, ierr
+  COMPLEX ( dp ), DIMENSION ( :, :, : ), ALLOCATABLE :: z
+  INTEGER :: length, isig, ic, lot, itr, nfft, i, inzee, ierr
   INTEGER :: id, num_threads, istart, iend, chunk, iterations
 
 
@@ -35,7 +30,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   LENGTH = 2 * ( NCACHE / 4 + 1 )
 
   ISIG = -ISIGN
-  TSCAL = ( ABS ( SCALE -1._dbl ) > 1.e-12_dbl )
+  TSCAL = ( ABS ( SCALE -1._dp ) > 1.e-12_dp )
   CALL ctrig ( N, TRIG, AFTER, BEFORE, NOW, ISIG, IC )
   LOT = NCACHE / ( 4 * N )
   LOT = LOT - MOD ( LOT + 1, 2 )
@@ -115,11 +110,11 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   ENDIF
 
   IF(TRANSB == 'N'.OR.TRANSB == 'n') THEN
-     B(1:LDBX,M+1:LDBY) = CMPLX(0._dbl,0._dbl,dbl)
-     B(N+1:LDBX,1:M) = CMPLX(0._dbl,0._dbl,dbl)
+     B(1:LDBX,M+1:LDBY) = CMPLX(0._dp,0._dp,dp)
+     B(N+1:LDBX,1:M) = CMPLX(0._dp,0._dp,dp)
   ELSE
-     B(1:LDBX,N+1:LDBY) = CMPLX(0._dbl,0._dbl,dbl)
-     B(M+1:LDBX,1:N) = CMPLX(0._dbl,0._dbl,dbl)
+     B(1:LDBX,N+1:LDBY) = CMPLX(0._dp,0._dp,dp)
+     B(M+1:LDBX,1:N) = CMPLX(0._dp,0._dp,dp)
   ENDIF
 
 END SUBROUTINE mltfftsg

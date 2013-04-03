@@ -102,42 +102,6 @@ RETURN
 END FUNCTION ipmpar
 
 ! *****************************************************************************
-FUNCTION spmpar (i) RESULT(fn_val)
-!-----------------------------------------------------------------------
-
-!     SPMPAR PROVIDES THE SINGLE PRECISION MACHINE CONSTANTS FOR
-!     THE COMPUTER BEING USED. IT IS ASSUMED THAT THE ARGUMENT
-!     I IS AN INTEGER HAVING ONE OF THE VALUES 1, 2, OR 3. IF THE
-!     SINGLE PRECISION ARITHMETIC BEING USED HAS M BASE B DIGITS AND
-!     ITS SMALLEST AND LARGEST EXPONENTS ARE EMIN AND EMAX, THEN
-
-!        SPMPAR(1) = B**(1 - M), THE MACHINE PRECISION,
-
-!        SPMPAR(2) = B**(EMIN - 1), THE SMALLEST MAGNITUDE,
-
-!        SPMPAR(3) = B**EMAX*(1 - B**(-M)), THE LARGEST MAGNITUDE.
-!-----------------------------------------------------------------------
-
-    INTEGER, INTENT(IN)                      :: i
-    REAL                                     :: fn_val
-
-    REAL                                     :: one = 1.0
-
-! Local variable
-
-SELECT CASE (i)
-  CASE (1)
-    fn_val = EPSILON(one)
-  CASE (2)
-    fn_val = TINY(one)
-  CASE (3)
-    fn_val = HUGE(one)
-END SELECT
-
-RETURN
-END FUNCTION spmpar
-
-! *****************************************************************************
 FUNCTION dpmpar (i) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -988,11 +952,7 @@ FUNCTION psi(xx) RESULT(fn_val)
 !---------------------------------------------------------------------
 
 xmax1 = ipmpar(3)
-#if defined(__SGL)
-xmax1 = MIN(xmax1, 1.0e0_dp/spmpar(1))
-#else
 xmax1 = MIN(xmax1, 1.0e0_dp/dpmpar(1))
-#endif
 xsmall = 1.e-9_dp
 !---------------------------------------------------------------------
 x = xx
@@ -1303,11 +1263,7 @@ SUBROUTINE bratio (a, b, x, y, w, w1, ierr)
 !     ****** EPS IS A MACHINE DEPENDENT CONSTANT. EPS IS THE SMALLEST
 !            FLOATING POINT NUMBER FOR WHICH 1.0 + EPS .GT. 1.0
 
-#if defined(__SGL)
-eps = spmpar(1)
-#else
 eps = dpmpar(1)
-#endif
 
 w = 0.0e0_dp
 w1 = 0.0e0_dp

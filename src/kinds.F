@@ -29,21 +29,12 @@ MODULE kinds
   PUBLIC :: real_4, real_8, real_4_size, real_8_size
   PUBLIC :: default_string_length, default_path_length, max_line_length
 
-#if __SGL
-  INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 6, 30 )
-  ! we rely on this (libraries) but do not check this
-  INTEGER, PARAMETER :: dp_size  = 4,&
-                        int_size = BIT_SIZE(0)/8,&
-                        sp_size  = 4
-#else
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
   ! we rely on this (libraries) but do not check this
   INTEGER, PARAMETER :: dp_size  = 8,&
                         int_size = BIT_SIZE(0)/8,&
                         sp_size  = 4
-#endif
 
   INTEGER, PARAMETER :: real_4 = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: real_8 = SELECTED_REAL_KIND ( 14, 200 )
