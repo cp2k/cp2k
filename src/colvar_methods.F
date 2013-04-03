@@ -939,6 +939,9 @@ CPSourceFileRef)
                "CV RMSD: unknown SUBSET_TYPE."//&
                CPSourceFileRef)
        END IF
+
+       CALL section_vals_val_get(rmsd_section,"ALIGN_FRAMES",l_val=colvar%rmsd_param%align_frames,&
+               error=error)
     ELSE IF (my_subsection(17)) THEN
        ! Work on XYZ positions of atoms
        wrk_section => xyz_diag_section

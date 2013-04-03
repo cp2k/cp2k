@@ -1621,6 +1621,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ALIGN_FRAMES",&
+            description="Whether the reference frames should be aligned to minimize the RMSD",&
+            usage="ALIGN_FRAME",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specify indexes of atoms building the subset. ",&
             usage="ATOMS {integer} {integer} ..",required=.FALSE.,repeats=.TRUE.,&
