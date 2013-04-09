@@ -119,7 +119,7 @@ MODULE hfx_energy_potential
 ! *****************************************************************************
   SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,&
                                    geometry_did_change,irep,distribute_fock_matrix,&
-                                   ispin, error)
+                                   ispin, error, do_exx)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -133,6 +133,7 @@ MODULE hfx_energy_potential
     LOGICAL, INTENT(IN)                      :: distribute_fock_matrix
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, OPTIONAL                        :: do_exx
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
       routineP = moduleN//':'//routineN
@@ -163,7 +164,7 @@ MODULE hfx_energy_potential
                                                 nsgfl_c, nsgfl_d
     LOGICAL                                  :: buffer_overflow, &
                                                 do_p_screening, do_periodic, &
-                                                failure
+                                                failure, my_do_exx
     REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, &
       compression_factor, compression_factor_disk, ene_x_aa, ene_x_bb, &
       eps_schwarz, eps_storage, fac, hf_fraction, max_contraction_val, &
@@ -193,6 +194,7 @@ MODULE hfx_energy_potential
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_screening_type)                 :: screening_parameter
+    TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(hfx_type), POINTER                  :: actual_x_data, &
                                                 shm_master_x_data
     TYPE(particle_type), DIMENSION(:), &
@@ -317,21 +319,30 @@ MODULE hfx_energy_potential
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
 
+    my_do_exx=.FALSE.
+    IF(PRESENT(do_exx)) my_do_exx=do_exx
+    NULLIFY(x_data)
+    IF(my_do_exx) THEN
+      x_data=>qs_env%mp2_env%ri_rpa%x_data
+    ELSE
+      x_data=>qs_env%x_data
+    END IF
+
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(atomic_kind_set,1)
     l_max = 0
     DO ikind=1,nkind
-      l_max = MAX(l_max,MAXVAL(qs_env%x_data(1,1)%basis_parameter(ikind)%lmax))
+      l_max = MAX(l_max,MAXVAL(x_data(1,1)%basis_parameter(ikind)%lmax))
     ENDDO
     l_max = 4*l_max
     CALL init_md_ftable(l_max)
 
-    IF(qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-       qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+    IF(x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
+       x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
       IF(l_max>init_t_c_g0_lmax) THEN
         IF( para_env%mepos == 0 ) THEN
           unit_id = get_unit_number()
-          OPEN(unit_id,FILE=qs_env%x_data(1,1)%potential_parameter%filename)
+          OPEN(unit_id,FILE=x_data(1,1)%potential_parameter%filename)
         END IF
         CALL init(l_max, unit_id, para_env%mepos, para_env%group)
         IF(para_env%mepos == 0 ) THEN
@@ -355,6 +366,7 @@ MODULE hfx_energy_potential
     shm_stor_count_max_val = 0
 
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
+!$OMP                                  x_data,&
 !$OMP                                  ks_matrix,&
 !$OMP                                  energy,&
 !$OMP                                  rho_ao,&
@@ -408,9 +420,9 @@ MODULE hfx_energy_potential
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
 
-    actual_x_data => qs_env%x_data(irep, i_thread + 1)
+    actual_x_data => x_data(irep, i_thread + 1)
 !$OMP MASTER
-    shm_master_x_data => qs_env%x_data(irep,1)
+    shm_master_x_data => x_data(irep,1)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -1006,17 +1018,17 @@ MODULE hfx_energy_potential
       ! ** Lets contstruct the task list
       shm_total_bins = 0
       DO i = 1,n_threads
-        shm_total_bins = shm_total_bins + SIZE(qs_env%x_data(irep, i)%distribution_energy)
+        shm_total_bins = shm_total_bins + SIZE(x_data(irep, i)%distribution_energy)
       END DO
       ALLOCATE(tmp_task_list(shm_total_bins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       shm_task_counter = 0
       DO i = 1,n_threads
-        DO bin = 1,SIZE(qs_env%x_data(irep,i)%distribution_energy)
+        DO bin = 1,SIZE(x_data(irep,i)%distribution_energy)
           shm_task_counter = shm_task_counter + 1
           tmp_task_list(shm_task_counter)%thread_id = i
           tmp_task_list(shm_task_counter)%bin_id = bin
-          tmp_task_list(shm_task_counter)%cost = qs_env%x_data(irep,i)%distribution_energy(bin)%cost
+          tmp_task_list(shm_task_counter)%cost = x_data(irep,i)%distribution_energy(bin)%cost
         END DO
       END DO
 
@@ -1128,11 +1140,11 @@ MODULE hfx_energy_potential
         IF( shm_task_counter <= shm_total_bins) THEN
           my_thread_id = shm_task_list(shm_task_counter)%thread_id
           my_bin_id = shm_task_list(shm_task_counter)%bin_id
-          maxval_cache => qs_env%x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
-          maxval_container => qs_env%x_data(irep,my_thread_id)%maxval_container(my_bin_id)
-          integral_caches => qs_env%x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
-          integral_containers => qs_env%x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
-          distribution_energy => qs_env%x_data(irep,my_thread_id)%distribution_energy(my_bin_id)
+          maxval_cache => x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
+          maxval_container => x_data(irep,my_thread_id)%maxval_container(my_bin_id)
+          integral_caches => x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
+          integral_containers => x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
+          distribution_energy => x_data(irep,my_thread_id)%distribution_energy(my_bin_id)
           do_it = .TRUE.
           bins_left = .TRUE.
           IF( geometry_did_change) THEN
@@ -1392,7 +1404,7 @@ MODULE hfx_energy_potential
                 mem_compression_counter = 0
                 DO i=1,n_threads
                   mem_compression_counter = mem_compression_counter + &
-                                            qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
+                                            x_data(irep,i)%memory_parameter%actual_memory_usage *&
                                             memory_parameter%cache_size
                 END DO
                 IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
@@ -1757,7 +1769,7 @@ MODULE hfx_energy_potential
     shm_mem_compression_counter = 0
     DO i=1,n_threads
       shm_mem_compression_counter = shm_mem_compression_counter + &
-                                    qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
+                                    x_data(irep,i)%memory_parameter%actual_memory_usage *&
                                     memory_parameter%cache_size
     END DO
 !$OMP END MASTER

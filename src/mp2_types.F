@@ -10,7 +10,9 @@
 !> \author MDB
 ! *****************************************************************************
 MODULE mp2_types
-  USE hfx_types,                       ONLY: pair_list_element_type
+  USE hfx_types,                       ONLY: hfx_release,&
+                                             hfx_type,&
+                                             pair_list_element_type
   USE input_constants,                 ONLY: mp2_method_direct,&
                                              mp2_method_gpw,&
                                              mp2_method_laplace,&
@@ -85,6 +87,8 @@ MODULE mp2_types
   TYPE ri_rpa_type
        INTEGER                  :: rpa_num_quad_points
        INTEGER                  :: rpa_integ_group_size
+       TYPE(hfx_type),DIMENSION(:,:), POINTER     &
+                                :: x_data
   END TYPE
 
   TYPE mp2_type
@@ -134,6 +138,11 @@ CONTAINS
 
     CPPostcondition(ASSOCIATED(mp2_env),cp_failure_level,routineP,error,failure)
 
+    ! release the HFX section for the EXX calculation
+    IF(ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
+      CALL hfx_release(mp2_env%ri_rpa%x_data, error=error)
+    END IF
+
     DEALLOCATE(mp2_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -159,6 +168,8 @@ CONTAINS
 
     ALLOCATE(mp2_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    NULLIFY(mp2_env%ri_rpa%x_data)
 
     CALL timestop(handle)
 

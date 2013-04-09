@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 MODULE mltfftsg_tools
-  USE fft_kinds,                         ONLY: dp
+  USE fft_kinds,                       ONLY: dp
 
   PRIVATE
   PUBLIC :: matmov, zgetmo, get_cache_size, scaled
@@ -34,10 +34,9 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE scaled ( n, sc, a )
-    IMPLICIT NONE
-    INTEGER     :: n
-    COMPLEX(dp) :: a ( n )
-    REAL(dp)    :: sc
+    INTEGER                                  :: n
+    REAL(dp)                                 :: sc
+    COMPLEX(dp)                              :: a( n )
 
     CALL dscal(n,sc,a,1)
 

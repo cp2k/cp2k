@@ -14,6 +14,7 @@ MODULE input_cp2k_mp2
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
+  USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -314,6 +315,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -321,10 +323,10 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_RPA",&
             description="Parameters influencing the RI RPA method",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
   
        CALL keyword_create(keyword, name="QUADRATURE_POINTS",&
             variants=(/"RPA_NUM_QUAD_POINTS"/),&
@@ -346,6 +348,11 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
+       CALL create_hfx_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 

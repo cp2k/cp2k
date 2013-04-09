@@ -236,8 +236,8 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
-    LOGICAL :: do_et, do_hfx, do_hfx_ri, failure, harris_flag, mp2_present, &
-      my_qmmm, my_qmmm_periodic, use_ref_cell
+    LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, failure, harris_flag, &
+      mp2_present, my_qmmm, my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -383,6 +383,18 @@ CONTAINS
     IF (mp2_present) THEN
        CALL mp2_env_create(qs_env%mp2_env,error)
        CALL read_mp2_section(qs_env%input,qs_env%mp2_env,error)
+       ! create the EXX section if necessary
+       do_exx =.FALSE.
+       hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
+       CALL section_vals_get(hfx_section,explicit=do_exx,error=error)
+       IF (do_exx) THEN
+         ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
+         particle_set    => my_subsys%particles%els
+         atomic_kind_set => my_subsys%atomic_kinds%els
+         natom=SIZE(particle_set)
+         CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
+                         qs_env%dft_control, qs_env%cell, error=error)
+       END IF
     END IF
 
     IF (qs_env%dft_control%qs_control%do_kg) THEN

@@ -362,8 +362,7 @@ CONTAINS
     INTEGER                                  :: handle, ld(3), lo(3), sign, &
                                                 stat
     LOGICAL                                  :: fft_in_place, test
-    REAL(KIND=dp)                            :: in_sum, out_sum
-    REAL(KIND=dp)                            :: norm
+    REAL(KIND=dp)                            :: in_sum, norm, out_sum
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
@@ -488,8 +487,7 @@ CONTAINS
       numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, sign, stat, ub
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
-    REAL(KIND=dp)                            :: sum_data
-    REAL(KIND=dp)                            :: norm
+    REAL(KIND=dp)                            :: norm, sum_data
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
@@ -953,8 +951,7 @@ CONTAINS
                                                 mz1, mz2, mz3, np, sign, stat
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: failure, test
-    REAL(KIND=dp)                            :: sum_data
-    REAL(KIND=dp)                            :: norm
+    REAL(KIND=dp)                            :: norm, sum_data
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch

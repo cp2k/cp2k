@@ -17,7 +17,8 @@ MODULE mp2
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: DelBen2012,&
                                              cite_reference
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -37,6 +38,7 @@ MODULE mp2
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &
        hfx_basis_type, hfx_container_type, hfx_create_basis_types, &
@@ -117,7 +119,7 @@ MODULE mp2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: calc_ex, &
                                                 do_dynamic_load_balancing, &
-                                                failure
+                                                do_exx, failure
     REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
       Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
       Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2
@@ -588,6 +590,16 @@ MODULE mp2
 
    CALL hfx_release_basis_types(basis_parameter,error)
 
+   ! if required calculate the EXX contribution from the DFT density
+   IF(mp2_env%method==ri_rpa_method_gpw) THEN
+     do_exx=.FALSE.
+     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
+     CALL section_vals_get(hfx_sections,explicit=do_exx,error=error)
+     IF(do_exx) THEN
+       CALL calculate_exx(qs_env,unit_nr,error)
+     END IF
+   END IF
+
    CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                      "DFT%XC%WF_CORRELATION%MP2_INFO", error=error)
 
@@ -922,6 +934,76 @@ MODULE mp2
     CALL timestop(handle)
 
   END SUBROUTINE  mp2_direct_energy
+
+  SUBROUTINE calculate_exx(qs_env,unit_nr,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER                                  :: unit_nr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, irep, n_rep_hf
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: t1, t2
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: hfx_sections, input
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    t1=m_walltime()
+
+    NULLIFY(hfx_sections, input, para_env, matrix_ks, rho)
+
+    CALL get_qs_env(qs_env=qs_env, &
+                    input=input, &
+                    para_env=para_env, &
+                    energy=energy, &
+                    rho=rho, &
+                    matrix_ks=matrix_ks, &
+                    error=error)
+
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
+
+    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+
+    ! put matrix_ks to zero
+    DO i=1, SIZE(matrix_ks)
+      CALL cp_dbcsr_set(matrix_ks(i)%matrix,0.0_dp,error=error)
+    END DO
+ 
+    ! Remove the Exchange-correlation energy contributions from the total energy
+    energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + energy%exc_aux_fit)
+    energy%exc=0.0_dp
+    energy%exc1=0.0_dp
+    energy%exc_aux_fit=0.0_dp
+    energy%ex=0.0_dp
+
+    DO irep = 1,n_rep_hf
+      CALL integrate_four_center(qs_env, matrix_ks, energy, rho, hfx_sections,&
+                                 para_env, .TRUE., irep, .TRUE.,&
+                                 ispin=1, error=error, do_exx=.TRUE.)
+    END DO
+
+    t2=m_walltime()
+
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total EXX Time=',t2-t1
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'EXX energy  =   ', energy%ex
+
+    ! include the EXX contribution to the total energy
+    energy%total = energy%total + energy%ex
+
+    ! reset to zero the Hartree-Fock energy
+    energy%ex=0.0_dp
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_exx
 
 END MODULE mp2
 

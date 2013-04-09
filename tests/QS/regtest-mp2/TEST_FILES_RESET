@@ -33,3 +33,6 @@ RI_laplace_MP2_CH3.inp
 H2O_B2PLYP_GPW.inp
 #  
 H2O_ADMM_MP2.inp
+# EXX calculation on top of PBE
+RI_RPA_CH3.inp
+RI_RPA_H2O.inp
