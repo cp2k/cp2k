@@ -1879,7 +1879,7 @@ CONTAINS
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
                                 nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize, error=error)
        CALL cp_fm_struct_get(fmstruct_a,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
-       IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix A ',nrow_global," by ",ncol_global, &
+       IF (iw>0) WRITE(iw,'(T2,A,I9,A,I9,A,I5,A,I5)') 'matrix A ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        IF (transb_p) THEN
