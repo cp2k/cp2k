@@ -1461,7 +1461,6 @@ MODULE dbcsr_mm_cannon
           WRITE(*,*)a(1,-d*1000)
        ENDIF
     ENDIF
-    IF (nele .LE. 1) RETURN
     ALLOCATE(tmp(3,nele))
     M = mf-mi+1
     N = nf-ni+1
@@ -1470,15 +1469,23 @@ MODULE dbcsr_mm_cannon
        CALL rec_split (nele, a, tmp, 1, nlow, mi, mf, half)
        a = tmp
        DEALLOCATE (tmp)
-       CALL rec_sort_index(mi,mi+half-1,ni,nf, nlow, a(:,1:nlow), d+1)
-       CALL rec_sort_index(mi+half,mf,ni,nf, nele-nlow, a(:,nlow+1:nele), d+1)
+       IF (nlow .GT. 1) THEN
+          CALL rec_sort_index(mi,mi+half-1,ni,nf, nlow, a(:,1:nlow), d+1)
+       ENDIF
+       IF (nele-nlow .GT. 1) THEN
+          CALL rec_sort_index(mi+half,mf,ni,nf, nele-nlow, a(:,nlow+1:nele), d+1)
+       ENDIF
     ELSE
        half = N/2
        CALL rec_split (nele, a, tmp, 2, nlow, ni, nf, half)
        a = tmp
        DEALLOCATE (tmp)
-       CALL rec_sort_index(mi,mf,ni,ni+half-1, nlow, a(:,1:nlow), d+1)
-       CALL rec_sort_index(mi,mf,ni+half,nf, nele-nlow, a(:,nlow+1:nele), d+1)
+       IF (nlow .GT. 1) THEN
+         CALL rec_sort_index(mi,mf,ni,ni+half-1, nlow, a(:,1:nlow), d+1)
+       ENDIF
+       IF (nele-nlow .GT. 1) THEN
+         CALL rec_sort_index(mi,mf,ni+half,nf, nele-nlow, a(:,nlow+1:nele), d+1)
+       ENDIF
     ENDIF
   END SUBROUTINE rec_sort_index
 
