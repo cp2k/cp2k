@@ -622,7 +622,7 @@ MODULE rpa_ri_gpw
           IF(MOD(para_env_RPA%num_pe,iproc_row)==0) EXIT
         END DO
       ELSE
-        iproc_row=MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio,KIND=dp))),1)+1
+        iproc_row=MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio,KIND=dp))),1),para_env_RPA%num_pe)+1
         DO iproc=1, para_env_RPA%num_pe
           iproc_row=iproc_row-1
           IF(MOD(para_env_RPA%num_pe,iproc_row)==0) EXIT
