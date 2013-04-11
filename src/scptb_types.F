@@ -47,7 +47,7 @@ MODULE scptb_types
     REAL(KIND=dp), DIMENSION(10,0:3)       :: hcore      !core potential energy
     REAL(KIND=dp), DIMENSION(10,0:3)       :: occupation !free atom occupation
     REAL(KIND=dp)                          :: energy     !free atom energy
-    REAL(KIND=dp), DIMENSION(4)            :: crep       !core repulsion parameters
+    REAL(KIND=dp), DIMENSION(3)            :: crep       !core repulsion parameters
     REAL(KIND=dp), DIMENSION(1:3)          :: pol        !polarization for SCP
     REAL(KIND=dp)                          :: ag         !width of SCP charge
     REAL(KIND=dp)                          :: rcpair     !cutoff radius for core pair potentials
@@ -177,7 +177,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(10, 0:3), &
       OPTIONAL                               :: zeta, hcore, occupation
     REAL(KIND=dp), OPTIONAL                  :: energy
-    REAL(KIND=dp), DIMENSION(4), OPTIONAL    :: crep
+    REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: crep
     REAL(KIND=dp), DIMENSION(1:3), OPTIONAL  :: pol
     REAL(KIND=dp), OPTIONAL                  :: ag, rcpair
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -228,7 +228,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(10, 0:3), &
       OPTIONAL                               :: zeta, hcore, occupation
     REAL(KIND=dp), OPTIONAL                  :: energy
-    REAL(KIND=dp), DIMENSION(4), OPTIONAL    :: crep
+    REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: crep
     REAL(KIND=dp), DIMENSION(1:3), OPTIONAL  :: pol
     REAL(KIND=dp), OPTIONAL                  :: ag, rcpair
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -283,7 +283,7 @@ CONTAINS
     REAL(KIND=dp)                            :: ag, energy, rcpair, zeff
     REAL(KIND=dp), DIMENSION(10, 0:3)        :: hcore, zeta
     REAL(KIND=dp), DIMENSION(1:3)            :: pol
-    REAL(KIND=dp), DIMENSION(4)              :: crep
+    REAL(KIND=dp), DIMENSION(3)              :: crep
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)

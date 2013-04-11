@@ -73,7 +73,7 @@ CONTAINS
                                                 nshell, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
     LOGICAL                                  :: failure, print_info
-    REAL(KIND=dp)                            :: a, b, c, d, eff, r, rmax, rmin
+    REAL(KIND=dp)                            :: a, c, d, eff, r, rmax, rmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -113,7 +113,7 @@ CONTAINS
       ! only for ionode
       IF(para_env%ionode) CALL scptb_parameter_from_file(scptb_parameter,scptb_control,error)
       CALL scptb_parameter_broadcast(scptb_parameter,para_env,error)
-
+      
       IF (scptb_parameter%defined .EQV. .FALSE.) THEN
         output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log",error=error)
         IF ( output_unit > 0 ) THEN
@@ -171,14 +171,14 @@ CONTAINS
          !throw away the STO basis set, since from now on we use the GTO
 
          a = SQRT(scptb_parameter%crep(1))
-         b = SQRT(scptb_parameter%crep(2))
-         c = SQRT(scptb_parameter%crep(3))
-         d = SQRT(scptb_parameter%crep(4))
+         c = SQRT(scptb_parameter%crep(2))
+         d = SQRT(scptb_parameter%crep(3))
+
          rmin = 1._dp
          rmax = 100._dp
          DO
             r = 0.5_dp*(rmax+rmin)
-            eff = (c+d*r)*EXP(-(a*r+b*r*r))
+            eff = (c+d*r**2)*EXP(-(a*r))
             IF (eff < scptb_control%epspair) THEN
                rmax = r
             ELSE
@@ -487,12 +487,10 @@ CONTAINS
                                         IF (endtag .EQV. .TRUE.) tag_over2 = .TRUE.
                                     CASE ("A")
                                         IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(1) ; has_A = .TRUE.
-                                    CASE ("B")
-                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(2) ; has_B = .TRUE.
-                                    CASE ("C") ; has_z = .TRUE.
-                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(3) ; has_C = .TRUE.
+                                    CASE ("C")  
+                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(2) ; has_C = .TRUE.
                                     CASE ("D")
-                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(4) ; has_D = .TRUE.
+                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(3) ; has_D = .TRUE.
                                     CASE DEFAULT
                                         IF (endtag .EQV. .FALSE.) unrecognized_tags = unrecognized_tags + 1
                                 END SELECT 
@@ -522,7 +520,7 @@ CONTAINS
        !An element is only considered properly defined if all non-optional parameters were
        !specified. That doesn't safeguard against incomplete or meaningless input.
        IF ( has_z .AND. has_zeff .AND. has_ag .AND. has_hcore .AND.   &
-            has_nqm .AND. has_eta .AND. has_A .AND. has_B .AND. has_C .AND. has_D) THEN
+            has_nqm .AND. has_A .AND. has_C .AND. has_D) THEN
            scptb_parameter%defined = .TRUE. 
        ELSE
            scptb_parameter%defined = .FALSE. 

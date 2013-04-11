@@ -13,7 +13,7 @@
 !>      hcore                    two body terms
 !>      occupation               orbital occupation in free atom
 !>      energy                   total energy of free atom
-!>      crep                     core repulsion terms (1,2,3,4)
+!>      crep                     core repulsion terms (1=a,2=c,3=d)
 !>      pol                      polarization constants (1,2,3)
 !>      ag                       Gaussian exponents
 !> \par History
@@ -71,7 +71,7 @@ CONTAINS
        param%zeta(1,0)             = 1.2_dp
        param%hcore(1,0)            = 1.0_dp
        param%occupation(1,0)       = 1
-       param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
+       param%crep(1:3)             = (/1.0_dp,1.0_dp,1.0_dp/)
        param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
        param%ag                    = 4.0_dp
        param%energy                = -0.5_dp
@@ -100,7 +100,7 @@ CONTAINS
        param%zeta(1,0:1)           = (/1.8_dp,1.8_dp/)
        param%hcore(1,0:1)          = (/1.0_dp,1.0_dp/)
        param%occupation(1,0:1)     = (/2,4/)
-       param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
+       param%crep(1:3)             = (/1.0_dp,1.0_dp,1.0_dp/)
        param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
        param%ag                    = 1.0_dp
        param%energy                = -0.5_dp
@@ -117,7 +117,7 @@ CONTAINS
        param%zeta(1,0:1)           = (/1.8_dp,1.8_dp/)
        param%hcore(1,0:1)          = (/1.0_dp,1.0_dp/)
        param%occupation(1,0:1)     = (/2,5/)
-       param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
+       param%crep(1:3)             = (/1.0_dp,1.0_dp,1.0_dp/)
        param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
        param%ag                    = 4.0_dp
        param%energy                = -0.5_dp

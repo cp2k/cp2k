@@ -198,24 +198,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: a, b, c, d, de, expa, x
+    REAL(KIND=dp)                            :: a, c, d, de, expa, x
 
 !
-!  (c+d*x) * exp[-(a*x + b*x^2)]
+!  (c+d*x) * exp[-(a*x)]
 !
 
     a = SQRT(sepi%crep(1)*sepj%crep(1))
-    b = SQRT(sepi%crep(2)*sepj%crep(2))
-    c = 0.5_dp*(sepi%crep(3)+sepj%crep(3))
-    d = 0.5_dp*(sepi%crep(4)+sepj%crep(4))
+    c = 0.5_dp*(sepi%crep(2)+sepj%crep(2))
+    d = 0.5_dp*(sepi%crep(3)+sepj%crep(3))
 
     x = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
-    expa = EXP(-(a*x+b*x*x))
+    expa = EXP(-(a*x))
 
-    enuc = (c+d*x)*expa
+    enuc = (c+d*x**2)*expa
 
     IF(PRESENT(denuc)) THEN
-       de = (d-(c+d*x)*(a+2._dp*b*x)) * expa
+       !de = (d-(c+d*x)*(a+2._dp*b*x)) * expa
+       de = (-a*c + (-a*x+2.0_dp)*(d*x)) * expa
        denuc = de * rij/x
     END IF
 
