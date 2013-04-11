@@ -1427,7 +1427,7 @@ CPSourceFileRef,&
        IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))& 
         WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
        IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))& 
-        WRITE(output_unit,'(T3,A,T71F10.5)')  "Rmax [angstrom]: ",resp_env%rmax_kind(1)*conv
+        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Rmax [angstrom]: ",resp_env%rmax_kind(1)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
      ELSE
