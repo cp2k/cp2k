@@ -19,14 +19,12 @@
 !>                           is no
 !> \see mp_alltoall
 ! *****************************************************************************
-  SUBROUTINE hybrid_alltoall_d1 (sb, nsb, scount, sdispl,&
-       rb, nrb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid)
-    INTEGER, INTENT(in)                      :: nsb
-    REAL(kind=real_8), DIMENSION(1:nsb), &
+  SUBROUTINE hybrid_alltoall_d1 (sb, scount, sdispl,&
+       rb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid)
+    REAL(kind=real_8), DIMENSION(:), &
       INTENT(in), TARGET                     :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    INTEGER, INTENT(in)                      :: nrb
-    REAL(kind=real_8), DIMENSION(1:nrb), &
+    REAL(kind=real_8), DIMENSION(:), &
       INTENT(INOUT), TARGET                  :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -134,9 +132,9 @@
          !
          dst = dbcsr_mp_get_process (mp_env, myprow, pcol)
          send_cnt = scount(dst+1)
-         send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-         tag = 4*mypcol
          IF (send_cnt .GT. 0) THEN
+            send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
+            tag = 4*mypcol
             CALL mp_isend (send_data_p, pcol, grp, row_sr(nrow_sr), tag)
             nrow_sr = nrow_sr+1
          ENDIF
@@ -144,9 +142,9 @@
          pcol = MODULO (mypcol-i, npcols)
          src = dbcsr_mp_get_process (mp_env, myprow, pcol)
          recv_cnt = rcount(src+1)
-         recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-         tag = 4*pcol
          IF (recv_cnt .GT. 0) THEN
+            recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
+            tag = 4*pcol
             CALL mp_irecv (recv_data_p, pcol, grp, row_rr(nrow_rr), tag)
             nrow_rr = nrow_rr+1
          ENDIF
@@ -158,9 +156,9 @@
          !
          dst = dbcsr_mp_get_process (mp_env, prow, mypcol)
          send_cnt = scount(dst+1)
-         send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-         tag = 4*myprow+1
          IF (send_cnt .GT. 0) THEN
+            send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
+            tag = 4*myprow+1
             CALL mp_isend (send_data_p, prow, grp, col_sr(ncol_sr), tag)
             ncol_sr = ncol_sr + 1
          ENDIF
@@ -168,9 +166,9 @@
          prow = MODULO (myprow-i, nprows)
          src = dbcsr_mp_get_process (mp_env, prow, mypcol)
          recv_cnt = rcount(src+1)
-         recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-         tag = 4*prow+1
          IF (recv_cnt .GT. 0) THEN
+            recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
+            tag = 4*prow+1
             CALL mp_irecv (recv_data_p, prow, grp, col_rr(ncol_rr), tag)
             ncol_rr = ncol_rr + 1
          ENDIF
@@ -201,18 +199,18 @@
             IF (pcol .EQ. mypcol) CYCLE
             dst = dbcsr_mp_get_process (mp_env, prow, pcol)
             send_cnt = scount(dst+1)
-            send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-            tag = 4*mynode+2
             IF (send_cnt .GT. 0) THEN
+               send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
+               tag = 4*mynode+2
                CALL mp_isend (send_data_p, dst, all_group, all_sr(nall_sr+1), tag)
                nall_sr = nall_sr + 1
             ENDIF
             !
             src = dbcsr_mp_get_process (mp_env, prow, pcol)
             recv_cnt = rcount(src+1)
-            recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-            tag = 4*src+2
             IF (recv_cnt .GT. 0) THEN
+               recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
+               tag = 4*src+2
                CALL mp_irecv (recv_data_p, src, all_group, all_rr(nall_rr+1), tag)
                nall_rr = nall_rr+1
             ENDIF

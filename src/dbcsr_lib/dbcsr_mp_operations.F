@@ -65,14 +65,12 @@ MODULE dbcsr_mp_operations
 CONTAINS
 
 
-  SUBROUTINE hybrid_alltoall_any (sb, nsb, scount, sdispl,&
-       rb, nrb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid,&
+  SUBROUTINE hybrid_alltoall_any (sb, scount, sdispl,&
+       rb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid,&
        error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: sb
-    INTEGER, INTENT(IN)                      :: nsb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: rb
-    INTEGER, INTENT(IN)                      :: nrb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     LOGICAL, INTENT(in), OPTIONAL            :: most_ptp, remainder_ptp, &
@@ -90,20 +88,20 @@ CONTAINS
 
     SELECT CASE (dbcsr_data_get_type (sb))
     CASE (dbcsr_type_real_4)
-       CALL hybrid_alltoall_s1 (sb%d%r_sp, nsb, scount, sdispl,&
-       rb%d%r_sp, nrb, rcount, rdispl, mp_env,&
+       CALL hybrid_alltoall_s1 (sb%d%r_sp, scount, sdispl,&
+       rb%d%r_sp, rcount, rdispl, mp_env,&
        most_ptp, remainder_ptp, no_hybrid)
     CASE (dbcsr_type_real_8)
-       CALL hybrid_alltoall_d1 (sb%d%r_dp, nsb, scount, sdispl,&
-       rb%d%r_dp, nrb, rcount, rdispl, mp_env,&
+       CALL hybrid_alltoall_d1 (sb%d%r_dp, scount, sdispl,&
+       rb%d%r_dp, rcount, rdispl, mp_env,&
        most_ptp, remainder_ptp, no_hybrid)
     CASE (dbcsr_type_complex_4)
-       CALL hybrid_alltoall_c1 (sb%d%c_sp, nsb, scount, sdispl,&
-       rb%d%c_sp, nrb, rcount, rdispl, mp_env,&
+       CALL hybrid_alltoall_c1 (sb%d%c_sp, scount, sdispl,&
+       rb%d%c_sp, rcount, rdispl, mp_env,&
        most_ptp, remainder_ptp, no_hybrid)
     CASE (dbcsr_type_complex_8)
-       CALL hybrid_alltoall_z1 (sb%d%c_dp, nsb, scount, sdispl,&
-       rb%d%c_dp, nrb, rcount, rdispl, mp_env,&
+       CALL hybrid_alltoall_z1 (sb%d%c_dp, scount, sdispl,&
+       rb%d%c_dp, rcount, rdispl, mp_env,&
        most_ptp, remainder_ptp, no_hybrid)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
@@ -130,14 +128,12 @@ CONTAINS
 !>                           is no
 !> \see mp_alltoall
 ! *****************************************************************************
-  SUBROUTINE hybrid_alltoall_i1 (sb, nsb, scount, sdispl,&
-       rb, nrb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid)
-    INTEGER, INTENT(in)                      :: nsb
-    INTEGER, DIMENSION(1:nsb), INTENT(in), &
+  SUBROUTINE hybrid_alltoall_i1 (sb, scount, sdispl,&
+       rb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid)
+    INTEGER, DIMENSION(:), INTENT(in), &
       TARGET                                 :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    INTEGER, INTENT(IN)                      :: nrb
-    INTEGER, DIMENSION(1:nrb), &
+    INTEGER, DIMENSION(:), &
       INTENT(INOUT), TARGET                  :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -269,9 +265,9 @@ CONTAINS
          !
          dst = dbcsr_mp_get_process (mp_env, prow, mypcol)
          send_cnt = scount(dst+1)
-         send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-         tag = 4*myprow+1
          IF (send_cnt .GT. 0) THEN
+            send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
+            tag = 4*myprow+1
             CALL mp_isend (send_data_p, prow, grp, col_sr(ncol_sr), tag)
             ncol_sr = ncol_sr + 1
          ENDIF
@@ -279,9 +275,9 @@ CONTAINS
          prow = MODULO (myprow-i, nprows)
          src = dbcsr_mp_get_process (mp_env, prow, mypcol)
          recv_cnt = rcount(src+1)
-         recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-         tag = 4*prow+1
          IF (recv_cnt .GT. 0) THEN
+            recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
+            tag = 4*prow+1
             CALL mp_irecv (recv_data_p, prow, grp, col_rr(ncol_rr), tag)
             ncol_rr = ncol_rr + 1
          ENDIF
@@ -312,18 +308,18 @@ CONTAINS
             IF (pcol .EQ. mypcol) CYCLE
             dst = dbcsr_mp_get_process (mp_env, prow, pcol)
             send_cnt = scount(dst+1)
-            send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-            tag = 4*mynode+2
             IF (send_cnt .GT. 0) THEN
+               tag = 4*mynode+2
+               send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
                CALL mp_isend (send_data_p, dst, all_group, all_sr(nall_sr+1), tag)
                nall_sr = nall_sr + 1
             ENDIF
             !
             src = dbcsr_mp_get_process (mp_env, prow, pcol)
             recv_cnt = rcount(src+1)
-            recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-            tag = 4*src+2
             IF (recv_cnt .GT. 0) THEN
+               recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
+               tag = 4*src+2
                CALL mp_irecv (recv_data_p, src, all_group, all_rr(nall_rr+1), tag)
                nall_rr = nall_rr+1
             ENDIF

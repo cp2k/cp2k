@@ -503,9 +503,9 @@ CONTAINS
     ENDDO ! iter
     CALL dbcsr_iterator_stop (iter)
     ! Exchange the data and metadata structures.
-    CALL hybrid_alltoall_any(send_data, dbcsr_data_get_size(send_data),&
+    CALL hybrid_alltoall_any(send_data,&
          total_send_count(idata,:), sd_disp(:)-1,&
-         recv_data, dbcsr_data_get_size(recv_data),&
+         recv_data,&
          total_recv_count(idata,:), rd_disp(:)-1, mp_obj, error=error)
     CALL mp_alltoall(send_meta(:), metalen*total_send_count(imeta,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(imeta,:), rm_disp(:)-1,&
@@ -1338,8 +1338,8 @@ CONTAINS
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
-            send_data_area%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data_area%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     CASE (dbcsr_type_real_8)
@@ -1348,26 +1348,26 @@ CONTAINS
        !     recv_data_area%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
        !     mp_group)
        CALL hybrid_alltoall_d1 (&
-            send_data_area%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data_area%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     CASE (dbcsr_type_complex_4)
        CALL hybrid_alltoall_c1(&
-            send_data_area%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data_area%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     CASE (dbcsr_type_complex_8)
        CALL hybrid_alltoall_z1(&
-            send_data_area%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data_area%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     END SELECT
     CALL hybrid_alltoall_i1(&
-         send_meta(:), SUM(metalen*total_send_count(1,:)), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1,&
+         send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1,&
          most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
          mp_env = mp_obj)
     CALL dbcsr_error_stop(error_handler2, dbcsr_error)
@@ -2718,8 +2718,8 @@ CONTAINS
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
-            send_data%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE (dbcsr_type_real_8)
        !CALL mp_alltoall(&
@@ -2727,25 +2727,25 @@ CONTAINS
        !     recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
        !     mp_group)
        CALL hybrid_alltoall_d1 (&
-            send_data%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE (dbcsr_type_complex_4)
        CALL hybrid_alltoall_c1(&
-            send_data%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE (dbcsr_type_complex_8)
        CALL hybrid_alltoall_z1(&
-            send_data%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid matrix type",__LINE__,error)
     END SELECT
-    CALL hybrid_alltoall_i1(send_meta(:), SUM(metalen*total_send_count(1,:)), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
+    CALL hybrid_alltoall_i1(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
     !
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
@@ -3042,8 +3042,8 @@ CONTAINS
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
-            send_data%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE (dbcsr_type_real_8)
        !CALL mp_alltoall(&
@@ -3051,24 +3051,24 @@ CONTAINS
        !     recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
        !     mp_group)
        CALL hybrid_alltoall_d1 (&
-            send_data%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE (dbcsr_type_complex_4)
        CALL hybrid_alltoall_c1(&
-            send_data%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE (dbcsr_type_complex_8)
        CALL hybrid_alltoall_z1(&
-            send_data%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     END SELECT
     !CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
     !     recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
-    CALL hybrid_alltoall_i1(send_meta(:), SIZE(send_meta), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), SIZE(recv_meta), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
+    CALL hybrid_alltoall_i1(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
             SUM(recv_count(1,:)),&
@@ -3295,27 +3295,27 @@ CONTAINS
      SELECT CASE (data_type)
      CASE (dbcsr_type_real_4)
         CALL hybrid_alltoall_s1(&
-            send_data%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            send_data%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_env)
      CASE (dbcsr_type_real_8)
         CALL hybrid_alltoall_d1 (&
-           send_data%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-           recv_data%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+           send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+           recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
            mp_env)
      CASE (dbcsr_type_complex_4)
         CALL hybrid_alltoall_c1(&
-           send_data%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-           recv_data%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+           send_data%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+           recv_data%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
            mp_env)
      CASE (dbcsr_type_complex_8)
         CALL hybrid_alltoall_z1(&
-          send_data%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
-          recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+          send_data%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+          recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
           mp_env)
      END SELECT         
-     CALL hybrid_alltoall_i1(send_meta(:), SIZE(send_meta), metalen*total_send_count(1,:), sm_disp(:)-1,&
-          recv_meta(:), SIZE(recv_meta), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_env)
+     CALL hybrid_alltoall_i1(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_env)
      CALL dbcsr_work_create(new_matrix,SUM(recv_count(1,:)),&
                             SUM(recv_count(2,:)), work_mutable=.FALSE., n=1, error=error)
 
