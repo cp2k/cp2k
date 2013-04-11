@@ -2704,9 +2704,7 @@ CONTAINS
                      nrow=row_rle, ncol=col_rle)
                 sdp(dst_p) = sdp(dst_p)+nze_rle
              ENDIF loc_ok
-             row_offset_old = row_offset_old + row_reblocks(2, row_int)
           ENDDO ! row_int
-          col_offset_old = col_offset_old + col_reblocks(2, col_int)
        ENDDO ! col_int
     ENDDO
     CALL dbcsr_iterator_stop (iter)
