@@ -132,8 +132,9 @@ MODULE qs_scf
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_density_mixing_types,         ONLY: &
        broyden_mixing_new_nr, broyden_mixing_nr, direct_mixing_nr, &
-       gspace_mixing_nr, mixing_storage_create, mixing_storage_type, &
-       multisecant_mixing_nr, no_mixing_nr, pulay_mixing_nr
+       gspace_mixing_nr, mixing_storage_create, mixing_storage_release, &
+       mixing_storage_type, multisecant_mixing_nr, no_mixing_nr, &
+       pulay_mixing_nr
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
                                              qs_diis_b_create
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -250,6 +251,7 @@ CONTAINS
     LOGICAL, SAVE                            :: first_step_flag = .TRUE.
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
@@ -261,7 +263,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input, &
-                       dft_control=dft_control, scf_control=scf_control)
+                       dft_control=dft_control,scf_control=scf_control)
 
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -366,6 +368,23 @@ CONTAINS
           END IF
 
           CALL section_vals_val_get(scf_section,"CHOLESKY",i_val=scf_env%cholesky_method,error=error)
+       ELSE
+          ! Reallocate mixing store, if the g space grid (cell) has changed
+          SELECT CASE (scf_env%mixing_method)
+          CASE (kerker_mix,pulay_mix,broy_mix,broy_mix_new,multisec_mix)
+            IF (ASSOCIATED(scf_env%mixing_store)) THEN
+              CALL get_qs_env(qs_env,rho=rho,error=error)
+              ! The current mixing_store data structure does not allow for an unique
+              ! grid comparison, but the probability that the 1d lengths of the old and
+              ! the new grid are accidentily equal is rather low
+              IF (SIZE(rho%rho_g(1)%pw%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) THEN
+                CALL mixing_storage_release(scf_env%mixing_store,error=error)
+                mixing_section => section_vals_get_subs_vals(scf_section,"MIXING",error=error)
+                CALL mixing_storage_create(scf_env%mixing_store,mixing_section,scf_env%mixing_method,&
+                                           dft_control%qs_control%cutoff,error=error)
+              END IF
+            END IF
+          END SELECT
        END IF
 
        IF (qs_env%scf_control%max_scf > 0) THEN

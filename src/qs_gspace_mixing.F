@@ -327,6 +327,8 @@ CONTAINS
     CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env,error=error)
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
+    CPPrecondition((ng == SIZE(mixing_store%rhoin(1)%cc)),cp_failure_level,routineP,error,failure)
+
     alpha = mixing_store%alpha
     gapw = dft_control%qs_control%gapw
 

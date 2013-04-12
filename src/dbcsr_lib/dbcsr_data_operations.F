@@ -383,7 +383,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dsts, src,&
        srcs, old_blk_d, error)
-    INTEGER, DIMENSION(:), INTENT(INOUT)       :: blk_p
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: blk_p
     INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, sizes
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dsts
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
