@@ -315,8 +315,10 @@ CONTAINS
        step_size=1.0_dp
     END IF
     e_pred=a*(step_size(1))**2+b*(step_size(1))+c
-    IF(unit_nr.gt.0)WRITE(unit_nr,"(t3,a,f16.8,a,f16.8)")"Line Search: Step Size",step_size(1),"Predicted energy",e_pred
-    CALL m_flush(unit_nr)
+    IF(unit_nr.gt.0) THEN
+      WRITE(unit_nr,"(t3,a,f16.8,a,f16.8)")"Line Search: Step Size",step_size(1),"Predicted energy",e_pred
+      CALL m_flush(unit_nr)
+    ENDIF
   END SUBROUTINE line_search_3pnt
 
   ! *****************************************************************************
@@ -427,8 +429,10 @@ CONTAINS
 
 ! check for convergence of the newton step
          maxel=cp_dbcsr_frobenius_norm(matrix_res) 
-         IF(unit_nr.gt.0)WRITE(unit_nr,"(T3,A,F12.6)")"Convergence of Newton iteration ",maxel
-         CALL m_flush(unit_nr)
+         IF(unit_nr.gt.0) THEN
+           WRITE(unit_nr,"(T3,A,F12.6)")"Convergence of Newton iteration ",maxel
+           CALL m_flush(unit_nr) 
+         ENDIF
          at_limit=at_limit.OR.(old_conv/maxel.lt.1.05_dp)
          old_conv=maxel
          IF(i==ncyc.AND.maxel/conv_val.gt.5.0_dp)THEN
@@ -463,7 +467,7 @@ CONTAINS
     CALL cp_dbcsr_release(matrix_res,error)
     CALL cp_dbcsr_release(matrix_cg,error)
 
-    CALL m_flush(unit_nr)
+    IF (unit_nr.gt.0) CALL m_flush(unit_nr)
     CALL timestop(handle)
   END SUBROUTINE compute_direction_newton
 
@@ -710,7 +714,7 @@ CONTAINS
     END DO
 
     CALL purify_mcweeny(matrix_p_out,threshold,1,error)
-    CALL m_flush(unit_nr)
+    IF (unit_nr.gt.0) CALL m_flush(unit_nr)
     CALL cp_dbcsr_release (matrix_tmp,error)
     CALL cp_dbcsr_release (matrix,error)
     CALL timestop(handle)
