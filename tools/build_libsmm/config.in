@@ -59,12 +59,13 @@ ssh_mic_cmd() {
 # copy in the exported directory on MIC
 cp $1 ~
 # execute on MIC
-ssh mic0 "ulimit -s 256000; export OMP_NUM_THREADS=1; ./$1"
+ssh mic0 "ulimit -s 256000; export OMP_NUM_THREADS=1; export LD_LIBRARY_PATH=/apps/dommic/mic/intel/composer_xe_2013.1.117/compiler/lib/mic; ./$1"
 # remove the file
 rm ~/$1
 }
 
-mic_cmd="/opt/intel/mic/coi/tools/micnativeloadex/release/micnativeloadex"
+export SINK_LD_LIBRARY_PATH=${INTEL_PATH}/lib/mic/
+mic_cmd="/opt/intel/mic/bin/micnativeloadex "
 
 fi
 
@@ -83,7 +84,6 @@ blas_linking="-L/data_cp2k/vondele/mkl/lib/em64t/ -Wl,--start-group -lmkl_gf_lp6
 # if too many sizes are being optimized for. Numbers have to be ascending.
 #
 dims_small="1 4 5 6 9 13 16 17 22 23 24"
-#dims_small="13 16 23"
 
 #
 # tiny dimensions used are used as primivitves and generated in an 'exhaustive' search.
@@ -114,27 +114,36 @@ target="all"
 # number of processes to use in parallel for compiling / building and benchmarking the library.
 # Should *not* be more than the physical (available) number of cores of the machine
 #
-#tasks=16 # purie node
-#tasks=26 # lancelot host
-#tasks=30 # mic
-#tasks=1
-tasks=8
+tasks=16 # Sandy Bridge node
+#tasks=40 # MIC
 
 #
 # set the number of jobs
 #
 jobs=20
+#jobs=350 # MIC
 
 #
-# running command
+# running command for batch (PBS or Slurm)
 #
-batch_cmd() {
-  echo "aprun -B -j1 -cc none $@" | \
-  qsub -N ${test_name} -j oe -V -d ${PWD} -lmppwidth=1 -lmppnppn=1 -lmppdepth=${tasks} -lwalltime=02:00:00; 
-}
+WLM="pbs"
+#WLM="slurm"
+if [ ${WLM} = "pbs" ]; then
+  batch_cmd() {
+    echo "aprun -B -j1 -cc none $@" | \
+      qsub -N ${test_name} -j oe -V -d ${PWD} -lmppwidth=1 -lmppnppn=1 -lwalltime=02:00:00; 
+  }      
+else
+  batch_cmd() {
+    sbatch -J ${test_name} -o "${test_name}-%j.out" -D ${PWD} --ntasks=1 --ntasks-per-node=1 -t 02:00:00 <<EOF
+#!/bin/bash -e
+aprun -B -j1 -cc none $@
+EOF
+  }
+fi
+
 #run_cmd=batch_cmd
 #run_cmd=true # command for skipping the Make part
-
 
 #
 # common commands. Do not modify!
