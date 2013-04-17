@@ -1,0 +1,22 @@
+# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013
+# Program environments:
+# - module switch PrgEnv-cray PrgEnv-intel
+
+CC       = cc
+CPP      = 
+FC       = ftn
+LD       = ftn
+AR       = ar -r
+CPPFLAGS =
+DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn -D__ELPA
+CFLAGS   = $(DFLAGS)
+FCFLAGS  = $(DFLAGS) -O2 -openmp -pad -mavx -vec-report2 -warn -funroll-loops -fpp -free \
+           -nogen-interfaces -I${INTEL_PATH}/mkl/include -I${INTEL_PATH}/mkl/include/fftw
+LDFLAGS  = $(FCFLAGS) -static /users/alazzaro/intel_affinity_cray/thread_alert.o
+MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
+LIBS     = /users/alazzaro/project/cp2k/trunk/cp2k/tools/build_libsmm/lib/libsmm_dnn.a \
+           -Wl,--start-group \
+	   ${MKL_LIB}/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
+	   ${MKL_LIB}/libmkl_core.a -Wl,--end-group
+
+OBJECTS_ARCHITECTURE = machine_intel.o

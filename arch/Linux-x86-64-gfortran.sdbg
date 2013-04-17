@@ -12,9 +12,9 @@ LD       = gfortran
 AR       = ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__LIBXC 
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__LIBXC2 
 FCFLAGS  = -O1 -fstrict-aliasing -fbacktrace -g -fbounds-check -ffree-form $(DFLAGS) 
-LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libxc-1.2.0/install/lib
+LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libxc-2.0.1/install/lib
 LIBS     = -lderiv -lint -lstdc++ -lfftw3 -llapack -lblas -lxc
 
 OBJECTS_ARCHITECTURE = machine_gfortran.o
