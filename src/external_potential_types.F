@@ -1108,6 +1108,7 @@ CONTAINS
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp)                            :: alpha, ci, r, rc2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: hprj_ppnl
     TYPE(cp_parser_type), POINTER            :: parser
@@ -1117,7 +1118,7 @@ CONTAINS
     line2 = ""
     symbol2 = ""
     apname2 = ""
-    NULLIFY(parser)
+    NULLIFY(parser,tmp_vals)
     failure = .FALSE.
     CALL cite_reference(Goedecker1996)
     CALL cite_reference(Hartwigsen1998)
@@ -1316,6 +1317,7 @@ CONTAINS
                    potential%nlcc = .TRUE.
                    CALL remove_word(line_att)
                    READ(line_att,*) potential%nexp_nlcc
+                   n=potential%nexp_nlcc
                    NULLIFY(potential%alpha_nlcc,potential%nct_nlcc,potential%cval_nlcc)
                    CALL reallocate(potential%alpha_nlcc,1,n)
                    CALL reallocate(potential%nct_nlcc,1,n)
@@ -1339,6 +1341,7 @@ CONTAINS
                    potential%lsdpot = .TRUE.
                    CALL remove_word(line_att)
                    READ(line_att,*) potential%nexp_lsd
+                   n=potential%nexp_lsd
                    NULLIFY(potential%alpha_lsd,potential%nct_lsd,potential%cval_lsd)
                    CALL reallocate(potential%alpha_lsd,1,n)
                    CALL reallocate(potential%nct_lsd,1,n)
@@ -1379,15 +1382,28 @@ CONTAINS
                      CALL reallocate(potential%alpha_lpot,1,n)
                      CALL reallocate(potential%nct_lpot,1,n)
                      CALL reallocate(potential%cval_lpot,1,4,1,n)
+                     ! add to input section
+                     WRITE(line_att,'(A,1X,I0)') "LPOT",n
+                     irep = irep + 1
+                     CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                               c_val=TRIM(line_att), error=error)
                      DO ipot=1,potential%nexp_lpot
                        CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
                        potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
                        CALL parser_get_object(parser,potential%nct_lpot(ipot),error=error)
+                       CALL reallocate(tmp_vals,1,potential%nct_lpot(ipot))
                        DO ic=1,potential%nct_lpot(ipot)
                          CALL parser_get_object(parser,ci,error=error)
+                         tmp_vals(ic)=ci
                          rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic-1)
                          potential%cval_lpot(ic,ipot) = ci*rc2
                        END DO
+                       ! add to input section
+                       irep = irep + 1
+                       WRITE(line_att,'(E24.16,1X,I0,100(1X,E24.16))') r,potential%nct_lpot(ipot), &
+                                                                       tmp_vals(1:potential%nct_lpot(ipot))
+                       CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                                 c_val=TRIM(line_att), error=error)
                      END DO
                    ELSEIF(INDEX(LINE,"NLCC") /= 0) THEN
                      ! NLCC
@@ -1398,14 +1414,27 @@ CONTAINS
                      CALL reallocate(potential%alpha_nlcc,1,n)
                      CALL reallocate(potential%nct_nlcc,1,n)
                      CALL reallocate(potential%cval_nlcc,1,4,1,n)
+                     ! add to input section
+                     WRITE(line_att,'(A,1X,I0)') "NLCC",n
+                     irep = irep + 1
+                     CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                               c_val=TRIM(line_att), error=error)
                      DO ipot=1,potential%nexp_nlcc
                        CALL parser_get_object(parser,potential%alpha_nlcc(ipot),newline=.TRUE.,error=error)
                        CALL parser_get_object(parser,potential%nct_nlcc(ipot),error=error)
+                       CALL reallocate(tmp_vals,1,potential%nct_nlcc(ipot))
                        DO ic=1,potential%nct_nlcc(ipot)
                          CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot),error=error)
+                         tmp_vals(ic)=potential%cval_nlcc(ic,ipot)
                         !make it compatible with bigdft style
                          potential%cval_nlcc(ic,ipot)=potential%cval_nlcc(ic,ipot)/(4.0_dp*pi)
                        END DO
+                       ! add to input section
+                       irep = irep + 1
+                       WRITE(line_att,'(E24.16,1X,I0,100(1X,E24.16))') potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
+                                                                       tmp_vals(1:potential%nct_nlcc(ipot))
+                       CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                                 c_val=TRIM(line_att), error=error)
                      END DO
                    ELSEIF(INDEX(LINE,"LSD") /= 0) THEN
                      ! LSD potential
@@ -1416,15 +1445,28 @@ CONTAINS
                      CALL reallocate(potential%alpha_lsd,1,n)
                      CALL reallocate(potential%nct_lsd,1,n)
                      CALL reallocate(potential%cval_lsd,1,4,1,n)
+                     ! add to input section
+                     WRITE(line_att,'(A,1X,I0)') "LSD",n
+                     irep = irep + 1
+                     CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                               c_val=TRIM(line_att), error=error)
                      DO ipot=1,potential%nexp_lsd
                        CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
                        potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
                        CALL parser_get_object(parser,potential%nct_lsd(ipot),error=error)
+                       CALL reallocate(tmp_vals,1,potential%nct_lsd(ipot))
                        DO ic=1,potential%nct_lsd(ipot)
                          CALL parser_get_object(parser,ci,error=error)
+                         tmp_vals(ic)=ci
                          rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic-1)
                          potential%cval_lsd(ic,ipot) = ci*rc2
                        END DO
+                       ! add to input section
+                       irep = irep + 1
+                       WRITE(line_att,'(E24.16,1X,I0,100(1X,E24.16))') r,potential%nct_lsd(ipot), &
+                                                                       tmp_vals(1:potential%nct_lsd(ipot))
+                       CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                                 c_val=TRIM(line_att), error=error)
                      END DO
                    ELSE
                      CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
