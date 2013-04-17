@@ -1631,6 +1631,7 @@ CONTAINS
                             TRIM(potential_file_name)//">",para_env)
        END IF
     END DO search_loop
+
     IF (.NOT.read_from_input) THEN
        ! Dump the potential info the in potential section
        IF (match) THEN
@@ -1645,6 +1646,9 @@ CONTAINS
        END IF
        CALL parser_release(parser,error=error)
     END IF
+
+    IF (ASSOCIATED(tmp_vals)) DEALLOCATE(tmp_vals)
+
   END SUBROUTINE read_gth_potential
 
 ! *****************************************************************************
