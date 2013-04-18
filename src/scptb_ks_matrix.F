@@ -202,12 +202,11 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(mcharge(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(dmcharge(natom,3),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          IF(calculate_forces) THEN
-            ALLOCATE(dmcharge(natom,3),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,dmcharge,error=error)
          ELSE
-            NULLIFY(dmcharge)
             charges = 0._dp
             CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
          END IF
@@ -232,10 +231,8 @@ CONTAINS
 
          DEALLOCATE(mcharge,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         IF(calculate_forces) THEN
-            DEALLOCATE(dmcharge,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         END IF
+         DEALLOCATE(dmcharge,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ELSE
          energy%hartree = 0._dp
       END IF
