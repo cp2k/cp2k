@@ -622,6 +622,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     REAL(KIND=dp), DIMENSION(0:3)            :: e0, r
 
     order_ = order
+    ed = 0
     calc=.FALSE.
 
     IF (order_ >= 0) THEN
