@@ -1,6 +1,8 @@
 # Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013
 # Program environments:
-# - module switch PrgEnv-cray PrgEnv-intel
+# note that MKL FFTW can't be used but that the version from fftw.org is needed for thread safety.
+# note that thread_alert.o is needed to avoid problems with thread pinning (intel uses N+1 threads for a N-threaded OMP run).
+# - module load PrgEnv-intel ; module load fftw
 
 CC       = cc
 CPP      = 
@@ -11,10 +13,10 @@ CPPFLAGS =
 DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_smm_dnn -D__ELPA
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O2 -openmp -pad -mavx -vec-report2 -warn -funroll-loops -fpp -free \
-           -nogen-interfaces -I${INTEL_PATH}/mkl/include -I${INTEL_PATH}/mkl/include/fftw
-LDFLAGS  = $(FCFLAGS) -static-intel /users/alazzaro/intel_affinity_cray/thread_alert.o
+           -nogen-interfaces 
+LDFLAGS  = $(FCFLAGS) -static-intel /project/cray/alazzaro/intel_affinity_cray/thread_alert.o -Wl,-Map,load.map
 MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
-LIBS     = /users/alazzaro/project/cp2k/trunk/cp2k/tools/build_libsmm/lib/libsmm_dnn.a \
+LIBS     = /project/cray/alazzaro/cp2k/trunk/cp2k/tools/build_libsmm_joost/lib/libsmm_dnn.a -lfftw3 -lfftw3_threads \
 	   ${MKL_LIB}/libmkl_scalapack_lp64.a -Wl,--start-group \
 	   ${MKL_LIB}/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
 	   ${MKL_LIB}/libmkl_core.a ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a -Wl,--end-group
