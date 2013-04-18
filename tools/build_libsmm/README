@@ -59,7 +59,8 @@ b) How to generate the library running several jobs in a cluster, where each com
 
    6) Repeat points 3), 4), and 5) running ./do_generate_small
 
-   7) Finally run ./do_generate_lib. The library is generated, check test_smm_*.out for performance, and correctness.
+   7) Finally set 'run_cmd=batch_cmd' and  run ./do_generate_lib.
+      The library is generated, check test_smm_*.out for performance, and correctness.
 
    8) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
 
