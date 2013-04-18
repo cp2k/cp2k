@@ -232,11 +232,12 @@ CONTAINS
           !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
           CALL mem_copy_i (newarray(lb_orig:ub_orig),&
                array(lb_orig:ub_orig), ub_orig-lb_orig+1)
-          IF (pad) THEN
-             !newarray(ub_orig+1:ub_new) = 0
-             newarray(lb_new:lb_orig-1) = 0
-             CALL mem_zero_i (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
-          ENDIF
+       ENDIF
+       IF (pad) THEN
+          !newarray(lb_new:lb_orig-1) = 0
+          CALL mem_zero_i (newarray(lb_new:lb_orig-1), (lb_orig-1)-lb_new+1)
+          !newarray(ub_orig+1:ub_new) = 0
+          CALL mem_zero_i (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
        CALL mem_dealloc_i (array, mem_type, error=error)
     ELSEIF (pad) THEN

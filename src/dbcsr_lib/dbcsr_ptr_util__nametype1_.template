@@ -134,11 +134,12 @@
           !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
           CALL mem_copy_[nametype1] (newarray(lb_orig:ub_orig),&
                array(lb_orig:ub_orig), ub_orig-lb_orig+1)
-          IF (pad) THEN
-             !newarray(ub_orig+1:ub_new) = 0
-             newarray(lb_new:lb_orig-1) = 0
-             call mem_zero_[nametype1] (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
-          ENDIF
+       ENDIF
+       IF (pad) THEN
+          !newarray(lb_new:lb_orig-1) = 0
+          call mem_zero_[nametype1] (newarray(lb_new:lb_orig-1), (lb_orig-1)-lb_new+1)
+          !newarray(ub_orig+1:ub_new) = 0
+          call mem_zero_[nametype1] (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
        call mem_dealloc_[nametype1] (array, mem_type=mem_type, error=error)
     ELSEIF (pad) THEN
