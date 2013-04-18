@@ -566,20 +566,24 @@ MODULE rpa_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: comm_exchange, comm_rpa, dummy_proc, grid_2D(2), handle, &
-      handle2, handle3, i, i_global, i_local, iiB, iii, iproc, iproc_col, &
-      iproc_row, itmp(2), j_global, j_local, jjB, mepos_in_RPA_group, mypcol, &
-      myprow, ncol_block, ncol_block_mat, ncol_local, npcol, nprow, &
-      nrow_block, nrow_block_mat, nrow_local, number_of_rec, number_of_send, &
-      proc_receive, proc_receive_static, proc_send, proc_send_static, &
-      proc_shift, rec_counter, rec_ia_end, rec_ia_size, rec_ia_start, &
-      rec_L_end, rec_L_size, rec_L_start, rec_pcol, rec_prow, ref_send_pcol, &
-      ref_send_prow, row_col_proc_ratio, send_counter, send_pcol, send_prow, &
-      size_rec_buffer
-    INTEGER :: size_send_buffer, stat, sub_sub_color
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_rec_size, map_send_size, &
+    INTEGER :: comm_exchange, comm_rpa, dummy_proc, end_col_block, &
+      end_row_block, grid_2D(2), handle, handle2, handle3, i, i_global, &
+      i_local, i_sub, iiB, iii, iproc, iproc_col, iproc_row, itmp(2), &
+      j_global, j_local, j_sub, jjB, mepos_in_RPA_group, my_num_col_blocks, &
+      my_num_row_blocks, mypcol, myprow, ncol_block, ncol_block_mat, &
+      ncol_local, npcol, nprow, nrow_block, nrow_block_mat, nrow_local, &
+      num_rec_cols, number_of_rec, number_of_send, proc_receive, &
+      proc_receive_static, proc_send, proc_send_static, proc_shift, &
+      rec_counter, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
+      rec_L_size, rec_L_start, rec_pcol, rec_prow
+    INTEGER :: ref_send_pcol, ref_send_prow, row_col_proc_ratio, &
+      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
+      start_col_block, start_row_block, stat, sub_sub_color
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
+                                                map_rec_size, map_send_size, &
                                                 req_send, RPA_proc_map
-    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, &
+    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blocks_ranges_col, &
+      blocks_ranges_row, grid_2_mepos, grid_ref_2_send_pos, &
       group_grid_2_mepos, mepos_2_grid, RPA_info_end, RPA_info_size, &
       RPA_info_start
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
@@ -841,6 +845,12 @@ MODULE rpa_ri_gpw
       ALLOCATE(buffer_send(number_of_send),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
+      ! this array given a pair (ref_send_prow,ref_send_pcol) returns
+      ! the position in the buffer_send associated to that process
+      ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      grid_ref_2_send_pos=0
+
       send_counter=0
       DO proc_shift=1, para_env_RPA%num_pe-1
         proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
@@ -857,33 +867,50 @@ MODULE rpa_ri_gpw
           ref_send_prow=mepos_2_grid(proc_send,1)
           ref_send_pcol=mepos_2_grid(proc_send,2)
 
-          ! fill the send buffer array
+          grid_ref_2_send_pos(ref_send_prow,ref_send_pcol)=send_counter
+
           ! iii=0
-          ! DO jjB=my_group_L_start, my_group_L_end
-          !   send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-          !                     fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          !   IF(send_pcol.NE.ref_send_pcol) CYCLE
-          !   DO iiB=my_ia_start, my_ia_end
-          !     send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-          !                       fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-          !     IF(send_prow.NE.ref_send_prow) CYCLE
-          iii=0
-          DO iiB=my_ia_start, my_ia_end
-            send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-                                    fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-            IF(send_prow.NE.ref_send_prow) CYCLE
-            DO jjB=my_group_L_start, my_group_L_end
-              send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-                                      fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-              IF(send_pcol.NE.ref_send_pcol) CYCLE
-              iii=iii+1
-              buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
-            END DO
-          END DO
+          ! DO iiB=my_ia_start, my_ia_end
+          !   send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
+          !                           fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+          !   IF(send_prow.NE.ref_send_prow) CYCLE
+          !   DO jjB=my_group_L_start, my_group_L_end
+          !     send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+          !                             fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+          !     IF(send_pcol.NE.ref_send_pcol) CYCLE
+          !     iii=iii+1
+          !     buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
+          !   END DO
+          ! END DO
 
         END IF
 
       END DO
+
+      ! loop over the locally held data and fill the buffer_send
+      ! for doing that we need an array index 
+      ALLOCATE(iii_vet(number_of_send),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    
+      iii_vet=0
+      DO iiB=my_ia_start, my_ia_end
+        send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
+                                fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+        DO jjB=my_group_L_start, my_group_L_end
+          send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+                                  fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+          ! we don't need to send to ourselves
+          IF(grid_2_mepos(send_prow,send_pcol)==para_env_RPA%mepos) CYCLE
+
+          send_counter=grid_ref_2_send_pos(send_prow,send_pcol)
+          iii_vet(send_counter)=iii_vet(send_counter)+1
+          iii=iii_vet(send_counter)
+          buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
+        END DO
+      END DO
+
+      DEALLOCATE(iii_vet)
+      DEALLOCATE(grid_ref_2_send_pos)
       DEALLOCATE(BIb_C_2D)
       CALL timestop(handle3)
 
@@ -934,6 +961,46 @@ MODULE rpa_ri_gpw
 
       ! 8) fill the fm_mat_S matrix
       CALL timeset(routineN//"_fill",handle3)
+      ! In order to perform this step efficiently first we have to know the  
+      ! ranges of the blocks over which a given process hold its local data.
+      ! Start with the rows ...
+      my_num_row_blocks=1
+      DO iiB=1, nrow_local-1
+        IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
+        my_num_row_blocks=my_num_row_blocks+1
+      END DO
+      ALLOCATE(blocks_ranges_row(2,my_num_row_blocks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      blocks_ranges_row=0
+      blocks_ranges_row(1,1)=row_indices(1)
+      iii=1
+      DO iiB=1, nrow_local-1
+        IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
+        iii=iii+1
+        blocks_ranges_row(2,iii-1)=row_indices(iiB)
+        blocks_ranges_row(1,iii)=row_indices(iiB+1)
+      END DO
+      blocks_ranges_row(2,my_num_row_blocks)=row_indices(MAX(nrow_local,1))
+
+      ! and columns
+      my_num_col_blocks=1
+      DO jjB=1, ncol_local-1
+        IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
+        my_num_col_blocks=my_num_col_blocks+1
+      END DO
+      ALLOCATE(blocks_ranges_col(2,my_num_col_blocks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      blocks_ranges_col=0
+      blocks_ranges_col(1,1)=col_indices(1)
+      iii=1
+      DO jjB=1, ncol_local-1
+        IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
+        iii=iii+1
+        blocks_ranges_col(2,iii-1)=col_indices(jjB)
+        blocks_ranges_col(1,iii)=col_indices(jjB+1)
+      END DO
+      blocks_ranges_col(2,my_num_col_blocks)=col_indices(MAX(ncol_local,1))
+
       rec_counter=0
       DO proc_shift=1, para_env_RPA%num_pe-1
         proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
@@ -945,6 +1012,29 @@ MODULE rpa_ri_gpw
           rec_L_size=RPA_info_size(1,proc_receive)
           rec_L_start=RPA_info_start(1,proc_receive)
           rec_L_end=RPA_info_end(1,proc_receive)
+          ! precompute the number of received columns and relative index
+          num_rec_cols=0
+          DO jjB=1, my_num_col_blocks
+            start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
+            end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
+            DO j_sub=start_col_block, end_col_block
+              num_rec_cols=num_rec_cols+1
+            END DO
+          END DO
+          ALLOCATE(index_col_rec(num_rec_cols),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+          index_col_rec=0
+          iii=0
+          DO jjB=1, my_num_col_blocks
+            start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
+            end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
+            DO j_sub=start_col_block, end_col_block
+              iii=iii+1
+              j_local=cp_fm_indxg2l(j_sub,ncol_block,dummy_proc,&
+                                    fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+              index_col_rec(iii)=j_local
+            END DO
+          END DO
 
           rec_ia_size=RPA_info_size(2,proc_receive)
           rec_ia_start=RPA_info_start(2,proc_receive)
@@ -953,41 +1043,59 @@ MODULE rpa_ri_gpw
           ! wait for the message 
           CALL mp_wait(buffer_rec(rec_counter)%msg_req)
 
-          ! iii=0
-          ! DO jjB=rec_L_start, rec_L_end
-          !   rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-          !                    fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          !   IF(rec_pcol.NE.mypcol) CYCLE
-          !   j_local=cp_fm_indxg2l(jjB,ncol_block,dummy_proc,&
-          !                   fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          !   DO iiB=rec_ia_start, rec_ia_end
-          !     rec_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-          !                      fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-          !     IF(rec_prow.NE.myprow) CYCLE
-          !     i_local=cp_fm_indxg2l(iiB,nrow_block,dummy_proc,&
-          !                     fm_mat_S%matrix_struct%first_p_pos(1),nprow)
           iii=0
-          DO iiB=rec_ia_start, rec_ia_end
-            rec_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-                             fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-            IF(rec_prow.NE.myprow) CYCLE
-            i_local=cp_fm_indxg2l(iiB,nrow_block,dummy_proc,&
-                                  fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-            DO jjB=rec_L_start, rec_L_end
-              rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-                               fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-              IF(rec_pcol.NE.mypcol) CYCLE
-              j_local=cp_fm_indxg2l(jjB,ncol_block,dummy_proc,&
-                              fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-              iii=iii+1
-              fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+          DO iiB=1, my_num_row_blocks
+            start_row_block=MAX(blocks_ranges_row(1,iiB),rec_ia_start)
+            end_row_block=MIN(blocks_ranges_row(2,iiB),rec_ia_end)
+            DO i_sub=start_row_block, end_row_block
+              i_local=cp_fm_indxg2l(i_sub,nrow_block,dummy_proc,&
+                                    fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+              ! DO jjB=1, my_num_col_blocks
+              !   start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
+              !   end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
+              !   DO j_sub=start_col_block, end_col_block
+              !     j_local=cp_fm_indxg2l(j_sub,ncol_block,dummy_proc,&
+              !                           fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+              !     iii=iii+1
+              !     fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+              !   END DO
+              ! END DO
+              DO jjB=1, num_rec_cols 
+                iii=iii+1
+                j_local=index_col_rec(jjB)
+                fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+              END DO
             END DO
           END DO
 
-          DEALLOCATE(buffer_rec(rec_counter)%msg)
+          ! iii=0
+          ! DO iiB=rec_ia_start, rec_ia_end
+          !   rec_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
+          !                    fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+          !   IF(rec_prow.NE.myprow) CYCLE
+          !   i_local=cp_fm_indxg2l(iiB,nrow_block,dummy_proc,&
+          !                         fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+          !   DO jjB=rec_L_start, rec_L_end
+          !     rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+          !                      fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+          !     IF(rec_pcol.NE.mypcol) CYCLE
+          !     j_local=cp_fm_indxg2l(jjB,ncol_block,dummy_proc,&
+          !                     fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+          !     iii=iii+1
+          !     fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+          !   END DO
+          ! END DO
+
+          DEALLOCATE(buffer_rec(rec_counter)%msg) 
+          DEALLOCATE(index_col_rec)
+          
         END IF
       END DO
       DEALLOCATE(buffer_rec)
+      
+      DEALLOCATE(blocks_ranges_row)
+      DEALLOCATE(blocks_ranges_col)
+      
       CALL timestop(handle3)
       
       ! wait for all messeges to be sent
