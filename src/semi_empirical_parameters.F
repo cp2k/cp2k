@@ -1255,7 +1255,7 @@ CONTAINS
        sep%gp2   =    7.3076480_dp
        sep%hsp   =    0.7792380_dp
        sep%fn1(1) = -0.03182700_dp; sep%fn2(1) = 6.00000000_dp; sep%fn3(1) = 1.47432300_dp
-       sep%fn1(2) =  0.01847000_dp; sep%fn2(2) = 7.00000000_dp; sep%fn3(2) = 0.03329000_dp
+       sep%fn1(2) =  0.01847000_dp; sep%fn2(2) = 7.00000000_dp; sep%fn3(2) = 1.77935400_dp
        sep%fn1(3) =  0.03329000_dp; sep%fn2(3) = 9.00000000_dp; sep%fn3(3) = 3.00657600_dp
     CASE (16)
        !Sulphur
