@@ -310,6 +310,7 @@ CONTAINS
     IF (stat/=0) CALL mp_abort(routineP//" could not ALLOCATE a logger")
 
     NULLIFY(logger%para_env)
+    NULLIFY(logger%iter_info)
     logger%ref_count=1
     last_logger_id_nr=last_logger_id_nr+1
     logger%id_nr=last_logger_id_nr
@@ -397,7 +398,6 @@ CONTAINS
           logger%close_local_unit_on_dealloc=.FALSE.
        ENDIF
     ENDIF
-    NULLIFY(logger%iter_info)
     IF (PRESENT(iter_info)) logger%iter_info => iter_info
     IF (ASSOCIATED(logger%iter_info)) THEN
        CALL cp_iteration_info_retain(logger%iter_info)
