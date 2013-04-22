@@ -831,3 +831,5 @@ h2po4.inp
 ice-scp-ewald.inp
 #  
 ice-scp-ewald.inp
+#
+geom.inp
