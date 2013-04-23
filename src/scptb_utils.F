@@ -179,14 +179,14 @@ CONTAINS
          DO
             r = 0.5_dp*(rmax+rmin)
             eff = (c+d*r**2)*EXP(-(a*r))
-            IF (eff*eff < scptb_control%epspair) THEN
+            IF (eff < scptb_control%epspair) THEN
                rmax = r
             ELSE
                rmin = r
             END IF
             IF ((rmax-rmin) < 1.e-2) EXIT
          END DO
-         scptb_parameter%rcpair = rmax
+         scptb_parameter%rcpair = 0.5_dp*rmax
 
       END IF
 
