@@ -170,16 +170,16 @@ CONTAINS
          CALL deallocate_sto_basis_set (sto_basis,error)
          !throw away the STO basis set, since from now on we use the GTO
 
-         a = SQRT(scptb_parameter%crep(1))
-         c = SQRT(scptb_parameter%crep(2))
-         d = SQRT(scptb_parameter%crep(3))
+         a = scptb_parameter%crep(1)
+         c = scptb_parameter%crep(2)
+         d = scptb_parameter%crep(3)
 
          rmin = 1._dp
          rmax = 100._dp
          DO
             r = 0.5_dp*(rmax+rmin)
             eff = (c+d*r**2)*EXP(-(a*r))
-            IF (eff < scptb_control%epspair) THEN
+            IF (eff*eff < scptb_control%epspair) THEN
                rmax = r
             ELSE
                rmin = r
