@@ -234,3 +234,8 @@ ch2o-5.inp
 ch2o.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 fa_atprop.inp
+# stress parallel
+h2o-1.inp
+h2o-4.inp
+h2o-5.inp
+h2o_atprop.inp

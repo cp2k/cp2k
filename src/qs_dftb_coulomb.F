@@ -424,6 +424,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
@@ -439,7 +440,7 @@ CONTAINS
     !-------------- INITIALISATION ---------------------
     failure = .FALSE.
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
-         error=error)
+         para_env=para_env, error=error)
     NULLIFY(green, poisson_env, pw_pool)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc, &
          poisson_env=poisson_env)
@@ -530,7 +531,7 @@ CONTAINS
           END DO
        END DO
        ffa = ( 1.0_dp / fourpi )  * ( 0.5_dp / alpha ) ** 2
-       virial%pv_virial = virial%pv_virial - ffa * f_stress + h_stress
+       virial%pv_virial = virial%pv_virial - (ffa * f_stress + h_stress)/REAL(para_env%num_pe,dp)
     END IF
 
     !--------END OF STRESS TENSOR CALCULATION -----------
