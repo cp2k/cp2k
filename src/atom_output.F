@@ -704,9 +704,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals_helper', &
       routineP = moduleN//':'//routineN
-    
-    INTEGER                                  :: b, v, nb, nv, l, maxl
-    
+
+    INTEGER                                  :: b, l, maxl, nb, nv, v
+
     WRITE(iw,'(/,A,A,A)') " Atomic orbital expansion coefficients [", description, "]"
     
     maxl = atom%state%maxl_calc

@@ -679,8 +679,10 @@ CONTAINS
           IF (q0(i_grid) .NE. q_mesh(Nqs)) THEN
              h_prefactor(i_grid) = h_prefactor(i_grid) + prefactor
           END IF
-          IF (use_virial) THEN
+          IF (use_virial .AND. ABS(prefactor) > 0.0_dp) THEN
              SELECT CASE (dispersion_env%nl_type)
+                CASE DEFAULT
+                   ! do nothing
                 CASE (vdw_nl_RVV10)
                    prefactor = 0.5_dp*prefactor
              END SELECT

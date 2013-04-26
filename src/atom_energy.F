@@ -294,7 +294,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%ORBITALS",extension=".log",error=error)
           IF (iw > 0) THEN
             CALL atom_print_orbitals(atom_info(in,im)%atom,iw,error=error)
-          END If
+          END IF
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%ORBITALS",error=error)
 
           ! perform a fit of the total electronic density
