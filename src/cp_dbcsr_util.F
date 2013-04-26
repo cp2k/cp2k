@@ -104,7 +104,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: threshold
     INTEGER, INTENT(IN)                      :: max_iter
     LOGICAL, INTENT(IN)                      :: svd
-    LOGICAL, INTENT(OUT), OPTIONAL           :: converged
+    LOGICAL, INTENT(INOUT), OPTIONAL         :: converged
     INTEGER                                  :: mp_group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -226,7 +226,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: threshold
     INTEGER, INTENT(IN)                      :: max_iter
     LOGICAL, INTENT(IN)                      :: svd
-    LOGICAL, INTENT(OUT), OPTIONAL           :: converged
+    LOGICAL, INTENT(INOUT), OPTIONAL         :: converged
     INTEGER                                  :: mp_group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
