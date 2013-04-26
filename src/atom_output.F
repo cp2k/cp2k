@@ -41,7 +41,7 @@ MODULE atom_output
 
   PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration, &
             atom_print_basis, atom_print_method, atom_print_info, atom_print_potential, &
-            atom_print_basis_file, atom_write_pseudo_param
+            atom_print_basis_file, atom_write_pseudo_param, atom_print_orbitals
 
 ! *****************************************************************************
 
@@ -658,6 +658,73 @@ CONTAINS
     IF (.NOT. PRESENT(iunit)) CALL close_file(unit_number=iw)
 
   END SUBROUTINE atom_write_pseudo_param
+
+! *****************************************************************************
+
+  SUBROUTINE atom_print_orbitals(atom,iw,error)
+    TYPE(atom_type), POINTER                 :: atom
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    SELECT CASE (atom%method_type)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (do_rks_atom)
+        CALL atom_print_orbitals_helper(atom,atom%orbitals%wfn,"",iw,error)
+      CASE (do_uks_atom)
+        CALL atom_print_orbitals_helper(atom,atom%orbitals%wfna,"Alpha",iw,error)
+        CALL atom_print_orbitals_helper(atom,atom%orbitals%wfnb,"Beta",iw,error)
+      CASE (do_rhf_atom)
+        CALL atom_print_orbitals_helper(atom,atom%orbitals%wfn,"",iw,error)
+      CASE (do_uhf_atom)
+        CALL atom_print_orbitals_helper(atom,atom%orbitals%wfna,"Alpha",iw,error)
+        CALL atom_print_orbitals_helper(atom,atom%orbitals%wfnb,"Beta",iw,error)
+      CASE (do_rohf_atom)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+    END SELECT
+
+  END SUBROUTINE atom_print_orbitals
+
+! *****************************************************************************
+  
+  SUBROUTINE atom_print_orbitals_helper(atom,wfn,description,iw,error)
+    TYPE(atom_type), POINTER                 :: atom
+    REAL(KIND=dp), DIMENSION(:, :, 0:), &
+      INTENT(INOUT)                          :: wfn
+    CHARACTER(len=*), INTENT(IN)             :: description
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals_helper', &
+      routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: b, v, nb, nv, l, maxl
+    
+    WRITE(iw,'(/,A,A,A)') " Atomic orbital expansion coefficients [", description, "]"
+    
+    maxl = atom%state%maxl_calc
+    DO l=0,maxl
+      
+      nb = atom%basis%nbas(l)
+      nv = atom%state%maxn_calc(l)
+      IF ( nb > 0 .AND. nv > 0 ) THEN
+        nv = MIN(nv,SIZE(wfn,2))
+        DO v=1,nv
+          WRITE(iw,'(/,"    ORBITAL      L = ",I1,"      State = ",I3)') l, v
+          DO b=1,nb
+            WRITE(iw,'("      ",ES23.15)') wfn(b,v,l)
+          END DO
+        END DO
+      END IF
+    END DO
+  END SUBROUTINE atom_print_orbitals_helper
 
 ! *****************************************************************************
 

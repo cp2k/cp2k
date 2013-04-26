@@ -16,6 +16,7 @@ MODULE atom_energy
   USE atom_output,                     ONLY: atom_print_basis,&
                                              atom_print_info,&
                                              atom_print_method,&
+                                             atom_print_orbitals,&
                                              atom_print_potential,&
                                              atom_write_pseudo_param
   USE atom_types,                      ONLY: &
@@ -288,6 +289,13 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
           CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+
+          ! Print out the orbitals if requested
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%ORBITALS",extension=".log",error=error)
+          IF (iw > 0) THEN
+            CALL atom_print_orbitals(atom_info(in,im)%atom,iw,error=error)
+          END If
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%ORBITALS",error=error)
 
           ! perform a fit of the total electronic density
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_DENSITY",extension=".log",error=error)
