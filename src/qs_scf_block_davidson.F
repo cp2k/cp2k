@@ -411,10 +411,14 @@ CONTAINS
       END IF
 
       !preconditioner
-       IF(do_apply_preconditioner  .AND. preconditioner%in_use/=0) THEN
-         CALL apply_preconditioner(preconditioner,c_z,c_pz,error=error)
+       IF(do_apply_preconditioner) THEN
+         IF (preconditioner%in_use/=0) THEN
+           CALL apply_preconditioner(preconditioner,c_z,c_pz,error=error)
+         ELSE
+           CALL cp_fm_to_fm(c_z,c_pz,error=error)
+         ENDIF
        ELSE
-        CALL cp_fm_to_fm(c_z,c_pz,error=error)
+         CALL cp_fm_to_fm(c_z,c_pz,error=error)
        END IF
        CALL cp_fm_release(m_tmp,error=error)
 
