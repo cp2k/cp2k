@@ -3430,6 +3430,10 @@ CONTAINS
        nmolecule = 0
     END IF
 
+    n_char_size = 0 ! init
+    n_int_size = 0 ! init
+    n_dp_size = 0 ! init
+
     IF (output_unit > 0) THEN ! only ionode
 
        IF (print_info) THEN
@@ -3449,6 +3453,8 @@ CONTAINS
             "Number of shells (only core-shell model):",nshell,&
             "Number of molecule kinds:",nmoleculekind,&
             "Number of molecules",nmolecule
+
+          n_int_size = n_int_size + 6
        END IF
 
        WRITE (UNIT=output_unit,IOSTAT=istat)&
@@ -3459,10 +3465,8 @@ CONTAINS
                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                           output_unit,para_env)
        END IF
-       n_int_size = 6 ! init
 
        ! Write atomic kind names
-       n_char_size = 0 ! init
        DO ikind=1,natomkind
           WRITE (UNIT=output_unit,IOSTAT=istat) atomic_kinds%els(ikind)%name
           IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
@@ -3497,7 +3501,7 @@ CONTAINS
                                        "rbuf(1:3,1:natom) -> atomic coordinates "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                        output_unit,para_env)
-       n_dp_size = 3*natom ! init
+       n_dp_size = n_dp_size + 3*natom
        DEALLOCATE (rbuf,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
 
