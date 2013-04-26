@@ -672,6 +672,8 @@ CONTAINS
                       const * total_rho(i_grid)**(3.0_dp/4.0_dp) *  dP_dq0 * dq0_drho(i_grid))
                    prefactor = u_vdW(i_grid,P_i) * const * total_rho(i_grid)**(3.0_dp/4.0_dp) * &
                       dP_dq0 * dq0_dgradrho(i_grid)
+                ELSE
+                   prefactor = 0.0_dp
                 ENDIF
           END SELECT
           IF (q0(i_grid) .NE. q_mesh(Nqs)) THEN
