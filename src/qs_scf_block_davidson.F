@@ -910,10 +910,14 @@ CONTAINS
            dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(matrix_z),&
            cp_dbcsr_col_block_sizes(matrix_z),0,0,dbcsr_type_real_default,error=error)
 
-      IF(do_apply_preconditioner .AND. preconditioner%in_use/=0) THEN
-        CALL apply_preconditioner(preconditioner,matrix_z,matrix_pz,error=error)
+      IF(do_apply_preconditioner) THEN
+        IF(preconditioner%in_use/=0) THEN
+          CALL apply_preconditioner(preconditioner,matrix_z,matrix_pz,error=error)
+        ELSE
+          CALL cp_dbcsr_copy(matrix_pz,matrix_z,error=error)
+        END IF
       ELSE
-       CALL cp_dbcsr_copy(matrix_pz,matrix_z,error=error)
+        CALL cp_dbcsr_copy(matrix_pz,matrix_z,error=error)
       END IF
 
       !allocate NMOxNMO  full matrices
