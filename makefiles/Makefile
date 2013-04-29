@@ -99,11 +99,6 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 ### Master rules ###
 build: dirs deptool
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
-	+$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
-	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) dbcsr.dep
-	+$(MAKE) -C $(SRCDIR)/fft_lib -f $(MAKEFILE) fft.dep
-	+$(MAKE) -C $(SRCDIR)/arch_lib -f $(MAKEFILE) ma.dep
-	+$(MAKE) -C $(SRCDIR)/elpa_lib -f $(MAKEFILE) elpa.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
@@ -194,6 +189,7 @@ endif
 
 # Define the whole bunch of libraries needed
 ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIB5_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) 
+ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
 
 #
 # some practical variables for the build
@@ -243,32 +239,25 @@ endif
 #
 # generation of the dependencies
 #
+all.dep: $(ALL_SOURCE_FILES)
+ifeq ($(HACKDEP),yes)
 # if HACKDEP=="yes" we hack the dependencies so that only modified source files are recompiled
 # this is obviously not correct (i.e. can lead to a miscompiled CP2K), 
 # but if you know what you are doing (i.e. you are sure that only information private to this module will be changed) might be useful nevertheless.
-#
-all.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
-ifeq ($(HACKDEP),yes)
-	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
+	echo $(ALL_SOURCE_FILES) | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
-	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
+   ifeq ($(MC),)
+	$(TOOLDIR)/makedepf90 -I $(SRCDIRS) $(MODSTRING) -free $(ALL_SOURCE_FILES) > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
+   else
+# if MC is defined, it is our 'module compiler' which generates the .mod file from the source file
+# it is useful in a two-stage compile. Therefore we split the dependency in two parts the .o and the .mod.
+# the awk below assumes our current rule of one mod per file
+# The current module compiler is 'gfortran -fsyntax-only ' which should work fine for gfortran 4.8.0 and higher.
+	$(TOOLDIR)/makedepf90 -I $(SRCDIRS) $(MODSTRING) -free $(ALL_SOURCE_FILES) | \
+            awk '{deps=substr($$0,index($$0,":"),length($$0)-index($$0,":")+1); if ($$2==":") { print $$1,deps } else {print $$2,deps ; print $$1,deps,$$2 }}' > \
+            $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
+   endif
 endif
-
-lib.dep: $(LIB1_OBJECTS:.o=.F)
-	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
-
-fft.dep: $(LIB2_OBJECTS:.o=.F)
-	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fft.dep || ( rm -f $(OBJDIR)/$(VERSION)/fft.dep ; exit 1 )
-
-dbcsr.dep: $(LIB3_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F)
-	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/dbcsr.dep || ( rm -f $(OBJDIR)/$(VERSION)/dbcsr.dep ; exit 1 )
-
-ma.dep: $(LIB4_OBJECTS:.o=.F) machine.F message_passing.F mathlib.F
-	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/ma.dep || ( rm -f $(OBJDIR)/$(VERSION)/ma.dep ; exit 1 )
-
-elpa.dep: $(LIB5_OBJECTS:.o=.F)
-	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/elpa.dep || ( rm -f $(OBJDIR)/$(VERSION)/elpa.dep ; exit 1 )
-
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
@@ -428,9 +417,9 @@ endif
 	echo $<
 	$(CC) -c $(CFLAGS) $<
 
+ifeq ($(MC),)
 #
-# here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K)
-# by doing nothing
+# here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K) by doing nothing
 # it avoids recompilation if .o is more recent than .F, but .mod is older than .F
 # (because it didn't change, as e.g. g95 can do)
 #
@@ -438,6 +427,14 @@ endif
 #
 %.mod: %.o
 	@true
+else
+#
+# if MC is defined, it is our 'module compiler' which generates the .mod file from the source file
+# it is useful in a two-stage compile.
+#
+%.mod: %.F
+	$(MC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $<
+endif
 
 #
 # clean prettified files
