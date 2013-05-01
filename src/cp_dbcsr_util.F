@@ -17,7 +17,9 @@ MODULE cp_dbcsr_util
   USE dbcsr_types,                     ONLY: dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_max,&
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_environ,&
+                                             mp_max,&
                                              mp_min,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -113,7 +115,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: default_max_iter = 40
     REAL(KIND=dp), PARAMETER                 :: default_threshold = 1.0E-6_dp
 
-    INTEGER                                  :: i, info, lwork, n
+    INTEGER                                  :: i, info, lwork, n, ntask, rank
     REAL(KIND=dp)                            :: alpha, beta, DDOT, DNRM2, &
                                                 nrm_v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eval, work
@@ -121,6 +123,7 @@ CONTAINS
       DIMENSION(:, :)                        :: evs, evs_tmp, u, u_tmp, v, vn
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
+    CALL mp_environ(ntask,rank,mp_group)
     CALL cp_dbcsr_get_info(matrix_a, nfullcols_total=n)
     ALLOCATE(v(n,1), u(n,1), vn(n,1))
     IF(svd) ALLOCATE(u_tmp(n,1))
@@ -163,16 +166,24 @@ CONTAINS
     min_ev = 0.0_dp
 
     DO i=1,max_iter
-      alpha = DDOT(n, u, 1, v, 1)        ! alpha_i = ui^T*vi
-      CALL DAXPY(n, -alpha, v, 1, u, 1)  ! ui = ui-alpha*vi   
-      beta = DNRM2(n, u, 1)              ! beta_i = sqrt(ri^T*ri)
+      !Perform computation in serial to avoid numerical divergence
+      !of ill-conditioned operations and then broadcast results
+      IF (rank .EQ. 0) THEN
+        alpha = DDOT(n, u, 1, v, 1)        ! alpha_i = ui^T*vi
+        CALL DAXPY(n, -alpha, v, 1, u, 1)  ! ui = ui-alpha*vi   
+        beta = DNRM2(n, u, 1)              ! beta_i = sqrt(ri^T*ri)
 
-      evs(i,i) = alpha
-      evs(i,i+1) = beta
-      evs(i+1,i) = beta
-      evs_tmp(:,:) = evs(:,:)
-      CALL DSYEV('N', 'U', i, evs_tmp, max_iter+1, eval, work, lwork, info)
+        evs(i,i) = alpha
+        evs(i,i+1) = beta
+        evs(i+1,i) = beta
+        evs_tmp(:,:) = evs(:,:)
+        CALL DSYEV('N', 'U', i, evs_tmp, max_iter+1, eval, work, lwork, info)
+      END IF
 
+      CALL mp_bcast(alpha,0,mp_group)
+      CALL mp_bcast(beta,0,mp_group)
+      CALL mp_bcast(eval,0,mp_group)
+      
       IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold) THEN
         max_ev = MAXVAL(eval(1:i))
         min_ev = MINVAL(eval(1:i))
@@ -187,8 +198,11 @@ CONTAINS
       ! if we have lost orthonormality, or the initial guess is an eigenstate (for example A is unit matrix), quit
       IF (ABS(beta)<EPSILON(beta)*5*SQRT(REAL(n,KIND=dp))) EXIT
 
-      CALL DSCAL(n, 1/beta, u, 1)        ! 
-      CALL DCOPY(n, u, 1, vn, 1)         ! vi+1 = ui/beta_i
+      IF (rank .EQ. 0) THEN
+        CALL DSCAL(n, 1/beta, u, 1)        ! 
+        CALL DCOPY(n, u, 1, vn, 1)         ! vi+1 = ui/beta_i
+      END IF
+      CALL mp_bcast(vn, 0, mp_group)
   
       u(:,:) = 0.0_dp
       IF(svd) THEN
@@ -202,8 +216,12 @@ CONTAINS
         CALL mp_sum(u, mp_group)
       ENDIF
 
-      CALL DAXPY(n, -beta, v, 1, u, 1)                            ! ui+1 = A*vi+1 - beta_i*vi
-      CALL DCOPY(n, vn, 1, v, 1)
+      IF (rank .EQ. 0) THEN
+        CALL DAXPY(n, -beta, v, 1, u, 1)                            ! ui+1 = A*vi+1 - beta_i*vi
+        CALL DCOPY(n, vn, 1, v, 1)
+      END IF
+      CALL mp_bcast(u, 0, mp_group)
+      CALL mp_bcast(v, 0, mp_group)
     ENDDO
 
     IF(svd) THEN
@@ -235,7 +253,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: default_max_iter = 40
     REAL(KIND=dp), PARAMETER                 :: default_threshold = 1.0E-6_dp
 
-    INTEGER                                  :: i, info, lwork, n
+    INTEGER                                  :: i, info, lwork, n, ntask, rank
     REAL                                     :: alpha, beta, nrm_v, SDOT, &
                                                 SNRM2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eval, work
@@ -244,6 +262,7 @@ CONTAINS
     REAL, ALLOCATABLE, DIMENSION(:, :)       :: u, u_tmp, v, vn
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
+    CALL mp_environ(ntask,rank,mp_group)
     CALL cp_dbcsr_get_info(matrix_a, nfullcols_total=n)
     ALLOCATE(v(n,1), u(n,1), vn(n,1))
     IF(svd) ALLOCATE(u_tmp(n,1))
@@ -280,15 +299,23 @@ CONTAINS
     min_ev = 0.0_dp
 
     DO i=1,max_iter
-      alpha = SDOT(n, u, 1, v, 1)        ! alpha_i = ui^T*vi
-      CALL SAXPY(n, -alpha, v, 1, u, 1)  ! ui = ui-alpha*vi   
-      beta = SNRM2(n, u, 1)              ! beta_i = sqrt(ri^T*ri)
+      !Perform computation in serial to avoid numerical divergence
+      !of ill-conditioned operations and then broadcast results
+      IF (rank .EQ. 0) THEN
+        alpha = SDOT(n, u, 1, v, 1)        ! alpha_i = ui^T*vi
+        CALL SAXPY(n, -alpha, v, 1, u, 1)  ! ui = ui-alpha*vi   
+        beta = SNRM2(n, u, 1)              ! beta_i = sqrt(ri^T*ri)
 
-      evs(i,i) = REAL(alpha, dp)
-      evs(i,i+1) = REAL(beta, dp)
-      evs(i+1,i) = REAL(beta, dp)
-      evs_tmp(:,:) = evs(:,:)
-      CALL DSYEV('N', 'U', i, evs_tmp, max_iter+1, eval, work, lwork, info)
+        evs(i,i) = REAL(alpha, dp)
+        evs(i,i+1) = REAL(beta, dp)
+        evs(i+1,i) = REAL(beta, dp)
+        evs_tmp(:,:) = evs(:,:)
+        CALL DSYEV('N', 'U', i, evs_tmp, max_iter+1, eval, work, lwork, info)
+      END IF
+
+      CALL mp_bcast(alpha,0,mp_group)
+      CALL mp_bcast(beta,0,mp_group)
+      CALL mp_bcast(eval,0,mp_group)
 
       IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold) THEN
         max_ev = MAXVAL(eval(1:i))
@@ -304,8 +331,11 @@ CONTAINS
       ! if we have lost orthonormality, or the initial guess is an eigenstate (for example A is unit matrix), quit
       IF (ABS(beta)<EPSILON(beta)*5*SQRT(REAL(n,KIND=dp))) EXIT
 
-      CALL SSCAL(n, 1/beta, u, 1)        ! 
-      CALL SCOPY(n, u, 1, vn, 1)         ! vi+1 = ui/beta_i
+      IF (rank .EQ. 0) THEN
+        CALL SSCAL(n, 1/beta, u, 1)        ! 
+        CALL SCOPY(n, u, 1, vn, 1)         ! vi+1 = ui/beta_i
+      END IF
+      CALL mp_bcast(vn, 0, mp_group)
   
       u(:,:) = 0.0
       IF(svd) THEN
@@ -319,8 +349,12 @@ CONTAINS
         CALL mp_sum(u, mp_group)
       ENDIF
 
-      CALL SAXPY(n, -beta, v, 1, u, 1)                            ! ui+1 = A*vi+1 - beta_i*vi
-      CALL SCOPY(n, vn, 1, v, 1)
+      IF (rank .EQ. 0) THEN
+        CALL SAXPY(n, -beta, v, 1, u, 1)                            ! ui+1 = A*vi+1 - beta_i*vi
+        CALL SCOPY(n, vn, 1, v, 1)
+      END IF
+      CALL mp_bcast(u, 0, mp_group)
+      CALL mp_bcast(v, 0, mp_group)
     ENDDO
 
     IF(svd) THEN
