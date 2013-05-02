@@ -175,9 +175,8 @@ CONTAINS
        CALL cp_error_check(error,failure)
         
        CALL modify_input_settings(opt_bas,bas_id,input_file,error)
-   
        CALL create_force_env(f_env_id(icalc), &
-                             input_path=opt_bas%training_input(opt_bas%opt_id),&
+                             input_path=opt_bas%training_input(set_id),&
                              input=input_file, &
                              output_path="scrap_information", &
                              mpi_comm=mpi_comm_opt,&
