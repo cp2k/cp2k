@@ -23,7 +23,6 @@ MODULE optimize_basis_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_getcwd
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              derived_basis_info,&
                                              flex_basis_type,&

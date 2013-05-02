@@ -44,8 +44,8 @@ MODULE input_cp2k
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_optimize_input,            ONLY: create_optimize_input_section
   USE input_optimize_basis,            ONLY: create_optimize_basis_section
+  USE input_optimize_input,            ONLY: create_optimize_input_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_add_keyword, section_add_subsection, section_create, &
