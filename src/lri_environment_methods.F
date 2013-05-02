@@ -722,7 +722,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, atom_b, blk, handle, &
                                                 iatom, ikind, ispin, jatom, &
-                                                jkind, nat, nspin, stat
+                                                jkind, nat, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fci, fhh, fhs, fxh, fxs
@@ -740,7 +740,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of,atom_of_kind=atom_of_kind)
 
-    DO ispin = 1, nspin
+    DO ispin = 1, lri_density%nspin
        lri_coef => lri_density%lri_coef(ispin)%int_list
        lri_paw => lri_density%lri_paw(ispin)%int_list
        ! on-site expansion coefficients
