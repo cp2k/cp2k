@@ -96,7 +96,8 @@ MODULE admm_methods
          calc_mixed_overlap_force, &
          create_admm_xc_section,&
          print_matlab_matrix,&
-         admm_calculate_density_matrix
+         admm_calculate_density_matrix,&
+         fit_mo_coeffs_diag
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
@@ -462,7 +463,6 @@ MODULE admm_methods
 
 
     ! *** This part only depends on overlap matrices ==> needs only to be calculated if the geometry changed
-
     IF( geometry_did_change ) THEN
       CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%S_inv,error)
       CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)

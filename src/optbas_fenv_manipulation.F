@@ -1,0 +1,319 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+MODULE optbas_fenv_manipulation
+  USE admm_types,                      ONLY: admm_env_create,&
+                                             admm_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type,&
+                                             init_orb_basis_set
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
+  USE f77_blas
+  USE input_constants,                 ONLY: do_admm_basis_set_projection,&
+                                             do_admm_purify_mo_diag,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
+  USE input_section_types,             ONLY: section_vals_add_values,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
+  USE kinds,                           ONLY: default_string_length
+  USE optimize_basis_types,            ONLY: basis_optimization_type,&
+                                             flex_basis_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_matrix_pools,                 ONLY: mpools_get
+  USE qs_mo_types,                     ONLY: init_mo_set,&
+                                             mo_set_p_type,&
+                                             read_mo_set
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE scf_control_types,               ONLY: scf_control_type
+  USE string_utilities,                ONLY: uppercase
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+
+  PUBLIC :: modify_input_settings,&  
+            allocate_mo_sets,&
+            calculate_overlap,&
+            create_opt_admm_env,&
+            update_basis_set
+ 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_fenv_manipulation'  
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief change settings in the training input files to initialize
+!>        all needed structures and adjust settings to basis optimization
+!> \author Florian Schiffmann
+! *****************************************************************************
+  SUBROUTINE modify_input_settings(basis_optimization,bas_id,input_file,error)
+    TYPE(basis_optimization_type)            :: basis_optimization
+    INTEGER                                  :: bas_id
+    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'modify_input_settings', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atom, orig_basis
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: new_basis, old_basis
+    INTEGER                                  :: ibasis, ikind, jkind, nkind
+    TYPE(section_vals_type), POINTER         :: admm_section, dft_section, &
+                                                feval_section, kind_section, &
+                                                subsys_section
+
+     feval_section => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+     dft_section => section_vals_get_subs_vals(feval_section,"DFT",error=error)
+     admm_section => section_vals_get_subs_vals(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD",error=error)
+     subsys_section => section_vals_get_subs_vals(feval_section,"SUBSYS",error=error)
+     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
+
+
+     CALL section_vals_add_values(admm_section,error)
+     CALL section_vals_val_set(admm_section,"ADMM_PURIFICATION_METHOD",&
+                               i_val=do_admm_purify_mo_diag,error=error)
+     CALL section_vals_val_set(admm_section,"METHOD",i_val=do_admm_basis_set_projection,error=error)
+
+     ! add the new basis file containing the templates to the basis file list 
+     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",c_vals=old_basis,error=error)
+     ALLOCATE(new_basis(SIZE(old_basis)+1))
+     new_basis(1:SIZE(old_basis))=old_basis(:)
+     new_basis(SIZE(old_basis)+1)=basis_optimization%work_basis_file
+     CALL section_vals_val_set(dft_section,"BASIS_SET_FILE_NAME",&
+                               c_vals_ptr=new_basis,error=error)
+
+     ! Set the auxilarry basis in the kind sections
+     CALL section_vals_get(kind_section,n_repetition=nkind,error=error)
+     DO ikind=1,nkind
+       CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+            c_val=atom,i_rep_section=ikind,error=error)
+       CALL uppercase(atom)
+       CALL section_vals_val_get(kind_section,"BASIS_SET",&
+             c_val=orig_basis,i_rep_section=ikind,error=error)
+       CALL section_vals_val_set(kind_section,"AUX_FIT_BASIS_SET",&
+             c_val=orig_basis,i_rep_section=ikind,error=error)
+
+       DO jkind=1,basis_optimization%nkind
+          IF(atom==basis_optimization%kind_basis(jkind)%element)THEN
+         
+             ibasis=basis_optimization%combination(bas_id,jkind)
+             CALL section_vals_val_set(kind_section,"AUX_FIT_BASIS_SET",&
+                 c_val=TRIM(ADJUSTL(basis_optimization%kind_basis(jkind)%flex_basis(ibasis)%basis_name)),&
+                 i_rep_section=ikind,error=error)
+           EXIT
+           END IF
+       END DO
+     END DO
+
+  END SUBROUTINE modify_input_settings
+
+  SUBROUTINE allocate_mo_sets(qs_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mo_sets', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
+    LOGICAL                                  :: natom_mismatch
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools, &
+                                                ao_mo_fm_pools_aux_fit
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos, mos_aux_fit
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section
+
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+                    mos=mos,nelectron_spin=nelectron_spin,&
+                    mos_aux_fit=mos_aux_fit,&
+                    atomic_kind_set=atomic_kind,&
+                    scf_control=scf_control,&
+                   particle_set=particle_set,&
+!                   matrix_s=matrix_s,&
+                    admm_env=admm_env,&
+                    error=error)
+    dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
+         error=error)
+    DO ispin=1,dft_control%nspins
+       IF (.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff)) THEN
+          CALL init_mo_set(mos(ispin)%mo_set,&
+               ao_mo_fm_pools(ispin)%pool,&
+               name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+               "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+               error=error)
+       END IF
+    END DO
+ 
+    CALL read_mo_set(mos,atomic_kind,particle_set,qs_env%para_env,&
+      id_nr=0,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
+      scp=dft_control%scp, scp_env=qs_env%scp_env, natom_mismatch=natom_mismatch,error=error)
+   
+    CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
+           error=error)
+    DO ispin=1,dft_control%nspins
+        IF (.NOT.ASSOCIATED(mos_aux_fit(ispin)%mo_set%mo_coeff)) THEN
+           CALL init_mo_set(mos_aux_fit(ispin)%mo_set,&
+                ao_mo_fm_pools_aux_fit(ispin)%pool,&
+                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                error=error)
+        END IF
+    END DO
+    
+    
+   END SUBROUTINE allocate_mo_sets
+
+   SUBROUTINE calculate_overlap(qs_env,S_type,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    CHARACTER(LEN=*)                         :: S_type
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_aux_fit, &
+                                                sab_aux_fit_vs_orb, sab_orb
+
+    IF(S_type=="S_AB")THEN
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,&
+               sab_orb=sab_orb,&
+               error=error)
+       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
+                          matrix_name="OVERLAP",&
+                          basis_set_id_a=use_orb_basis_set,&
+                          basis_set_id_b=use_orb_basis_set, &
+                          sab_nl=sab_orb,&
+                          error=error)
+       CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+    ELSE IF(S_type=="S_AB_AUX")THEN
+       CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit,&
+               matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+               sab_aux_fit=sab_aux_fit,&
+               sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
+               error=error)
+       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit,&
+                          matrix_name="AUX_FIT_OVERLAP",&
+                          basis_set_id_a=use_aux_fit_basis_set,&
+                          basis_set_id_b=use_aux_fit_basis_set, &
+                          sab_nl=sab_aux_fit,&
+                          error=error)
+       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit_vs_orb,&
+                          matrix_name="MIXED_OVERLAP",&
+                          basis_set_id_a=use_aux_fit_basis_set,&
+                          basis_set_id_b=use_orb_basis_set, &
+                          sab_nl=sab_aux_fit_vs_orb,&
+                          error=error)
+       CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                       matrix_s_aux_fit=matrix_s_aux_fit,error=error)
+    END IF
+
+  END SUBROUTINE calculate_overlap
+
+  SUBROUTINE create_opt_admm_env(qs_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_admm_env', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos, mos_aux_fit
+
+    CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, dft_control=dft_control,&
+                    mos=mos,mos_aux_fit=mos_aux_fit,error=error)
+ 
+    CALL admm_env_create(mos, mos_aux_fit, qs_env%para_env, qs_env%admm_env, error)
+    NULLIFY(qs_env%admm_env%xc_section_primary,qs_env%admm_env%xc_section_aux)
+    qs_env%admm_env%method_id = dft_control%admm_control%method_id
+    qs_env%admm_env%purification_method = dft_control%admm_control%purification_method
+    qs_env%admm_env%block_purification_method = dft_control%admm_control%block_purification_method
+    qs_env%admm_env%block_projection_method = dft_control%admm_control%block_projection_method
+  
+  END SUBROUTINE create_opt_admm_env
+
+  SUBROUTINE update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
+    TYPE(basis_optimization_type)            :: opt_bas
+    INTEGER                                  :: set_id, bas_id
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_basis_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ibasis, ikind, jkind
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind,dft_control=dft_control,error=error)
+    DO ikind=1,SIZE(atomic_kind)
+       DO jkind=1,opt_bas%nkind
+           IF(atomic_kind(ikind)%element_symbol==opt_bas%kind_basis(jkind)%element)THEN
+              ibasis=opt_bas%combination(bas_id,jkind)
+              CALL transfer_data_to_gto(atomic_kind(ikind)%aux_fit_basis_set,&
+                                        opt_bas%kind_basis(jkind)%flex_basis(ibasis),error)
+              CALL init_orb_basis_set(atomic_kind(ikind)%aux_fit_basis_set,error)
+           END IF
+       END DO
+    END DO
+
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind,error)
+
+   END SUBROUTINE update_basis_set
+
+   SUBROUTINE transfer_data_to_gto(gto_basis,basis,error)
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis
+    TYPE(flex_basis_type)                    :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'transfer_data_to_gto', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ipgf, iset, ishell
+
+    DO iset=1,basis%nsets
+       DO ishell=1,basis%subset(iset)%ncon_tot
+          DO ipgf=1,basis%subset(iset)%nexp
+             gto_basis%gcc(ipgf,ishell,iset) = basis%subset(iset)%coeff(ipgf,ishell)
+          END DO
+       END DO
+       DO ipgf=1,basis%subset(iset)%nexp
+          gto_basis%zet(ipgf,iset) = basis%subset(iset)%exps(ipgf)
+       END DO
+    END DO
+
+  END SUBROUTINE transfer_data_to_gto
+
+END MODULE optbas_fenv_manipulation
+     
+     
+

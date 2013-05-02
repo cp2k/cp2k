@@ -70,7 +70,7 @@ MODULE cp2k_runs
                                              globenv_retain
   USE input_constants,                 ONLY: &
        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
-       do_farming, do_fist, do_mixed, do_optimize_input, do_qmmm, do_qs, &
+       do_farming, do_fist, do_mixed, do_optimize_input, do_opt_basis, do_qmmm, do_qs, &
        do_tamc, do_test, ehrenfest, electronic_spectra_run, energy_force_run, &
        energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
        mon_car_run, none_run, pint_run, real_time_propagation, vib_anal
@@ -102,6 +102,7 @@ MODULE cp2k_runs
        mp_environ, mp_recv, mp_send, mp_sum, mp_sync
   USE neb_methods,                     ONLY: neb
   USE optimize_input,                  ONLY: run_optimize_input
+  USE optimize_basis,                  ONLY: run_optimize_basis
   USE pint_methods,                    ONLY: do_pint_run
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
@@ -300,6 +301,9 @@ CONTAINS
              CALL run_optimize_input(root_section, para_env, suberror)
           CASE (do_farming)
              CALL farming_run ( root_section, para_env, suberror )
+          CASE (do_opt_basis)
+             CALL run_optimize_basis ( root_section, para_env, suberror )
+             globenv%run_type_id = none_run
           CASE(do_cp2k)
              CALL create_force_env(new_env_id,input_path=input_file_name,&
                   output_path="__STD_OUT__",mpi_comm=para_env%group,&

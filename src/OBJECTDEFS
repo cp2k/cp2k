@@ -322,6 +322,7 @@ OBJECTS_GENERIC =\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_optimize_input.o\
+ input_optimize_basis.o\
  input_parsing.o\
  input_section_types.o\
  input_val_types.o\
@@ -413,6 +414,11 @@ OBJECTS_GENERIC =\
  orbital_pointers.o\
  orbital_symbols.o\
  orbital_transformation_matrices.o\
+ optimize_basis.o\
+ optbas_fenv_manipulation.o\
+ optbas_opt_utils.o\
+ optimize_basis_utils.o\
+ optimize_basis_types.o\
  pair_potential_coulomb.o\
  pair_potential.o\
  pair_potential_types.o\

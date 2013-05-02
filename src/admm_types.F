@@ -454,9 +454,11 @@ MODULE admm_types
       DEALLOCATE(admm_env%block_map, STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
-
-    CALL section_vals_release(admm_env%xc_section_primary,error)
-    CALL section_vals_release(admm_env%xc_section_aux,error)
+    
+    IF(ASSOCIATED(admm_env%xc_section_primary))&
+       CALL section_vals_release(admm_env%xc_section_primary,error)
+    IF(ASSOCIATED(admm_env%xc_section_aux))&
+       CALL section_vals_release(admm_env%xc_section_aux,error)
 
     DEALLOCATE(admm_env, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

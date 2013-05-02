@@ -28,7 +28,8 @@ MODULE input_constants
                                               do_farming=2,&
                                               do_test=3,&
                                               do_cp2k=4,&
-                                              do_optimize_input=5
+                                              do_optimize_input=5,&
+                                              do_opt_basis=6
 
   INTEGER, PARAMETER, PUBLIC               :: opt_force_matching=1
 
@@ -905,6 +906,12 @@ MODULE input_constants
                                               do_resp_minus_y_dir=4,& 
                                               do_resp_minus_z_dir=5 
 
+  ! basis optimization parameters
+  INTEGER, PARAMETER, PUBLIC               :: do_opt_all=0,&
+                                              do_opt_none=1,&
+                                              do_opt_coeff=2,&
+                                              do_opt_exps=3
+                                            
   ! callgraph parameters
   INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
                                               callgraph_master=1,&

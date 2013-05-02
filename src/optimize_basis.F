@@ -1,0 +1,477 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+MODULE optimize_basis
+  USE admm_methods,                    ONLY: fit_mo_coeffs_diag
+  USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                             cp_para_env_release
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
+  USE f77_interface,                   ONLY: create_force_env,&
+                                             destroy_force_env,&
+                                             f_env_add_defaults,&
+                                             f_env_get_from_id,&
+                                             f_env_rm_defaults,&
+                                             f_env_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
+                                             empty_initial_variables
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
+  USE machine,                         ONLY: m_chdir,&
+                                             m_getcwd,&
+                                             m_walltime
+  USE message_passing,                 ONLY: mp_comm_free,&
+                                             mp_comm_split,&
+                                             mp_sum
+  USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
+                                             calculate_overlap,&
+                                             create_opt_admm_env,&
+                                             modify_input_settings,&
+                                             update_basis_set
+  USE optbas_opt_utils,                ONLY: evaluate_fval
+  USE optimize_basis_types,            ONLY: basis_optimization_type,&
+                                             deallocate_basis_optimization_type,&
+                                             subset_type
+  USE optimize_basis_utils,            ONLY: get_set_and_basis_id,&
+                                             optimize_basis_init_read_input,&
+                                             update_derived_basis_sets
+  USE powell,                          ONLY: powell_optimize
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+
+  PUBLIC :: run_optimize_basis
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis'
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief main entry point for methods aimed at optimizing basis sets
+!> \author Florian Schiffmann
+! *****************************************************************************
+  SUBROUTINE run_optimize_basis(root_section,para_env,error)
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_get_default_logger()
+    CALL cp_error_init(error,stop_level=cp_fatal_level, logger=logger)
+
+    CALL optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
+
+    CALL driver_para_opt_basis(opt_bas,para_env,error)
+
+    CALL deallocate_basis_optimization_type(opt_bas)
+    CALL cp_error_dealloc_ref(error)   
+
+  END SUBROUTINE run_optimize_basis
+
+! *****************************************************************************
+!> \brief driver routine for the parallel part of the method
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+  SUBROUTINE driver_para_opt_basis(opt_bas,para_env,error)
+    TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'driver_para_opt_basis', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n_groups_created, opt_group
+    INTEGER, DIMENSION(:), POINTER           :: group_distribution_p
+    INTEGER, &
+      DIMENSION(0:para_env%num_pe-1), TARGET :: group_distribution
+
+    group_distribution_p=>group_distribution
+    CALL mp_comm_split(para_env%group, opt_group, n_groups_created, group_distribution_p,&
+         n_subgroups=SIZE(opt_bas%group_partition),group_partition=opt_bas%group_partition)
+    opt_bas%opt_id = group_distribution(para_env%mepos)+1
+    
+    CALL driver_optimization_para_low(opt_bas,para_env,opt_group,error)
+
+    CALL mp_comm_free(opt_group)
+
+  END SUBROUTINE driver_para_opt_basis
+
+! *****************************************************************************
+!> \brief low level optimization routine includes initialization of the subsytems
+!>        powell optimizer and deallocation of the various force envs
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+  SUBROUTINE driver_optimization_para_low(opt_bas,para_env_top,mpi_comm_opt,top_error)
+    TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(cp_para_env_type), POINTER          :: para_env_top
+    INTEGER                                  :: mpi_comm_opt
+    TYPE(cp_error_type), INTENT(INOUT)       :: top_error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_path_length)       :: main_dir
+    INTEGER                                  :: bas_id, icalc, icomb, ierr, &
+                                                iopt, mp_id, my_id, set_id, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
+    LOGICAL                                  :: failure, write_basis
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cond_vec, f_vec, my_time, &
+                                                start_time, tot_time
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_error_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: suberror
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: input_file
+
+    NULLIFY(f_env)
+
+    failure=.FALSE.
+    mp_id=opt_bas%opt_id
+    CALL m_getcwd(main_dir)
+    NULLIFY(para_env, f_env)
+    ALLOCATE(f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+
+    CALL cp_error_init(error, stop_level=cp_fatal_level)
+    CALL cp_para_env_create(para_env, group=mpi_comm_opt,&
+         owns_group=.FALSE.,error=error)
+
+    ALLOCATE(start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+    ALLOCATE(suberror(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+    ALLOCATE(f_vec(opt_bas%ncombinations*opt_bas%ntraining_sets))
+    ALLOCATE(tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
+    ALLOCATE(my_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
+    ALLOCATE(cond_vec(opt_bas%ncombinations*opt_bas%ntraining_sets))
+
+    ! ======= Create f_env for all calculations in MPI group =======
+    DO icalc=1,SIZE(opt_bas%comp_group(mp_id)%member_list)
+       NULLIFY(input_file)
+       ! parse the input of the training sets
+       CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc),opt_bas,set_id,bas_id)
+
+       CALL m_chdir(TRIM(opt_bas%training_dir(set_id)),ierr)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       input_file => create_cp2k_input_reading(opt_bas%training_input(set_id),&
+                                               initial_variables=empty_initial_variables, &
+                                               para_env=para_env,error=error)
+       CALL cp_error_check(error,failure)
+        
+       CALL modify_input_settings(opt_bas,bas_id,input_file,error)
+   
+       CALL create_force_env(f_env_id(icalc), &
+                             input_path=opt_bas%training_input(opt_bas%opt_id),&
+                             input=input_file, &
+                             output_unit=-8, &
+                             mpi_comm=mpi_comm_opt,&
+                             ierr=stat)
+       CALL f_env_add_defaults(f_env_id(icalc), f_env, suberror(icalc), failure)
+       force_env => f_env%force_env
+       CALL force_env_get(force_env,qs_env=qs_env,error=error)
+   
+       CALL allocate_mo_sets(qs_env,error)
+   
+       CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,&
+                                    force_env_section=qs_env%input,error=error)
+       CALL calculate_overlap(qs_env,"S_AB",error)
+   
+       CALL create_opt_admm_env(qs_env,error)
+       CALL section_vals_release(input_file,error=error)
+       CALL m_chdir(TRIM(ADJUSTL(main_dir)),ierr)
+   END DO 
+
+   CALL init_free_vars(opt_bas,error)
+   tot_time=0.0_dp
+   
+   ! ======= The real optimization loop  =======
+   DO iopt=0,opt_bas%powell_param%maxfun
+      f_vec=0.0_dp ; cond_vec=0.0_dp; my_time=0.0_dp
+      DO icalc=1,SIZE(opt_bas%comp_group(mp_id)%member_list)
+          my_id=opt_bas%comp_group(mp_id)%member_list(icalc)+1
+          ! setup timings
+          start_time(icalc)=m_walltime()
+
+          CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc),opt_bas,set_id,bas_id)
+          CALL f_env_get_from_id(f_env_id(icalc),f_env,error)
+          force_env => f_env%force_env
+          CALL force_env_get(force_env,qs_env=qs_env,error=error)
+   
+          CALL update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
+          CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input,error=error)
+          CALL calculate_overlap(qs_env,"S_AB_AUX",error)
+          CALL fit_mo_coeffs_diag(qs_env, qs_env%admm_env, qs_env%para_env, qs_env%matrix_s_aux_fit,&
+                               qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit, .TRUE. , error)
+          CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,qs_env%matrix_s_aux_fit_vs_orb(1)%matrix,&
+                           qs_env%matrix_s_aux_fit(1)%matrix,qs_env%admm_env,f_vec(my_id),cond_vec(my_id),error)
+
+          my_time(my_id)=m_walltime()-start_time(icalc)
+          IF(.NOT.para_env%ionode)THEN
+              f_vec=0.0_dp; cond_vec=0.0_dp; my_time=0.0_dp
+          END IF
+       END DO
+
+       CALL mp_sum(f_vec,para_env_top%group); CALL mp_sum(cond_vec,para_env_top%group); CALL mp_sum(my_time,para_env_top%group)
+       opt_bas%powell_param%f=0.0_dp
+       DO icalc=1,SIZE(f_vec)
+          icomb=MOD(icalc-1,opt_bas%ncombinations+1)
+          opt_bas%powell_param%f=opt_bas%powell_param%f+&
+                f_vec(icalc)*opt_bas%fval_weight(icomb)
+          IF(opt_bas%use_condition_number)&
+            opt_bas%powell_param%f=opt_bas%powell_param%f+&
+                LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
+       END DO
+       ! output info if required 
+       CALL output_opt_info(f_vec,cond_vec,my_time,tot_time,opt_bas,iopt,para_env_top,top_error)
+       IF(para_env_top%ionode)&
+       CALL powell_optimize (opt_bas%powell_param%nvar, opt_bas%x_opt , opt_bas%powell_param)
+       IF(.NOT.para_env_top%ionode)opt_bas%x_opt=0.0_dp
+       CALL mp_sum(opt_bas%x_opt,para_env_top%group)
+       CALL update_free_vars(opt_bas,error)
+       write_basis=MOD(iopt,opt_bas%write_frequency)==0
+       CALL update_derived_basis_sets(opt_bas,write_basis,opt_bas%output_basis_file,&
+                                        para_env_top,top_error)
+       IF(opt_bas%powell_param%state==-1)EXIT
+   END DO
+
+   ! ======= Update the basis set and print the final basis  =======
+   IF(para_env_top%ionode)THEN
+      opt_bas%powell_param%state = 8
+      CALL powell_optimize (opt_bas%powell_param%nvar, opt_bas%x_opt , opt_bas%powell_param)
+   END IF
+   IF(.NOT.para_env_top%ionode)opt_bas%x_opt=0.0_dp
+   CALL mp_sum(opt_bas%x_opt,para_env_top%group)
+ 
+   CALL update_free_vars(opt_bas,error)
+   CALL update_derived_basis_sets(opt_bas,.TRUE.,opt_bas%output_basis_file,&
+                                        para_env_top,top_error)
+
+    ! ======  get rid of the f_env again =====          
+   
+    DO icalc=SIZE(opt_bas%comp_group(mp_id)%member_list),1,-1
+       CALL f_env_get_from_id(f_env_id(icalc),f_env,error)
+       CALL f_env_rm_defaults(f_env, suberror(icalc),stat)
+       CALL destroy_force_env(f_env_id(icalc), stat)
+    END DO
+    DEALLOCATE(f_env_id) 
+    DEALLOCATE(start_time)
+    DEALLOCATE(suberror)
+    DEALLOCATE(f_vec)
+    DEALLOCATE(tot_time)
+    DEALLOCATE(cond_vec)
+    CALL cp_para_env_release(para_env,error=error)
+    CALL cp_error_dealloc_ref(error)   
+ 
+  END SUBROUTINE driver_optimization_para_low
+
+! *****************************************************************************
+!> \brief variable update from the powell vector for all sets
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+  SUBROUTINE update_free_vars(opt_bas,error)
+    TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_free_vars', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind, iset, ix
+
+    ix=0
+    DO ikind=1,opt_bas%nkind
+       DO iset=1,opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
+          CALL update_subset_freevars(opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset),ix,opt_bas%x_opt,error)
+       END DO
+    END DO
+
+  END SUBROUTINE update_free_vars
+
+! *****************************************************************************
+!> \brief low level update for the basis sets. Exponents are transformed according to constraint
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+  SUBROUTINE update_subset_freevars(subset,ix,x,error)
+    TYPE(subset_type)                        :: subset
+    INTEGER                                  :: ix
+    REAL(KIND=dp), DIMENSION(:)              :: x
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_subset_freevars', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icon1, icon2, icont, iexp, &
+                                                il, istart
+    REAL(KIND=dp)                            :: fermi_f, gs_scale
+
+       DO iexp=1,subset%nexp
+          IF(subset%opt_exps(iexp))THEN
+             ix=ix+1
+             subset%exps(iexp)=ABS(x(ix))
+             IF(subset%exp_has_const(iexp))THEN
+                 !use a fermi function to keep expoenents in a given range around their initial value
+                 fermi_f=1.0_dp/ (EXP( (x(ix)-1.0_dp)/0.5_dp ) +1.0_dp)
+                 subset%exps(iexp)=(2.0_dp*fermi_f-1.0_dp)*subset%exp_const(iexp)%var_fac*subset%exp_const(iexp)%init+&
+                                   subset%exp_const(iexp)%init
+             ELSE
+                 
+             END IF
+          END IF
+          DO icont=1,subset%ncon_tot
+             IF(subset%opt_coeff(iexp,icont))THEN
+                ix=ix+1
+                subset%coeff(iexp,icont)=x(ix)
+             END IF
+          END DO
+       END DO
+
+      ! orthonormalize contraction coefficients using gram schmidt
+      istart=1
+      DO il=1,subset%nl
+         DO icon1=istart,istart+subset%l(il)-2
+            DO icon2=icon1+1,istart+subset%l(il)-1
+               gs_scale=DOT_PRODUCT(subset%coeff(:,icon2),subset%coeff(:,icon1))/&
+                        DOT_PRODUCT(subset%coeff(:,icon1),subset%coeff(:,icon1))
+               subset%coeff(:,icon2)=subset%coeff(:,icon2)-gs_scale*subset%coeff(:,icon1)
+            END DO
+         END DO
+         istart=istart+subset%l(il)
+      END DO
+
+       DO icon1=1,subset%ncon_tot
+          subset%coeff(:,icon1)=subset%coeff(:,icon1)/&
+                SQRT(DOT_PRODUCT(subset%coeff(:,icon1),subset%coeff(:,icon1)))
+       END DO
+
+  END SUBROUTINE update_subset_freevars
+
+! *****************************************************************************
+!> \brief variable initialization for the powell vector for all sets
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+  SUBROUTINE init_free_vars(opt_bas,error)
+    TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_free_vars', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind, iset, ix
+
+    ix=0
+    DO ikind=1,opt_bas%nkind
+       DO iset=1,opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
+          CALL init_subset_freevars(opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset),ix,opt_bas%x_opt,error)
+       END DO
+    END DO
+
+    END SUBROUTINE init_free_vars
+
+! *****************************************************************************
+!> \brief variable initialization for the powell vector from low level informations
+!>        constraint exponents will be mapped on a fermi function 
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+    SUBROUTINE init_subset_freevars(subset,ix,x,error)
+    TYPE(subset_type)                        :: subset
+    INTEGER                                  :: ix
+    REAL(KIND=dp), DIMENSION(:)              :: x
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_subset_freevars', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icont, iexp
+    REAL(KIND=dp)                            :: fract
+
+       DO iexp=1,subset%nexp
+          IF(subset%opt_exps(iexp))THEN
+             ix=ix+1
+             x(ix)=subset%exps(iexp)
+             IF(subset%exp_has_const(iexp))THEN
+                 IF(subset%exp_const(iexp)%const_type==0)THEN
+                    fract=1.0_dp+(subset%exps(iexp)-subset%exp_const(iexp)%init)/&
+                          (subset%exp_const(iexp)%init*subset%exp_const(iexp)%var_fac)
+                    x(ix)=0.5_dp*LOG((2.0_dp/fract-1.0_dp))+1.0_dp
+                 END IF
+                 IF(subset%exp_const(iexp)%const_type==1)THEN
+                    x(ix)=1.0_dp
+                 END IF
+             END IF
+          END IF
+          DO icont=1,subset%ncon_tot
+             IF(subset%opt_coeff(iexp,icont))THEN
+                ix=ix+1
+                x(ix)=subset%coeff(iexp,icont)
+             END IF
+          END DO
+       END DO
+
+    END SUBROUTINE init_subset_freevars
+
+! *****************************************************************************
+!> \brief commuticates all info to the master and assembles the output
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+   SUBROUTINE  output_opt_info(f_vec,cond_vec,my_time,tot_time,opt_bas,iopt,para_env_top,error)
+    REAL(KIND=dp), DIMENSION(:)              :: f_vec, cond_vec, my_time, &
+                                                tot_time
+    TYPE(basis_optimization_type)            :: opt_bas
+    INTEGER                                  :: iopt
+    TYPE(cp_para_env_type), POINTER          :: para_env_top
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'output_opt_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ibasis, icalc, iset, unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+    
+    tot_time=tot_time+my_time
+
+    unit_nr=-1
+    IF(para_env_top%ionode.AND.MOD(iopt,opt_bas%write_frequency)==0)&
+       unit_nr=cp_logger_get_default_unit_nr(logger)
+     
+    IF(unit_nr.gt.0)THEN
+       WRITE(unit_nr,'(1X,A,I8)')"BASOPT| Information at iteration number:",iopt
+       WRITE(unit_nr,'(1X,A)')"BASOPT| Training set | Combination | Rho difference | Condition num. | Time"
+       WRITE(unit_nr,'(1X,A)')"BASOPT| -----------------------------------------------------------------------"
+       icalc=0
+       DO iset=1,opt_bas%ntraining_sets
+          DO ibasis=1,opt_bas%ncombinations
+             icalc=icalc+1
+             WRITE(unit_nr,'(1X,A,2(5X,I3,5X,A),2(1X,E14.8,1X,A),1X,F8.3)')&
+                'BASOPT| ',iset,"|",ibasis,"|",f_vec(icalc),"|",cond_vec(icalc),"|",tot_time(icalc)
+          END DO
+       END DO
+       WRITE(unit_nr,'(1X,A)')"BASOPT| -----------------------------------------------------------------------"
+       WRITE(unit_nr,'(1X,A,E14.8)')"BASOPT| Total residuum value: ", opt_bas%powell_param%f
+       WRITE(unit_nr,'(A)')""
+    END IF
+   END SUBROUTINE output_opt_info
+
+END MODULE optimize_basis
+     

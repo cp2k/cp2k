@@ -149,6 +149,7 @@ MODULE f77_interface
             get_force, calc_energy_force, get_energy, &
             calc_energy, calc_force, check_input, get_natom, get_nparticle,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
+            f_env_get_from_id,&
             set_vel, get_vel, do_shake, set_cell, get_cell, get_result_r1
 CONTAINS
 
@@ -423,6 +424,30 @@ CONTAINS
        IF (PRESENT(old_dir)) f_env%old_path=old_dir
     END IF
   END SUBROUTINE f_env_create
+
+  SUBROUTINE f_env_get_from_id(f_env_id,f_env,error)
+    INTEGER, INTENT(in)                      :: f_env_id
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'f_env_get_from_id', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: f_env_pos
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    NULLIFY(f_env)
+    f_env_pos = get_pos_of_env(f_env_id)
+    IF (f_env_pos<1) THEN
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "invalid env_id "//cp_to_string(f_env_id),error=error,&
+            failure=failure)
+    ELSE
+       f_env => f_envs(f_env_pos)%f_env
+    END IF
+
+  END SUBROUTINE f_env_get_from_id
 
 ! *****************************************************************************
 !> \brief adds the default environments of the f_env to the stack of the
