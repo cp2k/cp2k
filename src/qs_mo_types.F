@@ -1583,7 +1583,8 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: failure, minbas, use_this
+    LOGICAL                                  :: failure, minbas, natom_match, &
+                                                use_this
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1623,57 +1624,66 @@ CPSourceFileRef,&
          ENDIF
       END IF
 
-      IF (natom_read /= natom) THEN
-         IF (PRESENT(natom_mismatch)) THEN
+      natom_match = (natom_read == natom)
+
+      IF (natom_match) THEN ! actually do the read read
+
+         ! Let's make it possible to change the basis set
+         ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE (nset_info(natom_read),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+         IF (nao_read /= nao) THEN
             WRITE(cp_logger_get_default_unit_nr(logger),*) &
-                 " READ RESTART : WARNING : DIFFERENT natom, returning ",natom,natom_read
-            natom_mismatch = .TRUE.
-            RETURN
-         ENDIF
+                 " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
+            IF(PRESENT(rt_mos))&
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                    "To change basis is not possible. "//&
+                    CPSourceFileRef,&
+                    only_ionode=.TRUE.)
+         END IF
+
+         READ (rst_unit) nset_info
+         READ (rst_unit) nshell_info
+         READ (rst_unit) nso_info
+
+         i=1
+         DO iatom=1,natom
+            DO iset=1,nset_info(iatom)
+               DO ishell=1,nshell_info(iset,iatom)
+                  offset_info(ishell,iset,iatom) = i
+                  i=i+nso_info(ishell,iset,iatom)
+               END DO
+            END DO
+         END DO
+
+         ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      END IF ! natom_match
+   END IF ! ionode
+
+   ! make natom_match and natom_mismatch uniform across all nodes
+   CALL mp_bcast(natom_match,source,group)
+   IF (PRESENT(natom_mismatch)) natom_mismatch = .NOT. natom_match
+   ! handle natom_match false
+   IF (.NOT. natom_match) THEN
+      IF (PRESENT(natom_mismatch)) THEN
+         WRITE(cp_logger_get_default_unit_nr(logger),*) &
+              " READ RESTART : WARNING : DIFFERENT natom, returning ",natom,natom_read
+         RETURN
+      ELSE
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
               "Incorrect number of atoms in restart file. "//&
               CPSourceFileRef,&
               only_ionode=.TRUE.)
-      END IF
-      IF (PRESENT(natom_mismatch)) natom_mismatch = .FALSE.
-
-      ! Let's make it possible to change the basis set
-      ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (nset_info(natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      IF (nao_read /= nao) THEN
-         WRITE(cp_logger_get_default_unit_nr(logger),*) &
-              " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
-         IF(PRESENT(rt_mos))&
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "To change basis is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
-      END IF
-
-      READ (rst_unit) nset_info
-      READ (rst_unit) nshell_info
-      READ (rst_unit) nso_info
-
-      i=1
-      DO iatom=1,natom
-         DO iset=1,nset_info(iatom)
-            DO ishell=1,nshell_info(iset,iatom)
-               offset_info(ishell,iset,iatom) = i
-               i=i+nso_info(ishell,iset,iatom)
-            END DO
-         END DO
-      END DO
-
-      ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   END IF
+      ENDIF
+   ENDIF
 
    CALL mp_bcast(nspin_read,source,group)
 
