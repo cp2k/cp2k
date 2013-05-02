@@ -179,7 +179,7 @@ CONTAINS
        CALL create_force_env(f_env_id(icalc), &
                              input_path=opt_bas%training_input(opt_bas%opt_id),&
                              input=input_file, &
-                             output_unit=-8, &
+                             output_path="scrap_information", &
                              mpi_comm=mpi_comm_opt,&
                              ierr=stat)
        CALL f_env_add_defaults(f_env_id(icalc), f_env, suberror(icalc), failure)
@@ -452,7 +452,7 @@ CONTAINS
     tot_time=tot_time+my_time
 
     unit_nr=-1
-    IF(para_env_top%ionode.AND.MOD(iopt,opt_bas%write_frequency)==0)&
+    IF(para_env_top%ionode.AND.(MOD(iopt,opt_bas%write_frequency)==0.OR.iopt==opt_bas%powell_param%maxfun))&
        unit_nr=cp_logger_get_default_unit_nr(logger)
      
     IF(unit_nr.gt.0)THEN

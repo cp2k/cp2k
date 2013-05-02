@@ -58,7 +58,6 @@ CONTAINS
       routineN = 'optimize_basis_init_read_input', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: main_dir
     INTEGER                                  :: iset, iweight, nrep
     TYPE(section_vals_type), POINTER         :: kind_section, optbas_section, &
                                                 powell_section, train_section
@@ -71,8 +70,7 @@ CONTAINS
       CALL section_vals_val_get(optbas_section,"BASIS_TEMPLATE_FILE",c_val=opt_bas%template_basis_file,error=error)
       CALL section_vals_val_get(optbas_section,"BASIS_WORK_FILE",c_val=opt_bas%work_basis_file,error=error)
       CALL section_vals_val_get(optbas_section,"BASIS_OUTPUT_FILE",c_val=opt_bas%output_basis_file,error=error)
-      CALL m_getcwd(main_dir)
-      opt_bas%work_basis_file=TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
+      opt_bas%work_basis_file=TRIM(ADJUSTL(opt_bas%work_basis_file))
       CALL section_vals_val_get(optbas_section,"WRITE_FREQUENCY",i_val=opt_bas%write_frequency,error=error)
       CALL section_vals_val_get(optbas_section,"USE_CONDITION_NUMBER",l_val=opt_bas%use_condition_number,error=error)
 
