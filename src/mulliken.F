@@ -550,8 +550,8 @@ END SUBROUTINE rf_deriv_check
                dipole(:,iatom) = dipole(:,iatom)   + fac*pscp_block(indi,indj)*mpole%d(:)
              END IF
              IF(mpole%task(3))THEN
-               quadrupole(:,:,iatom) = quadrupole(:,:,iatom) + fac*p_block(indi,indj)*mpole%qq(:,:)/3.0_dp
-               quadrupole(:,:,iatom) = quadrupole(:,:,iatom) + fac*pscp_block(indi,indj)*mpole%qq(:,:)/3.0_dp
+               quadrupole(:,:,iatom) = quadrupole(:,:,iatom) + fac*p_block(indi,indj)*mpole%qc(:,:)/3.0_dp
+               quadrupole(:,:,iatom) = quadrupole(:,:,iatom) + fac*pscp_block(indi,indj)*mpole%qc(:,:)/3.0_dp
              END IF
 
              END DO

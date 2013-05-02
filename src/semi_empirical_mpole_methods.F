@@ -221,6 +221,10 @@ CONTAINS
                 END IF
              END DO
           END DO
+       ELSE
+          mpole%cs = mpole%c
+          mpole%ds = mpole%d
+          mpole%qq = mpole%qc
        END IF
     END IF
 
