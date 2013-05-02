@@ -1,0 +1,41 @@
+@SET TOP ../sample_top/dmpoh_vacuum.atop 
+@SET RST ../sample_crd/dmpoh.rst
+
+@SET CELLA 50.0
+@SET CELLB 50.0
+@SET CELLC 50.0
+
+&GLOBAL
+        PROJECT dmpoh
+        RUN_TYPE ENERGY_FORCE
+        PRINT_LEVEL HIGH
+&END GLOBAL
+
+&FORCE_EVAL
+        METHOD FIST
+        &MM
+                &FORCEFIELD
+                        PARMTYPE AMBER
+                        PARM_FILE_NAME $TOP
+                        VDW_SCALE14 0.5
+                        EI_SCALE14  0.8333333
+                        SHIFT_CUTOFF .FALSE.
+                &END FORCEFIELD
+                &POISSON
+                        &EWALD
+                                EWALD_TYPE NONE
+                        &END EWALD
+                &END POISSON
+        &END MM
+        &SUBSYS
+                &CELL
+                        ABC  $CELLA  $CELLB  $CELLC
+                &END CELL
+                &TOPOLOGY
+                        CONN_FILE_FORMAT AMBER
+                        CONN_FILE_NAME $TOP
+                        COORD_FILE_FORMAT CRD
+                        COORD_FILE_NAME $RST
+                &END TOPOLOGY
+        &END SUBSYS
+&END FORCE_EVAL

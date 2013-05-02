@@ -212,3 +212,4 @@ ace_ala_nme.inp
 ace_ala_nme-ambconn.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 ace_ala_nme-amber.inp
+ace_ala_nme-amber.inp

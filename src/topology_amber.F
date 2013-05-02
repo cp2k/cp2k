@@ -1647,7 +1647,7 @@ CPSourceFileRef,&
        label_b(iphi)  = work_label(2,1)
        label_c(iphi)  = work_label(3,1)
        label_d(iphi)  = work_label(4,1)
-       k(iphi)    = pk   (icp(iwork(1)))
+       k(iphi)    = pk   (icp(iwork(1)))*0.5_dp
        m(iphi)    = pn   (icp(iwork(1)))
        phi0(iphi) = phase(icp(iwork(1)))
 
@@ -1676,7 +1676,7 @@ CPSourceFileRef,&
              label_b(iphi)  = work_label(2,i)
              label_c(iphi)  = work_label(3,i)
              label_d(iphi)  = work_label(4,i)
-             k(iphi)    = pk   (icp(iwork(i)))
+             k(iphi)    = pk   (icp(iwork(i)))*0.5_dp
              m(iphi)    = pn   (icp(iwork(i)))
              phi0(iphi) = phase(icp(iwork(i)))
           END IF

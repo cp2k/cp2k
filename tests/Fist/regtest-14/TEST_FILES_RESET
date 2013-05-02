@@ -42,3 +42,4 @@ lamol.inp
 12_exvdw_12_exei_list_empty.inp
 # Numerical changes due to new implementation of 14 electrostatics
 lamol.inp
+lamol.inp
