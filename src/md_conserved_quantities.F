@@ -27,8 +27,8 @@ MODULE md_conserved_quantities
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
        reftraj_ensemble
-  USE input_section_types,             ONLY : section_vals_type, &
-                                              section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md_ener_types,                   ONLY: md_ener_type,&
@@ -40,8 +40,8 @@ MODULE md_conserved_quantities
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type, &
-                                             force_mixing_label_QM_dynamics
+  USE qmmm_types,                      ONLY: force_mixing_label_QM_dynamics,&
+                                             qmmm_env_qm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
@@ -413,6 +413,7 @@ CONTAINS
 
     INTEGER :: i, iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
       nparticle_local, shell_index
+    INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
     LOGICAL                                  :: failure, is_shell
     REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -429,9 +430,8 @@ CONTAINS
                                                 particle_set, &
                                                 shell_particle_set
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
+    TYPE(shell_kind_type), POINTER           :: shell
 
     failure = .FALSE.
 
@@ -571,27 +571,27 @@ CONTAINS
     ! Compute the QM/MM kinetic energy
     IF (ASSOCIATED(qmmm_env)) THEN
        IF (SIZE(force_env%sub_force_env) == 2) THEN !doing force mixing
-	  CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
-	  CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
-	  DO i=1, size(cur_indices)
-	    IF (cur_labels(i) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
-	      iparticle = cur_indices(i)
-	      mass = particle_set(iparticle)%atomic_kind%mass
-	      md_ener%ekin_qm = md_ener%ekin_qm + 0.5_dp * mass * &
-		  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-		  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-		  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-	    END IF
-	  END DO
+          CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
+          CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
+          DO i=1, SIZE(cur_indices)
+            IF (cur_labels(i) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
+              iparticle = cur_indices(i)
+              mass = particle_set(iparticle)%atomic_kind%mass
+              md_ener%ekin_qm = md_ener%ekin_qm + 0.5_dp * mass * &
+                  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+            END IF
+          END DO
        ELSE
-	  DO i = 1, SIZE(qmmm_env%qm_atom_index)
-	     iparticle = qmmm_env%qm_atom_index(i)
-	     mass = particle_set(iparticle)%atomic_kind%mass
-	     md_ener%ekin_qm = md_ener%ekin_qm +  0.5_dp * mass *  &
-		  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-		  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-		  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-	  END DO
+          DO i = 1, SIZE(qmmm_env%qm_atom_index)
+             iparticle = qmmm_env%qm_atom_index(i)
+             mass = particle_set(iparticle)%atomic_kind%mass
+             md_ener%ekin_qm = md_ener%ekin_qm +  0.5_dp * mass *  &
+                  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+          END DO
        END IF
     END IF
   END SUBROUTINE get_part_ke

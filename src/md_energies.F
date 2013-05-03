@@ -49,8 +49,8 @@ MODULE md_energies
                                              section_release,&
                                              section_type,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_val_get,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
@@ -68,8 +68,8 @@ MODULE md_energies
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type, &
-                                             force_mixing_label_QM_dynamics
+  USE qmmm_types,                      ONLY: force_mixing_label_QM_dynamics,&
+                                             qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_regions_type
@@ -91,7 +91,7 @@ MODULE md_energies
   PUBLIC :: initialize_md_ener,&
             md_energy,&
             md_ener_reftraj,&
-	    update_nfree_qm,&
+            update_nfree_qm,&
             md_write_output
 
 CONTAINS
@@ -142,7 +142,7 @@ CONTAINS
     IF(shell_adiabatic) THEN
       md_ener%nfree_shell = 3*(shell_particles%n_els)
     END IF
-    call update_nfree_qm(md_ener, force_env, error)
+    CALL update_nfree_qm(md_ener, force_env, error)
 
     IF(simpar%temperature_per_kind) THEN
       ALLOCATE(md_ener%temp_kind(nkind), STAT=istat)
@@ -175,17 +175,16 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    LOGICAL                                  :: failure
-
-    INTEGER :: ip
-    INTEGER, POINTER :: cur_indices(:), cur_labels(:)
-
     CHARACTER(len=*), PARAMETER :: routineN = 'update_nfree_qm', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip
+    INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     failure = .FALSE.
 
@@ -195,14 +194,14 @@ CONTAINS
     CALL force_env_get(force_env, subsys=subsys, qmmm_env=qmmm_env, force_env_section=force_env_section, error=error)
     IF(ASSOCIATED(qmmm_env)) THEN
       IF (SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
-	CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
-	CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
-	md_ener%nfree_qm = 0
-	DO ip=1, size(cur_indices)
-	  IF (cur_labels(ip) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
-	    md_ener%nfree_qm = md_ener%nfree_qm + 3
-	  END IF
-	END DO
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
+        md_ener%nfree_qm = 0
+        DO ip=1, SIZE(cur_indices)
+          IF (cur_labels(ip) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
+            md_ener%nfree_qm = md_ener%nfree_qm + 3
+          END IF
+        END DO
       ELSE
         CALL cp_subsys_get(subsys, particles=particles, error=error)
         ! The degrees of freedom for the quantum part of the system
