@@ -64,6 +64,9 @@ FESOBJECTDEFS        = $(TOOLSRC)/metadyn/OBJECTDEFS
 DOXYGENDIR           = $(DOCDIR)/doxygen
 DBCSR_TEST_PROG      = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
 DBCSR_PERF_PROG      = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
+#PLUMED
+PLUMEDDIR            = $(SRCDIR)/src-plumed
+PLUMEDINC            = $(PLUMEDDIR)/plumed.inc 
 
 REVISION := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
 
@@ -94,7 +97,7 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool\
-         dbcsr_test dbcsr_perf mrproper
+         dbcsr_test dbcsr_perf mrproper plumed          
 
 ### Master rules ###
 build: dirs deptool
@@ -142,6 +145,12 @@ dbcsr_test:
 dbcsr_perf:
 	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_dbcsr_perf build
 
+plumed: plumedobj plumed.dep
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_plumed build
+
+plumedobj: dirs
+	+$(MAKE) -C $(OBJDIR)/$(VERSION)/ -f $(MAKEFILE) $(OBJ_PLUMED)
+
 #
 # on a parallel build only one task should go a build the deptool
 #
@@ -185,6 +194,14 @@ ifneq ($(SMART_MODULES),no)
 MD5 := $(shell which md5sum)
 endif
 
+#
+#PLUMED
+#
+ifeq ($(PLUMED),yes)
+	include $(PLUMEDINC) 
+	DFLAGS += -DPLUMED_CP2K
+	CPPFLAGS += -DPLUMED_CP2K
+endif
 
 
 # Define the whole bunch of libraries needed
@@ -263,15 +280,26 @@ endif
 fes.dep: $(FESOBJS:.o=.F) 
 	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
 
+plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h src-plumed/metadyn.h cp2k.F 
+
+#ifeq ($(HACKDEP),yes)
+#	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/plumed.dep
+#else
+#	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/plumed.dep || ( rm -f $(OBJDIR)/$(VERSION)/plumed.dep  ; exit 1 )
+#endif
 #
 # and the rules doing the actual work
 #
+$(OBJ_PLUMED):
+	$(CC) $(CPPFLAGS) -c $(PLUMEDDIR)/$(@:.o=.cpp)
+
 _all: $(ALL_LIB) $(PROG) fes $(CP2KSHELL)
 _progr: $(PROG)
 _lib: $(ALL_LIB)
 _cpshell: $(CP2KSHELL)
 _dbcsr_test: $(DBCSR_TEST_PROG)
 _dbcsr_perf: $(DBCSR_PERF_PROG)
+_plumed: $(ALL_LIB) PROG-PLUMED
 
 _pretty:$(OBJECTS:.o=.pretty)
 _pretty_lib1:$(LIB1_OBJECTS:.o=.pretty)
@@ -337,6 +365,9 @@ ifneq ($(HWTOPO),)
 	$(AR) $(LIBMA_ARCHIVE) $?
 endif
 
+
+PROG-PLUMED: $(ALL_LIB) cp2k.o $(OBJ_PLUMED) 
+	+$(LD) $(LDFLAGS) -o $(PROG) $(OBJ_PLUMED) cp2k.o $(ALL_LIB) $(LIBS) -lstdc++
 
 $(PROG): $(ALL_LIB) cp2k.o
 	+$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(ALL_LIB) $(LIBS)
@@ -465,6 +496,12 @@ realclean: clean
 	-rm -f $(LIB4_ARCHIVE)
 	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
+
+#
+# remove plumed objectfiles
+#
+plumedclean:
+	{ cd $(OBJDIR)/$(VERSION) ; rm $(OBJ_PLUMED) ; }
 #
 # Remove all files from previous builds
 #

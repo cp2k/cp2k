@@ -16,7 +16,8 @@ MODULE free_energy_types
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,6 +73,8 @@ MODULE free_energy_types
      ! Old data
      REAL(KIND=dp)                                  :: eps_conv
      REAL(KIND=dp), DIMENSION(:,:), POINTER         :: covmx
+
+     CHARACTER(len=default_string_length)           :: plumed_input_file
   END TYPE free_energy_type
 
 CONTAINS

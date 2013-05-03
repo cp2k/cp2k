@@ -98,6 +98,8 @@ MODULE metadynamics_types
      LOGICAL                                   :: extended_lagrange
      LOGICAL                                   :: well_tempered
      LOGICAL                                   :: langevin
+     LOGICAL                                   :: use_plumed
+     CHARACTER(LEN=default_path_length)        :: plumed_input_file
      INTEGER                                   :: n_colvar
      REAL(KIND=dp)                             :: ekin_s, epot_s, dt, &
                                                   avg_temp, epot_walls
@@ -166,6 +168,8 @@ CONTAINS
                meta_env%rng,&
                meta_env%hills_env)
 
+       meta_env%use_plumed = .FALSE.        
+       meta_env%plumed_input_file = ""
        meta_env%metadyn_section => metadyn_section
        meta_env%ref_count = 1
        meta_env%restart   = .TRUE.
@@ -307,7 +311,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-
     IF (ASSOCIATED(meta_env)) THEN
        CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
        meta_env%ref_count=meta_env%ref_count-1
@@ -323,6 +326,7 @@ CONTAINS
              DEALLOCATE(meta_env%metavar,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+
           ! Hills env
           CALL hills_env_release(meta_env%hills_env,error)
           ! Walkers type
@@ -338,6 +342,7 @@ CONTAINS
              DEALLOCATE(meta_env%multiple_walkers,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+
           ! Langevin on COLVARS
           IF (meta_env%langevin) THEN
              DO i = 1, SIZE(meta_env%rng)

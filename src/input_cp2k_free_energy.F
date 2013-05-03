@@ -73,7 +73,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="METHOD",&
             description="Defines the method to use to compute free energy.",&
-            usage="METHOD (METADYN|UI)",&
+            usage="METHOD (METADYN|UI|AC)",&
             enum_c_vals=s2a( "METADYN","UI","AC"),&
             enum_i_vals=(/do_fe_meta,do_fe_ui,do_fe_ac/),&
             enum_desc=s2a("Metadynamics",&
@@ -135,6 +135,20 @@ CONTAINS
             citations=(/VandenCic2006/),error=error)
 
        NULLIFY(subsection,keyword,print_key)
+
+       CALL keyword_create(keyword, name="USE_PLUMED",&
+            description="Specify whether to use plumed as an external metadynamics driver.",&
+            usage="USE_PLUMED .FALSE./.TRUE.",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PLUMED_INPUT_FILE",&
+            description="Specify the file name of the external plumed input file",&
+            usage="PLUMED_INPUT_FILE ./FILENAME",&
+            default_c_val="./plumed.dat",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MIN_NT_HILLS",&
             description="Specify the minimum MD step interval between spawning "//&
@@ -516,6 +530,7 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_ui_section
+
 
 ! *****************************************************************************
 !> \brief Creates the velocity section

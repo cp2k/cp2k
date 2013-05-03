@@ -51,6 +51,8 @@ MODULE cell_types
                                              det_3x3,&
                                              inv_3x3
   USE termination,                     ONLY: stop_program
+
+  USE, INTRINSIC ::  ISO_C_BINDING,    ONLY: C_PTR, C_F_POINTER
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -81,7 +83,8 @@ MODULE cell_types
   ! Public subroutines
   PUBLIC :: get_cell, get_cell_param, init_cell, read_cell,&
             write_cell, cell_create, cell_retain, cell_release,&
-            cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param
+            cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param, &
+            pbc_cp2k_plumed, pbc_cp2k_plumed_getset_cell !for plumed
 
   ! Public functions
   PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real
@@ -1131,4 +1134,52 @@ CPSourceFileRef,&
 
   END SUBROUTINE cell_release
 
+! *****************************************************************************
+!> \brief   Interface with plumed, get a coordinate 3-tuple, return the minimum 
+!>          image.
+!> \author  RK
+!> \date    12.12.2012
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE pbc_cp2k_plumed(x,y,z) 
+    REAL(KIND=dp), INTENT(INOUT)             :: x, y, z
+
+    REAL(KIND=dp), DIMENSION(3)              :: r, r2
+    TYPE(cell_type), POINTER                 :: cell
+
+    CALL pbc_cp2k_plumed_getset_cell(cell, set=.FALSE.) !retrieve the cell pointer
+
+    r(1)=x
+    r(2)=y
+    r(3)=z
+
+    r2 = pbc(r,cell)
+
+    x=r2(1)
+    y=r2(2)
+    z=r2(3)
+
+  END SUBROUTINE pbc_cp2k_plumed
+
+! *****************************************************************************
+!> \brief   For the interface with plumed, pass a cell pointer and retrieve it 
+!>          later. It's a hack, but avoids passing the cell back and forth
+!>          across the Fortran/C++ interface
+!> \author  RK
+!> \date    28.02.2013
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE pbc_cp2k_plumed_getset_cell(cell, set) 
+    TYPE(cell_type), POINTER                 :: cell
+    LOGICAL                                  :: set
+
+    TYPE(cell_type), POINTER, SAVE           :: stored_cell
+
+    IF (set .EQV. .TRUE.) THEN
+        stored_cell => cell
+    ELSE
+        cell => stored_cell
+    END IF
+
+  END SUBROUTINE pbc_cp2k_plumed_getset_cell
 END MODULE cell_types

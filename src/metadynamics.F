@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE metadynamics
   USE bibliography,                    ONLY: VandenCic2006
+  USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              torsion_colvar_id
@@ -33,6 +34,7 @@ MODULE metadynamics
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_bcast
   USE metadynamics_types,              ONLY: hills_env_type,&
                                              meta_env_type,&
                                              metavar_type,&
@@ -81,31 +83,88 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_integrator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, i_part, natom_plumed
     LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: force_plumed, pos_plumed
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     ! Apply Metadynamics
     IF (ASSOCIATED(force_env%meta_env)) THEN
-       IF(force_env%meta_env%langevin) THEN
-          IF (.NOT.PRESENT(rand)) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Langevin on COLVAR not implemented for this MD ensemble!", &
-                  error=error, error_level=cp_fatal_level)
-          END IF
-          !    *** Velocity Verlet for Langevin S(t)->S(t+1)
-          CALL metadyn_position_colvar(force_env, error=error)
-          !    *** Forces from Vs and  S(X(t+1))
-          CALL metadyn_forces(force_env, error=error)
-          !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
-          CALL metadyn_velocities_colvar(force_env, rand,error=error)
-       ELSE
-          CALL metadyn_forces(force_env, vel,error=error)
-       ENDIF
-       !    *** Write down COVAR informations
-       CALL metadyn_write_colvar(force_env, error=error)
+        IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
+#ifdef PLUMED_CP2K
+            CALL force_env_get(force_env, subsys=subsys,cell=cell, error=error)
+            natom_plumed=subsys%particles%n_els
+            ALLOCATE (pos_plumed(1:3,natom_plumed))
+            ALLOCATE (force_plumed(1:3,natom_plumed))
+            force_plumed=0
+
+            DO i_part=1,natom_plumed
+              pos_plumed(:,i_part)=subsys%particles%els(i_part)%r(:)
+            END DO
+           
+            !in a parallel run plumed colvars are only processed on the
+            !master node and then broadcast to the others.
+            IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+                CALL META_FORCE_CALCULATION(pos_plumed,force_plumed,natom_plumed,cell)
+               !DO i_part=1,natom_plumed
+               !   WRITE (*,"(6F14.8)") subsys%particles%els(i_part)%f(:) , force_plumed(:,i_part)
+               !   subsys%particles%els(i_part)%f(:) = subsys%particles%els(i_part)%f(:) + force_plumed(:,i_part)
+               !END DO
+               !WRITE (*,*) " "
+            END IF
+            CALL mp_bcast (force_plumed,                     &
+                           force_env%para_env%source,        &
+                           force_env%para_env%group)
+            
+            DO i_part=1,natom_plumed
+              subsys%particles%els(i_part)%f(:) = subsys%particles%els(i_part)%f(:) + force_plumed(:,i_part)
+            END DO
+
+            DEALLOCATE (force_plumed, pos_plumed)
+#endif
+
+        ELSE
+            IF(force_env%meta_env%langevin) THEN
+              IF (.NOT.PRESENT(rand)) THEN
+                 CALL cp_unimplemented_error(fromWhere=routineP, &
+                      message="Langevin on COLVAR not implemented for this MD ensemble!", &
+                      error=error, error_level=cp_fatal_level)
+              END IF
+              !    *** Velocity Verlet for Langevin S(t)->S(t+1)
+              CALL metadyn_position_colvar(force_env, error=error)
+              !    *** Forces from Vs and  S(X(t+1))
+              CALL metadyn_forces(force_env, error=error)
+              !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
+              CALL metadyn_velocities_colvar(force_env, rand,error=error)
+            ELSE
+                !remove below
+                CALL force_env_get(force_env, subsys=subsys,cell=cell, error=error)
+                natom_plumed = force_env%subsys%particles%n_els
+                ALLOCATE (force_plumed(1:3,natom_plumed))
+                DO i_part=1,natom_plumed
+                  force_plumed(:,i_part) = subsys%particles%els(i_part)%f(1:3) 
+                END DO
+                !remove above
+              CALL metadyn_forces(force_env, vel,error=error)
+                !remove below
+                IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+                DO i_part=1,natom_plumed
+                  WRITE (*,"(6F14.8)") force_plumed(:,i_part) , subsys%particles%els(i_part)%f(:) &
+                          - force_plumed(:,i_part)
+                END DO
+                WRITE (*,*) " "
+                END IF
+                DEALLOCATE (force_plumed)
+                !remove above
+            ENDIF
+            !    *** Write down COVAR informations
+            CALL metadyn_write_colvar(force_env, error=error)
+        END IF
     ENDIF
 
     CALL timestop(handle)

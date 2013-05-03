@@ -15,7 +15,8 @@ MODULE md_run
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc_cp2k_plumed_getset_cell
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -176,14 +177,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istep, md_stride, &
-                                                run_type_id
+    INTEGER                                  :: handle, i, i_kinds, istep, &
+                                                md_stride, natom_plumed, &
+                                                nsp_plumed, run_type_id
+    INTEGER, DIMENSION(90)                   :: na_plumed
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, ehrenfest_md, failure, &
                                                 save_mem, should_stop, &
                                                 write_binary_restart_file
     REAL(KIND=dp)                            :: dummy, time_iter_start, &
-                                                time_iter_stop
+                                                time_iter_stop, &
+                                                timestep_plumed
+    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(barostat_type), POINTER             :: barostat
@@ -289,6 +294,7 @@ CONTAINS
     ! Setup Free Energy Calculation (if required)
     CALL fe_env_create (fe_env, free_energy_section, error)
 
+
     CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell,&
                     force_env=force_env, error=error)
 
@@ -366,32 +372,58 @@ CONTAINS
        END IF
        ! Warm-up engines for metadynamics
        IF (ASSOCIATED(force_env%meta_env)) THEN
-          IF(force_env%meta_env%langevin) THEN
-             CALL create_wiener_process_cv(force_env%meta_env, error=error)
-          ENDIF
-          IF (force_env%meta_env%well_tempered) THEN
-             force_env%meta_env%wttemperature = simpar%temp_ext
-             IF (force_env%meta_env%wtgamma>EPSILON(1._dp)) THEN
-                dummy=force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma-1._dp)
-                IF (force_env%meta_env%delta_t>EPSILON(1._dp)) THEN
-                   check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
-                   CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
-                      "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
-                      " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE",&
-                      error,failure)
-                ELSE
-                   force_env%meta_env%delta_t = dummy
-                ENDIF
-             ELSE
-                force_env%meta_env%wtgamma    = 1._dp &
-                   + force_env%meta_env%delta_t/force_env%meta_env%wttemperature
-             ENDIF
-             force_env%meta_env%invdt         = 1._dp/force_env%meta_env%delta_t
-          ENDIF
-          CALL metadyn_forces(force_env,error=error)
-          CALL metadyn_write_colvar(force_env,error=error)
-       ENDIF
+           ! Setup stuff for plumed if needed
+           IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
+#ifdef PLUMED_CP2K
+               natom_plumed=subsys%particles%n_els
+               nsp_plumed=subsys%atomic_kinds%n_els
+               timestep_plumed=simpar%dt
+               DO i_kinds=1,nsp_plumed
+                   na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
+                   pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
+               END DO
+               CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
 
+               !in a parallel run plumed only needs to be initialized on the
+               !master node.
+               IF (para_env%ionode .EQV. .TRUE.) THEN
+                   CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
+                       timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
+               END IF
+#else
+           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
+                " not compiled with plumed support."//&
+                CPSourceFileRef,&
+                error,failure)
+#endif
+           ELSE
+            IF(force_env%meta_env%langevin) THEN
+                 CALL create_wiener_process_cv(force_env%meta_env, error=error)
+                ENDIF
+                IF (force_env%meta_env%well_tempered) THEN
+                 force_env%meta_env%wttemperature = simpar%temp_ext
+                 IF (force_env%meta_env%wtgamma>EPSILON(1._dp)) THEN
+                    dummy=force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma-1._dp)
+                    IF (force_env%meta_env%delta_t>EPSILON(1._dp)) THEN
+                       check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
+                       CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+                          "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
+                          " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE",&
+                          error,failure)
+                    ELSE
+                       force_env%meta_env%delta_t = dummy
+                    ENDIF
+                 ELSE
+                    force_env%meta_env%wtgamma    = 1._dp &
+                       + force_env%meta_env%delta_t/force_env%meta_env%wttemperature
+                 ENDIF
+                 force_env%meta_env%invdt         = 1._dp/force_env%meta_env%delta_t
+                ENDIF
+                CALL metadyn_forces(force_env,error=error)
+                CALL metadyn_write_colvar(force_env,error=error)
+            END IF
+       ENDIF
 
        IF (simpar%do_respa)THEN
           CALL force_env_calc_energy_force (force_env%sub_force_env(1)%force_env,&
@@ -402,6 +434,7 @@ CONTAINS
 
        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
             particles=particles,error=error)
+
 
        CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
             force_env%virial, force_env%para_env%group, error=error)
@@ -414,6 +447,27 @@ CONTAINS
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
        itimes = reftraj%info%first_snapshot -1
        md_stride = reftraj%info%stride
+#ifdef PLUMED_CP2K
+       IF (ASSOCIATED(force_env%meta_env)) THEN
+           IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
+               natom_plumed=subsys%particles%n_els
+               nsp_plumed=subsys%atomic_kinds%n_els
+               timestep_plumed=simpar%dt
+               DO i_kinds=1,nsp_plumed
+                   na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
+                   pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
+               END DO
+               CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
+
+               !in a parallel run plumed only needs to be initialized on the
+               !master node.
+               IF (para_env%ionode .EQV. .TRUE.) THEN
+                   CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
+                       timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
+               END IF
+            END IF
+        END IF
+#endif
     END IF
 
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
@@ -456,7 +510,7 @@ CONTAINS
 
        ! Free Energy calculation
        CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)
-
+       
        IF (should_stop) EXIT
 
        ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit

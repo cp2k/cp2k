@@ -120,6 +120,16 @@ CONTAINS
        CALL metadyn_create(meta_env,n_colvar=n_colvar,&
             dt=dt,para_env=para_env,metadyn_section=metadyn_section,error=error)
 
+       !Check if using plumed. If so, only get the file name and read nothing else
+       CALL section_vals_val_get(metadyn_section,"USE_PLUMED",l_val=meta_env%use_plumed,error=error)
+       IF (meta_env%use_plumed .EQV. .TRUE.) THEN
+           CALL section_vals_val_get(metadyn_section,"PLUMED_INPUT_FILE",c_val=meta_env%plumed_input_file,error=error)
+           meta_env%plumed_input_file=TRIM(meta_env%plumed_input_file)//CHAR(0)
+           meta_env%langevin=.FALSE.
+           CALL timestop(handle)
+           RETURN
+       END IF
+
        CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=meta_env%do_hills,error=error)
        CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
        CALL section_vals_val_get(metadyn_section,"TAMCSteps",i_val=meta_env%TAMCSteps,error=error)
