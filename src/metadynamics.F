@@ -142,25 +142,7 @@ CONTAINS
               !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
               CALL metadyn_velocities_colvar(force_env, rand,error=error)
             ELSE
-                !remove below
-                CALL force_env_get(force_env, subsys=subsys,cell=cell, error=error)
-                natom_plumed = force_env%subsys%particles%n_els
-                ALLOCATE (force_plumed(1:3,natom_plumed))
-                DO i_part=1,natom_plumed
-                  force_plumed(:,i_part) = subsys%particles%els(i_part)%f(1:3) 
-                END DO
-                !remove above
               CALL metadyn_forces(force_env, vel,error=error)
-                !remove below
-                IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
-                DO i_part=1,natom_plumed
-                  WRITE (*,"(6F14.8)") force_plumed(:,i_part) , subsys%particles%els(i_part)%f(:) &
-                          - force_plumed(:,i_part)
-                END DO
-                WRITE (*,*) " "
-                END IF
-                DEALLOCATE (force_plumed)
-                !remove above
             ENDIF
             !    *** Write down COVAR informations
             CALL metadyn_write_colvar(force_env, error=error)
