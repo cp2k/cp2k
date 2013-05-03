@@ -54,7 +54,10 @@ MODULE qmmm_main
                                              section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE md_environment_types,            ONLY: md_environment_type
+  USE md_environment_types,            ONLY: md_environment_type,&
+                                             get_md_env
+  USE md_ener_types,                   ONLY: md_ener_type
+  USE md_energies,                     ONLY: update_nfree_qm
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
   USE qmmm_init,                       ONLY: &
@@ -188,6 +191,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    type(md_ener_type), POINTER :: md_ener
+
     INTEGER                                  :: iforce_eval, nforce_eval
 
     CALL qmmm_update_force_mixing_env_low(md_env, force_env, root_section, error)
@@ -201,6 +206,12 @@ CONTAINS
          ENDIF
       END DO
     ENDIF
+
+    NULLIFY(md_ener)
+    call get_md_env(md_env, md_ener=md_ener, error=error)
+    if (ASSOCIATED(md_ener)) then
+      CALL update_nfree_qm(md_ener, force_env, error)
+    endif
 
   END SUBROUTINE qmmm_update_force_mixing_env
 

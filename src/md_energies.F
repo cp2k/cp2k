@@ -49,6 +49,7 @@ MODULE md_energies
                                              section_release,&
                                              section_type,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_val_get,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -67,7 +68,8 @@ MODULE md_energies
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type, &
+                                             force_mixing_label_QM_dynamics
   USE reftraj_types,                   ONLY: reftraj_type
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_regions_type
@@ -89,6 +91,7 @@ MODULE md_energies
   PUBLIC :: initialize_md_ener,&
             md_energy,&
             md_ener_reftraj,&
+	    update_nfree_qm,&
             md_write_output
 
 CONTAINS
@@ -115,17 +118,16 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles, shell_particles
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
 
     failure =.FALSE.
 
-    NULLIFY(qmmm_env, subsys)
-    NULLIFY(atomic_kinds, atomic_kind_set, qmmm_env, particles, shell_particles)
+    NULLIFY(subsys)
+    NULLIFY(atomic_kinds, atomic_kind_set, particles, shell_particles)
 
     CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
-    CALL force_env_get(force_env, subsys=subsys, qmmm_env=qmmm_env, error=error)
+    CALL force_env_get(force_env, subsys=subsys, error=error)
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles,&
          shell_particles=shell_particles,&
          error=error)
@@ -135,21 +137,12 @@ CONTAINS
                                shell_adiabatic=shell_adiabatic)
 
     md_ener%nfree       = simpar%nfree
-    md_ener%nfree_qm    = -HUGE(0)
     md_ener%nfree_shell = -HUGE(0)
 
     IF(shell_adiabatic) THEN
       md_ener%nfree_shell = 3*(shell_particles%n_els)
     END IF
-    IF(ASSOCIATED(qmmm_env)) THEN
-      ! The degrees of freedom for the quantum part of the system
-      ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
-      ! system is treated at QM level (not really QM/MM, just for consistency).
-      ! The degree of freedom will not be correct if 1-3 atoms are treated only
-      ! MM. In this case we should take care of rotations
-      md_ener%nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
-      IF (md_ener%nfree_qm == 3*(particles%n_els)) md_ener%nfree_qm = md_ener%nfree
-    END IF
+    call update_nfree_qm(md_ener, force_env, error)
 
     IF(simpar%temperature_per_kind) THEN
       ALLOCATE(md_ener%temp_kind(nkind), STAT=istat)
@@ -176,6 +169,54 @@ CONTAINS
     md_ener%epot = 0.0_dp
 
   END SUBROUTINE initialize_md_ener
+
+  SUBROUTINE update_nfree_qm(md_ener, force_env, error)
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    LOGICAL                                  :: failure
+
+    INTEGER :: ip
+    INTEGER, POINTER :: cur_indices(:), cur_labels(:)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_nfree_qm', &
+      routineP = moduleN//':'//routineN
+
+    failure = .FALSE.
+
+    md_ener%nfree_qm    = -HUGE(0)
+
+    NULLIFY(qmmm_env,subsys,particles,force_env_section)
+    CALL force_env_get(force_env, subsys=subsys, qmmm_env=qmmm_env, force_env_section=force_env_section, error=error)
+    IF(ASSOCIATED(qmmm_env)) THEN
+      IF (SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
+	CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
+	CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
+	md_ener%nfree_qm = 0
+	DO ip=1, size(cur_indices)
+	  IF (cur_labels(ip) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
+	    md_ener%nfree_qm = md_ener%nfree_qm + 3
+	  END IF
+	END DO
+      ELSE
+        CALL cp_subsys_get(subsys, particles=particles, error=error)
+        ! The degrees of freedom for the quantum part of the system
+        ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
+        ! system is treated at QM level (not really QM/MM, just for consistency).
+        ! The degree of freedom will not be correct if 1-3 atoms are treated only
+        ! MM. In this case we should take care of rotations
+        md_ener%nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
+        IF (md_ener%nfree_qm == 3*(particles%n_els)) md_ener%nfree_qm = md_ener%nfree
+      ENDIF
+    END IF
+
+  END SUBROUTINE update_nfree_qm
+
 
 ! *****************************************************************************
 !> \par History
