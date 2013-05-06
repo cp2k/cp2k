@@ -1706,9 +1706,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(atomic_kind%ri_aux_basis_set)) THEN
              IF (atomic_kind%ri_aux_basis_set%norm_type < 0) THEN
-                atomic_kind%ri_aux_basis_set%norm_type = 1
+                atomic_kind%ri_aux_basis_set%norm_type = 2
              END IF
-             CALL init_aux_basis_set(atomic_kind%ri_aux_basis_set,error)
+             CALL init_orb_basis_set(atomic_kind%ri_aux_basis_set,error)
           END IF
        ELSE IF (method_name_id == do_fist) THEN
           IF (ASSOCIATED(atomic_kind%fist_potential)) THEN

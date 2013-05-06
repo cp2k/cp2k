@@ -154,6 +154,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="CALC_COND_NUM",&
+            variants=(/"CALC_CONDITION_NUMBER"/),&
+            description="Calculate the condition number of the (P|Q) matrix for the RI methods.",&
+            usage="CALC_COND_NUM",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key,"MP2_INFO",&
             description="Controls the printing basic info about MP2 method", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&

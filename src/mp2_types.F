@@ -107,6 +107,7 @@ MODULE mp2_types
        INTEGER  :: mp2_num_proc
        INTEGER  :: block_size_row
        INTEGER  :: block_size_col
+       LOGICAL  :: calc_PQ_cond_num
   END TYPE
 
   TYPE integ_mat_buffer_type

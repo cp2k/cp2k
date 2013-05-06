@@ -65,6 +65,7 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"DIRECT_CANONICAL%BIG_SEND",l_val=mp2_env%direct_canonical%big_send,error=error)
     CALL section_vals_val_get(mp2_section,"ROW_BLOCK",i_val=mp2_env%block_size_row,error=error)
     CALL section_vals_val_get(mp2_section,"COL_BLOCK",i_val=mp2_env%block_size_col,error=error)
+    CALL section_vals_val_get(mp2_section,"CALC_COND_NUM",l_val=mp2_env%calc_PQ_cond_num,error=error)
 
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%POTENTIAL_TYPE",&
                               i_val=mp2_env%potential_parameter%potential_type, error=error)

@@ -450,7 +450,7 @@ MODULE mp2_gpw
                                    atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                    mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                                   mp2_env%mp2_memory,calc_ex,error,blacs_env_sub,error_sub,&
+                                   mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_ex,error,blacs_env_sub,error_sub,&
                                    BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
                                    homo_beta,mo_coeff_o_beta,mo_coeff_v_beta)
       ELSE
@@ -460,7 +460,7 @@ MODULE mp2_gpw
                                    atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                    mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                                   mp2_env%mp2_memory,calc_ex,error,blacs_env_sub,error_sub)
+                                   mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_ex,error,blacs_env_sub,error_sub)
       END IF
     ELSE
       ! Canonical MP2-GPW

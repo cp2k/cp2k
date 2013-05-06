@@ -48,6 +48,7 @@
         &END
         MEMORY  200.
         NUMBER_PROC  1
+        CALC_COND_NUM
       &END
     &END XC
   &END DFT

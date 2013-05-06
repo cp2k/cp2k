@@ -13,7 +13,8 @@ MODULE mp2_ri_gpw
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: gto_basis_set_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type,& 
+                                             init_orb_basis_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -29,6 +30,7 @@ MODULE mp2_ri_gpw
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
 ! USE f77_blas
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_diag,                      ONLY: cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -36,6 +38,8 @@ MODULE mp2_ri_gpw
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_get_diag,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
@@ -126,7 +130,7 @@ MODULE mp2_ri_gpw
                                    cell,particle_set,atomic_kind_set,mo_coeff,nmo,homo,&
                                    rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                                    poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
-                                   mp2_memory,calc_ex,error,blacs_env_sub,error_sub,&
+                                   mp2_memory,calc_PQ_cond_num,calc_ex,error,blacs_env_sub,error_sub,&
                                    BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
                                    homo_beta,mo_coeff_o_beta,mo_coeff_v_beta)
     REAL(KIND=dp), ALLOCATABLE, &
@@ -157,7 +161,7 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
     REAL(KIND=dp)                            :: mp2_memory
-    LOGICAL                                  :: calc_ex
+    LOGICAL                                  :: calc_PQ_cond_num, calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
@@ -179,14 +183,15 @@ MODULE mp2_ri_gpw
       my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
       my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
       my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
-      nfullrows_total, ngroup, nrow_local, stat, virtual, virtual_beta
+      nfullrows_total, ngroup, nrow_local, num_small_eigen, stat, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: do_alpha_beta, failure
-    REAL(KIND=dp)                            :: mem_for_iaK, pair_energy, &
-                                                wfn_size
+    REAL(KIND=dp)                            :: cond_num, mem_for_iaK, &
+                                                pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_Lrows
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
@@ -400,10 +405,16 @@ MODULE mp2_ri_gpw
                          eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                          mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                          my_group_L_size,my_group_L_start,my_group_L_end,&
-                         sizes_array,starts_array,ends_array,error_sub,error)
+                         sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,num_small_eigen,error_sub,error)
 
     IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                       "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
+    IF(calc_PQ_cond_num) THEN
+      IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T67,ES14.5)")&
+                        "RI_INFO| Condition number of the (P|Q):", cond_num
+      IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                        "RI_INFO| Number of Eigenvalue of (P|Q) smaller than 10^(-3):",num_small_eigen
+    END IF
 
     ! replicate the necessary row of the L^{-1} matrix on each proc
     CALL grep_Lcols(qs_env,para_env_L,dimen_RI,fm_matrix_L,&
@@ -531,7 +542,7 @@ MODULE mp2_ri_gpw
                              eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                              mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                              my_group_L_size,my_group_L_start,my_group_L_end,&
-                             sizes_array,starts_array,ends_array,error_sub,error)
+                             sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,num_small_eigen,error_sub,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
                                                 para_env_L
@@ -548,6 +559,9 @@ MODULE mp2_ri_gpw
                                                 my_group_L_end
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_array, starts_array, &
                                                 ends_array
+    LOGICAL                                  :: calc_PQ_cond_num
+    REAL(KIND=dp)                            :: cond_num
+    INTEGER                                  :: num_small_eigen
     TYPE(cp_error_type), INTENT(inout)       :: error_sub, error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
@@ -572,7 +586,7 @@ MODULE mp2_ri_gpw
     LOGICAL                                  :: failure, map_it_here
     REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
                                                 rab2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: wf_vector
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: egen_L, wf_vector
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: I_ab, L_external_col, &
                                                 L_local_col
@@ -585,6 +599,7 @@ MODULE mp2_ri_gpw
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_L
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_L_diag
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
@@ -949,6 +964,40 @@ MODULE mp2_ri_gpw
     CALL mp_sum(fm_matrix_L%local_data,para_env_exchange%group)
 
     CALL cp_para_env_release(para_env_exchange,error=error_sub)
+
+    cond_num=1.0_dp
+    num_small_eigen=0
+    IF(calc_PQ_cond_num) THEN
+      ! calculate the condition number of the (P|Q) matrix
+      ! create a copy of the matrix
+      NULLIFY(fm_matrix_L_diag)
+      NULLIFY(fm_struct)
+      CALL cp_fm_struct_create(fm_struct,context=blacs_env_L,nrow_global=dimen_RI,&
+                               ncol_global=dimen_RI,para_env=para_env_L,error=error)
+      CALL cp_fm_create(fm_matrix_L_diag,fm_struct,name="fm_matrix_L_diag",error=error)
+      CALL cp_fm_struct_release(fm_struct,error=error)
+
+      CALL cp_fm_set_all(matrix=fm_matrix_L_diag,alpha=0.0_dp,error=error) 
+
+      CALL cp_fm_to_fm(source=fm_matrix_L,destination=fm_matrix_L_diag,error=error)
+
+      ALLOCATE(egen_L(dimen_RI),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      egen_L=0.0_dp
+      CALL cp_fm_syevx(matrix=fm_matrix_L_diag,eigenvalues=egen_L,error=error) 
+   
+      num_small_eigen=0
+      DO iiB=1, dimen_RI
+        IF(ABS(egen_L(iiB))<0.001_dp) num_small_eigen=num_small_eigen+1
+      END DO
+
+      cond_num=MAXVAL(ABS(egen_L))/MINVAL(ABS(egen_L))
+
+      CALL cp_fm_release(fm_matrix_L_diag, error=error)
+
+      DEALLOCATE(egen_L)
+    END IF
 
     ! do cholesky decomposition
     CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L, n=dimen_RI, info_out=info_chol, error=error)
