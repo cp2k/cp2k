@@ -243,6 +243,8 @@ How to compile CP2K code
                              compile.  Runtime performance will be poorer on
                              low numbers of processors
      -D__CRAY_POINTERS     - compiler supports CRAY pointers
+     -D__HAS_NO_CUDA_SM30  - CUDA device does not support sm_30 or higher
+                             (i.e. Fermi and older GeForce cards)
 
  3d) Additional esoteric, development, and debugging options.  This
      section can be safely skipped over.  Listed here just for

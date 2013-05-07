@@ -331,6 +331,7 @@ stack_mm_mnk_sq23_d (const int *__restrict__ param_stack,
 };
 
 
+#if !defined ( __HAS_NO_CUDA_SM30 )
 static __device__ __forceinline__ double
 dbl_shfl (double r, int lane)
 {
@@ -550,6 +551,7 @@ stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
     }
 
 };
+#endif
 
 
 __global__ void

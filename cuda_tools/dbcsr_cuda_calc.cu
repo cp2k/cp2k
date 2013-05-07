@@ -78,6 +78,7 @@ __global__ void stack_mm_mnk_sq23_d (const int *__restrict__ param_stack,
 				     int *__restrict__ c_locks,
 				     int lock_offset);
 
+#if !defined ( __HAS_NO_CUDA_SM30 )
 __global__ void stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
 				    const int careful, const int nruns,
 				    const int m, const int n, const int k,
@@ -87,6 +88,7 @@ __global__ void stack_mm_mnk_sq5_d (const int *__restrict__ param_stack,
 				    double *__restrict__ c_data,
 				    int *__restrict__ c_locks,
 				    int lock_offset);
+#endif
 
 /**
  * \brief Bridge routine to call appropriate CUDA kernel.
@@ -171,6 +173,7 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 									  15)
 					 * stream_id);
 	    }
+#if !defined ( __HAS_NO_CUDA_SM30 )
 	  else if (m_max == 5 && n_max == 5 && k_max == 5)
 	    {
 	      shared_size = 0;
@@ -185,6 +188,7 @@ dc_do_stack_cu (int *param_stack, int stack_size, int nparams,
 					      (double *) c_data, c_locks,
 					      pow (2, 15) * stream_id);
 	    }
+#endif
 	  else
 	    {
 	      stack_mm_mnk_d <<< (stack_size + GROUPING - 1) / GROUPING, maxt,
