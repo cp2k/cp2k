@@ -741,11 +741,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_thermo_chi_section(subsection,error=error)
+       CALL create_thermo_chi_mass_section(subsection,"CHI",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_mass_section(subsection,"ADAPTIVE LANGEVIN",error=error)
+       CALL create_thermo_chi_mass_section(subsection,"MASS",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -760,11 +760,13 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_thermo_chi_section(section,error)
+  SUBROUTINE create_thermo_chi_mass_section(section,sec_name,error)
     TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*)                         :: sec_name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_chi_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_thermo_chi_mass_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -774,20 +776,20 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="CHI",&
-            description="Information to initialize the Ad-Langevin thermostat DOF chi.",&
+       CALL section_create(section,name=TRIM(sec_name),&
+            description="Information to initialize the Ad-Langevin thermostat DOF "//TRIM(sec_name),&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial thermostat DOF chi for Ad-Langevin thermostat.",repeats=.TRUE.,&
+            description="Specify an initial thermostat DOF "//TRIM(sec_name)//" for Ad-Langevin thermostat.",repeats=.TRUE.,&
             unit_str="fs^-1",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
-  END SUBROUTINE create_thermo_chi_section
+  END SUBROUTINE create_thermo_chi_mass_section
 
 ! *****************************************************************************
 !> \brief Creates the thermostat energy restarting section
