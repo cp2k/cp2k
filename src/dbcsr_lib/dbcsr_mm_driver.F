@@ -27,8 +27,7 @@ MODULE dbcsr_mm_driver
                                              mm_stack_size
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_create_streams,&
                                              dbcsr_cuda_destroy_streams,&
-                                             dbcsr_cuda_device_sync,&
-                                             dbcsr_cuda_init
+                                             dbcsr_cuda_device_sync
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
                                              dbcsr_cuda_dev_mem_dealloc,&
                                              dbcsr_cuda_dev_mem_new,&
@@ -132,9 +131,6 @@ MODULE dbcsr_mm_driver
             STOP "dbcsr_mm_driver_lib_init: mm_stack_size is too large"
          IF(nthreads*nstacks*n_stack_buffers > 2**15)&
             STOP "dbcsr_mm_driver_lib_init: nthreads*nstacks*n_stack_buffers is too large"
-
-        !TODO: do we want to support multiple cards? Search: ma_set_gpu_affinity
-        CALL dbcsr_cuda_init(error=error)
 
         ! 1. Things that are shared between threads.
         !-----------------------------------------------------------------------

@@ -36,10 +36,13 @@ MODULE dbcsr_operations
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
   USE dbcsr_config,                    ONLY: dbcsr_init_conf,&
+                                             has_cuda,&
                                              is_configured,&
                                              mm_async,&
                                              mm_driver,&
                                              mm_driver_plasma
+  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_get_n_devices,&
+                                             dbcsr_cuda_init
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
@@ -75,6 +78,7 @@ MODULE dbcsr_operations
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_allgather,&
                                              mp_bcast,&
+                                             mp_environ,&
                                              mp_recv,&
                                              mp_send,&
                                              mp_sum
@@ -136,6 +140,8 @@ MODULE dbcsr_operations
                                              dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE ma_affinity,                     ONLY: ma_set_gpu_affinity
+  USE machine_architecture_types,      ONLY: has_ma
 
   !$ USE OMP_LIB
 
@@ -4588,16 +4594,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_lib', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle
+    INTEGER                                  :: error_handle, mynode, ngpus, &
+                                                numnode
 
-!n_stack_buffers,mem_type, n_stack_mem_regions, stack_size, nstacks,&
-!INTEGER, DIMENSION(3)                    :: nxstacks
-!   ---------------------------------------------------------------------------
 !TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
 
     IF (is_configured) RETURN
+
     CALL dbcsr_error_set(routineN, error_handle, error)
-    !
+
     CALL dbcsr_assert (int_1_size, "EQ", 1,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Incorrect assumption of an 8-bit integer size!",&
@@ -4617,9 +4622,23 @@ CONTAINS
 
     CALL dbcsr_init_conf (error)
 
-    !$omp parallel default(none)  shared(error)
+#if defined (__DBCSR_CUDA)
+    IF (has_cuda) THEN
+       CALL mp_environ(numnode, mynode, group)
+       ngpus = dbcsr_cuda_get_n_devices(error)
+       !$OMP PARALLEL default(none), shared(mynode, ngpus, error)
+       IF (has_ma) THEN
+          CALL dbcsr_cuda_init(card_num=ma_set_gpu_affinity(mynode), error=error)
+       ELSE
+          CALL dbcsr_cuda_init(card_num=MOD(mynode, ngpus), error=error)
+       ENDIF
+       !$OMP END PARALLEL
+    ENDIF
+#endif
+
+    !$OMP PARALLEL default(none), shared(error)
     CALL dbcsr_mm_cannon_lib_init(error)
-    !$omp end parallel
+    !$OMP END PARALLEL
 
     is_configured = .TRUE.
     CALL dbcsr_error_stop (error_handle, error)
