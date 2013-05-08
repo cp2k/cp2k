@@ -17,6 +17,8 @@ FCFLAGS=" -O3 -ffast-math -funroll-loops -ftree-vectorize -fno-omit-frame-pointe
 # Intel Flags
 #FC_comp="ftn -free"
 #FCFLAGS="-O3"
+# -openmp flag required for correct behaviour if building CP2K with OpenMP
+#FCFLAGS="-O3 -openmp"
 
 # PGI Flags
 #FC_comp="ftn -Mfree"
