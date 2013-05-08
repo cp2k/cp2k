@@ -733,6 +733,7 @@ CONTAINS
           CPPrecondition(.NOT.(gapw .OR. gapw_xc),cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
              CALL integrate_rho_nlcc(v_rspace_new(ispin),qs_env,error=error)
+             IF(dft_control%do_admm)CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin),qs_env,error=error)
           END DO
        ENDIF
 

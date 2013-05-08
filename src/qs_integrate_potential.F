@@ -675,9 +675,6 @@ CONTAINS
 
            IF (use_virial) THEN
              virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Virial not debuged for NLCC", &
-                  error=error, error_level=cp_failure_level)
            END IF
          END DO
 
