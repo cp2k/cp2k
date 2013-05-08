@@ -82,9 +82,56 @@ END FUNCTION m_cputime
 ! *****************************************************************************
   FUNCTION m_memory()
 
-    INTEGER(KIND=int_8)                      :: m_memory
+      INTEGER(KIND=int_8)                      :: m_memory
+      INTEGER(KIND=int_8)                      :: m1,m2,m3
 
+      !
+      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
+      ! lead to linking errors or /proc/self/statm can not be opened
+      !
+#if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
       m_memory=0
+#else
+      CHARACTER(LEN=80) :: DATA
+      INTEGER :: iostat,i
+
+      ! the size of a page, might not be available everywhere
+      INTERFACE
+       FUNCTION getpagesize() BIND(C,name="getpagesize") RESULT(RES)
+         USE ISO_C_BINDING
+         INTEGER(C_INT) :: RES
+       END FUNCTION
+      END INTERFACE
+
+      !
+      ! reading from statm
+      !
+      m_memory=-1
+      DATA=""
+      OPEN(121245,FILE="/proc/self/statm",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
+      DO I=1,80
+         READ(121245,END=999) DATA(I:I)
+      ENDDO
+999   CLOSE(121245)
+      DATA(I:80)=""
+      ! m1 = total
+      ! m2 = resident
+      ! m3 = shared
+      READ(DATA,*,IOSTAT=iostat) m1,m2,m3
+      IF (iostat.NE.0) THEN
+         m_memory=0
+      ELSE
+         m_memory=m1
+#if defined(__STATM_TOTAL)
+         m_memory=m1
+#endif
+#if defined(__STATM_RESIDENT)
+         m_memory=m2
+#endif
+         m_memory=m_memory*getpagesize()
+      ENDIF
+#endif
+
   END FUNCTION m_memory
 
 ! *** get more detailed memory info, all units are bytes.
@@ -94,9 +141,13 @@ END FUNCTION m_cputime
 ! *** zero means not available
   SUBROUTINE m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
 
-    INTEGER(kind=int_8), OPTIONAL            :: MemTotal, MemFree, Buffers, &
-                                                Cached, Slab, SReclaimable, &
-                                                MemLikelyFree
+     INTEGER(kind=int_8), OPTIONAL :: MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree
+
+     INTEGER, PARAMETER :: Nbuffer=10000
+     CHARACTER(LEN=Nbuffer) :: meminfo
+
+
+     INTEGER :: i
 
      MemTotal=0
      MemFree=0
@@ -105,6 +156,47 @@ END FUNCTION m_cputime
      Slab=0
      SReclaimable=0
      MemLikelyFree=0
+     meminfo=""
+
+     OPEN(UNIT=8123,file="/proc/meminfo",ACCESS="STREAM",ERR=901)
+     i=0
+     DO
+       i=i+1
+       IF (i>Nbuffer) EXIT
+       READ(8123,END=900,ERR=900) meminfo(i:i)
+     ENDDO
+ 900 CONTINUE
+     meminfo(i:Nbuffer)=""
+ 901 CONTINUE
+     CLOSE(8123,ERR=902)
+ 902 CONTINUE
+     MemTotal=get_field_value_in_bytes('MemTotal:')
+     MemFree=get_field_value_in_bytes('MemFree:')
+     Buffers=get_field_value_in_bytes('Buffers:')
+     Cached=get_field_value_in_bytes('Cached:')
+     Slab=get_field_value_in_bytes('Slab:')
+     SReclaimable=get_field_value_in_bytes('SReclaimable:')
+     ! opinions here vary but this might work
+     MemLikelyFree=MemFree+Buffers+Cached+SReclaimable
+
+
+  CONTAINS
+        INTEGER(int_8) FUNCTION get_field_value_in_bytes(field)
+           CHARACTER(LEN=*) :: field
+           INTEGER :: start
+           INTEGER(KIND=8) :: value
+           get_field_value_in_bytes=0
+           start=INDEX(meminfo,field)
+           IF (start.NE.0) THEN
+              start=start+LEN_TRIM(field)
+              IF (start.LT.Nbuffer) THEN
+                 READ(meminfo(start:),*,ERR=999,END=999) value
+                 ! XXXXXXX convert from Kb to bytes XXXXXXXX
+                 get_field_value_in_bytes=value*1024
+ 999             CONTINUE
+              ENDIF
+           ENDIF
+        END FUNCTION
 
   END SUBROUTINE m_memory_details
 
