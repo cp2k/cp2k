@@ -153,9 +153,9 @@ END SUBROUTINE
 
 ! *****************************************************************************
 
-FUNCTION fftw3_is_mkl_wrapper RESULT(is_mkl)
+FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
 
-USE fft_kinds,                          ONLY : dp, integer8_kind
+  USE fft_kinds,                          ONLY : dp, integer8_kind
 
   IMPLICIT NONE
 
@@ -233,7 +233,7 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
                                  input, output, &
                                  fft_direction, fftw_plan_type, rows_per_th, & 
                                  rows_per_th_r) 
-    USE fft_kinds,                          ONLY : dp, integer8_kind
+  USE fft_kinds,                          ONLY : dp, integer8_kind
 
   IMPLICIT NONE
 
