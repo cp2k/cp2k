@@ -153,6 +153,54 @@ END SUBROUTINE
 
 ! *****************************************************************************
 
+FUNCTION fftw3_is_mkl_wrapper RESULT(is_mkl)
+
+USE fft_kinds,                          ONLY : dp, integer8_kind
+
+  IMPLICIT NONE
+
+  LOGICAL :: is_mkl
+  LOGICAL :: guru_supported
+  INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
+             howmany_n(2), howmany_istride(2), howmany_ostride(2)
+  INTEGER (KIND=integer8_kind) :: test_plan
+  COMPLEX(KIND=dp), DIMENSION(1,1,1) :: zin
+
+#if defined ( __FFTW3 )
+#include "fftw3.f"
+
+  ! Attempt to create a plan with the guru interface for a 2d sub-space
+  ! If this fails (e.g. for MKL's FFTW3 interface), fall back to the
+  ! FFTW3 threaded 3D transform instead of the hand-optimised version
+  dim_n(1) = 1
+  dim_istride(1) = 1
+  dim_ostride(1) = 1
+  howmany_n(1) = 1
+  howmany_n(2) = 1
+  howmany_istride(1) = 1
+  howmany_istride(2) = 1
+  howmany_ostride(1) = 1
+  howmany_ostride(2) = 1
+  CALL fftw3_create_guru_plan(test_plan,1, &
+                              dim_n,dim_istride,dim_ostride, &
+                              2,howmany_n,howmany_istride,howmany_ostride, &
+                              zin, zin, &
+                              FFTW_FORWARD, FFTW_ESTIMATE, guru_supported)
+  IF (guru_supported) THEN
+    CALL XFFTW_DESTROY_PLAN(test_plan)
+    is_mkl = .FALSE.
+  ELSE
+    is_mkl = .TRUE.
+  ENDIF
+
+#else
+  is_mkl = .FALSE.
+#endif 
+
+END FUNCTION
+
+! *****************************************************************************
+
 SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,&
                                      remaining,th_planA, th_planB)
 
@@ -239,7 +287,6 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
   INTEGER                                            :: plan_style
-  LOGICAL                                            :: guru_supported
   INTEGER                                            :: n1,n2,n3
   INTEGER                                            :: nt
   INTEGER                                            :: rows_per_th, remaining 
@@ -251,6 +298,8 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   ! GURU Interface
   INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
              howmany_n(2), howmany_istride(2), howmany_ostride(2)
+
+  LOGICAL :: fftw3_is_mkl_wrapper
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
@@ -290,28 +339,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 !$OMP END MASTER
 !$OMP END PARALLEL
 
-    ! Attempt to create a plan with the guru interface for a 2d sub-space
-    ! If this fails (e.g. for MKL's FFTW3 interface), fall back to the
-    ! FFTW3 threaded 3D transform instead of the hand-optimised version
-    dim_n(1) = 1
-    dim_istride(1) = 1
-    dim_ostride(1) = 1
-    howmany_n(1) = 1 
-    howmany_n(2) = 1
-    howmany_istride(1) = 1
-    howmany_istride(2) = 1
-    howmany_ostride(1) = 1
-    howmany_ostride(2) = 1
-    CALL fftw3_create_guru_plan(plan%fftw_plan_nx,1, &
-                                 dim_n,dim_istride,dim_ostride, &
-                                 2,howmany_n,howmany_istride,howmany_ostride, &
-                                 zin, zin, &
-                                 fft_direction, fftw_plan_type, guru_supported)
-    IF (guru_supported) THEN
-       CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
-    ENDIF
-
-  IF ( (.NOT. guru_supported ) .OR. &
+  IF ( (fftw3_is_mkl_wrapper()) .OR. &
        (.NOT. plan_style == 1 ) .OR. &
        (n1 < 256 .AND. n2 < 256 .AND. n3 < 256 .AND. nt== 1)) THEN
     ! If the plan type is MEASURE, PATIENT and EXHAUSTIVE or
@@ -877,3 +905,4 @@ END SUBROUTINE fftw31dm
          CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
 #endif
       END
+

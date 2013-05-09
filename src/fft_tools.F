@@ -173,7 +173,9 @@ CONTAINS
 
     INTEGER                                  :: fft_library, istat, isuccess, &
                                                 iunit
-    LOGICAL                                  :: exist
+    LOGICAL                                  :: exist, fftw3_is_mkl_wrapper
+
+!$  INTEGER :: omp_get_max_threads
 
     use_fftsg_sizes = fftsg_sizes
     alltoall_sgl = alltoall
@@ -199,6 +201,18 @@ CONTAINS
              CLOSE(iunit)
           ENDIF
        ENDIF
+
+       ! Check if we have a real FFTW3 library, or are using MKL wrappers
+       ! Once Intel provide a fortran routine to set the number of threads
+       ! Using a single plan, can replace the stop_program() with it
+!$     IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
+!$        CALL stop_program(routineN,moduleN,__LINE__,&
+!$                          "Intel's FFTW3 interface to MKL is not "//&
+!$                          "thread-safe!  Please rebuild CP2K, linking "//&
+!$                          "against FFTW 3 from www.fftw.org. "//&
+!$                          "Now exiting...")
+!$     END IF
+
     ENDIF
 
     ! setup the FFT scratch pool, if one is associated, clear first
