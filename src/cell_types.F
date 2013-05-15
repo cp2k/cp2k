@@ -1130,6 +1130,7 @@ CPSourceFileRef,&
           DEALLOCATE(cell,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
+       NULLIFY(cell)
     END IF
 
   END SUBROUTINE cell_release

@@ -267,6 +267,7 @@ CONTAINS
           DEALLOCATE(virial,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDIF
+       NULLIFY(virial)
     END IF
   END SUBROUTINE virial_release
 
