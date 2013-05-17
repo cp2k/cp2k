@@ -459,8 +459,6 @@ CONTAINS
   
       DO WHILE (heap%n>0)  
 
-        WRITE(6,*) heap%n
-
         CALL kg_heap_pop(heap, key, error)
 
         this => graph(key)%vertex  
