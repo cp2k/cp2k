@@ -17,6 +17,8 @@ MODULE kg_vertex_coloring_methods
   USE bibliography,                    ONLY: Brelaz1979,&
                                              cite_reference
   USE f77_blas
+  USE input_constants,                 ONLY: kg_color_dsatur,&
+                                             kg_color_greedy
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kg_min_heap,                     ONLY: heap_fill,&
                                              heap_new,&
@@ -61,9 +63,14 @@ CONTAINS
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
 
-    INTEGER                                  :: i, imol, ineighbor, jmol, &
-                                                kmol, maxdegree, nneighbors, &
-                                                nnodes
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_create_graph', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, imol, ineighbor, &
+                                                jmol, kmol, maxdegree, &
+                                                nneighbors, nnodes
+
+    CALL timeset(routineN,handle)
 
 ! The array pairs contains all interacting (overlapping) pairs of molecules.
 ! It is assumed to be ordered in the following way:
@@ -131,18 +138,25 @@ CONTAINS
       graph(imol)%vertex%neighbors(ineighbor)%vertex => graph(kmol)%vertex
     END DO
 
+    CALL timestop(handle)
+
   END SUBROUTINE
 
   ! greedy algorithm
-  SUBROUTINE color_graph(graph, maxdegree, ncolors)
+  SUBROUTINE color_graph_greedy(graph, maxdegree, ncolors)
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
     INTEGER, INTENT(in)                      :: maxdegree
     INTEGER, INTENT(out)                     :: ncolors
 
-    INTEGER                                  :: color, i, j, newcolor, &
-                                                nneighbors, nnodes
+    CHARACTER(len=*), PARAMETER :: routineN = 'color_graph_greedy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: color, handle, i, j, &
+                                                newcolor, nneighbors, nnodes
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
+
+    CALL timeset(routineN,handle)
 
     ncolors=0
 
@@ -171,6 +185,8 @@ CONTAINS
 
     DEALLOCATE(color_present)
 
+    CALL timestop(handle)
+
   END SUBROUTINE
 
   ! prints the subset info to the screen - useful for vmd visualization
@@ -181,7 +197,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ncolors, unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: counter, i, j, nnodes
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_subsets', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: counter, handle, i, j, nnodes
+
+    CALL timeset(routineN,handle)
 
     IF (unit_nr>0) THEN
 
@@ -207,6 +228,8 @@ CONTAINS
       END DO
 
     END IF 
+
+    CALL timestop(handle)
 
   END SUBROUTINE
 
@@ -432,14 +455,17 @@ CONTAINS
       CALL kg_heap_fill(heap, graph, error) 
 
       ALLOCATE(color_present(nnodes))
+      color_present(:)=.FALSE.
   
       DO WHILE (heap%n>0)  
+
+        WRITE(6,*) heap%n
 
         CALL kg_heap_pop(heap, key, error)
 
         this => graph(key)%vertex  
 
-        color_present(:)=.FALSE.
+        color_present(1:ncolors)=.FALSE.
  
         newcolor=0
         nneighbors=0
@@ -495,8 +521,14 @@ CONTAINS
       INTENT(in), POINTER                    :: graph
     LOGICAL, INTENT(out)                     :: valid
 
-    INTEGER                                  :: i, j, nneighbors, nnodes
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_coloring', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, nneighbors, &
+                                                nnodes
     TYPE(vertex), POINTER                    :: neighbor, node
+
+    CALL timeset(routineN,handle)
 
     valid = .TRUE.
     nnodes = SIZE(graph)
@@ -514,6 +546,8 @@ CONTAINS
         END DO
       END IF
     END DO
+
+    CALL timestop(handle)
 
   END SUBROUTINE
  
@@ -567,8 +601,17 @@ CONTAINS
 
     CALL kg_create_graph(kg_env, pairs, graph)
 
-    ! CALL color_graph(graph, kg_env%maxdegree, ncolors) ! simple greedy algorithm
-    CALL kg_dsatur(kg_env, graph, ncolors, error)
+    SELECT CASE(kg_env%coloring_method)
+    CASE(kg_color_greedy)
+       ! simple greedy algorithm
+       CALL color_graph_greedy(graph, kg_env%maxdegree, ncolors) 
+    CASE(kg_color_dsatur)
+       ! color with max degree of saturation
+       CALL kg_dsatur(kg_env, graph, ncolors, error)
+    CASE DEFAULT
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+            routineP, "Coloring method not known.", error=error)
+    END SELECT
 
     valid=.FALSE.
     CALL check_coloring(graph, valid)

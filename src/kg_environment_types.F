@@ -61,6 +61,7 @@ MODULE kg_environment_types
     TYPE(subset_type), DIMENSION(:), POINTER      :: subset
     INTEGER                                       :: nsubsets
     INTEGER                                       :: maxdegree
+    INTEGER                                       :: coloring_method
   END TYPE kg_environment_type
 
 CONTAINS

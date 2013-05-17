@@ -125,6 +125,9 @@ CONTAINS
 
     kg_env%nsubsets=0
 
+    ! get coloring method settings
+    CALL section_vals_val_get(input,"DFT%KG_METHOD%COLORING_METHOD",i_val=kg_env%coloring_method,error=error)
+
     ! generate a new XC section with only the KE functional
     NULLIFY(xc_fun_section_kg, xc_section_kg)
 
@@ -367,10 +370,15 @@ CONTAINS
       DIMENSION(:, :), INTENT(INOUT)         :: pairs_buffer
     INTEGER, INTENT(INOUT)                   :: n
 
-    INTEGER                                  :: i, npairs
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_remove_duplicates', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, npairs
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: work
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
+
+    CALL timeset(routineN, handle)
 
     IF (n.GT.0) THEN
 
@@ -407,6 +415,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE
 
   ! writes the graph to file using the DIMACS standard format
@@ -430,10 +440,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_to_file', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imol, jmol, npairs
+    INTEGER                                  :: handle, i, imol, jmol, npairs
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sorted_pairs
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN, handle)
 
     failure=.FALSE.
 
@@ -477,6 +489,8 @@ CONTAINS
 
     DEALLOCATE(sorted_pairs)
 
+    CALL timestop(handle)
+
   END SUBROUTINE
 
   SUBROUTINE kg_build_subsets(kg_env, para_env, error)
@@ -484,9 +498,12 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: color, i, iab, iatom, imol, &
-                                                isub, jatom, jmol, nmol, &
-                                                npairs, npairs_local
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_subsets', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: color, handle, i, iab, iatom, &
+                                                imol, isub, jatom, jmol, &
+                                                nmol, npairs, npairs_local
     INTEGER(KIND=int_4)                      :: ncolors
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:)                           :: color_of_node
@@ -499,6 +516,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
 
 ! first: get a (local) list of pairs from the (local) neighbor list data
+
+    CALL timeset(routineN, handle)
 
     nmol = SIZE(kg_env%molecule_set)
 
@@ -569,7 +588,11 @@ CONTAINS
 
     ! second: gather all data on the master node
 
-    ALLOCATE(msg_gather(2,npairs*para_env%num_pe))
+    IF (para_env%source.EQ.para_env%mepos) THEN
+       ALLOCATE(msg_gather(2,npairs*para_env%num_pe))
+    ELSE
+       ALLOCATE(msg_gather(2,1))
+    ENDIF
 
     msg_gather=0
 
@@ -596,6 +619,8 @@ CONTAINS
 
       pairs(:,1:npairs) = msg_gather(:,1:npairs)
 
+      DEALLOCATE(msg_gather)
+
       !WRITE(*,'(A48,5X,I10,4X,A2,1X,I10)') " KG| Total number of overlapping molecular pairs",npairs/2,"of",nmol*(nmol-1)/2
 
       ! write to file, nnodes = number of molecules
@@ -606,11 +631,14 @@ CONTAINS
 
       DEALLOCATE(pairs)
 
+    ELSE
+
+      DEALLOCATE(msg_gather)
+
     END IF
 
     !WRITE(*,'(A27,40X,I6,1X,A6)') ' KG| Vertex coloring result', ncolors, 'colors'
 
-    DEALLOCATE(msg_gather)
 
     ! broadcast the number of colors to all nodes
     CALL mp_bcast(ncolors, para_env%source, para_env%group)
@@ -684,6 +712,8 @@ CONTAINS
     DEALLOCATE(index_of_color)
 
     DEALLOCATE(color_of_node)
+
+    CALL timestop(handle)
 
   END SUBROUTINE
 

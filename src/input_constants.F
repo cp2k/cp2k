@@ -929,4 +929,8 @@ MODULE input_constants
                                               cell_sym_hexagonal=8,&
                                               cell_sym_cubic=9
 
+  ! kg coloring parameters
+  INTEGER, PARAMETER, PUBLIC               :: kg_color_dsatur=0,&
+                                              kg_color_greedy=1
+
 END MODULE input_constants

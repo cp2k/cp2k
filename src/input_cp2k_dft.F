@@ -4505,7 +4505,19 @@ CONTAINS
             citations=(/Iannuzzi2006, Brelaz1979/),error=error)
       
        NULLIFY (keyword, subsection, print_key)
- 
+
+       CALL keyword_create(keyword, name="COLORING_METHOD",&
+            description="Which algorithm to use for coloring.",&
+            usage="COLORING_METHOD GREEDY",&
+            default_i_val=kg_color_dsatur,&
+            enum_c_vals=s2a( "DSATUR", "GREEDY"),&
+            enum_desc=s2a("Maximum degree of saturation, relatively accurate",&
+                          "Greedy, fast coloring, less accurate"),&
+            enum_i_vals=(/kg_color_dsatur, kg_color_greedy /),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_create(subsection, name="PRINT",&
             description="Print section",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
