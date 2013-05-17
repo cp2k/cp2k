@@ -181,7 +181,7 @@ CONTAINS
 
     INTEGER :: atom_a, handle, ia, iat, iatom, iatom_local, ikind, imol, &
       natom, natom_a, natom_local_a, natom_local_b, nel, nkind, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom2mol, listindex, listsort
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
                                                 local_cols_array, &
                                                 local_rows_array
@@ -202,6 +202,15 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind)
+
+    IF ( molecule_only ) THEN
+       ALLOCATE(atom2mol(natom))            
+       DO imol=1,SIZE(molecule_set)
+          DO iat=molecule_set(imol)%first_atom,molecule_set(imol)%last_atom
+             atom2mol(iat)=imol
+          ENDDO
+       END DO
+    ENDIF
 
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
@@ -269,15 +278,7 @@ CONTAINS
                 atom_a = local_rows_array(iatom_local)
                 iatom = locate(listsort,atom_a)
                 atom2d(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
-                IF ( molecule_only ) THEN
-                   DO imol=1,SIZE(molecule_set)
-                      IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
-                           atom_a <= molecule_set(imol)%last_atom ) THEN
-                         atom2d(ikind)%list_a_mol(iatom_local) = imol
-                         EXIT
-                      END IF
-                   END DO
-                END IF
+                IF ( molecule_only ) atom2d(ikind)%list_a_mol(iatom_local) = atom2mol(atom_a)
              END DO
 
           END IF
@@ -296,15 +297,7 @@ CONTAINS
                 atom_a = local_cols_array(iatom_local)
                 iatom = locate(listsort,atom_a)
                 atom2d(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
-                IF (molecule_only) THEN
-                   DO imol=1,SIZE(molecule_set)
-                      IF ((atom_a >= molecule_set(imol)%first_atom).AND.&
-                           (atom_a <= molecule_set(imol)%last_atom)) THEN
-                         atom2d(ikind)%list_b_mol(iatom_local) = imol
-                         EXIT
-                      END IF
-                   END DO
-                END IF
+                IF (molecule_only) atom2d(ikind)%list_b_mol(iatom_local) = atom2mol(atom_a)
              END DO
 
           END IF
