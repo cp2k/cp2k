@@ -265,3 +265,5 @@ N3dye_vib_bfgs.inp
 N3dye_vib_bfgs2.inp
 #  
 phenobenz.inp
+# use double precision
+argon_GENPOT_fcc-ql.inp

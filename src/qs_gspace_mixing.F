@@ -767,7 +767,7 @@ CONTAINS
     END IF
 
     DO ispin = 1,nspin
-      res_rho  = CMPLX(0.0_dp,0.0_dp)
+      res_rho  = CMPLX(0.0_dp,0.0_dp,KIND=dp)
       DO ig = 1,ng
          res_rho(ig) = rho%rho_g(ispin)%pw%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
       END DO
@@ -1274,7 +1274,7 @@ CONTAINS
            END DO
         END IF
         DO jb = 1,ib-1
-          tmp(:) = CMPLX(0.0_dp,0.0_dp)
+          tmp(:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
           IF(.NOT. skip_bq) THEN
             ! sum_{kb} bq(jb,kb) * z_vec_{kb,iter-2}
             ! added only for small weights
@@ -1311,7 +1311,7 @@ CONTAINS
         END IF
 
         ! Overwrite the density i reciprocal space
-        rho%rho_g(ispin)%pw%cc(:) = CMPLX(0.0_dp,0.0_dp)
+        rho%rho_g(ispin)%pw%cc(:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
         DO jb =1,ib-1
           norm = 0.0_dp
           DO ig= 1,ng
@@ -1529,7 +1529,7 @@ CONTAINS
     DO ispin = 1,nspin
      ! generate the global vector with the present residual
       gn =>  mixing_store%res_buffer(ib,ispin)%cc
-      gn_global = CMPLX(0.0_dp, 0.0_dp)
+      gn_global = CMPLX(0.0_dp, 0.0_dp,KIND=dp)
       DO ig = 1,ng
          ig_global = mixing_store%ig_global_index(ig)
          gn_global(ig_global) = gn(ig)
@@ -1626,9 +1626,9 @@ CONTAINS
       CALL invert_matrix(b_matrix,binv_matrix,inv_err,error=error)
 
       ! A = Binv Ynorm^t
-      a_matrix = CMPLX(0.0_dp,0.0_dp)
+      a_matrix = CMPLX(0.0_dp,0.0_dp,KIND=dp)
       DO kb = 1,nb
-         res_matrix_global = CMPLX(0.0_dp, 0.0_dp)
+         res_matrix_global = CMPLX(0.0_dp, 0.0_dp,KIND=dp)
          DO ig = 1,ng
             ig_global = mixing_store%ig_global_index(ig)
             res_matrix_global(ig_global) = res_matrix(ig,kb)
@@ -1657,7 +1657,7 @@ CONTAINS
                    a_matrix(1,1),nb,czero,ya(1,1),ng)
         DO ig = 1,ng
            ig_global = mixing_store%ig_global_index(ig)
-           ya(ig,ig_global) =  ya(ig,ig_global) + CMPLX(1.0_dp,0.0_dp)
+           ya(ig,ig_global) =  ya(ig,ig_global) + CMPLX(1.0_dp,0.0_dp,KIND=dp)
         END DO
 
         CALL zgemv("N",ng,ng_global,cone,sa(1,1),&
@@ -1690,15 +1690,15 @@ CONTAINS
 
       ELSE
         DO ig = 1,ng
-          pgn(ig) =   CMPLX(0.0_dp,0.0_dp)
-          ugn(ig) =   CMPLX(0.0_dp,0.0_dp)
+          pgn(ig) =   CMPLX(0.0_dp,0.0_dp,KIND=dp)
+          ugn(ig) =   CMPLX(0.0_dp,0.0_dp,KIND=dp)
           ig_global =  mixing_store%ig_global_index(ig)
           DO iig = 1,ng_global
-             saa = CMPLX(0.0_dp,0.0_dp)
-             yaa = CMPLX(0.0_dp,0.0_dp)
+             saa = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+             yaa = CMPLX(0.0_dp,0.0_dp,KIND=dp)
 
-!            IF(ig_global==iig) ya(ig,ig_global) =  CMPLX(1.0_dp,0.0_dp)
-            IF(ig_global==iig) yaa =  CMPLX(1.0_dp,0.0_dp)
+!            IF(ig_global==iig) ya(ig,ig_global) =  CMPLX(1.0_dp,0.0_dp,KIND=dp)
+            IF(ig_global==iig) yaa =  CMPLX(1.0_dp,0.0_dp,KIND=dp)
 
             DO jb = 1,nb
                saa = saa - step_matrix(ig,jb)*a_matrix(jb,iig)

@@ -506,7 +506,7 @@ CONTAINS
     IF (.NOT.energy_only) THEN
        ALLOCATE(u_vdW(grid%ngpts_cut_local,nqs),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       u_vdW(:,:) = CMPLX(0.0_dp,0.0_dp)
+       u_vdW(:,:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
     END IF
 
     IF (grid%grid_span == HALFSPACE) THEN
@@ -528,7 +528,7 @@ CONTAINS
           theta(iq) = thetas_g(iq)%pw%cc(ig)
        END DO
        DO q2_i = 1, Nqs
-          uu = CMPLX(0.0_dp,0.0_dp)
+          uu = CMPLX(0.0_dp,0.0_dp,KIND=dp)
           DO q1_i = 1, Nqs
              uu  = uu + kernel_of_k(q2_i,q1_i)*theta(q1_i)
           END DO

@@ -2965,9 +2965,9 @@ CPSourceFileRef)
              ELSE
                 dylm = pre_fac*dplm
              ENDIF
-             ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
+             ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi),SIN(m*fi),KIND=dp))
              ylm = ylm + ylm_calc
-             ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
+             ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi),SIN(m*fi),KIND=dp))
              ymag = (SQRT(ylm_calc2*CONJG(ylm_calc2)))
              ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
              grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)

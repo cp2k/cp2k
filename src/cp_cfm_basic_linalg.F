@@ -144,7 +144,7 @@ CONTAINS
     IF (my_beta==0.0_dp) THEN
 
        IF (alpha==CMPLX(0.0_dp,0.0_dp,dp)) THEN
-          a(:,:)=CMPLX(0.0_dp,0.0_dp)
+          a(:,:)=CMPLX(0.0_dp,0.0_dp,dp)
        ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp,dp)) THEN
           RETURN
        ELSE
