@@ -533,8 +533,8 @@ CONTAINS
        eigval(indf) = eigval(indf) - ln
      END DO
      EXIT
-     END DO
 400  CONTINUE
+     END DO
 
      CALL timestop(handle)
 
