@@ -166,7 +166,6 @@ CONTAINS
        NULLIFY(input_file)
        ! parse the input of the training sets
        CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc),opt_bas,set_id,bas_id)
-
        CALL m_chdir(TRIM(opt_bas%training_dir(set_id)),ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
        input_file => create_cp2k_input_reading(opt_bas%training_input(set_id),&
@@ -264,9 +263,11 @@ CONTAINS
     ! ======  get rid of the f_env again =====          
    
     DO icalc=SIZE(opt_bas%comp_group(mp_id)%member_list),1,-1
+       CALL m_chdir(TRIM(opt_bas%training_dir(set_id)),ierr)
        CALL f_env_get_from_id(f_env_id(icalc),f_env,error)
        CALL f_env_rm_defaults(f_env, suberror(icalc),stat)
        CALL destroy_force_env(f_env_id(icalc), stat)
+       CALL m_chdir(TRIM(ADJUSTL(main_dir)),ierr)
     END DO
     DEALLOCATE(f_env_id) 
     DEALLOCATE(start_time)

@@ -982,7 +982,7 @@ CONTAINS
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=default_path_length)       :: basis_set_file_name, tmp
-    CHARACTER(LEN=default_string_length), &
+    CHARACTER(LEN=default_path_length), &
       DIMENSION(:), POINTER                  :: cbasis
     CHARACTER(LEN=LEN(basis_set_name))       :: bsname
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
@@ -1019,9 +1019,11 @@ CONTAINS
     END IF
     IF (.NOT.read_from_input) THEN
        CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-            c_vals=cbasis,error=error)
-       nbasis = SIZE(cbasis)
+            n_rep_val=nbasis,error=error)
+       ALLOCATE(cbasis(nbasis))
        DO ibasis = 1,nbasis
+         CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
+              i_rep_val=ibasis,c_val=cbasis(ibasis),error=error)
          NULLIFY(parser)
          basis_set_file_name = cbasis(ibasis)
          tmp=basis_set_file_name
@@ -1386,6 +1388,8 @@ CONTAINS
              TRIM(basis_set_file_name),para_env)
       END IF
     END IF
+    IF (.NOT.read_from_input) DEALLOCATE(cbasis)
+     
 
   END SUBROUTINE read_gto_basis_set
 

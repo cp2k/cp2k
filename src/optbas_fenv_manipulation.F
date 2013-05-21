@@ -22,7 +22,8 @@ MODULE optbas_fenv_manipulation
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              flex_basis_type
   USE particle_types,                  ONLY: particle_type
@@ -68,9 +69,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atom, orig_basis
-    CHARACTER(LEN=default_string_length), &
+    CHARACTER(LEN=default_path_length), &
       DIMENSION(:), POINTER                  :: new_basis, old_basis
-    INTEGER                                  :: ibasis, ikind, jkind, nkind
+    INTEGER                                  :: ibasis, ikind, jkind, nkind, nbasis
     TYPE(section_vals_type), POINTER         :: admm_section, dft_section, &
                                                 feval_section, kind_section, &
                                                 subsys_section
@@ -88,12 +89,9 @@ CONTAINS
      CALL section_vals_val_set(admm_section,"METHOD",i_val=do_admm_basis_set_projection,error=error)
 
      ! add the new basis file containing the templates to the basis file list 
-     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",c_vals=old_basis,error=error)
-     ALLOCATE(new_basis(SIZE(old_basis)+1))
-     new_basis(1:SIZE(old_basis))=old_basis(:)
-     new_basis(SIZE(old_basis)+1)=basis_optimization%work_basis_file
-     CALL section_vals_val_set(dft_section,"BASIS_SET_FILE_NAME",&
-                               c_vals_ptr=new_basis,error=error)
+     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",n_rep_val=nbasis,error=error)
+     CALL section_vals_val_set(dft_section,"BASIS_SET_FILE_NAME",i_rep_val=nbasis+1,&
+                               c_val=basis_optimization%work_basis_file,error=error)
 
      ! Set the auxilarry basis in the kind sections
      CALL section_vals_get(kind_section,n_repetition=nkind,error=error)
@@ -273,11 +271,14 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
+    CHARACTER(default_string_length)         :: elem
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind,dft_control=dft_control,error=error)
     DO ikind=1,SIZE(atomic_kind)
        DO jkind=1,opt_bas%nkind
-           IF(atomic_kind(ikind)%element_symbol==opt_bas%kind_basis(jkind)%element)THEN
+           elem=atomic_kind(ikind)%name
+           CALL uppercase(elem)
+           IF(elem==opt_bas%kind_basis(jkind)%element)THEN
               ibasis=opt_bas%combination(bas_id,jkind)
               CALL transfer_data_to_gto(atomic_kind(ikind)%aux_fit_basis_set,&
                                         opt_bas%kind_basis(jkind)%flex_basis(ibasis),error)
