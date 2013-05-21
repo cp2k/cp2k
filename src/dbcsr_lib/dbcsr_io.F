@@ -1040,6 +1040,7 @@ CONTAINS
 
     ALLOCATE(linfo_lens(size_of_pgrid))
     ALLOCATE(subh3_disps(size_of_pgrid))
+    ALLOCATE(subh3_offsets(size_of_pgrid))
     linfo_lens = 0; subh3_disps = 0
     DO i = 1, size_of_pgrid
        DO j = 1, share_size
@@ -1091,6 +1092,7 @@ CONTAINS
 !> compute the offsets and read block data
     ALLOCATE(bdata_lens(size_of_pgrid))
     ALLOCATE(bdata_disps(size_of_pgrid))
+    ALLOCATE(bdata_offsets(size_of_pgrid))
     bdata_lens = 0
     DO i = 1, size_of_pgrid
        DO j = 1, share_size
