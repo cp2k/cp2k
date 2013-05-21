@@ -12,11 +12,11 @@ AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn -D__ELPA
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O2 -openmp -pad -mavx -vec-report2 -warn -funroll-loops -fpp -free \
+FCFLAGS  = $(DFLAGS) -O3 -openmp -pad -opt-prefetch -mavx -vec-report2 -warn -funroll-loops -fpp -free \
            -nogen-interfaces 
 LDFLAGS  = $(FCFLAGS) -static /project/cray/alazzaro/intel_affinity_cray/thread_alert.o
 MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
-LIBS     =  /project/cray/alazzaro/cp2k/trunk/cp2k/tools/build_libsmm_joost/lib/libsmm_dnn.a \
+LIBS     = /project/cray/alazzaro/libsmm/intel_avx/libsmm_dnn.a \
            -lfftw3 -lfftw3_threads \
            -Wl,--start-group \
 	   ${MKL_LIB}/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
