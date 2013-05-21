@@ -4684,6 +4684,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RESTART_WRITE",&
+            description="Write the density matrix at the end of the SCF (currently requires EXTRAPOLATION_ORDER>0). "//&
+                        "Files might be rather large.",&
+            usage="RESTART_READ", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_READ",&
+            description="Read the density matrix before the (first) SCF.",&
+            usage="RESTART_READ", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="S_INVERSION",&
             description="Method used to compute the inverse of S.",&

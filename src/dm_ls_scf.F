@@ -18,10 +18,11 @@ MODULE dm_ls_scf
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_set
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_binary_read, &
+       cp_dbcsr_binary_write, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
@@ -56,7 +57,8 @@ MODULE dm_ls_scf
   USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                              matrix_sqrt_newton_schulz,&
                                              purify_mcweeny
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: binomial
   USE molecule_types_new,              ONLY: molecule_of_atom,&
@@ -284,9 +286,14 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_initial_guess', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: aspc_guess = 2, &
+                                                atomic_guess = 1, &
+                                                restart_guess = 3
 
-    INTEGER                                  :: handle, iaspc, ispin, istore, &
-                                                naspc, unit_nr
+    CHARACTER(LEN=default_path_length)       :: file_name
+    INTEGER                                  :: handle, iaspc, &
+                                                initial_guess_type, ispin, &
+                                                istore, naspc, unit_nr
     REAL(KIND=dp)                            :: alpha, energy
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
@@ -301,14 +308,32 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    ! if there is no history go for the atomic guess, otherwise extrapolate the dm history
+
     IF (unit_nr>0) WRITE(unit_nr,'()')
+    ! if there is no history go for the atomic guess, otherwise extrapolate the dm history
     IF (ls_scf_env%scf_history%istore==0) THEN
-       CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init,error)
+       IF (ls_scf_env%restart_read) THEN
+         initial_guess_type=restart_guess
+       ELSE
+         initial_guess_type=atomic_guess
+       ENDIF
     ELSE
+       initial_guess_type=aspc_guess
+    ENDIF
+
+    ! how to get the initial guess
+    SELECT CASE(initial_guess_type)
+    CASE(atomic_guess)
+       CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init,error)
+    CASE(restart_guess)
+       DO ispin=1,SIZE(ls_scf_env%matrix_p)
+          WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+          CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
+                                    matrix_new=ls_scf_env%matrix_p(ispin), error=error)
+       ENDDO
+    CASE(aspc_guess)
        CALL cite_reference(Kolafa2004)
        naspc=MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
-
        DO ispin=1,SIZE(ls_scf_env%matrix_p)
           ! actual extrapolation
           CALL cp_dbcsr_set(ls_scf_env%matrix_p(ispin),0.0_dp,error=error)
@@ -318,7 +343,15 @@ CONTAINS
              istore=MOD(ls_scf_env%scf_history%istore-iaspc,ls_scf_env%scf_history%nstore)+1
              CALL cp_dbcsr_add(ls_scf_env%matrix_p(ispin), ls_scf_env%scf_history%matrix(ispin,istore), 1.0_dp, alpha, error=error)
           ENDDO
+       ENDDO
+    END SELECT
 
+    ! which cases need getting purified and non-orthogonal ?
+    SELECT CASE(initial_guess_type)
+    CASE(atomic_guess)
+      ! do nothing
+    CASE(aspc_guess,restart_guess)
+       DO ispin=1,SIZE(ls_scf_env%matrix_p)
           ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
           IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
           CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin),ls_scf_env%eps_filter,3,error)
@@ -345,7 +378,7 @@ CONTAINS
 
        ! compute corresponding energy and ks matrix
        CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,error)
-    ENDIF
+    END SELECT
 
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",ls_scf_env%energy_init
@@ -369,6 +402,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_store_result', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: handle, ispin, istore, unit_nr
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
@@ -409,6 +443,11 @@ CONTAINS
                                           0.0_dp, ls_scf_env%scf_history%matrix(ispin,istore) , &
                                           filter_eps=ls_scf_env%eps_filter,error=error)
              CALL cp_dbcsr_release(matrix_tmp1,error=error)
+          ENDIF
+
+          IF (ls_scf_env%restart_write) THEN
+             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+             CALL cp_dbcsr_binary_write(ls_scf_env%scf_history%matrix(ispin,istore),file_name,error)
           ENDIF
 
        ENDDO
@@ -594,6 +633,8 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"DYNAMIC_THRESHOLD",l_val=ls_scf_env%dynamic_threshold,error=error)
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=ls_scf_env%sign_sqrt_order,error=error)
     CALL section_vals_val_get(ls_scf_section,"EXTRAPOLATION_ORDER",i_val=ls_scf_env%extrapolation_order,error=error)
+    CALL section_vals_val_get(ls_scf_section,"RESTART_READ",l_val=ls_scf_env%restart_read,error=error)
+    CALL section_vals_val_get(ls_scf_section,"RESTART_WRITE",l_val=ls_scf_env%restart_write,error=error)
     CALL section_vals_get(curvy_section, explicit=ls_scf_env%curvy_steps, error=error)
     CALL section_vals_val_get(curvy_section,"LINE_SEARCH",i_val=ls_scf_env%curvy_data%line_search_type,error=error)
     CALL section_vals_val_get(curvy_section,"N_BCH_HISTORY",i_val=ls_scf_env%curvy_data%n_bch_hist,error=error)

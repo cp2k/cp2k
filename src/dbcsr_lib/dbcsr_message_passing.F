@@ -1949,7 +1949,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: amode_status
     INTEGER, INTENT(IN), OPTIONAL            :: info
 
-    CHARACTER(len=3)                         :: fstatus
+    CHARACTER(len=10)                        :: fstatus
     INTEGER                                  :: ierr, my_info
 
     ierr = 0
@@ -1963,7 +1963,7 @@ CONTAINS
     IF ((amode_status .EQ. file_amode_create) .OR. &
         (amode_status .EQ. file_amode_create+file_amode_wronly) .OR. &
         (amode_status .EQ. file_amode_create+file_amode_wronly+file_amode_excl) ) THEN
-       fstatus = "NEW"
+       fstatus = "UNKNOWN"
     ELSE
        fstatus = "OLD"
     END IF 
