@@ -87,7 +87,9 @@ CPSourceFileRef,&
       np=0
       NULLIFY(my_particles)
       my_particles=>particles
-      IF (ASSOCIATED(my_particles)) np=my_particles%n_els
+      ! cube files can only be written for 99999 particles due to a format limitation (I5)
+      ! so we limit the number of particles written.
+      IF (ASSOCIATED(my_particles)) np=MIN(99999,my_particles%n_els)
 
       WRITE(unit_nr,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
 
