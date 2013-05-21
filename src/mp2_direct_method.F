@@ -156,9 +156,8 @@ MODULE mp2_direct_method
     INTEGER, DIMENSION(:, :), POINTER, SAVE  :: shm_is_assoc_atomic_block
     INTEGER, DIMENSION(:, :, :, :), POINTER  :: shm_set_offset
     INTEGER, SAVE                            :: shm_number_of_p_entries
-    LOGICAL                                  :: alpha_beta_case = .FALSE., &
-                                                do_periodic, failure, &
-                                                treat_lsd_in_core
+    LOGICAL                                  :: alpha_beta_case, do_periodic, &
+                                                failure, treat_lsd_in_core
     LOGICAL, DIMENSION(:, :), POINTER        :: shm_atomic_pair_list
     REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, &
       compression_factor, compression_factor_disk, cost_tmp, eps_schwarz, &
@@ -226,6 +225,8 @@ MODULE mp2_direct_method
       POINTER                                :: particle_set
 
     CALL timeset(routineN,handle)
+
+    alpha_beta_case=.FALSE.
 
     irep=1
 
