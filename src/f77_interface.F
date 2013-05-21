@@ -913,9 +913,9 @@ CPSourceFileRef,&
     END IF
     timer_env => get_timer_env()
     mp_perf_env => get_mp_perf_env()
+    CALL mp_max(last_f_env_id,para_env%group)
     last_f_env_id=last_f_env_id+1
     new_env_id=last_f_env_id
-    CALL mp_max(last_f_env_id,para_env%group)
     n_f_envs=n_f_envs+1
     CALL f_env_create(f_envs(n_f_envs)%f_env,template_error=error,&
          timer_env=timer_env,mp_perf_env=mp_perf_env,force_env=force_env,&
