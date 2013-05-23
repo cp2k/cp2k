@@ -705,17 +705,18 @@ CONTAINS
 !> \brief Writes a DBCSR matrix in a file
 !>   file's header consists of 3 sub-headers:
 !>   sub-header1 contains: 
-!>     1 string: (of length version_len) the current version of this routine
-!>     1 string: (of length default_string_length) matrix_name 
-!>     1 character: matrix_type 
-!>     4 integers: numnodes, data_type, nblkrows_total, nblkcols_total
+!>     1 string: (of length version_len) the current version of this routine, 
+!>     1 string: (of length default_string_length) matrix_name, 
+!>     1 character: matrix_type, 
+!>     4 integers: numnodes, data_type, nblkrows_total, nblkcols_total, 
 !>     2 vectors:  row_blk_size (length = nblkrows_total), 
-!>                 col_blk_size (length = nblkcols_total) 
+!>                 col_blk_size (length = nblkcols_total), 
 !>   sub-header2 contains:
-!>     2 integers: nblks, data_area_size
+!>     2 integers: nblks, data_area_size, 
 !>   sub-header3 contains: 
-!>     3 vectors:  row_p (length = nblkrows_total+1), 
-!>                 col_i (length = nblks), blk_p (length = nblks)
+!>     3 vectors:  row_p (length = nblkrows_total+1),  
+!>                 col_i (length = nblks), 
+!>                 blk_p (length = nblks); 
 !>   and the file's body contains the block data
 !>
 !> \param[in] matrix    DBCSR matrix
@@ -801,6 +802,9 @@ CONTAINS
     subh3_disps = BOF
     bdata_disps = BOF
     linfo_sizes = BOF
+    subh2_offsets = BOF
+    subh3_offsets = BOF
+    bdata_offsets = BOF
     da_sizes = BOF
 
     ginfo_size = char_count+4+nblkrows_total+nblkcols_total
@@ -947,10 +951,10 @@ CONTAINS
     TYPE(array_i1d_obj)                            :: row_blk_size, col_blk_size
     TYPE(dbcsr_mp_obj)                             :: mp_env
     TYPE(dbcsr_data_obj)                           :: dblk
-    REAL(sp),DIMENSION(:),POINTER                  :: r_sp
-    REAL(dp),DIMENSION(:),POINTER                  :: r_dp
-    COMPLEX(sp),DIMENSION(:),POINTER               :: c_sp
-    COMPLEX(dp),DIMENSION(:),POINTER               :: c_dp
+    REAL(sp)                                       :: rsp_dummy(1)
+    REAL(dp)                                       :: rdp_dummy(1)
+    COMPLEX(sp)                                    :: csp_dummy(1)
+    COMPLEX(dp)                                    :: cdp_dummy(1)
     REAL(sp), ALLOCATABLE, DIMENSION(:),TARGET     :: rsp
     REAL(dp), ALLOCATABLE, DIMENSION(:),TARGET     :: rdp
     COMPLEX(sp), ALLOCATABLE, DIMENSION(:),TARGET  :: csp
@@ -1008,7 +1012,9 @@ CONTAINS
     subh3_start = subh2_start+2*size_of_pgrid*mpi_integer_size
  
 !> compute the offsets in sub-header2 and read 2 integers nblocks, data_area_size
-    share_size = CEILING(REAL(size_of_pgrid)/group_list_size)
+    ! number of data chunks from sub-header 2 and 3 to be read by every node rounded up 
+    ! to the next integer to make it even for all the nodes in the specified mpi group 
+    share_size = CEILING(REAL(size_of_pgrid)/group_list_size) 
 
     ALLOCATE(subh2_offsets(share_size))
     subh2_offsets = BOF
@@ -1028,13 +1034,15 @@ CONTAINS
        val_data(1,i) = nblocks  
        val_data(2,i) = data_area_size
        val_data(3,i) = worker_id+(i-1)*group_list_size+1   ! order 
+       ! order = indices of an array of length size_of_pgrid to be accessed by the current node 
     END DO
     nblks = SUM(val_data(1,:))
     darea_size = SUM(val_data(2,:))
     proc_nblks => val_data(1,:)           ! to be passed to dbcsr_datablock_redistribute
     proc_darea_sizes => val_data(2,:)     ! to be passed to dbcsr_datablock_redistribute
 
-!> compute the offsets in sub-header3 and read 3 vectors row_p, col_i, blk_p 
+!> compute the offsets in sub-header3 and read 3 vectors row_p, col_i, blk_p
+    ! actual number of chunks to be read by the current node 
     job_count = COUNT(val_data(3,:) .NE. 0)
     CALL mp_file_get_size(thefile, file_size)
 
@@ -1123,73 +1131,67 @@ CONTAINS
          ALLOCATE(rsp(darea_size))
          DO i = 1, share_size
             order = val_data(3,i)
+            !> use dummy one-sized data array as buffer in place of empty array 
+            !> when nothing is supposed to be read (order = 0)  
             IF (order .EQ. 0) THEN
-               start_index = 1
-               end_index = 1
-               blockdata_length = 0
                blockdata_offset = file_size
+               CALL mp_file_read_at_all(thefile, blockdata_offset, rsp_dummy)
             ELSE
                start_index = SUM(val_data(2,1:i-1))+1
                end_index = SUM(val_data(2,1:i))
                blockdata_length = bdata_lens(order)
                blockdata_offset = bdata_offsets(order)
+               CALL mp_file_read_at_all(thefile, blockdata_offset, rsp(start_index:end_index), &
+                                        msglen = blockdata_length)
             END IF
-            CALL mp_file_read_at_all(thefile, blockdata_offset, rsp(start_index:end_index), &
-                                 msglen = blockdata_length)
          END DO
     CASE (dbcsr_type_real_8)
          ALLOCATE(rdp(darea_size))
          DO i = 1, share_size
             order = val_data(3,i)
-            IF (order .EQ. 0) THEN
-               start_index = 1
-               end_index = 1
-               blockdata_length = 0
+            IF (order .EQ. 0)  THEN
                blockdata_offset = file_size
+               CALL mp_file_read_at_all(thefile, blockdata_offset, rdp_dummy)
             ELSE
                start_index = SUM(val_data(2,1:i-1))+1
                end_index = SUM(val_data(2,1:i))
                blockdata_length = bdata_lens(order)
                blockdata_offset = bdata_offsets(order)
+               CALL mp_file_read_at_all(thefile, blockdata_offset, rdp(start_index:end_index), &
+                                        msglen = blockdata_length)
             END IF
-            CALL mp_file_read_at_all(thefile, blockdata_offset, rdp(start_index:end_index), &
-                                 msglen = blockdata_length)
          END DO
     CASE (dbcsr_type_complex_4)
          ALLOCATE(csp(darea_size))
          DO i = 1, share_size
             order = val_data(3,i)
             IF (order .EQ. 0) THEN
-               start_index = 1
-               end_index = 1
-               blockdata_length = 0
                blockdata_offset = file_size
+               CALL mp_file_read_at_all(thefile, blockdata_offset, csp_dummy)
             ELSE
                start_index = SUM(val_data(2,1:i-1))+1
                end_index = SUM(val_data(2,1:i))
                blockdata_length = bdata_lens(order)
                blockdata_offset = bdata_offsets(order)
+               CALL mp_file_read_at_all(thefile, blockdata_offset, csp(start_index:end_index), &
+                                        msglen = blockdata_length)
             END IF
-            CALL mp_file_read_at_all(thefile, blockdata_offset, csp(start_index:end_index), &
-                                 msglen = blockdata_length)
          END DO
     CASE (dbcsr_type_complex_8)
          ALLOCATE(cdp(darea_size))
          DO i = 1, share_size
             order = val_data(3,i)
             IF (order .EQ. 0) THEN
-               start_index = 1
-               end_index = 1
-               blockdata_length = 0
                blockdata_offset = file_size
+               CALL mp_file_read_at_all(thefile, blockdata_offset, cdp_dummy)
             ELSE
                start_index = SUM(val_data(2,1:i-1))+1
                end_index = SUM(val_data(2,1:i))
                blockdata_length = bdata_lens(order)
                blockdata_offset = bdata_offsets(order)
+               CALL mp_file_read_at_all(thefile, blockdata_offset, cdp(start_index:end_index), &
+                                        msglen = blockdata_length)
             END IF
-            CALL mp_file_read_at_all(thefile, blockdata_offset, cdp(start_index:end_index), &
-                                 msglen = blockdata_length)
          END DO
     END SELECT
     CALL dbcsr_data_init (dblk)

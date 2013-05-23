@@ -16,7 +16,9 @@ MODULE dbcsr_message_passing
   USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8,&
                                              real_4,&
-                                             real_8
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_abort,&
                                              m_flush
@@ -1926,6 +1928,17 @@ CONTAINS
 #if defined(__parallel)
     CALL MPI_TYPE_SIZE (type_descriptor%type_handle, type_size, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_type_size @ "//routineN)
+#else 
+    SELECT CASE (type_descriptor%type_handle)
+    CASE (1)
+         type_size = real_4_size
+    CASE (3)
+         type_size = real_8_size
+    CASE (5)
+         type_size = 2*real_4_size
+    CASE (7)
+         type_size = 2*real_8_size
+    END SELECT
 #endif
   END SUBROUTINE mp_type_size
 

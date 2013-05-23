@@ -1977,7 +1977,7 @@
     CALL MPI_Get_address (ptr, type_descriptor%base, ierr)
     if (ierr /= 0) call mp_abort("MPI_Get_address @ "//routineN)
 #else
-    type_descriptor%type_handle = 0
+    type_descriptor%type_handle = [handle1]
 #endif
     type_descriptor%vector_descriptor(1:2) = 1
     type_descriptor%has_indexing = .FALSE.

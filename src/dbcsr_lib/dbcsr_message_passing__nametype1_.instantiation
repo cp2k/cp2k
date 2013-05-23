@@ -7,7 +7,8 @@
         'kind1':      'int_4',
         'bytes1':     'int_4_size',
         'zero1':      '0_int_4',
-        'one1':       '1_int_4'
+        'one1':       '1_int_4',
+        'handle1':    '17'
 },
 {
         'nametype1':  'l',
@@ -17,7 +18,8 @@
         'kind1':      'int_8',
         'bytes1':     'int_8_size',
         'zero1':      '0_int_8',
-        'one1':       '1_int_8'
+        'one1':       '1_int_8',
+        'handle1':    '19'
 },
 {
         'nametype1':  'd',
@@ -27,7 +29,8 @@
         'kind1':      'real_8',
         'bytes1':     'real_8_size',
         'zero1':      '0.0_real_8',
-        'one1':       '1.0_real_8'
+        'one1':       '1.0_real_8',
+        'handle1':    '3'
 },
 {
         'nametype1':  'r',
@@ -37,7 +40,8 @@
         'kind1':      'real_4',
         'bytes1':     'real_4_size',
         'zero1':      '0.0_real_4',
-        'one1':       '1.0_real_4'
+        'one1':       '1.0_real_4',
+        'handle1':    '1'
 },
 {
         'nametype1':  'z',
@@ -47,7 +51,8 @@
         'kind1':      'real_8',
         'bytes1':     '(2*real_8_size)',
         'zero1':      'CMPLX(0.0, 0.0, real_8)',
-        'one1':       'CMPLX(1.0, 0.0, real_8)'
+        'one1':       'CMPLX(1.0, 0.0, real_8)',
+        'handle1':    '7'
 },
 {
         'nametype1':  'c',
@@ -57,6 +62,7 @@
         'kind1':      'real_4',
         'bytes1':     '(2*real_4_size)',
         'zero1':      'CMPLX(0.0, 0.0, real_4)',
-        'one1':       'CMPLX(1.0, 0.0, real_4)'
+        'one1':       'CMPLX(1.0, 0.0, real_4)',
+        'handle1':    '5'
 },
 ]
