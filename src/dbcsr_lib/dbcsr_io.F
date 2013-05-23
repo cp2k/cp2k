@@ -16,8 +16,10 @@ MODULE dbcsr_io
 
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
-                                             array_new
-  USE dbcsr_data_methods,              ONLY: dbcsr_data_init,&
+                                             array_new,&
+                                             array_release
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
+                                             dbcsr_data_init,&
                                              dbcsr_data_new,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
@@ -928,7 +930,7 @@ CONTAINS
                                              globalinfo_size, &
                                              subh3_length, size_of_pgrid, &
                                              thefile, i, j, &
-                                             nblocks, data_area_size, sum_nblks, sum_darea_size, &
+                                             nblocks, data_area_size, &
                                              share_size, order, cur_blks,  &
                                              job_count, start_index, end_index,&
                                              localinfo_length, blockdata_length,&
@@ -964,7 +966,7 @@ CONTAINS
                                                             bdata_disps, bdata_offsets
     INTEGER(kind=file_offset), PARAMETER    :: BOF = 0
     INTEGER(kind=file_offset)               :: offset, subh2_start, subh3_start, bdata_start, file_size,&
-                                               localinfo_offset, blockdata_offset
+                                               localinfo_offset, blockdata_offset, sum_nblks
     INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -1063,9 +1065,8 @@ CONTAINS
     subh3_disps(1) = BOF
     subh3_offsets = subh3_start+subh3_disps*mpi_integer_size
 
-    sum_nblks = nblks ; sum_darea_size = darea_size
+    sum_nblks = INT(nblks,kind=file_offset)  
     CALL mp_sum(sum_nblks,group_id)
-    CALL mp_sum(sum_darea_size,group_id)
     subh3_length = size_of_pgrid*(1+nblkrows_total) + 2*sum_nblks
 
     ALLOCATE(linfo_vec(subh3_length))
@@ -1217,6 +1218,10 @@ CONTAINS
     IF (ALLOCATED(rsp)) DEALLOCATE(rsp)
     IF (ALLOCATED(cdp)) DEALLOCATE(cdp)
     IF (ALLOCATED(csp)) DEALLOCATE(csp)
+    CALL dbcsr_data_clear_pointer (dblk) 
+    DEALLOCATE (dblk%d)
+    CALL array_release(row_blk_size)
+    CALL array_release(col_blk_size)
 
     CALL dbcsr_error_stop(error_handler, error)
     CONTAINS

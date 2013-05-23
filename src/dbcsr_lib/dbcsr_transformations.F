@@ -3335,10 +3335,11 @@ CONTAINS
         ENDDO
      ENDDO
      CALL dbcsr_data_clear_pointer (data_block)
+     DEALLOCATE (data_block%d)
      CALL dbcsr_finalize(new_matrix, reshuffle=.TRUE., error=error)
      CALL dbcsr_data_release (recv_data)
      CALL dbcsr_data_release (send_data)
- 
+
      DEALLOCATE(send_count)
      DEALLOCATE(recv_count)
      DEALLOCATE(sdp); DEALLOCATE(sd_disp)

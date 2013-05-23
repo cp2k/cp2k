@@ -1969,8 +1969,8 @@ CONTAINS
 #if defined(__parallel)
     my_info = mpi_info_null
     IF (PRESENT(info)) my_info = info 
-    CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
     CALL mpi_file_open(groupid, filepath, amode_status, my_info, fh, ierr)
+    CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
     IF (ierr .NE. 0) CALL mp_stop ( ierr, "mpi_file_set_errhandler @ mp_file_open" )
 #else
     IF ((amode_status .EQ. file_amode_create) .OR. &
