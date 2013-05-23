@@ -465,14 +465,14 @@ CONTAINS
 
     INTEGER                                  :: iexp, iset
 
-      IF(unit_nr.gt.0)THEN
-        WRITE(unit_nr,'(A,X,A)')TRIM(ADJUSTL(element)),TRIM(ADJUSTL(basis%basis_name))
-        WRITE(unit_nr,*)basis%nsets
+      IF (unit_nr > 0) THEN
+        WRITE (UNIT=unit_nr,FMT="(A)") TRIM(ADJUSTL(element))//" "//TRIM(ADJUSTL(basis%basis_name))
+        WRITE (UNIT=unit_nr,FMT="(1X,I0)") basis%nsets
         DO iset=1,basis%nsets
-           WRITE(unit_nr,*)basis%subset(iset)%n,basis%subset(iset)%lmin,basis%subset(iset)%lmax,&
-                           basis%subset(iset)%nexp,basis%subset(iset)%l
+           WRITE (UNIT=unit_nr,FMT="(30(1X,I0))") basis%subset(iset)%n,basis%subset(iset)%lmin,basis%subset(iset)%lmax,&
+                                                  basis%subset(iset)%nexp,basis%subset(iset)%l
            DO iexp=1,basis%subset(iset)%nexp
-               WRITE(unit_nr,*)basis%subset(iset)%exps(iexp),basis%subset(iset)%coeff(iexp,:)
+              WRITE (UNIT=unit_nr,FMT="(30(1X,ES24.16))") basis%subset(iset)%exps(iexp),basis%subset(iset)%coeff(iexp,:)
            END DO
         END DO
       END IF
