@@ -22,8 +22,7 @@ MODULE optbas_fenv_manipulation
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length
+  USE kinds,                           ONLY: default_string_length
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              flex_basis_type
   USE particle_types,                  ONLY: particle_type
@@ -69,9 +68,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atom, orig_basis
-    CHARACTER(LEN=default_path_length), &
-      DIMENSION(:), POINTER                  :: new_basis, old_basis
-    INTEGER                                  :: ibasis, ikind, jkind, nkind, nbasis
+    INTEGER                                  :: ibasis, ikind, jkind, nbasis, &
+                                                nkind
     TYPE(section_vals_type), POINTER         :: admm_section, dft_section, &
                                                 feval_section, kind_section, &
                                                 subsys_section
@@ -267,11 +265,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_basis_set', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(default_string_length)         :: elem
     INTEGER                                  :: ibasis, ikind, jkind
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
-    CHARACTER(default_string_length)         :: elem
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind,dft_control=dft_control,error=error)
     DO ikind=1,SIZE(atomic_kind)
