@@ -46,7 +46,8 @@ This version of CP2K ONLY works with libxc version 2.0.1
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -96,8 +97,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=120)                       :: s1, s2
-    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    CHARACTER(LEN=120)                       :: s1, s2
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: func_id, ii
     REAL(KIND=dp)                            :: sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scale
@@ -202,8 +204,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=120)                       :: s1, s2
-    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    CHARACTER(LEN=120)                       :: s1, s2
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: func_id, ii
     REAL(KIND=dp)                            :: sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scale
@@ -310,7 +313,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: func_id, handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
@@ -580,7 +584,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: func_id, handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure

@@ -83,7 +83,7 @@ MODULE atom_types
 ! *****************************************************************************
   TYPE atom_gthpot_type
     CHARACTER (LEN=2)                             :: symbol
-    CHARACTER (LEN=80)                            :: pname
+    CHARACTER (LEN=default_string_length)         :: pname
     INTEGER, DIMENSION(0:3)                       :: econf
     REAL(dp)                                      :: zion
     REAL(dp)                                      :: rc

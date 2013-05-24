@@ -80,7 +80,8 @@ MODULE preconditioner
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
        ot_precond_sparse_kinetic_sainv
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              dp_size,&
                                              int_size,&
                                              sp
@@ -2717,7 +2718,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: msg
+    CHARACTER(LEN=default_string_length)     :: msg
     INTEGER                                  :: handle, ispin
     LOGICAL :: do_co_rotate, do_rotation, failure, my_has_unit_metric, &
       my_mixed_precision, use_mo_coeff_b

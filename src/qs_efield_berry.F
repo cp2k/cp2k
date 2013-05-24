@@ -52,7 +52,8 @@ MODULE qs_efield_berry
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
@@ -604,7 +605,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: cgfsym
-    CHARACTER(LEN=80)                        :: name
+    CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, istat, j, &
       jatom, jkind, jset, ldab, ldsa, ldsb, ldwork, m, natom, ncoa, ncob, &
       nkind, nseta, nsetb, sgfa, sgfb, stat

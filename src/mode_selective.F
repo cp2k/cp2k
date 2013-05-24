@@ -30,7 +30,8 @@ MODULE mode_selective
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp
+                                             dp,&
+                                             max_line_length
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
   USE molden_utils,                    ONLY: molden_out
@@ -694,7 +695,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: at_name
-    CHARACTER(LEN=80)                        :: info, ms_filename
+    CHARACTER(LEN=default_path_length)       :: ms_filename
+    CHARACTER(LEN=max_line_length)           :: info
     INTEGER                                  :: i, istat, iw, j, jj, k, &
                                                 nvibs, output_molden, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist

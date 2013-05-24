@@ -913,7 +913,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(DEFAULT_STRING_LENGTH)         :: restart_filename, &
+    CHARACTER(default_string_length)         :: restart_filename, &
                                                 restart_filename_suffix, &
                                                 restart_history_filename
     INTEGER                                  :: ip, isubf, &

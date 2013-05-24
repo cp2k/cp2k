@@ -53,7 +53,8 @@
 MODULE parallel_rng_types
 
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
@@ -437,7 +438,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: fmtstr = "(A,I1,A,ES23.14,A,ES23.14)", &
       routineN = 'check_seed', routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: message
+    CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 

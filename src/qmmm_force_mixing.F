@@ -71,7 +71,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       POINTER                                :: adaptive_exclude_molecules(:)
     INTEGER :: i_rep_section, i_rep_val, im, ip, max_n_qm, n_new, &
       n_rep_exclude, n_rep_section, n_rep_val, natoms, &
@@ -636,7 +636,7 @@ IF (PRESENT(broken_bonds)) CALL reallocate(broken_bonds,1,0)
       routineN = 'setup_force_mixing_qmmm_sections', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=DEFAULT_STRING_LENGTH), &
+    CHARACTER(len=default_string_length), &
       POINTER                                :: elem_mapping(:,:), &
                                                 elem_mapping_entry(:)
     INTEGER :: delta_charge, i_rep_section_core, i_rep_section_extended, &
@@ -784,7 +784,7 @@ CPSourceFileRef)
     DEALLOCATE(elem_mapping, cur_indices, cur_labels)
 
 IF (debug_this_module) THEN
-IF (subsys%para_env%ionode) then
+IF (subsys%para_env%ionode) THEN
 PRINT *, "qmmm_core_section"
 CALL section_vals_write(qmmm_core_section,unit_nr=6,error=error)
 PRINT *, "qmmm_extended_section"

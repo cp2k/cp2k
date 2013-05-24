@@ -109,12 +109,12 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: c_val
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in), OPTIONAL                   :: c_vals
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: lc_val
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in), OPTIONAL                   :: lc_vals
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: lc_vals_ptr
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
@@ -385,7 +385,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals
     CHARACTER(LEN=*), INTENT(out), OPTIONAL  :: c_val
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
     INTEGER, INTENT(out), OPTIONAL           :: len_c, type_of_var
     TYPE(enumeration_type), OPTIONAL, &

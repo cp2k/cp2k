@@ -58,6 +58,7 @@ MODULE dm_ls_scf
                                              matrix_sqrt_newton_schulz,&
                                              purify_mcweeny
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: binomial
@@ -1081,7 +1082,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_sparsities', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: title
+    CHARACTER(LEN=default_string_length)     :: title
     INTEGER                                  :: handle, ispin, nspin, unit_nr
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1, matrix_tmp2
     TYPE(cp_logger_type), POINTER            :: logger

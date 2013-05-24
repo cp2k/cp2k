@@ -163,9 +163,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: AA
-    CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, title
     INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom_read, &
       nkind, nmol, nmolecule, nmolkind, npart
     LOGICAL                                  :: failure

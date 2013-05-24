@@ -38,7 +38,8 @@ MODULE  rt_propagation_utils
                                              use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: get_particle_set,&
@@ -96,7 +97,7 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_S_derivs', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: name
+    CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: handle, iatom, icol_atom, icol_global, icol_local, irow_atom, &
       irow_global, irow_local, j, m, maxder, n, natom, ncol_local, nder, &
       neighbor_list_id, nkind, nrow_local, nsgf, stat

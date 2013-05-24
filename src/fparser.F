@@ -387,8 +387,12 @@ CONTAINS
     ELSE
        WRITE (UNIT=message,FMT="(A)") "Syntax error in function string"
     END IF
-    WRITE(*,'(/,T2,A)') FuncStr
-    WRITE(*,'(A)') REPEAT(" ",ipos(j))//"?"
+    WRITE (*,'(/,T2,A)') TRIM(FuncStr)
+    IF ((j > LBOUND(ipos,DIM=1)).AND.(j <= UBOUND(ipos,DIM=1))) THEN
+       WRITE (*,'(A)') REPEAT(" ",ipos(j))//"?"
+    ELSE
+       WRITE (*,'(A)') REPEAT(" ",SIZE(ipos)+1)//"?"
+    END IF
     CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
 
   END SUBROUTINE ParseErrMsg

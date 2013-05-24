@@ -30,7 +30,8 @@ MODULE qs_tddfpt_eigensolver
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -600,7 +601,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_krylov_vectors', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: mat_name
+    CHARACTER(LEN=default_string_length)     :: mat_name
     INTEGER                                  :: index, spin
 
     DO spin=1, nspins

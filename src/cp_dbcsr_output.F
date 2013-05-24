@@ -34,7 +34,8 @@ MODULE cp_dbcsr_output
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_8
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
@@ -159,7 +160,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_sparse_matrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: matrix_name
+    CHARACTER(LEN=default_string_length)     :: matrix_name
     INTEGER                                  :: col1, col2, dim_col, dim_row, &
                                                 group, row1, row2, stat
     LOGICAL                                  :: failure, print_sym
@@ -542,7 +543,7 @@ CONTAINS
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
     CHARACTER                                :: matrix_type
-    CHARACTER(LEN=80)                        :: matrix_name
+    CHARACTER(LEN=default_string_length)     :: matrix_name
     INTEGER                                  :: group, handle, ipe, mype, &
                                                 natom, nblock_max, &
                                                 nelement_max, npe, nrow, &

@@ -482,7 +482,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: norm, trans
-    CHARACTER(LEN=80)                        :: message
+    CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: info, iter, n, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
     LOGICAL                                  :: do_improve, failure
@@ -671,7 +671,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: norm, trans
-    CHARACTER(LEN=80)                        :: message
+    CHARACTER(LEN=default_string_length)     :: message
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: work
     COMPLEX(KIND=dp), ALLOCATABLE, &

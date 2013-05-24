@@ -321,8 +321,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: message
-    CHARACTER(LEN=default_string_length)     :: file_name, tmp
+    CHARACTER(LEN=2*default_string_length)   :: message, tmp
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: ix, jx, mfac, nppa, nx, &
                                                 unit_number
     LOGICAL                                  :: fixed_spline_points

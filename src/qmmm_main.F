@@ -58,6 +58,7 @@ MODULE qmmm_main
   USE md_energies,                     ONLY: update_nfree_qm
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
+  USE multipole_types,                 ONLY: multipole_type
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
   USE qmmm_init,                       ONLY: &
@@ -82,8 +83,6 @@ MODULE qmmm_main
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain
-  USE multipole_types, ONLY: multipole_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -231,12 +230,13 @@ CONTAINS
     LOGICAL                                  :: failure, force_mixing_active, &
                                                 labels_changed
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles, local_molecules_new
+    TYPE(distribution_1d_type), POINTER      :: local_molecules_new, &
+                                                local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
+    TYPE(multipole_type), POINTER            :: multipoles
     TYPE(section_vals_type), POINTER :: qmmm_core_section, &
       qmmm_extended_Section, qmmm_force_mixing, qmmm_section, subsys_section
-    TYPE(multipole_type), POINTER :: multipoles
 
 ! check everything for not null, because sometimes (e.g. metadynamics in parallel) it happens
 
@@ -283,20 +283,20 @@ CPSourceFileRef,&
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! [NB] if any other data isn't preserved in new subsys structures, it'll need to be copied here
         ! save local_particles from original subsys for two new subsys
-	! think about colvar_p and gci
+        ! think about colvar_p and gci
         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env, subsys=subsys, error=error)
         CALL cp_subsys_get(subsys, local_particles=local_particles,local_molecules_new=local_molecules_new, &
-	     multipoles=multipoles,error=error)
+             multipoles=multipoles,error=error)
         CALL cp_subsys_set(sub_force_env(force_mixing_core_subsys)%force_env%subsys, &
              local_particles=local_particles,local_molecules_new=local_molecules_new, &
-	     multipoles=multipoles,error=error)
+             multipoles=multipoles,error=error)
 
-	CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env, subsys=subsys, error=error)
+        CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env, subsys=subsys, error=error)
         CALL cp_subsys_get(subsys, local_particles=local_particles,local_molecules_new=local_molecules_new, &
-	     multipoles=multipoles,error=error)
+             multipoles=multipoles,error=error)
         CALL cp_subsys_set(sub_force_env(force_mixing_extended_subsys)%force_env%subsys, &
              local_particles=local_particles,local_molecules_new=local_molecules_new, &
-	     multipoles=multipoles,error=error)
+             multipoles=multipoles,error=error)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         CALL section_vals_release(qmmm_core_section, error=error)

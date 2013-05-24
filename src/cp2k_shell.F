@@ -40,6 +40,7 @@ PROGRAM cp2k_shell
   USE f77_interface
   USE input_constants,                 ONLY: id_development_version
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_chdir,&
                                              m_flush,&
@@ -65,8 +66,8 @@ PROGRAM cp2k_shell
   TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
-  CHARACTER(len=default_path_length)       :: cmdStr
-  CHARACTER(len=20)                        :: cmd,units
+  CHARACTER(LEN=default_path_length)       :: cmdStr
+  CHARACTER(LEN=default_string_length)     :: cmd,units
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
   REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
@@ -74,7 +75,7 @@ PROGRAM cp2k_shell
   LOGICAL, SAVE                            :: did_init = .FALSE.
   INTEGER, SAVE                            :: eof_stat
 
-  CHARACTER(len=80), DIMENSION(35) :: helpMsg
+  CHARACTER(LEN=default_string_length), DIMENSION(35) :: helpMsg
 
   helpMsg=(/ &
   ll('Commands'),&
@@ -453,7 +454,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE my_assert(tst,msg,failure)
     LOGICAL, INTENT(in)                      :: tst
-    CHARACTER(len=*), INTENT(in)             :: msg
+    CHARACTER(LEN=*), INTENT(in)             :: msg
     LOGICAL, INTENT(inout)                   :: failure
 
     IF (.not.tst) THEN
@@ -467,7 +468,7 @@ CONTAINS
 
 ! *****************************************************************************
   FUNCTION parse_env_id(str,startI,default_val) RESULT(res)
-    CHARACTER(len=*), INTENT(in)             :: str
+    CHARACTER(LEN=*), INTENT(in)             :: str
     INTEGER, INTENT(in)                      :: startI, default_val
     INTEGER                                  :: res
 
@@ -490,8 +491,8 @@ CONTAINS
 
 ! *****************************************************************************
   FUNCTION ll(str) RESULT(res)
-    CHARACTER(len=*), INTENT(in)             :: str
-    CHARACTER(len=80)                        :: res
+    CHARACTER(LEN=*), INTENT(in)             :: str
+    CHARACTER(LEN=default_string_length)     :: res
 
     res=str
   END FUNCTION
@@ -500,8 +501,8 @@ CONTAINS
  SUBROUTINE print_v_info(unit)
     INTEGER, INTENT(in)                      :: unit
 
-    CHARACTER(len=200)                       :: cwd
-    CHARACTER(len=80)                        :: dev_flag, host_name, user_name
+    CHARACTER(LEN=default_path_length)       :: cwd
+    CHARACTER(LEN=default_string_length)     :: dev_flag, host_name, user_name
 
     CALL m_getcwd(cwd)
     CALL m_getpid(pid)

@@ -55,8 +55,7 @@ MODULE timings_report
     LOGICAL, INTENT(IN)                      :: sort_by_self_time
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
-    CHARACTER(LEN=80)                        :: fmt
-    CHARACTER(LEN=default_string_length)     :: routineN
+    CHARACTER(LEN=default_string_length)     :: fmt, routineN
     INTEGER                                  :: decimals, i, j, num_routines, &
                                                 routine_id
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indices

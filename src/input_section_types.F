@@ -1318,7 +1318,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH)     :: res
+    CHARACTER(LEN=default_string_length)     :: res
 
     CALL section_vals_val_get(section_vals, keyword_name, c_val=res, error=error)
 
@@ -1417,7 +1417,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
     LOGICAL, INTENT(out), OPTIONAL           :: explicit
@@ -1630,7 +1630,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals_ptr
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals_ptr
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -33,7 +33,8 @@ MODULE stm_images
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -274,8 +275,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'stm_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: filename, oname, title
-    CHARACTER(LEN=default_string_length)     :: my_pos
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: my_pos, oname, title
     INTEGER                                  :: handle, i, ibias, imo, iorb, &
                                                 ispin, istat, istates, nmo, &
                                                 nspin, nstates(2), &

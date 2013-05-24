@@ -499,7 +499,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_upf', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: string
+    CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: i, ibeta, ierr, j, k, l, &
                                                 lmax, nbeta, nr, nwfc, nwfn
     LOGICAL                                  :: failure, up
@@ -758,7 +758,7 @@ CONTAINS
     CHARACTER(len=*), OPTIONAL               :: cval
     LOGICAL, OPTIONAL                        :: isfinal
 
-    CHARACTER(len=default_string_length)     :: str
+    CHARACTER(LEN=default_string_length)     :: str
     LOGICAL                                  :: fin
 
      IF(PRESENT(counter)) THEN

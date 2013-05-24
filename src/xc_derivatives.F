@@ -9,7 +9,8 @@ MODULE xc_derivatives
   USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -631,7 +632,8 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: ifun, ifunc_name
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun

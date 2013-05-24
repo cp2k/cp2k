@@ -491,7 +491,7 @@ CONTAINS
       coord_file_name, geminal_file_name, mm_potential_file_name, &
       potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
       nid, num_threads, output_unit, print_level, trace_max, unit_nr

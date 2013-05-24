@@ -40,7 +40,8 @@ MODULE qs_overlap
                                              dbcsr_type_symmetric
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
                                              ncoset
@@ -129,7 +130,7 @@ CONTAINS
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=32)                        :: symmetry_string
-    CHARACTER(LEN=80)                        :: mname, name
+    CHARACTER(LEN=default_string_length)     :: mname, name
     INTEGER :: atom_a, atom_b, handle, i, iatom, iblock, icol, ikind, inode, &
       irow, iset, istat, jatom, jkind, jset, last_jatom, ldai, ldsab, &
       max_maxco, max_maxlgto, max_maxsgf, maxblock, maxco, maxdco, maxdcoa, &
@@ -625,7 +626,7 @@ CONTAINS
       1,1,1,1,1,1,1/)
 
     CHARACTER(LEN=32)                        :: symmetry_string
-    CHARACTER(LEN=80)                        :: mname, name
+    CHARACTER(LEN=default_string_length)     :: mname, name
     INTEGER :: handle, i, iatom, iblock, icol, ikind, inode, irow, iset, &
       istat, jatom, jkind, jset, last_jatom, ldai, ldsab, max_maxco, &
       max_maxlgto, max_maxsgf, maxblock, maxco, maxdco, maxdcoa, maxdcob, &

@@ -36,6 +36,7 @@ MODULE molecular_states
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
@@ -94,8 +95,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_molecular_states', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: title
     INTEGER :: handle, i, imol, iproc, isos, k, n_rep, ncol_global, nproc, &
       nrow_global, ns, output_unit, unit_nr, unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind, mark_list

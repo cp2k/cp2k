@@ -32,7 +32,8 @@ MODULE qs_linres_epr_nablavks
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: rootpi,&
                                              twopi
   USE particle_list_types,             ONLY: particle_list_type
@@ -106,7 +107,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_nablavks', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: ext, filename
+    CHARACTER(LEN=default_string_length)     :: ext, filename
     COMPLEX(KIND=dp)                         :: gtemp
     INTEGER :: bo_atom(2), ia, iat, iatom, idir, iexp, ig, ikind, ir, iso, &
       ispin, istat, ix, iy, iz, natom, nexp_ppl, nkind, nspins, output_unit, &

@@ -446,7 +446,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_qs_section', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length), &
+    CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
     INTEGER                                  :: handle, itmp, j, jj, k, &
                                                 n_rep, n_var, nrep, stat
@@ -956,9 +956,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_dft_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=160)                       :: reference, shortform
-    CHARACTER(len=20)                        :: tmpStr
-    CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
+    CHARACTER(LEN=2*default_string_length)   :: reference, shortform
+    CHARACTER(LEN=20)                        :: tmpStr
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: handle, ifun, ifunc_name, il, &
                                                 myfun, output_unit, vmajor, &
                                                 vminor
