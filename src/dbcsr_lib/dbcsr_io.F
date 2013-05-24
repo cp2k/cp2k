@@ -762,7 +762,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)  :: matrix_name
     INTEGER, PARAMETER                    :: version_len=10
     CHARACTER(LEN=version_len), PARAMETER :: version = "DBCSRv_1.0"   
-    INTEGER, ALLOCATABLE, DIMENSION(:)                   :: linfo_sizes, da_sizes
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: linfo_sizes, da_sizes
     INTEGER(kind=file_offset), ALLOCATABLE, DIMENSION(:) :: bdata_disps, bdata_offsets, & 
                                                           subh2_disps, subh2_offsets, & 
                                                           subh3_disps, subh3_offsets
@@ -831,9 +831,9 @@ CONTAINS
     sendbuf = data_area_size
     CALL mp_allgather(sendbuf,da_sizes,mp_group) 
     CALL cumsum_l(INT(da_sizes,kind=file_offset),bdata_disps)
-    bdata_disps = CSHIFT(bdata_disps,shift=-1)+SUM(linfo_sizes)+&
+    bdata_disps = CSHIFT(bdata_disps,shift=-1)+SUM(INT(linfo_sizes,KIND=file_offset))+&
                     ginfo_size+numnodes*2
-    bdata_disps(1)=SUM(linfo_sizes)+ginfo_size+numnodes*2
+    bdata_disps(1)=SUM(INT(linfo_sizes,KIND=file_offset))+ginfo_size+numnodes*2
 
     CALL mp_file_open(mp_group, thefile, filepath, file_amode_create+file_amode_wronly)
 
@@ -934,7 +934,7 @@ CONTAINS
                                              share_size, order, cur_blks,  &
                                              job_count, start_index, end_index,&
                                              localinfo_length, blockdata_length,&
-                                             group_id, worker_id, group_list_size, error_handler
+                                             group_id, worker_id, group_list_size, error_handler, linfo_length
     CHARACTER                             :: matrix_type
     CHARACTER(LEN=default_string_length)  :: matrix_name
     INTEGER, PARAMETER                    :: version_len=10
@@ -1067,9 +1067,11 @@ CONTAINS
 
     sum_nblks = INT(nblks,kind=file_offset)  
     CALL mp_sum(sum_nblks,group_id)
-    subh3_length = size_of_pgrid*(1+nblkrows_total) + 2*sum_nblks
+    subh3_length = size_of_pgrid*INT(1+nblkrows_total,KIND=file_offset) + 2*sum_nblks
 
-    ALLOCATE(linfo_vec(subh3_length))
+    linfo_length = nblkrows_total+1 + 2*MAXVAL(val_data(1,:))
+
+    ALLOCATE(linfo_vec(linfo_length))
     ALLOCATE(rowp((nblkrows_total+1)*job_count))
     ALLOCATE(coli(nblks))
     ALLOCATE(blkp(nblks))
