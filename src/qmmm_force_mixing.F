@@ -292,8 +292,8 @@ IF (debug_this_module) PRINT *, "BOB buffer new_labels ",new_labels(1:n_new)
 
      ![NB] perhap be controlled by some &PRINT section?
      IF (force_env%para_env%ionode) THEN
-       WRITE(unit=*, fmt='(A,A,I5,A,I5,A,I5,A,I5)')
-       PRINT *, "QMMM FORCE MIXING final count (not including links): ",&
+       WRITE(unit=*, fmt='(A,A,I6,A,I5,A,I5,A,I5)') &
+          "QMMM FORCE MIXING final count (not including links): ",&
           " N_QM core_list ", COUNT(new_labels == force_mixing_label_QM_core_list), &
           " N_QM core ",      COUNT(new_labels == force_mixing_label_QM_core), &
           " N_QM extended ",  COUNT(new_labels == force_mixing_label_QM_dynamics .OR. &
@@ -784,10 +784,12 @@ CPSourceFileRef)
     DEALLOCATE(elem_mapping, cur_indices, cur_labels)
 
 IF (debug_this_module) THEN
+IF (subsys%para_env%ionode) then
 PRINT *, "qmmm_core_section"
 CALL section_vals_write(qmmm_core_section,unit_nr=6,error=error)
 PRINT *, "qmmm_extended_section"
 CALL section_vals_write(qmmm_extended_section,unit_nr=6,error=error)
+ENDIF
 ENDIF
 
    END SUBROUTINE setup_force_mixing_qmmm_sections

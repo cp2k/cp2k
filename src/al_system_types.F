@@ -8,7 +8,7 @@
 !> \author Teodoro Laino - 09.2007 University of Zurich [tlaino]
 ! *****************************************************************************
 MODULE al_system_types
-  USE bibliography,                    ONLY: Bussi2007,&
+  USE bibliography,                    ONLY: Jones2011,&
                                              cite_reference
   USE extended_system_types,           ONLY: create_map_info_type,&
                                              map_info_type,&
@@ -73,7 +73,7 @@ CONTAINS
     al%glob_num_al=0
     al%dt_fact=1.0_dp
     al%dt=simpar%dt
-    CALL cite_reference(Bussi2007)
+    CALL cite_reference(Jones2011)
     CALL section_vals_val_get(section,"TIMECON_NH",r_val=al%tau_nh,error=error)
     CALL section_vals_val_get(section,"TIMECON_LANGEVIN",r_val=al%tau_langevin,error=error)
     CALL create_map_info_type(al%map_info, error)

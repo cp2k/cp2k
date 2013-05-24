@@ -1029,22 +1029,22 @@ CPSourceFileRef,&
              total_f(1:3) = total_f(1:3) + particles_qmmm_core(ip)%f(1:3)
            END DO
            IF (mom_conserv_type == do_fm_mom_conserv_equal_f) THEN
-              mom_conserv_n = COUNT(cur_labels >= mom_conserv_region)
+              mom_conserv_n = COUNT(cur_labels >= mom_conserv_min_label)
               delta_f = total_f/mom_conserv_n
               DO ip=1, SIZE(cur_indices)
-                IF (cur_labels(ip) >= mom_conserv_region) THEN
+                IF (cur_labels(ip) >= mom_conserv_min_label) THEN
                   particles_qmmm_core(cur_indices(ip))%f = particles_qmmm_core(cur_indices(ip))%f - delta_f
                 ENDIF
               END DO
            ELSE IF (mom_conserv_type == do_fm_mom_conserv_equal_a) THEN
               mom_conserv_mass = 0.0_dp
               DO ip=1, SIZE(cur_indices)
-               IF (cur_labels(ip) >= mom_conserv_region) &
+               IF (cur_labels(ip) >= mom_conserv_min_label) &
                  mom_conserv_mass = mom_conserv_mass + particles_qmmm_core(cur_indices(ip))%atomic_kind%mass
               END DO
               delta_a = total_f/mom_conserv_mass
               DO ip=1, SIZE(cur_indices)
-                IF (cur_labels(ip) >= mom_conserv_region) THEN
+                IF (cur_labels(ip) >= mom_conserv_min_label) THEN
                   particles_qmmm_core(cur_indices(ip))%f = particles_qmmm_core(cur_indices(ip))%f - &
                      particles_qmmm_core(cur_indices(ip))%atomic_kind%mass * delta_a
                 ENDIF

@@ -511,10 +511,10 @@ CPSourceFileRef,&
                ' THERMOSTAT| Initial Kinetic Energy ',kin_energy
        CASE(do_thermo_al)
           WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Adaptive Langevin'
-          tmp = cp_unit_from_cp2k(thermostat%al%tau_nh,"fs",error=error)*0.5_dp*simpar%dt
+          tmp = cp_unit_from_cp2k(thermostat%al%tau_nh,"fs",error=error)
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| AD_LANGEVIN NH time constant [', 'fs' ,'] ',tmp
-          tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin,"fs",error=error)*0.5_dp*simpar%dt
+          tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin,"fs",error=error)
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| AD_LANGEVIN Langevin time constant [', 'fs' ,'] ',tmp
        END SELECT
