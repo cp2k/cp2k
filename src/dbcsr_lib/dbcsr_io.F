@@ -928,9 +928,9 @@ CONTAINS
     INTEGER                               :: nblkrows_total, nblkcols_total, &
                                              nblks, darea_size, data_type, type_size, &
                                              globalinfo_size, &
-                                             subh3_length, size_of_pgrid, &
+                                             size_of_pgrid, &
                                              thefile, i, j, &
-                                             nblocks, data_area_size, &
+                                             nblocks, &
                                              share_size, order, cur_blks,  &
                                              job_count, start_index, end_index,&
                                              localinfo_length, blockdata_length,&
@@ -966,7 +966,7 @@ CONTAINS
                                                             bdata_disps, bdata_offsets
     INTEGER(kind=file_offset), PARAMETER    :: BOF = 0
     INTEGER(kind=file_offset)               :: offset, subh2_start, subh3_start, bdata_start, file_size,&
-                                               localinfo_offset, blockdata_offset, sum_nblks
+                                               localinfo_offset, blockdata_offset, sum_nblks, subh3_length, data_area_size
     INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
 
     CALL dbcsr_error_set(routineN, error_handler, error)
