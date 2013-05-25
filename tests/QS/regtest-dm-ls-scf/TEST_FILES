@@ -40,3 +40,4 @@ H2O-chebyshev-01.inp 11
 H2O-dft-ecube.inp 11
 H2O-restart-write.inp 11
 H2O-restart-read.inp 11
+H2O-restart-read-curvy.inp 11
