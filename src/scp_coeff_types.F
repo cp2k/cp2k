@@ -381,11 +381,12 @@ CONTAINS
                                                 iparticle_local, maxgtops, &
                                                 natoms, nparticle_local, &
                                                 stat, ub
-    LOGICAL                                  :: failure, my_copy_in = .TRUE.
+    LOGICAL                                  :: failure, my_copy_in
     REAL(dp), POINTER                        :: c( :, : ), fc( :, : )
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
 
   NULLIFY ( c, fc )
+  my_copy_in = .TRUE.
   IF ( PRESENT ( copy_in ) ) my_copy_in = copy_in
 
 ! Ensuring a blank canvas
@@ -454,12 +455,13 @@ CONTAINS
     INTEGER                                  :: iatom, ii, ikind, &
                                                 iparticle_local, &
                                                 nparticle_local, stat
-    LOGICAL                                  :: failure = .FALSE., &
-                                                my_copy_out = .FALSE.
+    LOGICAL                                  :: failure, my_copy_out
     REAL(dp), POINTER                        :: c( :, : ), fc( :, : )
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
 
   NULLIFY ( c, fc )
+  my_copy_out = .FALSE.
+  failure = .FALSE.
   IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out
 
   CPPrecondition(ASSOCIATED(rep_coeff),cp_failure_level,routineN,error,failure)

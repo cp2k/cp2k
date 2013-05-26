@@ -371,8 +371,9 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_calc_energy_forces', &
       routineP = moduleN//':'//routineN
+    CHARACTER(LEN=1), DIMENSION(3), &
+      PARAMETER                              :: lab = (/"X","Y","Z"/)
 
-    CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
     INTEGER                                  :: handle, i, irep, j, n_int, &
                                                 n_rep, n_rep_neb, nsize_wrk, &
                                                 stat

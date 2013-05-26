@@ -366,7 +366,7 @@ CONTAINS
                                                 my_data_type, my_proc, &
                                                 numproc, nze, p, row, s_col, &
                                                 s_row
-    INTEGER, DIMENSION(4)                    :: iseed = (/4,3,2,1/)
+    INTEGER, DIMENSION(4), SAVE              :: iseed = (/4,3,2,1/)
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: quick, tr
     REAL(kind=real_8)                        :: my_sparsity

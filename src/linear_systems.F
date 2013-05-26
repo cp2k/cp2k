@@ -50,8 +50,9 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ch_inv_pdsym', &
       routineP = moduleN//':'//routineN
+    CHARACTER, PARAMETER                     :: diag = "N"
 
-    CHARACTER                                :: diag = "N", uplo
+    CHARACTER                                :: uplo
     INTEGER                                  :: info, lda
 
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
@@ -88,8 +89,9 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ch_inv_pdher', &
       routineP = moduleN//':'//routineN
+    CHARACTER, PARAMETER                     :: diag = "N"
 
-    CHARACTER                                :: diag = "N", uplo
+    CHARACTER                                :: uplo
     INTEGER                                  :: info, lda
 
   IF ( storageform ( 1:5 ) == "Lower" .OR. &

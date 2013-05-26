@@ -231,10 +231,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tfw_lsd_eval', &
       routineP = moduleN//':'//routineN
-
-    CHARACTER(len=12), DIMENSION(2) :: &
+    CHARACTER(len=12), DIMENSION(2), PARAMETER :: &
       norm_drho_spin_name = (/"(norm_drhoa)","(norm_drhob)"/)
-    CHARACTER(len=6), DIMENSION(2) :: rho_spin_name = (/"(rhoa)","(rhob)"/)
+    CHARACTER(len=6), DIMENSION(2), PARAMETER :: &
+      rho_spin_name = (/"(rhoa)","(rhob)"/)
+
     INTEGER                                  :: handle, i, ispin, npoints, &
                                                 stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo

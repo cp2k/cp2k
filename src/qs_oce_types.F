@@ -61,7 +61,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     ALLOCATE(oce_set%intac(nkind*nkind),STAT=istat)
     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)

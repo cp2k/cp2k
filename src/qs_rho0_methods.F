@@ -190,7 +190,7 @@ MODULE qs_rho0_methods
                                                 ir, is, iso, ispin, istat, l, &
                                                 lmax0, lshell, lx, ly, lz, &
                                                 nr, nsotot, nspins
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: sum1
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: cpc_ah, cpc_as
@@ -208,6 +208,7 @@ MODULE qs_rho0_methods
     NULLIFY(mpole_rho)
     NULLIFY(g0_h, vg0_h)
     NULLIFY(norm_g0l_h)
+    failure = .FALSE.
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&

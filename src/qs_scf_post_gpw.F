@@ -2344,8 +2344,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_free_results', &
       routineP = moduleN//':'//routineN
+    CHARACTER(len=1), DIMENSION(3), &
+      PARAMETER                              :: cdir = (/"x","y","z"/)
 
-    CHARACTER(len=1), DIMENSION(3)           :: cdir = (/"x","y","z"/)
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
@@ -2897,9 +2898,11 @@ CONTAINS
 
     INTEGER                                  :: info, istat, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, tmat, v
+
+    failure = .FALSE.
 
     n = SIZE(ca)
     ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n),stat=istat)
@@ -2930,10 +2933,12 @@ CONTAINS
 
     INTEGER                                  :: i, info, istat, n, nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: afun
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, v
+
+    failure=.FALSE.
 
     n = SIZE(ca)
     nr = grid_atom%nr

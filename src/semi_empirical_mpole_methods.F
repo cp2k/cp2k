@@ -58,11 +58,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_setup', &
       routineP = moduleN//':'//routineN
+    CHARACTER(LEN=3), DIMENSION(9), PARAMETER :: label_print_orb = (/"  s",&
+      " px"," py"," pz","dx2","dzx","dz2","dzy","dxy"/)
     REAL(KIND=dp), DIMENSION(9), PARAMETER :: &
       loc_index = (/1,2,2,2,3,3,3,3,3/)
 
-    CHARACTER(LEN=3), DIMENSION(9) :: label_print_orb = (/"  s"," px"," py",&
-      " pz","dx2","dzx","dz2","dzy","dxy"/)
     INTEGER                                  :: a, b, i, ind1, ind2, j, k, &
                                                 k1, k2, mu, natorb, ndim, nr
     LOGICAL                                  :: failure

@@ -541,7 +541,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, source
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     source = para_env%source
     group = para_env%group
@@ -567,7 +569,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, source
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     source = para_env%source
     group = para_env%group

@@ -62,8 +62,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, stat
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     TYPE(clist_type), POINTER                :: clist
+
+    failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(sap_int),cp_failure_level,routineP,error,failure)
 
@@ -119,7 +121,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     NULLIFY(alist)
     i = locate(sap_int%asort,atom)
@@ -205,7 +209,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iac, na, stat
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
 ! *** Set up a sorting index
 

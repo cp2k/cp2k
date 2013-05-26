@@ -1103,9 +1103,9 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=30), DIMENSION(2) :: &
+    CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
+
     INTEGER                                  :: handle, ikey, ires, ispin
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1172,10 +1172,10 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_mos_to_restart', &
       routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=43), DIMENSION(2) :: keys = (/&
+    CHARACTER(LEN=43), DIMENSION(2), PARAMETER :: keys = (/&
       "REAL_TIME_PROPAGATION%PRINT%RESTART_HISTORY",&
       "REAL_TIME_PROPAGATION%PRINT%RESTART        "/)
+
     INTEGER                                  :: handle, ikey, ires
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger

@@ -183,8 +183,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lsd_eval', &
       routineP = moduleN//':'//routineN
+    CHARACTER(len=6), DIMENSION(2), PARAMETER :: &
+      rho_spin_name = (/"(rhoa)","(rhob)"/)
 
-    CHARACTER(len=6), DIMENSION(2) :: rho_spin_name = (/"(rhoa)","(rhob)"/)
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure

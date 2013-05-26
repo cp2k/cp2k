@@ -666,14 +666,15 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
       INTENT(OUT)                            :: ed
     INTEGER, INTENT(IN)                      :: order
 
-    INTEGER                                  :: m, order_ = 0
-    LOGICAL, DIMENSION(0:3)                  :: calc = .FALSE.
+    INTEGER                                  :: m, order_
+    LOGICAL, DIMENSION(0:3)                  :: calc
     REAL(KIND=dp)                            :: rho, tr, trr, trrr, trrz, &
                                                 trz, trzz, tz, tzz, tzzz
     REAL(KIND=dp), DIMENSION(0:3)            :: ac, e0, e1, f, r
     REAL(KIND=dp), DIMENSION(0:3, 0:3)       :: z
 
     order_ = order
+    calc = .FALSE.
 
     IF (order_ > 0) THEN
        calc(0:order_) = .TRUE.

@@ -558,9 +558,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
-                                                ndate( 3 ) = (/ 12, 48, 96 /),&
                                                 ntim, radix_in, radix_out, &
                                                 siz, stat
+    INTEGER, PARAMETER                       :: ndate( 3 ) = (/ 12, 48, 96 /)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_test', &
       routineP = moduleN//':'//routineN
 

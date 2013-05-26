@@ -83,8 +83,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal', &
       routineP = moduleN//':'//routineN
+    CHARACTER(LEN=1), DIMENSION(3), &
+      PARAMETER                              :: lab = (/"X","Y","Z"/)
 
-    CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &

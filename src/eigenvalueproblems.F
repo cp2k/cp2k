@@ -55,8 +55,9 @@ SUBROUTINE diagonalise_ssyev( matrix, mysize, storageform, eigenvalues, &
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_ssyev', &
       routineP = moduleN//':'//routineN
+    CHARACTER, PARAMETER                     :: jobz = "V"
 
-    CHARACTER                                :: jobz = "V", uplo
+    CHARACTER                                :: uplo
     INTEGER                                  :: info, lda, lwork
     REAL(KIND=dp)                            :: work( 3 * mysize - 1 )
 
@@ -97,8 +98,9 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_chpev', &
       routineP = moduleN//':'//routineN
+    CHARACTER, PARAMETER                     :: jobz = "V"
 
-    CHARACTER                                :: jobz = "V", uplo
+    CHARACTER                                :: uplo
     INTEGER                                  :: info
     COMPLEX(KIND=dp)                         :: work( 2 * mysize - 1 )
     REAL(KIND=dp)                            :: rwork( 3 * mysize - 2 )

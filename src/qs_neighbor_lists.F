@@ -1316,7 +1316,9 @@ CONTAINS
 
     INTEGER                                  :: i, ib, ierr, na, nb
     INTEGER, DIMENSION(:), POINTER           :: lista, listb
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
 

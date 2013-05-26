@@ -977,7 +977,7 @@ MODULE qs_rho_atom_methods
       max_iso_not0, mepos, nat, natom, nkind, nr, nsatbas, nsotot, nspins, &
       num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure = .FALSE., paw_atom
+    LOGICAL                                  :: failure, paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -988,6 +988,7 @@ MODULE qs_rho_atom_methods
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,para_env,rho_atom_set)
+    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
                     para_env=para_env,error=error)

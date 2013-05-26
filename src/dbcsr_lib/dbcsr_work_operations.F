@@ -1452,9 +1452,10 @@ CONTAINS
                                                 index_data = 2
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: error_handler, my_row_count, nblks, nblks_to_add = 0, &
-      new_data_size, new_nblks = 0, new_nze = 0, nrows, nwms, row, t, &
-      which_wm, wm_datasize
+    INTEGER                                  :: error_handler, my_row_count, &
+                                                nblks, new_data_size, nrows, &
+                                                nwms, row, t, which_wm, &
+                                                wm_datasize
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: all_data_offsets, &
                                                 all_data_sizes, &
                                                 new_blk_p_sorted, &
@@ -1463,7 +1464,9 @@ CONTAINS
       SAVE, TARGET                           :: blk_d, new_blk_p, new_col_i
     INTEGER, DIMENSION(:), POINTER           :: my_row_p
     INTEGER, DIMENSION(:), POINTER, SAVE     :: cbs, rbs
-    INTEGER, SAVE                            :: max_row_count
+    INTEGER, SAVE                            :: max_row_count, &
+                                                nblks_to_add = 0, &
+                                                new_nblks = 0, new_nze = 0
     TYPE(dbcsr_data_obj), ALLOCATABLE, &
       DIMENSION(:), SAVE                     :: all_data_areas
     TYPE(dbcsr_work_type), POINTER           :: wm

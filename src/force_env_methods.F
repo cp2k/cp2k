@@ -468,7 +468,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dx_w
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
     REAL(KIND=dp), DIMENSION(3)              :: s
-    REAL(KIND=dp), DIMENSION(3, 3)           :: numer_stress = 0.0_dp
+    REAL(KIND=dp), DIMENSION(3, 3)           :: numer_stress
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ref_pos_atom, ref_pos_core, &
                                                 ref_pos_shell
     TYPE(cell_type), POINTER                 :: cell, cell_local
@@ -489,6 +489,7 @@ CONTAINS
     natom = 0
     ncore = 0
     nshell = 0
+    numer_stress = 0.0_dp
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)

@@ -1769,14 +1769,15 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name, sng
     INTEGER                                  :: ico, ipgf, iset, lshell, m, &
-                                                maxco, maxl, ncgf, ng = 6, &
-                                                np, nset, nsgf, nshell, stat
+                                                maxco, maxl, ncgf, ng, np, &
+                                                nset, nsgf, nshell, stat
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     REAL(KIND=dp), DIMENSION(maxng)          :: gcc, zetg
 
     failure = .FALSE.
+    ng = 6
     IF (PRESENT(ngauss)) ng=ngauss
     IF (ng > maxng) CALL stop_program(routineN,moduleN,__LINE__,&
          "Too many Gaussian primitives requested")

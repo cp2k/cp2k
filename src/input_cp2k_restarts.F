@@ -141,9 +141,9 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
       routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=30), DIMENSION(2) :: &
+    CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
       keys = (/"PRINT%RESTART_HISTORY","PRINT%RESTART        "/)
+
     INTEGER                                  :: handle, ikey, ires, &
                                                 nforce_eval
     LOGICAL                                  :: failure, save_mem, &
