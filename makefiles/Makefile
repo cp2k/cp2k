@@ -194,6 +194,11 @@ ifneq ($(SMART_MODULES),no)
 MD5 := $(shell which md5sum)
 endif
 
+### Logging of fortran compiler output, e.g. for examining it's warnings ###
+ifneq ($(FC_SAVELOG), )
+   FCLOGPIPE = &> $*.log
+endif
+
 #
 #PLUMED
 #
@@ -425,9 +430,9 @@ makedepf90:
 %.o: %.F
 ifneq ($(CPP),)
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90
+	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
 else
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $<
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< $(FCLOGPIPE)
 endif
 ifneq ($(SMART_MODULES),no)
 ifneq ($(MD5),)
