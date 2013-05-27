@@ -89,9 +89,10 @@ CONTAINS
     INTEGER, OPTIONAL                        :: mi
     REAL(dp)                                 :: IABCD
 
-    INTEGER                                  :: m
-    INTEGER, DIMENSION(3)                    :: i1 = (/1,0,0/), &
+    INTEGER, DIMENSION(3), PARAMETER         :: i1 = (/1,0,0/), &
                                                 i2 = (/0,1,0/), i3 = (/0,0,1/)
+
+    INTEGER                                  :: m
 
     m = 0
     IF(PRESENT(mi)) m=mi

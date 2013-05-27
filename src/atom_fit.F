@@ -468,9 +468,8 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: ncore
     LOGICAL                                  :: explicit, failure = .FALSE.
     REAL(KIND=dp) :: charge, deig, drho, eig, fopt, oc, pchg, peig, pv, rcm, &
-      rcov, rmax, t_semi = 0.001_dp, t_valence = 0.00001_dp, &
-      t_virt = 0.001_dp, w_node = 1000._dp, w_psir0 = 0._dp, w_semi = 10._dp, &
-      w_valence = 100._dp, w_virt = 0.01_dp
+      rcov, rmax, t_semi, t_valence, t_virt, w_node, w_psir0, w_semi, &
+      w_valence, w_virt
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x, xi
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: wem

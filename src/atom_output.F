@@ -69,8 +69,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_state', &
       routineP = moduleN//':'//routineN
+    CHARACTER(LEN=1), DIMENSION(0:3), &
+      PARAMETER                              :: label = (/ "S","P","D","F" /)
 
-    CHARACTER(LEN=1), DIMENSION(0:3)         :: label = (/ "S","P","D","F" /)
     INTEGER                                  :: j, l, mc, mlc, mlo, mm(0:3), &
                                                 mo
     LOGICAL                                  :: failure = .FALSE.

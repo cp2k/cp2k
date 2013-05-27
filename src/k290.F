@@ -459,14 +459,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'k290prg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: f00(49,1) = 0, i, ib0(48), ihc0, ihg0, indpg0, invadd, istrin, &
+    INTEGER :: f00(49,1), i, ib0(48), ihc0, ihg0, indpg0, invadd, istrin, &
       iswght, isy0, j, l, li0, lmax, n, nc0, ntot, ntvec0
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), &
       b2(3), b3(3), dtotstr, origin0(3), proj1, proj2, proj3, r0(3,3,48), &
-      totstr, tvec0(3,1), v0(3,48) = 0.0_dp, volum, x0(3,1) = 0.0_dp, xb0(3)
+      totstr, tvec0(3,1), v0(3,48), volum, x0(3,1), xb0(3)
 
     v(:,:) = 0.0_dp
+    f00 = 0
+    x0 = 0.0_dp
+    v0 = 0.0_dp
     !----------------------------------------------------------------------------!
     !   read in lattice structure
     !----------------------------------------------------------------------------!

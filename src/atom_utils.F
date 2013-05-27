@@ -317,11 +317,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_density', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=3)                         :: my_typ = "RHO"
+    CHARACTER(LEN=3)                         :: my_typ
     INTEGER                                  :: i, j, l, n
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: ff
 
+    my_typ = "RHO"
     IF(PRESENT(typ)) my_typ = typ(1:3)
     IF(my_typ == "KIN") THEN
       CPPrecondition(PRESENT(rr),cp_failure_level,routineP,error,failure)
@@ -402,12 +403,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_core_density', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=3)                         :: my_typ = "RHO"
+    CHARACTER(LEN=3)                         :: my_typ
     INTEGER                                  :: i, ierr, j, m, n
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
+    my_typ = "RHO"
     IF(PRESENT(typ)) my_typ = typ(1:3)
 
     IF(gthpot%nlcc) THEN
@@ -626,8 +628,9 @@ CONTAINS
     INTEGER                                  :: nc
 
     INTEGER                                  :: i, nr
-    REAL(KIND=dp)                            :: meps = 1.e-14_dp
+    REAL(KIND=dp)                            :: meps
 
+    meps = 1.e-14_dp
     IF ( PRESENT(deps) ) meps=deps
 
     nr = SIZE(fun)

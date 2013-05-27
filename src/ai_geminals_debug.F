@@ -93,10 +93,11 @@ MODULE ai_geminals_debug
     INTEGER, OPTIONAL                        :: mi
     REAL(dp)                                 :: IAB
 
+    INTEGER, DIMENSION(6), PARAMETER :: i1 = (/1,0,0,0,0,0/), &
+      i2 = (/0,1,0,0,0,0/), i3 = (/0,0,1,0,0,0/), i4 = (/0,0,0,1,0,0/), &
+      i5 = (/0,0,0,0,1,0/), i6 = (/0,0,0,0,0,1/)
+
     INTEGER                                  :: m
-    INTEGER, DIMENSION(6) :: i1 = (/1,0,0,0,0,0/), i2 = (/0,1,0,0,0,0/), &
-      i3 = (/0,0,1,0,0,0/), i4 = (/0,0,0,1,0,0/), i5 = (/0,0,0,0,1,0/), &
-      i6 = (/0,0,0,0,0,1/)
     REAL(dp)                                 :: Im0, Im1, Ir0, Ir1, Is0, Is1, &
                                                 v(2), w(2)
 
