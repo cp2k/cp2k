@@ -75,8 +75,9 @@
                                                virial_create,&
                                                virial_release,&
                                                virial_type
-                                               USE physcon
+    USE physcon
 #include "cp_common_uses.h"
+    IMPLICIT NONE
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: f

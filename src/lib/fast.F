@@ -7,6 +7,7 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
 ! cmat(i,j,k) <- za * cmat(i,j,k) + ex(i) * ey(j) * ez(k)
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
   COMPLEX ( wp ), INTENT ( IN ) :: za, zb
@@ -37,6 +38,7 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
 ! cden(i) <- cden(i) * cden2(i)
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( wp ), INTENT ( IN ) :: cvec2 (2,*)
@@ -65,6 +67,7 @@ SUBROUTINE vr_x_vc ( n, rvec, cvec )
 ! cden(i) <- cden(i) * rden(i)
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( wp ), INTENT ( IN ) :: rvec (*)
@@ -89,6 +92,7 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 ! r2 = imag ( z )
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( wp ), INTENT ( OUT ) :: r1(*), r2(*)
@@ -109,6 +113,7 @@ END SUBROUTINE copy_cri
 SUBROUTINE copy_cc ( n, in, out )
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( wp ), INTENT ( IN ) :: in(n)
@@ -129,6 +134,7 @@ SUBROUTINE copy_cr ( n, z, r1 )
 ! r1 = real ( z )
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( wp ), INTENT ( OUT ) :: r1(n)
@@ -150,6 +156,7 @@ SUBROUTINE copy_rc ( n, r1, z )
 ! z = r1
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( wp ), INTENT ( IN ) :: r1(n)
@@ -171,6 +178,7 @@ SUBROUTINE copy_cz ( n, c, z )
 ! z = c
 !
   USE lib_kinds,                        ONLY: dp, sp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   COMPLEX ( sp ), INTENT ( IN ) :: c(n)
@@ -188,6 +196,7 @@ SUBROUTINE copy_zc ( n, z, c )
 ! c = z
 !
   USE lib_kinds,                        ONLY: dp, sp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   COMPLEX ( dp ), INTENT ( IN ) :: z(n)
@@ -205,6 +214,7 @@ SUBROUTINE copy_zz ( n, c, z )
 ! z = c
 !
   USE lib_kinds,                        ONLY: wp
+  IMPLICIT NONE
 
   INTEGER, INTENT ( IN ) :: n
   COMPLEX ( wp ), INTENT ( IN ) :: c(n)
