@@ -54,12 +54,13 @@ MODULE ai_geminals
     INTEGER                                  :: handle, i, ir, irm, irx, iry, &
                                                 irz, is, ism, istat, isx, &
                                                 isy, isz, lr, ls
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pi3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zdet
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zg
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     anorm = 0._dp
@@ -174,10 +175,11 @@ MODULE ai_geminals
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, n, nr, ns
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: iab0
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     n = na*nb
@@ -223,9 +225,10 @@ MODULE ai_geminals
       irbz, isa, isam, isap, isax, isay, isaz, isb, isbx, isby, isbz, k, mra, &
       mrb, msa, msb
     INTEGER, DIMENSION(6)                    :: ii, jj
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ari, asi, za11, za12, za22
 
+    failure = .FALSE.
     CPPrecondition(nder>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(nder<=1,cp_failure_level,routineP,error,failure)
 
@@ -341,7 +344,7 @@ MODULE ai_geminals
     INTEGER                                  :: handle, i, istat, j, k, lrab, &
                                                 lsab, ltab, ltc, na, nab, nb, &
                                                 nc, nrab, nrc, nsab, nsc
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zab
     REAL(KIND=dp), ALLOCATABLE, &
@@ -350,6 +353,7 @@ MODULE ai_geminals
       DIMENSION(:, :, :, :, :, :)            :: iabcd
     REAL(KIND=dp), DIMENSION(6)              :: ab
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
@@ -461,13 +465,14 @@ MODULE ai_geminals
                                                 lsab, lscd, ltab, ltcd, ma, &
                                                 mb, na, nab, nb, nc, ncd, nd, &
                                                 nrab, nrcd, nsab, nscd
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zab, zcd
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: gab, iab
     REAL(KIND=dp), DIMENSION(6)              :: ab, cd
 
+    failure = .FALSE.
     na = npgfa
     nb = npgfb
     nab = na*nb
@@ -563,7 +568,7 @@ MODULE ai_geminals
       isy, isz, ix, ixx(1), j10, j20, k, k10, k20, ka, kb, kk, ll, llr, lls, &
       lr, ls, lsmax, lt, m, mm, n, ni, nr, ns
     INTEGER, DIMENSION(3)                    :: irm, irmm, irr, ism, ismm, iss
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, abi, abj, ari, asi, ba, &
                                                 bab, bb, d01m, d01p, d02m, &
                                                 d02p, d10m, d10p, d11m, d11p, &
@@ -580,6 +585,7 @@ MODULE ai_geminals
     REAL(KIND=dp), DIMENSION(2, 2)           :: ee
     REAL(KIND=dp), DIMENSION(6)              :: ab, c, d, q
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     lr = lra + lrb
@@ -811,11 +817,12 @@ MODULE ai_geminals
       irbx, irby, irbz, isa, isap, isax, isay, isaz, isb, isbm, isbx, isby, &
       isbz, istat, ix, ixx(1), jj(6), jjm(6), mra, mrb, msa, msax, msb, msbx, &
       n, nra, nrab, nrb, nsa, nsab, nsb, nua, nub
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: abx
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iab
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     nra = ncoset(lra)
@@ -943,9 +950,10 @@ MODULE ai_geminals
                                                 ms, nk, nmax, nr, ns
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ac
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a123
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     nmax=MAX(la,lb)
@@ -1022,9 +1030,10 @@ MODULE ai_geminals
                                                 nmax, nr, ns
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ac
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a123
 
+    failure = .FALSE.
     nmax=MAX(la,lb)
 
     ALLOCATE (ac(0:nmax,0:nmax,0:2*nmax),STAT=istat)

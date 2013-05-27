@@ -1014,9 +1014,10 @@ CONTAINS
 
     INTEGER                                  :: handle, i1, i2, ierr, m1, m2, &
                                                 mm1, mm2, n1, n2, nn1, nn2
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: amat, atran, bmat, btran, hint
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     m1 = SIZE(cm1,1)

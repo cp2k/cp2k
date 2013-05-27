@@ -372,7 +372,7 @@ CONTAINS
 
     INTEGER                                  :: i, ider, ierr, j, k, l, &
                                                 lhomo, m, n, nhomo, s1, s2
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dene, emax, expzet, fhomo, o, &
                                                 prefac, zeta
     REAL(KIND=dp), ALLOCATABLE, &
@@ -385,6 +385,7 @@ CONTAINS
       POINTER                                :: ovlp
     TYPE(atom_state), POINTER                :: state
 
+    failure = .FALSE.
     WRITE(iw,'(/," ",79("*"),/,T34,A,/," ",79("*"))') "RESPONSE BASIS"
 
     state => atom%state

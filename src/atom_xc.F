@@ -65,7 +65,7 @@ CONTAINS
                                                 l, myfun, n1, n2, n3, nr, &
                                                 nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
-    LOGICAL                                  :: failure = .FALSE., lsd, nlcc
+    LOGICAL                                  :: failure, lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxc
@@ -78,6 +78,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
+    failure = .FALSE.
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
@@ -250,7 +251,7 @@ CONTAINS
     INTEGER                                  :: deriv_order, handle, ierr, l, &
                                                 myfun, n1, n2, n3, nr, nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
-    LOGICAL                                  :: failure = .FALSE., lsd
+    LOGICAL                                  :: failure, lsd
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxca, vxcb
@@ -263,6 +264,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
+    failure = .FALSE.
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)

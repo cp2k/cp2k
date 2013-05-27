@@ -1507,8 +1507,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ix, iy, iz, nx, ny, nz
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ALL(ABS(cell)<=ncell),cp_failure_level,routineP,error,failure)
 
     ix = cell(1)
@@ -1593,9 +1594,10 @@ CONTAINS
 
     INTEGER                                  :: funit, iadr, iat, jadr, jat, &
                                                 kk, nl, nlines, nn, stat
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pars
 
+    failure = .FALSE.
     IF(para_env%source==para_env%mepos) THEN
       ! Read the DFT-D3 C6AB parameters from file "filename"
       CALL open_file(file_name=filename,unit_number=funit,file_form="FORMATTED")
@@ -2629,11 +2631,12 @@ CONTAINS
     INTEGER                                  :: group, i, ia, ipe, istat, jn, &
                                                 n, natom, ntmax, ntot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list, nloc
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dvals
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rik
 
+    failure = .FALSE.
 ! we only have to do something if this is a parallel run
 
     IF (para_env%num_pe > 1) THEN

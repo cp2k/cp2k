@@ -92,12 +92,13 @@ CONTAINS
 
     INTEGER                                  :: iexp, ij, ipgf, istat, jpgf, &
                                                 mmax, nexp
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho, sab, t, zetc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: auxint
     REAL(KIND=dp), DIMENSION(3)              :: pci
 
+    failure = .FALSE.
     IF (PRESENT(pab)) THEN
       CPPostcondition(PRESENT(force_a),cp_failure_level,routineP,error,failure)
       CPPostcondition(PRESENT(force_b),cp_failure_level,routineP,error,failure)

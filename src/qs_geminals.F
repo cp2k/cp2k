@@ -92,7 +92,7 @@ MODULE qs_geminals
       jkind, maxlgem(2), ml, natom, nd, nder, nga, ngb, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ehfx1, eps_screening, fij, &
                                                 xfraction
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec, jvec
@@ -114,6 +114,7 @@ MODULE qs_geminals
     TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,particle_set,local_particles,ri_env)
@@ -285,7 +286,7 @@ MODULE qs_geminals
       nb, nd, nder, ngem, nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
-    LOGICAL                                  :: failure = .FALSE., found
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, &
                                                 fij, xfraction
     REAL(KIND=dp), ALLOCATABLE, &
@@ -319,6 +320,7 @@ MODULE qs_geminals
     TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,particle_set,local_particles,rho,matrix_ks,ri_env,force,virial)
@@ -511,8 +513,7 @@ MODULE qs_geminals
       mem_compression_counter, memory_usage, natom, new_size, nga, nints, &
       nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: buffer_overflow, &
-                                                failure = .FALSE.
+    LOGICAL                                  :: buffer_overflow, failure
     REAL(KIND=dp)                            :: eps_screening, eps_storage
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec
     REAL(KIND=dp), ALLOCATABLE, &
@@ -530,6 +531,7 @@ MODULE qs_geminals
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(semi_empirical_si_type), POINTER    :: store_int
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,particle_set,local_particles,ri_env)
@@ -688,7 +690,7 @@ MODULE qs_geminals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: lrmaxa, lsa, npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: firsta, la
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: al, cc, ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ivmat
@@ -705,6 +707,7 @@ MODULE qs_geminals
       POINTER                                :: particle_set
     TYPE(ri_environment_type), POINTER       :: ri_env
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,particle_set,local_particles,ri_env)
@@ -1075,10 +1078,10 @@ MODULE qs_geminals
 
     INTEGER :: bb, buffer_left, buffer_size, buffer_start, cache_size, ia, &
       ib, ig, mem_compression_counter, nbits, new_size, nints
-    LOGICAL                                  :: buffer_overflow, &
-                                                failure = .FALSE.
+    LOGICAL                                  :: buffer_overflow, failure
     REAL(KIND=dp)                            :: eps_storage
 
+    failure = .FALSE.
     IF (store_int%memory_parameter%do_all_on_the_fly .OR. nderivative > 0) THEN
        CALL gemgau_integral_atom_calc(intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
                                       atomic_kind_c,rc,nderivative,error)
@@ -1199,7 +1202,7 @@ MODULE qs_geminals
                                                 nsgfb, nshellc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 firstc, lastc, lc
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ab
@@ -1217,6 +1220,7 @@ MODULE qs_geminals
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
                                                 orb_basis_set_b
 
+    failure = .FALSE.
     CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(nderivative<=1,cp_failure_level,routineP,error,failure)
     nder = 1

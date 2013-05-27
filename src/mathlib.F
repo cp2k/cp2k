@@ -433,9 +433,10 @@ CONTAINS
 
     INTEGER                                  :: lwork, n
     INTEGER, ALLOCATABLE                     :: ipiv(:)
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE               :: work(:)
 
+    failure = .FALSE.
     n = SIZE(a,1)
     lwork = 20*n
     ALLOCATE (ipiv(n),STAT=info)

@@ -942,8 +942,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr, m
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     m=MAXVAL(n)
 
     CPPrecondition(.NOT.ASSOCIATED(opmat), cp_failure_level, routineP, error, failure)
@@ -966,8 +967,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(opmat), cp_failure_level, routineP, error, failure)
 
     opmat%n = 0
@@ -989,8 +991,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr, nr
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(opgrid), cp_failure_level, routineP, error, failure)
 
     ALLOCATE(opgrid,STAT=ierr)
@@ -1014,8 +1017,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(opgrid), cp_failure_level, routineP, error, failure)
 
     NULLIFY(opgrid%grid)
@@ -1037,8 +1041,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     ngto = 0
     ival = 0
     cval = 0._dp

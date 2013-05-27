@@ -65,7 +65,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, n10, n100
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ehf
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -75,6 +75,7 @@ CONTAINS
     TYPE(ri_vector_type), POINTER            :: ri_coeff
     TYPE(section_vals_type), POINTER         :: powell_section
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,energy=energy,para_env=para_env,error=error)
@@ -169,7 +170,7 @@ CONTAINS
     INTEGER                                  :: ikind, iset, istat, nkind, &
                                                 nopt, np, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf
-    LOGICAL                                  :: failure = .FALSE., noopt
+    LOGICAL                                  :: failure, noopt
     REAL(KIND=dp)                            :: a, b, c
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: zet
@@ -178,6 +179,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
 
+    failure = .FALSE.
     NULLIFY(atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
@@ -256,7 +258,7 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: restriction
     INTEGER                                  :: ikind, iset, nkind, nopt, nset
-    LOGICAL                                  :: failure = .FALSE., noopt
+    LOGICAL                                  :: failure, noopt
     REAL(KIND=dp)                            :: a, b, c
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: zet, zeth
@@ -265,6 +267,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
 
+    failure = .FALSE.
     NULLIFY(atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)

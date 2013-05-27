@@ -128,8 +128,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     IF ( ASSOCIATED(sym) ) CALL release_molsym(sym,error)
 
     ALLOCATE(sym,STAT=ierr)
@@ -153,8 +154,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(sym),cp_failure_level,routineP,error,failure)
 
     IF ( ASSOCIATED(sym%aw) ) THEN
@@ -210,10 +212,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isec
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
+    failure = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -249,10 +252,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ises
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
+    failure = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -287,10 +291,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isig
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
+    failure = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -1659,9 +1664,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natoms
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tt
 
+    failure = .FALSE.
 ! Find the vector center_of_mass to molecular center of mass
 
     natoms = SIZE(coord,2)

@@ -85,8 +85,7 @@ CONTAINS
                                                 nppnl, nshell, ppeconf
     INTEGER, DIMENSION(:, :), POINTER        :: addel, first_sgf, laddel, &
                                                 last_sgf, ls, naddel
-    LOGICAL                                  :: bs_occupation, &
-                                                failure = .FALSE., &
+    LOGICAL                                  :: bs_occupation, failure, &
                                                 lpot_present, lsd_present, &
                                                 nlcc_present
     REAL(KIND=dp)                            :: ac, al, ear, rk, scal, zeff
@@ -106,6 +105,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
+    failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom,error)
 
@@ -578,9 +578,8 @@ CONTAINS
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(:), POINTER           :: econf, nct_lpot, nct_lsd, &
                                                 nct_nlcc, nppnl, ppeconf
-    LOGICAL                                  :: failure = .FALSE., &
-                                                lpot_present, lsd_present, &
-                                                nlcc_present
+    LOGICAL                                  :: failure, lpot_present, &
+                                                lsd_present, nlcc_present
     REAL(KIND=dp)                            :: ac, al, aval, cc, cval, ear, &
                                                 rk, xx, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
@@ -598,6 +597,7 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid
     TYPE(gth_potential_type), POINTER        :: gth_potential
 
+    failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom,error)
 

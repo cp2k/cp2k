@@ -475,8 +475,8 @@ CONTAINS
       maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, &
       n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL :: all_potential_present, exfun, explicit, failure = .FALSE., &
-      harris_flag, has_unit_metric, was_present
+    LOGICAL :: all_potential_present, exfun, explicit, failure, harris_flag, &
+      has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     REAL(dp), POINTER                        :: params(:), scal(:)
@@ -525,6 +525,7 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     para_env=>qs_env%para_env

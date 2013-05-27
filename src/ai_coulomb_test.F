@@ -61,7 +61,7 @@ CONTAINS
                                                 la_min, lc_max, lc_min, ll, &
                                                 n, na, nb, npgfa, npgfb, &
                                                 npgfc, npgfd
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: perf, rac2, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
     REAL(KIND=dp), ALLOCATABLE, &
@@ -76,6 +76,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(6)              :: a, b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
 
+    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(/,A)') " Test of Electron Repulsion Integrals (ERI) "
 
     CALL init_orbital_pointers(lmax)
@@ -266,7 +267,7 @@ CONTAINS
                                                 la, lb, lc, ld, lla, llb, ma, &
                                                 mb
     INTEGER, DIMENSION(6)                    :: an, bn
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d1, dmax, intab, xa, xb, xc, &
                                                 xd
     REAL(KIND=dp), ALLOCATABLE, &
@@ -275,6 +276,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
     REAL(KIND=dp), DIMENSION(6)              :: ra, rb
 
+    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal Repulsion Integrals (GRI) "
 
     xa = 0.783300000000
@@ -388,13 +390,14 @@ CONTAINS
                                                 id1, idx, idy, idz, istat, &
                                                 la, lb, lc, ld, ma, mb, mc, md
     INTEGER, DIMENSION(3)                    :: na, nb, nc, nd
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dmax, res1, res2, xa, xb, xc, &
                                                 xd
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iabcd
     REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
 
+    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of ERI calculated from from Geminal Repulsion Integrals (GRI) "
 
     xa = 0.783300000000
@@ -483,7 +486,7 @@ CONTAINS
     INTEGER :: ia1, ia2, ia3, ia4, ia5, ia6, iax, iay, ib1, ib2, ib3, ib4, &
       ib5, ib6, ibx, iby, istat, k, la, lb, lc, ld, lla, llb, lmax, ma, mb
     INTEGER, DIMENSION(6)                    :: an, bn
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d1, delta, dmax, intab, intm, &
                                                 intp, xa, xb, xc, xd
     REAL(KIND=dp), ALLOCATABLE, &
@@ -494,6 +497,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
     REAL(KIND=dp), DIMENSION(6)              :: ra, rb
 
+    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal Repulsion Integral Derivatives (GRI) "
 
     delta = 0.00001_dp
@@ -631,7 +635,7 @@ CONTAINS
                                                 is, istat, isx, isy, isz, k, &
                                                 la, lb, lc, ld, lla, llb, &
                                                 lmax, ma, mb, mc
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d1, da, db, dc, delta, dmax, &
                                                 xa, xb, xc, xd, xr, xs
     REAL(KIND=dp), ALLOCATABLE, &
@@ -641,6 +645,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
     REAL(KIND=dp), DIMENSION(6)              :: ra, rb
 
+    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal/Gaussian Repulsion Integral Derivatives (GRI) "
 
     delta = 0.00001_dp

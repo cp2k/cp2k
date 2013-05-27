@@ -479,13 +479,14 @@ CONTAINS
       DIMENSION(:, :)                        :: u_vdw(:,:)
     INTEGER                                  :: handle, ig, igs, iq, l, m, &
                                                 nqs, q1_i, q2_i, stat
-    LOGICAL                                  :: failure = .FALSE., use_virial
+    LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: g, g2, g2_last, g_multiplier, &
                                                 gm
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dkernel_of_dk, kernel_of_k
     TYPE(pw_grid_type), POINTER              :: grid
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
     nqs = dispersion_env%nqs
     ALLOCATE(kernel_of_k(nqs,nqs),dkernel_of_dk(nqs,nqs),STAT=stat)
@@ -602,13 +603,14 @@ CONTAINS
 
     INTEGER                                  :: handle, i_grid, l, m, nqs, &
                                                 P_i, q, q_hi, q_low, stat
-    LOGICAL                                  :: failure = .FALSE., use_virial
+    LOGICAL                                  :: failure, use_virial
     REAL(dp)                                 :: a, b, b_value, c, const, d, &
                                                 dP_dq0, dq, e, f, P, prefactor
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: y
     REAL(dp), DIMENSION(:), POINTER          :: q_mesh
     REAL(dp), DIMENSION(:, :), POINTER       :: d2y_dx2
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     IF (PRESENT(virial)) THEN
@@ -1155,10 +1157,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k_i, Nr_points, q1_i, q2_i
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: A, B, C, D, dk, r_max
     REAL(dp), DIMENSION(:, :, :), POINTER    :: d2phi_dk2, kernel
 
+    failure = .FALSE.
     Nr_points = dispersion_env%nr_points
     r_max = dispersion_env%r_max
     dk = dispersion_env%dk
@@ -1217,11 +1220,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k_i, Nr_points, q1_i, q2_i
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: A, B, dAdk, dBdk, dCdk, dDdk, &
                                                 dk, r_max
     REAL(dp), DIMENSION(:, :, :), POINTER    :: d2phi_dk2, kernel
 
+    failure = .FALSE.
     Nr_points = dispersion_env%nr_points
     r_max = dispersion_env%r_max
     dk = dispersion_env%dk

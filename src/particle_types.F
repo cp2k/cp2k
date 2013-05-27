@@ -189,8 +189,9 @@ CONTAINS
 
     INTEGER                                  :: ikind, iparticle, isgf, &
                                                 nparticle, ns
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
 
     nparticle = SIZE(particle_set)

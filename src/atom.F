@@ -96,8 +96,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: elem
     INTEGER                                  :: i, ie, z
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CALL section_vals_val_get(atom_section,"ATOMIC_NUMBER", i_val=z, error=error)
     CALL section_vals_val_get(atom_section,"ELEMENT", c_val=elem, error=error)
 
