@@ -2145,7 +2145,7 @@ CONTAINS
             "DI 10.1063/1.1558476",&
             "UT WOS:000181834900004",&
             "ER"),&
-          DOI="11.1063/1.1558476")
+          DOI="10.1063/1.1558476")
 
       CALL add_reference(key=VandeVondele2002, ISI_record=s2a(&
             "PT J",&
