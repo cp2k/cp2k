@@ -79,6 +79,7 @@ MODULE pw_grid_types
      REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
      INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
+     INTEGER, DIMENSION ( :, : ), POINTER :: g_hatmap ! mapped grid point indices (Miller) [CUDA]
      INTEGER :: grid_span                         ! type HALFSPACE/FULLSPACE
      LOGICAL :: have_g0                           ! whether I have G = [0,0,0]
      INTEGER :: first_gne0                        ! first g index /= 0 [1/2]

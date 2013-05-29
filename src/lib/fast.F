@@ -229,3 +229,44 @@ END SUBROUTINE copy_zz
 
 !-----------------------------------------------------------------------------!
 
+!-----------------------------------------------------------------------------!
+! *****************************************************************************
+SUBROUTINE zero_r ( n, r)
+!
+! r = 0.0_wp
+!
+
+  USE lib_kinds,                        ONLY: wp
+
+  INTEGER, INTENT (IN)     :: n
+  REAL ( wp ), INTENT(OUT) :: r(n)
+  INTEGER                  :: i
+
+!$OMP PARALLEL DO default(none), private(i), shared(r,n)
+  DO i=1,n
+     r(i) = 0.0_wp
+  ENDDO
+
+END SUBROUTINE zero_r
+! *****************************************************************************
+SUBROUTINE zero_c ( n, z)
+!
+! z = ( 0.0_wp , 0.0_wp)
+!
+
+  USE lib_kinds,                        ONLY: wp
+
+  INTEGER, INTENT (IN)     :: n
+  REAL ( wp ), INTENT(OUT) :: z(2,n)
+  INTEGER                  :: i
+
+!$OMP PARALLEL DO default(none), private(i), shared(z,n)
+  DO i=1,n
+     z(1,i) = 0.0_wp
+     z(2,i) = 0.0_wp
+  ENDDO
+
+END SUBROUTINE zero_c
+
+! *****************************************************************************
+!-----------------------------------------------------------------------------!

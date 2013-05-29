@@ -37,6 +37,8 @@ MODULE cp2k_runs
                                              cp_unit_set_release,&
                                              cp_unit_set_type,&
                                              print_all_units
+  USE cuda_device,                     ONLY: cuda_device_init,&
+                                             cuda_device_release
   USE cuda_memory,                     ONLY: cuda_device_mem_init,&
                                              cuda_device_mem_release
   USE environment,                     ONLY: cp2k_finalize,&
@@ -182,6 +184,8 @@ CONTAINS
 
     CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
 
+    CALL cuda_device_init (group=mpi_comm, error=error)
+
     NULLIFY(globenv, force_env)
 
     CALL cp_error_init(error, stop_level=cp_fatal_level)
@@ -281,9 +285,6 @@ CONTAINS
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
-! if CUDA is enabled we need to allocate memory on the graphics card
-          CALL cuda_device_mem_init(root_section, error)
-
           CALL cp_dbcsr_config (root_section, error)
           IF (output_unit > 0 .AND.&
                cp_logger_would_log(logger, cp_note_level)) THEN
@@ -291,7 +292,11 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT='()')
           ENDIF
 
-
+          IF (prog_name_id/=do_farming) THEN
+             ! if PW_CUDA is enabled we need to get cudaStreams and
+             ! cudaEvents on the GPU
+             CALL cuda_device_mem_init(root_section, error)
+          ENDIF
 
 
           SELECT CASE (prog_name_id)
@@ -442,12 +447,16 @@ CONTAINS
              CALL section_vals_release(root_section,error=error)
              CALL globenv_release(globenv,error=error)
           END IF
+
+          ! if PW_CUDA is enabled we need to free cudaStreams, cudaEvents
+          ! and stored FFT-plans on the GPU
+          CALL cuda_device_mem_release()
+
        END IF
 
     END IF
 
-! if CUDA is enabled we need to free memory on the graphics card
-    CALL cuda_device_mem_release()
+    CALL cuda_device_release (error=error)
 
     CALL cp_dbcsr_finalize_lib (error=error)
 

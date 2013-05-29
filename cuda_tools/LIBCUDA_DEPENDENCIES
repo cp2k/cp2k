@@ -1,7 +1,12 @@
-cublas.o : cublas.cu
-cuda_memory_cu.o : cuda_memory_cu.cu cuda_memory_cu.h
-cuda_pw_cu.o : cuda_pw_cu.cu
-cufft.o : cufft.cu cufft.h
+cublas.o : cublas.cu memory_cuda.h
+
+error_cuda.o : error_cuda.cu
+
+memory_cuda.o : memory_cuda.cu error_cuda.h
+
+fft_cuda_z.o : fft_cuda_z.cu fft_cuda_internal.h memory_cuda.h error_cuda.h
+
+pw_cuda_z.o : pw_cuda_z.cu memory_cuda.h fft_cuda.h error_cuda.h
 
 dbcsr_cuda.o : dbcsr_cuda.h
 dbcsr_cuda_calc.o : dbcsr_cuda_calc.cu dbcsr_cuda.h

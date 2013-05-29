@@ -592,11 +592,6 @@ CONTAINS
                           pool_limit=10, plan_style=fftw_plan_type, &
                           error=error )
           method = "FFTW3  "
-       CASE ( 8 )
-          CALL init_fft ( "FFTCU", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=fftw_plan_type, &
-                          error=error )
-          method = "FFTCU"
        END SELECT
        n = 4
        zz =0.0_dp

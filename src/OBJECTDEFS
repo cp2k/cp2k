@@ -157,6 +157,7 @@ OBJECTS_GENERIC =\
  csvr_system_utils.o\
  cube_utils.o\
  cuda_cublas.o\
+ cuda_device.o\
  cuda_memory.o\
  d3_poly.o\
  damping_dipole_types.o\

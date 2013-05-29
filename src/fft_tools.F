@@ -147,6 +147,12 @@ MODULE fft_tools
   LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
   INTEGER, SAVE :: fft_plan_style = 1
 
+  ! these are only needed for pw_methods_cuda (-D__PW_CUDA)
+  PUBLIC :: get_fft_scratch, release_fft_scratch
+  PUBLIC :: cube_transpose_1, cube_transpose_2
+  PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
+  PUBLIC :: fft_scratch_sizes, fft_scratch_type
+
   INTERFACE fft3d
      MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
   END INTERFACE
@@ -496,17 +502,15 @@ CONTAINS
       POINTER                                :: pbuf, qbuf, rbuf, sbuf
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: tbuf
-    INTEGER :: g_pos, handle, ierr, iout, lb, lg, lmax, mcx2, mcz1, mcz2, mg, &
-      mmax, mx1, mx2, my1, my_id, mz2, n1, n2, nmax, num_threads, numtask, &
-      numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, sign, stat, ub
+    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mcx2, mcz1, mcz2, mg, &
+      mmax, mx1, mx2, my1, mz2, n1, n2, nmax, numtask, &
+      numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, sign, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: norm, sum_data
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
-
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -804,22 +808,9 @@ CONTAINS
 
        sbuf => fft_scratch%r1buf
        tbuf => fft_scratch%tbuf
-       num_threads = 1
-       my_id = 0
-!$omp parallel default(none), &
-!$omp          private(my_id, num_threads, lb, ub), &
-!$omp          shared(sbuf, tbuf)
-!$     num_threads = MIN(omp_get_max_threads(), SIZE(sbuf,2), SIZE(tbuf,3))
-!$     my_id = omp_get_thread_num()
-       IF (my_id < num_threads) THEN
-         lb = (SIZE(sbuf,2)*my_id)/num_threads + 1
-         ub = (SIZE(sbuf,2)*(my_id+1))/num_threads
-         sbuf(:,lb:ub) = 0._dp
-         lb = (SIZE(tbuf,3)*my_id)/num_threads + 1
-         ub = (SIZE(tbuf,3)*(my_id+1))/num_threads
-         tbuf(:,:,lb:ub) = 0._dp
-       END IF
-!$omp end parallel
+
+       CALL zero_c(SIZE(sbuf),sbuf)
+       CALL zero_c(SIZE(tbuf),tbuf)
 
        IF ( sign == FWFFT ) THEN
           ! cin -> gin
@@ -858,7 +849,6 @@ CONTAINS
                 WRITE ( *, '(A,T61,E20.14)') "     Sum of data(3) TS",sum_data
              END IF
           END IF
-
           ! FFT along x
           CALL fft_1dm ( fft_scratch%fft_plan(3), sbuf, gin, norm , stat)
 
@@ -2591,6 +2581,9 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE deallocate_fft_scratch_type(fft_scratch,error)
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    USE ISO_C_BINDING
+#endif
     TYPE(fft_scratch_type), INTENT(INOUT)    :: fft_scratch
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2599,6 +2592,18 @@ CONTAINS
 
     INTEGER                                  :: ierr
     LOGICAL                                  :: failure
+
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
+
+    INTERFACE
+      INTEGER(C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
+        USE ISO_C_BINDING
+        IMPLICIT NONE
+        TYPE(C_PTR), VALUE :: buffer
+      END FUNCTION cudaFreeHost
+    END INTERFACE
+#endif
 
     failure = .FALSE.
     ! deallocate structures
@@ -2615,19 +2620,39 @@ CONTAINS
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%p2buf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%p2buf(1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%p2buf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%p3buf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%p3buf(1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%p3buf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%p4buf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%p4buf(1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%p4buf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%p5buf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%p5buf(1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%p5buf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%p6buf)) THEN
@@ -2635,11 +2660,21 @@ CONTAINS
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%p7buf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%p7buf(1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%p7buf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%r1buf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%r1buf(1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%r1buf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%r2buf)) THEN
@@ -2647,7 +2682,12 @@ CONTAINS
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%tbuf)) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+       dummy_ptr_z => fft_scratch%tbuf(1,1,1)
+       ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+#else
        DEALLOCATE(fft_scratch%tbuf,STAT=ierr)
+#endif
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%a1buf)) THEN
@@ -2884,6 +2924,9 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    USE ISO_C_BINDING
+#endif
 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     INTEGER, INTENT(IN)                      :: tf_type
@@ -2904,7 +2947,23 @@ CONTAINS
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
                                                 fft_scratch_new
-
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    INTEGER(KIND=C_SIZE_T)    :: length
+    TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
+                                 cptr_p2buf, cptr_p3buf, cptr_p4buf, cptr_p5buf, cptr_p7buf
+    INTEGER(C_INT), PARAMETER :: cudaHostAllocDefault=0, &
+                                 cudaHostAllocPortable=1, &
+                                 cudaHostAllocMapped=2
+    INTERFACE
+      INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) BIND(C, name="cudaHostAlloc")
+        USE ISO_C_BINDING
+        IMPLICIT NONE
+        TYPE(C_PTR)              :: buffer
+        INTEGER(C_SIZE_T), VALUE :: length
+        INTEGER(C_INT), VALUE    :: flag
+      END FUNCTION cudaHostAlloc
+    END INTERFACE
+#endif
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -3135,10 +3194,21 @@ CONTAINS
              np    = fft_sizes%numtask
              nmray = fft_sizes%nmray
              nyzray= fft_sizes%nyzray
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+             length = int(2 * sizeof(1.0_dp) * mmax * lmax, KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_r1buf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, (/mmax,lmax/))
+             length = int(2 * sizeof(1.0_dp) * ny * nz * nx, KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_tbuf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, (/ny,nz,nx/))
+#else
              ALLOCATE ( fft_scratch_new%fft_scratch%r1buf(mmax,lmax),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%tbuf(ny,nz,nx),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+#endif
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
              ALLOCATE ( fft_scratch_new%fft_scratch%r2buf(lg,mg),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -3184,6 +3254,30 @@ CONTAINS
              nbz   = fft_sizes%nbz
              ALLOCATE ( fft_scratch_new%fft_scratch%p1buf(mx1*my1,n(3)),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE ( fft_scratch_new%fft_scratch%p6buf(lg,mg),STAT=ierr)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+             length = int(2 * sizeof(1.0_dp) * n(3) * mx1 * my1, KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_p2buf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, (/n(3),mx1*my1/))
+             length = int(2 * sizeof(1.0_dp) * mx2 * mz2 * n(2), KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_p3buf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, (/mx2*mz2,n(2)/))
+             length = int(2 * sizeof(1.0_dp) * n(2) * mx2 * mz2, KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_p4buf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, (/n(2),mx2*mz2/))
+             length = int(2 * sizeof(1.0_dp) * nyzray * n(1), KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_p5buf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, (/nyzray,n(1)/))
+             length = int(2 * sizeof(1.0_dp) * mg * lg, KIND=C_SIZE_T)
+             ierr = cudaHostAlloc(cptr_p7buf, length, cudaHostAllocDefault)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             call c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, (/mg,lg/))
+#else
              ALLOCATE ( fft_scratch_new%fft_scratch%p2buf(n(3),mx1*my1),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%p3buf(mx2*mz2,n(2)),STAT=ierr)
@@ -3192,10 +3286,9 @@ CONTAINS
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%p5buf(nyzray,n(1)),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE ( fft_scratch_new%fft_scratch%p6buf(lg,mg),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%p7buf(mg,lg),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+#endif
              IF ( alltoall_sgl ) THEN
                 ALLOCATE ( fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg),STAT=ierr)
                 CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)

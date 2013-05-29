@@ -22,6 +22,8 @@ MODULE f77_interface
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
                                              cp_dbcsr_init_lib
+  USE cuda_device,                     ONLY: cuda_device_init,&
+                                             cuda_device_release
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
   USE cp_ma_interface,                 ONLY: cp_ma_default_affinity,&
@@ -287,6 +289,9 @@ CONTAINS
 
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
+
+       ! Initialize non DBCSR CUDA devices
+       CALL cuda_device_init (group=mpi_comm_default, error=error)
     ELSE
        ierr=cp_failure_level
     END IF
@@ -318,6 +323,7 @@ CONTAINS
          CALL cp_ma_finalize_lib(error=error)
        ENDIF
        CALL cp_error_init(error, stop_level=cp_fatal_level)
+       CALL cuda_device_release (error=error)
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
           CPAssertNoFail(ierr==0,cp_warning_level,routineP,error)

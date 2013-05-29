@@ -34,8 +34,10 @@ MODULE pw_methods
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
-  USE pw_methods_cuda,                 ONLY: cuda_pw_fft_wrap_c1dr3d,&
-                                             cuda_pw_fft_wrap_r3dc1d
+  USE pw_methods_cuda,                 ONLY: pw_cuda_c1dr3d_3d,&
+                                             pw_cuda_r3dc1d_3d,&
+                                             pw_cuda_c1dr3d_3d_ps, &
+                                             pw_cuda_r3dc1d_3d_ps
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
        REALSPACE, RECIPROCALSPACE, SQUARE, SQUAREROOT, pw_type
@@ -464,7 +466,7 @@ CONTAINS
        cnt = SIZE ( pw%cc )
 
        IF ( i == j ) THEN
-!$omp parallel do private (ig,gg) default(none) shared(i,o3,pw,pwdr2,cnt) 
+!$omp parallel do default(none) private(ig,gg) shared(i,o3,pw,pwdr2,cnt)
           DO ig = 1, cnt
              gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
              pwdr2%cc(ig) = gg * pw%cc(ig)
@@ -586,7 +588,7 @@ CONTAINS
 
        cnt = SIZE ( pw%cc )
 
-!$omp parallel do private (ig,arg,f) default(none) shared(sigma,ecut,pw,cnt)
+!$omp parallel do default(none) private(ig,arg,f) shared(sigma,ecut,pw,cnt)
        DO ig = 1, cnt
           arg = (ecut - pw%pw_grid%gsq(ig))/sigma
           f = EXP(arg)/(1+EXP(arg))
@@ -1148,15 +1150,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, handle, l, lb, m, mn, &
-                                                my_id, n, ngpts, num_threads, &
-                                                ub
+    INTEGER                                  :: gpt, handle, l, m, mn, &
+                                                n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
-
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -1183,21 +1182,7 @@ CONTAINS
 
     ngpts = SIZE ( pw%pw_grid%gsq  )
 
-    IF ( .NOT. PRESENT ( scale ) ) THEN
-       num_threads = 1
-       my_id = 0
-!$omp parallel default(none), &
-!$omp          private(my_id, num_threads, lb, ub), &
-!$omp          shared(c)
-!$     num_threads = MIN(omp_get_max_threads(), SIZE(c,2))
-!$     my_id = omp_get_thread_num()
-       IF (my_id < num_threads) THEN
-         lb = (SIZE(c,2)*my_id)/num_threads + 1
-         ub = (SIZE(c,2)*(my_id+1))/num_threads
-         c(:, lb:ub) = 0.0_dp
-       END IF
-!$omp end parallel
-    END IF
+    IF ( .NOT. PRESENT ( scale ) ) CALL zero_c(SIZE(c),c)
 
     IF ( PRESENT ( scale ) ) THEN
 !$omp parallel do default(none), &
@@ -1309,7 +1294,7 @@ CONTAINS
 
     IF ( pw1%in_use == COMPLEXDATA3D .AND. &
          pw1%pw_grid%para%mode == PW_MODE_LOCAL ) THEN
-       !..what dirction will the transform be?
+       !..what direction will the transform be?
        IF ( pw1%in_space == REALSPACE ) THEN
           dir = FWFFT
           norm = pw1%pw_grid%dvol
@@ -1352,13 +1337,12 @@ CONTAINS
       POINTER                                :: grays
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER :: dir, handle, handle2, l1, l2, l3, lb, my_id, my_pos, &
-      nloc( 3 ), nrays, nsize, num_threads, out_space, stat, ub
+    INTEGER                                  :: dir, my_pos, nrays, nsize, out_space
+    INTEGER                                  :: handle, handle2, stat
+    INTEGER, DIMENSION(3)                    :: nloc
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: norm
-
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     failure = .FALSE.
     CALL timeset(routineN,handle2)
@@ -1382,7 +1366,7 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "PW grids not compatible")
        END IF
-       IF ( pw1%pw_grid%para %group /= pw2%pw_grid%para%group) THEN
+       IF ( pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "PW grids have not compatible MPI groups")
        END IF
@@ -1433,35 +1417,32 @@ CONTAINS
        CASE ( "FW_C3DC3D" )
           c_in => pw1%cc3d
           c_out => pw2%cc3d
-          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug = test )
        CASE ( "FW_R3DC3D" )
           pw2%cc3d = CMPLX ( pw1%cr3d, 0.0_dp, KIND=dp)
           c_out => pw2%cc3d
-          CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+          CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
        CASE ( "FW_C3DC1D" )
           c_in => pw1%cc3d
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! transform
-          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug = test )
           ! gather results
           IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
-          CALL pw_gather ( pw2, c_out, error=error)
+          CALL pw_gather ( pw2, c_out, error = error)
           DEALLOCATE ( c_out, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CASE ( "FW_R3DC1D" )
-#if defined ( __CUDAPW )
-          CALL cuda_pw_fft_wrap_r3dc1d(pw1, pw2, dir, n, norm)
+#if defined (__PW_CUDA)
+          CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale = norm, error = error)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           nsize=SIZE(pw1%cr3d,1)*SIZE(pw1%cr3d,2)*SIZE(pw1%cr3d,3)
-          l1 = LBOUND(pw1%cr3d,1)
-          l2 = LBOUND(pw1%cr3d,2)
-          l3 = LBOUND(pw1%cr3d,3)
-          CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
-          CALL fft3d ( dir, n, c_out, scale = 1._dp, debug=test )
-          CALL pw_gather ( pw2, c_out, scale = norm, error=error)
+          CALL copy_rc(nsize,pw1%cr3d,c_out)
+          CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
+          CALL pw_gather ( pw2, c_out, error = error)
           DEALLOCATE ( c_out, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
@@ -1473,7 +1454,7 @@ CONTAINS
           c_in => pw1%cc3d
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug = test )
           ! use real part only
           IF ( test ) WRITE ( *,'(A)') "  REAL part "
           pw2%cr3d = REAL ( c_out,KIND=dp)
@@ -1483,25 +1464,21 @@ CONTAINS
           c_out => pw2%cc3d
           IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
           CALL pw_scatter ( pw1, c_out, error=error)
-          CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+          CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
        CASE ( "BW_C1DR3D" )
-#if defined ( __CUDAPW )
-          CALL cuda_pw_fft_wrap_c1dr3d(pw1, pw2, dir, n, norm)
+#if defined (__PW_CUDA)
+          CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale = norm, error = error)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
-          CALL pw_scatter ( pw1, c_out, error=error)
+          CALL pw_scatter ( pw1, c_out, error = error)
           ! transform
-          CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+          CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           ! use real part only
           IF ( test ) WRITE ( *,'(A)') "  REAL part "
-          ! pw2%cr3d = REAL ( c_out,KIND=dp)
           nsize=SIZE(pw2%cr3d,1)*SIZE(pw2%cr3d,2)*SIZE(pw2%cr3d,3)
-          l1 = LBOUND(pw2%cr3d,1)
-          l2 = LBOUND(pw2%cr3d,2)
-          l3 = LBOUND(pw2%cr3d,3)
-          CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
+          CALL copy_cr(nsize,c_out,pw2%cr3d)
           DEALLOCATE ( c_out, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
@@ -1535,81 +1512,105 @@ CONTAINS
        CPPostcondition(SIZE(grays,1)==n(1),cp_failure_level,routineP,error,failure)
        CPPostcondition(SIZE(grays,2)==nrays,cp_failure_level,routineP,error,failure)
 
-       num_threads = 1
-       my_id = 0
-!$omp parallel default(none), &
-!$omp          private(my_id, num_threads, lb, ub), &
-!$omp          shared(grays,nrays)
-!$     num_threads = MIN(omp_get_max_threads(), nrays)
-!$     my_id = omp_get_thread_num()
-       IF (my_id < num_threads) THEN
-         lb = (nrays*my_id)/num_threads + 1
-         ub = (nrays*(my_id+1))/num_threads
-         grays(:, lb:ub) = 0.0_dp
-       END IF
-!$omp end parallel
-
        SELECT CASE ( mode )
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Illegal combination of in_use and in_space "//&
                             "in parallel 3d FFT")
        CASE ( "FW_C3DC1D" )
+          !..prepare input
           c_in => pw1%cc3d
+          CALL zero_c(SIZE(grays),grays)
+          !..transform
+          IF ( pw1%pw_grid%para%ray_distribution ) THEN
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+                  pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          ELSE
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          END IF
+          !..prepare output
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+          CALL pw_gather ( pw2, grays, error=error)
        CASE ( "FW_R3DC1D" )
+#if defined (__PW_CUDA)
+          CALL pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale = norm, error = error)
+#else
+          !..prepare input
           nloc = pw1%pw_grid%npts_local
           ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          c_in = CMPLX ( pw1%cr3d, 0.0_dp,KIND=dp)
+          nsize=nloc(1)*nloc(2)*nloc(3)
+          CALL copy_rc(nsize,pw1%cr3d,c_in)
+          CALL zero_c(SIZE(grays),grays)
+          !..transform
+          IF ( pw1%pw_grid%para%ray_distribution ) THEN
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+                  pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          ELSE
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          END IF
+          !..prepare output
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+          CALL pw_gather ( pw2, grays, error=error)
+          DEALLOCATE ( c_in, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+#endif
        CASE ( "BW_C1DC3D" )
+          !..prepare input
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+          CALL zero_c(SIZE(grays),grays)
           CALL pw_scatter ( pw1, grays, error=error)
           c_in => pw2%cc3d
+          !..transform
+          IF ( pw1%pw_grid%para%ray_distribution ) THEN
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+                  pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          ELSE
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          END IF
+          !..prepare output (nothing to do)
        CASE ( "BW_C1DR3D" )
+#if defined (__PW_CUDA)
+          CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale = norm, error = error)
+#else
+          !..prepare input
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+          CALL zero_c(SIZE(grays),grays)
           CALL pw_scatter ( pw1, grays, error=error)
           nloc = pw2%pw_grid%npts_local
           ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END SELECT
-
-       !..transform
-       IF ( pw1%pw_grid%para%ray_distribution ) THEN
-          CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
-               pw1%pw_grid%para%rs_group, &
-               pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-               pw1%pw_grid%para%bo, scale = norm, debug=test )
-       ELSE
-          CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
-               pw1%pw_grid%para%bo, scale = norm, debug=test )
-       END IF
-
-       !..prepare output
-       SELECT CASE ( mode )
-       CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__, &
-                            "Illegal combination of in_use and in_space "//&
-                            "in parallel 3d FFT" )
-       CASE ( "FW_C3DC1D" )
-          IF ( test .AND. pw1%pw_grid%para%group_head ) &
-               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
-          CALL pw_gather ( pw2, grays, error=error)
-       CASE ( "FW_R3DC1D" )
-          IF ( test .AND. pw1%pw_grid%para%group_head ) &
-               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
-          CALL pw_gather ( pw2, grays, error=error)
-          DEALLOCATE ( c_in, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CASE ( "BW_C1DC3D" )
-          ! nothing to do
-       CASE ( "BW_C1DR3D" )
+          nsize=nloc(1)*nloc(2)*nloc(3)
+          !..transform
+          IF ( pw1%pw_grid%para%ray_distribution ) THEN
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+                  pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          ELSE
+             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                  pw1%pw_grid%para%bo, scale = norm, debug=test )
+          END IF
+          !..prepare output
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  Real part "
-          pw2%cr3d = REAL ( c_in,KIND=dp)
+          CALL copy_cr(nsize,c_in,pw2%cr3d)
           DEALLOCATE ( c_in, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+#endif
        END SELECT
 
     END IF

@@ -29,6 +29,17 @@ dc_device_sync_cu ()
 }
 
 extern "C" int
+dc_device_reset_cu ()
+{
+  cudaError_t cErr;
+
+  cErr = cudaDeviceReset();
+  if (cuda_error_check (cErr))
+    return 1;
+  return 0;
+}
+
+extern "C" int
 dc_stream_sync_cu (int stream_id)
 {
   cudaError_t cErr;

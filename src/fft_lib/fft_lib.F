@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2006 - 2013  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,8 +22,6 @@
       flib = 1
     CASE ( "FFTW3" )
       flib = 3
-    CASE ( "FFTCU" )
-      flib = 8
   END SELECT
 
 END FUNCTION fft_library
@@ -42,8 +40,6 @@ SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
       CALL fftsg_get_lengths ( DATA, max_length )
     CASE ( 3 )
       CALL fftw3_get_lengths ( DATA, max_length )
-    CASE ( 8 )
-      CALL fftcu_get_lengths ( DATA, max_length )
   END SELECT
 
 END SUBROUTINE fft_get_lengths
@@ -61,7 +57,7 @@ IMPLICIT NONE
   TYPE (fft_plan_type), INTENT (INOUT)                  :: plan
   INTEGER, INTENT ( IN )                                :: fft_type, fsign
   LOGICAL, INTENT ( IN )                                :: fft_in_place
-  INTEGER, DIMENSION(3), INTENT ( IN )                                :: n
+  INTEGER, DIMENSION(3), INTENT ( IN )                  :: n
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zout
   INTEGER, INTENT ( IN )                                :: plan_style
@@ -109,8 +105,6 @@ SUBROUTINE fft_3d ( plan, scale, zin, zout, stat )
         CALL fftsg3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
       CASE ( 3 )
         CALL fftw33d ( plan, scale, zin, zout ,stat )
-      CASE ( 8 )
-        CALL fftcu3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
     END SELECT
   END IF
   ! stat is set to zero on error, -1,+1 are OK
@@ -198,8 +192,6 @@ SUBROUTINE fft_1dm ( plan, zin, zout, scale, stat)
         CALL fftsg1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 3 )
         CALL fftw31dm ( plan, zin, zout, scale, stat )
-      CASE ( 8 )
-        CALL fftcu1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
     END SELECT
   END IF
   ! stat is set to zero on error, -1,+1 are OK

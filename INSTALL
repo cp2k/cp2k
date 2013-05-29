@@ -101,7 +101,7 @@ How to compile CP2K code
      * (Experimental): Use the __DBCSR_CUDA to compile with CUDA
        support for matrix multiplication.  For linking add -lcudart and -lrt
        to LIBS.  The compiler must support ISO_C_BINDING.
-     * Use __CUDAPW and/or __FFTCU for CUDA support for PW and FFT
+     * Use __PW_CUDA for CUDA support for PW (gather/scatter/fft)
        calculations.  The Fortran compiler must use an appended
        underscore for linking C subroutines.
      * Consult cuda_tools/README for more information.
@@ -182,7 +182,7 @@ How to compile CP2K code
      various FFTs (use __FFTW3 if possible) :
      -D__FFTSG: Stefan Goedecker FFT (should always be there)
      -D__FFTW3: FFTW version 3
-     -D__FFTCU: CUDA FFT
+     -D__PW_CUDA: CUDA FFT and associated gather/scatter on the GPU
      various compilers/architectures needing their own machine_* file
      -D__NAG
      -D__AIX

@@ -2,7 +2,6 @@ LIB2_OBJECTS = ctrig.o\
                fft_kinds.o\
                fft_lib.o\
                fft_plan.o\
-               fftcu_lib.o\
                fftpre.o\
                fftrot.o\
                fftsg_lib.o\

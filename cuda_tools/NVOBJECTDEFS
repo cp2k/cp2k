@@ -1,6 +1,8 @@
-LIBNV_OBJECTS = cufft.o \
-cuda_memory_cu.o \
-cuda_pw_cu.o \
+LIBNV_OBJECTS = \
+error_cuda.o \
+memory_cuda.o \
+fft_cuda_z.o \
+pw_cuda_z.o \
 cublas.o \
 dbcsr_cuda_calc.o \
 dbcsr_cuda_calc_r.o \

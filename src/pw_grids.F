@@ -106,6 +106,7 @@ CONTAINS
        NULLIFY ( pw_grid % g )
        NULLIFY ( pw_grid % gsq )
        NULLIFY ( pw_grid % g_hat )
+       NULLIFY ( pw_grid % g_hatmap )
        NULLIFY ( pw_grid % gidx )
        NULLIFY ( pw_grid % grays )
        NULLIFY ( pw_grid % mapl % pos )
@@ -383,9 +384,107 @@ CONTAINS
     END IF
 
     CALL pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+
+#if defined ( __PW_CUDA )
+    CALL pw_grid_create_ghatmap ( pw_grid, error )
+#endif
+
     CALL timestop(handle)
 
   END SUBROUTINE pw_grid_setup
+
+! *****************************************************************************
+!> \brief sets up a combined index for CUDA gather and scatter
+!> \author Gloess Andreas (xx-Dec-2012)
+! *****************************************************************************
+  SUBROUTINE pw_grid_create_ghatmap ( pw_grid, error )
+
+    TYPE(pw_grid_type), INTENT(INOUT), POINTER :: pw_grid
+    TYPE(cp_error_type), INTENT(INOUT)         :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                    :: gpt, ngpts, l, m, n, mn
+    INTEGER, DIMENSION(:), POINTER             :: npts, pmapl, pmapm, pmapn,&
+                                                  nmapl, nmapm, nmapn
+    INTEGER, DIMENSION(:,:), POINTER           :: g_hat, yzq, g_hatmap
+
+    LOGICAL                                    :: failure
+    INTEGER                                    :: ierr, handle
+
+    CALL timeset(routineN,handle)
+  
+    ! some checks
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pw_grid), cp_failure_level, routineP, error, failure)
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP, error,failure)
+    IF ( pw_grid%grid_span == HALFSPACE ) THEN
+       WRITE(*,*) "WARNING: NOT FULLY TESTED YET! (pw_grid_create_ghatmap)"
+    END IF
+
+    ! mapping of map_x( g_hat(i,j)) to g_hatmap
+    ! the second index is for switching from gather(1) to scatter(2)
+    g_hat    => pw_grid%g_hat
+    g_hatmap => pw_grid%g_hatmap
+    pmapl    => pw_grid%mapl%pos
+    pmapm    => pw_grid%mapm%pos
+    pmapn    => pw_grid%mapn%pos
+    nmapl    => pw_grid%mapl%neg
+    nmapm    => pw_grid%mapm%neg
+    nmapn    => pw_grid%mapn%neg
+
+    ngpts    = SIZE( pw_grid%gsq )
+    npts     => pw_grid%npts
+    ! initialize map array to minus one, to guarantee memory
+    ! range checking errors in CUDA part (just to be sure) 
+    g_hatmap(:,:) = -1
+    IF ( pw_grid%para%mode /= PW_MODE_DISTRIBUTED ) THEN
+       DO gpt = 1, ngpts
+          l = pmapl( g_hat( 1, gpt ) )
+          m = pmapm( g_hat( 2, gpt ) )
+          n = pmapn( g_hat( 3, gpt ) )
+     !ATTENTION: C-mapping [start-index=0] !!!!
+     !ATTENTION: potential integer overflow !!!!
+          g_hatmap ( gpt, 1 ) = l + npts(1) * ( m + npts(2) * n )
+       END DO
+       IF ( pw_grid%grid_span == HALFSPACE ) THEN
+          DO gpt = 1, ngpts
+             l = nmapl( g_hat( 1, gpt ) )
+             m = nmapm( g_hat( 2, gpt ) )
+             n = nmapn( g_hat( 3, gpt ) )
+        !ATTENTION: C-mapping [start-index=0] !!!!
+        !ATTENTION: potential integer overflow !!!!
+             g_hatmap ( gpt, 2 ) = l + npts(1) * ( m + npts(2) * n )
+          END DO
+       END IF
+    ELSE
+       yzq  => pw_grid%para%yzq
+       DO gpt = 1, ngpts
+          l = pmapl( g_hat( 1, gpt ) )
+          m = pmapm( g_hat( 2, gpt ) ) + 1
+          n = pmapn( g_hat( 3, gpt ) ) + 1
+     !ATTENTION: C-mapping [start-index=0] !!!!
+     !ATTENTION: potential integer overflow !!!!
+          mn = yzq ( m, n ) - 1
+          g_hatmap ( gpt, 1 ) = l + npts(1) * mn
+       END DO
+       IF ( pw_grid%grid_span == HALFSPACE ) THEN
+          DO gpt = 1, ngpts
+             l = nmapl( g_hat( 1, gpt ) )
+             m = nmapm( g_hat( 2, gpt ) ) + 1
+             n = nmapn( g_hat( 3, gpt ) ) + 1
+        !ATTENTION: C-mapping [start-index=0] !!!!
+        !ATTENTION: potential integer overflow !!!!
+             mn = yzq ( m, n ) - 1
+             g_hatmap ( gpt, 2 ) = l + npts(1) * mn
+          END DO
+       END IF
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE pw_grid_create_ghatmap
 
 ! *****************************************************************************
 !> \brief sets up a pw_grid, needs valid bounds as input, it is up to you to
@@ -1608,14 +1707,36 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
 
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    USE ISO_C_BINDING
+#endif
+
     ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     INTEGER, INTENT(IN)                      :: ng
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                    :: nmaps
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    INTEGER(KIND=C_SIZE_T)                     :: length
+    TYPE(C_PTR)                                :: cptr_g_hatmap
+    INTEGER(C_INT), PARAMETER                  :: cudaHostAllocDefault = 0
+
+    INTERFACE
+      INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) &
+       BIND(C, name="cudaHostAlloc")
+        USE ISO_C_BINDING
+        IMPLICIT NONE
+        TYPE(C_PTR)              :: buffer
+        INTEGER(C_SIZE_T), VALUE :: length
+        INTEGER(C_INT), VALUE    :: flag
+      END FUNCTION cudaHostAlloc
+    END INTERFACE
+#endif
 
     INTEGER                                  :: allocstat, handle
     LOGICAL                                  :: failure
@@ -1630,6 +1751,19 @@ CONTAINS
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
     ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+
+    nmaps = 1
+    IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    length = int(sizeof(1) * ng * nmaps, KIND=C_SIZE_T)
+    allocstat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
+    CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/ng, nmaps/))
+#elif defined ( __PW_CUDA ) && defined ( __PW_CUDA_NO_HOSTALLOC )
+    ALLOCATE(pw_grid%g_hatmap(ng, nmaps), STAT = allocstat)
+#else
+    ALLOCATE(pw_grid%g_hatmap(1, 1), STAT = allocstat)
+#endif
+    CPPrecondition(allocstat==0, cp_failure_level, routineP, error, failure)
 
     IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
       ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
@@ -2131,11 +2265,28 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_grid_release(pw_grid, error)
+
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    USE ISO_C_BINDING
+#endif
+
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
       routineP = moduleN//':'//routineN
+
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    INTEGER, POINTER :: dummy_ptr
+
+    INTERFACE
+      INTEGER(C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
+        USE ISO_C_BINDING
+        IMPLICIT NONE
+        TYPE(C_PTR), VALUE :: buffer
+      END FUNCTION cudaFreeHost
+    END INTERFACE
+#endif
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -2160,6 +2311,15 @@ CONTAINS
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
              DEALLOCATE ( pw_grid % g_hat, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % g_hatmap ) ) THEN
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+             dummy_ptr => pw_grid % g_hatmap(1,1)
+             stat = cudaFreeHost(c_loc(dummy_ptr))
+#else
+             DEALLOCATE ( pw_grid % g_hatmap, STAT = stat )
+#endif
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF ( ASSOCIATED ( pw_grid % grays ) ) THEN
