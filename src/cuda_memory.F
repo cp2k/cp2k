@@ -31,7 +31,8 @@ MODULE cuda_memory
     SUBROUTINE cuda_device_mem_init_cu (memory) &
              BIND(C, name="cuda_device_mem_init_cu_")
       USE ISO_C_BINDING
-      INTEGER(KIND=C_INT), INTENT(IN)         :: memory
+    INTEGER(KIND=C_INT), INTENT(IN)          :: memory
+
     END SUBROUTINE cuda_device_mem_init_cu
   END INTERFACE
 

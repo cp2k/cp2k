@@ -13,15 +13,15 @@ MODULE cuda_device
   PRIVATE
 
   LOGICAL, SAVE :: is_configured = .FALSE.
-  CHARACTER(len=*), PARAMETER                :: moduleN = 'cuda_device'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cuda_device'
 
 #if defined (__PW_CUDA) && !defined (__DBCSR_CUDA)
   INTERFACE
      FUNCTION cuda_set_device_cu (device_id) RESULT (istat) &
           BIND(C, name="dc_set_device_cu")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: device_id
-       INTEGER(KIND=C_INT)                      :: istat
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: device_id
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_set_device_cu
   END INTERFACE
@@ -30,8 +30,8 @@ MODULE cuda_device
      FUNCTION cuda_get_ndevices_cu (n_devices) RESULT (istat) &
           BIND(C, name="dc_get_ndevices_cu")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
-       INTEGER(KIND=C_INT)                      :: istat
+    INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_get_ndevices_cu
   END INTERFACE
@@ -40,7 +40,7 @@ MODULE cuda_device
      FUNCTION cuda_device_sync_cu() RESULT (istat) &
           BIND(C, name="dc_device_sync_cu")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)                      :: istat
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_device_sync_cu
   END INTERFACE
@@ -49,7 +49,7 @@ MODULE cuda_device
      FUNCTION cuda_device_reset_cu() RESULT (istat) &
           BIND(C, name="dc_device_reset_cu")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)                      :: istat
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_device_reset_cu
   END INTERFACE

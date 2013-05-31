@@ -38,10 +38,9 @@ MODULE environment
                                              cp2k_header
   USE input_constants,                 ONLY: &
        callgraph_all, callgraph_none, debug_print_level, do_cp2k, do_eip, &
-       do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, &
-       do_test, energy_run, high_print_level, id_development_version, &
-       low_print_level, medium_print_level, mol_dyn_run, none_run, &
-       silent_print_level
+       do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, &
+       energy_run, high_print_level, id_development_version, low_print_level, &
+       medium_print_level, mol_dyn_run, none_run, silent_print_level
   USE input_cp2k,                      ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type

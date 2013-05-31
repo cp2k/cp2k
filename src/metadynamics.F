@@ -643,9 +643,11 @@ CONTAINS
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
     LOGICAL                                  :: failure, force_gauss
-    REAL(KIND=dp)                            :: cut_func, dfunc, diff, dp2, frac,&
-                                                slow_growth, V_now_here, V_to_fes, wtww, ww
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp, diff_ss, numf, denf, local_last_hills
+    REAL(KIND=dp)                            :: cut_func, dfunc, diff, dp2, &
+                                                frac, slow_growth, &
+                                                V_now_here, V_to_fes, wtww, ww
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp, denf, diff_ss, &
+                                                local_last_hills, numf
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     TYPE(metavar_type), DIMENSION(:), &

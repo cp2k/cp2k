@@ -22,8 +22,6 @@ MODULE f77_interface
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
                                              cp_dbcsr_init_lib
-  USE cuda_device,                     ONLY: cuda_device_init,&
-                                             cuda_device_release
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
   USE cp_ma_interface,                 ONLY: cp_ma_default_affinity,&
@@ -42,6 +40,8 @@ MODULE f77_interface
   USE cp_result_methods,               ONLY: get_results
   USE cp_subsys_types,                 ONLY: cp_subsys_type,&
                                              unpack_subsys_particles
+  USE cuda_device,                     ONLY: cuda_device_init,&
+                                             cuda_device_release
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
