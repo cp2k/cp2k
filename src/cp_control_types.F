@@ -88,6 +88,7 @@ MODULE cp_control_types
   TYPE scptb_control_type
      LOGICAL                              :: dispersion
      LOGICAL                              :: do_ewald
+     LOGICAL                              :: do_scc
      LOGICAL                              :: do_scp
      INTEGER                              :: sto_ng
      REAL(KIND = dp)                      :: rcdisp

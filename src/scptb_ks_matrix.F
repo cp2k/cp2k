@@ -187,6 +187,9 @@ CONTAINS
       END DO
       scptb_control => dft_control%qs_control%scptb_control
       IF(.NOT.scptb_control%do_scp) do_scp = .FALSE.
+      IF(.NOT.scptb_control%do_scc) do_es  = .FALSE.
+      ! SCP requires self-consistent charge method
+      IF(do_scp) do_es = .TRUE.
 
       DO ispin=1,nspins
         ! copy the core matrix into the fock matrix

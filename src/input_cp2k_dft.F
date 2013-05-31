@@ -2911,6 +2911,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="do_scc",&
+            description="Use self consistent charge method. Can be used together with DO_SCP to get TB method",&
+            usage="DO_SCC",default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="do_scp",&
             description="Use SCP method. Can be used to switch off SCP to get a SCC-DFTB method",&
             usage="DO_SCP",default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)

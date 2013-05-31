@@ -901,6 +901,8 @@ CPSourceFileRef,&
             l_val=qs_control%scptb_control%do_ewald,error=error)
        CALL section_vals_val_get(scptb_section,"DO_SCP",&
             l_val=qs_control%scptb_control%do_scp,error=error)
+       CALL section_vals_val_get(scptb_section,"DO_SCC",&
+            l_val=qs_control%scptb_control%do_scc,error=error)
     END IF
 
     CALL timestop(handle)
