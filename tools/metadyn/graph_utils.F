@@ -160,11 +160,12 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
+  SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val, r_val)
     INTEGER, INTENT(IN)                      :: unit
     CHARACTER(len=*)                         :: section
     CHARACTER(len=*), OPTIONAL               :: keyword, subsection
     INTEGER, INTENT(OUT), OPTIONAL           :: i_val
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: r_val
 
     CHARACTER(len=512)                       :: line
     INTEGER                                  :: my_ind, stat
@@ -181,6 +182,7 @@ CONTAINS
        CALL search(unit,TRIM(keyword),line,stat)
        my_ind=INDEX(line,TRIM(keyword))+LEN_TRIM(keyword)+1
        IF (PRESENT(i_val)) READ(line(my_ind:),*)i_val
+       IF (PRESENT(r_val)) READ(line(my_ind:),*)r_val
     END IF
 
     IF (PRESENT(subsection)) THEN

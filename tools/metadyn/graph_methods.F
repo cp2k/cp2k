@@ -99,6 +99,9 @@ CONTAINS
 
     INTEGER                                  :: dimval, i, id, pnt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xx
+    REAL(KIND=dp) :: sum_fes, dvol
+    INTEGER :: is
+
 
     ALLOCATE(xx(ndim))
     xx = x0
@@ -110,9 +113,20 @@ CONTAINS
           pnt=point_no_pbc(pos,ngrid,ndim)
           xx = x0 + dp_grid * ( pos - 1 )
           dimval = PRODUCT(ngrid(1:ndim-ndw)) 
+!
+          sum_fes =0.0_dp
+          dvol = PRODUCT(dp_grid(1:ndim-ndw))
+          do is = pnt,pnt+dimval-1
+             sum_fes = sum_fes + fes(is)*dvol
+          end do
           WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
+          WRITE(124,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
        END IF
     END DO
+    IF(idim==ndim-ndw+1) THEN
+       WRITE(123,*)
+       WRITE(124,*)
+    END IF
     DEALLOCATE(xx)
 
   END SUBROUTINE fes_write
@@ -132,7 +146,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ngrid
     INTEGER, INTENT(IN)                      :: ndw
 
-    INTEGER                                  :: dimval, i, pnt
+    INTEGER                                  :: dimval, i, id, pnt
+
 
     DO i = 1,ngrid(idim)
        pos(idim)=i
@@ -141,7 +156,7 @@ CONTAINS
        ELSE        
           pnt=point_no_pbc(pos,ngrid,ndim)
           dimval = PRODUCT(ngrid(1:ndim-ndw))
-          WRITE(123,'(1f12.5)')MINVAL(-fes(pnt:pnt+dimval-1))
+          WRITE(123,'(1f12.5)')  MINVAL(-fes(pnt:pnt+dimval-1))
        END IF
     END DO
 

@@ -32,12 +32,12 @@ PROGRAM graph
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=80)                        :: file, out, wq_char
+  CHARACTER(LEN=80)                        :: file, out, out2, wq_char
   CHARACTER(LEN=default_string_length)     :: per_label, active_label
   INTEGER                                  :: argcount, coor, i, id, ip, &
                                               it, iw, ix, ncount, ndim, &
                                               ndw, nf, nfes, ngauss, nh, &
-                                              nprd, nt, nt_p, nwr, stat, j
+                                              nprd, nt, nt_p, nwr, p_exp, q_exp, stat, j
   INTEGER, POINTER                         :: i_map(:), idw(:), ind(:), &
                                               inds(:), iperd(:), iprd(:), &
                                               ngrid(:), nn(:,:), nn_max(:), &
@@ -46,9 +46,12 @@ PROGRAM graph
                                               l_grid, l_math, l_orac, &
                                               l_pmin, lstride, l_cpmd, failure
   REAL(KIND=dp)                            :: diff, dp2, dum, eps_cut, ss, &
-                                              x0w(3), xfw(3), delta_s_glob
+                                              x0w(3), xfw(3), delta_s_glob, tail_cutoff
   REAL(KIND=dp), POINTER :: delta_s(:,:), dp_cut(:), dp_grid(:), fes(:), &
     gauss(:,:), ss0(:,:), tmpr(:), ww(:), x0(:), xf(:)
+! to be changed
+  REAL(KIND=dp) :: sc
+  INTEGER :: p, q
   TYPE(mep_input_data_type)                :: mep_input_data
 
   failure=.FALSE.
@@ -60,6 +63,7 @@ PROGRAM graph
   eps_cut = 1e-6
   file    = 'HILLS'
   out     = 'fes.dat'
+  out2     = 'fes_int.dat'
   fix     = .FALSE.
   lstride = .FALSE.
   l_grid  = .FALSE.
@@ -352,9 +356,15 @@ PROGRAM graph
   WRITE(iw,'(/,70("*"))')
   WRITE(iw,'("FES|",T7,A,/)')"Parsing file:   <"//TRIM(file)//">"
 
+  tail_cutoff = -1.0_dp
+  p_exp = 8
+  q_exp = 20
   OPEN(10,file=file,status='old')
   IF      (l_cp2k)            THEN
      CALL get_val_res(unit=10,section="&METADYN",keyword="NHILLS_START_VAL", i_val=nt)
+     CALL get_val_res(unit=10,section="&METADYN",keyword="HILL_TAIL_CUTOFF", r_val=tail_cutoff)
+     CALL get_val_res(unit=10,section="&METADYN",keyword="P_EXPONENT", i_val=p_exp)
+     CALL get_val_res(unit=10,section="&METADYN",keyword="Q_EXPONENT", i_val=q_exp)
   ELSE IF (l_orac.OR.l_cpmd)  THEN
      nt=0
      DO WHILE (.TRUE.)
@@ -507,6 +517,10 @@ PROGRAM graph
      nwr=INT(nt/10)+1
   END IF
 
+  sc = tail_cutoff
+  p = p_exp
+  q = q_exp
+
   ncount = 0
   WRITE(iw,'(/,"FES|",T7,A)') "Computing Free Energy Surface"
   Stride : DO WHILE (nh <= nt)
@@ -527,6 +541,9 @@ PROGRAM graph
               diff = ss-ss0(i,it)
               dp2=(diff/delta_s(i,it))**2
               gauss(ip,i)=ww(it)*EXP(-0.5_dp*dp2)
+              IF(tail_cutoff > 0.0_dp) THEN
+                 gauss(ip,i)= gauss(ip,i) * (1-(diff/sc*delta_s(i,it))**p)/(1-(diff/sc*delta_s(i,it))**q)
+              END IF
            END DO
         END DO
         inds = ind
@@ -550,9 +567,19 @@ PROGRAM graph
            WRITE(file,'("fes.dat.",i3)')ncount
         END IF
         OPEN(123,file=file)
+        IF(ncount<10) THEN
+           WRITE(file,'("fes_int.dat.",i1)')ncount
+        ELSEIF(ncount<100) THEN
+           WRITE(file,'("fes_int.dat.",i2)')ncount
+        ELSE
+           WRITE(file,'("fes_int.dat.",i3)')ncount
+        END IF
+        OPEN(124,file=file)
         ind   = 1
-        CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, ndw)
+!        CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, x0, ndw)
+        CALL fes_write     (ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw)
         CLOSE(123)
+        CLOSE(124)
      END IF
 
      nh=nh+nt_p
@@ -562,11 +589,13 @@ PROGRAM graph
 
   WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out)//" >"
   OPEN(123,file=out)
+  OPEN(124,file=out2)
   ix=0
   IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
   ind   = 1   
   CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw)
   CLOSE(123)
+  CLOSE(124)
  
   ! If requested find minima
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
