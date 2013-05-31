@@ -643,9 +643,9 @@ CONTAINS
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
     LOGICAL                                  :: failure, force_gauss
-    REAL(KIND=dp)                            :: dfunc, diff_ss, dp2, &
-                                                V_now_here, V_to_fes, wtww, ww
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp, local_last_hills
+    REAL(KIND=dp)                            :: cut_func, dfunc, diff, dp2, frac,&
+                                                slow_growth, V_now_here, V_to_fes, wtww, ww
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp, diff_ss, numf, denf, local_last_hills
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     TYPE(metavar_type), DIMENSION(:), &
@@ -737,20 +737,20 @@ CONTAINS
           DO ih=1,hills_env%n_hills
              dp2 = 0._dp
              DO i = 1, n_colvar
-               diff_ss = colvars(i)%ss0-hills_env%ss_history(i,ih)
+               diff = colvars(i)%ss0-hills_env%ss_history(i,ih)
                IF (colvars(i)%periodic) THEN
                   ! The difference of a periodic COLVAR is always within [-pi,pi]
-                  diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+                  diff = SIGN(1.0_dp,ASIN(SIN(diff)))*ACOS(COS(diff))
                END IF
-               diff_ss = (diff_ss)/hills_env%delta_s_history(i,ih)
-               dp2 = dp2 + diff_ss**2
+               diff = (diff)/hills_env%delta_s_history(i,ih)
+               dp2 = dp2 + diff**2
              ENDDO
              V_to_fes   = 1.0_dp + meta_env%wttemperature*hills_env%invdt_history(ih)
              V_now_here = V_now_here+hills_env%ww_history(ih)/V_to_fes*EXP(-0.5_dp*dp2)
           ENDDO
           wtww=hills_env%ww*EXP(-V_now_here*meta_env%invdt)
           ww=wtww*(1.0_dp + meta_env%wttemperature*meta_env%invdt)
-          CALL add_hill_single(hills_env, colvars,           ww, hills_env%n_hills, n_colvar, error, meta_env%invdt)
+          CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error, meta_env%invdt)
        ELSE
           CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
        END IF
@@ -817,17 +817,29 @@ CONTAINS
     ! Computes forces due to the hills: history dependent term
     ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(diff_ss(meta_env%n_colvar), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(numf(meta_env%n_colvar), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(denf(meta_env%n_colvar), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
     hills_env%energy = 0.0_dp
     DO ih=1,n_colvar
        colvars(ih)%ff_hills = 0.0_dp
     ENDDO
     DO ih=1,hills_env%n_hills
+       slow_growth = 1.0_dp
+       IF(hills_env%slow_growth .AND. (ih == hills_env%n_hills)) THEN
+        slow_growth = REAL(n_step-hills_env%old_hill_step,dp)/REAL(hills_env%nt_hills,dp)
+       END IF
        dp2 = 0._dp
+       cut_func = 1.0_dp
        DO i = 1, n_colvar
-          diff_ss = colvars(i)%ss0-hills_env%ss_history(i,ih)
+          diff_ss(i) = colvars(i)%ss0-hills_env%ss_history(i,ih)
           IF (colvars(i)%periodic) THEN
              ! The difference of a periodic COLVAR is always within [-pi,pi]
-             diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+             diff_ss(i) = SIGN(1.0_dp,ASIN(SIN(diff_ss(i))))*ACOS(COS(diff_ss(i)))
           END IF
           IF (hills_env%delta_s_history(i,ih) == 0.0_dp) THEN
             ! trick: scale = 0 is interpreted as infinitely wide Gaussian hill
@@ -836,24 +848,43 @@ CONTAINS
             ! simulation.
             ddp(i) = 0.0_dp
           ELSE
-            ddp(i) = (diff_ss)/hills_env%delta_s_history(i,ih)
+            ddp(i) = (diff_ss(i))/hills_env%delta_s_history(i,ih)
           END IF
           dp2 = dp2 + ddp(i)**2
+          IF(hills_env%tail_cutoff>0.0_dp) THEN
+             frac = ABS(ddp(i))/hills_env%tail_cutoff
+             numf(i) =  frac**hills_env%p_exp
+             denf(i) =  frac**hills_env%q_exp
+             cut_func =  cut_func * (1.0_dp-numf(i))/(1.0_dp-denf(i))
+          ENDIF
        ENDDO
        ! ff_hills contains the "force" due to the hills
-       dfunc = hills_env%ww_history(ih)*EXP(-0.5_dp*dp2)
+       dfunc = hills_env%ww_history(ih)*EXP(-0.5_dp*dp2)*slow_growth
        IF (meta_env%well_tempered) dfunc=dfunc/(1.0_dp + meta_env%wttemperature*hills_env%invdt_history(ih))
-       hills_env%energy = hills_env%energy + dfunc
+       hills_env%energy = hills_env%energy + dfunc * cut_func
        DO i=1,n_colvar
           IF (hills_env%delta_s_history(i,ih) /= 0.0_dp) THEN
             ! only apply a force when the Gaussian hill has a finite width in
             ! this direction
-            colvars(i)%ff_hills = colvars(i)%ff_hills + ddp(i)/hills_env%delta_s_history(i,ih)*dfunc
+            colvars(i)%ff_hills = colvars(i)%ff_hills +&
+                 ddp(i)/hills_env%delta_s_history(i,ih)*dfunc*cut_func
+             IF(hills_env%tail_cutoff>0.0_dp .AND. ABS(diff_ss(i)) > 10.E-5_dp) THEN
+               colvars(i)%ff_hills = colvars(i)%ff_hills +&
+                 (hills_env%p_exp*numf(i)/(1.0_dp-numf(i))-hills_env%q_exp*denf(i)/(1.0_dp-denf(i)))*&
+                  dfunc*cut_func/ABS(diff_ss(i))
+             END IF
           END IF
        ENDDO
     ENDDO
     DEALLOCATE(ddp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(diff_ss, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(numf, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(denf, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
     CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)
 
     CALL timestop(handle)

@@ -42,7 +42,7 @@ MODULE metadynamics_types
 !> \brief defines types for HILLS
 ! *****************************************************************************
   TYPE hills_env_type
-     LOGICAL                                   :: restart, wtcontrol
+     LOGICAL                                   :: restart, slow_growth, wtcontrol
      !RG Adaptive hills
      REAL(KIND=dp)                             :: ww, min_disp, energy
      INTEGER                                   :: n_hills, nt_hills, min_nt_hills
@@ -52,6 +52,9 @@ MODULE metadynamics_types
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: delta_s_history
      REAL(KIND=dp), DIMENSION(:),   POINTER    :: ww_history
      REAL(KIND=dp), DIMENSION(:),   POINTER    :: invdt_history
+     !Hills tail damping
+     REAL(KIND=dp)                             :: tail_cutoff
+     INTEGER                                   :: p_exp, q_exp
   END TYPE hills_env_type
 
 ! *****************************************************************************

@@ -161,6 +161,14 @@ CONTAINS
                            error=error)
        CALL section_vals_val_get(metadyn_section,"OLD_HILL_STEP",i_val=meta_env%hills_env%old_hill_step,&
                            error=error)
+
+       !Hills tail damping
+       CALL section_vals_val_get(metadyn_section,"HILL_TAIL_CUTOFF",r_val=meta_env%hills_env%tail_cutoff,error=error)
+       CALL section_vals_val_get(metadyn_section,"P_EXPONENT",i_val=meta_env%hills_env%p_exp, error=error)
+       CALL section_vals_val_get(metadyn_section,"Q_EXPONENT",i_val=meta_env%hills_env%q_exp, error=error)
+
+       CALL section_vals_val_get(metadyn_section,"SLOW_GROWTH",l_val=meta_env%hills_env%slow_growth,error=error)
+
        !RG Adaptive hills
        CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps,error=error)
        CPPreconditionNoFail(meta_env%n_steps>=0,cp_failure_level,routineP,error)

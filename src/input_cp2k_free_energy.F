@@ -199,6 +199,39 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        !RG Adaptive hills
 
+       !Hills tail damping
+       CALL keyword_create(keyword, name="HILL_TAIL_CUTOFF",&
+            description="By setting this variable larger than 0 the tail of the Gaussian hill "//&
+            " is damped to zero faster. The Gaussian function is multiplied by a cutoff function"//&
+            " that becomes active at |x-X0|>HILL_TAIL_CUTOFF*SCALE, where X0 is the location of "//&
+            "the Gaussian and SCALE is the width of the Gaussian. For more than one METAVAR"//&
+            " X0 and SCALE are METAVAR-dependent. "//&
+            " (1-(|x-X0|/HILL_TAIL_CUTOFF*SCALE)^P_EXP)/(1-(|x-X0|/HILL_TAIL_CUTOFF*SCALE)^Q_EXP)",&
+            usage="HILL_TAIL_CUTOFF <REAL>",&
+            default_r_val=-1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="P_EXPONENT",&
+            description="Exponent at the numerator of the cutoff function to damp the tail of the Gaussian.",&
+            usage="P_EXPONENT <INT>",&
+            default_i_val=8,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="Q_EXPONENT",&
+            description="Exponent at the denominator of the cutoff function to damp the tail of the Gaussian.",&
+            usage="Q_EXPONENT <INT>",&
+            default_i_val=20,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SLOW_GROWTH",&
+            description="Let the last hill grow slowly over NT_HILLS. ",&
+            usage="SLOW_GROWTH {logical}",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&
             "variables is specified.",usage="TEMP_TOL <REAL>",&

@@ -400,8 +400,8 @@ CONTAINS
           CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
        CASE (use_fist_force)
           CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
-          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
+!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
+!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL fist_env_get(force_env%fist_env,&
                             thermo=thermo,&
@@ -469,8 +469,8 @@ CONTAINS
             ENDIF
        CASE (use_mixed_force)
           CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
-          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
+!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
+!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL get_mixed_env(force_env%mixed_env,&
                             mixed_energy=mixed_energy,&
