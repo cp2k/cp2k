@@ -22,7 +22,7 @@ MODULE dm_ls_scf
        cp_dbcsr_binary_write, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_checksum
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
@@ -295,7 +295,7 @@ CONTAINS
     INTEGER                                  :: handle, iaspc, &
                                                 initial_guess_type, ispin, &
                                                 istore, naspc, unit_nr
-    REAL(KIND=dp)                            :: alpha, energy
+    REAL(KIND=dp)                            :: alpha, cs_pos, energy
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -331,6 +331,10 @@ CONTAINS
           WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
           CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
                                     matrix_new=ls_scf_env%matrix_p(ispin), error=error)
+          cs_pos = cp_dbcsr_checksum (ls_scf_env%matrix_p(ispin), pos=.TRUE., error=error)
+          IF (unit_nr>0) THEN
+             WRITE(unit_nr,'(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+          ENDIF
        ENDDO
     CASE(aspc_guess)
        CALL cite_reference(Kolafa2004)
@@ -405,6 +409,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: handle, ispin, istore, unit_nr
+    REAL(KIND=dp)                            :: cs_pos
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -448,6 +453,10 @@ CONTAINS
 
           IF (ls_scf_env%restart_write) THEN
              WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+             cs_pos = cp_dbcsr_checksum (ls_scf_env%scf_history%matrix(ispin,istore), pos=.TRUE., error=error)
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+             ENDIF
              CALL cp_dbcsr_binary_write(ls_scf_env%scf_history%matrix(ispin,istore),file_name,error)
           ENDIF
 
