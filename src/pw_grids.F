@@ -66,6 +66,27 @@ MODULE pw_grids
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
+#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    INTERFACE
+      INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) &
+       BIND(C, name="cudaHostAlloc")
+        USE ISO_C_BINDING
+        IMPLICIT NONE
+        TYPE(C_PTR)              :: buffer
+        INTEGER(C_SIZE_T), VALUE :: length
+        INTEGER(C_INT), VALUE    :: flag
+      END FUNCTION cudaHostAlloc
+    END INTERFACE
+
+    INTERFACE
+      INTEGER(C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
+        USE ISO_C_BINDING
+        IMPLICIT NONE
+        TYPE(C_PTR), VALUE :: buffer
+      END FUNCTION cudaFreeHost
+    END INTERFACE
+#endif
+
 CONTAINS
 
 ! *****************************************************************************
@@ -399,19 +420,19 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pw_grid_create_ghatmap ( pw_grid, error )
 
-    TYPE(pw_grid_type), INTENT(INOUT), POINTER :: pw_grid
-    TYPE(cp_error_type), INTENT(INOUT)         :: error
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      POINTER                                :: pw_grid
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: gpt, ngpts, l, m, n, mn
-    INTEGER, DIMENSION(:), POINTER             :: npts, pmapl, pmapm, pmapn,&
-                                                  nmapl, nmapm, nmapn
-    INTEGER, DIMENSION(:,:), POINTER           :: g_hat, yzq, g_hatmap
-
-    LOGICAL                                    :: failure
-    INTEGER                                    :: ierr, handle
+    INTEGER                                  :: gpt, handle, l, m, mn, n, &
+                                                ngpts
+    INTEGER, DIMENSION(:), POINTER           :: nmapl, nmapm, nmapn, npts, &
+                                                pmapl, pmapm, pmapn
+    INTEGER, DIMENSION(:, :), POINTER        :: g_hat, g_hatmap, yzq
+    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
   
@@ -1725,17 +1746,6 @@ CONTAINS
     INTEGER(KIND=C_SIZE_T)                     :: length
     TYPE(C_PTR)                                :: cptr_g_hatmap
     INTEGER(C_INT), PARAMETER                  :: cudaHostAllocDefault = 0
-
-    INTERFACE
-      INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) &
-       BIND(C, name="cudaHostAlloc")
-        USE ISO_C_BINDING
-        IMPLICIT NONE
-        TYPE(C_PTR)              :: buffer
-        INTEGER(C_SIZE_T), VALUE :: length
-        INTEGER(C_INT), VALUE    :: flag
-      END FUNCTION cudaHostAlloc
-    END INTERFACE
 #endif
 
     INTEGER                                  :: allocstat, handle
@@ -1755,7 +1765,7 @@ CONTAINS
     nmaps = 1
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    length = int(sizeof(1) * ng * nmaps, KIND=C_SIZE_T)
+    length = INT(sizeof(1) * ng * nmaps, KIND=C_SIZE_T)
     allocstat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
     CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/ng, nmaps/))
 #elif defined ( __PW_CUDA ) && defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2278,14 +2288,6 @@ CONTAINS
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     INTEGER, POINTER :: dummy_ptr
-
-    INTERFACE
-      INTEGER(C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
-        USE ISO_C_BINDING
-        IMPLICIT NONE
-        TYPE(C_PTR), VALUE :: buffer
-      END FUNCTION cudaFreeHost
-    END INTERFACE
 #endif
 
     INTEGER                                  :: stat
