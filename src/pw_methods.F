@@ -35,8 +35,8 @@ MODULE pw_methods
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_methods_cuda,                 ONLY: pw_cuda_c1dr3d_3d,&
+                                             pw_cuda_c1dr3d_3d_ps,&
                                              pw_cuda_r3dc1d_3d,&
-                                             pw_cuda_c1dr3d_3d_ps, &
                                              pw_cuda_r3dc1d_3d_ps
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
@@ -1150,8 +1150,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, handle, l, m, mn, &
-                                                n, ngpts
+    INTEGER                                  :: gpt, handle, l, m, mn, n, &
+                                                ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
     LOGICAL                                  :: failure
@@ -1337,8 +1337,8 @@ CONTAINS
       POINTER                                :: grays
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER                                  :: dir, my_pos, nrays, nsize, out_space
-    INTEGER                                  :: handle, handle2, stat
+    INTEGER                                  :: dir, handle, handle2, my_pos, &
+                                                nrays, nsize, out_space, stat
     INTEGER, DIMENSION(3)                    :: nloc
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: failure, test

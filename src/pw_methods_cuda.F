@@ -61,12 +61,14 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_cfffg_z(din, zout, ghatmap, npts, ngpts, scale)&
       BIND(C, name="pw_cuda_cfffg_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: din
-      TYPE(C_PTR), VALUE                            :: zout
-      TYPE(C_PTR), INTENT(IN), VALUE                :: ghatmap
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: ngpts
-      REAL(KIND=C_DOUBLE), INTENT(IN), VALUE        :: scale
+    TYPE(C_PTR), INTENT(IN), VALUE           :: din
+    TYPE(C_PTR), VALUE                       :: zout
+    TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: ngpts
+    REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
+
     END SUBROUTINE pw_cuda_cfffg_z
   END INTERFACE
 
@@ -74,13 +76,14 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_sfffc_z(zin, dout, ghatmap, npts, ngpts, nmaps, scale)&
       BIND(C, name="pw_cuda_sfffc_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: zin
-      TYPE(C_PTR), VALUE                            :: dout
-      TYPE(C_PTR), INTENT(IN), VALUE                :: ghatmap
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: ngpts
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: nmaps
-      REAL(KIND=C_DOUBLE), INTENT(IN), VALUE        :: scale
+    TYPE(C_PTR), INTENT(IN), VALUE           :: zin
+    TYPE(C_PTR), VALUE                       :: dout
+    TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: ngpts, nmaps
+    REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
+
     END SUBROUTINE pw_cuda_sfffc_z
   END INTERFACE
 
@@ -88,9 +91,11 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_cff_z(din, zout, npts)&
       BIND(C, name="pw_cuda_cff_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: din
-      TYPE(C_PTR), VALUE                            :: zout
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
+    TYPE(C_PTR), INTENT(IN), VALUE           :: din
+    TYPE(C_PTR), VALUE                       :: zout
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+
     END SUBROUTINE pw_cuda_cff_z
   END INTERFACE
 
@@ -98,9 +103,11 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_ffc_z(zin, dout, npts)&
       BIND(C, name="pw_cuda_ffc_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: zin
-      TYPE(C_PTR), VALUE                            :: dout
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
+    TYPE(C_PTR), INTENT(IN), VALUE           :: zin
+    TYPE(C_PTR), VALUE                       :: dout
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+
     END SUBROUTINE pw_cuda_ffc_z
   END INTERFACE
 
@@ -108,9 +115,11 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_cf_z(din, zout, npts)&
       BIND(C, name="pw_cuda_cf_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: din
-      TYPE(C_PTR), VALUE                            :: zout
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
+    TYPE(C_PTR), INTENT(IN), VALUE           :: din
+    TYPE(C_PTR), VALUE                       :: zout
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+
     END SUBROUTINE pw_cuda_cf_z
   END INTERFACE
 
@@ -118,9 +127,11 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_fc_z(zin, dout, npts)&
       BIND(C, name="pw_cuda_fc_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: zin
-      TYPE(C_PTR), VALUE                            :: dout
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
+    TYPE(C_PTR), INTENT(IN), VALUE           :: zin
+    TYPE(C_PTR), VALUE                       :: dout
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+
     END SUBROUTINE pw_cuda_fc_z
   END INTERFACE
 
@@ -128,11 +139,10 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_f_z(zin, zout, dir, n, m)&
       BIND(C, name="pw_cuda_f_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: zin
-      TYPE(C_PTR), VALUE                            :: zout
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: dir
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: n
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: m
+    TYPE(C_PTR), INTENT(IN), VALUE           :: zin
+    TYPE(C_PTR), VALUE                       :: zout
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dir, n, m
+
     END SUBROUTINE pw_cuda_f_z
   END INTERFACE
 
@@ -140,13 +150,14 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_fg_z(zin, zout, ghatmap, npts, mmax, ngpts, scale)&
       BIND(C, name="pw_cuda_fg_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: zin
-      TYPE(C_PTR), VALUE                            :: zout
-      TYPE(C_PTR), INTENT(IN), VALUE                :: ghatmap
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: mmax
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: ngpts
-      REAL(KIND=C_DOUBLE), INTENT(IN), VALUE        :: scale
+    TYPE(C_PTR), INTENT(IN), VALUE           :: zin
+    TYPE(C_PTR), VALUE                       :: zout
+    TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: mmax, ngpts
+    REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
+
     END SUBROUTINE pw_cuda_fg_z
   END INTERFACE
 
@@ -154,14 +165,14 @@ MODULE pw_methods_cuda
     SUBROUTINE pw_cuda_sf_z(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale)&
       BIND(C, name="pw_cuda_sf_z_")
       USE ISO_C_BINDING
-      TYPE(C_PTR), INTENT(IN), VALUE                :: zin
-      TYPE(C_PTR), VALUE                            :: zout
-      TYPE(C_PTR), INTENT(IN), VALUE                :: ghatmap
-      INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN) :: npts
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: mmax
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: ngpts
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE        :: nmaps
-      REAL(KIND=C_DOUBLE), INTENT(IN), VALUE        :: scale
+    TYPE(C_PTR), INTENT(IN), VALUE           :: zin
+    TYPE(C_PTR), VALUE                       :: zout
+    TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
+    INTEGER(KIND=C_INT), DIMENSION(*), &
+      INTENT(IN)                             :: npts
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: mmax, ngpts, nmaps
+    REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
+
     END SUBROUTINE pw_cuda_sf_z
   END INTERFACE
 
