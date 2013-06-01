@@ -265,8 +265,8 @@ CONTAINS
 !    step_size(2)=MIN(step_size(2),2.0_dp)
     e_pred=param(1)*step_size(1)**2+param(2)*step_size(1)*step_size(2)+&
            param(3)*step_size(2)**2+param(4)*step_size(1)+param(5)*step_size(2)+param(6)
-    IF(unit_nr.gt.0)WRITE(unit_nr,"(t3,a,f10.5,f10.5,a,f16.8)")&
-                   "Line Search: Step Size",step_size," Predicted energy",e_pred
+    IF(unit_nr.gt.0)WRITE(unit_nr,"(t3,a,F10.5,F10.5,A,F20.9)")&
+                   " Line Search: Step Size",step_size," Predicted energy",e_pred
     e_pred=param(1)*s1**2+param(2)*s2*s1*0.0_dp+&
           param(3)*s1**2*0.0_dp+param(4)*s1+param(5)*s1*0.0_dp+param(6)
     
@@ -316,7 +316,7 @@ CONTAINS
     END IF
     e_pred=a*(step_size(1))**2+b*(step_size(1))+c
     IF(unit_nr.gt.0) THEN
-      WRITE(unit_nr,"(t3,a,f16.8,a,f16.8)")"Line Search: Step Size",step_size(1),"Predicted energy",e_pred
+      WRITE(unit_nr,"(t3,a,f16.8,a,F20.9)")"Line Search: Step Size",step_size(1)," Predicted energy",e_pred
       CALL m_flush(unit_nr)
     ENDIF
   END SUBROUTINE line_search_3pnt
