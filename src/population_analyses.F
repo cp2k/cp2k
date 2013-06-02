@@ -483,7 +483,7 @@ CONTAINS
           "# Orbital  AO symbol  Orbital population                Net charge"
       ELSE
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-          "# Atom  Element  Kind  Atomic population                Net charge"
+          "#  Atom  Element  Kind  Atomic population                Net charge"
       END IF
     ELSE
       IF (print_orbital_contributions) THEN
@@ -491,7 +491,7 @@ CONTAINS
           "# Orbital  AO symbol  Orbital population (alpha,beta)   Net charge  Spin moment"
       ELSE
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-          "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
+          "#  Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
       END IF
     END IF
 
@@ -545,13 +545,13 @@ CONTAINS
           totsumorbpop(1) = totsumorbpop(1) + sumorbpop(1)
           totsumorbpop(3) = totsumorbpop(3) + zeff - sumorbpop(1)
           WRITE (UNIT=output_unit,&
-                 FMT="(T2,I6,5X,A2,2X,I6,T30,F12.6,T56,F12.6)")&
+                 FMT="(T2,I7,5X,A2,2X,I6,T30,F12.6,T56,F12.6)")&
             iatom,element_symbol,ikind,sumorbpop(1),zeff-sumorbpop(1)
         ELSE
           totsumorbpop(1:2) = totsumorbpop(1:2) + sumorbpop(1:2)
           totsumorbpop(3) = totsumorbpop(3) + zeff - sumorbpop(1) - sumorbpop(2)
           WRITE (UNIT=output_unit,&
-                 FMT="(T2,I6,5X,A2,2X,I6,T29,4(1X,F12.6))")&
+                 FMT="(T2,I7,5X,A2,2X,I6,T29,4(1X,F12.6))")&
             iatom,element_symbol,ikind,sumorbpop(1:2),&
             zeff-sumorbpop(1)-sumorbpop(2),sumorbpop(3)
         END IF
