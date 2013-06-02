@@ -404,12 +404,12 @@ CONTAINS
     REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_threshold, &
       frob_id, frob_x, gam, homo, lumo, max_eig, max_threshold, maxdev, &
       maxev, min_eig, minev, mmin, mu, mu_a, mu_b, mu_c, mu_fa, mu_fc, &
-      occ_matrix, scaled_homo_bound, scaled_lumo_bound, shift1, shift2, t1, &
-      t2, trace_fx, trace_gx, xi
+      occ_matrix, scaled_homo_bound, scaled_lumo_bound, t1, t2, trace_fx, &
+      trace_gx, xi
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
                                                 matrix_xidsq, matrix_xsq, &
-                                                tmp1, tmp2, tmp3, tmp_gx
+                                                tmp_gx
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -599,24 +599,64 @@ CONTAINS
     ENDDO
     mu = (eps_min - eps_max)*mu_c + eps_max
     DEALLOCATE(gamma_values)
+    IF (unit_nr > 0) THEN
+       WRITE(unit_nr, '(T6,A,1X,F12.5)') 'Chemical potential (mu): ', mu
+    ENDIF
+    e_mu = mu
 
-    ! temporary matrices used for HOMO/LUMO calculation
+    CALL compute_homo_lumo(matrix_k0,matrix_x,eps_min,eps_max,threshold,max_iter_lanczos,eps_lanczos,homo,lumo,unit_nr,error)
+
+    e_homo = homo
+    e_lumo = lumo
+
+    CALL cp_dbcsr_release(matrix_x, error=error)
+    CALL cp_dbcsr_release(matrix_k0, error=error)
+    CALL timestop(handle)
+
+  END SUBROUTINE density_matrix_trs4
+
+! *****************************************************************************
+!> \brief compute the homo and lumo given a KS matrix and a density matrix in the orthonormalized basis
+!>        and the eps_min and eps_max, min and max eigenvalue of the ks matrix
+!> \par History
+!>       2012.06 created [Florian Thoele]
+!> \author Florian Thoele 
+! *****************************************************************************
+  SUBROUTINE compute_homo_lumo(matrix_k,matrix_p,eps_min,eps_max,threshold,max_iter_lanczos,eps_lanczos,homo,lumo,unit_nr,error)
+    TYPE(cp_dbcsr_type)                      :: matrix_k, matrix_p
+    REAL(KIND=dp)                            :: eps_min, eps_max, threshold
+    INTEGER, INTENT(IN)                      :: max_iter_lanczos
+    REAL(KIND=dp), INTENT(IN)                :: eps_lanczos
+    REAL(KIND=dp)                            :: homo, lumo
+    INTEGER                                  :: unit_nr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_homo_lumo', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: converged
+    REAL(KIND=dp)                            :: max_eig, min_eig, shift1, &
+                                                shift2
+    TYPE(cp_dbcsr_type)                      :: tmp1, tmp2, tmp3
+
+! temporary matrices used for HOMO/LUMO calculation
+
     CALL cp_dbcsr_init(tmp1,error=error)
-    CALL cp_dbcsr_create(tmp1,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_create(tmp1,template=matrix_k,matrix_type=dbcsr_type_no_symmetry,error=error)
 
     CALL cp_dbcsr_init(tmp2,error=error)
-    CALL cp_dbcsr_create(tmp2,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_create(tmp2,template=matrix_k,matrix_type=dbcsr_type_no_symmetry,error=error)
 
     CALL cp_dbcsr_init(tmp3,error=error)
-    CALL cp_dbcsr_create(tmp3,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_create(tmp3,template=matrix_k,matrix_type=dbcsr_type_no_symmetry,error=error)
     
     shift1 = -eps_min
     shift2 = eps_max
 
     ! find largest ev of P*(K+shift*1), where shift is the neg. val. of the smallest ev of K
-    CALL cp_dbcsr_copy(tmp2, matrix_k0, error=error)
+    CALL cp_dbcsr_copy(tmp2, matrix_k, error=error)
     CALL cp_dbcsr_add_on_diag(tmp2, shift1, error=error)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, tmp2,&
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p, tmp2,&
                            0.0_dp, tmp1, filter_eps=threshold,error=error)
     CALL lanczos_alg_serial(tmp1, max_eig, min_eig, converged=converged, &
               threshold=eps_lanczos, max_iter=max_iter_lanczos, error=error)
@@ -626,10 +666,10 @@ CONTAINS
     ENDIF
 
     ! -(1-P)*(K-shift*1) = (1-P)*(shift*1 - K), where shift is the largest ev of K
-    CALL cp_dbcsr_copy(tmp3, matrix_x, error=error)
+    CALL cp_dbcsr_copy(tmp3, matrix_p, error=error)
     CALL cp_dbcsr_scale(tmp3, -1.0_dp, error=error)
     CALL cp_dbcsr_add_on_diag(tmp3, 1.0_dp, error=error)  !tmp3 = 1-P
-    CALL cp_dbcsr_copy(tmp2, matrix_k0, error=error)
+    CALL cp_dbcsr_copy(tmp2, matrix_k, error=error)
     CALL cp_dbcsr_add_on_diag(tmp2, -shift2, error=error)
     CALL cp_dbcsr_multiply("N", "N", -1.0_dp, tmp3, tmp2,&
                            0.0_dp, tmp1, filter_eps=threshold,error=error)
@@ -639,21 +679,13 @@ CONTAINS
 
     IF (unit_nr > 0) THEN
        WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
-       WRITE(unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/mu', homo, lumo, mu !, lumo-homo, (lumo-mu)/(lumo-homo)
+       WRITE(unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/gap', homo, lumo, lumo-homo
     ENDIF
-    
-    e_homo = homo
-    e_lumo = lumo
-    e_mu = mu
-
-    CALL cp_dbcsr_release(matrix_x, error=error)
-    CALL cp_dbcsr_release(matrix_k0, error=error)
     CALL cp_dbcsr_release(tmp1, error=error)
     CALL cp_dbcsr_release(tmp2, error=error)
     CALL cp_dbcsr_release(tmp3, error=error)
-    CALL timestop(handle)
 
-  END SUBROUTINE density_matrix_trs4
+  END SUBROUTINE compute_homo_lumo
  
   FUNCTION evaluate_trs4_polynomial(x, gamma_values, i) RESULT (xr)
     REAL(KIND=dp)                            :: x
