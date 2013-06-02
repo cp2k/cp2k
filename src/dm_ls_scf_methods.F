@@ -409,8 +409,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
                                                 matrix_xidsq, matrix_xsq, &
-                                                tmp1, tmp2, tmp3, tmp_gx, &
-                                                tmp_norm, tmp_trans
+                                                tmp1, tmp2, tmp3, tmp_gx
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -472,21 +471,14 @@ CONTAINS
     scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
     current_threshold = threshold
 
-
     CALL cp_dbcsr_init(matrix_xsq,error=error)
     CALL cp_dbcsr_create(matrix_xsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
 
     CALL cp_dbcsr_init(matrix_xidsq,error=error)
     CALL cp_dbcsr_create(matrix_xidsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
 
-    CALL cp_dbcsr_init(tmp_trans,error=error)
-    CALL cp_dbcsr_create(tmp_trans,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
-
     CALL cp_dbcsr_init(tmp_gx,error=error)
     CALL cp_dbcsr_create(tmp_gx,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
-
-    CALL cp_dbcsr_init(tmp_norm,error=error)
-    CALL cp_dbcsr_create(tmp_norm,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
 
     ALLOCATE(gamma_values(max_iter))
 
@@ -499,6 +491,12 @@ CONTAINS
                              0.0_dp, matrix_xsq, &
                              filter_eps=current_threshold,flop=flop1,error=error)
 
+      ! intermediate use matrix_xidsq to compute = X*X-X
+      CALL cp_dbcsr_copy(matrix_xidsq, matrix_x,error=error)
+      CALL cp_dbcsr_add(matrix_xidsq, matrix_xsq, -1.0_dp, 1.0_dp, error=error)
+      frob_id = cp_dbcsr_frobenius_norm(matrix_xidsq)
+      frob_x = cp_dbcsr_frobenius_norm(matrix_x)
+
       ! xidsq = (1-X)*(1-X) 
       ! use (1-x)*(1-x) = 1 + x*x - 2*x 
       CALL cp_dbcsr_copy(matrix_xidsq, matrix_x,error=error)
@@ -509,15 +507,8 @@ CONTAINS
       CALL cp_dbcsr_copy(tmp_gx, matrix_x,error=error)
       CALL cp_dbcsr_add(tmp_gx, matrix_xsq, 4.0_dp, -3.0_dp, error=error)
 
-      ! tmp_norm = X*X-X
-      CALL cp_dbcsr_copy(tmp_norm, matrix_x,error=error)
-      CALL cp_dbcsr_add(tmp_norm, matrix_xsq, -1.0_dp, 1.0_dp, error=error)
-      frob_id = cp_dbcsr_frobenius_norm(tmp_norm)
-      frob_x = cp_dbcsr_frobenius_norm(matrix_x)
-  
       ! get gamma 
-      ! Tr(F) = Tr(XX*tmp_gx), tmp_trans=(XX)T, Tr(G) is equivalent
-      !CALL cp_dbcsr_transposed(tmp_trans, matrix_xsq, error=error)
+      ! Tr(F) = Tr(XX*tmp_gx) Tr(G) is equivalent
       CALL cp_dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx,  error=error)
       CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx, error=error)
       gam = (nelectron - trace_fx)/trace_gx 
@@ -580,11 +571,9 @@ CONTAINS
     IF (unit_nr>0) WRITE(unit_nr, '(T6,A,I3,1X,F10.8,E12.3)') 'Final TRS4 iteration  ', i, occ_matrix,ABS(trace_gx)
 
     ! free some memory
-    CALL cp_dbcsr_release(tmp_trans, error=error)
     CALL cp_dbcsr_release(tmp_gx, error=error)
     CALL cp_dbcsr_release(matrix_xsq, error=error)
     CALL cp_dbcsr_release(matrix_xidsq, error=error)
-    CALL cp_dbcsr_release(tmp_norm, error=error)
 
     ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
@@ -624,7 +613,7 @@ CONTAINS
     shift1 = -eps_min
     shift2 = eps_max
 
-    ! find largest ev of P*(X+shift*1), where shift is the neg. val. of the smallest ev of X
+    ! find largest ev of P*(K+shift*1), where shift is the neg. val. of the smallest ev of K
     CALL cp_dbcsr_copy(tmp2, matrix_k0, error=error)
     CALL cp_dbcsr_add_on_diag(tmp2, shift1, error=error)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, tmp2,&
@@ -636,7 +625,7 @@ CONTAINS
        WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
     ENDIF
 
-    ! -(1-P)*(X-shift*1) = (1-P)*(shift*1 - X), where shift is the largest ev
+    ! -(1-P)*(K-shift*1) = (1-P)*(shift*1 - K), where shift is the largest ev of K
     CALL cp_dbcsr_copy(tmp3, matrix_x, error=error)
     CALL cp_dbcsr_scale(tmp3, -1.0_dp, error=error)
     CALL cp_dbcsr_add_on_diag(tmp3, 1.0_dp, error=error)  !tmp3 = 1-P
