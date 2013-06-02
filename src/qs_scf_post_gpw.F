@@ -308,8 +308,9 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%KINETIC_ENERGY", error=error)
        END IF
-       ! Compute Atomic Charges
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, error=error)
+
+       ! Atomic Charges that require further computation
+       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, error=error)
 
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error=error)
@@ -1028,15 +1029,13 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, error)
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
@@ -1044,30 +1043,11 @@ CONTAINS
 
     INTEGER                                  :: handle, print_level, unit_nr
     LOGICAL                                  :: print_it
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: density_fit_section, print_key
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(particle_set)
-    CALL get_qs_env(qs_env=qs_env,&
-                    particle_set=particle_set,&
-                    error=error)
-
-    ! Compute the Mulliken charges
-    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
-                                    middle_name="",log_filename=.FALSE.,error=error)
-       print_level = 1
-       CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it,error=error)
-       IF (print_it) print_level = 2
-       CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it,error=error)
-       IF (print_it) print_level = 3
-       CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
-       CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
-    END IF
+    ! Mulliken charges require no further computation and are printed from write_mo_free_results
 
     ! Compute the Lowdin charges
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN", error=error)
@@ -1095,7 +1075,6 @@ CONTAINS
        CALL get_ddapc(qs_env,.FALSE.,density_fit_section,iwc=unit_nr,error=error)
        CALL cp_print_key_finished_output(unit_nr, logger,input,"PROPERTIES%FIT_CHARGE", error=error)
     END IF
-
 
     CALL timestop(handle)
 
@@ -2144,8 +2123,13 @@ CONTAINS
     INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
+    
+    ! those properties that require MOs (not suitable density matrix based methods)
     CALL write_mo_dependent_results(qs_env,scf_env,error)
+
+    ! those that depend only on the density matrix, they should be linear scaling in their implementation
     CALL write_mo_free_results(qs_env,error)
+
     CALL timestop(handle)
 
   END SUBROUTINE write_available_results
@@ -2350,11 +2334,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: handle, i, iat, id, ikind, &
-                                                iso, ispin, istat, iw, l, &
-                                                nd(3), ngto, niso, nkind, np, &
-                                                nr, output_unit, unit_nr
+    INTEGER :: handle, i, iat, id, ikind, iso, ispin, istat, iw, l, nd(3), &
+      ngto, niso, nkind, np, nr, output_unit, print_level, unit_nr
     LOGICAL                                  :: append_cube, failure, &
+                                                print_it, &
                                                 print_total_density, &
                                                 write_ks, write_xc, &
                                                 xrd_interface
@@ -2393,7 +2376,8 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(section_vals_type), POINTER         :: dft_section, input, xc_section
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                print_key, xc_section
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -2878,6 +2862,20 @@ CONTAINS
           CALL cp_print_key_finished_output(iw,logger,input,&
                                             "DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
                                             error=error)
+       END IF
+
+       ! Compute the Mulliken charges
+       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
+                                       middle_name="",log_filename=.FALSE.,error=error)
+          print_level = 1
+          CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it,error=error)
+          IF (print_it) print_level = 2
+          CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it,error=error)
+          IF (print_it) print_level = 3
+          CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
+          CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
        END IF
 
     END IF
