@@ -66,7 +66,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE compute_matrix_preconditioner(matrix_s,preconditioner_type, ls_mstruct, &
-             matrix_bs_sqrt,matrix_bs_sqrt_inv,threshold,order,error)
+             matrix_bs_sqrt,matrix_bs_sqrt_inv,threshold,order,eps_lanczos, max_iter_lanczos, error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_s
     INTEGER                                  :: preconditioner_type
@@ -75,6 +75,8 @@ CONTAINS
                                                 matrix_bs_sqrt_inv
     REAL(KIND=dp)                            :: threshold
     INTEGER                                  :: order
+    REAL(KIND=dp)                            :: eps_lanczos
+    INTEGER                                  :: max_iter_lanczos
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -157,7 +159,8 @@ CONTAINS
        ! XXXXXXXXXXX using eps_filter is reducing accuracy for no good reason, this is cheap
        ! XXXXXXXXXXX
        CALL matrix_sqrt_Newton_Schulz(matrix_bs_sqrt,matrix_bs_sqrt_inv,matrix_bs,&
-                                      threshold=MIN(threshold,1.0E-10_dp),order=order,error=error)
+                                      threshold=MIN(threshold,1.0E-10_dp),order=order, &
+                                      eps_lanczos=eps_lanczos, max_iter_lanczos=max_iter_lanczos, error=error)
     END SELECT
 
     CALL cp_dbcsr_release(matrix_bs,error=error)
@@ -374,7 +377,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE density_matrix_trs4(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
                                  nelectron, threshold, e_homo, e_lumo, e_mu, &
-                                 dynamic_threshold, matrix_ks_deviation, error)
+                                 dynamic_threshold, matrix_ks_deviation,&
+                                 max_iter_lanczos, eps_lanczos, error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_s_sqrt_inv
@@ -383,6 +387,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: e_homo, e_lumo, e_mu
     LOGICAL, INTENT(IN), OPTIONAL            :: dynamic_threshold
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_ks_deviation
+    INTEGER, INTENT(IN)                      :: max_iter_lanczos
+    REAL(KIND=dp), INTENT(IN)                :: eps_lanczos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
@@ -435,7 +441,7 @@ CONTAINS
 
     ! compute the deviation in the mixed matrix, as seen in the ortho basis
     CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x , -1.0_dp, 1.0_dp, error=error)
-    CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, 1.0E-4_dp, &
+    CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
                             converged=converged, error=error)
     maxdev = MAX(ABS(maxev), ABS(minev))
     IF (unit_nr>0) THEN
@@ -449,7 +455,8 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x , error=error)
 
     ! get largest/smallest eigenvalues for scaling
-    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, 1.0E-4_dp, converged=converged, error=error)
+    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
+                            converged=converged, error=error)
     IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
                                                          min_eig, max_eig," converged: ",converged
     eps_max = max_eig
@@ -614,8 +621,12 @@ CONTAINS
     CALL cp_dbcsr_add_on_diag(tmp2, shift1, error=error)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, tmp2,&
                            0.0_dp, tmp1, filter_eps=threshold,error=error)
-    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, 1.0E-4_dp, error=error)
+    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, converged=converged, &
+              threshold=eps_lanczos, max_iter=max_iter_lanczos, error=error)
     homo = max_eig-shift1
+    IF (unit_nr > 0) THEN
+       WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
+    ENDIF
 
     ! -(1-P)*(X-shift*1) = (1-P)*(shift*1 - X), where shift is the largest ev
     CALL cp_dbcsr_copy(tmp3, matrix_x, error=error)
@@ -625,10 +636,14 @@ CONTAINS
     CALL cp_dbcsr_add_on_diag(tmp2, -shift2, error=error)
     CALL cp_dbcsr_multiply("N", "N", -1.0_dp, tmp3, tmp2,&
                            0.0_dp, tmp1, filter_eps=threshold,error=error)
-    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, 1.0E-4_dp, error=error)
+    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, converged=converged,&
+                            threshold=eps_lanczos, max_iter=max_iter_lanczos, error=error)
     lumo = -max_eig+shift2
 
-    IF (unit_nr > 0) WRITE(unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/mu', homo, lumo, mu !, lumo-homo, (lumo-mu)/(lumo-homo)
+    IF (unit_nr > 0) THEN
+       WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
+       WRITE(unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/mu', homo, lumo, mu !, lumo-homo, (lumo-mu)/(lumo-homo)
+    ENDIF
     
     e_homo = homo
     e_lumo = lumo

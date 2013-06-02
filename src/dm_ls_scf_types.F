@@ -101,6 +101,9 @@ MODULE dm_ls_scf_types
      LOGICAL               :: restart_read, restart_write
      REAL(KIND=dp)         :: eps_filter, eps_scf
 
+     REAL(KIND=dp)         :: eps_lanczos
+     INTEGER               :: max_iter_lanczos
+
      REAL(KIND=dp)         :: mixing_fraction
      INTEGER               :: max_scf
      REAL(KIND=dp)         :: energy_init

@@ -518,7 +518,8 @@ CONTAINS
        CALL compute_matrix_preconditioner(ls_scf_env%matrix_s,&
                             ls_scf_env%s_preconditioner_type, ls_scf_env%ls_mstruct, &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,&
-                            ls_scf_env%eps_filter,ls_scf_env%sign_sqrt_order,error)
+                            ls_scf_env%eps_filter,ls_scf_env%sign_sqrt_order,&
+                            ls_scf_env%eps_lanczos,ls_scf_env%max_iter_lanczos,error)
     ENDIF
 
     ! precondition S
@@ -539,7 +540,8 @@ CONTAINS
 
         CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt,ls_scf_env%matrix_s_sqrt_inv,&
                                        ls_scf_env%matrix_s,ls_scf_env%eps_filter,&
-                                       ls_scf_env%sign_sqrt_order,error)
+                                       ls_scf_env%sign_sqrt_order, &
+                                       ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos, error)
 
         IF (.TRUE.) THEN
            CALL cp_dbcsr_init(matrix_tmp1,error=error)
@@ -645,6 +647,9 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"EXTRAPOLATION_ORDER",i_val=ls_scf_env%extrapolation_order,error=error)
     CALL section_vals_val_get(ls_scf_section,"RESTART_READ",l_val=ls_scf_env%restart_read,error=error)
     CALL section_vals_val_get(ls_scf_section,"RESTART_WRITE",l_val=ls_scf_env%restart_write,error=error)
+    CALL section_vals_val_get(ls_scf_section,"EPS_LANCZOS",r_val=ls_scf_env%eps_lanczos,error=error)
+    CALL section_vals_val_get(ls_scf_section,"MAX_ITER_LANCZOS",i_val=ls_scf_env%max_iter_lanczos,error=error)
+
     CALL section_vals_get(curvy_section, explicit=ls_scf_env%curvy_steps, error=error)
     CALL section_vals_val_get(curvy_section,"LINE_SEARCH",i_val=ls_scf_env%curvy_data%line_search_type,error=error)
     CALL section_vals_val_get(curvy_section,"N_BCH_HISTORY",i_val=ls_scf_env%curvy_data%n_bch_hist,error=error)
@@ -880,7 +885,9 @@ CONTAINS
                                        nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
                                        ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
                                        dynamic_threshold=ls_scf_env%dynamic_threshold,&
-                                       matrix_ks_deviation=matrix_ks_deviation(ispin), error=error)
+                                       matrix_ks_deviation=matrix_ks_deviation(ispin), &
+                                       eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                       error=error)
             END SELECT
                                      
             IF (ls_scf_env%has_s_preconditioner) THEN

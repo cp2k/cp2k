@@ -98,14 +98,13 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_chebyshev', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: lanczos_threshold = 1.0E-4_dp,&
-                                                scale_evals = 1.01_dp
+    REAL(KIND=dp), PARAMETER                 :: scale_evals = 1.01_dp
 
     CHARACTER(LEN=30)                        :: middle_name
     CHARACTER(LEN=default_string_length)     :: title
     INTEGER :: handle, icheb, igrid, iinte, ispin, iwindow, n_gridpoint_dos, &
       ncheb, ninte, Nrows, nwindow, unit_cube, unit_dos, unit_nr
-    LOGICAL                                  :: write_cubes
+    LOGICAL                                  :: converged, write_cubes
     REAL(KIND=dp) :: chev_T, chev_T_dos, dummy1, final, frob_matrix, initial, &
       interval_a, interval_b, max_ev, min_ev, occ, orbital_occ, summa, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: chev_E, chev_Es_dos, dos, &
@@ -199,8 +198,9 @@ CONTAINS
                               0.0_dp, matrix_F, filter_eps=ls_scf_env%eps_filter,error=error)
 
        ! find largest and smallest eigenvalues
-       CALL lanczos_alg_serial(matrix_F, max_ev, min_ev , lanczos_threshold, error=error) !Lanczos algorithm to calculate eigenvalue
-       IF (unit_nr>0) WRITE(unit_nr,'(T2,A,2F16.8)') "smallest largest eigenvalue", min_ev, max_ev
+       CALL lanczos_alg_serial(matrix_F, max_ev, min_ev, converged=converged, max_iter=ls_scf_env%max_iter_lanczos, &
+                        threshold=ls_scf_env%eps_lanczos, error=error) !Lanczos algorithm to calculate eigenvalue
+       IF (unit_nr>0) WRITE(unit_nr,'(T2,A,2F16.8,A,L)') "smallest largest eigenvalue", min_ev, max_ev, " converged ",converged
        IF (nwindow>0) THEN
           IF (unit_nr>0) WRITE(unit_nr,'(T2,A,1000F16.8)') "requested interval-min_energy", ev1(:)
           IF (unit_nr>0) WRITE(unit_nr,'(T2,A,1000F16.8)') "requested interval-max_energy", ev2(:)

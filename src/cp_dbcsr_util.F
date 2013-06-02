@@ -45,28 +45,25 @@ CONTAINS
 !> \brief Computes the highest and lowest eigenvalue of matrix_a (assumed to be symmetric)
 !>        with the Lanczos algorithm. The 3 Lanczos vectors are replicated.
 !>        speedups could be gained from an improved dbcsr x vector multiplication (distributed vector).
+!>        if svd is true the square of the matrix is employed.
 !> \par History
 !>       2012.07 created [Florian Thoele]
 !> \author Florian Thoele 
 ! *****************************************************************************
-  SUBROUTINE lanczos_alg_serial(matrix_a, max_ev, min_ev, threshold, max_iter, svd, converged, error)
+  SUBROUTINE lanczos_alg_serial(matrix_a, max_ev, min_ev, converged, threshold, max_iter, svd, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: threshold
-    INTEGER, INTENT(IN), OPTIONAL            :: max_iter
+    LOGICAL, INTENT(OUT)                     :: converged
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    INTEGER, INTENT(IN)                      :: max_iter
     LOGICAL, INTENT(IN), OPTIONAL            :: svd
-    LOGICAL, INTENT(OUT), OPTIONAL           :: converged
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_alg_serial', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: default_max_iter = 40
-    REAL, PARAMETER                          :: default_threshold = 1.0E-6_dp
 
-    INTEGER                                  :: handle, mp_group, &
-                                                my_max_iter, unit_nr
+    INTEGER                                  :: handle, mp_group, unit_nr
     LOGICAL                                  :: do_svd
-    REAL(KIND=dp)                            :: my_threshold
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -80,19 +77,14 @@ CONTAINS
 
     mp_group = matrix_a%matrix%m%dist%d%mp_env%mp%mp_group
 
-    IF(PRESENT(converged)) converged = .FALSE.
-    my_threshold = default_threshold
-    IF(PRESENT(threshold)) my_threshold = threshold
-    my_max_iter = default_max_iter
-    IF(PRESENT(max_iter)) my_max_iter = max_iter
     do_svd = .FALSE.
     IF(PRESENT(svd)) do_svd = svd
 
     SELECT CASE(matrix_a%matrix%m%data_type)
       CASE (dbcsr_type_real_8)
-        CALL lanczos_alg_serial_d(matrix_a, max_ev, min_ev, my_threshold, my_max_iter, do_svd, converged, mp_group, error)
+        CALL lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
       CASE (dbcsr_type_real_4)
-        CALL lanczos_alg_serial_s(matrix_a, max_ev, min_ev, my_threshold, my_max_iter, do_svd, converged, mp_group, error)
+        CALL lanczos_alg_serial_s(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
     !  CASE DEFAULT
     !    CALL stop_program(routineN,moduleN,__LINE__,"NYI")
     END SELECT
@@ -100,20 +92,18 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE lanczos_alg_serial
 
-  SUBROUTINE lanczos_alg_serial_d(matrix_a, max_ev, min_ev, threshold, max_iter, svd, converged, mp_group, error)
+  SUBROUTINE lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, svd, mp_group, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
+    LOGICAL, INTENT(OUT)                     :: converged
     REAL(KIND=dp), INTENT(IN)                :: threshold
     INTEGER, INTENT(IN)                      :: max_iter
     LOGICAL, INTENT(IN)                      :: svd
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: converged
     INTEGER                                  :: mp_group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_alg_serial_d', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: default_max_iter = 40
-    REAL(KIND=dp), PARAMETER                 :: default_threshold = 1.0E-6_dp
 
     INTEGER                                  :: i, info, lwork, n, ntask, rank
     REAL(KIND=dp)                            :: alpha, beta, DDOT, DNRM2, &
@@ -122,6 +112,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evs, evs_tmp, u, u_tmp, v, vn
     TYPE(rng_stream_type), POINTER           :: rng_stream
+
+    converged = .FALSE.
 
     CALL mp_environ(ntask,rank,mp_group)
     CALL cp_dbcsr_get_info(matrix_a, nfullcols_total=n)
@@ -132,12 +124,6 @@ CONTAINS
     lwork = max_iter*3+100
     ALLOCATE(eval(max_iter), work(lwork))
 
-
-!MK    CALL RANDOM_SEED()
-!MK    DO i=1,n 
-!MK      CALL RANDOM_NUMBER(v(i,1)); v(i,1 ) = v(i,1) - 0.5_dp
-!MK    ENDDO
-!MK Use the internal CP2K random number generator
     NULLIFY (rng_stream)
     CALL create_rng_stream(rng_stream,name="lanczos_alg_serial",distribution_type=UNIFORM,&
                            extended_precision=.TRUE.,error=error)
@@ -187,7 +173,7 @@ CONTAINS
       IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold) THEN
         max_ev = MAXVAL(eval(1:i))
         min_ev = MINVAL(eval(1:i))
-        IF(PRESENT(converged)) converged = .TRUE.
+        converged = .TRUE.
         EXIT
       ENDIF
 
@@ -238,20 +224,18 @@ CONTAINS
   END SUBROUTINE lanczos_alg_serial_d
 
 
-  SUBROUTINE lanczos_alg_serial_s(matrix_a, max_ev, min_ev, threshold, max_iter, svd, converged, mp_group, error)
+  SUBROUTINE lanczos_alg_serial_s(matrix_a, max_ev, min_ev, converged, threshold, max_iter, svd, mp_group, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
+    LOGICAL, INTENT(OUT)                     :: converged
     REAL(KIND=dp), INTENT(IN)                :: threshold
     INTEGER, INTENT(IN)                      :: max_iter
     LOGICAL, INTENT(IN)                      :: svd
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: converged
     INTEGER                                  :: mp_group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_alg_serial_s', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: default_max_iter = 40
-    REAL(KIND=dp), PARAMETER                 :: default_threshold = 1.0E-6_dp
 
     INTEGER                                  :: i, info, lwork, n, ntask, rank
     REAL                                     :: alpha, beta, nrm_v, SDOT, &
@@ -261,6 +245,8 @@ CONTAINS
       DIMENSION(:, :)                        :: evs, evs_tmp
     REAL, ALLOCATABLE, DIMENSION(:, :)       :: u, u_tmp, v, vn
     TYPE(rng_stream_type), POINTER           :: rng_stream
+
+    converged = .FALSE.
 
     CALL mp_environ(ntask,rank,mp_group)
     CALL cp_dbcsr_get_info(matrix_a, nfullcols_total=n)
@@ -320,7 +306,7 @@ CONTAINS
       IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold) THEN
         max_ev = MAXVAL(eval(1:i))
         min_ev = MINVAL(eval(1:i))
-        IF(PRESENT(converged)) converged = .TRUE.
+        converged = .TRUE.
         EXIT
       ENDIF
 

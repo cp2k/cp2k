@@ -259,12 +259,14 @@ CONTAINS
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt,matrix_sqrt_inv,matrix,threshold,order,error)
+  SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt,matrix_sqrt_inv,matrix,threshold, order, eps_lanczos, max_iter_lanczos, error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_sqrt, matrix_sqrt_inv, &
                                                 matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
     INTEGER, INTENT(IN)                      :: order
+    REAL(KIND=dp), INTENT(IN)                :: eps_lanczos
+    INTEGER, INTENT(IN)                      :: max_iter_lanczos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
@@ -274,8 +276,11 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
                                                 flop5
     LOGICAL                                  :: converged, failure
-    REAL(KIND=dp) :: a, b, c, d, frob_matrix, frob_matrix_base, max_ev, &
-      min_ev, oa, ob, oc, occ_matrix, od, scaling, t1, t2, threshold_lanczos
+    REAL(KIND=dp)                            :: a, b, c, d, frob_matrix, &
+                                                frob_matrix_base, max_ev, &
+                                                min_ev, oa, ob, oc, &
+                                                occ_matrix, od, scaling, t1, &
+                                                t2
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2, tmp3
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -305,17 +310,17 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_sqrt,matrix,error=error)
 
     ! scale the matrix to get into the convergence range
-    threshold_lanczos=1.0E-4_dp ; max_iter =64
-    CALL lanczos_alg_serial(matrix_sqrt, max_ev, min_ev, threshold_lanczos, max_iter, converged=converged, error=error)
+    CALL lanczos_alg_serial(matrix_sqrt, max_ev, min_ev, threshold=eps_lanczos, &
+                            max_iter=max_iter_lanczos, converged=converged, error=error)
     IF (unit_nr>0) THEN
        WRITE(unit_nr,*)
-       WRITE(unit_nr,'(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ",converged," threshold:",threshold_lanczos
+       WRITE(unit_nr,'(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ",converged," threshold:",eps_lanczos
        WRITE(unit_nr,'(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:",max_ev,min_ev
        WRITE(unit_nr,'(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev,EPSILON(min_ev))
     ENDIF
     ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
     ! and adjust the scaling to be on the safe side
-    scaling=2/(max_ev+min_ev+100*threshold_lanczos)
+    scaling=2/(max_ev+min_ev+100*eps_lanczos)
 
     CALL cp_dbcsr_scale(matrix_sqrt,scaling,error=error)
     CALL cp_dbcsr_filter(matrix_sqrt,threshold,error=error)
