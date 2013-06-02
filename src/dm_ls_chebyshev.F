@@ -200,7 +200,7 @@ CONTAINS
        ! find largest and smallest eigenvalues
        CALL lanczos_alg_serial(matrix_F, max_ev, min_ev, converged=converged, max_iter=ls_scf_env%max_iter_lanczos, &
                         threshold=ls_scf_env%eps_lanczos, error=error) !Lanczos algorithm to calculate eigenvalue
-       IF (unit_nr>0) WRITE(unit_nr,'(T2,A,2F16.8,A,L)') "smallest largest eigenvalue", min_ev, max_ev, " converged ",converged
+       IF (unit_nr>0) WRITE(unit_nr,'(T2,A,2F16.8,A,L2)') "smallest largest eigenvalue", min_ev, max_ev, " converged ",converged
        IF (nwindow>0) THEN
           IF (unit_nr>0) WRITE(unit_nr,'(T2,A,1000F16.8)') "requested interval-min_energy", ev1(:)
           IF (unit_nr>0) WRITE(unit_nr,'(T2,A,1000F16.8)') "requested interval-max_energy", ev2(:)
