@@ -578,6 +578,19 @@ CONTAINS
 
     occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
     IF (unit_nr>0) WRITE(unit_nr, '(T6,A,I3,1X,F10.8,E12.3)') 'Final TRS4 iteration  ', i, occ_matrix,ABS(trace_gx)
+
+    ! free some memory
+    CALL cp_dbcsr_release(tmp_trans, error=error)
+    CALL cp_dbcsr_release(tmp_gx, error=error)
+    CALL cp_dbcsr_release(matrix_xsq, error=error)
+    CALL cp_dbcsr_release(matrix_xidsq, error=error)
+    CALL cp_dbcsr_release(tmp_norm, error=error)
+
+    ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
+                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p,&
+                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
     
     ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
     ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
@@ -596,12 +609,7 @@ CONTAINS
       ENDIF
     ENDDO
     mu = (eps_min - eps_max)*mu_c + eps_max
-
-    ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
-                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p,&
-                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
+    DEALLOCATE(gamma_values)
 
     ! temporary matrices used for HOMO/LUMO calculation
     CALL cp_dbcsr_init(tmp1,error=error)
@@ -648,16 +656,9 @@ CONTAINS
     e_homo = homo
     e_lumo = lumo
     e_mu = mu
-                    
-    CALL cp_dbcsr_release(tmp_trans, error=error)
-    CALL cp_dbcsr_release(tmp_gx, error=error)
-    CALL cp_dbcsr_release(matrix_x, error=error)
-    CALL cp_dbcsr_release(matrix_xsq, error=error)
-    CALL cp_dbcsr_release(matrix_xidsq, error=error)
-    DEALLOCATE(gamma_values)
 
+    CALL cp_dbcsr_release(matrix_x, error=error)
     CALL cp_dbcsr_release(matrix_k0, error=error)
-    CALL cp_dbcsr_release(tmp_norm, error=error)
     CALL cp_dbcsr_release(tmp1, error=error)
     CALL cp_dbcsr_release(tmp2, error=error)
     CALL cp_dbcsr_release(tmp3, error=error)
