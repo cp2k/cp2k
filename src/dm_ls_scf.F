@@ -25,6 +25,7 @@ MODULE dm_ls_scf
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
@@ -32,6 +33,7 @@ MODULE dm_ls_scf
   USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                              dm_ls_curvy_optimization
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
+                                             compute_homo_lumo,&
                                              compute_matrix_preconditioner,&
                                              density_matrix_sign,&
                                              density_matrix_sign_fixed_mu,&
@@ -965,6 +967,11 @@ CONTAINS
     ! store the matrix for a next scf run
     CALL ls_scf_store_result(ls_scf_env,error)
 
+    ! write homo and lumo energy (if not already part of the output)
+    IF (ls_scf_env%curvy_steps) THEN
+       CALL post_scf_homo_lumo(ls_scf_env,error)
+    ENDIF
+
     ! compute the matrix_w if associated
     CALL get_qs_env(qs_env,matrix_w=matrix_w,error=error)
     IF (ASSOCIATED(matrix_w)) THEN
@@ -1013,10 +1020,84 @@ CONTAINS
     ENDDO
     DEALLOCATE(ls_scf_env%matrix_ks)
 
-
     CALL timestop(handle)
 
   END SUBROUTINE ls_scf_post
+
+! *****************************************************************************
+!> \brief Compute the HOMO LUMO energies post SCF
+!> \par History
+!>       2013.06 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE post_scf_homo_lumo(ls_scf_env,error)
+    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_homo_lumo', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspin, unit_nr
+    LOGICAL                                  :: converged, failure
+    REAL(KIND=dp)                            :: eps_max, eps_min, homo, lumo
+    TYPE(cp_dbcsr_type)                      :: matrix_k, matrix_p
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ! get a useful output_unit
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') ""
+
+    ! TODO: remove these limitations
+    CPPrecondition(.NOT.ls_scf_env%has_s_preconditioner,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ls_scf_env%use_s_sqrt,cp_failure_level,routineP,error,failure)
+
+    nspin=ls_scf_env%nspins
+
+    CALL cp_dbcsr_init(matrix_p,error=error)
+    CALL cp_dbcsr_create(matrix_p,template=ls_scf_env%matrix_p(1), matrix_type=dbcsr_type_no_symmetry, error=error)
+
+    CALL cp_dbcsr_init(matrix_k,error=error)
+    CALL cp_dbcsr_create(matrix_k,template=ls_scf_env%matrix_p(1), matrix_type=dbcsr_type_no_symmetry, error=error)
+
+    DO ispin=1,nspin
+       ! ortho basis ks
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_ks(ispin),&
+                              0.0_dp, matrix_k, filter_eps=ls_scf_env%eps_filter,error=error)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_k, ls_scf_env%matrix_s_sqrt_inv, &
+                              0.0_dp, matrix_k, filter_eps=ls_scf_env%eps_filter,error=error)
+
+       ! extremal eigenvalues ks
+       CALL lanczos_alg_serial(matrix_k, eps_max, eps_min, max_iter=ls_scf_env%max_iter_lanczos, &
+                               threshold=ls_scf_env%eps_lanczos, converged=converged, error=error)
+
+       ! ortho basis p
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_p(ispin),&
+                              0.0_dp, matrix_p, filter_eps=ls_scf_env%eps_filter,error=error)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p, ls_scf_env%matrix_s_sqrt, &
+                              0.0_dp, matrix_p, filter_eps=ls_scf_env%eps_filter,error=error)
+       IF(nspin==1)CALL cp_dbcsr_scale(matrix_p,0.5_dp,error=error)
+
+       ! go compute homo lumo
+       CALL compute_homo_lumo(matrix_k,matrix_p,eps_min,eps_max,ls_scf_env%eps_filter, &
+                             ls_scf_env%max_iter_lanczos,ls_scf_env%eps_lanczos,homo,lumo,unit_nr,error)
+
+    ENDDO
+
+    CALL cp_dbcsr_release(matrix_p,error=error)
+    CALL cp_dbcsr_release(matrix_k,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE post_scf_homo_lumo
 
 ! *****************************************************************************
 !> \brief Compute the density matrix for various values of the chemical potential
