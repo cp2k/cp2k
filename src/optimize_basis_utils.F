@@ -23,6 +23,7 @@ MODULE optimize_basis_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE machine,                         ONLY: m_getcwd
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              derived_basis_info,&
                                              flex_basis_type,&
@@ -60,6 +61,7 @@ CONTAINS
     INTEGER                                  :: iset, iweight, nrep
     TYPE(section_vals_type), POINTER         :: kind_section, optbas_section, &
                                                 powell_section, train_section
+    CHARACTER(LEN=default_path_length)       :: main_dir
 
       optbas_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_BASIS",error=error)
       powell_section => section_vals_get_subs_vals(optbas_section,"OPTIMIZATION",error=error)
@@ -69,7 +71,9 @@ CONTAINS
       CALL section_vals_val_get(optbas_section,"BASIS_TEMPLATE_FILE",c_val=opt_bas%template_basis_file,error=error)
       CALL section_vals_val_get(optbas_section,"BASIS_WORK_FILE",c_val=opt_bas%work_basis_file,error=error)
       CALL section_vals_val_get(optbas_section,"BASIS_OUTPUT_FILE",c_val=opt_bas%output_basis_file,error=error)
-      opt_bas%work_basis_file=TRIM(ADJUSTL(opt_bas%work_basis_file))
+      CALL m_getcwd(main_dir)
+      opt_bas%work_basis_file=TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
+
       CALL section_vals_val_get(optbas_section,"WRITE_FREQUENCY",i_val=opt_bas%write_frequency,error=error)
       CALL section_vals_val_get(optbas_section,"USE_CONDITION_NUMBER",l_val=opt_bas%use_condition_number,error=error)
 

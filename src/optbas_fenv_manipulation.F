@@ -15,7 +15,8 @@ MODULE optbas_fenv_manipulation
   USE input_constants,                 ONLY: do_admm_basis_set_projection,&
                                              do_admm_purify_mo_diag,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             use_orb_basis_set,&
+                                             debug_print_level
   USE input_section_types,             ONLY: section_vals_add_values,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -81,6 +82,8 @@ CONTAINS
      kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
 
 
+     CALL section_vals_val_set(feval_section,"PRINT%DISTRIBUTION%_SECTION_PARAMETERS_",&
+                               i_val=debug_print_level,error=error)
      CALL section_vals_add_values(admm_section,error)
      CALL section_vals_val_set(admm_section,"ADMM_PURIFICATION_METHOD",&
                                i_val=do_admm_purify_mo_diag,error=error)
