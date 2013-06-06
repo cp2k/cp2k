@@ -9,8 +9,22 @@ MODULE optbas_fenv_manipulation
   USE basis_set_types,                 ONLY: gto_basis_set_type,&
                                              init_orb_basis_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: debug_print_level,&
                                              do_admm_basis_set_projection,&
@@ -27,16 +41,21 @@ MODULE optbas_fenv_manipulation
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              flex_basis_type
   USE particle_types,                  ONLY: particle_type
+  USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_matrix_pools,                 ONLY: mpools_get
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: init_mo_set,&
                                              mo_set_p_type,&
                                              read_mo_set
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: uppercase
 #include "cp_common_uses.h"
@@ -48,7 +67,9 @@ MODULE optbas_fenv_manipulation
             allocate_mo_sets,&
             calculate_overlap,&
             create_opt_admm_env,&
-            update_basis_set
+            update_basis_set,&
+            calculate_ks_matrix,&
+            calculate_overlap_inverse
  
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_fenv_manipulation'  
 
@@ -83,6 +104,10 @@ CONTAINS
 
 
      CALL section_vals_val_set(feval_section,"PRINT%DISTRIBUTION%_SECTION_PARAMETERS_",&
+                               i_val=debug_print_level,error=error)
+     CALL section_vals_val_set(dft_section,"SCF%PRINT%TOTAL_DENSITIES%_SECTION_PARAMETERS_",&
+                               i_val=debug_print_level,error=error)
+     CALL section_vals_val_set(dft_section,"SCF%PRINT%DETAILED_ENERGY%_SECTION_PARAMETERS_",&
                                i_val=debug_print_level,error=error)
      CALL section_vals_add_values(admm_section,error)
      CALL section_vals_val_set(admm_section,"ADMM_PURIFICATION_METHOD",&
@@ -182,8 +207,60 @@ CONTAINS
         END IF
     END DO
     
-    
    END SUBROUTINE allocate_mo_sets
+
+   SUBROUTINE calculate_ks_matrix(qs_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin
+
+    CALL qs_energies_init(qs_env,.FALSE.,error)
+    DO ispin=1,qs_env%dft_control%nspins
+       CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set,qs_env%rho%rho_ao(ispin)%matrix,error=error)
+    END DO
+    CALL qs_rho_update_rho(qs_env%rho, qs_env, error=error)
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+    qs_env%requires_mo_derivs=.FALSE.
+    qs_env%dft_control%do_admm=.FALSE.
+    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+            error=error)
+    qs_env%dft_control%do_admm=.TRUE.
+
+   END SUBROUTINE calculate_ks_matrix
+
+   SUBROUTINE calculate_overlap_inverse(matrix_s,matrix_s_inv,para_env,context,error)
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
+    TYPE(cp_fm_type), POINTER                :: matrix_s_inv
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap_inverse', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nao
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: work1
+
+    CALL cp_dbcsr_get_info(matrix_s,nfullrows_total=nao)
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao,&
+                             para_env=para_env, context=context,error=error)
+
+    CALL cp_fm_create(matrix_s_inv,matrix_struct=fm_struct_tmp,error=error)
+    CALL cp_fm_create(work1,matrix_struct=fm_struct_tmp,error=error)
+    CALL copy_dbcsr_to_fm(matrix_s,matrix_s_inv,error=error)
+    CALL cp_fm_upper_to_full(matrix_s_inv,work1,error=error)
+    CALL cp_fm_cholesky_decompose(matrix_s_inv,error=error)
+    CALL cp_fm_cholesky_invert(matrix_s_inv,error=error)
+    CALL cp_fm_upper_to_full(matrix_s_inv,work1,error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error)
+    CALL cp_fm_release(work1,error=error)
+
+   END SUBROUTINE calculate_overlap_inverse
 
    SUBROUTINE calculate_overlap(qs_env,S_type,error)
     TYPE(qs_environment_type), POINTER       :: qs_env

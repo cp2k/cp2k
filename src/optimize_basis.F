@@ -4,6 +4,8 @@
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis
   USE admm_methods,                    ONLY: fit_mo_coeffs_diag
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -31,11 +33,14 @@ MODULE optimize_basis
                                              mp_sum,&
                                              mp_sync
   USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
+                                             calculate_ks_matrix,&
                                              calculate_overlap,&
+                                             calculate_overlap_inverse,&
                                              create_opt_admm_env,&
                                              modify_input_settings,&
                                              update_basis_set
-  USE optbas_opt_utils,                ONLY: evaluate_fval
+  USE optbas_opt_utils,                ONLY: evaluate_energy,&
+                                             evaluate_fval
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              deallocate_basis_optimization_type,&
                                              subset_type
@@ -43,7 +48,8 @@ MODULE optimize_basis
                                              optimize_basis_init_read_input,&
                                              update_derived_basis_sets
   USE powell,                          ONLY: powell_optimize
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: qs_environment_type,&
+                                             set_qs_env
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -136,13 +142,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: main_dir
     INTEGER                                  :: handle, icalc, iopt, mp_id, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
     LOGICAL                                  :: failure, write_basis
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tot_time
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_fm_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: matrix_S_inv
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(f_env_type), POINTER                :: f_env
 
@@ -153,24 +160,25 @@ CONTAINS
 
     ! ======  initialize the f_env and precompute some matrices ===== 
     mp_id=opt_bas%opt_id
-    CALL m_getcwd(main_dir)
     NULLIFY(para_env, f_env)
     ALLOCATE(f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)))
     ALLOCATE(tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
+    ALLOCATE(matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
     CALL cp_error_init(error, stop_level=cp_fatal_level)
     CALL cp_para_env_create(para_env, group=mpi_comm_opt,&
          owns_group=.FALSE.,error=error)
 
 
-    CALL init_training_force_envs(opt_bas,f_env_id,para_env,mpi_comm_opt,error)
+    CALL init_training_force_envs(opt_bas,f_env_id,matrix_s_inv,para_env,mpi_comm_opt,error)
  
     CALL init_free_vars(opt_bas,error)
     tot_time=0.0_dp
     
     ! ======= The real optimization loop  =======
     DO iopt=0,opt_bas%powell_param%maxfun
-      CALL compute_residuum_vectors(opt_bas,f_env_id,tot_time,para_env_top,para_env,iopt,error,top_error)
+      CALL compute_residuum_vectors(opt_bas,f_env_id,matrix_S_inv,tot_time,&
+                                    para_env_top,para_env,iopt,error,top_error)
       IF(para_env_top%ionode)&
       CALL powell_optimize (opt_bas%powell_param%nvar, opt_bas%x_opt , opt_bas%powell_param)
       IF(.NOT.para_env_top%ionode)opt_bas%x_opt=0.0_dp
@@ -200,8 +208,9 @@ CONTAINS
      DO icalc=SIZE(opt_bas%comp_group(mp_id)%member_list),1,-1
         CALL f_env_get_from_id(f_env_id(icalc),f_env,error)
         CALL destroy_force_env(f_env_id(icalc), stat)
+        CALL cp_fm_release(matrix_s_inv(icalc)%matrix,error)
      END DO
-     DEALLOCATE(f_env_id); DEALLOCATE(tot_time) 
+     DEALLOCATE(f_env_id); DEALLOCATE(tot_time); DEALLOCATE(matrix_S_inv) 
      CALL cp_para_env_release(para_env,error=error)
      CALL cp_error_dealloc_ref(error)   
      CALL timestop(handle)
@@ -215,9 +224,11 @@ CONTAINS
 !>\author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE compute_residuum_vectors(opt_bas,f_env_id,tot_time,para_env_top,para_env,iopt,error,top_error)
+  SUBROUTINE compute_residuum_vectors(opt_bas,f_env_id,matrix_S_inv,tot_time,&
+                                      para_env_top,para_env,iopt,error,top_error)
     TYPE(basis_optimization_type)            :: opt_bas
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: matrix_S_inv
     REAL(KIND=dp), DIMENSION(:)              :: tot_time
     TYPE(cp_para_env_type), POINTER          :: para_env_top, para_env
     INTEGER                                  :: iopt
@@ -228,8 +239,8 @@ CONTAINS
 
     INTEGER                                  :: bas_id, handle, icalc, icomb, &
                                                 mp_id, my_id, ncalc, set_id
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cond_vec, f_vec, my_time, &
-                                                start_time
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cond_vec, energy, f_vec, &
+                                                my_time, start_time
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -237,8 +248,8 @@ CONTAINS
     CALL timeset(routineN,handle)
  
     ncalc=opt_bas%ncombinations*opt_bas%ntraining_sets
-    ALLOCATE(f_vec(ncalc)); ALLOCATE(my_time(ncalc)); ALLOCATE(cond_vec(ncalc))
-    f_vec=0.0_dp ; cond_vec=0.0_dp; my_time=0.0_dp
+    ALLOCATE(f_vec(ncalc)); ALLOCATE(my_time(ncalc)); ALLOCATE(cond_vec(ncalc)); ALLOCATE(energy(ncalc))
+    f_vec=0.0_dp ; cond_vec=0.0_dp; my_time=0.0_dp; energy=0.0_dp
     mp_id=opt_bas%opt_id
     ALLOCATE(start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
@@ -259,10 +270,12 @@ CONTAINS
                              qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit, .TRUE. , error)
         CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,qs_env%matrix_s_aux_fit_vs_orb(1)%matrix,&
                          qs_env%matrix_s_aux_fit(1)%matrix,qs_env%admm_env,f_vec(my_id),cond_vec(my_id),error)
+        CALL evaluate_energy(qs_env%mos_aux_fit,qs_env%matrix_ks,matrix_s_inv(icalc)%matrix,qs_env%admm_env%Q,&
+                             qs_env%admm_env%work_aux_aux,energy(my_id),error)
  
         my_time(my_id)=m_walltime()-start_time(icalc)
         IF(.NOT.para_env%ionode)THEN
-            f_vec=0.0_dp; cond_vec=0.0_dp; my_time=0.0_dp
+            f_vec=0.0_dp; cond_vec=0.0_dp; my_time=0.0_dp; energy=0.0_dp
         END IF
      END DO
 
@@ -273,7 +286,7 @@ CONTAINS
      DO icalc=1,SIZE(f_vec)
         icomb=MOD(icalc-1,opt_bas%ncombinations)
         opt_bas%powell_param%f=opt_bas%powell_param%f+&
-              f_vec(icalc)*opt_bas%fval_weight(icomb)
+              (f_vec(icalc)+energy(icalc))*opt_bas%fval_weight(icomb)
         IF(opt_bas%use_condition_number)&
           opt_bas%powell_param%f=opt_bas%powell_param%f+&
               LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
@@ -283,7 +296,7 @@ CONTAINS
 
      ! output info if required 
      CALL output_opt_info(f_vec,cond_vec,my_time,tot_time,opt_bas,iopt,para_env_top,top_error)
-     DEALLOCATE(f_vec); DEALLOCATE(my_time); DEALLOCATE(cond_vec)
+     DEALLOCATE(f_vec); DEALLOCATE(my_time); DEALLOCATE(cond_vec); DEALLOCATE(energy)
 
      CALL timestop(handle)
 
@@ -294,10 +307,11 @@ CONTAINS
 !>\author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE init_training_force_envs(opt_bas,f_env_id,para_env,mpi_comm_opt,error)
+  SUBROUTINE init_training_force_envs(opt_bas,f_env_id,matrix_s_inv,para_env,mpi_comm_opt,error)
 
     TYPE(basis_optimization_type)            :: opt_bas
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: matrix_S_inv
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: mpi_comm_opt
     TYPE(cp_error_type)                      :: error
@@ -319,6 +333,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     mp_id=opt_bas%opt_id
+    CALL m_getcwd(main_dir)
     ALLOCATE(suberror(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
     ! ======= Create f_env for all calculations in MPI group =======
@@ -346,12 +361,16 @@ CONTAINS
        CALL f_env_add_defaults(f_env_id(icalc), f_env, suberror(icalc), failure)
        force_env => f_env%force_env
        CALL force_env_get(force_env,qs_env=qs_env,error=error)
+       CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
        CALL allocate_mo_sets(qs_env,error)
        CALL f_env_rm_defaults(f_env, suberror(icalc),stat)
 
        CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,&
                                     force_env_section=qs_env%input,error=error)
        CALL calculate_overlap(qs_env,"S_AB",error)
+       CALL calculate_overlap_inverse(qs_env%matrix_s(1)%matrix,matrix_s_inv(icalc)%matrix,&
+                                      para_env,qs_env%blacs_env,error)
+       CALL calculate_ks_matrix(qs_env,suberror(icalc))
 
        CALL create_opt_admm_env(qs_env,error)
        CALL section_vals_release(input_file,error=error)
