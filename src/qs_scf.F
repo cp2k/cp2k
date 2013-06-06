@@ -48,12 +48,9 @@ MODULE qs_scf
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_name, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_init_p, cp_dbcsr_name, cp_dbcsr_row_block_sizes
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
@@ -90,8 +87,7 @@ MODULE qs_scf
                                              dbcsr_mp_npcols
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default,&
-                                             dbcsr_type_symmetric
+                                             dbcsr_type_real_default
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
@@ -110,8 +106,7 @@ MODULE qs_scf
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE mp2,                             ONLY: mp2_main
@@ -147,13 +142,11 @@ MODULE qs_scf
                                              mixing_init,&
                                              self_consistency_check
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_did_change,&
                                              qs_ks_scp_update
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_magnitude,&
@@ -1908,7 +1901,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, homo, ispin, &
                                                 mixing_method, nao, nhistory, &
                                                 nmo, nrow_block, nvariables, &
@@ -1918,8 +1910,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s, mo_derivs
+      POINTER                                :: matrix_s, mo_derivs
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_aux_fit
@@ -1934,15 +1925,13 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(mixing_storage_type), POINTER       :: mixing_store
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
-            dft_control, mos, ks_env,&
-            ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit)
+    NULLIFY(ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct, &
+         dft_control, mos, ao_mo_fm_pools_aux_fit)
     NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, &
          mo_coeff_aux_fit, mo_derivs_aux_fit, para_env, xas_env)
 
@@ -1955,8 +1944,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
          dft_control=dft_control,&
          mos=mos,&
          mos_aux_fit=mos_aux_fit,&
-         matrix_ks=matrix_ks,&
-         ks_env=ks_env,&
          atomic_kind_set=atomic_kind_set,&
          matrix_s=matrix_s,&
          para_env=para_env, xas_env=xas_env,error=error)
@@ -2160,63 +2147,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
     END IF
 
-!   *** Allocate matrix_ks and put it in the QS environment ***
-
-    IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-       DO ispin=1,dft_control%nspins
-          ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-          IF (dft_control%nspins > 1) THEN
-             IF (ispin == 1) THEN
-                headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
-             ELSE
-                headline="KOHN-SHAM MATRIX FOR BETA SPIN"
-             END IF
-          ELSE
-             headline="KOHN-SHAM MATRIX"
-          END IF
-          CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
-               name=TRIM(headline)//" (SCF ENV "//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//")",&
-               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
-               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-               nblks=0, nze=0, error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
-          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
-       ENDDO
-
-       CALL set_qs_env(qs_env=qs_env,&
-            matrix_ks=matrix_ks,error=error)
-
-    END IF
-
-!   *** Allocate matrix_ks_aux_fit if requested and put it in the QS environment ***
-
-    IF( dft_control%do_admm) THEN
-      IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
-         DO ispin=1,dft_control%nspins
-            ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
-            CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
-
-            CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
-                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                 "KOHN-SHAM_MATRIX for ADMM", &
-                 dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                 row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 nblks=0, nze=0, error=error)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
-                 error=error)
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
-         ENDDO
-
-         CALL set_qs_env(qs_env=qs_env,&
-              matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
-      END IF
-    END IF
-
 !   *** allocate the mixing storage
     IF(do_xas_tp) THEN
       mixing_method = xas_env%mixing_method
@@ -2229,13 +2159,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
       CALL mixing_allocate(qs_env,mixing_method,mixing_store,dft_control%nspins,error)
     ELSE
        NULLIFY(scf_env%p_mix_new)
-    END IF
-
-!   *** allocate the ks env **
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
     END IF
 
     ! If there is an outer scf loop allocate the space for the variables

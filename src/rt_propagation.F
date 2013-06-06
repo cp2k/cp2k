@@ -69,8 +69,10 @@ MODULE rt_propagation
   USE mathconstants,                   ONLY: twopi
   USE md_environment_types,            ONLY: md_environment_type
   USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
@@ -82,8 +84,7 @@ MODULE rt_propagation
   USE qs_moments,                      ONLY: build_berry_moment_matrix
   USE rt_propagation_methods,          ONLY: calc_update_rho,&
                                              propagation_step,&
-                                             put_data_to_history,&
-                                             update_core_and_matrices
+                                             put_data_to_history
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_create,&
@@ -139,6 +140,7 @@ CONTAINS
     NULLIFY(qs_env,rtp_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
+    CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
     SELECT CASE(rtp_control%initial_wfn)
@@ -153,7 +155,7 @@ CONTAINS
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
 
     CASE(use_restart_wfn,use_rt_restart)
-       CALL update_core_and_matrices(qs_env,error)
+       CALL qs_energies_init(qs_env, .FALSE. , error)
        DO ispin=1,SIZE(qs_env%mos)
           CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN

@@ -44,7 +44,6 @@ MODULE qs_ks_apply_restraints
 
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_apply_restraints'
-  INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
   PUBLIC :: qs_ks_becke_restraint, qs_ks_mulliken_restraint, qs_ks_s2_restraint
 

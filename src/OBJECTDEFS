@@ -507,6 +507,7 @@ OBJECTS_GENERIC =\
  qs_electric_field_gradient.o\
  qs_energy.o\
  qs_energy_types.o\
+ qs_energy_utils.o\
  qs_environment_methods.o\
  qs_environment.o\
  qs_environment_types.o\
@@ -535,6 +536,7 @@ OBJECTS_GENERIC =\
  qs_ks_scp_methods.o\
  qs_ks_scp_types.o\
  qs_ks_types.o\
+ qs_ks_utils.o\
  qs_linres_atom_current.o\
  qs_linres_current.o\
  qs_linres_current_utils.o\

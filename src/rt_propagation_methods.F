@@ -16,18 +16,10 @@ MODULE rt_propagation_methods
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_distribution,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_row_block_sizes,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
@@ -49,8 +41,6 @@ MODULE rt_propagation_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
                                              do_diag,&
@@ -58,24 +48,15 @@ MODULE rt_propagation_methods
                                              do_etrs,&
                                              do_pade,&
                                              do_taylor
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: binomial
-  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
-                                             calculate_ecore_self
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
+                                             qs_environment_type
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type
-  USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_make_propagators,             ONLY: make_cn_propagator,&
@@ -98,7 +79,6 @@ MODULE rt_propagation_methods
 
   PUBLIC :: propagation_step,&
        s_matrices_create,&
-       update_core_and_matrices,&
        calc_update_rho,&
        aspc_extrapolate,&
        calc_sinvH,&
@@ -587,92 +567,6 @@ CONTAINS
 
   END SUBROUTINE calc_update_rho
 
-! *****************************************************************************
-!> \brief needed only for EMD. Recalculates neighborlists and integrals, when
-!>        ionic positions change
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE update_core_and_matrices(qs_env,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_core_and_matrices', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ispin
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(section_vals_type), POINTER         :: input
-
-    NULLIFY(matrix_ks_aux_fit)
-    CALL timeset(routineN,handle)
-
-    para_env=>qs_env%para_env
-
-    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control,error=error)
-
-    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-    CALL qs_env_update_s_mstruct(qs_env,error=error)
-
-    CALL calculate_ecore_self(qs_env,error=error)
-    CALL calculate_ecore_overlap(qs_env, para_env, &
-         calculate_forces=.FALSE.,error=error)
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,ks_env=ks_env,error=error)
-
-    IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-       DO ispin=1,dft_control%nspins
-          ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-          CALL cp_dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
-               name="KOHN-SHAM_MATRIX",error=error)
-       ENDDO
-
-       CALL set_qs_env(qs_env=qs_env,&
-            matrix_ks=matrix_ks,error=error)
-    END IF
-
-    IF( dft_control%do_admm) THEN
-      IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
-         DO ispin=1,dft_control%nspins
-            ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
-            CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
-
-            CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
-                 name="Spin"//TRIM(ADJUSTL(cp_to_string(ispin)))//&
-                 "KOHN-SHAM_MATRIX for ADMM", &
-                 dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                 row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 nblks=0, nze=0, error=error)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
-                 error=error)
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
-         ENDDO
-
-         CALL set_qs_env(qs_env=qs_env,&
-              matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
-      END IF
-    END IF
-
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
-
-
-    CALL timestop(handle)
-
-  END SUBROUTINE update_core_and_matrices
   SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
