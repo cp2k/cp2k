@@ -58,10 +58,10 @@ CONTAINS
       routineN = 'optimize_basis_init_read_input', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: main_dir
     INTEGER                                  :: iset, iweight, nrep
     TYPE(section_vals_type), POINTER         :: kind_section, optbas_section, &
                                                 powell_section, train_section
-    CHARACTER(LEN=default_path_length)       :: main_dir
 
       optbas_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_BASIS",error=error)
       powell_section => section_vals_get_subs_vals(optbas_section,"OPTIMIZATION",error=error)

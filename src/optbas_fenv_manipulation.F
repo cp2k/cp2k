@@ -12,11 +12,11 @@ MODULE optbas_fenv_manipulation
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_admm_basis_set_projection,&
+  USE input_constants,                 ONLY: debug_print_level,&
+                                             do_admm_basis_set_projection,&
                                              do_admm_purify_mo_diag,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set,&
-                                             debug_print_level
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_add_values,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&

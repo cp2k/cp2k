@@ -153,7 +153,7 @@ MODULE qs_mo_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief  Occupation for smeared spin polirized electronic structures
+!> \brief  Occupation for smeared spin polarized electronic structures
 !>         with relaxed multiplicity
 !>
 !> \author  MI
@@ -331,22 +331,24 @@ CONTAINS
     CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
     mo_set_b => mo_array(2)%mo_set
 
-    IF(smear%do_smear .AND. smear%fixed_mag_mom<0.0_dp) THEN
-      CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
-      CALL set_mo_occupation_3(mo_array,smear=smear,error=error)
-      RETURN
-    ELSEIF(smear%do_smear .AND.  smear%fixed_mag_mom >=0.0) THEN
-      nelec = mo_set_a%n_el_f + mo_set_b%n_el_f
-      IF(ABS((mo_set_a%n_el_f-mo_set_b%n_el_f)-smear%fixed_mag_mom)>&
-                 smear%eps_fermi_dirac*nelec)THEN
-         mo_set_a%n_el_f = nelec/2.0_dp + smear%fixed_mag_mom/2.0_dp
-         mo_set_b%n_el_f = nelec/2.0_dp - smear%fixed_mag_mom/2.0_dp
-      END IF
-      CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
-      CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
-      CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+    IF (smear%do_smear) THEN
+       IF (smear%fixed_mag_mom < 0.0_dp) THEN
+          IF (smear%fixed_mag_mom /= -1.0_dp) THEN
+             CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
+             CALL set_mo_occupation_3(mo_array,smear=smear,error=error)
+             RETURN
+          END IF
+       ELSE
+          nelec = mo_set_a%n_el_f + mo_set_b%n_el_f
+          IF (ABS((mo_set_a%n_el_f - mo_set_b%n_el_f) - smear%fixed_mag_mom) > smear%eps_fermi_dirac*nelec) THEN
+             mo_set_a%n_el_f = nelec/2.0_dp + smear%fixed_mag_mom/2.0_dp
+             mo_set_b%n_el_f = nelec/2.0_dp - smear%fixed_mag_mom/2.0_dp
+          END IF
+          CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
+          CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+       END IF
     END IF
-
 
     IF (.NOT.((mo_set_a%flexible_electron_count > 0.0_dp).AND.&
               (mo_set_b%flexible_electron_count > 0.0_dp))) THEN
@@ -359,7 +361,6 @@ CONTAINS
        END IF
        RETURN
     END IF
-
 
     CALL timeset(routineN,handle)
 
@@ -893,8 +894,11 @@ CONTAINS
          nelec = xas_nelectron
       ELSE
          i_first = 1
-!         nelec = REAL(mo_set%nelectron,dp)
-         nelec = mo_set%n_el_f
+         IF (smear%fixed_mag_mom == -1.0_dp) THEN
+            nelec = REAL(mo_set%nelectron,dp)
+         ELSE
+            nelec = mo_set%n_el_f
+         END IF
       END IF
       SELECT CASE (smear%method)
       CASE (smear_fermi_dirac)

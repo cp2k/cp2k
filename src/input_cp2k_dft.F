@@ -6670,7 +6670,10 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="FIXED_MAGNETIC_MOMENT",&
-                          description="Imposed difference between the numbers of electrons of spin up and spin down, m=nup-ndown",&
+                          description="Imposed difference between the numbers of electrons of spin up "//&
+                                      "and spin down: m = n(up) - n(down). A negative value (default) allows "//&
+                                      "for a change of the magnetic moment. -1 specifically keeps an integer "//&
+                                      "number of spin up and spin down electrons.",&
                           required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
