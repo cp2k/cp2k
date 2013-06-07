@@ -3735,11 +3735,11 @@ CONTAINS
                                                 error_handler, my_method, &
                                                 row, row_size
     LOGICAL                                  :: gt0, my_filter_diag, tr
-    REAL(KIND=real_4)                        :: nrm_s, sdot
+    REAL(KIND=real_4)                        :: nrm_s, SCNRM2, sdot
     REAL(KIND=real_4), DIMENSION(:), POINTER :: data_s
     REAL(KIND=real_8)                        :: ddot, my_absolute, nrm_d
     REAL(KIND=real_8), DIMENSION(:), POINTER :: data_d
-    REAL(KIND=real_8), EXTERNAL              :: DZNRM2, SCNRM2
+    REAL(KIND=real_8), EXTERNAL              :: DZNRM2
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
