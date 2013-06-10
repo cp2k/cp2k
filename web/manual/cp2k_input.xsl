@@ -2,7 +2,9 @@
 
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="2.0">
 
-<xsl:output method="html" indent="yes" name="html"/>
+<xsl:output doctype-public="html" doctype-system="html" indent="yes" method="html" name="html"/>
+
+<xsl:param name="add_edit_links" select="'no'"/>
 
 <xsl:template match="/CP2K_INPUT">
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -189,7 +191,7 @@
 
 <xsl:template name="header">
  <xsl:param name="root"/>
- <table class="default">
+ <table class="default" summary="header">
   <tr>
    <td align="left">
     Back to the <a href="{$root}index.html">main page</a> of this manual
@@ -209,7 +211,7 @@
 <xsl:template name="footer">
  <xsl:param name="root"/>
  <hr/>
- <table class="default">
+ <table class="default" summary="footer">
   <tr>
    <td align="left">
     Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
@@ -257,22 +259,21 @@
      </xsl:call-template>
      <h2><a href="{$root}index.html#{$section_filename}">Section <xsl:value-of select="NAME"/></a></h2>
      <ul class="none">
-       <li>
-        <em>
-            <xsl:if test="string-length(DESCRIPTION) > 0">
-              <xsl:value-of select="DESCRIPTION"/>
-            </xsl:if>
-            <xsl:if test="string-length(DESCRIPTION) = 0">
-              Without description, yet.
-            </xsl:if>
-        </em>
-        <xsl:call-template name="link_edit_text">
+      <li>
+       <em>
+        <xsl:if test="string-length(DESCRIPTION) > 0">
+         <xsl:value-of select="DESCRIPTION"/>
+        </xsl:if>
+        <xsl:if test="string-length(DESCRIPTION) = 0">
+         Without description, yet.
+        </xsl:if>
+       </em>
+       <xsl:call-template name="link_edit_text">
         <xsl:with-param name="txt_id" select="$local_path"/>
         <xsl:with-param name="root" select="$root"/>
-        </xsl:call-template>
-       </li>
-      </ul>
-
+       </xsl:call-template>
+      </li>
+     </ul>
      <ul class="none">
       <li>
        Section path:
@@ -426,7 +427,7 @@
   <xsl:sort select="NAME[@type='default']"/>
   <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
   <xsl:variable name="keyword_path" select="concat($local_path,'/',string(NAME[@type='default']))"/>
-   <table class="default">
+   <table class="default" summary="keyword_description">
     <tr>
      <td class="l">
       <ul class="disc">
@@ -454,16 +455,16 @@
      </td>
      <td class="r">
       <em>
-         <xsl:if test="string-length(DESCRIPTION) > 0">
-           <xsl:value-of select="DESCRIPTION"/>
-         </xsl:if>
-         <xsl:if test="string-length(DESCRIPTION) = 0">
-           Without description, yet.
-         </xsl:if>
+       <xsl:if test="string-length(DESCRIPTION) > 0">
+        <xsl:value-of select="DESCRIPTION"/>
+       </xsl:if>
+       <xsl:if test="string-length(DESCRIPTION) = 0">
+        Without description, yet.
+       </xsl:if>
       </em>
       <xsl:call-template name="link_edit_text">
-         <xsl:with-param name="txt_id" select="$keyword_path"/>
-         <xsl:with-param name="root" select="$root"/>
+       <xsl:with-param name="txt_id" select="$keyword_path"/>
+       <xsl:with-param name="root" select="$root"/>
       </xsl:call-template>
      </td>
     </tr>
@@ -560,22 +561,20 @@
              <xsl:value-of select="NAME"/>
             </big>
            </dt>
-
-            <dd>
-             <em>
-              <xsl:if test="string-length(DESCRIPTION) > 0">
-                <xsl:value-of select="DESCRIPTION"/>
-              </xsl:if>
-              <xsl:if test="string-length(DESCRIPTION) = 0">
-                Without description, yet.
-              </xsl:if>
-             </em>
-             <xsl:call-template name="link_edit_text">
-               <xsl:with-param name="txt_id" select="concat($keyword_path,'/',string(NAME))"/>
-               <xsl:with-param name="root" select="$root"/>
-             </xsl:call-template>
+           <dd>
+            <em>
+             <xsl:if test="string-length(DESCRIPTION) > 0">
+              <xsl:value-of select="DESCRIPTION"/>
+             </xsl:if>
+             <xsl:if test="string-length(DESCRIPTION) = 0">
+              Without description, yet.
+             </xsl:if>
+            </em>
+            <xsl:call-template name="link_edit_text">
+             <xsl:with-param name="txt_id" select="concat($keyword_path,'/',string(NAME))"/>
+             <xsl:with-param name="root" select="$root"/>
+            </xsl:call-template>
            </dd>
-
           </dl>
          </li>
         </xsl:for-each>
@@ -710,6 +709,7 @@
 <xsl:template name="link_edit_text">
  <xsl:param name="txt_id"/>
  <xsl:param name="root"/>
+ <xsl:if test="$add_edit_links = 'yes'">
   <!-- <span style="position:relative;">
   <a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">
   <img src="{concat($root,'edit.png')}" style="height:25px; position:absolute; top:-22px; left:5px;"/>
@@ -718,6 +718,7 @@
   <span style="font-size: small;">
    &#160;[<a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">Edit</a>]
   </span>
+ </xsl:if>
 </xsl:template>
 
 </xsl:stylesheet>
