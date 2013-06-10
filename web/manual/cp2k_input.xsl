@@ -256,15 +256,23 @@
       <xsl:with-param name="root" select="$root"/>
      </xsl:call-template>
      <h2><a href="{$root}index.html#{$section_filename}">Section <xsl:value-of select="NAME"/></a></h2>
-     <xsl:if test="string-length(DESCRIPTION) > 0">
-      <ul class="none">
+     <ul class="none">
        <li>
         <em>
-         <xsl:value-of select="DESCRIPTION"/>
+            <xsl:if test="string-length(DESCRIPTION) > 0">
+              <xsl:value-of select="DESCRIPTION"/>
+            </xsl:if>
+            <xsl:if test="string-length(DESCRIPTION) = 0">
+              Without description, yet.
+            </xsl:if>
         </em>
+        <xsl:call-template name="link_edit_text">
+        <xsl:with-param name="txt_id" select="$local_path"/>
+        <xsl:with-param name="root" select="$root"/>
+        </xsl:call-template>
        </li>
       </ul>
-     </xsl:if>
+
      <ul class="none">
       <li>
        Section path:
@@ -359,6 +367,7 @@
           <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
           <xsl:with-param name="root" select="$root"/>
           <xsl:with-param name="section_filename" select="$section_filename"/>
+          <xsl:with-param name="local_path" select="$local_path"/>
          </xsl:call-template>
         </xsl:if>
         <xsl:if test="count(DEFAULT_KEYWORD) > 0">
@@ -366,6 +375,7 @@
           <xsl:with-param name="element" select="DEFAULT_KEYWORD"/>
           <xsl:with-param name="root" select="$root"/>
           <xsl:with-param name="section_filename" select="$section_filename"/>
+          <xsl:with-param name="local_path" select="$local_path"/>
          </xsl:call-template>
         </xsl:if>
         <xsl:if test="count(KEYWORD) > 0">
@@ -373,6 +383,7 @@
           <xsl:with-param name="element" select="KEYWORD"/>
           <xsl:with-param name="root" select="$root"/>
           <xsl:with-param name="section_filename" select="$section_filename"/>
+          <xsl:with-param name="local_path" select="$local_path"/>
          </xsl:call-template>
         </xsl:if>
        </li>
@@ -410,9 +421,11 @@
  <xsl:param name="element" select="KEYWORD"/>
  <xsl:param name="root"/>
  <xsl:param name="section_filename"/>
+ <xsl:param name="local_path"/>
  <xsl:for-each select="$element">
   <xsl:sort select="NAME[@type='default']"/>
   <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
+  <xsl:variable name="keyword_path" select="concat($local_path,'/',string(NAME[@type='default']))"/>
    <table class="default">
     <tr>
      <td class="l">
@@ -441,8 +454,17 @@
      </td>
      <td class="r">
       <em>
-       <xsl:value-of select="DESCRIPTION"/>
+         <xsl:if test="string-length(DESCRIPTION) > 0">
+           <xsl:value-of select="DESCRIPTION"/>
+         </xsl:if>
+         <xsl:if test="string-length(DESCRIPTION) = 0">
+           Without description, yet.
+         </xsl:if>
       </em>
+      <xsl:call-template name="link_edit_text">
+         <xsl:with-param name="txt_id" select="$keyword_path"/>
+         <xsl:with-param name="root" select="$root"/>
+      </xsl:call-template>
      </td>
     </tr>
     <tr>
@@ -538,13 +560,22 @@
              <xsl:value-of select="NAME"/>
             </big>
            </dt>
-           <xsl:if test="string-length(DESCRIPTION) > 0">
+
             <dd>
              <em>
-              <xsl:value-of select="DESCRIPTION"/>
+              <xsl:if test="string-length(DESCRIPTION) > 0">
+                <xsl:value-of select="DESCRIPTION"/>
+              </xsl:if>
+              <xsl:if test="string-length(DESCRIPTION) = 0">
+                Without description, yet.
+              </xsl:if>
              </em>
-            </dd>
-           </xsl:if>
+             <xsl:call-template name="link_edit_text">
+               <xsl:with-param name="txt_id" select="concat($keyword_path,'/',string(NAME))"/>
+               <xsl:with-param name="root" select="$root"/>
+             </xsl:call-template>
+           </dd>
+
           </dl>
          </li>
         </xsl:for-each>
@@ -674,6 +705,19 @@
    </body>
   </html>
  </xsl:result-document>
+</xsl:template>
+
+<xsl:template name="link_edit_text">
+ <xsl:param name="txt_id"/>
+ <xsl:param name="root"/>
+  <!-- <span style="position:relative;">
+  <a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">
+  <img src="{concat($root,'edit.png')}" style="height:25px; position:absolute; top:-22px; left:5px;"/>
+  </a>
+  </span> -->
+  <span style="font-size: small;">
+   &#160;[<a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">Edit</a>]
+  </span>
 </xsl:template>
 
 </xsl:stylesheet>
