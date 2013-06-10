@@ -191,14 +191,14 @@ CONTAINS
                      "This can be used to make further specifications easier",&
          usage="INITIAL_DEGREES_OF_FREEDOM ALL", &
          enum_c_vals=s2a( "ALL", "NONE","COEFFICIENTS","EXPONENTS"),&
-         enum_desc=s2a("Set all parameters in the basis to be varialble.",&
-                       "Set all parameters in the basis to be fixed",&
-                       "Set all coefficients in the basis to be varable",&
-                       "Set all exponents in the basis to be varable"),&
+         enum_desc=s2a("Set all parameters in the basis to be variable.",&
+                       "Set all parameters in the basis to be fixed.",&
+                       "Set all coefficients in the basis set to be variable.",&
+                       "Set all exponents in the basis to be variable."),&
          enum_i_vals=(/do_opt_all, do_opt_none, do_opt_coeff, do_opt_exps/),&
          default_i_val=do_opt_coeff,error=error)
     CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)    
+    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="SWITCH_COEFF_STATE",&
          description="Allows to switch the state of a given coefficient from current state "//&
