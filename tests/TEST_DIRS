@@ -3,6 +3,10 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-mp2
+QS/regtest-double-hybrid
+QS/regtest-ri-mp2
+QS/regtest-ri-laplace-mp2
+QS/regtest-ri-rpa
 QS/regtest-sym
 Fist/regtest-7
 Fist/regtest
