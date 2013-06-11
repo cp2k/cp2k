@@ -208,7 +208,9 @@ CONTAINS
 
     CALL dbcsr_error_set (routineN, error_handle, error)
 #if defined (__DBCSR_CUDA)
+    !$OMP CRITICAL(crit_cuda_dev_sync)
     istat = cuda_device_sync_cu();
+    !$OMP END CRITICAL(crit_cuda_dev_sync)
 #else
     istat = -1
 #endif
