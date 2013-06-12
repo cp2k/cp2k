@@ -1,0 +1,132 @@
+################################################################################
+#
+# Potential data base file for CP2K (Quickstep)
+#
+# History: - Creation (06/2013)
+#
+################################################################################
+#
+# Non-linear core corrected pseudopotentials of Goedecker, Teter and Hutter (GTH)
+# -----------------------------------------------------
+#
+# Literature: - A. Willand, YO. Kvashnin, L. Genovese, A. Vázquez-Mayagoitia,
+#               AK. Dep, A. Sadeghi, T. Deutsch, and S.Goedecker
+#               J. Chem. Phys. 138, 104109 (2013)
+#             - S. Goedecker, M. Teter, and J. Hutter,
+#               Phys. Rev. B 54, 1703 (1996)
+#             - C. Hartwigsen, S. Goedecker, and J. Hutter,
+#               Phys. Rev. B 58, 3641 (1998)
+#
+# GTH-potential format:
+#
+# Element symbol  Name of the potential  Alias names
+# n_elec(s)  n_elec(p)  n_elec(d)  ...
+# r_loc   nexp_ppl        cexp_ppl(1) ... cexp_ppl(nexp_ppl)
+# NLCC    n_nlcc
+#         r_core  n_core c_core
+# nprj
+# r(1)    nprj_ppnl(1)    ((hprj_ppnl(1,i,j),j=i,nprj_ppnl(1)),i=1,nprj_ppnl(1))
+# r(2)    nprj_ppnl(2)    ((hprj_ppnl(2,i,j),j=i,nprj_ppnl(2)),i=1,nprj_ppnl(2))
+#  .       .               .
+#  .       .               .
+#  .       .               .
+# r(nprj) nprj_ppnl(nprj) ((hprj_ppnl(nprj,i,j),j=i,nprj_ppnl(nprj)),
+#                                               i=1,nprj_ppnl(nprj))
+#
+# n_elec   : Number of electrons for each angular momentum quantum number
+#            (electronic configuration -> s p d ...)
+# r_loc    : Radius for the local part defined by the Gaussian function
+#            exponent alpha_erf
+# nexp_ppl : Number of the local pseudopotential functions
+# cexp_ppl : Coefficients of the local pseudopotential functions
+# nprj     : Number of the non-local projectors => nprj = SIZE(nprj_ppnl(:))
+# r        : Radius of the non-local part for angular momentum quantum number l
+#            defined by the Gaussian function exponents alpha_prj_ppnl
+# nprj_ppnl: Number of the non-local projectors for the angular momentum
+#            quantum number l
+# hprj_ppnl: Coefficients of the non-local projector functions
+#
+################################################################################
+#
+# PBE functional
+#
+################################################################################
+
+Al GTH-NLCC-PBE-q3
+   2 1  
+        0.35000000  2     -1.20404111     -2.14848844 
+   NLCC    1
+        0.487749457320947 1 26.6661157296629
+   2                                                 
+        0.46845918  2      2.69261923      0.00000000
+                                           2.15425102
+        0.54697362  1      2.13803860     
+B GTH-NLCC-PBE-q3
+    2   1
+        0.43249960  2     -4.26853158      0.59951279
+    NLCC  1 
+        0.333523099251602 1 18.6519880515354
+   1                                      
+        0.37147150  1      6.30164101      
+C GTH-NLCC-PBE-q4
+    2  2
+        0.31478662  2     -6.92377020      0.96359690
+    NLCC  1 
+        0.274399357915869 1 58.7058349842360
+   2                                       
+        0.30228391  1      9.57595383     
+        0.36878252  1     -0.00996437    
+F  GTH-NLCC-PBE-q7
+    2 5
+        0.20610323  2    -19.86716500      2.79308907
+    NLCC  1 
+        0.171542709683482 1 193.635582221771
+    1 
+        0.19518097  1     23.47047311     
+H GTH-NLCC-PBE-q1
+    1    
+        0.20000000  2     -4.07311634      0.68070153 
+   0                                                 
+N GTH-NLCC-PBE-q5
+   2 3
+        0.24179589  2    -10.04328500    1.39719020 
+   NLCC  1 
+        0.246115465086927 1 70.6868378070653
+   2                                      
+        0.25696561  1     12.96801666     
+        0.15685548  1     -0.73452991    
+O GTH-NLCC-PBE-q6
+   2 4
+        0.26099935  2    -14.15180600      1.97829510 
+   NLCC  1 
+        0.252338420313492 1 44.0109866619909
+   2                                       
+        0.22308282  1     18.37181432     
+        0.26844098  1      0.10003633    
+P GTH-NLCC-PBE-q5
+   2  3
+        0.34000000  2     -1.62258310     -0.72412131 
+   NLCC  1 
+        0.398676358021430 1 57.5022588665043
+   2                                                 
+        0.38208906  2      3.47753509     -0.01266608
+                                           3.47461367
+        0.43410975  1      3.37859278      
+S GTH-NLCC-PBE-q6
+   2  4
+        0.33000000  2      1.49042820     -0.73313881 
+   NLCC  1 
+        0.386218088400348 1 79.6359982164901
+   2                                                 
+        0.37045712  2      6.18604810      0.00000000
+                                           2.57760787
+        0.39772434  1      3.89113272   
+Si GTH-NLCC-PBE-q4
+   2  2
+        0.33000000  2     -0.07845999     -0.79378214 
+   NLCC  1
+        0.442792079831528 1 38.1776559763904
+   2                                                 
+        0.42179461  2      2.87392223      0.02558827
+                                           2.59458148
+        0.48800255  1      2.47962806     
