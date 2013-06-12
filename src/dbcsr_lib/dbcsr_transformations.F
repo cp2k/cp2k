@@ -57,6 +57,7 @@ MODULE dbcsr_transformations
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: dp,&
+                                             int_8,&
                                              sp
   USE dbcsr_message_passing,           ONLY: mp_allgather,&
                                              mp_alltoall
@@ -3146,10 +3147,14 @@ CONTAINS
 
     COMPLEX(kind=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(kind=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: actual_blk, bcol, blk, blk_ps, blk_size, blkp, blks, brow, &
-      col_size, data_type, dst_p, end_ind, error_handler, i, ind, job_count, &
-      meta_l, mp_group, nblkrows_total, numnodes, row_size, src_p, start_ind, &
-      stored_col_new, stored_row_new
+    INTEGER :: bcol, blk, blk_ps, blk_size, blks, brow, col_size, data_type, &
+      dst_p, error_handler, i, ind, job_count, meta_l, mp_group, &
+      nblkrows_total, numnodes, row_size, src_p, stored_col_new, &
+      stored_row_new
+    INTEGER(kind=int_8)                      :: actual_blk, blkp, end_ind, &
+                                                start_ind
+    INTEGER(kind=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: extra_darea_size, extra_nblks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -3192,17 +3197,27 @@ CONTAINS
      dst_p = -1
 
      job_count = COUNT(proc_nblks .NE. 0)
+
+     ALLOCATE(extra_nblks(job_count*nblkrows_total))
+     ALLOCATE(extra_darea_size(job_count*nblkrows_total))
+     i=0
+     DO ind = 1, job_count*nblkrows_total
+        brow = MOD(ind-1,nblkrows_total)+1
+        IF (brow .EQ. 1) i = i+1
+        extra_nblks(ind) = SUM(INT(proc_nblks(1:i-1),kind=int_8))
+        extra_darea_size(ind) = SUM(INT(proc_darea_sizes(1:i-1),kind=int_8))
+     END DO
+
      i = 0
      DO ind = 1, job_count*nblkrows_total
         brow = MOD(ind-1,nblkrows_total)+1
-        IF (brow - 1 .EQ. 0) i = i+1
+        IF (brow .EQ. 1) i = i+1
         row_size = row_blk_size(brow)
         DO blk = row_p(ind+i-1)+1, row_p(ind+i)
-           actual_blk = blk+SUM(proc_nblks(1:i-1))
+           actual_blk = INT(blk,kind=int_8)+extra_nblks(ind)
            bcol = col_i(actual_blk)
            col_size = col_blk_size(bcol)
            blk_size = row_size*col_size
-           blkp = blk_p(actual_blk)
            sym_tr = .FALSE.
            CALL dbcsr_get_stored_coordinates (new_matrix%m, brow, bcol, sym_tr, dst_p)
            send_count(1, dst_p) = send_count(1, dst_p) + 1
@@ -3250,16 +3265,16 @@ CONTAINS
      dst_p = -1
      DO ind = 1, job_count*nblkrows_total
         brow = MOD(ind-1,nblkrows_total)+1
-        IF (brow - 1 .EQ. 0) i = i+1
+        IF (brow .EQ. 1) i = i+1
         row_size = row_blk_size(brow)
         DO blk = row_p(ind+i-1)+1, row_p(ind+i)
-           actual_blk = blk+SUM(proc_nblks(1:i-1))
+           actual_blk = INT(blk,kind=int_8)+extra_nblks(ind)
            bcol = col_i(actual_blk)
            col_size = col_blk_size(bcol)
            blk_size = row_size*col_size
-           blkp = blk_p(actual_blk)
-           start_ind = blkp+SUM(proc_darea_sizes(1:i-1))
-           end_ind = blkp+SUM(proc_darea_sizes(1:i-1))+blk_size-1
+           blkp = INT(blk_p(actual_blk),kind=int_8)
+           start_ind = blkp+extra_darea_size(ind)
+           end_ind = blkp+extra_darea_size(ind)+blk_size-1
 
            SELECT CASE (data_type)
            CASE (dbcsr_type_real_4)
@@ -3348,6 +3363,7 @@ CONTAINS
      DEALLOCATE(rm_disp)
      DEALLOCATE(recv_meta)
      DEALLOCATE(send_meta)
+     DEALLOCATE(extra_nblks); DEALLOCATE(extra_darea_size)
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_datablock_redistribute
