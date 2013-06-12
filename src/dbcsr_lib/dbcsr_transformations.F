@@ -3198,15 +3198,10 @@ CONTAINS
 
      job_count = COUNT(proc_nblks .NE. 0)
 
-     ALLOCATE(extra_nblks(job_count*nblkrows_total))
-     ALLOCATE(extra_darea_size(job_count*nblkrows_total))
-     i=0
-     DO ind = 1, job_count*nblkrows_total
-        brow = MOD(ind-1,nblkrows_total)+1
-        IF (brow .EQ. 1) i = i+1
-        extra_nblks(ind) = SUM(INT(proc_nblks(1:i-1),kind=int_8))
-        extra_darea_size(ind) = SUM(INT(proc_darea_sizes(1:i-1),kind=int_8))
-     END DO
+     ALLOCATE(extra_nblks(job_count))
+     ALLOCATE(extra_darea_size(job_count))
+     CALL cumsum_l(INT((/0,proc_nblks(1:job_count-1)/),kind=int_8),extra_nblks)
+     CALL cumsum_l(INT((/0,proc_darea_sizes(1:job_count-1)/),kind=int_8),extra_darea_size)
 
      i = 0
      DO ind = 1, job_count*nblkrows_total
@@ -3214,7 +3209,7 @@ CONTAINS
         IF (brow .EQ. 1) i = i+1
         row_size = row_blk_size(brow)
         DO blk = row_p(ind+i-1)+1, row_p(ind+i)
-           actual_blk = INT(blk,kind=int_8)+extra_nblks(ind)
+           actual_blk = INT(blk,kind=int_8)+extra_nblks(i)
            bcol = col_i(actual_blk)
            col_size = col_blk_size(bcol)
            blk_size = row_size*col_size
@@ -3268,13 +3263,13 @@ CONTAINS
         IF (brow .EQ. 1) i = i+1
         row_size = row_blk_size(brow)
         DO blk = row_p(ind+i-1)+1, row_p(ind+i)
-           actual_blk = INT(blk,kind=int_8)+extra_nblks(ind)
+           actual_blk = INT(blk,kind=int_8)+extra_nblks(i)
            bcol = col_i(actual_blk)
            col_size = col_blk_size(bcol)
            blk_size = row_size*col_size
            blkp = INT(blk_p(actual_blk),kind=int_8)
-           start_ind = blkp+extra_darea_size(ind)
-           end_ind = blkp+extra_darea_size(ind)+blk_size-1
+           start_ind = blkp+extra_darea_size(i)
+           end_ind = blkp+extra_darea_size(i)+blk_size-1
 
            SELECT CASE (data_type)
            CASE (dbcsr_type_real_4)
@@ -3366,6 +3361,21 @@ CONTAINS
      DEALLOCATE(extra_nblks); DEALLOCATE(extra_darea_size)
 
     CALL dbcsr_error_stop(error_handler, error)
+    CONTAINS
+    
+    SUBROUTINE cumsum_l(arr,cumsum)
+    INTEGER(kind=int_8), DIMENSION(:), &
+      INTENT(IN)                             :: arr
+    INTEGER(kind=int_8), &
+      DIMENSION(SIZE(arr)), INTENT(OUT)      :: cumsum
+
+    INTEGER                                  :: i
+
+        cumsum(1)=arr(1)
+        DO i=2,SIZE(arr)
+          cumsum(i)=cumsum(i-1)+arr(i)
+        END DO
+    END SUBROUTINE cumsum_l
   END SUBROUTINE dbcsr_datablock_redistribute
 
 END MODULE dbcsr_transformations
