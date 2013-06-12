@@ -896,7 +896,7 @@ CONTAINS
             trho_s(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_theta(ia)**2
         END DO  ! ia
       END DO  ! iso
-      DO iso = 1,harmonics%dmax_iso_not0
+      DO iso = 1,harmonics%max_iso_not0
         DO ia = 1,na
           tau_h(ia,ispin) = tau_h(ia,ispin) + &
                             trho_h(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
