@@ -210,3 +210,9 @@ water32_hbonds_4.inp
 Si_tersoff.inp
 #  
 Si_tersoff.inp
+#improvement of bfgs and curvy steps
+argon_opt_cell.inp
+#improvement of bfgs and curvy steps
+argon_opt_cell_ks.inp
+#improvement of bfgs and curvy steps
+Si_tersoff.inp

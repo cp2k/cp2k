@@ -152,3 +152,7 @@ cubane_0.inp
 cubane_15.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 cubane_0.inp
+#improvement of bfgs and curvy steps
+cubane_15.inp
+#improvement of bfgs and curvy steps
+cubane_0.inp

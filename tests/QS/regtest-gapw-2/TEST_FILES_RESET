@@ -109,3 +109,5 @@ NO2-ROKS.inp
 NO2-ROKS.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 NO2-ROKS.inp
+#improvement of bfgs and curvy steps
+NO2-ROKS.inp

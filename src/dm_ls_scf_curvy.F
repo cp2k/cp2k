@@ -433,7 +433,7 @@ CONTAINS
            WRITE(unit_nr,"(T3,A,F12.6)")"Convergence of Newton iteration ",maxel
            CALL m_flush(unit_nr) 
          ENDIF
-         at_limit=at_limit.OR.(old_conv/maxel.lt.1.05_dp)
+         at_limit=at_limit.OR.(old_conv/maxel.lt.1.01_dp)
          old_conv=maxel
          IF(i==ncyc.AND.maxel/conv_val.gt.5.0_dp)THEN
              fix_shift(ispin)=.TRUE.
@@ -523,7 +523,7 @@ CONTAINS
      alpha=norm_rr/norm_cA
      CALL cp_dbcsr_add(res,Ax,1.0_dp,-alpha,error=error)
      CALL cp_dbcsr_trace(res,res,new_norm,error=error)
-     IF(norm_rr.lt.eps_filter.OR.new_norm.lt.eps_filter)THEN
+     IF(norm_rr.lt.eps_filter*0.001_dp.OR.new_norm.lt.eps_filter*0.001_dp)THEN
         beta=0.0_dp
         at_limit=.TRUE.
      ELSE

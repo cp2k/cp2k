@@ -364,3 +364,5 @@ nh3_wat-restraint-fixd-4.inp
 nh3_bfgs.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 nh3_bfgs_r.inp
+#improvement of bfgs and curvy steps
+nh3_wat-restraint-fixd-3.inp

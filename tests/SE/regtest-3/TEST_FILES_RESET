@@ -483,3 +483,9 @@ SiO2_lr_quad.inp
 Co_complex.inp
 #  
 SiO2_lr_quad.inp
+#improvement of bfgs and curvy steps
+N3-rp_colvar.inp
+#improvement of bfgs and curvy steps
+LM-KSDO.inp
+#improvement of bfgs and curvy steps
+LM-KSDO-D.inp

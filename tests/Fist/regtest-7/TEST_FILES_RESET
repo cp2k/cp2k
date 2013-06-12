@@ -455,3 +455,5 @@ UO2-4x4x4-core-shell-debug.inp
 UO2-4x4x4-autofit.inp
 # Bug fix for run type debug
 UO2-4x4x4-core-shell-debug.inp
+#improvement of bfgs and curvy steps
+UO2-2x2x2-genpot_units.inp

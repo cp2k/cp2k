@@ -578,3 +578,15 @@ Pt-cis-2xpet3Cl2-si-noc.inp
 md.inp
 #  
 H2O-32.inp
+#improvement of bfgs and curvy steps
+st.inp
+#improvement of bfgs and curvy steps
+NO2-ROKS.inp
+#improvement of bfgs and curvy steps
+b2h6_pm6.inp
+#improvement of bfgs and curvy steps
+hcn_pm6.inp
+#improvement of bfgs and curvy steps
+Pt-cis-2xpet3Cl2.inp
+#improvement of bfgs and curvy steps
+Pt-cis-2xpet3Cl2-si-noc.inp

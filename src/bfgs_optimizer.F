@@ -981,14 +981,14 @@ CONTAINS
                      angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
            END IF
            IF(iat_col.NE.iat_row)THEN
-               IF(d_ij(iat_row,iat_col).lt.4.0_dp) &
+               IF(d_ij(iat_row,iat_col).lt.6.0_dp) &
                local_data(j,i)=local_data(j,i)-&
                                dist_second_deriv(r_ij(iat_col,iat_row,:),&
                                iind,jind,d_ij(iat_row,iat_col),rho_ij(iat_row,iat_col))
            ELSE
               DO k=1,natom
                  IF(k==iat_col)CYCLE
-                 IF(d_ij(iat_row,k).lt.4.0_dp) &
+                 IF(d_ij(iat_row,k).lt.6.0_dp) &
                  local_data(j,i)=local_data(j,i)+&
                                dist_second_deriv(r_ij(iat_col,k,:),&
                                iind,jind,d_ij(iat_row,k),rho_ij(iat_row,k))

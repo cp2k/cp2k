@@ -833,3 +833,13 @@ ice-scp-ewald.inp
 ice-scp-ewald.inp
 #
 geom.inp
+#improvement of bfgs and curvy steps
+st.inp
+#improvement of bfgs and curvy steps
+NO2-ROKS.inp
+#improvement of bfgs and curvy steps
+geom.inp
+#improvement of bfgs and curvy steps
+b2h6_pm6.inp
+#improvement of bfgs and curvy steps
+hcn_pm6.inp

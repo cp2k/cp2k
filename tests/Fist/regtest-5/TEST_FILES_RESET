@@ -267,3 +267,9 @@ N3dye_vib_bfgs2.inp
 phenobenz.inp
 # use double precision
 argon_GENPOT_fcc-ql.inp
+#improvement of bfgs and curvy steps
+N3dye_geoopt.inp
+#improvement of bfgs and curvy steps
+N3dye_vib_bfgs.inp
+#improvement of bfgs and curvy steps
+N3dye_vib_bfgs2.inp

@@ -74,3 +74,7 @@ NEB-MIXED.inp
 UO2-2x2x2-CI-NEB-core-shell.inp
 #  
 UO2-2x2x2-CI-NEB-core-shell-res.inp
+#improvement of bfgs and curvy steps
+2gly_IT-NEB-CV.inp
+#improvement of bfgs and curvy steps
+2gly_IT-NEB-CV-res.inp

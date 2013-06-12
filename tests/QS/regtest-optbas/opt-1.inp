@@ -31,7 +31,7 @@
 !   GROUP_PARTITION 4 4 2
 ! information for optimization
    &OPTIMIZATION
-      MAX_FUN 35   
+      MAX_FUN 35  
    &END
 ! path to input files and directory for the QS calculations and the restart files
    &TRAINING_FILES
