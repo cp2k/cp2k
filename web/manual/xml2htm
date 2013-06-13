@@ -1,6 +1,6 @@
 #!/bin/sh
 # Provide path to saxon package
-export SAXON=/usr/share/java/saxon8.jar
+export SAXON=./saxon8.jar
 if [[ -n $1 ]]; then
 
   # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
