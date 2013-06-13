@@ -85,15 +85,16 @@ cd ${cwd}
 
 14. Upload the tar file to sourceforge to make it appear in the list under "Files" for download using
 
-    ssh -t mkrack,cp2k@shell.sourceforge.net create
-    scp cp2k-2.4.tar.bz2 mkrack@frs.sourceforge.net:/home/frs/project/cp2k/
+    scp cp2k-2.4/exe/Linux-x86-64-gnu-static/cp2k.sopt mkrack@frs.sourceforge.net:/home/frs/project/cp2k/precompiled/cp2k-2.4-Linux-x86_64.sopt
+    scp cp2k-2.4/exe/Linux-x86-64-gnu-static/cp2k.ssmp mkrack@frs.sourceforge.net:/home/frs/project/cp2k/precompiled/cp2k-2.4-Linux-x86_64.ssmp
+    scp cp2k-2.4.tar.bz2 mkrack@frs.sourceforge.net:/home/frs/project/cp2k/cp2k-2.4.tar.bz2
 
-15. Update the web links on www.cp2k.org correspondingly
-
-16. Increment the version number of the development version from 2.4 to 2.5 in the files
+15. Increment the version number of the development version from 2.4 to 2.5 in the files
 
     cp2k/src/cp2k_info.F
     cp2k/doc/Doxyfile.template
     cd cp2k
     svn ci src/ doc/
     Description text: "Increment CP2K development version number"
+
+16. Update the web links on www.cp2k.org correspondingly
