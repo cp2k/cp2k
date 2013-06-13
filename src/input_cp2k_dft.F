@@ -2790,7 +2790,7 @@ CONTAINS
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="self_consistent",&
-            description="Use self_consistent method",&
+            description="Use self-consistent method",&
             citations=(/Elstner1998/),&
             usage="SELF_CONSISTENT",default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -3089,22 +3089,27 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="PARAM_FILE_PATH",&
-            description="Specify the directory with the DFTB parameter files",&
-            usage="PARAM_FILE_PATH pathname",&
+            description="Specify the directory with the DFTB parameter files. "//&
+            "Used in combination with the filenames specified in the file "//&
+            "given in PARAM_FILE_NAME.", usage="PARAM_FILE_PATH pathname",&
             n_var=1,type_of_var=char_t,default_c_val="./",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="PARAM_FILE_NAME",&
-            description="Specify file that contains the SK_FILE names",&
+            description="Specify file that contains the names of "//&
+            "Slater-Koster tables: A plain text file, each line has the "//&
+            'format "ATOM1 ATOM2 filename.spl".',&
             usage="PARAM_FILE_NAME filename",&
             n_var=1,type_of_var=char_t,default_c_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="UFF_FORCE_FIELD",&
-            description="Name of file with UFF parameters",&
-            usage="UFF_FORCE_FIELD filename",required=.FALSE.,&
+            description="Name of file with UFF parameters that will be used "//&
+            "for the dispersion correction. Needs to be specified when "//&
+            "DISPERSION==.TRUE., otherwise cp2k crashes with a Segmentation "//&
+            "Fault.", usage="UFF_FORCE_FIELD filename",required=.FALSE.,&
             n_var=1,type_of_var=char_t,default_c_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
