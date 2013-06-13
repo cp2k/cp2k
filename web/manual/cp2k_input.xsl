@@ -20,7 +20,7 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <a href="http://sourceforge.net/p/cp2k/code/HEAD/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="http://sourceforge.net/p/cp2k/code/{string(/CP2K_INPUT/COMPILE_REVISION)}/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
@@ -198,7 +198,7 @@
    </td>
    <td align="center">
     Input reference of
-    <a href="http://sourceforge.net/p/cp2k/code/HEAD/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="http://sourceforge.net/p/cp2k/code/{string(/CP2K_INPUT/COMPILE_REVISION)}/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
