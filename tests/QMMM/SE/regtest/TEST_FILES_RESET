@@ -215,3 +215,6 @@ water_3_full_num.inp
 water_3_full.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 water_3_full_num.inp
+# Numerics due to changed BFGS model Hessian 
+water_3_full.inp
+water_3_full_num.inp

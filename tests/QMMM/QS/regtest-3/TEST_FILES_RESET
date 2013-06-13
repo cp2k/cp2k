@@ -577,3 +577,10 @@ constr.inp
 C4H10-qmmm-gauss-6.inp
 #  
 C4H10-qmmm-gauss-7.inp
+# Numerics due to changed BFGS model Hessian 
+C4H10-qmmm-gauss-2.inp
+C4H10-qmmm-gauss-9.inp
+C4H10-qmmm-gauss-10.inp
+C4H10-qmmm-gauss-11.inp
+C11H24-qmmm-gauss-0.inp
+constr.inp
