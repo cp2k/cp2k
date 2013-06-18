@@ -110,6 +110,7 @@ CONTAINS
             wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank,&
             max_f_per_iter=gopt_param%max_f_per_iter, error=error)
        CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
+       converged=.FALSE.
 
        DO its=iter_nr+1,gopt_param%max_iter
           CALL cp_iterate(logger%iter_info,last=(its==gopt_param%max_iter),error=error)

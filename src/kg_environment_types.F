@@ -84,29 +84,25 @@ CONTAINS
 
     CALL section_vals_release(kg_env%xc_section_kg, error=error)
 
-    DO iab=1,SIZE(kg_env%sab_orb_full)
-      CALL deallocate_neighbor_list_set(kg_env%sab_orb_full(iab)%neighbor_list_set)
-    END DO
-
-    DEALLOCATE(kg_env%sab_orb_full)
+    IF (ASSOCIATED(kg_env%sab_orb_full)) THEN
+       DO iab=1,SIZE(kg_env%sab_orb_full)
+         CALL deallocate_neighbor_list_set(kg_env%sab_orb_full(iab)%neighbor_list_set)
+       END DO
+       DEALLOCATE(kg_env%sab_orb_full)
+    ENDIF
 
     DO isub=1,kg_env%nsubsets
-
-      DO iab=1,SIZE(kg_env%subset(isub)%sab_orb)
-
-        CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
-      END DO
-
-      DEALLOCATE(kg_env%subset(isub)%sab_orb)
-
-      CALL deallocate_task_list(kg_env%subset(isub)%task_list, error)
-
+       DO iab=1,SIZE(kg_env%subset(isub)%sab_orb)
+          CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
+       END DO
+       DEALLOCATE(kg_env%subset(isub)%sab_orb)
+       CALL deallocate_task_list(kg_env%subset(isub)%task_list, error)
     END DO
 
-    DEALLOCATE(kg_env%subset_of_mol)
-    DEALLOCATE(kg_env%subset)
+    IF (ASSOCIATED(kg_env%subset_of_mol)) DEALLOCATE(kg_env%subset_of_mol)
+    IF (ASSOCIATED(kg_env%subset)) DEALLOCATE(kg_env%subset)
 
-    DEALLOCATE(kg_env%atom_to_molecule) 
+    IF (ALLOCATED(kg_env%atom_to_molecule)) DEALLOCATE(kg_env%atom_to_molecule) 
 
     DEALLOCATE(kg_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
