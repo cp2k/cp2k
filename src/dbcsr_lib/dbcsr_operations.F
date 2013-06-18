@@ -3767,6 +3767,10 @@ CONTAINS
 
     IF(gt0) THEN
 
+       !$OMP PARALLEL DEFAULT(NONE) PRIVATE(iter,row,col,data_s,data_d,data_c,data_z,tr, &
+       !$OMP                                blk,row_size,col_size,blk_nze,nrm_d,nrm_s) &
+       !$OMP                        SHARED(my_method,quick,error,my_absolute,eps,matrix)
+
        CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
        DO WHILE (dbcsr_iterator_blocks_left(iter))
           SELECT CASE (dbcsr_get_data_type(matrix))
@@ -3850,6 +3854,9 @@ CONTAINS
        ELSE
           CALL dbcsr_finalize (matrix, reshuffle=.TRUE., error=error)
        ENDIF
+  
+       !$OMP END PARALLEL
+
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_filter_anytype
