@@ -506,6 +506,7 @@ CONTAINS
     REAL(dp)                                 :: my_alpha, my_alpha2
     REAL(dp), DIMENSION(:, :), POINTER       :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
+    LOGICAL                                  :: has_symm
 
     CALL timeset(routineN, timing_handle)
 
@@ -520,20 +521,29 @@ CONTAINS
     IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric) my_alpha2 = my_alpha
     IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
 
-    CALL cp_dbcsr_iterator_start(iter, matrix_a)
+    has_symm=(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+          cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)
 
+    !$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_a,vec_b,vec_c,ncol,my_alpha2,my_alpha,my_ncol,has_symm) &
+    !$OMP          PRIVATE(iter,row,col,data_d,blk,rowoff,coloff)
+    CALL cp_dbcsr_iterator_start(iter, matrix_a, read_only=.TRUE., dynamic = .TRUE., dynamic_byrows=.TRUE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-
        CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
-
        CALL dgemm('N','N',&
                   SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
                   my_alpha, data_d(1,1),          SIZE(data_d,1),&
                             vec_b(coloff,1), SIZE(vec_b,1), &
                   1.0_dp,   vec_c(rowoff,1), SIZE(vec_c,1))
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+    !$OMP END PARALLEL
 
-       IF((cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
-          cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)) THEN
+    ! FIXME ... in the symmetric case, the writes to vec_c depend on the column, not the row. This makes OMP-ing more difficult
+    ! needs e.g. a buffer for vec_c and a reduction of that buffer.
+    IF (has_symm) THEN
+       CALL cp_dbcsr_iterator_start(iter, matrix_a)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
           IF(row.NE.col) THEN
              CALL dgemm('T','N', &
                         SIZE(data_d,2), my_ncol, SIZE(data_d,1),&
@@ -541,10 +551,9 @@ CONTAINS
                                    vec_b(rowoff,1), SIZE(vec_b,1),  &
                         1.0_dp,    vec_c(coloff,1), SIZE(vec_c,1))
           ENDIF
-       ENDIF
-    ENDDO
-
-    CALL cp_dbcsr_iterator_stop(iter)
+       ENDDO
+       CALL cp_dbcsr_iterator_stop(iter)
+    ENDIF
 
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_local_d

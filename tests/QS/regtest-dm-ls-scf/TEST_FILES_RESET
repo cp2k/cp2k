@@ -298,3 +298,7 @@ H2O-32-dftb-ls-2-2.inp
 H2O-restart-read-curvy.inp
 #improvement of bfgs and curvy steps
 H2O-curvy-prop.inp
+#  
+H2-big-10.inp
+#  
+H2-big-11.inp
