@@ -56,12 +56,13 @@ MODULE cp_fm_diag
 
   ! Public subroutines
 
-  PUBLIC :: cp_fm_block_jacobi,&
-            cp_fm_power, &
-            cp_fm_syevd, &
-            cp_fm_syevr, &
-            cp_fm_syevx, &
-            cp_fm_elpa, choose_eigv_solver
+  PUBLIC :: choose_eigv_solver,&
+            cp_fm_block_jacobi,&
+            cp_fm_power,&
+            cp_fm_syevd,&
+            cp_fm_syevr,&
+            cp_fm_syevx,&
+            cp_fm_elpa
 
 CONTAINS
 
@@ -84,32 +85,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nmo
-    LOGICAL                                  :: use_elpa, use_SL2
 
-    IF(PRESENT(info)) info = 0
+    IF (PRESENT(info)) info = 0
+
+    nmo = SIZE(eigenvalues,1)
 
 #if defined (__ELPA)
-    use_elpa =.TRUE.
+    CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
+#elif defined (__SCALAPACK2)
+    CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
 #else
-    use_elpa = .FALSE.
+    CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=info,error=error)
 #endif
-
-#if defined (__SCALAPACK2)
-    use_SL2 = .TRUE.
-#else
-    use_SL2 = .FALSE.
-#endif
-
-       nmo=SIZE(eigenvalues,1)
-
-       IF(use_elpa) THEN
-          CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
-       ELSEIF(use_SL2) THEN
-          CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
-       ELSE
-          CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=info,error=error)
-       END IF
-
 
   END SUBROUTINE choose_eigv_solver
 
@@ -891,6 +878,8 @@ CONTAINS
 #if defined (__ELPA)
     ! Calculate eigenvalues/eigenvectors
     CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+#else
+    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 
