@@ -503,10 +503,10 @@ CONTAINS
 
     INTEGER                                  :: blk, col, coloff, my_ncol, &
                                                 row, rowoff, timing_handle
+    LOGICAL                                  :: has_symm
     REAL(dp)                                 :: my_alpha, my_alpha2
     REAL(dp), DIMENSION(:, :), POINTER       :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
-    LOGICAL                                  :: has_symm
 
     CALL timeset(routineN, timing_handle)
 

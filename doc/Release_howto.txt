@@ -73,21 +73,21 @@ cd ${cwd}
 
 10. Export the release branch (checkout without .svn folder) using
 
-    svn export http://svn.code.sf.net/p/cp2k/code/branches/cp2k-2_4-branch/cp2k cp2k-2.4
+    svn export http://svn.code.sf.net/p/cp2k/code/branches/cp2k-2_4-branch/cp2k cp2k-2.4.0
 
-11. Check the exported branch release (just compile it or even run a regtest)
+11. Create a bzip2 tar file using
 
-12. Create a bzip2 tar file using
+    tar -cjf cp2k-2.4.0.tar.bz2 cp2k-2.4.0
 
-    tar -cjf cp2k-2.4.tar.bz2 cp2k-2.4
+12. Check the exported branch release (just compile it or even run a regtest)
 
 13. Create statically linked sopt and ssmp versions
 
 14. Upload the tar file to sourceforge to make it appear in the list under "Files" for download using
 
-    scp cp2k-2.4/exe/Linux-x86-64-gnu-static/cp2k.sopt mkrack@frs.sourceforge.net:/home/frs/project/cp2k/precompiled/cp2k-2.4-Linux-x86_64.sopt
-    scp cp2k-2.4/exe/Linux-x86-64-gnu-static/cp2k.ssmp mkrack@frs.sourceforge.net:/home/frs/project/cp2k/precompiled/cp2k-2.4-Linux-x86_64.ssmp
-    scp cp2k-2.4.tar.bz2 mkrack@frs.sourceforge.net:/home/frs/project/cp2k/cp2k-2.4.tar.bz2
+    scp cp2k-2.4.0/exe/Linux-x86-64-gnu-static/cp2k.sopt mkrack@frs.sourceforge.net:/home/frs/project/cp2k/precompiled/cp2k-2.4.0-Linux-x86_64.sopt
+    scp cp2k-2.4.0/exe/Linux-x86-64-gnu-static/cp2k.ssmp mkrack@frs.sourceforge.net:/home/frs/project/cp2k/precompiled/cp2k-2.4.0-Linux-x86_64.ssmp
+    scp cp2k-2.4.0.tar.bz2 mkrack@frs.sourceforge.net:/home/frs/project/cp2k/cp2k-2.4.0.tar.bz2
 
 15. Increment the version number of the development version from 2.4 to 2.5 in the files
 
@@ -98,3 +98,5 @@ cd ${cwd}
     Description text: "Increment CP2K development version number"
 
 16. Update the web links on www.cp2k.org correspondingly
+
+For a new subrelease 2.4.x repeat 6-16, correspondingly.
