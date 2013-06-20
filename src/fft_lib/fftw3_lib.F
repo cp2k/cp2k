@@ -202,24 +202,22 @@ END FUNCTION
 ! *****************************************************************************
 
 SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,&
-                                     remaining,th_planA, th_planB)
+                                     th_planA, th_planB)
 
          IMPLICIT NONE
          INTEGER, INTENT(IN) :: nrows,nt 
          INTEGER, INTENT(OUT)    :: rows_per_thread,rows_per_thread_r 
-         INTEGER, INTENT(OUT)    :: remaining, th_planA, th_planB
+         INTEGER, INTENT(OUT)    :: th_planA, th_planB
 
          IF (MOD(nrows,nt) .EQ. 0) THEN
             rows_per_thread = nrows/nt
             rows_per_thread_r = 0
-            remaining = 0  
             th_planA = nt 
             th_planB = 0
          ELSE
             rows_per_thread   = nrows/nt + 1
             rows_per_thread_r = nrows/nt
             th_planA = MOD(nrows,nt)
-            remaining = MOD(nrows,nt) 
             th_planB = nt - th_planA
          ENDIF
 
@@ -247,7 +245,7 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
   INTEGER, INTENT(IN)                    :: rows_per_th_r
   LOGICAL                                :: valid
 
-    ! First remaining_rows plans will have an additional row
+    ! First plans will have an additional row
     hm_n(2) = rows_per_th
     CALL fftw3_create_guru_plan(plan,1, &
                                  dim_n,dim_istride,dim_ostride, &
@@ -382,7 +380,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
     !
     !!!! Plan for X : M(n3,n2,n1) -> fftw(x) -> M(n3,n1,n2)
     CALL fftw3_compute_rows_per_th(n3, nt, rows_per_th, rows_per_th_r, & 
-                                   remaining, th_planA, th_planB)
+                                   th_planA, th_planB)
 
     dim_n(1) = n1
     dim_istride(1) = 1
@@ -402,7 +400,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 
     !!!! Plan for Y : M(n3,n1,n2) -> fftw(y) -> M(n1,n2,n3)
     CALL fftw3_compute_rows_per_th(n3, nt, rows_per_th, rows_per_th_r, &
-                                   remaining, th_planA, th_planB)
+                                   th_planA, th_planB)
     dim_n(1) = n2
     dim_istride(1) = 1
     dim_ostride(1) = n3
@@ -422,7 +420,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
                                rows_per_th_r)
 
     !!!! Plan for Z : M(n1,n2,n3) -> fftw(z) -> M(n1,n2,n3)
-    CALL fftw3_compute_rows_per_th(n1, nt, rows_per_th, rows_per_th_r, remaining, &
+    CALL fftw3_compute_rows_per_th(n1, nt, rows_per_th, rows_per_th_r, &
                                    th_planA, th_planB)
     dim_n(1) = n3
     dim_istride(1) = 1
@@ -469,11 +467,11 @@ SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
     INTEGER (KIND=integer8_kind)                :: plan, plan_r
     INTEGER                                     :: i_off, o_off
     INTEGER                                     :: th_planA, th_planB
-   INTEGER :: rows_per_thread, rows_per_thread_r, remaining
+   INTEGER :: rows_per_thread, rows_per_thread_r
 
 #if defined (__FFTW3)
       CALL fftw3_compute_rows_per_th(split_dim, nt, rows_per_thread, &
-                                     rows_per_thread_r, remaining, &
+                                     rows_per_thread_r, &
                                      th_planA, th_planB)
  
       IF (th_planB .GT. 0) THEN   
@@ -486,10 +484,10 @@ SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
          ENDIF
         ELSE IF ((tid - th_planA) < th_planB) THEN
 
-         i_off = (remaining)*istride*(rows_per_thread) + &
-                 (tid-remaining)*istride*(rows_per_thread_r) + 1
-         o_off = (remaining)*ostride*(rows_per_thread) + &
-                 (tid-remaining)*ostride*(rows_per_thread_r) + 1
+         i_off = (th_planA)*istride*(rows_per_thread) + &
+                 (tid-th_planA)*istride*(rows_per_thread_r) + 1
+         o_off = (th_planA)*ostride*(rows_per_thread) + &
+                 (tid-th_planA)*ostride*(rows_per_thread_r) + 1
 
          CALL XFFTW_EXECUTE_DFT(plan_r, input(i_off), &
                                        output(o_off))
