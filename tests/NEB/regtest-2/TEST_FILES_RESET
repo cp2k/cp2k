@@ -111,3 +111,6 @@
 2gly_DIIS-SD-2.inp
 #  
 2gly_DIIS-SM.inp
+# Numerics: OpenMP parallelisation of Fist nonbonded interactions 
+2gly_DIIS-SD-NEB.inp
+2gly_DIIS-SD-2.inp

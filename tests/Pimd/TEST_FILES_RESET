@@ -64,3 +64,6 @@ centroid_velocity_init.inp
 w512_pint_nose.inp
 #  
 w512_pint_gle.inp
+# Numerics: OpenMP parallelisation of Fist nonbonded interactions 
+w512_pint_nose.inp
+w512_pint_gle.inp

@@ -457,3 +457,16 @@ UO2-4x4x4-autofit.inp
 UO2-4x4x4-core-shell-debug.inp
 #improvement of bfgs and curvy steps
 UO2-2x2x2-genpot_units.inp
+# Numerics: OpenMP parallelisation of Fist nonbonded interactions 
+UO2-4x4x4-core-shell-debug.inp
+UO2-4x4x4-autofit.inp
+UO2-2x2x2-coord-0.inp
+UO2-2x2x2-coord-1.inp
+UO2-2x2x2-coord-2.inp
+UO2-2x2x2-coord-scaled-1.inp
+UO2-2x2x2-coord-scaled-2.inp
+UO2-2x2x2-coord-scaled-3.inp
+UO2-2x2x2-geo_opt-bfgs.inp
+UO2-2x2x2-cs-geo_opt-bfgs.inp
+UO2-2x2x2-cs-geo_opt-cg.inp
+UO2-4x4x4-fixd.inp

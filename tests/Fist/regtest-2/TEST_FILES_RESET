@@ -200,3 +200,5 @@ H2O-32_SPME_fixed_clv.inp
 nacl_wat.inp
 #  
 H2O-ST_debug.inp
+# Numerics: OpenMP parallelisation of Fist nonbonded interactions 
+H2O-ST_debug.inp

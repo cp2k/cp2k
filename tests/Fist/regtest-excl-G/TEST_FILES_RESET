@@ -7,3 +7,5 @@ ethanol_both_rcut10.0_e1-3_v1-4_RSG.inp
 ethanol_both_rcut10.0_e1-3_v1-4_RSG.inp
 #  
 ethanol_both_rcut10.0_e1-2_v1-2__SG.inp
+# Numerics: OpenMP parallelisation of Fist nonbonded interactions 
+ethanol_both_rcut10.0_e1-2_v1-2__SG.inp
