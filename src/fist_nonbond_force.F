@@ -91,7 +91,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ilist, &
-      ipair, istart, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
+      ipair, istart, j, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
       shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_multipoles, &
@@ -173,7 +173,7 @@ CONTAINS
           !$omp          private(rab_list,rab2_list,rab_com,rab2_com,pv) &
           !$omp          private(rab,rab2,rab2_max,fscalar,energy,error,failure) &
           !$omp          private(shell_a,shell_b,etot,fatom_a,fatom_b) &
-          !$omp          private(fcore_a,fcore_b,fshell_a,fshell_b) & 
+          !$omp          private(fcore_a,fcore_b,fshell_a,fshell_b,i,j) &
           !$omp          shared(shell_present) &
           !$omp          shared(istart,iend,list,particle_set,ij_kind_full_fac) &
           !$omp          shared(neighbor_kind_pair,atomic_kind_set,fist_nonbond_env) &
@@ -321,7 +321,7 @@ CONTAINS
                    rab_list(1:3,4) = rab_ss(1:3) + cell_v(1:3)
                 END IF
                 ! Compute the term only if all the pairs (cc,cs,sc,ss) are within the cut-off
-                Check_terms: DO i = 1,4
+                Check_terms: DO i=1,4
                    rab2_list(i) = rab_list(1,i)**2 + rab_list(2,i)**2 + rab_list(3,i)**2
                    IF (rab2_list(i) >= rab2_max) THEN
                       all_terms = .FALSE.
@@ -479,33 +479,57 @@ CONTAINS
                    CALL add_force_nonbond(fatom_a,fatom_b,pv,fscalar,rab,use_virial)
                 END IF
              END IF
-             !$omp critical
              ! Nonbonded energy
+             !$omp atomic
              pot_nonbond = pot_nonbond + etot
+             IF (atprop_env%energy) THEN
+                ! Update atomic energies
+                !$omp atomic
+                atprop_env%atener(atom_a) = atprop_env%atener(atom_a) + 0.5_dp*etot
+                !$omp atomic
+                atprop_env%atener(atom_b) = atprop_env%atener(atom_b) + 0.5_dp*etot
+             END IF
              ! Nonbonded forces
-             f_nonbond(:,atom_a) = f_nonbond(:,atom_a) + fatom_a(:)
-             f_nonbond(:,atom_b) = f_nonbond(:,atom_b) + fatom_b(:)
+             DO i=1,3
+                !$omp atomic
+                f_nonbond(i,atom_a) = f_nonbond(i,atom_a) + fatom_a(i)
+                !$omp atomic
+                f_nonbond(i,atom_b) = f_nonbond(i,atom_b) + fatom_b(i)
+             END DO
              IF (shell_a > 0) THEN
-                fcore_nonbond(:,shell_a) = fcore_nonbond(:,shell_a) + fcore_a(:)
-                fshell_nonbond(:,shell_a) = fshell_nonbond(:,shell_a) + fshell_a(:)
+                DO i=1,3
+                   !$omp atomic
+                   fcore_nonbond(i,shell_a) = fcore_nonbond(i,shell_a) + fcore_a(i)
+                   !$omp atomic
+                   fshell_nonbond(i,shell_a) = fshell_nonbond(i,shell_a) + fshell_a(i)
+                END DO
              END IF
              IF (shell_b > 0) THEN
-                fcore_nonbond(:,shell_b) = fcore_nonbond(:,shell_b) + fcore_b(:)
-                fshell_nonbond(:,shell_b) = fshell_nonbond(:,shell_b) + fshell_b(:)
+                DO i=1,3
+                   !$omp atomic
+                   fcore_nonbond(i,shell_b) = fcore_nonbond(i,shell_b) + fcore_b(i)
+                   !$omp atomic
+                   fshell_nonbond(i,shell_b) = fshell_nonbond(i,shell_b) + fshell_b(i)
+                END DO
              END IF
              ! Add the contribution of the current pair to the total pressure tensor
-             IF (use_virial) pv_nonbond(:,:) = pv_nonbond(:,:) + pv(:,:)
-             IF (atprop_env%energy) THEN
-               ! Atomic energies
-               atprop_env%atener(atom_a) = atprop_env%atener(atom_a) + 0.5_dp*etot
-               atprop_env%atener(atom_b) = atprop_env%atener(atom_b) + 0.5_dp*etot
+             IF (use_virial) THEN
+                DO i=1,3
+                   DO j=1,3
+                      !$omp atomic
+                      pv_nonbond(j,i) = pv_nonbond(j,i) + pv(j,i)
+                      ! Update atomic stress tensors
+                      IF (atprop_env%stress) THEN
+                         !$omp atomic
+                         atprop_env%atstress(j,i,atom_a) = atprop_env%atstress(j,i,atom_a) +&
+                                                           0.5_dp*pv(j,i)
+                         !$omp atomic
+                         atprop_env%atstress(j,i,atom_b) = atprop_env%atstress(j,i,atom_b) +&
+                                                           0.5_dp*pv(j,i)
+                      END IF
+                   END DO
+                END DO
              END IF
-             IF (atprop_env%stress) THEN
-               ! Atomic stress tensors
-               atprop_env%atstress(:,:,atom_a) = atprop_env%atstress(:,:,atom_a) + 0.5_dp*pv
-               atprop_env%atstress(:,:,atom_b) = atprop_env%atstress(:,:,atom_b) + 0.5_dp*pv
-             END IF
-             !$omp end critical
           END DO Pairs
           !$omp end parallel do
        END DO Kind_Group_Loop
