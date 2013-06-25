@@ -312,7 +312,7 @@ CONTAINS
 !> \param section the section to be created
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author teo
+!> \author matt
 ! *****************************************************************************
   SUBROUTINE create_mc_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -323,6 +323,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -330,10 +331,10 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="mc",&
             description="This section sets parameters to set up a MonteCarlo calculation.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=10, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="NSTEP",&
             description="Specifies the number of MC cycles.",&
@@ -388,20 +389,6 @@ CONTAINS
             description="Read initial configuration from restart file.",&
             usage="RESTART {logical}",&
             default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="IUPVOLUME",&
-            description="Every iupvolume steps update maximum volume displacement.",&
-            usage="IUPVOLUME {integer}",&
-            default_i_val=10000,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="IUPTRANS",&
-            description="Every iuptrans steps update maximum translation.",&
-            usage="IUPTRANS {integer}",&
-            default_i_val=10000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -498,66 +485,149 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PMSWAP",&
-            description="The probability of attempting a swap move.",&
-            usage="PMSWAP {real}",&
-            type_of_var=real_t, default_r_val=0.0E0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMSWAP_MOL",&
-            description="The probability of attempting a molecule swap of a given molecule type.",&
-            usage="PMSWAP_MOL {real} {real} ... ",&
+       CALL keyword_create(keyword, name="VIRIAL_TEMPS",&
+            description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.",&
+            usage="VIRIAL_TEMPS {real} {real} ... ",&
             n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DISCRETE_STEP",&
+            description="The size of the discrete volume move step, in angstroms.",&
+            usage="DISCRETE_STEP {real}",&
+            default_r_val=1.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ETA",&
+            description="The free energy bias (in Kelvin) for swapping a molecule of each type into this box.",&
+            usage="ETA {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RANDOMTOSKIP",&
+            description="Number of random numbers from the acceptance/rejection stream to skip",&
+            usage="RANDOMTOSKIP {integer}",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_avbmc_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_move_prob_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_update_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_max_disp_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+     END IF
+
+  END SUBROUTINE create_mc_section
+
+! *****************************************************************************
+!> \param section will contain the AVBMC parameters for MC
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_avbmc_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_avbmc_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="avbmc",&
+            description="Parameters for Aggregation Volume Bias Monte Carlo (AVBMC) "//&
+            "which explores cluster formation and destruction. "//&
+            "Chen and Siepmann, J. Phys. Chem. B 105, 11275-11282 (2001).",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword )
+
+       CALL keyword_create(keyword, name="PBIAS",&
+            description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.",&
+            usage="PBIAS {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVBMC_ATOM",&
+            description="The target atom for an AVBMC swap move for each molecule type.",&
+            usage="AVBMC_ATOM {integer} {integer} ... ",&
+            n_var=-1,type_of_var=integer_t,required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVBMC_RMIN",&
+            description="The inner radius for an AVBMC swap move, in angstroms for every molecule type.",&
+            usage="AVBMC_RMIN {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVBMC_RMAX",&
+            description="The outer radius for an AVBMC swap move, in angstroms, for every molecule type.",&
+            usage="AVBMC_RMAX {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_avbmc_section
+
+! *****************************************************************************
+!> \param section will contain the probabilities for attempting each move
+!>        type in Monte Carlo
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_move_prob_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_move_prob_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="move_probabilities",&
+            description="Parameters for fraction of moves performed for each move type.",&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword,subsection )
 
        CALL keyword_create(keyword, name="PMHMC",&
             description="The probability of attempting a hybrid MC move.",&
             usage="PMHMC {real}",&
             type_of_var=real_t, default_r_val=0.0E0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMHMC_BOX",&
-            description="The probability of attempting a HMC move on this box.",&
-            usage="PMHMC_BOX {real}",&
-            type_of_var=real_t, default_r_val=1.0E0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMVOLUME",&
-            description="The probability of attempting a volume move.",&
-            usage="PMVOLUME {real}",&
-            type_of_var=real_t, default_r_val=0.0E0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMVOL_BOX",&
-            description="The probability of attempting a volume move on this box (GEMC_NpT).",&
-            usage="PMVOL_BOX {real}",&
-            type_of_var=real_t, default_r_val=1.0E0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMROT_MOL",&
-            description="The probability of attempting a molecule rotation of a given molecule type.",&
-            usage="PMROT_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMTRAION",&
-            description="The probability of attempting a conformational change.",&
-            usage="PMTRAION {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMTRAION_MOL",&
-            description="The probability of attempting a conformational change of a given molecule type.",&
-            usage="PMTRAION_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -568,6 +638,103 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PMAVBMC",&
+            description="The probability of attempting an AVBMC swap move.",&
+            usage="PMAVBMC {real}",&
+            default_r_val=0.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMTRAION",&
+            description="The probability of attempting a conformational change.",&
+            usage="PMTRAION {real}",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMSWAP",&
+            description="The probability of attempting a swap move.",&
+            usage="PMSWAP {real}",&
+            type_of_var=real_t, default_r_val=0.0E0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMVOLUME",&
+            description="The probability of attempting a volume move.",&
+            usage="PMVOLUME {real}",&
+            type_of_var=real_t, default_r_val=0.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_mol_prob_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_box_prob_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_move_prob_section
+
+! *****************************************************************************
+!> \param section will contain the probabilities for attempting various moves
+!>        on the various molecule types present in the system
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_mol_prob_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mol_prob_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="mol_probabilities",&
+            description="Probabilities of attempting various moves types on "//&
+            "the various molecular types present in the simulation.",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword )
+
+       CALL keyword_create(keyword, name="PMAVBMC_MOL",&
+            description="The probability of attempting an AVBMC swap move on each molecule type.",&
+            usage="PMAVBMC_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMSWAP_MOL",&
+            description="The probability of attempting a molecule swap of a given molecule type.",&
+            usage="PMSWAP_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMROT_MOL",&
+            description="The probability of attempting a molecule rotation of a given molecule type.",&
+            usage="PMROT_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMTRAION_MOL",&
+            description="The probability of attempting a conformational change of a given molecule type.",&
+            usage="PMTRAION_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PMTRANS_MOL",&
             description="The probability of attempting a molecule translation of a given molecule type.",&
             usage="PMTRANS_MOL {real} {real} ... ",&
@@ -575,19 +742,174 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RMVOLUME",&
-            description="Maximum volume displacement, in angstrom**3.",&
-            usage="RMVOLUME {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+    END IF
+  END SUBROUTINE create_mol_prob_section
+
+! *****************************************************************************
+!> \param section will contain the probabilities for attempting various moves
+!>        on the box where the variable is present
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_box_prob_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_box_prob_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="BOX_PROBABILITIES",&
+            description="Probabilities of attempting various moves types on "//&
+            "the box.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword )
+
+       CALL keyword_create(keyword, name="PMHMC_BOX",&
+            description="The probability of attempting a HMC move on this box.",&
+            usage="PMHMC_BOX {real}",&
+            type_of_var=real_t, default_r_val=1.0E0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="AVBMC_ATOM",&
-            description="The target atom for an AVBMC swap move for each molecule type.",&
-            usage="AVBMC_ATOM {integer} {integer} ... ",&
-            n_var=-1,type_of_var=integer_t,required=.TRUE.,error=error)
+       CALL keyword_create(keyword, name="PMVOL_BOX",&
+            description="The probability of attempting a volume move on this box (GEMC_NpT).",&
+            usage="PMVOL_BOX {real}",&
+            type_of_var=real_t, default_r_val=1.0E0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+  
+    END IF
+  END SUBROUTINE create_box_prob_section
+
+! *****************************************************************************
+!> \param section will contain the frequency for updating maximum
+!>        displacements for various moves
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_update_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_update_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="MOVE_UPDATES",&
+            description="Frequency for updating move maximum displacements.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword )
+
+       CALL keyword_create(keyword, name="IUPVOLUME",&
+            description="Every iupvolume steps update maximum volume displacement.",&
+            usage="IUPVOLUME {integer}",&
+            default_i_val=10000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="IUPTRANS",&
+            description="Every iuptrans steps update maximum translation/rotation/" //&
+            "configurational changes.",&
+            usage="IUPTRANS {integer}",&
+            default_i_val=10000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+  
+    END IF
+  END SUBROUTINE create_update_section
+
+! *****************************************************************************
+!> \param section will contain the maximum displacements for various moves
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_max_disp_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_max_disp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="max_displacements",&
+            description="The maximum displacements for all attempted moves.",&
+            n_keywords=1, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword,subsection )
+
+       CALL create_mol_disp_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_box_disp_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_max_disp_section
+
+! *****************************************************************************
+!> \param section will contain the maximum displacements for all moves which
+!>        require a value for each molecule type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_mol_disp_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mol_disp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="mol_displacements",&
+            description="Maximum displacements for every move type that requires "//&
+            "a value for each molecular type in the simulation.",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword )
 
        CALL keyword_create(keyword, name="RMBOND",&
             description="Maximum bond length displacement, in angstroms, for each molecule type.",&
@@ -624,72 +946,49 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="VIRIAL_TEMPS",&
-            description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.",&
-            usage="VIRIAL_TEMPS {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="AVBMC_RMIN",&
-            description="The inner radius for an AVBMC swap move, in angstroms for every molecule type.",&
-            usage="AVBMC_RMIN {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="AVBMC_RMAX",&
-            description="The outer radius for an AVBMC swap move, in angstroms, for every molecule type.",&
-            usage="AVBMC_RMAX {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMAVBMC",&
-            description="The probability of attempting an AVBMC swap move.",&
-            usage="PMAVBMC {real}",&
-            default_r_val=0.0E0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PMAVBMC_MOL",&
-            description="The probability of attempting an AVBMC swap move on each molecule type.",&
-            usage="PMAVBMC_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PBIAS",&
-            description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.",&
-            usage="PBIAS {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DISCRETE_STEP",&
-            description="The size of the discrete volume move step, in angstroms.",&
-            usage="DISCRETE_STEP {real}",&
-            default_r_val=1.0E0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ETA",&
-            description="The free energy bias (in Kelvin) for swapping a molecule of each type into this box.",&
-            usage="ETA {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RANDOMTOSKIP",&
-            description="Number of random numbers from the acceptance/rejection stream to skip",&
-            usage="RANDOMTOSKIP {integer}",&
-            default_i_val=0,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
     END IF
+  END SUBROUTINE create_mol_disp_section
 
-  END SUBROUTINE create_mc_section
+! *****************************************************************************
+!> \param section will contain the maximum displacements for any move that
+!>        is done on each simulation box
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author matt
+! *****************************************************************************
+  SUBROUTINE create_box_disp_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_box_disp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="BOX_DISPLACEMENTS",&
+            description="Maximum displacements for any move that is performed on each" // &
+            " simulation box.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword )
+
+       CALL keyword_create(keyword, name="RMVOLUME",&
+            description="Maximum volume displacement, in angstrom**3.",&
+            usage="RMVOLUME {real}",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+  
+    END IF
+  END SUBROUTINE create_box_disp_section
 
 ! *****************************************************************************
 !> \brief creates the geometry optimization section
@@ -4024,5 +4323,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_cascade_section
+
+
 
 END MODULE input_cp2k_motion

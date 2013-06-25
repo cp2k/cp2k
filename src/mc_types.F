@@ -1254,21 +1254,33 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 ! and hopefully will be changed
       mc_par % fft_lib = globenv%default_fft_library
 
+! get all the move probabilities first...if we are not doing certain types of moves, we don't care
+! if the values for those move parameters are strange
+
+! find out if we're only doing HMC moves...we can ignore a lot of extra information
+! then, which would ordinarily be cause for concern
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%PMHMC",r_val=mc_par%pmhmc,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%PMSWAP",r_val=mc_par%pmswap,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%PMVOLUME",r_val=mc_par%pmvolume,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%PMAVBMC",r_val=mc_par%pmavbmc,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%PMTRANS",r_val=mc_par%pmtrans,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%PMTRAION",r_val=mc_par%pmtraion,error=error)
+
+
  ! first, grab all the integer values
       CALL section_vals_val_get(mc_section,"NSTEP",i_val=mc_par%nstep,error=error)
       CALL section_vals_val_get(mc_section,"NMOVES",i_val=mc_par%nmoves,error=error)
       CALL section_vals_val_get(mc_section,"NSWAPMOVES",i_val=mc_par%nswapmoves,error=error)
-      CALL section_vals_val_get(mc_section,"IUPVOLUME",i_val=mc_par%iupvolume,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_UPDATES%IUPVOLUME",&
+           i_val=mc_par%iupvolume,error=error)
       CALL section_vals_val_get(mc_section,"NVIRIAL",i_val=mc_par%nvirial,error=error)
-      CALL section_vals_val_get(mc_section,"IUPTRANS",i_val=mc_par%iuptrans,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_UPDATES%IUPTRANS",&
+           i_val=mc_par%iuptrans,error=error)
       CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
 ! now an integer array
-      CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_vals=temp_i_array,error=error)
+      CALL section_vals_val_get(mc_section,"AVBMC%AVBMC_ATOM",i_vals=temp_i_array,error=error)
 
-! find out if we're only doing HMC moves...we can ignore a lot of extra information
-! then, which would ordinarily be cause for concern
-      CALL section_vals_val_get(mc_section,"PMHMC",r_val=mc_par%pmhmc,error=error)
-      CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
+
       IF(mc_par%pmhmc - mc_par%pmswap >= 1.0_dp .AND. mc_par%pmhmc == 1.0_dp)THEN
          mc_par%lhmc=.TRUE.
       ELSE
@@ -1288,14 +1300,13 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 ! now the real values
       CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
       CALL section_vals_val_get(mc_section,"TEMPERATURE",r_val=mc_par%temperature,error=error)
-      CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
-      CALL section_vals_val_get(mc_section,"PMHMC_BOX",r_val=mc_par%pmhmc_box,error=error)
-      CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_val=mc_par%pmvol_box,error=error)
-      CALL section_vals_val_get(mc_section,"PMAVBMC",r_val=mc_par%pmavbmc,error=error)
-      CALL section_vals_val_get(mc_section,"PMTRANS",r_val=mc_par%pmtrans,error=error)
-      CALL section_vals_val_get(mc_section,"PMTRAION",r_val=mc_par%pmtraion,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%BOX_PROBABILITIES%PMHMC_BOX",&
+           r_val=mc_par%pmhmc_box,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%BOX_PROBABILITIES%PMVOL_BOX",&
+           r_val=mc_par%pmvol_box,error=error)
       CALL section_vals_val_get(mc_section,"DISCRETE_STEP",r_val=mc_par%discrete_step,error=error)
-      CALL section_vals_val_get(mc_section,"RMVOLUME",r_val=mc_par%rmvolume,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISPLACEMENTS%BOX_DISPLACEMENTS%RMVOLUME",&
+           r_val=mc_par%rmvolume,error=error)
 
 ! finally the character values
       CALL section_vals_val_get(mc_section,"ENSEMBLE",c_val=mc_par%ensemble,error=error)
@@ -1322,7 +1333,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
         ENDDO
       END IF
 ! all of these arrays should have one value for each type of molecule...so check that
-      CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"AVBMC%AVBMC_RMIN",r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1332,7 +1343,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmin(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"AVBMC_RMAX",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"AVBMC%AVBMC_RMAX",r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1342,7 +1353,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmax(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"PBIAS",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"AVBMC%PBIAS",r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1352,7 +1363,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%pbias(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"PMAVBMC_MOL",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%MOL_PROBABILITIES%PMAVBMC_MOL",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1372,7 +1384,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%eta(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"RMBOND",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMBOND",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1382,7 +1395,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmbond(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"RMANGLE",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMANGLE",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1392,7 +1406,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmangle(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"RMDIHEDRAL",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMDIHEDRAL",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1402,7 +1417,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmdihedral(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"RMROT",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMROT",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1412,7 +1428,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmrot(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"RMTRANS",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMTRANS",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1423,7 +1440,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          mc_par%rmtrans(imol)=temp_r_array(imol)
       ENDDO
 
-      CALL section_vals_val_get(mc_section,"PMTRAION_MOL",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%MOL_PROBABILITIES%PMTRAION_MOL",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1434,7 +1452,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          mc_par%pmtraion_mol(imol)=temp_r_array(imol)
       ENDDO
 
-      CALL section_vals_val_get(mc_section,"PMTRANS_MOL",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%MOL_PROBABILITIES%PMTRANS_MOL",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1445,7 +1464,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          mc_par%pmtrans_mol(imol)=temp_r_array(imol)
       ENDDO
 
-      CALL section_vals_val_get(mc_section,"PMROT_MOL",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%MOL_PROBABILITIES%PMROT_MOL",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1456,7 +1476,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          mc_par%pmrot_mol(imol)=temp_r_array(imol)
       ENDDO
 
-      CALL section_vals_val_get(mc_section,"PMSWAP_MOL",r_vals=temp_r_array,error=error)
+      CALL section_vals_val_get(mc_section,"MOVE_PROBABILITIES%MOL_PROBABILITIES%PMSWAP_MOL",&
+           r_vals=temp_r_array,error=error)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
