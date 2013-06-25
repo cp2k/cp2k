@@ -855,7 +855,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
@@ -868,7 +867,7 @@ CONTAINS
             n_keywords=1, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword,subsection )
+       NULLIFY(subsection)
 
        CALL create_mol_disp_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
