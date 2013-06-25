@@ -1,9 +1,13 @@
 !-----------------------------------------------------------------------------!
-!Copyright by Stefan Goedecker, Cornell, Ithaca, USA, March 25, 1994
-!modified by Stefan Goedecker, Stuttgart, Germany, October 15, 1995
-!Commercial use is prohibited without the explicit permission of the author.
+!  Copyright (C) Stefan Goedecker, Lausanne, Switzerland, August 1, 1991
+!  Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!  Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!  This file is distributed under the terms of the
+!  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 !-----------------------------------------------------------------------------!
-
+!  S. Goedecker: Rotating a three-dimensional array in optimal
+!  positions for vector processing: Case study for a three-dimensional Fast
+!  Fourier Transform, Comp. Phys. Commun. 76, 294 (1993)
 ! *****************************************************************************
 SUBROUTINE fftpre ( mm, nfft, m, nn, n, zin, zout, trig, now, after, before, isign )
 
