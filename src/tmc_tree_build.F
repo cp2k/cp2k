@@ -194,7 +194,7 @@ CONTAINS
 
     ALLOCATE(next_el)
     NULLIFY(next_el%subbox_center, next_el%pos, next_el%vel, next_el%frc, &
-            next_el%dipole, next_el%elem_stat)
+            next_el%dipole, next_el%elem_stat, next_el%gt_nodes_references)
 
     next_el%scf_energies(:) = HUGE(next_el%scf_energies)
     next_el%scf_energies_count = 0
@@ -1676,7 +1676,8 @@ CONTAINS
              elem=begin_ptr%conf(begin_ptr%mv_conf)%elem, tmc_env=tmc_env, &
              error=error)
       tmp_ptr => begin_ptr
-      CALL deallocate_global_tree_node(gt_elem=tmp_ptr, error=error)
+      CALL remove_gt_elem(gt_ptr=tmp_ptr, draw=.FALSE., tmc_env=tmc_env, error=error)
+      !CALL deallocate_global_tree_node(gt_elem=tmp_ptr, error=error)
       removed = .TRUE.
     END IF
   END SUBROUTINE dealloc_whole_g_tree
