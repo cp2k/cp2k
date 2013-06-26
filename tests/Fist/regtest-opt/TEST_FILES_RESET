@@ -110,3 +110,5 @@ cell_sym_tetragonal_ab.inp
 cell_sym_tetragonal_ac.inp
 cell_sym_tetragonal.inp
 cell_sym_triclinic.inp
+cell_opt_bfgs_geo_opt_lbfgs.inp
+cell_sym_rhombohedral.inp
