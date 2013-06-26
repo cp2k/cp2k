@@ -25,10 +25,6 @@ MODULE cp_dbcsr_interface
                                              cp_dbcsr_row_block_sizes
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
-                                             cp_logger_type,&
-                                             cp_logger_would_log,&
-                                             cp_note_level
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
