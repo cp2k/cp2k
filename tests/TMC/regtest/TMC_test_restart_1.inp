@@ -1,0 +1,33 @@
+# second part for restarting 
+#  (takes the written restart file from restart test part 1)
+#  filename written in tmc_restart.last
+# and do second part of calculation
+
+&GLOBAL
+  PROJECT H2O_TMC
+  PROGRAM TMC
+  RUN_TYPE TMC
+  PRINT_LEVEL LOW
+  WALLTIME 00:01:30 
+&END GLOBAL
+&MOTION
+  &TMC
+      GROUP_ENERGY_SIZE 1
+      GROUP_ENERGY_NR 1
+      GROUP_CC_SIZE 0
+      NUM_MC_ELEM 100 
+      ENERGY_FILE_NAME H2O.inp
+      NR_TEMPERATURE 3
+      TEMPERATURE 300 460
+      MOVE_TYPES 1 2 3 6
+      MOVE_SIZES 0.05 0.1 4 0.1
+      MOVE_PROBS 1 1 1 3
+      NUM_MV_ELEM_IN_CELL 0
+      RND_DETERMINISTIC 42
+      INFO_OUT_STEP_SIZE 1
+      RESTART_IN
+      RESTART_OUT 0
+      DOT_TREE
+      PRINT_TEST_OUTPUT
+  &END TMC
+&END MOTION

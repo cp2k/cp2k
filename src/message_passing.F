@@ -50,12 +50,14 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=MPI_ANY_SOURCE
   INTEGER, PARAMETER, PUBLIC :: mp_comm_null=MPI_COMM_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=MPI_REQUEST_NULL
+  INTEGER, PARAMETER, PUBLIC :: mp_status_size=MPI_STATUS_SIZE
 #else
   LOGICAL, PARAMETER :: cp2k_is_parallel=.FALSE.
   INTEGER, PARAMETER, PUBLIC :: mp_any_tag=-1
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=-2
   INTEGER, PARAMETER, PUBLIC :: mp_comm_null=-3
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=-4
+  INTEGER, PARAMETER, PUBLIC :: mp_status_size=-5
 #endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
@@ -79,6 +81,7 @@ MODULE message_passing
   PUBLIC :: mp_group
   PUBLIC :: cp2k_is_parallel
   PUBLIC :: mp_proc_name
+  PUBLIC :: mp_probe
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
@@ -1829,6 +1832,56 @@ CONTAINS
   END SUBROUTINE mp_window_fence
 
 
+! *****************************************************************************
+!> \brief probes for an incomming message with any tag
+!> \author Mandes
+!> \param source[inout] the source of the possible incomming message, 
+!>        if MP_ANY_SOURCE it is a blocking one and return value is the source 
+!>        of the next incomming message
+!>        if source is a different value it is a non-blocking probe retuning 
+!>        MP_ANY_SOURCE if there is no incomming message
+!> \param comm[in] the communicator
+!> \param tag[out] the tag of the incomming message
+! *****************************************************************************
+  SUBROUTINE mp_probe(source, comm, tag)
+    INTEGER                               :: source
+    INTEGER, INTENT(IN)                   :: comm
+    INTEGER, INTENT(OUT)                  :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER                               :: ierr, handle, assertion
+    INTEGER, DIMENSION(mp_status_size)    :: status_single
+    LOGICAL                               :: flag
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+
+    IF(source .EQ. mp_any_source) THEN
+      CALL mpi_probe(mp_any_source, mp_any_tag, comm, status_single, ierr)
+      IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_probe @ mp_probe" )
+      source = status_single(MPI_SOURCE)
+      tag = status_single(MPI_TAG)
+    ELSE
+      flag = .FALSE.
+      CALL mpi_iprobe(source, mp_any_tag, comm, flag, status_single, ierr)
+      IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_iprobe @ mp_probe" )
+      IF(flag.EQV..FALSE.) THEN
+        source = mp_any_source
+        tag = -1 !status_single(MPI_TAG) ! in case of flag==false status is undefined
+      ELSE
+        tag = status_single(MPI_TAG)
+      END IF
+    END IF
+
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_probe
 
 
 ! *****************************************************************************

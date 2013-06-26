@@ -2,6 +2,9 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+TMC/regtest
+TMC/regtest_ana_on_the_fly
+TMC/regtest_ana_post_proc
 ATOM/regtest-pseudo
 QS/regtest-sym
 Fist/regtest-7

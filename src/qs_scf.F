@@ -57,7 +57,8 @@ MODULE qs_scf
                                              write_fm_with_basis_info
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_external_control,             ONLY: external_control
+  USE cp_external_control,             ONLY: external_control,&
+                                             get_external_comm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -109,6 +110,7 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE message_passing,                 ONLY: mp_send
   USE mp2,                             ONLY: mp2_main
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
@@ -461,9 +463,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, ispin, &
-                                                iter_count, output_unit, &
-                                                total_steps
+    INTEGER :: ext_master_id, external_comm, handle, handle2, ispin, &
+      iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_std_diag, energy_only, exit_inner_loop, failure, &
       gapw, gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       just_energy, outer_loop_converged, scp_dft, scp_nddo, skip_diag_sub, &
@@ -564,6 +565,13 @@ CONTAINS
          REPEAT("-",78)
     END IF
     CALL cp_add_iter_level(logger%iter_info,"QS_SCF",error=error)
+
+    ! check for external communicator and if the inermediate energy should be sended
+    CALL get_external_comm(comm=external_comm, &
+           out_external_master_id=ext_master_id, &
+           out_scf_energy_message_tag=scf_energy_message_tag, &
+           error=error)
+
     ! *** outer loop of the scf, can treat other variables,
     ! *** such as lagrangian multipliers
     scf_env%outer_scf%iter_count=0
@@ -814,6 +822,12 @@ CONTAINS
           IF (.NOT.just_energy) energy%tot_old = energy%total
           IF (harris_flag) THEN
              CALL harris_postprocessing(harris_env, error=error)
+          END IF
+
+          ! check for external communicator and if the inermediate energy should be sended
+          IF(scf_energy_message_tag.GT.0)THEN
+            CALL mp_send(energy%total, ext_master_id, scf_energy_message_tag, &
+                         external_comm)
           END IF
 
           ! ** can we exit the SCF loop  ?

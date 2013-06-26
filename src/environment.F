@@ -102,7 +102,7 @@ MODULE environment
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
 
   ! *** Public subroutines ***
-  PUBLIC :: cp2k_finalize, cp2k_init, cp2k_read, cp2k_setup
+  PUBLIC :: cp2k_finalize, cp2k_init, cp2k_read, cp2k_setup, cp2k_get_walltime
 
 CONTAINS
 
@@ -528,7 +528,8 @@ CONTAINS
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=project_name,error=error)
     CALL section_vals_val_get(global_section,"FFTW_WISDOM_FILE_NAME",c_val=globenv%fftw_wisdom_file_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
-    CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
+    CALL cp2k_get_walltime(section=global_section, keyword_name="WALLTIME",&
+                           walltime=globenv%cp2k_target_time, error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     CALL section_vals_val_get(global_section,"TRACE_MASTER",l_val=trace_MASTER,error=error)
     CALL section_vals_val_get(global_section,"TRACE_MAX",i_val=trace_max,error=error)
@@ -926,6 +927,49 @@ CONTAINS
          "PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE read_cp2k_section
+
+! *****************************************************************************
+!> \brief reads the Walltime also in format HH:MM:SS
+!> \par History
+!>      none
+!> \author Mandes
+! *****************************************************************************
+  SUBROUTINE cp2k_get_walltime(section, keyword_name, walltime, error)
+    TYPE(section_vals_type), POINTER         :: section
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    REAL(KIND=dp), INTENT(out)               :: walltime
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_get_walltime', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=100)                       :: ctmp
+    INTEGER                                  :: ierr, itmp
+    LOGICAL                                  :: failure
+
+    CALL section_vals_val_get(section, keyword_name, c_val=ctmp, error=error)
+
+    IF(ctmp == "") THEN
+      walltime = -1.0_dp
+    ELSE
+      IF(INDEX(ctmp,":",BACK=.TRUE.).GT.0)THEN
+        walltime = 0
+        ! read seconds
+        READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)+1:),FMT=*,IOSTAT=ierr) walltime
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        ! read minutes
+        READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)-2:INDEX(ctmp,":",BACK=.TRUE.)-1),FMT=*,IOSTAT=ierr) itmp
+        walltime = walltime + REAL(60*itmp,KIND=dp)
+        ! read hours
+        READ(ctmp(1:INDEX(ctmp,":")-1),FMT=*,IOSTAT=ierr) itmp
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        walltime = walltime + REAL(3600*itmp,KIND=dp)
+      ELSE
+        READ(ctmp,FMT=*,IOSTAT=ierr) walltime
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
+    END IF
+  END SUBROUTINE cp2k_get_walltime
 
 ! *****************************************************************************
 !> \brief Writes final timings and banner for CP2K

@@ -1,0 +1,22 @@
+# analysis of a TMC parallel tempering run without analysis output
+# calculates the radial distribution function ( g(r) )
+# if the amount of bins are not specified, the bin size is 0.03A
+
+&GLOBAL
+  PROJECT H2O_TMC
+  PROGRAM MC_ANALYSIS
+  RUN_TYPE TMC
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &TMC
+    PRINT_TEST_OUTPUT
+    &TMC_ANALYSIS_FILES
+      RESTART           .FALSE.
+      NR_TEMPERATURE    3
+      TEMPERATURE       300 460
+      FORCE_ENV_FILE    H2O.inp
+      G_R
+    &END TMC_ANALYSIS_FILES
+  &END TMC
+&END MOTION

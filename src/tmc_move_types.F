@@ -1,0 +1,137 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief tree nodes creation, searching, deallocation, references etc.
+!> \par History
+!>      11.2012 created [Mandes Schönherr] 
+!> \author Mandes 11/2012
+! *****************************************************************************
+
+MODULE tmc_move_types
+  USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_types'
+
+  !-- list of available move types
+  INTEGER, PARAMETER, PUBLIC :: mv_type_none           = 0
+  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_trans     = 1 ! atom translation (done in every posible direction)
+  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_trans      = 2 ! molecule translation (done in every posible direction)
+  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_rot        = 3 ! molecule rotation
+  INTEGER, PARAMETER, PUBLIC :: mv_type_proton_reorder = 4 ! reordering the protons within a chain of molecules
+  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 5 ! certain amount of MD steps
+  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 6 ! swapping of 2 configurations of different temperature
+  INTEGER, PARAMETER, PUBLIC :: mv_type_volume_move    = 7 ! volume move for NPT simulations
+  INTEGER, PARAMETER, PUBLIC :: mv_type_gausian_adapt  = 8 ! gaussian adaptation
+  INTEGER, PARAMETER, PUBLIC :: mv_type_NMC_moves      = 9 ! indentifies the Nested Monte Carlo move for master
+  INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 9 !-- allways update the number of possible types!!
+  INTEGER, PARAMETER, PUBLIC :: nr_nmc_mv_types        = 4 ! the first n move types are used in the NMC algorithm
+
+  PUBLIC :: tmc_move_type, moves_init_sizes_type, move_types_create, move_types_release
+
+  TYPE tmc_move_type
+     !-- mv_type, handling indeces to move type (are equal for all several configurations/temperatures)
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mv_weight
+     !-- mv_size, moves are normaly done in interval ]-mv_size, mv_size[
+     ! 1st dimension are the different types, 2nd dim for configuration/temperature
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: mv_size
+     !-- acc_prob, probability of acceptance of a certain move type for a certain temperature
+     ! 1st dimension are the different move types, 2nd dim for configuration/temperature
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: acc_prob
+     !-- count, remembers the certain amount of moves of certain a move type and temperature
+     ! 1st dimension are the different types, 2nd dim for config./Temp
+     INTEGER, DIMENSION(:,:), ALLOCATABLE :: mv_count
+     !-- count, remembers the certain amount of accepted moves of a certain move type and temperature
+     ! 1st dimension are the different types, 2nd dim for config./Temp
+     INTEGER, DIMENSION(:,:), ALLOCATABLE :: acc_count
+     !-- subbox_prob, probability of acceptance of a certain move type within subbox,
+     !   done in Nested Monte Carlo routine
+     !   the moves are rejected if atom or center of mass leaves the subbox
+     !   1st dimension are the different move types
+     INTEGER, DIMENSION(:,:), ALLOCATABLE :: subbox_acc_count
+     INTEGER, DIMENSION(:,:), ALLOCATABLE :: subbox_count
+
+     !-- nmc_acc_prob, probability of acceptance of a certain move type,
+     !   done in Nested Monte Carlo routine, for different potential
+     !   1st dimension are the different move types
+!     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: nmc_nr_acc
+!     INTEGER, DIMENSION(:), ALLOCATABLE :: nmc_count
+  END TYPE tmc_move_type
+
+  TYPE moves_init_sizes_type
+    INTEGER, DIMENSION(:), POINTER       :: mv_types
+    REAL(KIND=dp), DIMENSION(:),POINTER  :: mv_sizes, mv_probs
+    REAL(KIND=dp)                        :: start_acc_prob
+  END TYPE moves_init_sizes_type
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief allocating the module variables
+!> \param move_types pointer to the structure which should be deallocated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 11.2012
+! *****************************************************************************
+  ! deallocating the module variables
+  SUBROUTINE move_types_create(move_types, nr_temp, error)
+    TYPE(tmc_move_type), POINTER             :: move_types
+    INTEGER                                  :: nr_temp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'move_types_create', &
+      routineP = moduleN//':'//routineN
+
+    CPPreconditionNoFail(.NOT.ASSOCIATED(move_types),cp_failure_level,routineP,error)
+
+    ALLOCATE(move_types)
+    ALLOCATE(move_types%mv_weight(nr_mv_types))
+    move_types%mv_weight(:) = 0
+    ALLOCATE(move_types%mv_size(nr_mv_types,nr_temp))
+    move_types%mv_size(:,:) = 0.0_dp
+    ALLOCATE(move_types%acc_prob(0:nr_mv_types,nr_temp))
+    move_types%acc_prob(:,:) = 0.0_dp
+    ALLOCATE(move_types%mv_count(0:nr_mv_types,nr_temp))
+    move_types%mv_count(:,:) = 0
+    ALLOCATE(move_types%acc_count(0:nr_mv_types,nr_temp))
+    move_types%acc_count(:,:) = 0
+    ALLOCATE(move_types%subbox_acc_count(nr_mv_types,nr_temp))
+    move_types%subbox_acc_count(:,:) = 0
+    ALLOCATE(move_types%subbox_count(nr_mv_types,nr_temp))
+    move_types%subbox_count(:,:) = 0
+  END SUBROUTINE move_types_create
+
+! *****************************************************************************
+!> \brief deallocating the module variables
+!> \param move_types pointer to the structure which should be deallocated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 11.2012
+! *****************************************************************************
+  ! deallocating the module variables
+  SUBROUTINE move_types_release(move_types, error)
+    TYPE(tmc_move_type), POINTER             :: move_types
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'move_types_release', &
+      routineP = moduleN//':'//routineN
+
+    CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP,error)
+    DEALLOCATE(move_types%mv_weight)
+    DEALLOCATE(move_types%mv_size)
+    DEALLOCATE(move_types%acc_prob)
+    DEALLOCATE(move_types%mv_count)
+    DEALLOCATE(move_types%acc_count)
+    DEALLOCATE(move_types%subbox_acc_count)
+    DEALLOCATE(move_types%subbox_count)
+    DEALLOCATE(move_types)
+  END SUBROUTINE move_types_release
+
+END MODULE tmc_move_types

@@ -29,7 +29,9 @@ MODULE input_constants
                                               do_test=3,&
                                               do_cp2k=4,&
                                               do_optimize_input=5,&
-                                              do_opt_basis=6
+                                              do_opt_basis=6,&
+                                              do_tree_mc=7,&
+                                              do_tree_mc_ana=8
 
   INTEGER, PARAMETER, PUBLIC               :: opt_force_matching=1
 
@@ -135,7 +137,8 @@ MODULE input_constants
                                               cell_opt_run=14,&
                                               real_time_propagation=15,&
                                               ehrenfest=16, &
-                                              do_tamc=17
+                                              do_tamc=17, &
+                                              tree_mc_run=18
 
   ! Run Types of Atom Code
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&

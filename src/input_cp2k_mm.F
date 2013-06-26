@@ -47,6 +47,7 @@ MODULE input_cp2k_mm
   PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
             create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section,&
             create_GENPOT_section, create_neighbor_lists_section
+  PUBLIC :: create_CHARGE_section
 !***
 CONTAINS
 

@@ -310,6 +310,7 @@ OBJECTS_GENERIC =\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
  input_cp2k_mp2.o\
+ input_cp2k_tmc.o\
  input_cp2k.o\
  input_cp2k_poisson.o\
  input_cp2k_properties_dft.o\
@@ -716,6 +717,27 @@ OBJECTS_GENERIC =\
  thermostat_types.o\
  thermostat_utils.o\
  timings.o\
+ tmc_analysis.o\
+ tmc_analysis_types.o\
+ tmc_calculations.o\
+ tmc_cancelation.o\
+ tmc_dot_tree.o\
+ tmc_file_io.o\
+ tmc_master.o\
+ tmc_messages.o\
+ tmc_move_handle.o\
+ tmc_move_types.o\
+ tmc_moves.o\
+ tmc_setup.o\
+ tmc_stati.o\
+ tmc_tree_acceptance.o\
+ tmc_tree_build.o\
+ tmc_tree_references.o\
+ tmc_tree_search.o\
+ tmc_tree_types.o\
+ tmc_types.o\
+ tmc_utils.o\
+ tmc_worker.o\
  topology_amber.o\
  topology_cif.o\
  topology_connectivity_util.o\

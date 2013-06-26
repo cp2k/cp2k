@@ -7,6 +7,7 @@
 !> \brief Routines to handle the external control of CP2K
 !> \par History
 !>      - Moved from MODULE termination to here (18.02.2011,MK)
+!>      - add communication control (20.02.2013 Mandes)
 !> \author Marcella Iannuzzi (10.03.2005,MI)
 ! *****************************************************************************
 MODULE cp_external_control
@@ -18,7 +19,8 @@ MODULE cp_external_control
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_probe
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -32,8 +34,69 @@ MODULE cp_external_control
   INTEGER :: error_unit
 
   PUBLIC :: external_control
+  PUBLIC :: get_external_comm, set_external_comm
+
+  INTEGER, SAVE :: external_comm = -1
+  INTEGER, SAVE :: external_master_id = -1
+  INTEGER, SAVE :: scf_energy_message_tag = -1
+  INTEGER, SAVE :: exit_tag = -1
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief set the communicator to an external source or destination, 
+!>        to send messages (e.g. intermediate energies during scf) or
+!>        reveive commands (e.g. aborting the calculation)
+!> \author Mandes 02.2013
+! *****************************************************************************
+  SUBROUTINE set_external_comm(comm, in_external_master_id, &
+                               in_scf_energy_message_tag, in_exit_tag, error)
+    INTEGER, INTENT(IN)                      :: comm, in_external_master_id
+    INTEGER, INTENT(IN), OPTIONAL            :: in_scf_energy_message_tag, &
+                                                in_exit_tag
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_external_comm', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    CPPrecondition(in_external_master_id.GE.0,cp_failure_level,routineP,error,failure)
+
+    external_comm = comm
+    external_master_id = in_external_master_id
+
+    IF(PRESENT(in_scf_energy_message_tag)) &
+      scf_energy_message_tag = in_scf_energy_message_tag
+    IF(PRESENT(in_exit_tag)) THEN
+      ! the exit tag should be different from the mp_probe tag default
+      CPPrecondition(in_exit_tag.NE.-1,cp_failure_level,routineP,error,failure)
+      exit_tag = in_exit_tag
+    END IF
+  END SUBROUTINE set_external_comm
+
+! *****************************************************************************
+!> \brief gets the external communicator and the different defined tags 
+!>        to send messages (e.g. intermediate energies during scf) or
+!>        reveive commands (e.g. aborting the calculation)
+!> \author Mandes 02.2013
+! *****************************************************************************
+  SUBROUTINE get_external_comm(comm, out_external_master_id, &
+                               out_scf_energy_message_tag, error)
+    INTEGER, INTENT(OUT)                     :: comm, out_external_master_id
+    INTEGER, INTENT(OUT), OPTIONAL           :: out_scf_energy_message_tag
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_external_comm', &
+      routineP = moduleN//':'//routineN
+
+    comm = external_comm
+    out_external_master_id = external_master_id
+
+    IF(PRESENT(out_scf_energy_message_tag)) &
+      out_scf_energy_message_tag = scf_energy_message_tag
+  END SUBROUTINE get_external_comm
+
 
 ! *****************************************************************************
 !> \brief External manipulations during a run : when the <PROJECT_NAME>.EXIT_$runtype
@@ -57,7 +120,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: exit_fname, exit_fname_level, &
                                                 exit_gname, exit_gname_level
-    INTEGER                                  :: handle, i, unit_number
+    INTEGER                                  :: handle, i, tag, unit_number
     LOGICAL                                  :: failure, should_wait
     LOGICAL, SAVE                            :: check_always = .FALSE.
     REAL(KIND=dp)                            :: my_start_time, &
@@ -77,6 +140,13 @@ CONTAINS
     exit_fname       = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname)
     exit_fname_level = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname_level)
 
+    ! check for incomming messages and if it is tagged with the exit tag
+    IF(exit_tag.NE.-1) THEN
+      i = external_master_id
+      CALL mp_probe(source=i, comm=external_comm, tag=tag)
+      IF(tag.EQ.exit_tag) should_stop = .TRUE.
+    END IF
+
     IF (logger%para_env%source==logger%para_env%mepos) THEN
        ! files will only be checked every 20 seconds, or if the clock wraps/does not exist,
        ! otherwise 64 waters on 64 cores can spend up to 10% of time here, on lustre
@@ -84,6 +154,7 @@ CONTAINS
        ! (at each level scf, md, ... the file must be there to guarantee termination)
        t1=m_walltime()
        IF (t1>t_last_file_check+20.0_dp .OR. t1 <= t_last_file_check .OR. check_always) THEN
+
           t_last_file_check=t1
           ! allows for halting execution for a while
           ! this is useful to copy a consistent snapshot of the output

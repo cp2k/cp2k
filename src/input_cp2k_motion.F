@@ -28,6 +28,7 @@ MODULE input_cp2k_motion
                                              create_thermo_slow_section,&
                                              create_thermostat_section,&
                                              create_velocity_section
+  USE input_cp2k_tmc,                  ONLY: create_TMC_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -116,6 +117,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_mc_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_TMC_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

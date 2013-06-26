@@ -1069,14 +1069,16 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief gets a cell
 !> \param cell the array with the cell matrix
+!> \param per periodicity
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE get_cell(env_id, cell, ierr)
+  SUBROUTINE get_cell(env_id, cell, per, ierr)
 
     INTEGER, INTENT(IN)                      :: env_id
     REAL(KIND=DP), DIMENSION(3, 3)           :: cell
+    INTEGER, DIMENSION(3), OPTIONAL          :: per
     INTEGER, INTENT(OUT)                     :: ierr
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell', &
@@ -1099,6 +1101,7 @@ CPSourceFileRef,&
        END IF
        IF (.NOT.failure) THEN
           cell = cell_full%hmat
+          IF(PRESENT(per)) per(:) = cell_full%perd(:)
        END IF
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)

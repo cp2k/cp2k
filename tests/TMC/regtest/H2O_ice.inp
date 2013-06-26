@@ -1,0 +1,79 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+        EMAX_SPLINE 1000000.0
+      &END
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &BOND
+        ATOMS O  H
+        K  0.05
+        R0 0.97572
+      &END BOND
+      &BEND
+        ATOMS H  O  H
+        K  0.05
+        THETA0 1.82422
+      &END BEND
+      &NONBONDED
+        &LENNARD-JONES 
+  	  ATOMS O O
+          EPSILON 78.19580 
+          SIGMA 3.1655 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS O H
+          EPSILON 0.0
+          SIGMA 3.1655 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS H H 
+          EPSILON 0.0
+          SIGMA 3.1655 
+          RCUT 5.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .40
+        EWALD_ACCURACY 1.0E-2
+        GMAX 11
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.52118 15.61292 14.72000
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ./ice_Ih_96.xyz
+      COORD_FILE_FORMAT xyz
+      CONNECTIVITY MOL_SET
+      &MOL_SET
+        &MOLECULE
+          NMOL 96
+          CONN_FILE_NAME topology_fist_WAT.psf
+        &END
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
+  PRINT_LEVEL LOW
+  WALLTIME 10
+  #TRACE
+&END GLOBAL

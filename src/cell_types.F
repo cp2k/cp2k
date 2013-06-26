@@ -226,7 +226,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: h, h_inv
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, symmetry_id
 
-    IF (PRESENT(deth)) deth = cell%deth
+    IF (PRESENT(deth)) deth = cell%deth ! the volume
     IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
     IF (PRESENT(periodic)) periodic(:) = cell%perd(:)
     IF (PRESENT(h)) h(:,:) = cell%hmat(:,:)
@@ -254,7 +254,6 @@ CONTAINS
     IF (PRESENT(gamma)) gamma = angle(cell%hmat(:,1),cell%hmat(:,2))*degree
     IF (PRESENT(id_nr)) id_nr = cell%id_nr
     IF (PRESENT(symmetry_id)) symmetry_id = cell%symmetry_id
-
   END SUBROUTINE get_cell
 
 ! *****************************************************************************

@@ -39,7 +39,7 @@ MODULE mathlib
             power_matrix,&
             set_diag,&
             symmetrize_matrix,&
-            unit_matrix
+            unit_matrix, diag
 
   ! Public functions
 

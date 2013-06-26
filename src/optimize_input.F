@@ -15,6 +15,7 @@ MODULE optimize_input
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE environment,                     ONLY: cp2k_get_walltime
   USE f77_blas
   USE f77_interface,                   ONLY: calc_force,&
                                              create_force_env,&
@@ -648,7 +649,8 @@ CONTAINS
 
     CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=oi_env%project_name,error=error)
     CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=oi_env%seed,error=error)
-    CALL section_vals_val_get(root_section,"GLOBAL%WALLTIME",r_val=oi_env%target_time,error=error)
+    CALL cp2k_get_walltime(section=root_section, keyword_name="GLOBAL%WALLTIME", &
+                             walltime=oi_env%target_time, error=error)
 
     oi_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_INPUT",error=error)
     variable_section  => section_vals_get_subs_vals(oi_section,"VARIABLE",error=error)

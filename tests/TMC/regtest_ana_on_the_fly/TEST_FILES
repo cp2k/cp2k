@@ -1,0 +1,24 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      6 looks for the final energy of the MC simulation
+#      for details see cp2k/tools/do_regtest
+#
+# The whole TMC on the fly analysis is tested, average values and sums of results
+# testing the "on the fly" analysis tool starting to analyse the previous elements from directory and the new ones
+# density calculations
+TMC_ana_density.inp 39
+# radial distribution function
+TMC_ana_G_R.inp 39
+# classical dipole moment writing out TMC restart file (no ana restart file)
+TMC_ana_dip_cl.inp 39
+# calculating the root mean squared deviation from the last cell and the average
+TMC_ana_deviation.inp 39
+# creating a not analyzed trajectory
+TMC_ana_create_traj_without_ana.inp 0
+# testing the analysis starting with existing old trajectory
+TMC_ana_start_with_exist_traj.inp 39
+# restarting with existing analysis restart file
+TMC_ana_restart.inp 39
+# restarting 

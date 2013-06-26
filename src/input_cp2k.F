@@ -382,15 +382,17 @@ CONTAINS
          variants=(/"PROGRAM"/),&
          description="Which program should be run",&
          usage="PROGRAM_NAME <STRING>",&
-         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT","OPTIMIZE_BASIS"),&
+         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT","OPTIMIZE_BASIS", "TMC","MC_ANALYSIS"),&
          enum_desc=s2a("Runs single atom calculations",&
                        "Runs N independent jobs in a single run",&
                        "Do some benchmarking and testing",&
                        "Runs one of the CP2K package",&
-                       "A tool do optimize parameters in a CP2K input",&
+                       "A tool do optimize parameters in a CP2K input", &
                        "A tool to create a MOLOPT or ADMM basis for a given set"//&
-                       " of training structures"),&
-         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, do_opt_basis/),&
+                       " of training structures",&
+                       "Runs Tree Monte Carlo algorithm using additional input file(s)", &
+                       "Runs (Tree) Monte Carlo trajectory file analysis"),&
+         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, do_opt_basis, do_tree_mc, do_tree_mc_ana/),&
          default_i_val=do_cp2k, supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -422,13 +424,13 @@ CONTAINS
          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO",&
          "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES","RT_PROPAGATION",&
-         "EHRENFEST_DYN","TAMC" ),&
+         "EHRENFEST_DYN","TAMC","TMC"),&
          enum_i_vals=(/ none_run, energy_run, energy_force_run, mol_dyn_run,&
           geo_opt_run, mon_car_run, electronic_spectra_run, debug_run,&
           bsse_run, linear_response_run, pint_run, vib_anal,do_band,&
           cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run,&
           mon_car_run, electronic_spectra_run, linear_response_run,&
-          vib_anal,real_time_propagation,ehrenfest,do_tamc/),&
+          vib_anal,real_time_propagation,ehrenfest,do_tamc, tree_mc_run/),&
          enum_desc=s2a("Perform no tasks", "Computes energy","Computes energy and forces",&
          "Molecular Dynamics","Geometry Optimization","Monte Carlo", "Computes absorption Spectra",&
          "Performs a Debug analysis","Basis set superposition error","Linear Response",&
@@ -437,15 +439,16 @@ CONTAINS
          "Alias for MC","Alias for SPECTRA","Alias for LR","Alias for VIBRATIONAL_ANALYSIS",&
          "Real Time propagation run (fixed ionic positions)",&
          "Ehrenfest dynamics (using real time propagation of the wavefunction)",&
-         "TAMC"),&
+         "TAMC", "TreeMonteCarlo (TMC), a pre sampling MC algorithm"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="WALLTIME",&
           variants=(/"WALLTI"/),&
-          description="Maximum execution time for this run. Time in seconds.",&
-          usage="WALLTIME real",  default_r_val=-1.0_dp, supported_feature=.TRUE.,error=error)
+          description="Maximum execution time for this run. Time in seconds or in HH:MM:SS.",&
+          usage="WALLTIME {real} or {HH:MM:SS}",  default_lc_val="", &
+          supported_feature=.TRUE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 

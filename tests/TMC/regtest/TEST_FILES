@@ -1,0 +1,31 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      6 looks for the final energy of the MC simulation
+#      for details see cp2k/tools/do_regtest
+#
+# The whole TMC method could only run in paralell (serial should finalize well, but do nothing)
+#
+# testing global tree creation using single exact potential, the deterministic random number generator
+#   with the standard move types, check if at the end the same configuration is created (energy)
+TMC_1pot.inp 1
+# testing the deterministic random Number generator and the walltime program stop
+TMC_walltime.inp 39
+# testing the standard atom/molecule moves and the proton reordering as well as the two potential checks
+#  compare the energy of last accepted configuration
+TMC_prot_reorder.inp 1
+# testing the Parallel Tempering with several temperatures and swap move
+# also the reference for the restart test
+TMC_PT.inp 1
+# testing the NPT routines (volume move and volume acceptance check with 1 potential
+TMC_NPT.inp 1
+# testing the NPT routines (volume move and volume acceptance check with 2 potential
+TMC_NPT_2pot.inp 1
+# testing the NPT with NMC AND Parallel Tempering
+TMC_NPT_2pot_PT.inp 1
+# testing the sub box creation and element selection
+TMC_sub_box.inp 0
+# testing the restarting
+TMC_test_restart_0.inp 1
+TMC_test_restart_1.inp 1

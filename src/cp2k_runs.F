@@ -73,10 +73,10 @@ MODULE cp2k_runs
   USE input_constants,                 ONLY: &
        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
        do_farming, do_fist, do_mixed, do_opt_basis, do_optimize_input, &
-       do_qmmm, do_qs, do_tamc, do_test, ehrenfest, electronic_spectra_run, &
-       energy_force_run, energy_run, geo_opt_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, &
-       vib_anal
+       do_qmmm, do_qs, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, &
+       ehrenfest, electronic_spectra_run, energy_force_run, energy_run, &
+       geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, none_run, &
+       pint_run, real_time_propagation, tree_mc_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section,&
@@ -116,6 +116,8 @@ MODULE cp2k_runs
   USE tamc_run,                        ONLY: qs_tamc
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE tmc_setup,                       ONLY: do_analyze_files,&
+                                             do_tmc
   USE vibrational_analysis,            ONLY: vb_anal
 #include "cp_common_uses.h"
 
@@ -326,6 +328,10 @@ CONTAINS
 
           CASE (do_test)
              CALL lib_test(root_section,para_env,globenv,suberror)
+          CASE (do_tree_mc) ! TMC entry point
+             CALL do_tmc ( root_section, para_env, globenv, error=suberror )
+          CASE (do_tree_mc_ana)
+             CALL do_analyze_files(root_section, para_env, globenv, error=suberror )
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
@@ -333,7 +339,7 @@ CONTAINS
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
              CALL do_pint_run( para_env, root_section, globenv, error=suberror )
-          CASE (none_run)
+          CASE (none_run, tree_mc_run)
              ! do nothing
           CASE (energy_run, energy_force_run)
              IF(  method_name_id /= do_qs .AND.&

@@ -1,0 +1,29 @@
+# analysis of a TMC parallel tempering run without analysis output
+# calculating the classical dipole moment
+
+&GLOBAL
+  PROJECT H2O_TMC
+  PROGRAM MC_ANALYSIS
+  RUN_TYPE TMC
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &TMC
+    PRINT_TEST_OUTPUT
+    &TMC_ANALYSIS_FILES
+      RESTART           .FALSE.
+      NR_TEMPERATURE    3
+      TEMPERATURE       300 460
+      FORCE_ENV_FILE    H2O.inp
+      CLASSICAL_DIPOLE_MOMENTS
+      &CHARGE
+        ATOM O
+        CHARGE -0.834
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.417
+      &END CHARGE
+    &END TMC_ANALYSIS_FILES
+  &END TMC
+&END MOTION
