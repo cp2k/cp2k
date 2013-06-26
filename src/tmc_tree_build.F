@@ -210,6 +210,7 @@ CONTAINS
        ELSE
           ALLOCATE(next_el%frc(nr_dim))
        END IF
+       next_el%frc = 0.0_dp
     END IF
     ALLOCATE(next_el%box_scale(3))
     next_el%box_scale(:) = 1.0_dp
@@ -250,6 +251,11 @@ CONTAINS
 
     ! start the timing
     CALL timeset(routineN,handle)
+
+    ! reference handling
+    ! should be not necessary, subtree element should be only deallocated,
+    !   if no global tree element points to anymore
+    CALL remove_subtree_element_of_all_references(ptr=tree_elem, error=error)
 
     IF(ASSOCIATED(tree_elem%box_scale)) DEALLOCATE(tree_elem%box_scale)
     IF(ASSOCIATED(tree_elem%frc)) DEALLOCATE(tree_elem%frc)
@@ -1209,11 +1215,6 @@ CONTAINS
         IF(ASSOCIATED(ptr%acc)) ptr%acc%parent => NULL()
         IF(ASSOCIATED(ptr%nacc)) ptr%nacc%parent => NULL()
         
-        ! reference handling
-        ! should be not necessary, subtree element should be only deallocated,
-        !   if no global tree element points to anymore
-        CALL remove_subtree_element_of_all_references(ptr=ptr, error=error)
-
         ! deallocate
         CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
                                       tree_elem=ptr, error=error)

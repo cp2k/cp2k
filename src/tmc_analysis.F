@@ -290,7 +290,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp, &
-                                                restar_file_name
+                                                restart_file_name
     LOGICAL                                  :: failure, l_tmp
 
     failure = .FALSE.
@@ -303,10 +303,11 @@ CONTAINS
     file_name_tmp = TRIM(expand_file_name_temp(expand_file_name_char(&
                              tmc_default_restart_out_file_name,&
                              "ana",error), ana_env%temperature, error))
-    restar_file_name = expand_file_name_char(file_name_tmp, &
+    restart_file_name = expand_file_name_char(file_name_tmp, &
                                              file_name, error)
     elem => ana_env%last_elem
-    OPEN(46, FILE=restar_file_name, FORM="UNFORMATTED")
+    ana_env%last_elem => NULL()
+    OPEN(46, FILE=restart_file_name, FORM="UNFORMATTED")
       WRITE(46) ana_env%temperature
       CALL write_subtree_elem_unformated(elem, 46, error)
 
@@ -355,7 +356,7 @@ CONTAINS
     file_name = expand_file_name_temp(file_name_tmp, &
                       ana_env%temperature, error)
     OPEN(46, FILE=file_name)
-       WRITE(46,*)TRIM(restar_file_name)
+       WRITE(46,*)TRIM(restart_file_name)
     CLOSE(46)
   END SUBROUTINE analysis_restart_print
 
@@ -567,6 +568,7 @@ CONTAINS
         IF(ASSOCIATED(ana_env%displace).AND.weight_act.GT.0) &
           CALL calc_displacement(elem=elem, ana_env=ana_env, error=error)
     END IF
+    ! swap elem with last elem, to delete original last element and store the actual one
     elem_tmp => ana_env%last_elem
     ana_env%last_elem => elem
     elem => elem_tmp
@@ -1256,6 +1258,8 @@ CONTAINS
     END IF
     ana_env%dip_mom%conf_counter = ana_env%dip_mom%conf_counter + weight
     ana_env%dip_mom%last_dip_cl(:)  = dip_cl
+
+    DEALLOCATE(dip_cl)
 
     ! end the timing
     CALL timestop(handle)

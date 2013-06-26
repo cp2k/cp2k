@@ -343,7 +343,7 @@ CONTAINS
     TYPE(tmc_env_type), POINTER              :: tmc_env
     TYPE(tree_type), POINTER                 :: elem
 
-    NULLIFY(tmc_env, elem, logger, logger_sub)
+    NULLIFY(ana_list, tmc_env, elem, logger, logger_sub)
     failure = .FALSE.
 
     ! start the timing
@@ -438,14 +438,19 @@ CONTAINS
         CALL finalize_tmc_analysis(ana_env=ana_list(temp)%temp, error=error)
         ! write analysis restart file
         !  if there is somthing to write
+        ! shifts the last element to actual element 
         IF(ASSOCIATED(ana_list(temp)%temp%last_elem)) & 
           CALL analysis_restart_print(ana_env=ana_list(temp)%temp, &
                                     elem=elem, error=error)
+        IF(ASSOCIATED(elem)) &
+          CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
+                 tree_elem=elem, error=error)
+
+        CALL tmc_ana_env_release(ana_list(temp)%temp, error)
       END DO
+
+      DEALLOCATE(ana_list)
   
-      IF(ASSOCIATED(elem)) &
-        CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-               tree_elem=elem, error=error)
       ! finalize / deallocate everthing
       CALL deallocate_tmc_atom_type(atoms=tmc_env%params%atoms, error=error)
       CALL cp_error_dealloc_ref(error_sub,error=error)

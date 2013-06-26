@@ -39,7 +39,7 @@ MODULE tmc_tree_types
 
   PUBLIC :: tree_type, global_tree_type
   PUBLIC :: elem_list_type, elem_array_type, gt_elem_list_type
-  PUBLIC :: add_to_list
+  PUBLIC :: add_to_list, clean_list
   PUBLIC :: read_subtree_elem_unformated, write_subtree_elem_unformated
 
   !-- tree element status
@@ -217,6 +217,32 @@ CONTAINS
     END IF
 
   END SUBROUTINE add_to_list
+
+! *****************************************************************************
+!> \brief clean a certain element element list 
+!> \param list 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 11.2012
+! *****************************************************************************
+  SUBROUTINE clean_list(list, error)
+    TYPE(elem_list_type), POINTER            :: list
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_list', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(elem_list_type), POINTER            :: last, list_elem_tmp
+
+    NULLIFY(list_elem_tmp, last)
+
+    DO WHILE(ASSOCIATED(list))
+      list_elem_tmp => list%next
+      DEALLOCATE(list)
+      list => list_elem_tmp
+    END DO
+  END SUBROUTINE clean_list
 
 ! *****************************************************************************
 !> \brief prints out the TMC sub tree structure element unformated in file 

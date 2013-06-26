@@ -41,7 +41,8 @@ MODULE tmc_types
   USE tmc_move_types,                  ONLY: moves_init_sizes_type,&
                                              tmc_move_type
   USE tmc_stati,                       ONLY: task_type_MC
-  USE tmc_tree_types,                  ONLY: elem_array_type,&
+  USE tmc_tree_types,                  ONLY: clean_list,&
+                                             elem_array_type,&
                                              elem_list_type,&
                                              global_tree_type
 #include "cp_common_uses.h"
@@ -392,6 +393,9 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error,failure)
+
+    CALL clean_list(tmc_env%m_env%analysis_list, error)
+    CALL clean_list(tmc_env%m_env%cancelation_list, error)
 
     DEALLOCATE(tmc_env%m_env%tree_node_count)
     DEALLOCATE(tmc_env%m_env%result_count)

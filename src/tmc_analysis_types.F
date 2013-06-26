@@ -212,6 +212,7 @@ CONTAINS
 
     IF(ASSOCIATED(tmc_ana%dip_mom)) &
       CALL tmc_ana_dipole_moment_release(tmc_ana%dip_mom, error)
+
     IF(ASSOCIATED(tmc_ana%dip_ana)) &
       CALL tmc_ana_dipole_analysis_release(tmc_ana%dip_ana, error)
 

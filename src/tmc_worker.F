@@ -601,6 +601,9 @@ CONTAINS
         ana_list(itmp)%temp%cell  => NULL()
       END DO
     END IF
+    IF(ASSOCIATED(conf)) &
+      CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
+                                    tree_elem=conf, error=error)
     IF(ASSOCIATED(tmc_env%params%atoms)) &
       CALL deallocate_tmc_atom_type(tmc_env%params%atoms, error)
 
