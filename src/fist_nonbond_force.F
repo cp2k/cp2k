@@ -103,7 +103,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3) :: cell_v, cvi, fatom_a, fatom_b, fcore_a, &
       fcore_b, fshell_a, fshell_b, rab, rab_cc, rab_com, rab_cs, rab_sc, &
       rab_ss
-    REAL(KIND=dp), DIMENSION(3, 3)           :: pv
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv, pv_thread
     REAL(KIND=dp), DIMENSION(3, 4)           :: rab_list
     REAL(KIND=dp), DIMENSION(4)              :: rab2_list
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ij_kind_full_fac
@@ -164,13 +164,13 @@ CONTAINS
        Kind_Group_Loop: DO igrp=1,neighbor_kind_pair%ngrp_kind
           istart = neighbor_kind_pair%grp_kind_start(igrp)
           iend   = neighbor_kind_pair%grp_kind_end(igrp)
-          !$omp parallel do default(none) &
+          !$omp parallel default(none) &
           !$omp          private(ipair,atom_a,atom_b,kind_a,kind_b,fac_kind,pot) &
           !$omp          private(fac_ei,fac_vdw,atomic_kind,full_nl,qcore_a,qshell_a) &
           !$omp          private(qeff_a,qcore_b,qshell_b,qeff_b,mm_radius_a,mm_radius_b) &
           !$omp          private(shell_kind,beta,beta_a,beta_b,spl_f,spline_data) &
           !$omp          private(shell_type,all_terms,rab_cc,rab_cs,rab_sc,rab_ss) &
-          !$omp          private(rab_list,rab2_list,rab_com,rab2_com,pv) &
+          !$omp          private(rab_list,rab2_list,rab_com,rab2_com,pv,pv_thread) &
           !$omp          private(rab,rab2,rab2_max,fscalar,energy,error,failure) &
           !$omp          private(shell_a,shell_b,etot,fatom_a,fatom_b) &
           !$omp          private(fcore_a,fcore_b,fshell_a,fshell_b,i,j) &
@@ -182,6 +182,8 @@ CONTAINS
           !$omp          shared(rcore_last_update_pbc,rshell_last_update_pbc) &
           !$omp          shared(f_nonbond,fcore_nonbond,fshell_nonbond,logger) &
           !$omp          shared(ewald_type,pot_nonbond,pv_nonbond,atprop_env)
+          IF (use_virial) pv_thread(:,:) = 0.0_dp
+          !$omp do
           Pairs: DO ipair=istart,iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
@@ -516,8 +518,7 @@ CONTAINS
              IF (use_virial) THEN
                 DO i=1,3
                    DO j=1,3
-                      !$omp atomic
-                      pv_nonbond(j,i) = pv_nonbond(j,i) + pv(j,i)
+                      pv_thread(j,i) = pv_thread(j,i) + pv(j,i)
                       ! Update atomic stress tensors
                       IF (atprop_env%stress) THEN
                          !$omp atomic
@@ -530,8 +531,17 @@ CONTAINS
                    END DO
                 END DO
              END IF
-          END DO Pairs
-          !$omp end parallel do
+          END DO Pairs 
+          !$omp end do
+          IF (use_virial) THEN
+             DO i=1,3
+                DO j=1,3
+                   !$omp atomic
+                   pv_nonbond(j,i) = pv_nonbond(j,i) + pv_thread(j,i)
+                END DO
+             END DO
+          END IF
+          !$omp end parallel
        END DO Kind_Group_Loop
     END DO Lists
 
