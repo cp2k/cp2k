@@ -394,9 +394,6 @@ CONTAINS
                      "(just one Temp per global tree element.",&
                      error, only_ionode=.TRUE.)
 
-    !-- set reference of global tree node 
-    CALL add_to_references(gt_elem=global_tree, error=error)
-
     !-- IF program is restarted, read restart file
     IF(tmc_env%m_env%restart_in_file_name.NE."") THEN
       CALL read_restart_file(tmc_env=tmc_env, job_counts=job_counts, &
@@ -424,6 +421,9 @@ CONTAINS
     ELSE
       global_tree%conf(1)%elem%stat    = status_created
     END IF
+
+    !-- set reference of global tree node 
+    CALL add_to_references(gt_elem=global_tree, error=error)
 
     !-- draw the first global tree node
     IF(tmc_env%params%DRAW_TREE)THEN

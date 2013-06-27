@@ -162,10 +162,11 @@ CONTAINS
     pt_node_ref_loop: DO WHILE(ASSOCIATED(ptr%gt_nodes_references))
       tmp_gt_list_ptr => ptr%gt_nodes_references
       CPPrecondition(ASSOCIATED(tmp_gt_list_ptr%gt_elem),cp_failure_level,routineP,error,failure)
-      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"found reference of global tree node "//&
                    cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
-                   ", while removing sub tree node", &
+                   ", while removing sub tree node "//&
+                   cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr),&
                    error,failure)
       ! check if configurations exist
       IF(ASSOCIATED(tmp_gt_list_ptr%gt_elem%conf(tmp_gt_list_ptr%gt_elem%mv_conf)%elem)) THEN
