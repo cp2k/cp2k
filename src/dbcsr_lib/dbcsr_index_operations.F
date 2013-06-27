@@ -1610,7 +1610,7 @@ CONTAINS
     compact = new_size .LT. SIZE(matrix%m%index)
     IF (compact) THEN
        ! Store old index arrays.
-       IF (has_blk_p) THEN
+       IF (has_row_p) THEN
           ALLOCATE (row_p(size_row_p))
           row_p(:) = matrix%m%row_p(:)
        ENDIF

@@ -731,7 +731,7 @@ CONTAINS
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     IF (PRESENT (verbosity)) dbg = verbosity
-    IF (dbg.GE.3) WRITE(*,'(1X,A,A,1X,4(L1))')r//'Matrix name: ', m%m%name,&
+    IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,3(L1))')r//'Matrix name: ', m%m%name,&
          " of types ", m%m%symmetry, m%m%negate_real,&
          m%m%negate_imaginary
     IF (dbg.GE.3) THEN
