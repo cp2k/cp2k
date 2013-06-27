@@ -395,7 +395,8 @@ CONTAINS
               ana_list(itmp)%temp%cell        => tmc_env%params%cell
               ana_list(itmp)%temp%io_unit     = tmc_env%w_env%io_unit
               
-              CALL analysis_init(ana_env=ana_list(itmp)%temp, error=error)
+              CALL analysis_init(ana_env=ana_list(itmp)%temp, nr_dim=num_dim,& 
+                                 error=error)
               ana_list(itmp)%temp%print_test_output = tmc_env%params%print_test_output
               IF(.NOT.ASSOCIATED(conf)) &
                 CALL allocate_new_sub_tree_node(tmc_params=tmc_env%params, &
@@ -431,18 +432,12 @@ CONTAINS
                 END IF
               END IF
               IF(flag) THEN
-                IF(.NOT.ASSOCIATED(conf)) &
-                  CALL allocate_new_sub_tree_node(tmc_params=tmc_env%params, &
-                         next_el=conf, nr_dim=num_dim, error=error)
-                CALL analyze_file_configurations(elem=conf, &
-                       start_id=i1, &
-                       end_id=i2, &
-                       ana_env=ana_list(itmp)%temp, tmc_params=tmc_env%params,&
-                       error=error)
+                CALL analyze_file_configurations(start_id=i1, &
+                                                 end_id=i2, &
+                                                 ana_env=ana_list(itmp)%temp, &
+                                                 tmc_params=tmc_env%params,&
+                                                 error=error)
               END IF
-              IF(ASSOCIATED(conf)) &
-                CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                              tree_elem=conf, error=error)
             END DO 
           CASE(TMC_STAT_ANALYSIS_REQUEST)
             CPPrecondition(PRESENT(ana_list),cp_failure_level,routineP,error,failure)
@@ -562,10 +557,10 @@ CONTAINS
       IF(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana))THEN
         DO itmp=1, tmc_env%params%nr_temp
           CALL analysis_restart_print(ana_env=ana_list(itmp)%temp, &
-                                      elem=conf, error=error)
+                                      error=error)
           IF(ASSOCIATED(conf)) &
             CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                          tree_elem=conf, error=error)
+                                          tree_elem=ana_list(itmp)%temp%last_elem, error=error)
           CALL finalize_tmc_analysis(ana_list(itmp)%temp, error)
         END DO
       END IF

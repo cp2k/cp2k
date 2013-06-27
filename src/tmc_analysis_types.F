@@ -57,6 +57,7 @@ MODULE tmc_analysis_types
     TYPE(cell_type), POINTER                      :: cell
     TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
     INTEGER                                       :: dim_per_elem = 3
+    INTEGER                                       :: nr_dim = -1
     REAL(KIND=dp)                                 :: temperature
     TYPE(tree_type), POINTER                      :: last_elem
     INTEGER                                       :: from_elem, to_elem
@@ -201,9 +202,8 @@ CONTAINS
 
     CPPostcondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
 
-    ! atoms are deallocated in tmc_env, this is just a pointer to it
-    IF(ASSOCIATED(tmc_ana%atoms)) &
-      tmc_ana%atoms => NULL()
+    IF(ASSOCIATED(tmc_ana%dirs)) &
+      DEALLOCATE(tmc_ana%dirs)
 
     IF(ASSOCIATED(tmc_ana%density_3d)) &
       CALL tmc_ana_dens_release(tmc_ana%density_3d, error)

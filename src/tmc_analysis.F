@@ -208,13 +208,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initialize all the necessarry analysis structures
-!> \param 
+!> \param nr_dim dimension of the pos, frc etc. array
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analysis_init(ana_env, error)
+  SUBROUTINE analysis_init(ana_env, nr_dim, error)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
+    INTEGER                                  :: nr_dim
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'analysis_init', &
@@ -227,6 +228,9 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(nr_dim>0,cp_failure_level,routineP,error,failure)
+
+    ana_env%nr_dim = nr_dim
 
     ! save file names
     tmp_pos_file  = ana_env%costum_pos_file_name
@@ -281,9 +285,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analysis_restart_print(ana_env, elem, error)
+  SUBROUTINE analysis_restart_print(ana_env, error)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(tree_type), POINTER                 :: elem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'analysis_restart_print', &
@@ -296,7 +299,6 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
     IF(.NOT.ana_env%restart) RETURN
 
     WRITE(file_name, FMT='(I9.9)') ana_env%last_elem%nr
@@ -305,11 +307,9 @@ CONTAINS
                              "ana",error), ana_env%temperature, error))
     restart_file_name = expand_file_name_char(file_name_tmp, &
                                              file_name, error)
-    elem => ana_env%last_elem
-    ana_env%last_elem => NULL()
     OPEN(46, FILE=restart_file_name, FORM="UNFORMATTED")
       WRITE(46) ana_env%temperature
-      CALL write_subtree_elem_unformated(elem, 46, error)
+      CALL write_subtree_elem_unformated(ana_env%last_elem, 46, error)
 
       ! first mention the different kind of anlysis types initialized
       ! then the variables for each calculation type
@@ -630,9 +630,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE analyze_file_configurations(elem, start_id, end_id, dir_ind, &
+  SUBROUTINE analyze_file_configurations(start_id, end_id, dir_ind, &
                                          ana_env, tmc_params, error)
-    TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: start_id, end_id
     INTEGER, OPTIONAL                        :: dir_ind
     TYPE(tmc_analysis_env), POINTER          :: ana_env
@@ -642,17 +641,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'analyze_file_configurations', &
       routineP = moduleN//':'//routineN
 
+    TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: conf_nr, handle, nr_dim, stat
     LOGICAL                                  :: failure
 
+    NULLIFY(elem)
     conf_nr = -1
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
+
+    CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem,&
+           nr_dim=ana_env%nr_dim, error=error)
 
     IF(ASSOCIATED(ana_env%last_elem)) conf_nr = ana_env%last_elem%nr
     nr_dim = SIZE(elem%pos)
@@ -691,6 +694,10 @@ CONTAINS
     END IF
     ! close the files
     CALL analyse_files_close(tmc_ana=ana_env, error=error)
+
+    IF(ASSOCIATED(elem)) &
+      CALL deallocate_sub_tree_node(tmc_params=tmc_params, tree_elem=elem, &
+             error=error)
 
     ! end the timing
     CALL timestop(handle)

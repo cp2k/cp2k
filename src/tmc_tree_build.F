@@ -222,6 +222,7 @@ CONTAINS
     next_el%ekin_before_md = 0.0_dp
     next_el%sub_tree_nr = 0
     next_el%nr = -1
+    next_el%rng_seed(:,:,:) = -1.0
     next_el%move_type = mv_type_none
 
     ! end the timing
@@ -330,7 +331,6 @@ CONTAINS
        global_tree%conf(i)%elem%next_elem_nr  => tmc_env%m_env%tree_node_count(i)
        global_tree%conf(i)%elem%parent        => NULL()
        global_tree%conf(i)%elem%nr            = global_tree%conf(i)%elem%next_elem_nr
-       global_tree%conf(i)%elem%num_dim       = SIZE(start_elem%pos)
        global_tree%conf(i)%elem%sub_tree_nr   = i
        global_tree%conf(i)%elem%elem_stat     = status_ok
        global_tree%conf(i)%elem%pos           = start_elem%pos
@@ -954,7 +954,6 @@ CONTAINS
     !-- real parent node (taking the configuration from)
     ! search parent
     parent_elem => search_parent_element(current=new_elem, error=error)
-    new_elem%num_dim      = parent_elem%num_dim
     new_elem%pos(:)       = parent_elem%pos(:)
     new_elem%vel(:)       = parent_elem%vel(:)
     new_elem%ekin         = parent_elem%ekin

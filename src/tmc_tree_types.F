@@ -85,8 +85,6 @@ MODULE tmc_tree_types
      REAL(KIND=dp), DIMENSION(:), POINTER     :: frc          ! force array
      REAL(KIND=dp), DIMENSION(:), POINTER     :: dipole       ! dipole moments array
      INTEGER, DIMENSION(:), POINTER           :: elem_stat    ! status for every dimention
-     !-- number of dimension (number of position elements)
-     INTEGER                                  :: num_dim
      INTEGER                                  :: nr           ! tree node number 
      REAL(KIND=dp), DIMENSION(3, 2, 3)        :: rng_seed     ! random seed for childs
      !-- remembers which subtree number element is from 
@@ -268,7 +266,6 @@ CONTAINS
                      elem%sub_tree_nr, &
                      elem%stat, &
                      elem%rng_seed, &
-                     elem%num_dim, &
                      elem%move_type, &
                      elem%temp_created, &
                      elem%potential, &
@@ -306,7 +303,6 @@ CONTAINS
                     elem%sub_tree_nr, &
                     elem%stat, &
                     elem%rng_seed, &
-                    elem%num_dim, &
                     elem%move_type, &
                     elem%temp_created, &
                     elem%potential, &

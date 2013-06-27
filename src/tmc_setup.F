@@ -394,7 +394,7 @@ CONTAINS
       DO temp=1, SIZE(ana_list)
         ! initialize the structures
         ana_list(temp)%temp%io_unit = output_unit
-        CALL analysis_init(ana_env=ana_list(temp)%temp, error=error)
+        CALL analysis_init(ana_env=ana_list(temp)%temp, nr_dim=nr_dim, error=error)
         ! to allocate the dipole array in tree elements
         IF(ana_list(temp)%temp%costum_dip_file_name.NE.&
            tmc_default_unspecified_name)&
@@ -415,11 +415,7 @@ CONTAINS
         DO dir_ind=1, SIZE(ana_list(temp)%temp%dirs)
           WRITE(output_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
             "read directory",TRIM(ana_list(temp)%temp%dirs(dir_ind))
-          IF(.NOT.ASSOCIATED(elem)) &
-            CALL allocate_new_sub_tree_node(tmc_params=tmc_env%params, &
-                   next_el=elem, nr_dim=nr_dim, &
-                   error=error)
-          CALL analyze_file_configurations(elem=elem, &
+          CALL analyze_file_configurations(&
                  start_id=ana_list(temp)%temp%from_elem, &
                  end_id=ana_list(temp)%temp%to_elem, &
                  dir_ind=dir_ind, &
@@ -441,7 +437,10 @@ CONTAINS
         ! shifts the last element to actual element 
         IF(ASSOCIATED(ana_list(temp)%temp%last_elem)) & 
           CALL analysis_restart_print(ana_env=ana_list(temp)%temp, &
-                                    elem=elem, error=error)
+                                      error=error)
+        IF(ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+          CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
+                 tree_elem=ana_list(temp)%temp%last_elem, error=error)
         IF(ASSOCIATED(elem)) &
           CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
                  tree_elem=elem, error=error)
@@ -566,6 +565,7 @@ CONTAINS
       CALL section_vals_val_get(tmc_section,"START_ELEM",i_val=ana_list(t_act)%temp%from_elem,error=error)
       CALL section_vals_val_get(tmc_section,"END_ELEM",i_val=ana_list(t_act)%temp%to_elem,error=error)
     END DO
+    DEALLOCATE(Temps)
   END SUBROUTINE tmc_read_ana_files_input
 
 ! *****************************************************************************
