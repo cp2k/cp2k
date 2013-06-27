@@ -16,8 +16,7 @@ MODULE tmc_analysis_types
                                              default_string_length,&
                                              dp
   USE tmc_tree_types,                  ONLY: tree_type
-  USE tmc_types,                       ONLY: deallocate_tmc_atom_type,&
-                                             tmc_atom_type
+  USE tmc_types,                       ONLY: tmc_atom_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -202,8 +201,9 @@ CONTAINS
 
     CPPostcondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
 
+    ! atoms are deallocated in tmc_env, this is just a pointer to it
     IF(ASSOCIATED(tmc_ana%atoms)) &
-      CALL deallocate_tmc_atom_type(tmc_ana%atoms, error)
+      tmc_ana%atoms => NULL()
 
     IF(ASSOCIATED(tmc_ana%density_3d)) &
       CALL tmc_ana_dens_release(tmc_ana%density_3d, error)

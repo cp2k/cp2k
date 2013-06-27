@@ -71,8 +71,7 @@ MODULE tmc_master
        status_calculated, status_cancel_ener, status_cancel_nmc, &
        status_canceled_ener, status_canceled_nmc, status_created, &
        status_rejected, tree_type
-  USE tmc_types,                       ONLY: deallocate_tmc_atom_type,&
-                                             tmc_env_type
+  USE tmc_types,                       ONLY: tmc_env_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -945,8 +944,6 @@ CONTAINS
 
     WRITE(tmc_env%m_env%io_unit,*) "TMC master: all work done."
 
-    IF(ASSOCIATED(tmc_env%params%atoms)) &
-      CALL deallocate_tmc_atom_type(tmc_env%params%atoms, error)
     ! end the timing
     CALL timestop(handle) 
 

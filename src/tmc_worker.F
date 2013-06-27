@@ -84,7 +84,6 @@ MODULE tmc_worker
                                              deallocate_sub_tree_node
   USE tmc_tree_types,                  ONLY: tree_type
   USE tmc_types,                       ONLY: allocate_tmc_atom_type,&
-                                             deallocate_tmc_atom_type,&
                                              tmc_atom_type,&
                                              tmc_env_type,&
                                              tmc_param_type
@@ -604,8 +603,6 @@ CONTAINS
     IF(ASSOCIATED(conf)) &
       CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
                                     tree_elem=conf, error=error)
-    IF(ASSOCIATED(tmc_env%params%atoms)) &
-      CALL deallocate_tmc_atom_type(tmc_env%params%atoms, error)
 
     ! end the timing
     CALL timestop(handle)
@@ -898,7 +895,7 @@ CONTAINS
 !      OPTIONAL, POINTER                      :: rlist_lowsq
 !    TYPE(cp_error_type), INTENT(inout)       :: error
 !
-!    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_kinds_and_cell', &
+!    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mimal_distances', &
 !      routineP = moduleN//':'//routineN
 !
 !    LOGICAL                                  :: failure

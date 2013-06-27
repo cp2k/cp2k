@@ -58,7 +58,7 @@ MODULE tmc_types
             tmc_master_env_create, tmc_master_env_release, &
             tmc_worker_env_create, tmc_worker_env_release
   PUBLIC :: tmc_atom_type
-  PUBLIC :: allocate_tmc_atom_type, deallocate_tmc_atom_type
+  PUBLIC :: allocate_tmc_atom_type
 
   ! global environment
   TYPE tmc_env_type
@@ -282,6 +282,8 @@ CONTAINS
       DEALLOCATE(tmc_env%params%moves_init_sizes)
     IF(ASSOCIATED(tmc_env%params%cell)) &
       DEALLOCATE(tmc_env%params%cell)
+    IF(ASSOCIATED(tmc_env%params%atoms)) &
+      CALL deallocate_tmc_atom_type(tmc_env%params%atoms, error)
     DEALLOCATE(tmc_env%params,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 

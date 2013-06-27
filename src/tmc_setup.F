@@ -65,7 +65,7 @@ MODULE tmc_setup
                                              deallocate_sub_tree_node
   USE tmc_tree_types,                  ONLY: tree_type
   USE tmc_types,                       ONLY: &
-       deallocate_tmc_atom_type, tmc_comp_set_type, tmc_env_create, &
+       tmc_comp_set_type, tmc_env_create, &
        tmc_env_release, tmc_env_type, tmc_master_env_create, &
        tmc_master_env_release, tmc_worker_env_create, tmc_worker_env_release
   USE tmc_worker,                      ONLY: do_tmc_worker,&
@@ -452,7 +452,6 @@ CONTAINS
       DEALLOCATE(ana_list)
   
       ! finalize / deallocate everthing
-      CALL deallocate_tmc_atom_type(atoms=tmc_env%params%atoms, error=error)
       CALL cp_error_dealloc_ref(error_sub,error=error)
       CALL cp_logger_release(logger_sub)
     END IF
