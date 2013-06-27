@@ -2189,11 +2189,11 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(KIND=real_8)                        :: occupation
 
-    INTEGER                                  :: nfullcols, nfullrows
+    INTEGER                                  :: nfullcols, nfullrows, nze
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
 
-    occupation = REAL(matrix%m%nze,real_8)
-    CALL mp_sum(occupation,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    nze = matrix%m%nze
+    CALL mp_sum(nze,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
     nfullrows = dbcsr_nfullrows_total(matrix)
     nfullcols = dbcsr_nfullcols_total(matrix)
@@ -2202,11 +2202,19 @@ CONTAINS
 
     IF(nfullrows.NE.0.AND.nfullcols.NE.0) THEN
        IF(dbcsr_has_symmetry (matrix)) THEN
-          occupation = 2.0_real_8 * occupation / &
+          IF( 2*nze .EQ. ( nfullrows*(nfullrows+1) + SUM( row_blk_size*(row_blk_size-1) ) ) ) THEN
+             occupation = 1.0_real_8
+          ELSE
+             occupation = 2.0_real_8 * REAL(nze) / &
                ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
                SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
+          ENDIF
        ELSE
-          occupation = occupation / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
+          IF (nze .EQ. nfullrows * nfullcols) THEN
+             occupation = 1.0_real_8
+          ELSE
+             occupation = REAL(nze) / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
+          ENDIF
        ENDIF
     ELSE
        occupation = 0.0_real_8
