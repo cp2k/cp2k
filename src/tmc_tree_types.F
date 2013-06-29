@@ -230,10 +230,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_list', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-    TYPE(elem_list_type), POINTER            :: last, list_elem_tmp
+    TYPE(elem_list_type), POINTER            :: list_elem_tmp
 
-    NULLIFY(list_elem_tmp, last)
+    NULLIFY(list_elem_tmp)
 
     DO WHILE(ASSOCIATED(list))
       list_elem_tmp => list%next

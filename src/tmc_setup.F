@@ -64,10 +64,14 @@ MODULE tmc_setup
   USE tmc_tree_build,                  ONLY: allocate_new_sub_tree_node,&
                                              deallocate_sub_tree_node
   USE tmc_tree_types,                  ONLY: tree_type
-  USE tmc_types,                       ONLY: &
-       tmc_comp_set_type, tmc_env_create, &
-       tmc_env_release, tmc_env_type, tmc_master_env_create, &
-       tmc_master_env_release, tmc_worker_env_create, tmc_worker_env_release
+  USE tmc_types,                       ONLY: tmc_comp_set_type,&
+                                             tmc_env_create,&
+                                             tmc_env_release,&
+                                             tmc_env_type,&
+                                             tmc_master_env_create,&
+                                             tmc_master_env_release,&
+                                             tmc_worker_env_create,&
+                                             tmc_worker_env_release
   USE tmc_worker,                      ONLY: do_tmc_worker,&
                                              get_atom_kinds_and_cell,&
                                              get_initial_conf
@@ -248,6 +252,8 @@ CONTAINS
           CALL destroy_force_env(tmc_env%w_env%env_id_approx, ierr)
   
         CALL cp_error_dealloc_ref(error_sub,error=error)
+        !MK TODO: The following line is just a workaround to fix memory leaks
+        logger_sub%ref_count = logger_sub%ref_count - 1
         CALL cp_logger_release(logger_sub)
 
       ! the analysis group

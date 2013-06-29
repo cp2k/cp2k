@@ -641,9 +641,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'analyze_file_configurations', &
       routineP = moduleN//':'//routineN
 
-    TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: conf_nr, handle, nr_dim, stat
     LOGICAL                                  :: failure
+    TYPE(tree_type), POINTER                 :: elem
 
     NULLIFY(elem)
     conf_nr = -1
