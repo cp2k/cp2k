@@ -1648,32 +1648,6 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
 !
-       CALL section_create(print_key,name="LOCALIZATION",&
-            description="Collects all printing options related to the Wannier centers and "//&
-            "properties computed with Wannier centers.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-       ! Add printing of wannier infos
-       CALL print_wanniers(print_key, error)
-       ! Total Dipoles with wannier
-       CALL create_dipoles_section(subsection,"TOTAL_DIPOLE",debug_print_level+1,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
-       ! Molecular Dipoles with wannier
-       CALL create_dipoles_section(subsection,"MOLECULAR_DIPOLES",debug_print_level+1,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
-       ! Molecular States with wannier
-       CALL create_molecular_states_section(subsection,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
-       ! Wannier States with wannier
-       CALL create_wannier_states_section(subsection,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        !Printing of Moments
        CALL create_dipoles_section(print_key,"MOMENTS",high_print_level,error)
        CALL keyword_create(keyword=keyword,&
