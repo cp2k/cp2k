@@ -1856,7 +1856,7 @@ CONTAINS
     LOGICAL                               :: flag
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
-    CALL timeset_mp(routineN, handle)
+    CALL timeset(routineN, handle)
 #endif
 #if defined(__parallel)
 
@@ -1879,7 +1879,7 @@ CONTAINS
 
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop_mp(handle)
+    CALL timestop(handle)
 #endif
   END SUBROUTINE mp_probe
 
