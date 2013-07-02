@@ -413,7 +413,7 @@ flag = .TRUE.
     DO i=1, SIZE(pos), SIZE(center)
       IF(PRESENT(atoms)) THEN
         CPPrecondition(SIZE(atoms).EQ.SIZE(pos)/SIZE(center),cp_failure_level,routineP,error,failure)
-        mass_tmp = atoms(INT(i/REAL(SIZE(center)))+1)%mass
+        mass_tmp = atoms(INT(i/REAL(SIZE(center),KIND=dp))+1)%mass
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))*mass_tmp
         mass_sum = mass_sum + mass_tmp
@@ -464,7 +464,7 @@ flag = .TRUE.
        rnd1 = next_random_number(rng_stream, error=error)
        rnd2 = next_random_number(rng_stream, error=error)
 
-       mass_tmp = atoms(INT(i/REAL(3))+1)%mass
+       mass_tmp = atoms(INT(i/REAL(3,KIND=dp))+1)%mass
        
        vel(i)   = SQRT(-2.0_dp*LOG(rnd1))*COS(2.0_dp*PI*rnd2) *&
                   SQRT(kB*temerature/mass_tmp)
@@ -499,7 +499,7 @@ flag = .TRUE.
     ekin = 0.0_dp
 
     DO i=1, SIZE(vel)
-      mass_tmp = atoms(INT(i/REAL(3))+1)%mass
+      mass_tmp = atoms(INT(i/REAL(3,KIND=dp))+1)%mass
       ekin = ekin + 0.5_dp*mass_tmp*vel(i)*vel(i)
     END DO
   END FUNCTION calc_e_kin

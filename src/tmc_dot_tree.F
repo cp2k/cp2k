@@ -140,7 +140,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     ! global tree
-    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params,0,error),ACCESS="APPEND")
+    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params,0,error),POSITION="APPEND")
     WRITE(file_ptr,*)"}"
     CLOSE(file_ptr)
 
@@ -230,7 +230,7 @@ CONTAINS
     CPPrecondition(filename.NE."",cp_failure_level,routineP,error,failure)
     CPPrecondition(node_nr.GE.0,cp_failure_level,routineP,error,failure)
 
-    OPEN(file_ptr,FILE=TRIM(filename), ACCESS="APPEND")
+    OPEN(file_ptr,FILE=TRIM(filename), POSITION="APPEND")
     WRITE(label, FMT='(I10,A)')node_nr, "["
     SELECT CASE(stat)
     CASE(status_created)
@@ -410,7 +410,7 @@ CONTAINS
                              tmc_params=tmc_params, tree=0, error=error)
     END IF
     ! write in dot file
-    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params, 0, error), ACCESS="APPEND")
+    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params, 0, error), POSITION="APPEND")
     IF(new_element%swaped)THEN
       WRITE(file_ptr,*) new_element%nr,'[label="',new_element%nr, ' |', new_element%mv_conf,' |', &
                         mv_type_swap_conf,'\n ',&

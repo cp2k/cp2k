@@ -464,7 +464,7 @@ CONTAINS
 !    msg_size_real = 1+SIZE(tmc_params%cell%hmat)+ 1+SIZE(atoms) +1 
 !    ALLOCATE(m_send%task_real(msg_size_real))
 !
-!    m_send%task_real(1) = REAL(SIZE(atoms))
+!    m_send%task_real(1) = REAL(SIZE(atoms,KIND=dp))
 !    DO i=1, SIZE(atoms)
 !      m_send%task_real(counter+i) = atoms(i)%mass
 !    END DO
@@ -579,7 +579,7 @@ CONTAINS
     msg_size_real = 1+SIZE(elem%pos) +1+SIZE(tmc_params%cell%hmat) &
                    +1+SIZE(tmc_params%atoms) +1
     ALLOCATE(m_send%task_real(msg_size_real))
-    m_send%task_real(1) = REAL(SIZE(elem%pos)) ! positions
+    m_send%task_real(1) = REAL(SIZE(elem%pos,KIND=dp)) ! positions
     counter = 2 + m_send%task_real(1)
     m_send%task_real(2:counter-1) = elem%pos
     m_send%task_real(counter) = SIZE(tmc_params%cell%hmat) ! cell vectors for cell size

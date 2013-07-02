@@ -531,7 +531,7 @@ CONTAINS
       ! write the coordinates
       IF(tmc_params%print_trajectory) THEN
         tmp_name = expand_file_name_ending(file_name_act,"xyz",error)
-        OPEN(46,FILE=tmp_name,ACCESS="APPEND")
+        OPEN(46,FILE=tmp_name,POSITION="APPEND")
         WRITE(46,FMT="(I8)") nr_atoms
         WRITE(46,*) TRIM(header)
         DO i=1, SIZE(elem%pos), tmc_params%dim_per_elem
@@ -545,7 +545,7 @@ CONTAINS
       ! write the forces
       IF(tmc_params%print_forces) THEN
          tmp_name = expand_file_name_ending(file_name_act,"frc",error)
-         OPEN(36,FILE=tmp_name, ACCESS="APPEND")
+         OPEN(36,FILE=tmp_name, POSITION="APPEND")
          WRITE(36,FMT="(I8)") nr_atoms
          WRITE(36,*) TRIM(header)
          DO i=1, SIZE(elem%pos), tmc_params%dim_per_elem
@@ -573,7 +573,7 @@ CONTAINS
                "# MC step ","Ax","Ay","Az","Bx","By","Bz","Cx","Cy","Cz",&
                "Volume [Angstrom^3]"
          ELSE
-            OPEN(37,FILE=tmp_name, ACCESS="APPEND")
+            OPEN(37,FILE=tmp_name, POSITION="APPEND")
          END IF
          CALL get_scaled_cell(cell=tmc_params%cell, &
                 box_scale=elem%box_scale, scaled_hmat=hmat_scaled, &
@@ -594,7 +594,7 @@ CONTAINS
             WRITE (38,FMT='(A,4A20)')&
                "# MC step "," exact "," approx "," last SCF "," kinetic "
          ELSE
-           OPEN(38,FILE=tmp_name, ACCESS="APPEND")
+           OPEN(38,FILE=tmp_name, POSITION="APPEND")
          END IF
          WRITE(38,FMT="(I8,14F20.10)")conf_nr, elem%potential, elem%e_pot_approx, &
            elem%scf_energies(MOD(elem%scf_energies_count,4)+1), elem%ekin
@@ -640,7 +640,7 @@ CONTAINS
       WRITE(36, FMT='(A8,10A20)')"# conf_nr", "dip_x [C Angstrom]", &
                                  "dip_y [C Angstrom]",  "dip_z [C Angstrom]"
     ELSE
-      OPEN(36,FILE=file_name_tmp, ACCESS="APPEND")
+      OPEN(36,FILE=file_name_tmp, POSITION="APPEND")
     END IF
     WRITE(36,FMT="(I8,10F20.10)")conf_nr, dip(:)
     CLOSE(36)

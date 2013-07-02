@@ -325,7 +325,7 @@ CONTAINS
         !-- attention, move type size is in atomic units of velocity
         IF(elem%elem_stat(i).NE.status_frozen) THEN
           CALL vel_change(vel=elem%vel(i), &
-                          atom_kind=tmc_params%atoms(INT(i/REAL(tmc_params%dim_per_elem))+1),&
+                          atom_kind=tmc_params%atoms(INT(i/REAL(tmc_params%dim_per_elem,KIND=dp))+1),&
                           phi=tmc_params%move_types%mv_size(mv_type_MD,1),& ! TODO parallel tempering move sizes for vel_change
                           temp=tmc_params%Temp(mv_conf), &
                           rnd_sign_change=.TRUE., &! MD_vel_invert, &
@@ -1209,8 +1209,8 @@ CONTAINS
              CALL center_of_mass(&
                     pos=conf%pos(mol:mol+tmc_params%elem_per_struct*&
                                          tmc_params%dim_per_elem-1),&
-                    atoms=tmc_params%atoms(INT(mol/REAL(tmc_params%dim_per_elem))+1:&
-                      INT(mol/REAL(tmc_params%dim_per_elem))+1+tmc_params%elem_per_struct-1),&
+                    atoms=tmc_params%atoms(INT(mol/REAL(tmc_params%dim_per_elem,KIND=dp))+1:&
+                      INT(mol/REAL(tmc_params%dim_per_elem,KIND=dp))+1+tmc_params%elem_per_struct-1),&
                     center=disp, error=error)
              ! calculate the center of mass DISPLACEMENT
              disp(:) = disp(:) * (scaling(:)-1.0_dp)

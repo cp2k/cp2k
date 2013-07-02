@@ -144,9 +144,9 @@ MODULE tmc_types
     INTEGER                                       :: restart_out_step
     INTEGER                                       :: io_unit
     INTEGER                                       :: info_out_step_size
-    REAL(dp)                                      :: walltime
+    REAL(KIND=dp)                                 :: walltime
     INTEGER                                       :: rnd_init
-    REAL(dp)                                      :: temp_decrease ! for simulated annealing
+    REAL(KIND=dp)                                 :: temp_decrease ! for simulated annealing
     TYPE(elem_list_type), POINTER                 :: cancelation_list
     INTEGER                                       :: count_cancel_ener
     INTEGER                                       :: count_cancel_NMC

@@ -489,7 +489,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: directories
     INTEGER                                  :: env_id, ierr, nr_temp, t_act
     LOGICAL                                  :: failure, flag
-    REAL(dp)                                 :: tmax, tmin
+    REAL(KIND=dp)                            :: tmax, tmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp, Temps
     TYPE(section_vals_type), POINTER         :: tmc_section
 
@@ -592,7 +592,7 @@ CONTAINS
 
     INTEGER                                  :: itmp
     LOGICAL                                  :: failure, flag
-    REAL(dp)                                 :: tmax, tmin
+    REAL(KIND=dp)                            :: tmax, tmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp
     TYPE(section_vals_type), POINTER         :: tmc_section
 
@@ -889,7 +889,8 @@ CONTAINS
                      "The selected energy group size is too huge. ",&
                      error, failure=flag, only_ionode=.TRUE.)
       IF(flag)THEN
-        tmc_comp_set%group_ener_nr = INT((para_env%num_pe-1)/REAL(tmc_comp_set%group_ener_size))
+        tmc_comp_set%group_ener_nr = INT((para_env%num_pe-1)/&
+          REAL(tmc_comp_set%group_ener_size,KIND=dp))
         CALL cp_assert(tmc_comp_set%group_ener_nr.GE.1,&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "The selected energy group size is too huge. ",&
@@ -902,7 +903,7 @@ CONTAINS
       IF(tmc_comp_set%group_cc_size.GT.0)THEN
         tmc_comp_set%group_cc_nr = INT((para_env%num_pe-1 -tmc_comp_set%ana_on_the_fly&
             - tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr)/&
-                                       REAL(tmc_comp_set%group_cc_size))
+                                       REAL(tmc_comp_set%group_cc_size,KIND=dp))
   
         CALL cp_assert(tmc_comp_set%group_cc_nr.GE.1,&
                        cp_warning_level,cp_assertion_failed,routineP,&

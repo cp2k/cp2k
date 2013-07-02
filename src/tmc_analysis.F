@@ -796,9 +796,9 @@ CONTAINS
 
       ! mass in [g]
       density_tmp(bin_x,bin_y,bin_z) = density_tmp(bin_x,bin_y,bin_z) + &
-        atoms(INT(atom/REAL(ana_env%dim_per_elem))+1)%mass/massunit*1000*a_mass
+        atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/massunit*1000*a_mass
       mass_total = mass_total + &
-        atoms(INT(atom/REAL(ana_env%dim_per_elem))+1)%mass/massunit*1000*a_mass
+        atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/massunit*1000*a_mass
     END DO
 
     ana_env%density_3d%sum_dens2(:,:,:) = ana_env%density_3d%sum_dens2(:,:,:) +&
@@ -819,7 +819,7 @@ CONTAINS
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
                        "dens",error))
       INQUIRE(FILE=file_name, EXIST=flag)
-      OPEN(19,FILE=file_name, ACCESS="APPEND")
+      OPEN(19,FILE=file_name, POSITION="APPEND")
       IF(.NOT.flag) &
         WRITE(19,FMT='(A8,7A20)')"# conf_nr","dens_act[g/cm^3]",&
                    "dens_average[g/cm^3]","density_variance", &
@@ -884,9 +884,9 @@ CONTAINS
     bin_y = SIZE(ana_env%density_3d%sum_density(1,:,1))
     bin_z = SIZE(ana_env%density_3d%sum_density(1,1,:))
     CALL get_cell(cell=ana_env%cell, abc=cell_size)
-    interval_size(1) = cell_size(1)/REAL(bin_x)*au2a 
-    interval_size(2) = cell_size(2)/REAL(bin_y)*au2a 
-    interval_size(3) = cell_size(3)/REAL(bin_z)*au2a 
+    interval_size(1) = cell_size(1)/REAL(bin_x,KIND=dp)*au2a 
+    interval_size(2) = cell_size(2)/REAL(bin_y,KIND=dp)*au2a 
+    interval_size(3) = cell_size(3)/REAL(bin_z,KIND=dp)*au2a 
     
 
     file_name = expand_file_name_temp(tmc_ana_density_file_name, &
@@ -1081,8 +1081,8 @@ CONTAINS
         ind = CEILING(dist/ana_env%pair_correl%step_lenght)
         IF(ind.LE.ana_env%pair_correl%nr_bins)THEN
           pair_ind = search_pair_in_list(pair_list=ana_env%pair_correl%pairs, &
-                       n1=atoms(INT(i/REAL(ana_env%dim_per_elem))+1)%name, &
-                       n2=atoms(INT(j/REAL(ana_env%dim_per_elem))+1)%name, &
+                       n1=atoms(INT(i/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name, &
+                       n2=atoms(INT(j/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name, &
                        error=error)
           CPPostcondition(pair_ind.GT.0,cp_failure_level,routineP,error,failure)
           ana_env%pair_correl%g_r(pair_ind,ind) = &
@@ -1142,7 +1142,7 @@ CONTAINS
         "[A] (for Vol changes: refering to the reference cell)"
       DO bin=1, ana_env%pair_correl%nr_bins
         voldr = 4.0/3.0* PI* ana_env%pair_correl%step_lenght**3 * &
-                  (REAL(bin,8)**3-REAL(bin-1,8)**3)
+                  (REAL(bin,KIND=dp)**3-REAL(bin-1,KIND=dp)**3)
         WRITE(18,*) (bin-0.5)*ana_env%pair_correl%step_lenght*au2a , &
                     ana_env%pair_correl%g_r(pair,bin)/&
                     ((ana_env%pair_correl%pairs(pair)%pair_count/vol)*&
@@ -1246,7 +1246,7 @@ CONTAINS
 
     DO i=1, SIZE(elem%pos,1), ana_env%dim_per_elem
       dip_cl(:) = dip_cl(:)+ elem%pos(i:i+ana_env%dim_per_elem-1)*&
-        ana_env%dip_mom%charges(INT(i/REAL(ana_env%dim_per_elem))+1)
+        ana_env%dip_mom%charges(INT(i/REAL(ana_env%dim_per_elem,KIND=dp))+1)
     END DO
 
     
@@ -1436,7 +1436,7 @@ CONTAINS
     ! print dielectric constant trajectory
     !  if szmetry used print only every 8th configuration, hence every different (not mirrowed)
     INQUIRE(FILE=file_name, EXIST=flag)
-    OPEN(19,FILE=file_name, ACCESS="APPEND")
+    OPEN(19,FILE=file_name, POSITION="APPEND")
     IF(.NOT.flag) THEN
       WRITE(19,FMT='(A8,5A20)')"# conf", "diel_const", &
                                "diel_const_sym", "diel_const_sym_x", &
@@ -1449,7 +1449,7 @@ CONTAINS
     CLOSE(19)
     ! print dielectric constant tensor trajectory
     INQUIRE(FILE=file_name_tmp, EXIST=flag)
-    OPEN(19,FILE=file_name_tmp, ACCESS="APPEND")
+    OPEN(19,FILE=file_name_tmp, POSITION="APPEND")
     IF(.NOT.flag) THEN
       WRITE(19,FMT='(A8,9A20)')"# conf", "xx", "xy", "xz", &
                                "yx", "yy", "yz", &
@@ -1607,7 +1607,7 @@ CONTAINS
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
                           "devi",error))
       INQUIRE(FILE=file_name, EXIST=flag)
-      OPEN(19,FILE=file_name, ACCESS="APPEND")
+      OPEN(19,FILE=file_name, POSITION="APPEND")
       IF(.NOT.flag) &
         WRITE(19,*) "# conf     squared deviation of the cell"
       WRITE(19,*) elem%nr, disp
