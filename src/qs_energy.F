@@ -124,20 +124,18 @@ CONTAINS
 
     CALL qs_energies_init(qs_env, calc_forces, error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,&
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, matrix_w=matrix_w, &
          dft_control=dft_control, has_unit_metric=has_unit_metric, error=error)
 
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
-       IF (.NOT.has_unit_metric) THEN
-          CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
-          DO ispin=1,dft_control%nspins
-             ALLOCATE(matrix_w(ispin)%matrix)
-             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
-             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
-                  name="W MATRIX",error=error)
-             CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
-          END DO
-       END IF
+       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+       DO ispin=1,dft_control%nspins
+          ALLOCATE(matrix_w(ispin)%matrix)
+          CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
+          CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+               name="W MATRIX",error=error)
+          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+       END DO
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
     ENDIF
 
