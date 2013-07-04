@@ -481,7 +481,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
              cutoff=dispersion_env%pw_cutoff,&
              spherical=spherical,odd=odd,fft_usage=.TRUE.,&
              ncommensurate=ncommensurate,icommensurate=0,&
-             blocked=blocked_id,&
+             blocked=do_pw_grid_blocked_false,&
              ref_grid=old_pw_grid,&
              rs_dims=distribution_layout,&
              iounit=iounit,error=error)
