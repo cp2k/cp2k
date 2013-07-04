@@ -3,7 +3,8 @@
 !  Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !  Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
 !  This file is distributed under the terms of the
-!  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!  GNU General Public License version 2 (or later),
+!  see http://www.gnu.org/copyleft/gpl.txt .
 !-----------------------------------------------------------------------------!
 !  S. Goedecker: Rotating a three-dimensional array in optimal
 !  positions for vector processing: Case study for a three-dimensional Fast
