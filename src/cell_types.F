@@ -316,14 +316,19 @@ CONTAINS
 
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cos_alpha, cos_beta, &
-                                                cos_gamma, sin_gamma
+                                                cos_gamma, sin_gamma, eps
 
     failure = .FALSE.
     CPPrecondition(ALL(cell_angle/=0.0_dp),cp_failure_level,routineP,error,failure)
-    cos_gamma = COS(cell_angle(3)); IF (ABS(cos_gamma)<EPSILON(0.0_dp)) cos_gamma = 0.0_dp
-    sin_gamma = SIN(cell_angle(3)); IF (ABS(sin_gamma)<EPSILON(0.0_dp)) sin_gamma = 0.0_dp
-    cos_beta  = COS(cell_angle(2)); IF (ABS(cos_beta )<EPSILON(0.0_dp)) cos_beta  = 0.0_dp
-    cos_alpha = COS(cell_angle(1)); IF (ABS(cos_alpha)<EPSILON(0.0_dp)) cos_alpha = 0.0_dp
+    eps = EPSILON(0.0_dp)
+    cos_gamma = COS(cell_angle(3)); IF (ABS(cos_gamma)<eps) cos_gamma = 0.0_dp
+    IF (ABS(ABS(cos_gamma)-1.0_dp)<eps) cos_gamma = SIGN(1.0_dp,cos_gamma)
+    sin_gamma = SIN(cell_angle(3)); IF (ABS(sin_gamma)<eps) sin_gamma = 0.0_dp
+    IF (ABS(ABS(sin_gamma)-1.0_dp)<eps) sin_gamma = SIGN(1.0_dp,sin_gamma)
+    cos_beta  = COS(cell_angle(2)); IF (ABS(cos_beta )<eps) cos_beta  = 0.0_dp
+    IF (ABS(ABS(cos_beta)-1.0_dp)<eps) cos_beta = SIGN(1.0_dp,cos_beta)
+    cos_alpha = COS(cell_angle(1)); IF (ABS(cos_alpha)<eps) cos_alpha = 0.0_dp
+    IF (ABS(ABS(cos_alpha)-1.0_dp)<eps) cos_alpha = SIGN(1.0_dp,cos_alpha)
 
     cell%hmat(:,1) = (/   1.0_dp,                                   0.0_dp,  0.0_dp/)
     cell%hmat(:,2) = (/cos_gamma,                                sin_gamma,  0.0_dp/)
