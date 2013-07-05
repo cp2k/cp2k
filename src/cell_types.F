@@ -316,7 +316,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cos_alpha, cos_beta, &
-                                                cos_gamma, sin_gamma, eps
+                                                cos_gamma, eps, sin_gamma
 
     failure = .FALSE.
     CPPrecondition(ALL(cell_angle/=0.0_dp),cp_failure_level,routineP,error,failure)
