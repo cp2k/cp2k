@@ -901,7 +901,7 @@ CONTAINS
     WRITE(tmc_env%m_env%io_unit,*) "Efficiencies:" 
     WRITE(tmc_env%m_env%io_unit,FMT="(A,F5.2,A,1000F5.2)")&
       " (MC elements/calculated configuration) global:", &
-      efficiency(0), " Temps: ",efficiency(1:)
+      efficiency(0), " sub tree(s): ",efficiency(1:)
     DEALLOCATE(efficiency)
     IF(tmc_env%tmc_comp_set%group_cc_nr.GT.0) &
     WRITE(tmc_env%m_env%io_unit,FMT="(A,1000F5.2)")&

@@ -300,7 +300,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     OPEN(file_ptr,FILE=get_dot_file_name(tmc_params, tree, error), &
-         ACCESS="APPEND")
+         POSITION="APPEND")
     IF(acc) THEN
       WRITE(file_ptr,*)parent_nr," -> ", child_nr, ":nw [color=darkolivegreen1]"
     ELSE

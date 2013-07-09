@@ -169,11 +169,10 @@ CONTAINS
 
        CALL keyword_create(keyword, &
             name="MOVE_TYPES",&
-            description="types of moves, 1 atom translation, "//&
+            description="types of moves: 1 atom translation, "//&
                         "2 molecule translation, 3 molecule rotation, "//&
                         "4 proton reordering, 5 MD steps, "//&
-                        "6 temperature swap, 7 volume change, 8 gaussian adap"//&
-                        "translation is done in each direction with the specified move size.",&
+                        "6 temperature swap, 7 volume change, 8 gaussian adap",&
             usage="MOVE_TYPES {INTEGER} {INTEGER} ... ",&
             default_i_vals=(/-1/), &
             n_var=-1,type_of_var=integer_t,required=.TRUE.,error=error)
@@ -182,7 +181,8 @@ CONTAINS
 
        CALL keyword_create(keyword, &
             name="MOVE_SIZES",&
-            description="sizes of the moves, 1 [A], 2 [A], 3 [°], 4 [], 5 [#], 6 prob, 7 [A]",&
+            description="sizes of the moves, the dimensions to the related move types are:"//
+                        "1 [A], 2 [A], 3 [°], 4 [], 5 [#], 6 prob, 7 [A]",&
             usage="MOVE_SIZE {REAL} {REAL} ... ",&
             default_r_vals=(/-1.0_dp/), &
             n_var=-1,type_of_var=real_t,required=.TRUE.,error=error)
