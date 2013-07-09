@@ -182,7 +182,7 @@ CONTAINS
        CALL keyword_create(keyword, &
             name="MOVE_SIZES",&
             description="sizes of the moves, the dimensions to the related move types are:"//
-                        "1 [A], 2 [A], 3 [°], 4 [], 5 [#], 6 prob, 7 [A]",&
+                        "1 [A], 2 [A], 3 [degree], 4 [], 5 [#], 6 prob, 7 [A]",&
             usage="MOVE_SIZE {REAL} {REAL} ... ",&
             default_r_vals=(/-1.0_dp/), &
             n_var=-1,type_of_var=real_t,required=.TRUE.,error=error)
