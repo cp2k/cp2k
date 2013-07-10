@@ -4,6 +4,8 @@ LIB3_OBJECTS =\
  btree_i8_k_dp2d_v.o\
  btree_i8_k_sp2d_v.o\
  btree_i8_k_zp2d_v.o\
+ dbcsr_array_i4_sort.o\
+ dbcsr_array_i8_sort.o\
  dbcsr_blas_operations.o\
  dbcsr_block_access.o\
  dbcsr_block_buffers.o\
@@ -29,7 +31,12 @@ LIB3_OBJECTS =\
  dbcsr_machine.o\
  dbcsr_message_passing.o\
  dbcsr_methods.o\
+ dbcsr_mm_cannon.o\
+ dbcsr_mm_csr.o\
+ dbcsr_mm_driver.o\
+ dbcsr_mm_multrec.o\
  dbcsr_mm_stack.o\
+ dbcsr_mm_types.o\
  dbcsr_mp_operations.o\
  dbcsr_operations.o\
  dbcsr_performance_multiply.o\
@@ -45,11 +52,4 @@ LIB3_OBJECTS =\
  dbcsr_work_operations.o\
  dummy_c_bindings.o\
  min_heap.o\
- smm.o\
- dbcsr_array_i4_sort.o\
- dbcsr_array_i8_sort.o\
- dbcsr_mm_types.o\
- dbcsr_mm_cannon.o\
- dbcsr_mm_multrec.o\
- dbcsr_mm_csr.o\
- dbcsr_mm_driver.o
+ smm.o
