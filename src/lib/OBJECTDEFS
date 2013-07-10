@@ -1,4 +1,5 @@
-LIB1_OBJECTS = xyz_to_vab_optimised.o\
-               fast.o\
-               grid_fast.o\
-               lib_kinds.o
+LIB1_OBJECTS =\
+ fast.o\
+ grid_fast.o\
+ lib_kinds.o\
+ xyz_to_vab_optimised.o

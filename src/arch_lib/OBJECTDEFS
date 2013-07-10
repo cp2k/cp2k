@@ -1,10 +1,11 @@
-LIB4_OBJECTS = ma_dummy_c_bindings.o\
-               machine_architecture.o\
-               machine_architecture_types.o\
-               machine_architecture_utils.o\
-               ma_affinity.o\
-               ma_config.o\
-               ma_errors.o\
-               ma_kinds.o\
-	       ma_process_mapping.o\
-	       ma_topology.o	
+LIB4_OBJECTS =\
+ ma_affinity.o\
+ machine_architecture.o\
+ machine_architecture_types.o\
+ machine_architecture_utils.o\
+ ma_config.o\
+ ma_dummy_c_bindings.o\
+ ma_errors.o\
+ ma_kinds.o\
+ ma_process_mapping.o\
+ ma_topology.o
