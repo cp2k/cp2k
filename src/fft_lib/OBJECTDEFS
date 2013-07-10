@@ -1,11 +1,12 @@
-LIB2_OBJECTS = ctrig.o\
-               fft_kinds.o\
-               fft_lib.o\
-               fft_plan.o\
-               fftpre.o\
-               fftrot.o\
-               fftsg_lib.o\
-               fftstp.o\
-               fftw3_lib.o\
-               mltfftsg_tools.o\
-               mltfftsg.o
+LIB2_OBJECTS =\
+ ctrig.o\
+ fft_kinds.o\
+ fft_lib.o\
+ fft_plan.o\
+ fftpre.o\
+ fftrot.o\
+ fftsg_lib.o\
+ fftstp.o\
+ fftw3_lib.o\
+ mltfftsg.o\
+ mltfftsg_tools.o
