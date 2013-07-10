@@ -22,6 +22,10 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_spin_orbit.o\
  ai_verfc.o\
+ al_system_dynamics.o\
+ al_system_init.o\
+ al_system_mapping.o\
+ al_system_types.o\
  atom_basis.o\
  atom_electronic_structure.o\
  atom_energy.o\
@@ -74,14 +78,14 @@ OBJECTS_GENERIC =\
  cp2k_debug.o\
  cp2k_info.o\
  cp2k_runs.o\
- cp_array_i_utils.o\
- cp_array_logical_utils.o\
- cp_array_r_utils.o\
- cp_array_utils.o\
- cp_array_r_sort.o\
- cp_array_i_sort.o\
  cp_array_i4_sort.o\
  cp_array_i8_sort.o\
+ cp_array_i_sort.o\
+ cp_array_i_utils.o\
+ cp_array_logical_utils.o\
+ cp_array_r_sort.o\
+ cp_array_r_utils.o\
+ cp_array_utils.o\
  cp_blacs_calls.o\
  cp_blacs_env.o\
  cp_cfm_basic_linalg.o\
@@ -146,10 +150,6 @@ OBJECTS_GENERIC =\
  cp_subsys_types.o\
  cp_symmetry.o\
  cp_units.o\
- al_system_dynamics.o\
- al_system_init.o\
- al_system_mapping.o\
- al_system_types.o\
  csvr_system_dynamics.o\
  csvr_system_init.o\
  csvr_system_mapping.o\
@@ -166,6 +166,9 @@ OBJECTS_GENERIC =\
  dg_rho0_types.o\
  dgs.o\
  dg_types.o\
+ dict_i4tuple_callstat.o\
+ dict.o\
+ dict_str_i4.o\
  dimer_methods.o\
  dimer_types.o\
  dimer_utils.o\
@@ -175,8 +178,8 @@ OBJECTS_GENERIC =\
  distribution_optimize.o\
  dkh_main.o\
  dm_ls_chebyshev.o\
- dm_ls_scf_methods.o\
  dm_ls_scf_curvy.o\
+ dm_ls_scf_methods.o\
  dm_ls_scf.o\
  dm_ls_scf_qs.o\
  dm_ls_scf_types.o\
@@ -310,7 +313,6 @@ OBJECTS_GENERIC =\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
  input_cp2k_mp2.o\
- input_cp2k_tmc.o\
  input_cp2k.o\
  input_cp2k_poisson.o\
  input_cp2k_properties_dft.o\
@@ -320,12 +322,13 @@ OBJECTS_GENERIC =\
  input_cp2k_rsgrid.o\
  input_cp2k_subsys.o\
  input_cp2k_thermostats.o\
+ input_cp2k_tmc.o\
  input_cp2k_vib.o\
  input_cp2k_xc.o\
  input_enumeration_types.o\
  input_keyword_types.o\
- input_optimize_input.o\
  input_optimize_basis.o\
+ input_optimize_input.o\
  input_parsing.o\
  input_section_types.o\
  input_val_types.o\
@@ -347,6 +350,10 @@ OBJECTS_GENERIC =\
  library_tests.o\
  libxc_funcs_m.o\
  linear_systems.o\
+ list_callstackentry.o\
+ list.o\
+ list_routinestat.o\
+ list_timerenv.o\
  lri_environment_methods.o\
  lri_environment_types.o\
  machine.o\
@@ -378,6 +385,7 @@ OBJECTS_GENERIC =\
  metadynamics.o\
  metadynamics_types.o\
  metadynamics_utils.o\
+ minimax.o\
  mixed_energy_types.o\
  mixed_environment.o\
  mixed_environment_types.o\
@@ -396,12 +404,11 @@ OBJECTS_GENERIC =\
  molsym.o\
  moments_utils.o\
  motion_utils.o\
- minimax.o\
  mp2_direct_method.o\
- mp2_laplace.o\
- mp2_ri_gpw.o\
  mp2_gpw.o\
+ mp2_laplace.o\
  mp2.o\
+ mp2_ri_gpw.o\
  mp2_setup.o\
  mp2_types.o\
  mt_util.o\
@@ -413,15 +420,15 @@ OBJECTS_GENERIC =\
  neb_opt_utils.o\
  neb_types.o\
  neb_utils.o\
+ optbas_fenv_manipulation.o\
+ optbas_opt_utils.o\
+ optimize_basis.o\
+ optimize_basis_types.o\
+ optimize_basis_utils.o\
  optimize_input.o\
  orbital_pointers.o\
  orbital_symbols.o\
  orbital_transformation_matrices.o\
- optimize_basis.o\
- optbas_fenv_manipulation.o\
- optbas_opt_utils.o\
- optimize_basis_utils.o\
- optimize_basis_types.o\
  pair_potential_coulomb.o\
  pair_potential.o\
  pair_potential_types.o\
@@ -523,8 +530,8 @@ OBJECTS_GENERIC =\
  qs_gspace_mixing.o\
  qs_harmonics_atom.o\
  qs_initial_guess.o\
- qs_integrate_potential.o\
  qs_integrate_potential_low.o\
+ qs_integrate_potential.o\
  qs_interactions.o\
  qs_kinetic.o\
  qs_kpp1_env_methods.o\
@@ -716,7 +723,10 @@ OBJECTS_GENERIC =\
  thermostat_methods.o\
  thermostat_types.o\
  thermostat_utils.o\
+ timings_base_type.o\
  timings.o\
+ timings_report.o\
+ timings_types.o\
  tmc_analysis.o\
  tmc_analysis_types.o\
  tmc_calculations.o\
@@ -726,8 +736,8 @@ OBJECTS_GENERIC =\
  tmc_master.o\
  tmc_messages.o\
  tmc_move_handle.o\
- tmc_move_types.o\
  tmc_moves.o\
+ tmc_move_types.o\
  tmc_setup.o\
  tmc_stati.o\
  tmc_tree_acceptance.o\
@@ -812,14 +822,4 @@ OBJECTS_GENERIC =\
  xc_xpbe_hole_t_c_lr.o\
  xc_xwpbe.o\
  xml_parser.o\
- xray_diffraction.o\
- timings_types.o\
- timings_base_type.o\
- timings_report.o\
- list_timerenv.o\
- list_routinestat.o\
- list_callstackentry.o\
- list.o\
- dict_str_i4.o\
- dict_i4tuple_callstat.o\
- dict.o
+ xray_diffraction.o
