@@ -36,6 +36,7 @@ MODULE scptb_core_interactions
                                              scptb_parameter_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -158,6 +159,11 @@ CONTAINS
 
                 force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
                 force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
+
+                IF (use_virial) THEN
+                   CALL virial_pair_force ( virial%pv_virial, -1._dp, force_ab, rij, error)
+                END IF
+
              ELSE
                 CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,error=error)
              END IF
@@ -201,7 +207,7 @@ CONTAINS
     REAL(KIND=dp)                            :: a, c, d, de, expa, x
 
 !
-!  (c+d*x) * exp[-(a*x)]
+!  (c+d*x*x) * exp[-(a*x)]
 !
 
     a = SQRT(sepi%crep(1)*sepj%crep(1))

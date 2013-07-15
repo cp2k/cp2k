@@ -512,14 +512,10 @@ CONTAINS
             atom_b = atom_of_kind(jatom)
             IF ( irow == iatom ) force_ab = -force_ab
             IF ( irow == iatom ) force_w = -force_w
-            force(ikind)%all_potential(:,atom_a) =&
-                 force(ikind)%all_potential(:,atom_a) - force_ab(:)
-            force(jkind)%all_potential(:,atom_b) =&
-                 force(jkind)%all_potential(:,atom_b) + force_ab(:)
-            force(ikind)%overlap(:,atom_a) =&
-                 force(ikind)%overlap(:,atom_a) - force_w(:)
-            force(jkind)%overlap(:,atom_b) =&
-                 force(jkind)%overlap(:,atom_b) + force_w(:)
+            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+            force(ikind)%overlap(:,atom_a) = force(ikind)%overlap(:,atom_a) - force_w(:)
+            force(jkind)%overlap(:,atom_b) = force(jkind)%overlap(:,atom_b) + force_w(:)
          END IF
 
          ! gamma matrix

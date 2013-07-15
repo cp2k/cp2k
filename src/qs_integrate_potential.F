@@ -247,6 +247,19 @@ CONTAINS
                my_virial_a = 0.0_dp
                my_virial_b = 0.0_dp
             END IF
+            pab = 0._dp
+            DO l=0,lmaxscp
+               pp = (2._dp*l+3._dp)/2._dp
+               norm = 2._dp**(l+2)/SQRT(pi)/dfac(2*l+1)
+               norm = SQRT(0.25_dp*dfac(2*l+1)/pi) * norm*alpha**pp
+               DO jj=1,nco(l)
+                  j = ncoset(l-1) + jj
+                  DO ii=1,nso(l)
+                     i = nsoset(l-1) + ii
+                     pab(j,1) = pab(j,1) + orbtramat(l)%s2c(ii,jj)*norm
+                  END DO
+               END DO
+            END DO
          END IF
 
          CALL integrate_pgf_product_rspace(lmaxscp,alpha,0,&
@@ -272,7 +285,7 @@ CONTAINS
          END DO
 
          IF (calculate_forces) THEN
-            force(ikind)%gth_ppl(:,iatom) = force(ikind)%gth_ppl(:,iatom) + force_a(:)*dvol
+            force(ikind)%rho_elec(:,iatom) = force(ikind)%rho_elec(:,iatom) + force_a(:)*dvol
             IF (use_virial) THEN
               virial%pv_virial = virial%pv_virial + my_virial_a*dvol
             END IF

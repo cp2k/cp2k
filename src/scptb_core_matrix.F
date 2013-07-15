@@ -74,7 +74,7 @@ CONTAINS
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
     LOGICAL, DIMENSION(:), POINTER           :: scptb_defined
-    REAL(KIND=dp)                            :: dr, kh, kij
+    REAL(KIND=dp)                            :: dr, f0, kh, kij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: hmt, kk, umt
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -287,17 +287,16 @@ CONTAINS
                  END DO
                END IF
             END DO
+            IF ( irow == iatom ) force_ab = -force_ab
+            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+            IF (use_virial) THEN
+               f0 = -1.0_dp
+               IF(iatom==jatom) f0=-0.5_dp
+               CALL virial_pair_force ( virial%pv_virial, f0, force_ab, rij, error)
+            END IF
           END IF
 
-       END IF
-
-       IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.0001_dp)) THEN
-         IF ( irow == iatom ) force_ab = -force_ab
-         force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
-         force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
-         IF (use_virial) THEN
-           CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
-         END IF
        END IF
 
     END DO

@@ -188,6 +188,13 @@ CONTAINS
          END DO
          scptb_parameter%rcpair = 0.5_dp*rmax
 
+         !lmaxscp: make sure it is also consistent with pure SCC-TB
+         IF(scptb_parameter%lmaxscp < 0) THEN
+            IF(scptb_parameter%ag > 0.0_dp) THEN
+               scptb_parameter%lmaxscp = 0
+            END IF
+         END IF
+
       END IF
 
       atomic_kind%scptb_parameter => scptb_parameter
@@ -259,8 +266,6 @@ CONTAINS
                         unrecognized_tags = unrecognized_tags + 1
                     END SELECT
                 END DO
-
-!deb            WRITE(scptb_parameter%parameterization,'(A,A,A)') TRIM(author), ", ", TRIM(vers)    
 
             CASE ("GENERAL_PARAMETERS") !general params
                 tag_over = .FALSE.

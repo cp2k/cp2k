@@ -314,12 +314,9 @@ CONTAINS
       DO iatom=1,natom
         ikind  = kind_of(iatom)
         atom_i = atom_of_kind(iatom)
-        force(ikind)%rho_elec(1,atom_i) =&
-            force(ikind)%rho_elec(1,atom_i) - gmcharge(iatom,2)
-        force(ikind)%rho_elec(2,atom_i) =&
-            force(ikind)%rho_elec(2,atom_i) - gmcharge(iatom,3)
-        force(ikind)%rho_elec(3,atom_i) =&
-            force(ikind)%rho_elec(3,atom_i) - gmcharge(iatom,4)
+        force(ikind)%rho_elec(1,atom_i) = force(ikind)%rho_elec(1,atom_i) - gmcharge(iatom,2)
+        force(ikind)%rho_elec(2,atom_i) = force(ikind)%rho_elec(2,atom_i) - gmcharge(iatom,3)
+        force(ikind)%rho_elec(3,atom_i) = force(ikind)%rho_elec(3,atom_i) - gmcharge(iatom,4)
       END DO
     END IF
 
@@ -357,10 +354,8 @@ CONTAINS
                CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                     row=iatom,col=jatom,block=dsblock,found=found)
                fi = -gmij*SUM(pblock*dsblock)
-               force(ikind)%rho_elec(i,atom_i) =&
-                    force(ikind)%rho_elec(i,atom_i) + fi
-               force(jkind)%rho_elec(i,atom_j) =&
-                    force(jkind)%rho_elec(i,atom_j) - fi
+               force(ikind)%rho_elec(i,atom_i) = force(ikind)%rho_elec(i,atom_i) + fi
+               force(jkind)%rho_elec(i,atom_j) = force(jkind)%rho_elec(i,atom_j) - fi
                fij(i) = fi
             END DO
             IF (use_virial) THEN

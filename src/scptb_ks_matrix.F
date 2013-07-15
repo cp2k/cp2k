@@ -229,7 +229,7 @@ CONTAINS
          IF (do_scp) THEN
             CALL scp_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
          ELSE
-            CALL tb_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
+            CALL tb_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,calculate_forces,just_energy,error)
          END IF
 
          DEALLOCATE(mcharge,STAT=istat)
@@ -250,7 +250,7 @@ CONTAINS
                "Repulsive pair potential energy:               ",energy%repulsive,&
                "Zeroth order Hamiltonian energy:               ",energy%core,&
                "Total kinetic energy:                          ",energy%kinetic,&
-               "Charge fluctuation (SCP) energy:               ",energy%hartree,&
+               "Charge fluctuation energy:                     ",energy%hartree,&
                "London dispersion energy:                      ",energy%dispersion
           IF (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -280,8 +280,7 @@ CONTAINS
   END SUBROUTINE build_scptb_ks_matrix
 
 ! *****************************************************************************
-  SUBROUTINE tb_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,&
-             calculate_forces,just_energy,error)
+  SUBROUTINE tb_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,calculate_forces,just_energy,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -289,8 +288,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(inout)                          :: mcharge
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(inout)                          :: dmcharge
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -339,24 +336,25 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-         energy=energy,para_env=para_env,&
-         particle_set=particle_set,cell=cell,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,virial=virial,&
+         energy=energy,para_env=para_env,particle_set=particle_set,cell=cell,error=error)
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                    local_particles=local_particles,natom=natom,error=error)
+         local_particles=local_particles,natom=natom,error=error)
+
+    scptb_control => dft_control%qs_control%scptb_control
+    use_virial=.FALSE.
     ndim = 1
     IF (calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,force=force,error=error)
        ndim = 4
+       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.scptb_control%do_ewald
     END IF
-    use_virial=.FALSE.
 
     energy%hartree = 0._dp
 
     chabs = SUM(ABS(mcharge))
     CALL mp_sum(chabs,para_env%group)
     IF ( chabs > 1.e-8_dp ) THEN
-       scptb_control => dft_control%qs_control%scptb_control
        IF(scptb_control%do_ewald) THEN
           ALLOCATE(gmcharge(natom,ndim),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -376,11 +374,9 @@ CONTAINS
             CPErrorMessage(cp_failure_level,routineP,"Not allowed with SCPTB",error)
             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           CASE(do_ewald_ewald)
-            CALL cp_unimplemented_error(routineP,&
-                 "Standard Ewald not implemented in SCPTB",error)
+            CALL cp_unimplemented_error(routineP,"Standard Ewald not implemented in SCPTB",error)
           CASE(do_ewald_pme)
-            CALL cp_unimplemented_error(routineP,&
-                 "PME not implemented in SCPTB",error)
+            CALL cp_unimplemented_error(routineP,"PME not implemented in SCPTB",error)
           CASE(do_ewald_spme)
             CALL dftb_spme_evaluate(ewald_env,ewald_pw,particle_set,cell,&
               gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
@@ -432,7 +428,7 @@ CONTAINS
                   CPPostcondition(found,cp_failure_level,routineP,error,failure)
                   ksblock = ksblock - gmij*sblock
                END DO
-               IF ( calculate_forces ) THEN
+               IF ( calculate_forces .AND. iatom /= jatom ) THEN
                   ikind  = kind_of(iatom)
                   iat = atom_of_kind(iatom)
                   jkind  = kind_of(jatom)
@@ -440,11 +436,13 @@ CONTAINS
                   NULLIFY(pblock)
                   CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                        row=iatom,col=jatom,block=pblock,found=found)
+                  CPPostcondition(found,cp_failure_level,routineP,error,failure)
                   DO i=1,3
                      NULLIFY(dsblock)
                      CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                           row=iatom,col=jatom,block=dsblock,found=found)
-                     fi = -gmij*SUM(pblock*dsblock)
+                     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                     fi = -gmij*SUM(pblock*dsblock)*2.0_dp
                      force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
                      force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
                      fij(i) = fi
@@ -499,23 +497,28 @@ CONTAINS
                 eta = alpha*beta/(alpha+beta)
                 f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
                 nob = (beta/pi)**1.5_dp
-                t = eta*dr*dr
+                t = eta*dr2
                 CALL fgamma_0(0,t,f)
                 ff = noa*nob*f(0)*f0
                 ehartree = ehartree + mcharge(iatom)*mcharge(jatom)*ff
                 ehartree = ehartree - mcharge(iatom)*mcharge(jatom)/dr
                 IF (.NOT.just_energy .OR. calculate_forces) THEN
                    qcharge(iatom) = qcharge(iatom) + mcharge(jatom)*ff
-                   qcharge(iatom) = qcharge(iatom) - mcharge(jatom)/dr
                    qcharge(jatom) = qcharge(jatom) + mcharge(iatom)*ff
+                   qcharge(iatom) = qcharge(iatom) - mcharge(jatom)/dr
                    qcharge(jatom) = qcharge(jatom) - mcharge(iatom)/dr
                 END IF
                 IF ( calculate_forces ) THEN
                    ff = noa*nob*f0*(EXP(-t)-f(0))/dr2
                    drcharge(:,iatom) = drcharge(:,iatom) + ff*rij(:)*mcharge(iatom)*mcharge(jatom)
                    drcharge(:,jatom) = drcharge(:,jatom) - ff*rij(:)*mcharge(iatom)*mcharge(jatom)
-                   drcharge(:,iatom) = drcharge(:,iatom) - rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
-                   drcharge(:,jatom) = drcharge(:,jatom) + rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
+                   drcharge(:,iatom) = drcharge(:,iatom) + rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
+                   drcharge(:,jatom) = drcharge(:,jatom) - rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
+                   IF (use_virial) THEN
+                      fij(:) = ff*rij(:)*mcharge(iatom)*mcharge(jatom) + &
+                               rij(:)/(dr*dr2)*mcharge(iatom)*mcharge(jatom)
+                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
+                   END IF
                 END IF
 
              END IF
@@ -549,7 +552,7 @@ CONTAINS
                      ksblock = ksblock - 0.5_dp*dq*sblock
                   END DO
                END IF
-               IF ( calculate_forces ) THEN
+               IF ( calculate_forces .AND. iatom /= jatom ) THEN
                   ikind = kind_of(iatom)
                   iat   = atom_of_kind(iatom)
                   jkind = kind_of(jatom)
@@ -563,10 +566,15 @@ CONTAINS
                      CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                           row=iatom,col=jatom,block=dsblock,found=found)
                      CPPostcondition(found,cp_failure_level,routineP,error,failure)
-                     fi = dq*SUM(pblock*dsblock)
-                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
-                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
+                     fij(i) = dq*SUM(pblock*dsblock)
+                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) - fij(i)
+                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) + fij(i)
                   END DO
+                  IF (use_virial) THEN
+                     rij = particle_set(iatom)%r - particle_set(jatom)%r
+                     rij = pbc(rij,cell)
+                     CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
+                  END IF
                END IF
             END DO
             CALL cp_dbcsr_iterator_stop(iter)
@@ -575,9 +583,9 @@ CONTAINS
                DO iatom=1,natom
                   ikind  = kind_of(iatom)
                   iat = atom_of_kind(iatom)
-                  force(ikind)%rho_elec(1,iat) = force(ikind)%rho_elec(1,iat) + drcharge(1,iatom)
-                  force(ikind)%rho_elec(2,iat) = force(ikind)%rho_elec(2,iat) + drcharge(2,iatom)
-                  force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) + drcharge(3,iatom)
+                  force(ikind)%rho_elec(1,iat) = force(ikind)%rho_elec(1,iat) - drcharge(1,iatom)
+                  force(ikind)%rho_elec(2,iat) = force(ikind)%rho_elec(2,iat) - drcharge(2,iatom)
+                  force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) - drcharge(3,iatom)
                END DO
                IF (SIZE(matrix_p) == 2) THEN
                   CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
@@ -699,8 +707,8 @@ CONTAINS
                           row=iatom,col=jatom,block=dsblock,found=found)
                      CPPostcondition(found,cp_failure_level,routineP,error,failure)
                      fi = dq*SUM(pblock*dsblock)
-                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
-                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
+                     force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) - fi
+                     force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) + fi
                   END DO
                END IF
             END DO
@@ -760,10 +768,11 @@ CONTAINS
                                                 natoms, nbasis
     LOGICAL                                  :: defined, failure, found
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: adef
-    REAL(KIND=dp)                            :: ak, alpha, dq, dqv, rhom1
+    REAL(KIND=dp)                            :: ak, alpha, dq, dqv, fi, rhom1
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charges, zeta
     REAL(KIND=dp), DIMENSION(1:3)            :: pol
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksblock, sblock
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, ksblock, pblock, &
+                                                sblock
     REAL(KIND=dp), DIMENSION(ndiis+1, 1)     :: vdiis
     REAL(KIND=dp), &
       DIMENSION(ndiis+1, ndiis+1)            :: bdiis
@@ -771,9 +780,13 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(scp_vector_p_type), &
       DIMENSION(ndiis)                       :: cres, cval
     TYPE(scp_vector_type), POINTER           :: cp, cpol, cself, cvec, cw
@@ -781,7 +794,7 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-         energy=energy,para_env=para_env,error=error)
+         energy=energy,force=force,para_env=para_env,error=error)
 
     energy%hartree = 0._dp
 
@@ -891,8 +904,13 @@ CONTAINS
     END DO
     ! SCP energy
     CALL scp_vector_set(cw, 0._dp, error)
-    CALL apply_scp_vector(cvec,cw,cself,cpol,cp,qs_env,scptb_control%do_ewald,&
-                          calculate_forces=.FALSE.,error=error)
+    IF (calculate_forces) THEN
+       CALL apply_scp_vector(cvec,cw,cself,cpol,cp,qs_env,scptb_control%do_ewald,&
+                             calculate_forces=.TRUE.,error=error)
+    ELSE
+       CALL apply_scp_vector(cvec,cw,cself,cpol,cp,qs_env,scptb_control%do_ewald,&
+                             calculate_forces=.FALSE.,error=error)
+    END IF
     CALL scp_vector_dot(ak, cw, cvec, error)
     energy%hartree = 0.5_dp*ak
 
@@ -901,6 +919,13 @@ CONTAINS
        ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
+       IF ( calculate_forces ) THEN
+          matrix_p => rho%rho_ao
+          IF (SIZE(matrix_p) == 2) THEN
+             CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                  alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+          END IF
+       END IF
 
        ! calculate KS matrix
        nsize = SIZE(ks_matrix)
@@ -918,12 +943,29 @@ CONTAINS
                   row=iatom,col=jatom,block=ksblock,found=found)
              ksblock = ksblock - dq*sblock
           END DO
+          IF ( calculate_forces ) THEN
+             NULLIFY(pblock)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                  row=iatom,col=jatom,block=pblock,found=found)
+             CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             DO i=1,3
+                NULLIFY(dsblock)
+                CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                     row=iatom,col=jatom,block=dsblock,found=found)
+                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                fi = dq*SUM(pblock*dsblock)
+                force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) - fi
+                force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) + fi
+             END DO
+          END IF
        END DO
        CALL cp_dbcsr_iterator_stop(iter)
 
        IF (calculate_forces) THEN
-          ! forces on atoms
-          CALL cp_unimplemented_error(routineP,"No forces available",error)
+          IF (SIZE(matrix_p) == 2) THEN
+             CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                           alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+          END IF
        END IF
 
     END IF

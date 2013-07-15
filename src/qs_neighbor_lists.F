@@ -796,7 +796,7 @@ CONTAINS
           CALL get_scptb_parameter(scptb_kind,rcpair=c_radius(ikind),defined=default_present(ikind))
        END DO
        CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
-       CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,&
+       CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=.FALSE.,&
             subcells=subcells,name="sab_core",error=error)
        CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
        CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
@@ -808,7 +808,7 @@ CONTAINS
           CALL ewald_env_get ( ewald_env, alpha=alpha )
           c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
-          CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,&
+          CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,mic=.FALSE.,&
                subcells=subcells,name="sab_tbe",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_tbe=sab_tbe,error=error)
           ! Correction term for Gaussians
@@ -820,7 +820,7 @@ CONTAINS
              c_radius(ikind) = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
           END DO
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
-          CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,&
+          CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,mic=.FALSE.,&
                subcells=subcells,name="sab_scp",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
        END IF
