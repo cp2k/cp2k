@@ -1076,6 +1076,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       reference_loop: DO WHILE(ASSOCIATED(tmp_pt_ptr))
         tmp_prob = -1.0_dp
         IF(tmp_pt_ptr%gt_elem%swaped)THEN
+          NULLIFY(tmp_elem,tmp_parent_elem)
           ! in case of swap use the other swaped configuration as related one
           CALL get_subtree_elements_to_check(gt_act_elem=tmp_pt_ptr%gt_elem, &
                      elem1=tmp_elem, elem2=tmp_parent_elem, error=error)

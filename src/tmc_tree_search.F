@@ -405,8 +405,6 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem2),cp_failure_level,routineP,error,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
