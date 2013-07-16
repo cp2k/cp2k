@@ -18,7 +18,8 @@ MODULE atom_operators
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_integrals, atom_potential_type, atom_state
-  USE atom_utils,                      ONLY: coulomb_potential_numeric,&
+  USE atom_utils,                      ONLY: atom_solve,&
+                                             coulomb_potential_numeric,&
                                              integrate_grid,&
                                              numpot_matrix,&
                                              slater_density,&
@@ -26,14 +27,9 @@ MODULE atom_operators
   USE dkh_main,                        ONLY: dkh_atom_transformation
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
-  USE input_constants,                 ONLY: do_dkh0_atom,&
-                                             do_dkh1_atom,&
-                                             do_dkh2_atom,&
-                                             do_dkh3_atom,&
-                                             do_dkh4_atom,&
-                                             do_dkh5_atom,&
-                                             do_nonrel_atom,&
-                                             do_zoramp_atom
+  USE input_constants,                 ONLY: &
+       do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
+       do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, do_zoramp_atom
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv,&
                                              lapack_ssyev
@@ -631,14 +627,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dkhorder, handle, ierr, l, m, &
-                                                n
+    INTEGER                                  :: dkhorder, handle, i, ierr, &
+                                                k1, k2, l, m, n, nl
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: cspeed
+    REAL(dp)                                 :: ascal, cspeed
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: cpot
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: modpot
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: pvp, sp, tp, vp
+      DIMENSION(:, :)                        :: ener, sps
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: hmat, pvp, sp, tp, vp, wfn
 
     failure = .FALSE.
 
@@ -649,7 +647,7 @@ CONTAINS
     SELECT CASE (reltyp)
       CASE DEFAULT
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-      CASE (do_nonrel_atom,do_zoramp_atom)
+      CASE (do_nonrel_atom,do_zoramp_atom,do_sczoramp_atom)
         dkhorder = -1
       CASE (do_dkh0_atom)
         dkhorder = 0
@@ -671,7 +669,7 @@ CONTAINS
       CASE (do_nonrel_atom)
         ! nothing to do
         NULLIFY (integrals%tzora,integrals%hdkh)
-      CASE (do_zoramp_atom)
+      CASE (do_zoramp_atom, do_sczoramp_atom)
 
         NULLIFY (integrals%hdkh)
 
@@ -693,6 +691,59 @@ CONTAINS
           END DO
           cpot(1:m) = cpot(1:m)*basis%grid%rad2(1:m)
           CALL numpot_matrix(integrals%tzora,cpot,basis,2,error)
+          !
+          ! scaled ZORA
+          IF( reltyp == do_sczoramp_atom ) THEN
+             ALLOCATE (hmat(n,n,0:3),wfn(n,n,0:3),ener(n,0:3),pvp(n,n,0:3),sps(n,n),STAT=ierr)
+             CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+             hmat = integrals%kin + integrals%tzora
+             ! model potential
+             CALL numpot_matrix(hmat,modpot,basis,0,error)
+             ! eigenvalues and eigenvectors
+             CALL atom_solve(hmat,integrals%utrans,wfn,ener,basis%nbas,integrals%nne,3,error)
+             ! relativistic kinetic energy
+             cpot(1:m) = cspeed*cspeed/(2._dp*cspeed*cspeed - modpot(1:m))**2
+             cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
+             CALL numpot_matrix(pvp,cpot,basis,0,error)
+             DO l=0,3
+                pvp(:,:,l) = REAL(l*(l+1),dp) * pvp(:,:,l)
+             END DO
+             cpot(1:m) = cpot(1:m)*basis%grid%rad2(1:m)
+             CALL numpot_matrix(pvp,cpot,basis,2,error)
+             ! calculate psi*pvp*psi and the scaled orbital energies
+             ! actually, we directly calculate the energy difference
+             DO l=0,3
+                nl = basis%nbas(l)
+                DO i=1,integrals%nne(l)
+                   IF (ener(i,l) < 0._dp) THEN
+                      ascal = SUM(wfn(1:nl,i,l)*MATMUL(pvp(1:nl,1:nl,l),wfn(1:nl,i,l)))
+                      ener(i,l) = ener(i,l) * ascal/(1.0_dp + ascal)
+                   ELSE
+                      ener(i,l) = 0.0_dp
+                   END IF
+                END DO
+             END DO
+             ! correction term is calculated as a projector
+             hmat = 0.0_dp
+             DO l=0,3
+                nl = basis%nbas(l)
+                DO i=1,integrals%nne(l)
+                   DO k1=1,nl
+                      DO k2=1,nl
+                         hmat(k1,k2,l) = hmat(k1,k2,l) + ener(i,l)*wfn(k1,i,l)*wfn(k2,i,l)
+                      END DO
+                   END DO
+                END DO
+                ! transform with overlap matrix
+                sps(1:nl,1:nl) = MATMUL(integrals%ovlp(1:nl,1:nl,l),&
+                                 MATMUL(hmat(1:nl,1:nl,l),integrals%ovlp(1:nl,1:nl,l)) ) 
+                ! add scaling correction to tzora
+                integrals%tzora(1:nl,1:nl,l) = integrals%tzora(1:nl,1:nl,l) - sps(1:nl,1:nl)
+             END DO
+
+             DEALLOCATE (hmat,wfn,ener,pvp,sps,STAT=ierr)
+             CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          END IF
           !
           DEALLOCATE (modpot,cpot,STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)

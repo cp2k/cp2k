@@ -27,8 +27,8 @@ MODULE atom_electronic_structure
   USE input_constants,                 ONLY: &
        do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
        do_dkh4_atom, do_dkh5_atom, do_nonrel_atom, do_numeric, do_rhf_atom, &
-       do_rks_atom, do_rohf_atom, do_semi_analytic, do_uhf_atom, do_uks_atom, &
-       do_zoramp_atom
+       do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
+       do_uhf_atom, do_uks_atom, do_zoramp_atom
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -171,7 +171,7 @@ CONTAINS
             CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
           CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
-          CASE (do_zoramp_atom)
+          CASE (do_zoramp_atom, do_sczoramp_atom)
             hcore%op = atom%integrals%kin + atom%integrals%tzora - atom%zcore*atom%integrals%core
           CASE (do_dkh0_atom, do_dkh1_atom,do_dkh2_atom,do_dkh3_atom,do_dkh4_atom,do_dkh5_atom)
             hcore%op = atom%integrals%hdkh
@@ -469,7 +469,7 @@ CONTAINS
             CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
           CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
-          CASE (do_zoramp_atom)
+          CASE (do_zoramp_atom, do_sczoramp_atom)
             hcore%op = atom%integrals%kin + atom%integrals%tzora - atom%zcore*atom%integrals%core
           CASE (do_dkh0_atom, do_dkh1_atom,do_dkh2_atom,do_dkh3_atom,do_dkh4_atom,do_dkh5_atom)
             hcore%op = atom%integrals%hdkh

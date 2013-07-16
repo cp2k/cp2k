@@ -575,13 +575,14 @@ CONTAINS
             default_i_val=do_nonrel_atom,&
             enum_c_vals=(/"OFF                      ",&
                           "ZORA(MP)                 ",&
+                          "scZORA(MP)               ",&
                           "DKH(0)                   ",&
                           "DKH(1)                   ",&
                           "DKH(2)                   ",&
                           "DKH(3)                   ",&
                           "DKH(4)                   ",&
                           "DKH(5)                   "/),&
-            enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_dkh0_atom,&
+            enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_sczoramp_atom, do_dkh0_atom,&
             do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom /),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)

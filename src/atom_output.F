@@ -20,7 +20,7 @@ MODULE atom_output
   USE input_constants,                 ONLY: &
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
        do_dkh5_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, do_rohf_atom, &
-       do_uhf_atom, do_uks_atom, do_zoramp_atom, xc_none
+       do_sczoramp_atom, do_uhf_atom, do_uks_atom, do_zoramp_atom, xc_none
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -449,6 +449,8 @@ CONTAINS
           IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")
         CASE (do_zoramp_atom)
           IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using ZORA(MP)')")
+        CASE (do_sczoramp_atom)
+          IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using scaled ZORA(MP)')")
         CASE (do_dkh0_atom)
           IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using Douglas-Kroll 0th order')")
           IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using kietic energy scaling')")

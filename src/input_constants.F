@@ -165,6 +165,7 @@ MODULE input_constants
   ! Relativistic correction for Atom Code
   INTEGER, PARAMETER, PUBLIC               :: do_nonrel_atom=100,&
                                               do_zoramp_atom=101,&
+                                              do_sczoramp_atom=102,&
                                               do_dkh0_atom=110,&
                                               do_dkh1_atom=111,&
                                               do_dkh2_atom=112,&
