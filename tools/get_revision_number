@@ -2,8 +2,19 @@
 export LANG=C
 export LC_MESSAGES=C
 export LC_ALL=C
+
+[ -z "$1" ] || cd $1
+
 if [ -s $1/../REVISION ]; then
-  cat $1/../REVISION
-else
-  svn info $1 | grep "Last Changed Rev: " | cut -d: -f2
+  cat ../REVISION
+
+elif svn info &>/dev/null; then
+  echo -n "svn:"
+  svn info | grep "Last Changed Rev: " | cut -d: -f2 | tr -d ' '
+
+elif git rev-parse &>/dev/null; then
+  echo -n "git:"
+  git rev-parse --short HEAD
+
 fi
+
