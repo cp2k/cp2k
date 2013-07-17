@@ -1247,6 +1247,15 @@ CONTAINS
 
        NULLIFY(print_key)
 
+       CALL cp_print_key_section_create(print_key,"DIPOLE",&
+            description="Controls the printing of the DIPOLE in a QM/MM calculations."//&
+            " It requires that the DIPOLE calculations is "//&
+            " requested both for the QS  and for the MM  part.", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"PGF",&
             description="Controls the printing of the gaussian expansion basis set of the"//&
             " electrostatic potential", &

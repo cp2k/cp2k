@@ -28,13 +28,17 @@ MODULE force_env_methods
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_vsite,                ONLY: vsite_force_control
   USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              cp_results_mp_bcast,&
-                                             get_results
+                                             get_results,&
+                                             put_results
   USE cp_result_types,                 ONLY: cp_result_copy,&
                                              cp_result_create,&
                                              cp_result_p_type,&
@@ -1090,20 +1094,24 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip, output_unit
+    CHARACTER(LEN=default_string_length)     :: description, iter
+    INTEGER                                  :: ip, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: calculate_forces, failure, &
                                                 qmmm_added_chrg, qmmm_link, &
                                                 qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
-    REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord
+    REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
+                                                max_coord, min_coord
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_result_type), POINTER            :: results_mm, results_qm, &
+                                                results_qmmm
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, print_key
 
     min_coord        =  HUGE(0.0_dp)
     max_coord        = -HUGE(0.0_dp)
@@ -1115,7 +1123,7 @@ CPSourceFileRef,&
     logger => cp_error_get_logger(error)
     IF (PRESENT(calc_force)) calculate_forces = calc_force
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
-    NULLIFY(force_env_section)
+    NULLIFY(force_env_section, print_key, results_qmmm, results_qm, results_mm)
     force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -1164,26 +1172,31 @@ CPSourceFileRef,&
     ! Print Out information on fist energy calculation...
     CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
                        potential_energy=energy_mm,&
+                       results=results_mm,&
                        error=error)
     ! QS
     CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
          calc_force=calculate_forces,skip_external_control=.TRUE.,error=error)
-    ! Print Out information on QS energy calculation...
-    CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
-                       potential_energy=energy_qm,&
-                       error=error)
+
     ! QM/MM Interaction Potential forces
     CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
                      force_env%qmmm_env,particles_mm,&
                      mm_cell=mm_cell,&
                      calc_force=calculate_forces,&
                      error=error)
+
     ! Forces of quadratic wall on QM atoms
     CALL apply_qmmm_walls(force_env,error)
 
     ! Print Out information on QS energy calculation...
     CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                        potential_energy=energy_qm,&
+                       results=results_qm,&
+                       error=error)
+
+    ! Print Out information on QS energy calculation...
+    CALL force_env_get(force_env,&
+                       results=results_qmmm,&
                        error=error)
 
     IF (calculate_forces) THEN
@@ -1197,6 +1210,7 @@ CPSourceFileRef,&
        IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(force_env%qmmm_env, particles_mm, error)
     END IF
 
+    ! Handle some output
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"QMMM%PRINT%DERIVATIVES",&
              extension=".Log",error=error)
     IF (output_unit>0) THEN
@@ -1210,6 +1224,35 @@ CPSourceFileRef,&
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
          "QMMM%PRINT%DERIVATIVES",error=error)
+
+    ! Dipole
+    print_key => section_vals_get_subs_vals(force_env_section,"QMMM%PRINT%DIPOLE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+         cp_p_file)) THEN
+       description ='[DIPOLE]'
+       CALL get_results(results=results_qm,description=description,n_rep=nres,error=error)
+       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
+       CALL get_results(results=results_mm,description=description,n_rep=nres,error=error)
+       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
+       CALL get_results(results=results_qm,description=description,values=dip_qm,error=error)
+       CALL get_results(results=results_mm,description=description,values=dip_mm,error=error)
+       dip_qmmm = dip_qm + dip_mm
+       CALL cp_results_erase(results=results_qmmm,description=description,error=error)
+       CALL put_results(results=results_qmmm,description=description,values=dip_qmmm,error=error)
+
+       output_unit = cp_print_key_unit_nr(logger,force_env_section,"QMMM%PRINT%DIPOLE",&
+                extension=".Dipole",error=error)
+       IF (output_unit>0) THEN
+             WRITE(unit=output_unit,fmt="(A)")"QMMM TOTAL DIPOLE"
+             WRITE(unit=output_unit,fmt="(A,T31,A,T88,A)")&
+                  "# iter_level","dipole(x,y,z)[atomic units]",&
+                                 "dipole(x,y,z)[debye]"
+          iter=cp_iter_string(logger%iter_info,error=error)
+          WRITE(unit=output_unit,fmt="(a,6(es18.8))")&
+                  iter(1:15), dip_qmmm, dip_qmmm*debye
+       END IF
+    END IF
+
   END SUBROUTINE qmmm_energy_and_forces_low
 
 ! *****************************************************************************
