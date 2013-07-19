@@ -245,15 +245,18 @@ CONTAINS
     ! set the neccessary files for ...
     ! density
     IF(ASSOCIATED(ana_env%density_3d)) THEN
-      ana_env%costum_pos_file_name = tmp_pos_file
+      ana_env%costum_pos_file_name  = tmp_pos_file
+      ana_env%costum_cell_file_name = tmp_cell_file
     END IF
     ! pair correlation
     IF(ASSOCIATED(ana_env%pair_correl)) THEN
-      ana_env%costum_pos_file_name = tmp_pos_file
+      ana_env%costum_pos_file_name  = tmp_pos_file
+      ana_env%costum_cell_file_name = tmp_cell_file
     END IF
     ! dipole moment
     IF(ASSOCIATED(ana_env%dip_mom)) THEN
       ana_env%costum_pos_file_name  = tmp_pos_file 
+      ana_env%costum_cell_file_name = tmp_cell_file
     END IF
     ! dipole analysis
     IF(ASSOCIATED(ana_env%dip_ana)) THEN
@@ -264,6 +267,7 @@ CONTAINS
     ! deviation / displacement
     IF(ASSOCIATED(ana_env%displace)) THEN
       ana_env%costum_pos_file_name  = tmp_pos_file
+      ana_env%costum_cell_file_name = tmp_cell_file
     END IF
 
 

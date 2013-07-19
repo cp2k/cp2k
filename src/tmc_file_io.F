@@ -1062,7 +1062,7 @@ CONTAINS
       tmc_ana%id_traj = 54321
       OPEN(tmc_ana%id_traj, FILE=file_name_act, ACTION="READ")
       WRITE(tmc_ana%io_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
-            "read file",TRIM(file_name_act)
+            "read xyz file",TRIM(file_name_act)
     END IF
 
     ! cell file
@@ -1077,7 +1077,7 @@ CONTAINS
       tmc_ana%id_cell = 54322
       OPEN(tmc_ana%id_cell, FILE=file_name_act, ACTION="READ")
       WRITE(tmc_ana%io_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
-            "read file",TRIM(file_name_act)
+            "read cell file",TRIM(file_name_act)
     END IF
 
     ! dipole file
@@ -1092,7 +1092,7 @@ CONTAINS
       tmc_ana%id_dip = 54323
       OPEN(tmc_ana%id_dip, FILE=file_name_act, ACTION="READ")
       WRITE(tmc_ana%io_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
-            "read file",TRIM(file_name_act)
+            "read dip file",TRIM(file_name_act)
     END IF
 
     IF(tmc_ana%id_traj.GT.0 .OR. tmc_ana%id_cell.GT.0 .OR. &
