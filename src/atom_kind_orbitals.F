@@ -7,6 +7,7 @@
 !> \brief calculate the orbitals for a given atomic kind type
 ! *****************************************************************************
 MODULE atom_kind_orbitals
+  USE ai_onecenter,                    ONLY: sg_erfc
   USE atom_electronic_structure,       ONLY: calculate_atom
   USE atom_fit,                        ONLY: atom_fit_density
   USE atom_operators,                  ONLY: atom_int_release,&
@@ -29,21 +30,21 @@ MODULE atom_kind_orbitals
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE input_constants,                 ONLY: do_analytic,&
-                                             do_dkh2_atom,&
-                                             do_gapw_log,&
-                                             do_nonrel_atom,&
-                                             do_numeric,&
-                                             do_rks_atom,&
-                                             gth_pseudo,&
-                                             no_pseudo
+  USE input_constants,                 ONLY: &
+       do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
+       do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, do_numeric, &
+       do_rks_atom, do_sczoramp_atom, do_zoramp_atom, gth_pseudo, no_pseudo, &
+       rel_dkh, rel_none, rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: bohr
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              create_grid_atom,&
                                              grid_atom_type
+  USE rel_control_types,               ONLY: rel_control_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -52,7 +53,8 @@ MODULE atom_kind_orbitals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
 
-  PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density
+  PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density, &
+            calculate_atomic_relkin
 
 ! *****************************************************************************
 
@@ -967,6 +969,352 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE calculate_atomic_density
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_atomic_relkin (atomic_kind,rel_control,rtmat,error)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(rel_control_type), POINTER          :: rel_control
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_relkin', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, ii, ipgf, j, k, k1, &
+                                                k2, l, ll, m, n, ngp, nj, nn, &
+                                                nr, ns, nset, nsgf, quadtype, &
+                                                relativistic, z
+    INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
+    INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, last_sgf, ls
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: al, alpha, ear, prefac, rk, &
+                                                zeff
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: omat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atom_basis_type), POINTER           :: basis
+    TYPE(atom_integrals), POINTER            :: integrals
+    TYPE(atom_potential_type), POINTER       :: potential
+    TYPE(atom_type), POINTER                 :: atom
+    TYPE(grid_atom_type), POINTER            :: grid
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+    failure = .FALSE.
+
+    IF(rel_control%rel_method == rel_none) RETURN
+
+    NULLIFY(all_potential,orb_basis_set)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                         all_potential=all_potential,&
+                         orb_basis_set=orb_basis_set)
+    CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP, error, failure)
+
+    IF ( ASSOCIATED(all_potential) ) THEN
+       ! only all electron atoms will get the relativistic correction
+
+       CALL get_atomic_kind(atomic_kind,z=z,zeff=zeff)
+       NULLIFY(atom)
+       CALL create_atom_type(atom,error)
+       NULLIFY(atom%xc_section)
+       NULLIFY(atom%orbitals)
+       atom%z = z
+       alpha = SQRT(all_potential%alpha_core_charge)
+
+       ! set the method flag
+       SELECT CASE (rel_control%rel_method)
+          CASE DEFAULT
+             CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CASE (rel_dkh)
+             SELECT CASE (rel_control%rel_DKH_order)
+                CASE DEFAULT
+                   CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                CASE (0)
+                   relativistic = do_dkh0_atom
+                CASE (1)
+                   relativistic = do_dkh1_atom
+                CASE (2)
+                   relativistic = do_dkh2_atom
+                CASE (3)
+                   relativistic = do_dkh3_atom
+                CASE (4)
+                   relativistic = do_dkh4_atom
+                CASE (5)
+                   relativistic = do_dkh5_atom
+             END SELECT
+          CASE (rel_zora)
+             SELECT CASE (rel_control%rel_zora_type)
+                CASE DEFAULT
+                   CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                CASE (rel_zora_full)
+                   CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                CASE (rel_zora_mp)
+                   relativistic = do_zoramp_atom
+                CASE (rel_sczora_mp)
+                   relativistic = do_sczoramp_atom
+             END SELECT
+       END SELECT
+
+       CALL set_atom(atom,&
+                  pp_calc=.FALSE.,&
+                  method_type=do_rks_atom,&
+                  relativistic=relativistic,&
+                  coulomb_integral_type=do_numeric,&
+                  exchange_integral_type=do_numeric,&
+                  error=error)
+
+       ALLOCATE (potential,basis,integrals,STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+       potential%ppot_type=no_pseudo
+       CALL set_atom(atom,zcore=z,potential=potential,error=error)
+
+       CALL get_gto_basis_set(orb_basis_set,&
+          nset=nset,nshell=nshell,npgf=npgf,lmin=lmin,lmax=lmax,l=ls,nsgf=nsgf,zet=zet,gcc=gcc,&
+          first_sgf=first_sgf,last_sgf=last_sgf)
+
+       NULLIFY(grid)
+       ngp = 400
+       quadtype = do_gapw_log
+       CALL allocate_grid_atom(grid,error)
+       CALL create_grid_atom(grid,ngp,1,1,0,quadtype)
+       grid%nr = ngp
+       basis%grid => grid
+
+       NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+       basis%basis_type = CGTO_BASIS
+       basis%eps_eig = 1.e-12_dp
+
+       ! fill in the basis data structures
+       set_index = 0
+       shell_index = 0
+       basis%nprim = 0
+       basis%nbas = 0
+       DO i=1,nset
+         DO j=lmin(i),MIN(lmax(i),3)
+           basis%nprim(j) = basis%nprim(j) + npgf(i)
+         END DO
+         DO j=1,nshell(i)
+           l = ls(j,i)
+           IF ( l <= 3 ) THEN
+             basis%nbas(l) = basis%nbas(l)+1
+             k = basis%nbas(l)
+             CPPostcondition(k<=100, cp_failure_level, routineP, error, failure)
+             set_index(l,k) = i
+             shell_index(l,k) = j
+           END IF
+         END DO
+       END DO
+
+       nj = MAXVAL(basis%nprim)
+       ns = MAXVAL(basis%nbas)
+       ALLOCATE (basis%am(nj,0:3),STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       basis%am = 0._dp
+       ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       basis%cm = 0._dp
+       DO j=0,3
+         nj = 0
+         ns = 0
+         DO i=1,nset
+           IF (j >= lmin(i) .AND. j <= lmax(i)) THEN
+             DO ipgf = 1,npgf(i)
+               basis%am(nj+ipgf,j) = zet(ipgf,i)
+             END DO
+             DO ii=1,nshell(i)
+               IF ( ls(ii,i) == j ) THEN
+                 ns = ns + 1
+                 DO ipgf=1,npgf(i)
+                   basis%cm(nj+ipgf,ns,j) = gcc(ipgf,ii,i)
+                 END DO
+               END IF
+             END DO
+             nj = nj + npgf(i)
+           END IF
+         END DO
+       END DO
+
+       ! Normalization as used in the atomic code
+       ! We have to undo the Quickstep normalization
+       DO j=0,3
+          prefac =  2.0_dp * SQRT( pi/dfac(2*j+1) )
+          DO ipgf=1,basis%nprim(j)
+             DO ii=1,basis%nbas(j)
+                basis%cm(ipgf,ii,j) = prefac * basis%cm(ipgf,ii,j)
+             END DO
+          END DO
+       END DO
+
+       ! initialize basis function on a radial grid
+       nr = basis%grid%nr
+       m  = MAXVAL(basis%nbas)
+       ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+       basis%bf =  0._dp
+       basis%dbf = 0._dp
+       DO l=0,3
+         DO i=1,basis%nprim(l)
+           al  = basis%am(i,l)
+           DO k=1,nr
+             rk  = basis%grid%rad(k)
+             ear = EXP(-al*basis%grid%rad(k)**2)
+             DO j=1,basis%nbas(l)
+               basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
+               basis%dbf(k,j,l) = basis%dbf(k,j,l) &
+                 + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+             END DO
+           END DO
+         END DO
+       END DO
+
+       CALL set_atom(atom,basis=basis,error=error)
+
+       ! optimization defaults
+       atom%optimization%damping    = 0.2_dp
+       atom%optimization%eps_scf    = 1.e-6_dp
+       atom%optimization%eps_diis   = 100._dp
+       atom%optimization%max_iter   = 50
+       atom%optimization%n_diis     = 5
+
+       ! electronic state
+       nelem = 0
+       ncore = 0
+       ncalc = 0
+       DO l=0,3
+          ll = 2*(2*l+1)
+          nn = ptable(z)%e_conv(l)
+          ii = 0
+          DO
+             ii = ii + 1
+             IF(nn <= ll) THEN
+                nelem(l,ii) = nn
+                EXIT
+             ELSE
+                nelem(l,ii) = ll
+                nn = nn - ll
+             END IF
+          END DO
+       END DO
+       ncalc = nelem - ncore
+
+       IF ( atomic_kind%ghost ) THEN
+          nelem = 0
+          ncore = 0
+          ncalc = 0
+       END IF
+
+       ALLOCATE (atom%state,STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+       atom%state%core = 0._dp
+       atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
+       atom%state%occ = 0._dp
+       atom%state%occ(0:3,1:7)  = REAL(ncalc(0:3,1:7),dp)
+       atom%state%occupation = 0._dp
+       atom%state%multiplicity = -1
+       DO l=0,3
+          k = 0
+          DO i=1,7
+             IF ( ncalc(l,i) > 0 ) THEN
+                k = k + 1
+                atom%state%occupation(l,k) = REAL(ncalc(l,i),dp)
+             END IF
+          END DO
+       END DO
+
+       atom%state%maxl_occ = get_maxl_occ(atom%state%occupation)
+       atom%state%maxn_occ = get_maxn_occ(atom%state%occupation)
+       atom%state%maxl_calc = atom%state%maxl_occ
+       atom%state%maxn_calc = atom%state%maxn_occ
+
+       ! calculate integrals
+       ! general integrals
+       CALL atom_int_setup(integrals,basis,error=error)
+       ! potential
+       CALL atom_ppint_setup(integrals,basis,potential=atom%potential,error=error)
+       ! relativistic correction terms
+       NULLIFY(integrals%tzora,integrals%hdkh)
+       CALL atom_relint_setup(integrals,basis,atom%relativistic,zcore=REAL(atom%zcore,dp),&
+                              alpha=alpha,error=error)
+       CALL set_atom(atom,integrals=integrals,error=error)
+
+       ! for DKH we need erfc integrals to correct non-relativistic
+       integrals%core = 0.0_dp
+       DO l=0,3
+          n = integrals%n(l)
+          m = basis%nprim(l)
+          ALLOCATE (omat(m,m),STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+          CALL sg_erfc ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
+          integrals%core(1:n,1:n,l) = MATMUL(TRANSPOSE(basis%cm(1:m,1:n,l)),&
+                                             MATMUL(omat(1:m,1:m),basis%cm(1:m,1:n,l)))
+
+          DEALLOCATE (omat,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       END DO
+
+       ! recover relativistic kinetic matrix in CP2K/GPW order and normalization
+       IF(ASSOCIATED(rtmat)) THEN
+          DEALLOCATE (rtmat,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       END IF
+       ALLOCATE (rtmat(nsgf,nsgf),STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       rtmat = 0._dp
+       DO l=0,3
+          ll = 2*l
+          DO k1=1,basis%nbas(l)
+             DO k2=1,basis%nbas(l)
+                i=first_sgf(shell_index(l,k1),set_index(l,k1))
+                j=first_sgf(shell_index(l,k2),set_index(l,k2))
+                SELECT CASE (atom%relativistic)
+                   CASE DEFAULT
+                      CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                   CASE (do_zoramp_atom,do_sczoramp_atom)
+                      DO m=0,ll
+                         rtmat(i+m,j+m) = integrals%tzora(k1,k2,l)
+                      END DO
+                   CASE (do_dkh0_atom,do_dkh1_atom,do_dkh2_atom,do_dkh3_atom,do_dkh4_atom,do_dkh5_atom)
+                      DO m=0,ll
+                         rtmat(i+m,j+m) = integrals%hdkh(k1,k2,l)-integrals%kin(k1,k2,l)+atom%zcore*integrals%core(k1,k2,l)
+                      END DO
+                END SELECT
+             END DO
+          END DO
+       ENDDO
+
+       ! clean up
+       CALL atom_int_release(integrals,error)
+       CALL atom_ppint_release(integrals,error)
+       CALL atom_relint_release(integrals,error)
+       CALL release_atom_basis(basis,error)
+       CALL release_atom_potential(potential,error)
+       CALL release_atom_type(atom,error)
+
+       DEALLOCATE (potential,basis,integrals,STAT=ierr)
+       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    ELSE
+
+       IF(ASSOCIATED(rtmat)) THEN
+          DEALLOCATE (rtmat,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       END IF
+       NULLIFY(rtmat)
+
+    END IF
+
+  END SUBROUTINE calculate_atomic_relkin
 
 ! *****************************************************************************
 

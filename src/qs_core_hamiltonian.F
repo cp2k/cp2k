@@ -73,18 +73,24 @@
 MODULE qs_core_hamiltonian
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
-                                             cp_dbcsr_init
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
                                              cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -93,6 +99,7 @@ MODULE qs_core_hamiltonian
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              rel_none,&
+                                             rel_trans_atom,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp
@@ -360,6 +367,12 @@ CONTAINS
     IF (.NOT.ofdft) THEN
        CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_t(1)%matrix,&
            name="CORE HAMILTONIAN MATRIX",error=error)
+       ! relativistic atomic correction to kinetic energy
+       IF(qs_env%rel_control%rel_method /= rel_none)THEN
+          IF(qs_env%rel_control%rel_transformation == rel_trans_atom)THEN
+             CALL build_atomic_relmat(matrix_h, atomic_kind_set, particle_set, error)
+          END IF
+       END IF
     END IF
 
     !   *** Allocate the matrix of coefficients for one center expansions
@@ -405,11 +418,9 @@ CONTAINS
     END IF
 
     ! *** compute the ppnl contribution to the core hamiltonian ***
-    IF(qs_env%rel_control%rel_method==rel_none)THEN
-      eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
-      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+    eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
+    CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
-    END IF
 
     ! *** GAPW one-center-expansion (oce) matrices
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
@@ -432,10 +443,12 @@ CONTAINS
                     matrix_h=matrix_h,&
                     oce=oce,error=error)
 
-    IF(qs_env%rel_control%rel_method/=rel_none)THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="DKH currently not implemented", &
+    IF(qs_env%rel_control%rel_method /= rel_none)THEN
+       IF(qs_env%rel_control%rel_transformation /= rel_trans_atom)THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Relativistic corrections of this type are currently not implemented", &
                error=error, error_level=cp_failure_level)
+       END IF
     END IF
 
     ! Print matrices if requested
@@ -444,6 +457,53 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_core_hamiltonian_matrix
+
+! *****************************************************************************
+!> \brief Adds atomic blocks of relativistic correction for the kinetic energy
+! *****************************************************************************
+  SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, particle_set, error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, iatom, ikind, istat, &
+                                                jatom, natom
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+    failure = .FALSE.
+    natom = SIZE(particle_set)
+    ALLOCATE (kind_of(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+
+    CALL cp_dbcsr_iterator_start(iter,matrix_h(1)%matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
+       IF (iatom==jatom) THEN
+          ikind = kind_of(iatom)
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,reltmat=reltmat)
+          hblock = hblock + reltmat
+       END IF
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    DEALLOCATE (kind_of,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE build_atomic_relmat
 
 ! *****************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core

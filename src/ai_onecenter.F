@@ -41,7 +41,8 @@ MODULE ai_onecenter
 
   PRIVATE
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot, &
-            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc
+            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc, &
+            sg_erfc
   PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_conf
   PUBLIC :: num_overlap, num_kinetic, num_nuclear, num_erf, num_gpot, &
             num_proj_ol, num_conf, num_kinnuc
@@ -502,6 +503,38 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE sg_exchange
+
+!------------------------------------------------------------------------------
+!
+!  erfc(a*x)/x = 1/x - erf(a*x)/x
+!
+!------------------------------------------------------------------------------
+  SUBROUTINE sg_erfc ( umat, l, a, pa, pb )
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: umat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp), INTENT(IN)                :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
+
+    INTEGER                                  :: ip, iq, m, n
+    REAL(KIND=dp)                            :: tld
+
+    n = SIZE ( pa )
+    m = SIZE ( pb )
+
+    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+
+    CALL sg_erf ( umat, l, a, pa, pb )
+
+    tld = 0.5_dp*fac(l)
+    DO iq = 1, m
+      DO ip = 1, n
+        umat ( ip, iq ) = tld / (pa(ip)+pb(iq))**(l+1) - umat ( ip, iq )
+      END DO
+    END DO
+
+  END SUBROUTINE sg_erfc
 
 ! ******************************************************************************
 

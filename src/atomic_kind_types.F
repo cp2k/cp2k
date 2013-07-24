@@ -148,10 +148,10 @@ MODULE atomic_kind_types
      CHARACTER(LEN=default_string_length)   :: name
      CHARACTER(LEN=2)                       :: element_symbol
      REAL(KIND = dp)                        :: mass
-     REAL ( KIND = dp )                     :: alpha_scp, I_scp
+     REAL(KIND = dp)                        :: alpha_scp, I_scp
      INTEGER                                :: kind_number,&
-          natom,&
-          number_of_grid_points
+                                               natom,&
+                                               number_of_grid_points
      INTEGER, DIMENSION(:,:), POINTER       :: addel, laddel, naddel
      INTEGER, DIMENSION(:), POINTER         :: atom_list
      TYPE(harmonics_atom_type), POINTER     :: harmonics
@@ -167,6 +167,8 @@ MODULE atomic_kind_types
      !
      TYPE(qs_atom_dispersion_type), POINTER :: dispersion
      TYPE(damping_p_type), POINTER          :: damping
+     ! relativistic kinetic energy correction matrix
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: reltmat
   END TYPE atomic_kind_type
 
 !> Provides a vector of pointers of type atomic_kind_type
@@ -276,6 +278,7 @@ CONTAINS
        NULLIFY(atomic_kind_set(ikind)%addel)
        NULLIFY(atomic_kind_set(ikind)%laddel)
        NULLIFY(atomic_kind_set(ikind)%naddel)
+       NULLIFY(atomic_kind_set(ikind)%reltmat)
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -398,6 +401,10 @@ CONTAINS
              DEALLOCATE (atomic_kind_set(ikind)%laddel,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%reltmat)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%reltmat,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
 
           CALL damping_p_release(atomic_kind_set(ikind)%damping,error)
        END DO
@@ -429,7 +436,7 @@ CONTAINS
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id, &
        npgf, bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
        max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
-       init_u_ramping_each_scf)
+       init_u_ramping_each_scf, reltmat)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -507,6 +514,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_ramping, u_minus_j_target, &
                                                 eps_u_ramping
     LOGICAL, OPTIONAL                        :: init_u_ramping_each_scf
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: reltmat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -854,6 +863,8 @@ CONTAINS
        IF (PRESENT(naddel)) naddel => atomic_kind%naddel
 
        IF (PRESENT(no_optimize)) no_optimize=atomic_kind%no_optimize
+
+       IF (PRESENT(reltmat)) reltmat => atomic_kind%reltmat
 
     ELSE
 
@@ -2585,7 +2596,7 @@ CONTAINS
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        fist_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
-       shell_active,no_optimize,dispersion,damping,u_minus_j,error)
+       shell_active,no_optimize,dispersion,damping,u_minus_j,reltmat,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
@@ -2608,6 +2619,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: dispersion
     TYPE(damping_p_type), OPTIONAL, POINTER  :: damping
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u_minus_j
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: reltmat
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2682,6 +2695,8 @@ CONTAINS
              atomic_kind%dft_plus_u%u_minus_j = u_minus_j
           END IF
        END IF
+
+       IF (PRESENT(reltmat)) atomic_kind%reltmat => reltmat
 
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&

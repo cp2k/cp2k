@@ -1,0 +1,67 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    CHARGE +1
+    BASIS_SET_FILE_NAME ../BASIS_SET
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &RELATIVISTIC
+        METHOD DKH
+        DKH_ORDER 2
+        TRANSFORMATION ATOM
+    &END RELATIVISTIC
+    &MGRID
+      CUTOFF 200
+      NGRIDS 5
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GAPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-4
+      MAX_SCF 7
+      &OUTER_SCF
+         EPS_SCF 1.0E-4
+      &END
+      &OT
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_ALL
+         ENERGY_GAP 0.001
+      &END
+    &END SCF
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER ANALYTIC
+    &END POISSON
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+  O         0.0000        0.0000        0.0555
+  H         0.0000        0.7426        0.6587
+  H         0.0000       -0.7426        0.6587
+    &END COORD
+    &KIND O
+      POTENTIAL ALL
+      BASIS_SET DZ-ANO
+    &END KIND
+    &KIND H
+      POTENTIAL ALL
+      BASIS_SET DZ-ANO
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT water
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL

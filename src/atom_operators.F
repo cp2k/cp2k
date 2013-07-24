@@ -12,9 +12,9 @@
 ! *****************************************************************************
 MODULE atom_operators
   USE ai_onecenter,                    ONLY: &
-       sg_conf, sg_coulomb, sg_erf, sg_exchange, sg_gpot, sg_kinetic, &
-       sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol, sto_conf, sto_kinetic, &
-       sto_nuclear, sto_overlap
+       sg_conf, sg_coulomb, sg_erf, sg_erfc, sg_exchange, sg_gpot, &
+       sg_kinetic, sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol, sto_conf, &
+       sto_kinetic, sto_nuclear, sto_overlap
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_integrals, atom_potential_type, atom_state
@@ -617,11 +617,12 @@ CONTAINS
 
   END SUBROUTINE atom_ppint_setup
 ! *****************************************************************************
-  SUBROUTINE atom_relint_setup(integrals,basis,reltyp,zcore,error)
+  SUBROUTINE atom_relint_setup(integrals,basis,reltyp,zcore,alpha,error)
     TYPE(atom_integrals), INTENT(INOUT)      :: integrals
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     INTEGER, INTENT(IN)                      :: reltyp
-    REAL(dp), OPTIONAL                       :: zcore
+    REAL(dp), INTENT(IN)                     :: zcore
+    REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_setup', &
@@ -756,7 +757,6 @@ CONTAINS
 
         NULLIFY (integrals%tzora)
 
-        CPPostcondition(PRESENT(zcore), cp_failure_level, routineP, error, failure)
         IF ( integrals%dkhstat == 0 ) THEN
           n = MAXVAL(basis%nbas)
           ALLOCATE (integrals%hdkh(n,n,0:3),STAT=ierr)
@@ -781,7 +781,11 @@ CONTAINS
                 IF ( m > 0 ) THEN
                   CALL sg_kinetic ( tp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
                   CALL sg_overlap ( sp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
-                  CALL sg_nuclear ( vp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
+                  IF(PRESENT(alpha)) THEN
+                    CALL sg_erfc ( vp(1:m,1:m,l), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
+                  ELSE
+                    CALL sg_nuclear ( vp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
+                  END IF
                   CALL sg_kinnuc ( pvp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
                   vp(1:m,1:m,l) = -zcore*vp(1:m,1:m,l)
                   pvp(1:m,1:m,l) = -zcore*pvp(1:m,1:m,l)

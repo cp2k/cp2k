@@ -9,6 +9,7 @@ ATOM/regtest-pseudo
 QS/regtest-sym
 Fist/regtest-7
 Fist/regtest
+QS/regtest-rel
 QS/regtest-admm
 QS/regtest-gpw-2
 SE/regtest-3

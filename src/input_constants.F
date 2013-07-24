@@ -537,7 +537,11 @@ MODULE input_constants
 
   ! Input constants for relativistic calculations
   INTEGER, PARAMETER, PUBLIC               :: rel_none=0,&
-                                              rel_dkh=1
+                                              rel_dkh=1,&
+                                              rel_zora=2
+  INTEGER, PARAMETER, PUBLIC               :: rel_zora_full=100,&
+                                              rel_zora_mp=101,&
+                                              rel_sczora_mp=102
   INTEGER, PARAMETER, PUBLIC               :: rel_trans_full=0,&
                                               rel_trans_molecule=1,&
                                               rel_trans_atom=2

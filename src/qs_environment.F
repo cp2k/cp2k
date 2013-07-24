@@ -15,6 +15,7 @@
 !> \author MK (18.05.2000)
 ! *****************************************************************************
 MODULE qs_environment
+  USE atom_kind_orbitals,              ONLY: calculate_atomic_relkin
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -102,9 +103,10 @@ MODULE qs_environment
        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lripaw, &
        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
-       do_method_scptb, do_multipole_none, general_roks, restart_guess, &
-       use_aux_fit_basis_set, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+       do_method_scptb, do_multipole_none, general_roks, rel_none, &
+       rel_trans_atom, restart_guess, use_aux_fit_basis_set, &
+       vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_vdw_fun_none, &
+       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -239,6 +241,7 @@ CONTAINS
     LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, failure, harris_flag, &
       mp2_present, my_qmmm, my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -258,6 +261,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
       kind_section, mp2_section
@@ -449,6 +453,21 @@ CONTAINS
     IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
        CALL ls_scf_create(qs_env,error)
     ENDIF
+
+    ! see if we have atomic relativistic corrections
+    CALL get_qs_env(qs_env,rel_control=rel_control,error=error)
+    IF (rel_control%rel_method /= rel_none) THEN
+       IF (rel_control%rel_transformation == rel_trans_atom) THEN
+          CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             NULLIFY(rtmat)
+             CALL calculate_atomic_relkin (atomic_kind,rel_control,rtmat,error)
+             IF(ASSOCIATED(rtmat)) atomic_kind%reltmat => rtmat
+          END DO
+       END IF
+    END IF
 
   END SUBROUTINE qs_init
 

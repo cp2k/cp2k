@@ -4096,14 +4096,25 @@ CONTAINS
        CALL keyword_create(keyword, name="method",&
             description="type of relativistic correction used",&
             usage="method DKH", default_i_val=rel_none,&
-            enum_c_vals=s2a("NONE","DKH"),&
-            enum_i_vals=(/ rel_none, rel_dkh /),error=error)
+            enum_c_vals=s2a("NONE","DKH","ZORA"),&
+            enum_i_vals=(/ rel_none, rel_dkh, rel_zora /),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DKH_order",&
             description="The order of the DKH transformation ",&
             usage="DKH_order 2", default_i_val=2,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ZORA_type",&
+            description="Type of ZORA method to be used",&
+            usage="ZORA_type scMP", default_i_val=rel_zora_full,&
+            enum_c_vals=s2a("FULL","MP","scMP"), &
+            enum_desc=s2a("Full ZORA method (not implemented)",&
+                          "ZORA with atomic model potential",&
+                          "Scaled ZORA with atomic model potential"),&
+            enum_i_vals=(/ rel_zora_full, rel_zora_mp, rel_sczora_mp/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
