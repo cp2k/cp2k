@@ -384,12 +384,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_addto_index_array', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: deplus, error_handler, space, &
-                                                ub, ub_new
+    INTEGER                                  :: deplus, space, ub, ub_new
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
     IF (debug_mod) THEN
         CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
              dbcsr_internal_error, routineP,&
@@ -445,7 +443,6 @@ CONTAINS
     CALL dbcsr_repoint_index(matrix, slot)
     IF (PRESENT(DATA)) &
          matrix%index(matrix%index(slot):matrix%index(slot+1)) = DATA(:)
-    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_addto_index_array
 
 ! *****************************************************************************

@@ -18,6 +18,9 @@ MODULE dbcsr_types
   USE btree_i8_k_dp2d_v,               ONLY: btree_2d_d => btree
   USE btree_i8_k_sp2d_v,               ONLY: btree_2d_s => btree
   USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
+  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_type
+  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_type
+  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_type
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              dp,&
                                              real_4,&
@@ -82,8 +85,13 @@ MODULE dbcsr_types
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d,&
             dbcsr_type_int_4, dbcsr_type_int_8
-  PUBLIC :: dbcsr_memory_default, dbcsr_memory_MPI,&
-            dbcsr_memory_CUDA_host_pinned
+  PUBLIC :: dbcsr_mempool_type,&
+            dbcsr_mempool_entry_type,&
+            dbcsr_memtype_type,&
+            dbcsr_memtype_default,&
+            dbcsr_memtype_MPI,&
+            dbcsr_memtype_equal
+
   PUBLIC :: dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
   PUBLIC :: dbcsr_no_transpose, dbcsr_transpose, dbcsr_conjugate_transpose
@@ -126,6 +134,9 @@ MODULE dbcsr_types
      TYPE(dbcsr_mp_type), POINTER :: mp
   END TYPE dbcsr_mp_obj
 
+  TYPE dbcsr_data_obj
+     TYPE(dbcsr_data_area_type), POINTER           :: d
+  END TYPE dbcsr_data_obj
 ! *****************************************************************************
 !> \brief Matrix distribution on the processor grid
 !> \var row_dist, col_dist    standard row and column distributions of matrix
@@ -227,6 +238,30 @@ MODULE dbcsr_types
      INTEGER              :: data_type
   END TYPE dbcsr_scalar_type
 
+! *****************************************************************************
+!> \brief Memory related types
+! *****************************************************************************
+  TYPE dbcsr_mempool_type
+    TYPE(dbcsr_mempool_entry_type), POINTER :: root => Null()
+    INTEGER                                 :: capacity = 0
+    !$ INTEGER(KIND=omp_lock_kind)          :: lock
+    CHARACTER(len=default_string_length)    :: name
+  END TYPE dbcsr_mempool_type
+
+  TYPE dbcsr_mempool_entry_type
+      TYPE(dbcsr_data_obj)                    :: area
+      TYPE(dbcsr_mempool_entry_type), POINTER :: next => Null()
+  END TYPE dbcsr_mempool_entry_type
+
+  TYPE dbcsr_memtype_type
+     LOGICAL                           :: mpi = .FALSE.
+     LOGICAL                           :: cuda_hostalloc = .FALSE.
+     LOGICAL                           :: cuda_devalloc = .FALSE.
+     TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
+  END TYPE dbcsr_memtype_type
+
+  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_default = dbcsr_memtype_type()
+  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_MPI = dbcsr_memtype_type(mpi=.TRUE.)
 
 ! *****************************************************************************
 !> \brief Stores actual data
@@ -240,23 +275,23 @@ MODULE dbcsr_types
 !> \var data_type   which of the data types is actually used
 ! *****************************************************************************
   TYPE dbcsr_data_area_type
-     REAL(KIND=real_4), DIMENSION(:), POINTER      :: r_sp
-     REAL(KIND=real_8), DIMENSION(:), POINTER      :: r_dp
-     COMPLEX(KIND=real_4), DIMENSION(:), POINTER   :: c_sp
-     COMPLEX(KIND=real_8), DIMENSION(:), POINTER   :: c_dp
-     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: r2_sp
-     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: r2_dp
-     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: c2_sp
-     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: c2_dp
-     INTEGER                                  :: ref_size
-     INTEGER                                  :: refcount, id
-     INTEGER                                  :: memory_type
-     INTEGER                                  :: data_type
+     REAL(KIND=real_4), DIMENSION(:), POINTER      :: r_sp  => Null()
+     REAL(KIND=real_8), DIMENSION(:), POINTER      :: r_dp  => Null()
+     COMPLEX(KIND=real_4), DIMENSION(:), POINTER   :: c_sp  => Null()
+     COMPLEX(KIND=real_8), DIMENSION(:), POINTER   :: c_dp  => Null()
+     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: r2_sp => Null()
+     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: r2_dp => Null()
+     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: c2_sp => Null()
+     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: c2_dp => Null()
+     INTEGER                                  :: ref_size = -1
+     INTEGER                                  :: refcount = -1
+     INTEGER                                  :: id = -1
+     TYPE(dbcsr_memtype_type)                 :: memory_type = dbcsr_memtype_default
+     INTEGER                                  :: data_type  = -1
+     TYPE(dbcsr_cuda_devmem_type)             :: cuda_devmem
+     TYPE(dbcsr_cuda_event_type)              :: cuda_ready
+     TYPE(dbcsr_cuda_stream_type)             :: cuda_stream
   END TYPE dbcsr_data_area_type
-
-  TYPE dbcsr_data_obj
-     TYPE(dbcsr_data_area_type), POINTER           :: d
-  END TYPE dbcsr_data_obj
 
 !> Type definitions:
 !> * bit 0: always 1
@@ -463,8 +498,6 @@ MODULE dbcsr_types
 !> \var refcount              reference count
 !> \var work_mutable          uses the mutable data for working and not the
 !>                            append-only data
-!> \var predistributed        array of images used to avoid preshifting static
-!>                            matrices before multiplication
 ! *****************************************************************************
   TYPE dbcsr_type
      INTEGER                            :: serial_number
@@ -502,14 +535,13 @@ MODULE dbcsr_types
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
      !LOGICAL                 :: transpose
      LOGICAL                 :: bcsc, local_indexing, list_indexing
-     INTEGER                 :: data_memory_type, index_memory_type
+     TYPE(dbcsr_memtype_type):: data_memory_type, index_memory_type
      TYPE(dbcsr_block_buffer_obj) :: buffers
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
-     TYPE(dbcsr_2d_array_type), POINTER :: predistributed
 !$   INTEGER(KIND=omp_lock_kind) :: modification_lock
   END TYPE dbcsr_type
 
@@ -533,11 +565,6 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER        :: dbcsr_repl_col = 'C'
   CHARACTER, PARAMETER        :: dbcsr_repl_full = 'A'
 
-  !
-  ! Memory types
-  INTEGER, PARAMETER          :: dbcsr_memory_default = 0
-  INTEGER, PARAMETER          :: dbcsr_memory_MPI = 1
-  INTEGER, PARAMETER          :: dbcsr_memory_CUDA_host_pinned = 2
 
 ! *****************************************************************************
 !> These specify which array index in the index array is the start of the
@@ -632,4 +659,18 @@ MODULE dbcsr_types
      TYPE(dbcsr_imagedistribution_obj) :: image_dist
   END TYPE dbcsr_2d_array_type
 
+  CONTAINS
+
+! *****************************************************************************
+! *****************************************************************************
+  FUNCTION dbcsr_memtype_equal(mt1,mt2) RESULT (res)
+    TYPE(dbcsr_memtype_type), INTENT(in)     :: mt1, mt2
+    LOGICAL                                  :: res
+
+      res = (mt1%mpi .EQV. mt2%mpi) .AND. &
+            (mt1%cuda_hostalloc .EQV. mt2%cuda_hostalloc) .AND. &
+            (mt1%cuda_devalloc .EQV. mt2%cuda_devalloc) .AND. &
+            (ASSOCIATED(mt1%pool) .EQV. ASSOCIATED(mt2%pool)) .AND. &
+            (.NOT. ASSOCIATED(mt1%pool) .OR. ASSOCIATED(mt1%pool, mt2%pool))
+  END FUNCTION dbcsr_memtype_equal
 END MODULE dbcsr_types

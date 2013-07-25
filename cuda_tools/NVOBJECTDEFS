@@ -1,15 +1,25 @@
 LIBNV_OBJECTS = \
+cuda_nvtx_cu.o \
 error_cuda.o \
 memory_cuda.o \
 fft_cuda_z.o \
 pw_cuda_z.o \
 cublas.o \
 dbcsr_cuda_calc.o \
-dbcsr_cuda_calc_r.o \
-dbcsr_cuda_calc_d.o \
-dbcsr_cuda_calc_c.o \
-dbcsr_cuda_calc_z.o \
 dbcsr_cuda_dev.o \
 dbcsr_cuda_mem.o \
 dbcsr_cuda_timing.o \
-ma_cuda_prop.o
+dbcsr_cuda_event_cu.o \
+dbcsr_cuda_stream_cu.o \
+ma_cuda_prop.o \
+stack_mm_c.o \
+stack_mm_d.o \
+stack_mm_mnk_d.o \
+stack_mm_mnk_sq13_d.o \
+stack_mm_mnk_sq23_d.o \
+stack_mm_mnk_sq23_d_slow.o \
+stack_mm_mnk_sq5_d.o \
+stack_mm_mnk_sq8_d.o \
+stack_mm_r.o \
+stack_mm_z.o
+

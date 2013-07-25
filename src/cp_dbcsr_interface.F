@@ -32,15 +32,14 @@ MODULE cp_dbcsr_interface
                                              dbcsr_reserve_blocks
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_cuda_mem, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_cuda_mem, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, has_cuda, has_mpi, mm_driver_blas, &
+       dbcsr_set_conf_use_comm_thread, has_mpi, mm_driver_blas, &
        mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
        mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
@@ -88,8 +87,7 @@ MODULE cp_dbcsr_interface
                                              dbcsr_new_transposed,&
                                              dbcsr_replicate,&
                                              dbcsr_replicate_all
-  USE dbcsr_types,                     ONLY: dbcsr_2d_array_type,&
-                                             dbcsr_data_obj,&
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_no_transpose,&
@@ -404,7 +402,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalizes DBCSR
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_finalize_lib (error)
+  SUBROUTINE cp_dbcsr_finalize_lib (output_unit, error)
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize_lib', &
@@ -412,7 +411,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_finalize_lib (dbcsr_error)
+    CALL dbcsr_finalize_lib (output_unit, dbcsr_error)
   END SUBROUTINE cp_dbcsr_finalize_lib
 
 
@@ -431,8 +430,7 @@ CONTAINS
                                                 mm_ss, n_stack_buffers
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, &
-                                                use_cuda_mem, use_mpi_mem, &
+                                                use_comm_thread, use_mpi_mem, &
                                                 use_subcomms
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
@@ -452,8 +450,6 @@ CONTAINS
     CALL section_vals_val_get(dbcsr_section,&
          "use_mpi_allocation", l_val=use_mpi_mem, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "use_cuda_host_allocation", l_val=use_cuda_mem, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
          "mm_stack_size", i_val=mm_ss, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "mm_driver", i_val=mm_driver, error=error)
@@ -470,7 +466,6 @@ CONTAINS
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
-    CALL dbcsr_set_conf_cuda_mem (use_cuda_mem, error=dbcsr_error)
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
     CALL dbcsr_set_conf_nstacks(nstacks, n_stack_buffers, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
@@ -492,15 +487,14 @@ CONTAINS
     INTEGER, PARAMETER                       :: info_len = 40
 
     CHARACTER(len=default_string_length) :: comm_thread_load_str, mm_name, &
-      mm_ss_str, use_combtypes_str, use_comm_thread_str, use_cuda_mem_str, &
-      use_k_stacks, use_m_stacks, use_mpi_mem_str, use_n_stacks, &
-      use_stack_buffers, use_subcomms_str
+      mm_ss_str, use_combtypes_str, use_comm_thread_str, use_k_stacks, &
+      use_m_stacks, use_mpi_mem_str, use_n_stacks, use_stack_buffers, &
+      use_subcomms_str
     INTEGER                                  :: comm_thread_load, mm_driver, &
                                                 mm_ss, nbuffers, unit_num
     INTEGER, DIMENSION(3)                    :: n_mnk_stacks
     LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, &
-                                                use_cuda_mem, use_mpi_mem, &
+                                                use_comm_thread, use_mpi_mem, &
                                                 use_subcomms
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_error_type)                   :: dbcsr_error
@@ -509,7 +503,6 @@ CONTAINS
     use_subcomms = dbcsr_get_conf_subcomm ()
     use_combtypes = dbcsr_get_conf_combtypes ()
     use_mpi_mem = dbcsr_get_conf_mpi_mem ()
-    use_cuda_mem = dbcsr_get_conf_cuda_mem ()
     mm_ss = dbcsr_get_conf_mm_stacksize ()
     use_comm_thread = dbcsr_get_conf_use_comm_thread()
     comm_thread_load = dbcsr_get_conf_comm_thread_load()
@@ -528,7 +521,6 @@ CONTAINS
     use_subcomms_str = l2str_r(use_subcomms,info_len)
     use_combtypes_str = l2str_r(use_combtypes,info_len)
     use_mpi_mem_str = l2str_r(use_mpi_mem,info_len)
-    use_cuda_mem_str = l2str_r(use_cuda_mem,info_len)
     use_comm_thread_str = l2str_r(use_comm_thread,info_len)
     comm_thread_load_str = int2str_r(comm_thread_load,info_len)
 
@@ -574,9 +566,6 @@ CONTAINS
             plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len),&
             plabel, "Use Communication thread",  use_comm_thread_str(1:info_len),&
             plabel, "Communication thread load", comm_thread_load_str(1:info_len)
-       IF (has_cuda) &
-            WRITE(unit_num, FMT=o_fmt) &
-            plabel, "Use CUDA host-pinned memory", use_cuda_mem_str
     ENDIF
 
   END SUBROUTINE cp_dbcsr_print_config
@@ -2567,7 +2556,7 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, &
+       retain_sparsity,&
        filter_eps, error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(real_4), INTENT(IN)                 :: alpha
@@ -2578,8 +2567,6 @@ CONTAINS
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
@@ -2607,7 +2594,7 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set,&
+         retain_sparsity,&
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
@@ -2618,7 +2605,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_d(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, filter_eps,&
+       retain_sparsity, &
+       filter_eps,&
        error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(real_8), INTENT(IN)                 :: alpha
@@ -2629,8 +2617,6 @@ CONTAINS
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
@@ -2666,7 +2652,7 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set, right_set,&
+         retain_sparsity, &
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     IF (new_a_is_new) THEN
@@ -2697,7 +2683,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_c(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error,&
+       retain_sparsity,&
+       error,&
        filter_eps, flop)
 
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
@@ -2709,8 +2696,6 @@ CONTAINS
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
@@ -2738,7 +2723,7 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set,&
+         retain_sparsity,&
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
@@ -2748,7 +2733,7 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_z(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set,&
+       retain_sparsity,&
        filter_eps,&
        error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
@@ -2760,8 +2745,6 @@ CONTAINS
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
@@ -2793,7 +2776,7 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set,&
+         retain_sparsity,&
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     IF (new_a_is_new) THEN

@@ -13,16 +13,7 @@
 static const int verbose_print = 0;
 
 
-__global__ void
-zeroMem (char *mem, int len)
-{
-  int offset;
-  offset = blockIdx.x * blockDim.x + threadIdx.x;
-  if (offset < len)
-    *(mem + offset) = 0;
-}
-
-
+//==============================================================================
 extern "C" int
 dc_dev_mem_alloc (void **dev_mem, size_t n)
 {
@@ -41,7 +32,8 @@ dc_dev_mem_alloc (void **dev_mem, size_t n)
   return 0;
 }
 
-
+/*
+//==============================================================================
 extern "C" int
 dc_dev_mem_realloc (void **dev_mem, size_t n, size_t old_n,
 		    int *memory_crunch)
@@ -83,7 +75,9 @@ dc_dev_mem_realloc (void **dev_mem, size_t n, size_t old_n,
   *dev_mem = new_dev_mem;
   return 0;
 }
+*/
 
+//==============================================================================
 extern "C" int
 dc_dev_mem_dealloc (void *dev_mem)
 {
@@ -100,6 +94,7 @@ dc_dev_mem_dealloc (void *dev_mem)
   return 0;
 }
 
+//==============================================================================
 extern "C" int
 dc_host_mem_alloc (void **host_mem, size_t n, int wc, int port)
 {
@@ -119,11 +114,12 @@ dc_host_mem_alloc (void **host_mem, size_t n, int wc, int port)
   if (host_mem == NULL)
     return 2;
   if (verbose_print)
-    printf ("Host pinned allocation address %p\n", *host_mem);
+    printf ("Allocating %d bytes of host pinned memory at %p\n",n,  *host_mem);
 
   return 0;
 }
 
+//==============================================================================
 extern "C" int
 dc_host_mem_dealloc (void *host_mem)
 {
@@ -140,47 +136,17 @@ dc_host_mem_dealloc (void *host_mem)
   return 0;
 }
 
-
+//==============================================================================
 extern "C" int
-dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t count,
-		  int async_type, int stream_id)
+dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t count, cudaStream_t* stream)
 {
   cudaError_t cErr;
 
   if (verbose_print)
-    {
-      printf ("Copy from host address %p\n", host_mem);
-      printf ("Copy to device address %p\n", dev_mem);
-      printf ("h2d %f\n", *((double *) host_mem));
-      printf ("Async? %d\n", async_type);
-    }
+      printf ("Copyint %d bytes from host address %p to device address %p \n",count, host_mem, dev_mem);
 
-  switch (async_type)
-    {
-    case 0:
-      /* Synchronous */
-      cErr = cudaMemcpy (dev_mem, host_mem, count, cudaMemcpyHostToDevice);
-      break;
-    case 1:
-      /* Asynchronous */
-      cErr =
-	cudaMemcpyAsync (dev_mem, host_mem, count, cudaMemcpyHostToDevice,
-			 (cudaStream_t) dc_get_stream (stream_id));
-      break;
-    case 2:
-      cErr =
-	cudaMemcpyAsync (dev_mem, host_mem, count, cudaMemcpyHostToDevice,
-			 (cudaStream_t) dc_get_stream (stream_id));
-      /* Try async if sync is unsuccessful. */
-      if (cuda_error_check (cErr))
-	{
-	  if (verbose_print)
-	    printf ("Async unsuccessful, trying sync.\n");
-	  cErr =
-	    cudaMemcpy (dev_mem, host_mem, count, cudaMemcpyHostToDevice);
-	}
-      break;
-    }
+  cErr = cudaMemcpyAsync (dev_mem, host_mem, count, cudaMemcpyHostToDevice, *stream);
+
   if (cuda_error_check (cErr))
     return 1;
   if (cuda_error_check (cudaGetLastError ()))
@@ -189,45 +155,17 @@ dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t count,
   return 0;
 }
 
-
+//==============================================================================
 extern "C" int
-dc_memcpy_d2h_cu (const void *dev_mem, void *host_mem, size_t count,
-		  int async_type, int stream_id)
+dc_memcpy_d2h_cu (const void *dev_mem, void *host_mem, size_t count, cudaStream_t* stream)
 {
   cudaError_t cErr;
 
   if (verbose_print)
-    {
-      printf ("Copy from device address %p\n", dev_mem);
-      printf ("Copy to host address %p\n", host_mem);
-      printf ("Async? %d\n", async_type);
-    }
-  switch (async_type)
-    {
-    case 0:
-      /* Synchronous */
-      cErr = cudaMemcpy (host_mem, dev_mem, count, cudaMemcpyDeviceToHost);
-      break;
-    case 1:
-      /* Asynchronous */
-      cErr =
-	cudaMemcpyAsync (host_mem, dev_mem, count, cudaMemcpyDeviceToHost,
-			 (cudaStream_t) dc_get_stream (stream_id));
-      break;
-    case 2:
-      cErr =
-	cudaMemcpyAsync (host_mem, dev_mem, count, cudaMemcpyDeviceToHost,
-			 (cudaStream_t) dc_get_stream (stream_id));
-      /* Try async if sync is unsuccessful. */
-      if (cuda_error_check (cErr))
-	{
-	  if (verbose_print)
-	    printf ("Async unsuccessful, trying sync.\n");
-	  cErr =
-	    cudaMemcpy (host_mem, dev_mem, count, cudaMemcpyDeviceToHost);
-	}
-      break;
-    }
+      printf ("Copying %d bytes from device address %p to host address %p\n", count, dev_mem, host_mem);
+
+  cErr = cudaMemcpyAsync (host_mem, dev_mem, count, cudaMemcpyDeviceToHost, *stream);
+
   if (cuda_error_check (cErr))
     return 1;
   if (cuda_error_check (cudaGetLastError ()))
@@ -238,49 +176,53 @@ dc_memcpy_d2h_cu (const void *dev_mem, void *host_mem, size_t count,
   return 0;
 }
 
-
+//==============================================================================
 extern "C" int
-dc_memzero_cu (void *dev_mem, size_t offset, size_t length)
+dc_memcpy_d2d_cu (const void *devmem_src, void *devmem_dst, size_t count, cudaStream_t* stream)
 {
   cudaError_t cErr;
 
-  cErr = cudaMemset ((void *) (((char *) dev_mem) + offset), (int) 0, length);
   if (verbose_print)
-    printf ("Zero at device address %p, offset %d, len %d\n",
-	    dev_mem, (int) offset, (int) length);
+      printf ("Coping %d bytes from device address %p to device address %p \n", count, devmem_src, devmem_dst);
+
+
+  if(stream == NULL){
+      cErr = cudaMemcpy (devmem_dst, devmem_src, count, cudaMemcpyDeviceToDevice);
+  }else{
+      cErr = cudaMemcpyAsync (devmem_dst, devmem_src, count, cudaMemcpyDeviceToDevice, *stream);
+  }
+
   if (cuda_error_check (cErr))
     return 1;
   if (cuda_error_check (cudaGetLastError ()))
     return 1;
 
-  /*  struct cudaDeviceProp devProperties;
-     int myDevice, nt, nb, ws, maxt;
-
-     cErr = cudaGetDevice(&myDevice);
-     if (cuda_error_check (cErr)) return 1;
-
-     cErr = cudaGetDeviceProperties(&devProperties, myDevice);
-     if (cuda_error_check (cErr)) return 1;
-
-     ws = devProperties.warpSize;
-     maxt = devProperties.maxThreadsPerBlock;
-     printf("count %d, ws %d, maxt %d", (int) count, ws, maxt);
-
-     nt = (int) sqrt(count);
-     nt = ((int) (nt + ws-1)/ws) * ws;
-     nt = MAX(MIN(nt, maxt), ws);
-
-     printf("nt", nt);
-
-     nb = (count+nt-1) / nt;
-     printf("nb", nb);
-
-
-     zeroMem <<< nb, nt >>> ((char *) dev_mem, (int) count);
-     if (cuda_error_check (cudaGetLastError())) return 1; */
   return 0;
 }
 
+//==============================================================================
+extern "C" int
+dc_memzero_cu (void *dev_mem, size_t offset, size_t length, cudaStream_t* stream)
+{
+  cudaError_t cErr;
+  if(stream == NULL){
+      cErr = cudaMemset ((void *) (((char *) dev_mem) + offset), (int) 0, length);
+  }else{
+      cErr = cudaMemsetAsync ((void *) (((char *) dev_mem) + offset), (int) 0, length, *stream);
+  }
+
+  if (verbose_print)
+    printf ("Zero at device address %p, offset %d, len %d\n",
+     dev_mem, (int) offset, (int) length);
+  if (cuda_error_check (cErr))
+    return 1;
+  if (cuda_error_check (cudaGetLastError ()))
+    return 1;
+
+  return 0;
+}
+
+//==============================================================================
 extern "C" int
 dc_dev_mem_info_cu (size_t * free, size_t * avail)
 {

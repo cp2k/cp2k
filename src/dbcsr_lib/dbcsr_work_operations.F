@@ -63,7 +63,7 @@ MODULE dbcsr_work_operations
                                              real_4,&
                                              real_8
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
+       dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
        dbcsr_distribution_make_threads, dbcsr_distribution_ncols, &
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
@@ -81,11 +81,12 @@ MODULE dbcsr_work_operations
                                              uppercase
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
-       dbcsr_magic_number, dbcsr_memory_default, dbcsr_meta_size, &
-       dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
-       dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-       dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
-       dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+       dbcsr_magic_number, dbcsr_memtype_default, dbcsr_memtype_equal, &
+       dbcsr_memtype_type, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
+       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_coli, &
+       dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
+       dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, &
@@ -164,8 +165,9 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type, &
-                                                data_memory_type, &
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
@@ -326,16 +328,15 @@ CONTAINS
     my_nblks = 0; IF (PRESENT (nblks)) my_nblks = nblks
     matrix%m%nblks = 0
     matrix%m%nze = 0
-    IF (PRESENT (data_memory_type)) THEN
+
+    matrix%m%data_memory_type = dbcsr_memtype_default
+    IF (PRESENT (data_memory_type)) &
        matrix%m%data_memory_type = data_memory_type
-    ELSE
-       matrix%m%data_memory_type = dbcsr_memory_default
-    ENDIF
-    IF (PRESENT (index_memory_type)) THEN
+
+    matrix%m%index_memory_type = dbcsr_memtype_default
+    IF (PRESENT (index_memory_type)) &
        matrix%m%index_memory_type = index_memory_type
-    ELSE
-       matrix%m%index_memory_type = dbcsr_memory_default
-    ENDIF
+
     IF (PRESENT (replication_type)) THEN
        CALL dbcsr_assert (replication_type .EQ. dbcsr_repl_none&
             .OR. replication_type .EQ. dbcsr_repl_full&
@@ -395,7 +396,6 @@ CONTAINS
        CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
             dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
     END SELECT
-    NULLIFY (matrix%m%predistributed)
     matrix%m%bcsc = .FALSE.
     matrix%m%local_indexing = .FALSE.
     matrix%m%list_indexing = .FALSE.
@@ -418,6 +418,9 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_create_new
 
+
+! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
        data_memory_type, index_memory_type, reuse,&
@@ -430,8 +433,9 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type, &
-                                                data_memory_type, &
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
@@ -443,13 +447,13 @@ CONTAINS
     CHARACTER                                :: new_matrix_type, &
                                                 new_replication_type
     CHARACTER(len=default_string_length)     :: new_name
-    INTEGER                                  :: new_data_memory_type, &
-                                                new_data_type, &
-                                                new_index_memory_type
+    INTEGER                                  :: new_data_type
     LOGICAL                                  :: new_mutable_work
     TYPE(array_i1d_obj)                      :: new_col_blk_size, &
                                                 new_row_blk_size
     TYPE(dbcsr_distribution_obj)             :: new_dist
+    TYPE(dbcsr_memtype_type)                 :: new_data_memory_type, &
+                                                new_index_memory_type
 
 !   ---------------------------------------------------------------------------
 
@@ -714,15 +718,7 @@ CONTAINS
     IF (dbcsr_buffers_2d_needed) THEN
        CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
     ENDIF
-    ! Remove the cached pre-distributed images.
-    !$OMP MASTER
-    IF (ASSOCIATED (matrix%m%predistributed)) THEN
-          CALL dbcsr_destroy_array (matrix%m%predistributed,error)
-          DEALLOCATE (matrix%m%predistributed)
-    ENDIF
-    NULLIFY (matrix%m%predistributed)
-    !$OMP END MASTER
-    !$OMP BARRIER
+
     ! If the matrix is not marked as dirty then skip the work.
     IF (dbcsr_valid_index(matrix)) THEN
        !"No need to finalize a valid matrix, skipping."
@@ -914,6 +910,8 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
 
+! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE dbcsr_special_finalize(matrix, reshuffle, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
@@ -945,9 +943,6 @@ CONTAINS
     CALL dbcsr_assert (SIZE(matrix%m%wms).EQ. 1,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Optimized finalize requires single work matrix",__LINE__,error)
-     CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%predistributed),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires no pre-distribution",__LINE__,error)
 
     IF (dbcsr_buffers_2d_needed) THEN
        CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
@@ -1032,9 +1027,9 @@ CONTAINS
             .NOT. dbcsr_wm_use_mutable(matrix%m%wms(1))
        IF (quick) THEN
           quick = quick .AND. &
-               ( &
-               dbcsr_data_get_memory_type(matrix%m%wms(1)%data_area) .EQ. &
-               dbcsr_data_get_memory_type(matrix%m%data_area))
+               dbcsr_memtype_equal( &
+                  dbcsr_data_get_memory_type(matrix%m%wms(1)%data_area), &
+                 dbcsr_data_get_memory_type(matrix%m%data_area))
           quick = quick .AND. &
                ASSOCIATED (matrix%m%wms(1)%row_i)
        ENDIF
@@ -1307,7 +1302,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: error_handler
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
@@ -1323,6 +1323,9 @@ CONTAINS
     ENDIF
     CALL dbcsr_data_release (wm%data_area)
     CALL dbcsr_mutable_destroy (wm%mutable)
+
+    CALL dbcsr_error_stop(error_handler, error)
+
   END SUBROUTINE dbcsr_work_destroy
 
 
@@ -1341,10 +1344,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    INTEGER                                  :: error_handler, i
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED (m%wms), dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Want to destroy nonexisting work matrices.",__LINE__,error)
@@ -1355,6 +1360,9 @@ CONTAINS
        DEALLOCATE (m%wms)
        NULLIFY (m%wms)
     ENDIF
+
+    CALL dbcsr_error_stop(error_handler, error)
+
   END SUBROUTINE dbcsr_work_destroy_all
 
 

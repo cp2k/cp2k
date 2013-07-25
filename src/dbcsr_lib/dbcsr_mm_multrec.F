@@ -30,16 +30,16 @@ MODULE dbcsr_mm_multrec
                                              dbcsr_distribution_local_rows,&
                                              dbcsr_distribution_row_dist,&
                                              dbcsr_distribution_thread_dist
-  USE dbcsr_mm_csr,                    ONLY: dbcsr_mm_csr_inner_finalize,&
-                                             dbcsr_mm_csr_inner_init,&
+  USE dbcsr_mm_csr,                    ONLY: dbcsr_mm_csr_finalize,&
+                                             dbcsr_mm_csr_init,&
                                              dbcsr_mm_csr_lib_finalize,&
                                              dbcsr_mm_csr_lib_init,&
                                              dbcsr_mm_csr_multiply,&
-                                             dbcsr_mm_csr_outer_finalize,&
-                                             dbcsr_mm_csr_outer_init
-  USE dbcsr_mm_types,                  ONLY: multrec_carrier_type
+                                             dbcsr_mm_csr_purge_stacks,&
+                                             dbcsr_mm_csr_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-  USE dbcsr_types,                     ONLY: dbcsr_type
+  USE dbcsr_types,                     ONLY: dbcsr_type,&
+                                             dbcsr_work_type
 
   !$ USE OMP_LIB
 
@@ -50,6 +50,84 @@ MODULE dbcsr_mm_multrec
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_multrec'
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
+  
+  
+! *****************************************************************************
+!> \brief Used to carry data among the various calls.  Each thread has
+!>        its own private copy.
+!> \var c_has_symmetry    The product matrix has symmetry
+!> \var keep_sparsity     Sparsity of C matrix should be kept
+!> \var use_eps           Use on-the-fly filtering
+!> \var local_indexing    The A and B matrix indices and C matrix work indices
+!>                        are not global but local to process rows and columns
+!> \var m_sizes           Block sizes of A and C matrix rows, indexed locally
+!> \var n_sizes           Block sizes of B and C matrix columns, indexed locally
+!> \var k_sizes           Block sizes of A matrix columns and B matrix rows,
+!>                        indexed locally
+!> \var c_local_rows      C and A matrix local rows.  Map from
+!>                        local row (index) to global row (value).
+!> \var c_local_cols      C and B matrix local columns.  Map from local column
+!>                        (index) to global column (value).
+!> \var k_locals          A matrix local columns and B matrix local rows.  Map
+!>                        from local row/column (index) to global row/column
+!>                        (value).
+!> \var c_global_rows     C and A matrix global rows.  Map from global rows
+!>                        (index) to local rows (value).
+!> \var c_global_cols     C and B matrix global columns.  Map from global
+!>                        columns (index) to local columns (value).
+!> \var max_m             Maximum size of C or A matrix row block size.
+!> \var max_n             Maximum size of C or B matrix column block size.
+!> \var max_k             Maximum size of A matrix colum and B matrix row block
+!>                        size.
+!> \var m_size_maps       Map from an A matrix row block size to an index of
+!>                        the most common A matrix row block sizes.
+!> \var n_size_maps       Map from a B matrix column block size to an index of
+!>                        the most common B matrix column block sizes.
+!> \var k_size_maps       Map from an A matrix row or B matrix column block
+!>                        size to an index of the most row/column block sizes.
+!> \var m_size_maps_size  Size of the m_size_maps array (i.e., the maximum block
+!>                        size + 1).
+!> \var n_size_maps_size  Size of the n_size_maps array (i.e., the maximum block
+!>                        size + 1).
+!> \var k_size_maps_size  Size of the k_size_maps array (i.e., the maximum block
+!>                        size + 1).
+!> \var nm_stacks         The number of most common m blocks sizes.
+!> \var nn_stacks         The number of most common n blocks sizes.
+!> \var nk_stacks         The number of most common k blocks sizes.
+!> \var stack_map         Map from most common (n,k,m) block sizes to a stack
+!>                        number within a stack group.
+!>                        m, n, and k sizes.
+!> \var row_max_epss      Maximum eps to be used for one row.
+!> \var a_norms           Norms of A matrix blocks.
+!> \var b_norms           Norms of B matrix blocks.
+!> \var my_wm             Work matrix associated with this thread
+!> \var lastblk           Number of elements in the work matrix
+!>
+!> \var datasize          Data size of the work matrix (view of
+!>                        same work matrix variable).
+!> \var original_lastblk  Number of work matrix blocks before addition
+!> \var flop              flop count
+! *****************************************************************************
+  TYPE dbcsr_mm_multrec_type
+     PRIVATE
+     LOGICAL :: c_has_symmetry, keep_sparsity, use_eps
+     LOGICAL :: local_indexing
+     INTEGER, DIMENSION(:), POINTER :: m_sizes, n_sizes, k_sizes
+     INTEGER, DIMENSION(:), POINTER :: c_local_rows, c_local_cols, k_locals,&
+                                       c_global_rows, c_global_cols
+
+     REAL(KIND=sp), DIMENSION(:), POINTER :: row_max_epss, a_norms, b_norms
+     REAL(KIND=real_8)     :: eps
+     INTEGER               :: original_lastblk
+     INTEGER(kind=int_8)   :: flop
+     TYPE(dbcsr_work_type), POINTER :: product_wm  => Null()
+     TYPE(dbcsr_mm_csr_type)        :: csr
+     LOGICAL                        :: initialized = .FALSE.
+  END TYPE dbcsr_mm_multrec_type
+
+
+ ! *****************************************************************************
+  PUBLIC :: dbcsr_mm_multrec_type
   PUBLIC :: dbcsr_mm_multrec_lib_init, dbcsr_mm_multrec_lib_finalize
   PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
   PUBLIC :: dbcsr_mm_multrec_multiply
@@ -71,10 +149,11 @@ MODULE dbcsr_mm_multrec
 ! \brief Finalize the library
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_lib_finalize(error)
+  SUBROUTINE dbcsr_mm_multrec_lib_finalize(output_unit, error)
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-     CALL dbcsr_mm_csr_lib_finalize(error)
+     CALL dbcsr_mm_csr_lib_finalize(output_unit, error)
   END SUBROUTINE
 
 
@@ -88,11 +167,11 @@ MODULE dbcsr_mm_multrec
 !>                                 existing product matrix, default is no
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_init(left, right, product, multrec_carrier,&
+  SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
        keep_sparsity, eps, row_max_epss, fill_guess, error)
+    TYPE(dbcsr_mm_multrec_type), INTENT(out) :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    TYPE(multrec_carrier_type), INTENT(out)  :: multrec_carrier
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
     REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
@@ -116,6 +195,10 @@ MODULE dbcsr_mm_multrec
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
     !
+    CALL dbcsr_assert(.NOT. this%initialized,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "multrec already initialized.", __LINE__, error=error)
+
     ! Ensures that the index is correctly defined.
     CALL dbcsr_assert (left%list_indexing,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -147,18 +230,19 @@ MODULE dbcsr_mm_multrec
             "Wrong right format for not local_cols.", __LINE__, error=error)
     ENDIF
     !
-    ! Fill multrec_carrier data structure.
-    multrec_carrier%local_indexing = left%local_indexing 
-    multrec_carrier%keep_sparsity = keep_sparsity
-    multrec_carrier%c_has_symmetry = product%symmetry
-    multrec_carrier%use_eps = PRESENT (eps)
-    multrec_carrier%original_lastblk = product%wms(ithread+1)%lastblk
-    multrec_carrier%flop = INT(0, int_8)
+    ! Fill result data structure.
+    this%local_indexing = left%local_indexing 
+    this%keep_sparsity = keep_sparsity
+    this%c_has_symmetry = product%symmetry
+    this%use_eps = PRESENT (eps)
+    this%original_lastblk = product%wms(ithread+1)%lastblk
+    this%flop = INT(0, int_8)
+    this%product_wm => product%wms(ithread+1)
 
     IF (PRESENT (eps)) THEN
-       multrec_carrier%eps = eps
+       this%eps = eps
     ELSE
-       multrec_carrier%eps = 0.0_real_8
+       this%eps = 0.0_real_8
     ENDIF
     !
     !
@@ -174,17 +258,17 @@ MODULE dbcsr_mm_multrec
     c_local_rows => array_data (product%local_rows)
     c_nblkcols_local = product%nblkcols_local
     c_local_cols => array_data (product%local_cols)
-    IF (multrec_carrier%local_indexing) THEN
-       multrec_carrier%c_local_rows => c_local_rows
-       multrec_carrier%c_local_cols => c_local_cols
+    IF (this%local_indexing) THEN
+       this%c_local_rows => c_local_rows
+       this%c_local_cols => c_local_cols
     ELSE
-       ALLOCATE (multrec_carrier%c_local_rows (product%nblkrows_total))
-       ALLOCATE (multrec_carrier%c_local_cols (product%nblkcols_total))
+       ALLOCATE (this%c_local_rows (product%nblkrows_total))
+       ALLOCATE (this%c_local_cols (product%nblkcols_total))
        FORALL (i = 1 : product%nblkrows_total)
-          multrec_carrier%c_local_rows(i) = i
+          this%c_local_rows(i) = i
        END FORALL
        FORALL (i = 1 : product%nblkcols_total)
-          multrec_carrier%c_local_cols(i) = i
+          this%c_local_cols(i) = i
        END FORALL
     ENDIF
     IF (dbg) WRITE(*,*)"setting up for product", product%name
@@ -216,55 +300,57 @@ MODULE dbcsr_mm_multrec
     ENDIF
     !
     ! And the k epsilons
-    IF (multrec_carrier%local_indexing) THEN
-       ALLOCATE (multrec_carrier%row_max_epss(c_nblkrows_local))
+    IF (this%local_indexing) THEN
+       ALLOCATE (this%row_max_epss(c_nblkrows_local))
     ELSE
-       ALLOCATE (multrec_carrier%row_max_epss(product%nblkrows_total))
+       ALLOCATE (this%row_max_epss(product%nblkrows_total))
     ENDIF
-    IF (multrec_carrier%use_eps) THEN
-       IF (multrec_carrier%local_indexing) THEN
+    IF (this%use_eps) THEN
+       IF (this%local_indexing) THEN
           CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows,&
-               multrec_carrier%row_max_epss)
+               this%row_max_epss)
        ELSE
           IF (careful_mod) &
-               CALL dbcsr_assert (SIZE(row_max_epss) .EQ. SIZE(multrec_carrier%row_max_epss),&
+               CALL dbcsr_assert (SIZE(row_max_epss) .EQ. SIZE(this%row_max_epss),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "max epss local/global mismatch.", __LINE__, error=error)
-          multrec_carrier%row_max_epss(:) = row_max_epss(:)
+          this%row_max_epss(:) = row_max_epss(:)
        ENDIF
     ELSE
-       multrec_carrier%row_max_epss(:) = -HUGE(0.0_sp)
+       this%row_max_epss(:) = -HUGE(0.0_sp)
     ENDIF
     !
-    IF (multrec_carrier%local_indexing) THEN
-       ALLOCATE(multrec_carrier%m_sizes(c_nblkrows_local))
+    IF (this%local_indexing) THEN
+       ALLOCATE(this%m_sizes(c_nblkrows_local))
        CALL local_filter(array_data (product%row_blk_size), SIZE(c_local_rows),&
-            c_local_rows, multrec_carrier%m_sizes)
-       ALLOCATE(multrec_carrier%n_sizes(c_nblkcols_local))
+            c_local_rows, this%m_sizes)
+       ALLOCATE(this%n_sizes(c_nblkcols_local))
        CALL local_filter(array_data (product%col_blk_size), SIZE(c_local_cols),&
-            c_local_cols, multrec_carrier%n_sizes)
+            c_local_cols, this%n_sizes)
     ELSE
-       ALLOCATE(multrec_carrier%m_sizes(product%nblkrows_total))
-       multrec_carrier%m_sizes(:) = array_data (product%row_blk_size)
-       ALLOCATE(multrec_carrier%n_sizes(product%nblkcols_total))
-       multrec_carrier%n_sizes(:) = array_data (product%col_blk_size)
+       ALLOCATE(this%m_sizes(product%nblkrows_total))
+       this%m_sizes(:) = array_data (product%row_blk_size)
+       ALLOCATE(this%n_sizes(product%nblkcols_total))
+       this%n_sizes(:) = array_data (product%col_blk_size)
     ENDIF
     !
-    NULLIFY (multrec_carrier%k_locals)
-    NULLIFY (multrec_carrier%k_sizes)
-    IF (.NOT. multrec_carrier%local_indexing) THEN
-       ALLOCATE (multrec_carrier%k_locals(right%nblkrows_total))
+    NULLIFY (this%k_locals)
+    NULLIFY (this%k_sizes)
+    IF (.NOT. this%local_indexing) THEN
+       ALLOCATE (this%k_locals(right%nblkrows_total))
        FORALL (i = 1:right%nblkrows_total)
-          multrec_carrier%k_locals(i) = i
+          this%k_locals(i) = i
        END FORALL
-       multrec_carrier%k_sizes => array_data (right%row_blk_size)
+       this%k_sizes => array_data (right%row_blk_size)
     ENDIF
 
-    CALL dbcsr_mm_csr_outer_init(csr_carrier=multrec_carrier%csr_carrier, &
-       left=left, right=right, product=product,fill_guess=fill_guess,&
-       m_sizes=multrec_carrier%m_sizes, n_sizes=multrec_carrier%n_sizes,& 
-       k_sizes=multrec_carrier%k_sizes, error=error)
+    !TODO: should we move this up?
+    CALL dbcsr_mm_csr_init(this%csr, &
+       left=left, right=right, product=product, fill_guess=fill_guess,&
+       m_sizes=this%m_sizes, n_sizes=this%n_sizes,& 
+       k_sizes=this%k_sizes, error=error)
 
+    this%initialized = .TRUE.
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mm_multrec_init
 
@@ -288,14 +374,12 @@ MODULE dbcsr_mm_multrec
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_multiply(left, right, product, multrec_carrier, flop,&
-       keep_sparsity, a_norms, b_norms, error)
+  SUBROUTINE dbcsr_mm_multrec_multiply(this, left, right, flop,&
+       a_norms, b_norms, error)
+    TYPE(dbcsr_mm_multrec_type), &
+      INTENT(inout)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
-    TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    TYPE(multrec_carrier_type), &
-      INTENT(inout)                          :: multrec_carrier
     INTEGER(KIND=int_8), INTENT(OUT)         :: flop
-    LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=sp), DIMENSION(:), &
       INTENT(in), TARGET                     :: a_norms, b_norms
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
@@ -310,27 +394,28 @@ MODULE dbcsr_mm_multrec
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_assert(this%initialized,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "multrec not initialized.", __LINE__, error=error)
+
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
-    multrec_carrier%flop = 0
-
-    CALL dbcsr_mm_csr_inner_init(left=left, right=right, &
-              csr_carrier=multrec_carrier%csr_carrier, error=error)
+    this%flop = 0
 
     ! Find out the local A columns / B rows and sizes
     ! The right%local_rows is setup by the communication engine.
-    IF (multrec_carrier%local_indexing) THEN
+    IF (this%local_indexing) THEN
        k_locals => array_data (right%local_rows)
-       multrec_carrier%k_locals => k_locals
-       CALL ensure_array_size (multrec_carrier%k_sizes, ub=SIZE(k_locals), error=error)
+       this%k_locals => k_locals
+       CALL ensure_array_size (this%k_sizes, ub=SIZE(k_locals), error=error)
        CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals),&
-            k_locals, multrec_carrier%k_sizes)
+            k_locals, this%k_sizes)
     ELSE
-       k_locals => multrec_carrier%k_locals
+       k_locals => this%k_locals
     ENDIF
     ! Setup the block norms
-    multrec_carrier%a_norms => a_norms
-    multrec_carrier%b_norms => b_norms
+    this%a_norms => a_norms
+    this%b_norms => b_norms
 
 
     ! Start local multiplication
@@ -341,29 +426,30 @@ MODULE dbcsr_mm_multrec
     !$ ithread = OMP_GET_THREAD_NUM()
     !$ t_a_f = left%thr_c(ithread+1)+1
     !$ t_a_l = left%thr_c(ithread+2)
-    IF (multrec_carrier%local_indexing) THEN
-       CALL sparse_multrec(&
+    IF (this%local_indexing) THEN
+       CALL sparse_multrec(this, left, right,&
             1, left%nblkrows_local,&
             1, right%nblkcols_local,&
             1, SIZE(k_locals),&
             t_a_f, t_a_l, left%coo_l,&
             t_b_f, t_b_l, right%coo_l,&
-            product, multrec_carrier, error, 0)
+            error, 0)
     ELSE
-       CALL sparse_multrec(&
+       CALL sparse_multrec(this,left, right,&
             1, left%nblkrows_total,&
             1, right%nblkcols_total,&
             1, SIZE(k_locals),&
             t_a_f, t_a_l, left%coo_l,&
             t_b_f, t_b_l, right%coo_l,&
-            product, multrec_carrier, error, 0)
+            error, 0)
     ENDIF
 
-    CALL dbcsr_mm_csr_inner_finalize(csr_carrier=multrec_carrier%csr_carrier, error=error)
-    flop = multrec_carrier%flop
+    CALL dbcsr_mm_csr_purge_stacks(this%csr, left, right, error=error)
+
+    flop = this%flop
     !
-    IF (ASSOCIATED (multrec_carrier%k_sizes) .AND. multrec_carrier%local_indexing) &
-         DEALLOCATE (multrec_carrier%k_sizes)
+    IF (ASSOCIATED (this%k_sizes) .AND. this%local_indexing) &
+         DEALLOCATE (this%k_sizes)
 
   END SUBROUTINE dbcsr_mm_multrec_multiply
 
@@ -378,10 +464,9 @@ MODULE dbcsr_mm_multrec
 !>                                 existing product matrix, default is no
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_finalize(multrec_carrier, product, error)
-    TYPE(multrec_carrier_type), &
-      INTENT(inout)                          :: multrec_carrier
-    TYPE(dbcsr_type), INTENT(inout)          :: product
+  SUBROUTINE dbcsr_mm_multrec_finalize(this, error)
+    TYPE(dbcsr_mm_multrec_type), &
+      INTENT(inout)                          :: this
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
@@ -393,32 +478,36 @@ MODULE dbcsr_mm_multrec
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_mm_csr_outer_finalize(csr_carrier=multrec_carrier%csr_carrier,&
-          product=product, error=error)
+    CALL dbcsr_assert(this%initialized,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "multrec not initialized.", __LINE__, error=error)
+
+    CALL dbcsr_mm_csr_finalize(this%csr, error=error)
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM()
 
     ! Release the carrier
-    DEALLOCATE (multrec_carrier%m_sizes)
-    DEALLOCATE (multrec_carrier%n_sizes)
-    DEALLOCATE (multrec_carrier%row_max_epss)
+    DEALLOCATE (this%m_sizes)
+    DEALLOCATE (this%n_sizes)
+    DEALLOCATE (this%row_max_epss)
 
-    IF (multrec_carrier%local_indexing) THEN
-       CALL remap_local2global(product%wms(ithread+1)%row_i, &
-                               product%wms(ithread+1)%col_i, &
-                  multrec_carrier%c_local_rows, multrec_carrier%c_local_cols,&
-                  multrec_carrier%original_lastblk+1, product%wms(ithread+1)%lastblk)
+    IF (this%local_indexing) THEN
+       CALL remap_local2global(this%product_wm%row_i, &
+                               this%product_wm%col_i, &
+                  this%c_local_rows, this%c_local_cols,&
+                  this%original_lastblk+1, this%product_wm%lastblk)
     ENDIF
     !
 
-    IF (.NOT. multrec_carrier%local_indexing) THEN
-       DEALLOCATE (multrec_carrier%c_local_rows)
-       DEALLOCATE (multrec_carrier%c_local_cols)
-       DEALLOCATE (multrec_carrier%k_locals)
-       NULLIFY (multrec_carrier%k_sizes)
+    IF (.NOT. this%local_indexing) THEN
+       DEALLOCATE (this%c_local_rows)
+       DEALLOCATE (this%c_local_cols)
+       DEALLOCATE (this%k_locals)
+       NULLIFY (this%k_sizes)
     ENDIF
 
+    this%initialized = .FALSE.
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mm_multrec_finalize
 
@@ -429,16 +518,16 @@ MODULE dbcsr_mm_multrec
 !> \brief Performs recursive multiplication
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE sparse_multrec(mi, mf, ni, nf, ki, kf,&
+  RECURSIVE SUBROUTINE sparse_multrec(this, left, right, mi, mf, ni, nf, ki, kf,&
        ai, af, a_index, bi, bf, b_index, &
-       product, carrier, error, d)
+       error, d)
+    TYPE(dbcsr_mm_multrec_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_type), INTENT(IN)             :: left, right
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, ki, kf, ai, af
     INTEGER, DIMENSION(3, 1:af), INTENT(IN)  :: a_index
     INTEGER, INTENT(IN)                      :: bi, bf
     INTEGER, DIMENSION(3, 1:bf), INTENT(IN)  :: b_index
-    TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    TYPE(multrec_carrier_type), &
-      INTENT(INOUT)                          :: carrier
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER, INTENT(IN)                      :: d
 
@@ -464,18 +553,17 @@ MODULE dbcsr_mm_multrec
 
     IF (af-ai+1 <= norec .AND. bf-bi+1 <= norec) THEN
         IF (af-ai+1 .GT. 0 .AND. bf-bi+1 .GT. 0) &
-        CALL dbcsr_mm_csr_multiply(mi=mi, mf=mf,ni=ni, nf=nf, ki=ki, kf=kf,&
+        CALL dbcsr_mm_csr_multiply(this%csr, left, right, &
+           mi=mi, mf=mf,ni=ni, nf=nf, ki=ki, kf=kf,&
            ai=ai, af=af, &
            bi=bi, bf=bf,&
-           m_sizes=carrier%m_sizes, n_sizes=carrier%n_sizes, k_sizes=carrier%k_sizes,&
-           c_local_rows=carrier%c_local_rows, c_local_cols=carrier%c_local_cols,&
-           c_has_symmetry=carrier%c_has_symmetry, keep_sparsity=carrier%keep_sparsity,&
-           use_eps=carrier%use_eps, row_max_epss=carrier%row_max_epss,&
-           flop=carrier%flop,&
+           m_sizes=this%m_sizes, n_sizes=this%n_sizes, k_sizes=this%k_sizes,&
+           c_local_rows=this%c_local_rows, c_local_cols=this%c_local_cols,&
+           c_has_symmetry=this%c_has_symmetry, keep_sparsity=this%keep_sparsity,&
+           use_eps=this%use_eps, row_max_epss=this%row_max_epss,&
+           flop=this%flop,&
            a_index=a_index, b_index=b_index,&
-           a_norms=carrier%a_norms, b_norms=carrier%b_norms,&  
-           csr_carrier=carrier%csr_carrier, &
-           product=product,&
+           a_norms=this%a_norms, b_norms=this%b_norms,&
            error=error)
         RETURN
     ENDIF
@@ -493,10 +581,10 @@ MODULE dbcsr_mm_multrec
     CASE(1)
        s1=M/2
        acut = find_cut_row(ai,af,a_index,mi+s1-1)
-       CALL sparse_multrec(mi,mi+s1-1, ni,nf, ki,kf,&
-            ai,acut-1,a_index, bi,bf,b_index, product, carrier, error,d+1)
-       CALL sparse_multrec(mi+s1,mf, ni,nf, ki,kf,&
-            acut,af,a_index, bi,bf,b_index,  product, carrier, error,d+1)
+       CALL sparse_multrec(this, left, right, mi,mi+s1-1, ni,nf, ki,kf,&
+            ai,acut-1,a_index, bi,bf,b_index, error,d+1)
+       CALL sparse_multrec(this, left, right, mi+s1,mf, ni,nf, ki,kf,&
+            acut,af,a_index, bi,bf,b_index, error,d+1)
     CASE(2)
        s1=K/2
        acut = find_cut_col(ai,af,a_index,ki+s1-1)
@@ -509,10 +597,10 @@ MODULE dbcsr_mm_multrec
           WRITE(*,*)N,s1,ni+s1-1,"/",bi,bf,bcut
           WRITE(*,'(3(I7))')b_index
        ENDIF
-       CALL sparse_multrec(mi,mf, ni,nf, ki,ki+s1-1,&
-            ai,acut-1,a_index, bi,bcut-1,b_index, product, carrier, error,d+1)
-       CALL sparse_multrec(mi,mf, ni,nf, ki+s1,kf,&
-            acut,af,a_index, bcut,bf,b_index, product, carrier, error,d+1)
+       CALL sparse_multrec(this, left, right, mi,mf, ni,nf, ki,ki+s1-1,&
+            ai,acut-1,a_index, bi,bcut-1,b_index, error,d+1)
+       CALL sparse_multrec(this, left, right, mi,mf, ni,nf, ki+s1,kf,&
+            acut,af,a_index, bcut,bf,b_index, error,d+1)
     CASE(3)
        s1=N/2
        bcut = find_cut_col(bi,bf,b_index,ni+s1-1)
@@ -520,10 +608,10 @@ MODULE dbcsr_mm_multrec
           WRITE(*,*)N,s1,ni+s1-1,"/",bi,bf,bcut
           WRITE(*,'(3(I7))')b_index
        ENDIF
-       CALL sparse_multrec(mi,mf, ni,ni+s1-1, ki,kf,&
-            ai,af,a_index, bi,bcut-1,b_index, product, carrier, error,d+1)
-       CALL sparse_multrec(mi,mf, ni+s1,nf, ki,kf,&
-            ai,af,a_index, bcut,bf,b_index,  product, carrier, error,d+1)
+       CALL sparse_multrec(this, left, right, mi,mf, ni,ni+s1-1, ki,kf,&
+            ai,af,a_index, bi,bcut-1,b_index, error,d+1)
+       CALL sparse_multrec(this, left, right, mi,mf, ni+s1,nf, ki,kf,&
+            ai,af,a_index, bcut,bf,b_index,  error,d+1)
     END SELECT
   END SUBROUTINE sparse_multrec
 

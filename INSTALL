@@ -104,6 +104,7 @@ How to compile CP2K code
      * Use __PW_CUDA for CUDA support for PW (gather/scatter/fft)
        calculations.  The Fortran compiler must use an appended
        underscore for linking C subroutines.
+     * USE __CUDA_PROFILING to turn on Nvidia Tools Extensions.
      * Consult cuda_tools/README for more information.
 
  2i) Machine architecture abstraction support (optional, under development):
@@ -268,7 +269,9 @@ How to compile CP2K code
      -D__USE_PAT            - craypat profiling (?)
      -D__HMD                - ?
      -D__HPM                - ?
-     
+     -D__DBCSR_SORT_STACKS  - Do a complete sort of stacks before sending them
+                              to a cuda device. Per default a cheaper binning
+                              method from Peter Messmer is used.
 
  3e) The `I'm feeling lucky' version of building will try to guess what
      architecture you're on.

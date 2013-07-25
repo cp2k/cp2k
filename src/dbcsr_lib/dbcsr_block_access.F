@@ -702,13 +702,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_block_pointer_any', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
     LOGICAL                                  :: cont_p
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler, error)
     buffer_is_2d: IF (dbcsr_type_is_2d (dbcsr_data_get_type (pointer_any))&
          .AND. dbcsr_buffers_2d_needed) THEN
        IF (PRESENT (contiguous_pointers)) THEN
@@ -741,7 +739,6 @@ CONTAINS
                matrix%m%data_area, source_lb = base_offset)
        ENDIF
     ENDIF buffer_is_2d
-    CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_any
 
 
