@@ -29,7 +29,7 @@ MODULE dbcsr_cuda_stream
 #if !defined (__DBCSR_CUDA)
   TYPE dbcsr_cuda_stream_type
     PRIVATE
-    !nothing
+    INTEGER     :: dummy !needed to make g95 happy
   END TYPE dbcsr_cuda_stream_type
 
 #else
