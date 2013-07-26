@@ -13,9 +13,6 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE timings
-  USE cuda_profiling,                  ONLY: cuda_mem_info,&
-                                             cuda_nvtx_range_pop,&
-                                             cuda_nvtx_range_push
   USE dict,                            ONLY: dict_destroy,&
                                              dict_get,&
                                              dict_init,&
@@ -24,8 +21,7 @@ MODULE timings
                                              dict_size
   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             int_8
+                                             dp
   USE list,                            ONLY: list_destroy,&
                                              list_get,&
                                              list_init,&
@@ -52,11 +48,13 @@ MODULE timings
   ! these routines are currently only used by environment.F and f77_interface.F
   PUBLIC :: add_timer_env, timer_env_create, rm_timer_env, get_timer_env
   PUBLIC :: timer_env_retain, timer_env_release
-  PUBLIC :: timings_setup_tracing
+  PUBLIC :: timings_setup_tracing 
+  
 
   ! global variables
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
   TYPE(list_timerenv_type), SAVE, PRIVATE                  :: timers_stack
+  
 
   CONTAINS
 
@@ -76,7 +74,7 @@ MODULE timings
     IF(      PRESENT(timer_env)) timer_env_ => timer_env
     IF(.NOT. PRESENT(timer_env)) CALL timer_env_create(timer_env_)
     IF(.NOT. ASSOCIATED(timer_env_)) STOP "add_timer_env: not associated"
-
+         
     CALL timer_env_retain(timer_env_)
     IF(.NOT. list_isready(timers_stack)) CALL list_init(timers_stack)
     CALL list_push(timers_stack, timer_env_)
@@ -158,20 +156,20 @@ MODULE timings
     IF (timer_env%ref_count < 0) STOP "timer_env_release: negativ ref_count"
     timer_env%ref_count = timer_env%ref_count - 1
     IF (timer_env%ref_count > 0) RETURN
-
+    
     ! No more references left - let's tear down this timer_env...
-
+    
     DO i=1, list_size(timer_env%routine_stats)
             r_stat => list_get(timer_env%routine_stats, i)
             DEALLOCATE(r_stat)
     END DO
-
+    
     ct_items => dict_items(timer_env%callgraph)
     DO i=1, SIZE(ct_items)
             DEALLOCATE(ct_items(i)%value)
     END DO
     DEALLOCATE(ct_items)
-
+    
     CALL dict_destroy(timer_env%routine_names)
     CALL dict_destroy(timer_env%callgraph)
     CALL list_destroy(timer_env%callstack)
@@ -180,6 +178,7 @@ MODULE timings
   END SUBROUTINE timer_env_release
 
 
+  
 ! *****************************************************************************
 !> \brief Start timer
 !> \par History
@@ -194,24 +193,23 @@ MODULE timings
     CHARACTER(LEN=60)                        :: sformat
     CHARACTER(LEN=default_string_length)     :: routine_name_dsl
     INTEGER                                  :: routine_id, stack_size
-    INTEGER(KIND=int_8)                      :: gpumem_free, gpumem_total
     TYPE(callstack_entry_type)               :: cs_entry
     TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
 
 !$OMP MASTER
 !$OMP CRITICAL(time_setstop)
-
+    
     cs_entry%walltime_start = m_walltime()
     timer_env => list_peek(timers_stack)
-
+        
     IF (LEN_TRIM(routineN) > default_string_length) THEN
        PRINT *,"timings_timeset: routineN too long: '",TRIM(routineN),"'"
        STOP 1
     END IF
-
+    
     routine_name_dsl = routineN ! converte to default_string_length
-
+    
     routine_id = routine_name2id(routine_name_dsl)
     ! update routine r_stats
     r_stat => list_get(timer_env%routine_stats, routine_id)
@@ -219,36 +217,27 @@ MODULE timings
     r_stat%total_calls = r_stat%total_calls + 1
     r_stat%active_calls = r_stat%active_calls + 1
     r_stat%stackdepth_accu = r_stat%stackdepth_accu + stack_size + 1
-
+    
     ! add routine to callstack
     cs_entry%routine_id = routine_id
     CALL list_push(timer_env%callstack, cs_entry)
-
+    
     !..if debug mode echo the subroutine name
     IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
         (r_stat%total_calls < timer_env%trace_max)) THEN 
        WRITE(sformat,*) "(A,A,",MAX(1,3*stack_size-4),"X,I4,1X,I6,1X,A,A)"
        WRITE ( mystring, sformat) timer_env%trace_str, ">>", stack_size+1, &
           r_stat%total_calls, TRIM(r_stat%routineN),"       start"
-       CALL cuda_mem_info(gpumem_free, gpumem_total)
-       WRITE(line,'(A,A,I0,A,A,I0,A)') TRIM(mystring),&
-          " Hostmem: ", (m_memory()+1024*1024-1)/(1024*1024)," MB",&
-          " GPUmem: ", (gpumem_total-gpumem_free)/(1024*1024)," MB"
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring), &
+          (m_memory()+1024*1024-1)/(1024*1024),"Mb"
        WRITE(timer_env%trace_unit,*) TRIM(line)
        CALL m_flush(timer_env%trace_unit)
     END IF
-
+    
     handle = routine_id
-
-#if defined( __CUDA_PROFILING )
-   CALL cuda_nvtx_range_push(routineN)
-#endif
-
 !$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
-
-
-
+        
   END SUBROUTINE timeset
 
 ! *****************************************************************************
@@ -263,7 +252,6 @@ MODULE timings
     CHARACTER(LEN=400)                       :: line, mystring
     CHARACTER(LEN=60)                        :: sformat
     INTEGER                                  :: a, routine_id, stack_size
-    INTEGER(KIND=int_8)                      :: gpumem_free, gpumem_total
     INTEGER, DIMENSION(2)                    :: routine_tuple
     REAL(KIND=dp)                            :: wt_elapsed, wt_now
     TYPE(call_stat_type), POINTER            :: c_stat
@@ -272,20 +260,15 @@ MODULE timings
     TYPE(timer_env_type), POINTER            :: timer_env
 
     routine_id = handle
-
+     
 !$OMP MASTER
 !$OMP CRITICAL(time_setstop)
-
-
-#if defined( __CUDA_PROFILING )
-   CALL cuda_nvtx_range_pop()
-#endif
-
+    
     wt_now = m_walltime()
     timer_env => list_peek(timers_stack)
     cs_entry = list_pop(timer_env%callstack)
     r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
-
+    
     IF (handle /= cs_entry%routine_id) THEN
        PRINT *, "list_size(timer_env%callstack) ",list_size(timer_env%callstack), &
           " handle ",handle," list_size(timers_stack) ",list_size(timers_stack)
@@ -296,22 +279,22 @@ MODULE timings
     ! add the elapsed time for this timeset/timestop to the time accumulator
     wt_elapsed = wt_now - cs_entry%walltime_start
     r_stat%active_calls = r_stat%active_calls - 1
-
+    
     ! if we're the last instance in the stack, we do the accounting of the total time
     IF(r_stat%active_calls == 0) &
        r_stat%incl_walltime_accu = r_stat%incl_walltime_accu + wt_elapsed
 
     ! exclusive time we always sum, since children will correct this time with their total time
     r_stat%excl_walltime_accu = r_stat%excl_walltime_accu + wt_elapsed
-
-
+    
+    
     stack_size = list_size(timer_env%callstack)
     IF(stack_size > 0) THEN
        prev_cs_entry = list_peek(timer_env%callstack)
        prev_stat => list_get(timer_env%routine_stats, prev_cs_entry%routine_id)
        ! we fixup the clock of the caller
        prev_stat%excl_walltime_accu = prev_stat%excl_walltime_accu - wt_elapsed
-
+       
        !update callgraph
        routine_tuple = (/ prev_cs_entry%routine_id, routine_id /)
        c_stat => dict_get(timer_env%callgraph, routine_tuple, default_value=Null(c_stat))
@@ -325,21 +308,18 @@ MODULE timings
        c_stat%incl_walltime_accu = c_stat%incl_walltime_accu + wt_elapsed
     ENDIF
 
-
+    
     !..if debug mode echo the subroutine name
     IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
         (r_stat%total_calls < timer_env%trace_max)) THEN 
        WRITE(sformat,*) "(A,A,",MAX(1,3*stack_size-4),"X,I4,1X,I6,1X,A,F12.3)"
        WRITE (mystring, sformat) timer_env%trace_str, "<<", stack_size+1, &
             r_stat%total_calls, TRIM(r_stat%routineN), wt_elapsed
-       CALL cuda_mem_info(gpumem_free, gpumem_total)
-       WRITE(line,'(A,A,I0,A,A,I0,A)') TRIM(mystring),&
-          " Hostmem: ", (m_memory()+1024*1024-1)/(1024*1024)," MB",&
-          " GPUmem: ", (gpumem_total-gpumem_free)/(1024*1024)," MB"
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring), &
+            (m_memory()+1024*1024-1)/(1024*1024),"Mb"
        WRITE(timer_env%trace_unit,*) TRIM(line)
        CALL m_flush(timer_env%trace_unit)
     ENDIF
-
 
 !$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
@@ -375,7 +355,7 @@ MODULE timings
     timer_env%trace_str       = trace_str
     timer_env%trace_all       = .TRUE.
     IF(.NOT. PRESENT(routine_names)) RETURN
-
+        
     ! setup routine-specific tracing
     timer_env%trace_all = .FALSE.
     DO i=1, SIZE(routine_names)
@@ -383,7 +363,7 @@ MODULE timings
        r_stat => list_get(timer_env%routine_stats, routine_id)
        r_stat%trace = .TRUE. 
     END DO
-
+    
   END SUBROUTINE timings_setup_tracing
 
 ! *****************************************************************************
@@ -426,20 +406,20 @@ MODULE timings
 
     timer_env => list_peek(timers_stack)
     routine_id = dict_get(timer_env%routine_names, routineN, default_value=-1)
-
+    
     IF(routine_id /= -1) RETURN ! found an id - let's return it
     ! routine not found - let's create it
-
+                
     ! enforce space free timer names, to make the output of trace/timings of a fixed number fields
     IF (INDEX(routineN(1:LEN_TRIM(routineN)),' ') /= 0) THEN 
        PRINT *, "timings_name2id: routineN contains spaces: "//routineN
        STOP 1
     END IF
-
+     
     ! register routine_name_dsl with new routine_id
     routine_id = dict_size(timer_env%routine_names) + 1
     CALL dict_set(timer_env%routine_names, routineN, routine_id)
-
+    
     ALLOCATE(r_stat, stat=stat)
     IF(stat /= 0) STOP "timings_name2id: allocation failed"
     r_stat%routine_id = routine_id
@@ -454,6 +434,6 @@ MODULE timings
     IF(list_size(timer_env%routine_stats) /= dict_size(timer_env%routine_names)) &
        STOP "timings_name2id: assertion failed"
  END FUNCTION routine_name2id
-
+ 
 END MODULE timings
 

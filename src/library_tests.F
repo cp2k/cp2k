@@ -1960,8 +1960,7 @@ CONTAINS
     INTEGER                                  :: data_type, i_rep, k, m, n, &
                                                 N_loop, n_rep
     INTEGER, DIMENSION(:), POINTER           :: bs_k, bs_m, bs_n, nproc
-    LOGICAL                                  :: always_checksum, &
-                                                deterministic, keep_sparsity, &
+    LOGICAL                                  :: deterministic, keep_sparsity, &
                                                 transa_p, transb_p
     REAL(KIND=dp)                            :: alpha, beta, filter_eps, s_a, &
                                                 s_b, s_c
@@ -2004,7 +2003,6 @@ CONTAINS
        CALL section_vals_val_get(input_section,"filter_eps",&
             i_rep_section=i_rep,r_val=filter_eps,error=error )
        CALL section_vals_val_get(input_section,"deterministic",i_rep_section=i_rep,l_val=deterministic,error=error )
-       CALL section_vals_val_get(input_section,"ALWAYS_CHECKSUM",i_rep_section=i_rep,l_val=always_checksum,error=error )
 
        CALL cp_test_multiplies (para_env%group, iw, nproc,&
             (/ m, n, k /),&
@@ -2015,7 +2013,7 @@ CONTAINS
             alpha, beta,&
             data_type=data_type,&
             n_loops=n_loop, eps=filter_eps, deterministic=deterministic,&
-            always_checksum=always_checksum,error=error)
+            error=error)
     END DO
   END SUBROUTINE cp_dbcsr_tests
 

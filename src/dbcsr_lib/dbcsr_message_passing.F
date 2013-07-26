@@ -533,8 +533,6 @@ CONTAINS
 
     INTEGER                                  :: ierr, numtask, taskid
 
-    WRITE (*,*) message
-    CALL ABORT
 #if defined(__parallel)
     CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
 #else

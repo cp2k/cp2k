@@ -22,12 +22,13 @@ MODULE input_cp2k
                                              cp_unit_set_type
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, has_blas, &
-       has_cuda, has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
-       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
-       mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
+       dbcsr_get_conf_cuda_mem, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, has_blas, has_cuda, has_plasma, &
+       has_smm_gemm, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
+       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
+       mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -870,6 +871,14 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
+    CALL keyword_create(keyword, name="use_CUDA_host_allocation",&
+         description=TRIM("Allow use of CUDA-allocated host-pinned memory "//&
+         "(avoid using)."//a_cuda),&
+         usage="use_CUDA_allocation F",&
+         default_l_val=dbcsr_get_conf_cuda_mem(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
     CALL keyword_create(keyword, name="mm_stack_size",&
          description="Size of multiplication parameter stack.",&
          usage="mm_stack_size 1000",&
@@ -1529,12 +1538,6 @@ CONTAINS
     CALL keyword_create(keyword, name="DETERMINISTIC",&
          description="Attempt deterministic behavior (turn off for speed).",&
          usage="DETERMINISTIC",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="ALWAYS_CHECKSUM",&
-         description="perform a checksum after each multiplication",&
-         usage="ALWAYS_CHECKSUM",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

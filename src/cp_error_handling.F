@@ -116,7 +116,7 @@ MODULE cp_error_handling
   TYPE cp_error_type
      PRIVATE
      LOGICAL :: initialized
-     TYPE(cp_logger_type), POINTER :: logger => Null()
+     TYPE(cp_logger_type), POINTER :: logger
      INTEGER :: stop_level
      INTEGER :: print_level
      INTEGER :: level

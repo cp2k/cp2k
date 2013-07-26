@@ -14,48 +14,35 @@
 ! *****************************************************************************
 MODULE dbcsr_data_methods
 
-
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocated,&
-                                             dbcsr_cuda_devmem_dev2host,&
-                                             dbcsr_cuda_devmem_host2dev
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_record
-  USE dbcsr_data_methods_low,          ONLY: &
-       dbcsr_data_clear_2d_pointer, dbcsr_data_clear_pointer, &
-       dbcsr_data_ensure_size, dbcsr_data_exists, dbcsr_data_get_memory_type, &
-       dbcsr_data_get_size, dbcsr_data_get_size_referenced, &
-       dbcsr_data_get_sizes, dbcsr_data_get_type, dbcsr_data_get_type_size, &
-       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_query_type, &
-       dbcsr_data_reset_type, dbcsr_data_resize, dbcsr_data_set_2d_pointer, &
-       dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
-       dbcsr_data_valid, dbcsr_data_verify_bounds, dbcsr_data_zero, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_p_2d_c, &
-       dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, &
-       dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
-       dbcsr_get_data_p_z, dbcsr_scalar, dbcsr_scalar_add, &
-       dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, &
-       dbcsr_scalar_get_value, dbcsr_scalar_i, dbcsr_scalar_multiply, &
-       dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_set_type, &
-       dbcsr_scalar_zero, dbcsr_type_1d_to_2d, dbcsr_type_2d_to_1d, &
-       dbcsr_type_is_2d, internal_data_allocate, internal_data_deallocate
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_warning_level,&
-                                             dbcsr_wrong_args_error
+  USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_host_mem_alloc,&
+                                             dbcsr_cuda_host_mem_dealloc
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_postcondition_failed, &
+       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
+       dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
-  USE dbcsr_mempool,                   ONLY: dbcsr_mempool_add,&
-                                             dbcsr_mempool_get
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                             dbcsr_memtype_default,&
-                                             dbcsr_memtype_type,&
-                                             dbcsr_type_complex_4,&
-                                             dbcsr_type_complex_8,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_8
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size
+  USE dbcsr_message_passing,           ONLY: mp_allocate,&
+                                             mp_deallocate
+  USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
+                                             ensure_array_size,&
+                                             memory_zero,&
+                                             pointer_c_rank_remap2,&
+                                             pointer_d_rank_remap2,&
+                                             pointer_s_rank_remap2,&
+                                             pointer_z_rank_remap2
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memory_CUDA_host_pinned, &
+       dbcsr_memory_MPI, dbcsr_memory_default, dbcsr_obj, dbcsr_scalar_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
+       dbcsr_type_real_8, dbcsr_type_real_8_2d
+
+  !$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -63,9 +50,10 @@ MODULE dbcsr_data_methods
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods'
-  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
+  REAL, PARAMETER                      :: default_resize_factor = 1.618034
   INTEGER, SAVE                        :: id = 0
+
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_i, dbcsr_scalar_zero,&
@@ -90,93 +78,384 @@ MODULE dbcsr_data_methods
             dbcsr_get_data_p_d, dbcsr_get_data_p_z,&
             dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_d,&
             dbcsr_get_data_p_2d_c, dbcsr_get_data_p_2d_z
-  PUBLIC :: dbcsr_data_host2dev, dbcsr_data_dev2host
+  !> \brief Encapsulates a scalar.
+  INTERFACE dbcsr_scalar
+     MODULE PROCEDURE dbcsr_scalar_s, dbcsr_scalar_d,&
+                      dbcsr_scalar_c, dbcsr_scalar_z
+  END INTERFACE
+
+  !> \brief Encapsulates a scalar.
+  INTERFACE dbcsr_scalar_get_value
+     MODULE PROCEDURE dbcsr_scalar_get_value_s, dbcsr_scalar_get_value_d,&
+                      dbcsr_scalar_get_value_c, dbcsr_scalar_get_value_z
+  END INTERFACE
+
+  INTERFACE dbcsr_data_set_pointer
+     MODULE PROCEDURE set_data_p_s, set_data_p_d, set_data_p_c, set_data_p_z
+     MODULE PROCEDURE set_data_p_2d_s, set_data_p_2d_d,&
+                      set_data_p_2d_c, set_data_p_2d_z
+     MODULE PROCEDURE set_data_area_area
+  END INTERFACE
+
+  INTERFACE dbcsr_get_data
+     MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z
+     MODULE PROCEDURE get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
+     MODULE PROCEDURE get_data_2d_s, get_data_2d_d, get_data_2d_c, get_data_2d_z
+  END INTERFACE
+
+
+  INTERFACE dbcsr_get_data_p
+     MODULE PROCEDURE dbcsr_get_data_c_s, dbcsr_get_data_c_c,&
+                      dbcsr_get_data_c_d, dbcsr_get_data_c_z
+  END INTERFACE
+
+  INTERFACE dbcsr_data_get_sizes
+     MODULE PROCEDURE dbcsr_data_get_sizes_any
+     MODULE PROCEDURE dbcsr_data_get_sizes_1, dbcsr_data_get_sizes_2
+  END INTERFACE
+
+  INTERFACE dbcsr_data_query_type
+     MODULE PROCEDURE query_type_s_1d, query_type_d_1d,&
+                      query_type_c_1d, query_type_z_1d
+     MODULE PROCEDURE query_type_s_2d, query_type_d_2d,&
+                      query_type_c_2d, query_type_z_2d
+  END INTERFACE
+
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Transfers data from host- to (cuda) device-buffer, asynchronously.
-!> \author  Ole Schuett
+!> \brief Returns data type of a data area
+!> \param[in] area         data area
+!> \result data_type       data type of the data area
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_host2dev(area, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  PURE FUNCTION dbcsr_data_get_type (area) RESULT (data_type)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: data_type
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_host2dev', &
+    data_type = area%d%data_type
+  END FUNCTION dbcsr_data_get_type
+
+
+  PURE FUNCTION dbcsr_data_get_memory_type (area) RESULT (memory_type)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: memory_type
+
+    memory_type = area%d%memory_type
+  END FUNCTION dbcsr_data_get_memory_type
+
+! *****************************************************************************
+!> \brief Returns size in bytes used to store one data element
+!> \param[in] area         data area
+!> \result type_size       data type of the data area
+! *****************************************************************************
+  PURE FUNCTION dbcsr_data_get_type_size (area) RESULT (type_size)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: type_size
+
+    SELECT CASE (dbcsr_type_2d_to_1d(area%d%data_type))
+       CASE (dbcsr_type_real_4)
+          type_size = real_4_size
+       CASE (dbcsr_type_real_8)
+          type_size = real_8_size
+       CASE (dbcsr_type_complex_4)
+          type_size = 2*real_4_size
+       CASE (dbcsr_type_complex_8)
+          type_size = 2*real_8_size
+    END SELECT
+  END FUNCTION dbcsr_data_get_type_size
+
+
+! Data type transformations
+  FUNCTION data_type_2d_from_1d (type_1d) RESULT (type_2d)
+    INTEGER, INTENT(in)                      :: type_1d
+    INTEGER                                  :: type_2d
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'data_type_2d_from_1d', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: c_sp
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: c_dp
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
+    TYPE(dbcsr_error_type)                   :: error
 
-    IF(.NOT. dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) RETURN !nothing to do
-    IF(area%d%ref_size==0) RETURN !nothing to do
-
-    SELECT CASE (area%d%data_type)
-       CASE (dbcsr_type_real_4)
-         r_sp => area%d%r_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=r_sp, stream=area%d%cuda_stream, error=error)
-       CASE (dbcsr_type_real_8)
-         r_dp => area%d%r_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=r_dp, stream=area%d%cuda_stream, error=error)
-       CASE (dbcsr_type_complex_4)
-         c_sp => area%d%c_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=c_sp, stream=area%d%cuda_stream, error=error)
-       CASE (dbcsr_type_complex_8)
-         c_dp => area%d%c_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=c_dp, stream=area%d%cuda_stream, error=error)
-       CASE default
-         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+    SELECT CASE (type_1d)
+    CASE (dbcsr_type_real_4)
+       type_2d = dbcsr_type_real_4_2d
+    CASE (dbcsr_type_real_8)
+       type_2d = dbcsr_type_real_8_2d
+    CASE (dbcsr_type_complex_4)
+       type_2d = dbcsr_type_complex_4_2d
+    CASE (dbcsr_type_complex_8)
+       type_2d = dbcsr_type_complex_8_2d
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
     END SELECT
+  END FUNCTION data_type_2d_from_1d
 
-    CALL dbcsr_cuda_event_record(area%d%cuda_ready, area%d%cuda_stream, error=error)
-  END SUBROUTINE dbcsr_data_host2dev
+! Data type transformations
+  FUNCTION data_type_1d_from_2d (type_2d) RESULT (type_1d)
+    INTEGER, INTENT(IN)                      :: type_2d
+    INTEGER                                  :: type_1d
 
-
-! *****************************************************************************
-!> \brief Transfers data from (cuda) device- to host-buffer, asynchronously.
-!> \author  Ole Schuett
-! *****************************************************************************
-  SUBROUTINE dbcsr_data_dev2host(area, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_dev2host', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'data_type_1d_from_2d', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: c_sp
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: c_dp
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
+    TYPE(dbcsr_error_type)                   :: error
 
-    IF(area%d%ref_size==0) RETURN !nothing to do
-
-    SELECT CASE (area%d%data_type)
-       CASE (dbcsr_type_real_4)
-         r_sp => area%d%r_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=r_sp, stream=area%d%cuda_stream, error=error)
-       CASE (dbcsr_type_real_8)
-         r_dp => area%d%r_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=r_dp, stream=area%d%cuda_stream, error=error)
-       CASE (dbcsr_type_complex_4)
-         c_sp => area%d%c_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=c_sp, stream=area%d%cuda_stream, error=error)
-       CASE (dbcsr_type_complex_8)
-         c_dp => area%d%c_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=c_dp, stream=area%d%cuda_stream, error=error)
-       CASE default
-         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+    SELECT CASE (type_2d)
+    CASE (dbcsr_type_real_4_2d)
+       type_1d = dbcsr_type_real_4
+    CASE (dbcsr_type_real_8_2d)
+       type_1d = dbcsr_type_real_8
+    CASE (dbcsr_type_complex_4_2d)
+       type_1d = dbcsr_type_complex_4
+    CASE (dbcsr_type_complex_8_2d)
+       type_1d = dbcsr_type_complex_8
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
     END SELECT
+  END FUNCTION data_type_1d_from_2d
 
-  END SUBROUTINE dbcsr_data_dev2host
+
+! *****************************************************************************
+!> \brief Initializes a data area
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_init (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    NULLIFY (area%d)
+  END SUBROUTINE dbcsr_data_init
+
+! *****************************************************************************
+!> \brief Allocates pointers in the data type
+!> \param[in,out] area        internal structure holding array pointers
+!> \param[in] data_type       selects which array to allocate
+!> \param[in] sizes           sizes to allocate to
+!> \param[in] memory_type     type of memory to allocate
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE internal_data_allocate (area, data_type, sizes,&
+       memory_type, error)
+    TYPE(dbcsr_data_area_type), &
+      INTENT(INOUT)                          :: area
+    INTEGER, INTENT(IN)                      :: data_type
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sizes
+    INTEGER, INTENT(IN)                      :: memory_type
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_allocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: d, error_handle, stat
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (debug_mod) &
+         WRITE(*,*)routineN//" Setting to sizes", sizes
+    IF (dbcsr_type_is_2d (data_type)) THEN
+       CALL dbcsr_assert (SIZE(sizes), "EQ", 2, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Sizes must have 2 elements for 2-D data", __LINE__, error=error)
+    ELSE
+       CALL dbcsr_assert (SIZE(sizes), "EQ", 1, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Sizes must have 1 elements for 1-D data", __LINE__, error=error)
+    ENDIF
+    !
+    stat = 0
+    SELECT CASE (memory_type)
+    CASE (dbcsr_memory_MPI)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_4)
+          CALL mp_allocate (area%r_sp, sizes(1), stat=stat)
+       CASE (dbcsr_type_real_8)
+          CALL mp_allocate (area%r_dp, sizes(1), stat=stat)
+       CASE (dbcsr_type_complex_4)
+          CALL mp_allocate (area%c_sp, sizes(1), stat=stat)
+       CASE (dbcsr_type_complex_8)
+          CALL mp_allocate (area%c_dp, sizes(1), stat=stat)
+       CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
+            dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Can not use MPI memory with 2D data areas.",&
+               __LINE__, error=error)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE (dbcsr_memory_CUDA_host_pinned)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_cuda_host_mem_alloc (area%r_sp, sizes(1), error=error)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_cuda_host_mem_alloc (area%r_dp, sizes(1), error=error)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_cuda_host_mem_alloc (area%c_sp, sizes(1), error=error)
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_cuda_host_mem_alloc (area%c_dp, sizes(1), error=error)
+       CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
+            dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Can not use MPI memory with 2D data areas.",&
+               __LINE__, error=error)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE (dbcsr_memory_default)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_8)
+          ALLOCATE (area%r_dp(sizes(1)), stat=stat)
+       CASE (dbcsr_type_real_4)
+          ALLOCATE (area%r_sp(sizes(1)), stat=stat)
+       CASE (dbcsr_type_complex_8)
+          ALLOCATE (area%c_dp(sizes(1)), stat=stat)
+       CASE (dbcsr_type_complex_4)
+          ALLOCATE (area%c_sp(sizes(1)), stat=stat)
+       CASE (dbcsr_type_real_8_2d)
+          ALLOCATE (area%r2_dp(sizes(1), sizes(2)), stat=stat)
+       CASE (dbcsr_type_real_4_2d)
+          ALLOCATE (area%r2_sp(sizes(1), sizes(2)), stat=stat)
+       CASE (dbcsr_type_complex_8_2d)
+          ALLOCATE (area%c2_dp(sizes(1), sizes(2)), stat=stat)
+       CASE (dbcsr_type_complex_4_2d)
+          ALLOCATE (area%c2_sp(sizes(1), sizes(2)), stat=stat)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.", __LINE__, error=error)
+       END SELECT
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+            routineN, "Unsupported memory type.", __LINE__, error=error)
+    END SELECT
+    CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+         dbcsr_postcondition_failed, routineN,&
+         "Error allocating memory", __LINE__, error=error)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE internal_data_allocate
+
+
+! *****************************************************************************
+!> \brief Allocates pointers in the data type
+!> \param[in,out] area        internal structure holding array pointers
+!> \param[in] data_type       selects which array to allocate
+!> \param[in] sizes           sizes to allocate to
+!> \param[in] memory_type     type of memory to deallocate
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE internal_data_deallocate (area, data_type,&
+       memory_type, error)
+    TYPE(dbcsr_data_area_type), &
+      INTENT(INOUT)                          :: area
+    INTEGER, INTENT(IN)                      :: data_type, memory_type
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_deallocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler, stat
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handler, error)
+    stat = 0
+    SELECT CASE (memory_type)
+    CASE (dbcsr_memory_MPI)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_4)
+          CALL mp_deallocate (area%r_sp, stat=stat)
+          NULLIFY (area%r_sp)
+       CASE (dbcsr_type_real_8)
+          CALL mp_deallocate (area%r_dp, stat=stat)
+          NULLIFY (area%r_dp)
+       CASE (dbcsr_type_complex_4)
+          CALL mp_deallocate (area%c_sp, stat=stat)
+          NULLIFY (area%c_sp)
+       CASE (dbcsr_type_complex_8)
+          CALL mp_deallocate (area%c_dp, stat=stat)
+          NULLIFY (area%c_dp)
+       CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
+            dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Can not use MPI memory with 2D data areas.",&
+               __LINE__, error=error)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE (dbcsr_memory_CUDA_host_pinned)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_cuda_host_mem_dealloc (area%r_sp, error=error)
+          NULLIFY (area%r_sp)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_cuda_host_mem_dealloc (area%r_dp, error=error)
+          NULLIFY (area%r_dp)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_cuda_host_mem_dealloc (area%c_sp, error=error)
+          NULLIFY (area%c_sp)
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_cuda_host_mem_dealloc (area%c_dp, error=error)
+          NULLIFY (area%c_dp)
+       CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
+            dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Can not use MPI memory with 2D data areas.",&
+               __LINE__, error=error)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE (dbcsr_memory_default)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_8)
+          DEALLOCATE (area%r_dp, stat=stat)
+          NULLIFY (area%r_dp)
+       CASE (dbcsr_type_real_4)
+          DEALLOCATE (area%r_sp, stat=stat)
+          NULLIFY (area%r_sp)
+       CASE (dbcsr_type_complex_8)
+          DEALLOCATE (area%c_dp, stat=stat)
+          NULLIFY (area%c_dp)
+       CASE (dbcsr_type_complex_4)
+          DEALLOCATE (area%c_sp, stat=stat)
+          NULLIFY (area%c_sp)
+       CASE (dbcsr_type_real_8_2d)
+          DEALLOCATE (area%r2_dp, stat=stat)
+          NULLIFY (area%r2_dp)
+       CASE (dbcsr_type_real_4_2d)
+          DEALLOCATE (area%r2_sp, stat=stat)
+          NULLIFY (area%r2_sp)
+       CASE (dbcsr_type_complex_8_2d)
+          DEALLOCATE (area%c2_dp, stat=stat)
+          NULLIFY (area%c2_dp)
+       CASE (dbcsr_type_complex_4_2d)
+          DEALLOCATE (area%c2_sp, stat=stat)
+          NULLIFY (area%c2_sp)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.", __LINE__, error=error)
+       END SELECT
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+            routineN, "Unsupported memory type.", __LINE__, error=error)
+    END SELECT
+    CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+         dbcsr_postcondition_failed, routineN,&
+         "Error deallocating memory", __LINE__, error=error)
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE internal_data_deallocate
 
 
 ! *****************************************************************************
@@ -191,9 +470,8 @@ CONTAINS
        memory_type)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN)                      :: data_type
-    INTEGER, INTENT(IN), OPTIONAL            :: data_size, data_size2
-    TYPE(dbcsr_memtype_type), INTENT(IN), &
-      OPTIONAL                               :: memory_type
+    INTEGER, INTENT(IN), OPTIONAL            :: data_size, data_size2, &
+                                                memory_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_new', &
       routineP = moduleN//':'//routineN
@@ -201,52 +479,52 @@ CONTAINS
     INTEGER                                  :: d, total_size
     INTEGER, DIMENSION(2)                    :: sizes
     TYPE(dbcsr_error_type)                   :: error
-    TYPE(dbcsr_memtype_type)                 :: my_memory_type
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert(.NOT.ASSOCIATED(area%d), dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN,&
-               "area already associcated", __LINE__, error=error)
-
-    my_memory_type = dbcsr_memtype_default
-    IF (PRESENT (memory_type)) my_memory_type = memory_type
-
-
-
-    sizes(:)=0; d=1
-    IF (PRESENT (data_size)) sizes(1)=data_size
-
-    IF (dbcsr_type_is_2d(data_type)) THEN
-       d=2
-       IF (PRESENT(data_size2)) sizes(2)=data_size2
-
-       CALL dbcsr_assert(PRESENT(data_size).EQV.PRESENT(data_size2), &
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Must specify 2 sizes for 2-D data", __LINE__, error=error)
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       ALLOCATE (area%d)
     ENDIF
-
-    total_size = PRODUCT(sizes(1:d))
-
-    IF(ASSOCIATED(my_memory_type%pool)) &
-        area = dbcsr_mempool_get(my_memory_type, data_type, total_size, error)
-
-    IF(.NOT. ASSOCIATED(area%d)) THEN
-       ALLOCATE(area%d)
-       !$OMP ATOMIC
-       id = id + 1
-       !$OMP FLUSH (id)
-       area%d%id = id
-       area%d%refcount = 1
-       area%d%ref_size = total_size
-       area%d%memory_type = my_memory_type
-       area%d%data_type = data_type
-       IF (PRESENT (data_size)) &
-         CALL internal_data_allocate (area%d, sizes(1:d), error=error)
-     ENDIF
+    !$OMP ATOMIC
+    id = id + 1
+    !$OMP FLUSH (id)
+    area%d%id = id
+    NULLIFY (area%d%r_sp)
+    NULLIFY (area%d%r_dp)
+    NULLIFY (area%d%c_sp)
+    NULLIFY (area%d%c_dp)
+    NULLIFY (area%d%r2_sp)
+    NULLIFY (area%d%r2_dp)
+    NULLIFY (area%d%c2_sp)
+    NULLIFY (area%d%c2_dp)
+    area%d%refcount = 1
+    IF (PRESENT (memory_type)) THEN
+       area%d%memory_type = memory_type
+    ELSE
+       area%d%memory_type = dbcsr_memory_default
+    ENDIF
+    IF (PRESENT (data_size)) THEN
+       IF (dbcsr_type_is_2d (data_type)) THEN
+          CALL dbcsr_assert (PRESENT (data_size2), dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "Must specify 2 sizes for 2-D data", __LINE__, error=error)
+          d = 2
+          sizes(1) = data_size
+          sizes(2) = data_size2
+          total_size = data_size * data_size2
+       ELSE
+          d = 1
+          sizes(1) = data_size
+          total_size = data_size
+       ENDIF
+       CALL internal_data_allocate (area%d, data_type, sizes(1:d),&
+            memory_type = area%d%memory_type, error=error)
+       CALL dbcsr_data_set_size_referenced (area, total_size)
+    ELSE
+       CALL dbcsr_data_set_size_referenced (area, 0)
+    ENDIF
+    area%d%data_type = data_type
   END SUBROUTINE dbcsr_data_new
-
-
 
 ! *****************************************************************************
 !> \brief Removes a reference and/or clears the data area.
@@ -258,12 +536,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED (area%d), &
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -278,20 +553,1272 @@ CONTAINS
        area%d%refcount = area%d%refcount - 1
        ! If we're releasing the last reference, then free the memory.
        IF (area%d%refcount .EQ. 0) THEN
-          IF(ASSOCIATED(area%d%memory_type%pool)) THEN
-              area%d%ref_size = 0
-              CALL dbcsr_mempool_add(area, error)
-          ELSE
-              IF (dbcsr_data_exists (area, error)) &
-                 CALL internal_data_deallocate(area%d, error)
-              DEALLOCATE (area%d)
+          IF (dbcsr_data_exists (area, error)) THEN
+             CALL internal_data_deallocate (area%d, area%d%data_type,&
+                  area%d%memory_type, error)
           ENDIF
+          DEALLOCATE (area%d)
           NULLIFY (area%d)
        ENDIF
     ENDIF
-
-    CALL dbcsr_error_stop(error_handler, error)
-
   END SUBROUTINE dbcsr_data_release
 
+! *****************************************************************************
+!> \brief Clears pointers from the data area.
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_clear_pointer (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_pointer', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       RETURN
+    ENDIF
+    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Data seems to be unreferenced.",__LINE__,error)
+    SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       NULLIFY (area%d%r_sp)
+    CASE (dbcsr_type_real_8)
+       NULLIFY (area%d%r_dp)
+    CASE (dbcsr_type_complex_4)
+       NULLIFY (area%d%c_sp)
+    CASE (dbcsr_type_complex_8)
+       NULLIFY (area%d%c_dp)
+    CASE (dbcsr_type_real_8_2d)
+       NULLIFY (area%d%r2_dp)
+    CASE (dbcsr_type_real_4_2d)
+       NULLIFY (area%d%r2_sp)
+    CASE (dbcsr_type_complex_8_2d)
+       NULLIFY (area%d%c2_dp)
+    CASE (dbcsr_type_complex_4_2d)
+       NULLIFY (area%d%c2_sp)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
+    END SELECT
+  END SUBROUTINE dbcsr_data_clear_pointer
+
+! *****************************************************************************
+!> \brief Clears pointers from the data area.
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_reset_type (area, new_type)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: new_type
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_reset_type', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_fatal_level,&
+            dbcsr_caller_error,&
+            routineN, "Data not initialized.",__LINE__,error)
+    ENDIF
+    CALL dbcsr_data_clear_pointer (area)
+    area%d%data_type = new_type
+  END SUBROUTINE dbcsr_data_reset_type
+
+! *****************************************************************************
+!> \brief Checks whether a data area is valid
+!> \param[in] area         data area
+!> \result valid           whether the data area is valid
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_data_valid (area) RESULT (valid)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    LOGICAL                                  :: valid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_valid', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    valid = ASSOCIATED (area%d)
+  END FUNCTION dbcsr_data_valid
+
+! *****************************************************************************
+!> \brief Checks whether a data pointer exists
+!> \param[in] area         data area
+!> \param[in,out] error    error
+!> \result valid           whether the data pointer exists
+! *****************************************************************************
+  FUNCTION dbcsr_data_exists (area, error) RESULT (valid)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+    LOGICAL                                  :: valid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_exists', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) THEN
+       CALL dbcsr_error_set (routineN, error_handle, error)
+    ENDIF
+    !
+    valid = dbcsr_data_valid (area)
+    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_wrong_args_error,&
+         routineN, "Data area is invalid.", __LINE__, error)
+    !
+    SELECT CASE (area%d%memory_type)
+    CASE (dbcsr_memory_default, dbcsr_memory_MPI, dbcsr_memory_CUDA_host_pinned)
+       SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_real_4)
+          valid = ASSOCIATED (area%d%r_sp)
+       CASE (dbcsr_type_real_8)
+          valid = ASSOCIATED (area%d%r_dp)
+       CASE (dbcsr_type_complex_4)
+          valid = ASSOCIATED (area%d%c_sp)
+       CASE (dbcsr_type_complex_8)
+          valid = ASSOCIATED (area%d%c_dp)
+       CASE (dbcsr_type_real_4_2d)
+          valid = ASSOCIATED (area%d%r2_sp)
+       CASE (dbcsr_type_real_8_2d)
+          valid = ASSOCIATED (area%d%r2_dp)
+       CASE (dbcsr_type_complex_4_2d)
+          valid = ASSOCIATED (area%d%c2_sp)
+       CASE (dbcsr_type_complex_8_2d)
+          valid = ASSOCIATED (area%d%c2_dp)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+            routineN, "Unsupported memory type.", __LINE__, error=error)
+    END SELECT
+    !
+    IF (careful_mod) THEN
+       CALL dbcsr_error_stop(error_handle, error)
+    ENDIF
+  END FUNCTION dbcsr_data_exists
+
+! *****************************************************************************
+!> \brief Registers another use of the data area
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_hold (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_hold', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) THEN
+       CALL dbcsr_assert (ASSOCIATED (area%d),&
+            dbcsr_caller_error, dbcsr_fatal_level,&
+            routineN, "Can't hold an empty data area.",__LINE__,error)
+       CALL dbcsr_assert (area%d%refcount, "GT", 0,&
+            dbcsr_caller_error, dbcsr_fatal_level,&
+            routineN, "Should not hold an area with zero references.",&
+            __LINE__,error)
+    ENDIF
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       RETURN
+    ENDIF
+    area%d%refcount = area%d%refcount + 1
+  END SUBROUTINE dbcsr_data_hold
+
+
+
+! *****************************************************************************
+!> \brief Points data area data pointers to another data area
+!>
+!> Assumes that no memory will be lost when repointing the pointer in the data
+!> area and that the area is initialized.
+!> \param[in,out] area         data area to repoint
+!> \param[in] rsize, csize     size of data area to point to
+!> \param[in] pointee          data area to point to
+!> \param[in] source_lb        (optional) point to this offset in pointee
+! *****************************************************************************
+  SUBROUTINE set_data_area_area (area, rsize, csize, pointee, source_lb)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: rsize, csize
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: pointee
+    INTEGER, INTENT(IN), OPTIONAL            :: source_lb
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_area_area', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
+    INTEGER                                  :: bp, dt1, dt2, nze
+    LOGICAL                                  :: compatible, pointee_is_2d, rmp
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    bp = 1 ; IF (PRESENT (source_lb)) bp = source_lb
+    nze = rsize*csize
+    dt1 = area%d%data_type
+    dt2 = pointee%d%data_type
+    IF (careful_mod) THEN
+        compatible = dt1 .EQ. dt2 .OR. dt1 .EQ. dbcsr_type_1d_to_2d (dt2)
+        CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
+             dbcsr_wrong_args_error, routineN,&
+             "Can not point 1-d pointer to 2-d data",__LINE__,error)
+
+    ENDIF
+    pointee_is_2d = dbcsr_type_is_2d (dt2)
+    IF (careful_mod) THEN
+        CALL dbcsr_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
+             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+             "Lower bound specification not possible with 2-d data",__LINE__,error)
+        ! Check if size is OK.
+        CALL dbcsr_assert (bp, "GE", 1,&
+             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+             "Attempt to point out of bounds",__LINE__,error)
+        CALL dbcsr_assert (bp + nze - 1, "LE", dbcsr_data_get_size (pointee),&
+             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+             "Attempt to point out of bounds",__LINE__,error)
+    ENDIF
+    ! There's a remap if the ranks are compatible but not equal.
+    rmp = dt1 .NE. dt2
+    IF (.NOT. dbcsr_ptr_remapping) &
+         CALL dbcsr_assert (.NOT. rmp, dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Compiler does not support pointer rank remapping.",&
+         __LINE__, error=error)
+    SELECT CASE (dt2)
+    CASE (dbcsr_type_real_4_2d)
+       area%d%r2_sp => pointee%d%r2_sp(1:rsize,1:csize)
+    CASE (dbcsr_type_real_4)
+       IF (rmp) THEN
+          r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
+          CALL pointer_s_rank_remap2(area%d%r2_sp, rsize, csize,&
+               r_sp)
+       ELSE
+          area%d%r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       area%d%r2_dp => pointee%d%r2_dp(1:rsize,1:csize)
+    CASE (dbcsr_type_real_8)
+       IF (rmp) THEN
+          r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
+          CALL pointer_d_rank_remap2(area%d%r2_dp, rsize, csize,&
+               r_dp)
+       ELSE
+          area%d%r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       area%d%c2_sp => pointee%d%c2_sp(1:rsize,1:csize)
+    CASE (dbcsr_type_complex_4)
+       IF (rmp) THEN
+          c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
+          CALL pointer_c_rank_remap2(area%d%c2_sp, rsize, csize,&
+               c_sp)
+       ELSE
+          area%d%c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       area%d%c2_dp => pointee%d%c2_dp(1:rsize,1:csize)
+    CASE (dbcsr_type_complex_8)
+       IF (rmp) THEN
+          c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
+          CALL pointer_z_rank_remap2(area%d%c2_dp, rsize, csize,&
+               c_dp)
+       ELSE
+          area%d%c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+    CALL dbcsr_data_set_size_referenced (area, rsize*csize)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (dbcsr_data_get_size_referenced (area), "EQ",&
+            dbcsr_data_get_size (area), dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Size mismatch", __LINE__, error)
+    ENDIF
+  END SUBROUTINE set_data_area_area
+
+
+! *****************************************************************************
+!> \brief Returns the allocated data size
+!> \param[in] area       data area
+!> \retval data_size      size of data
+! *****************************************************************************
+  FUNCTION dbcsr_data_get_size (area) RESULT (data_size)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: data_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_size', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
+
+    data_size = 0
+    IF (ASSOCIATED (area%d)) THEN
+       SELECT CASE (area%d%data_type)
+          CASE (dbcsr_type_real_8)
+             IF (ASSOCIATED (area%d%r_dp))&
+                  data_size = SIZE (area%d%r_dp)
+          CASE (dbcsr_type_real_4)
+             IF (ASSOCIATED (area%d%r_sp))&
+                  data_size = SIZE (area%d%r_sp)
+          CASE (dbcsr_type_complex_8)
+             IF (ASSOCIATED (area%d%c_dp))&
+                  data_size = SIZE (area%d%c_dp)
+          CASE (dbcsr_type_complex_4)
+             IF (ASSOCIATED (area%d%c_sp))&
+                  data_size = SIZE (area%d%c_sp)
+          CASE (dbcsr_type_real_8_2d)
+             IF (ASSOCIATED (area%d%r2_dp))&
+                  data_size = SIZE (area%d%r2_dp)
+          CASE (dbcsr_type_real_4_2d)
+             IF (ASSOCIATED (area%d%r2_sp))&
+                  data_size = SIZE (area%d%r2_sp)
+          CASE (dbcsr_type_complex_8_2d)
+             IF (ASSOCIATED (area%d%c2_dp))&
+                  data_size = SIZE (area%d%c2_dp)
+          CASE (dbcsr_type_complex_4_2d)
+             IF (ASSOCIATED (area%d%c2_sp))&
+                  data_size = SIZE (area%d%c2_sp)
+          CASE default
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Incorrect data type",__LINE__,error)
+          END SELECT
+    ELSE
+       CALL dbcsr_assert (.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Uninitialized data area",__LINE__,error)
+       data_size = 0
+    ENDIF
+  END FUNCTION dbcsr_data_get_size
+
+
+! *****************************************************************************
+!> \brief Ensures a minimum size of a previously-setup data area.
+!>
+!> The data area must have been previously setup with dbcsr_data_new.
+!> \param[inout] area         data area
+!> \param[in] data_size       allocate this much data
+!> \param[in] nocopy          (optional) do not keep potentially existing data,
+!>                            default is to keep it
+!> \param[in] zero_pad        (optional) pad new data with zeros
+!> \param[in] factor          (optional) increase size by this factor
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: data_size
+    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
+    REAL, INTENT(IN), OPTIONAL               :: factor
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: current_size, error_handler
+    LOGICAL                                  :: nocp, pad
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data area must be setup.",__LINE__,error)
+    current_size = dbcsr_data_get_size (area)
+    CALL dbcsr_data_set_size_referenced (area, data_size)
+    IF (current_size .GT. 1 .AND. current_size .GE. data_size) THEN
+       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+       RETURN
+    ENDIF
+    !
+    nocp = .FALSE.
+    IF (PRESENT (nocopy)) nocp = nocopy
+    pad = .FALSE.
+    IF (PRESENT (zero_pad)) pad = zero_pad
+    !
+    IF (.NOT. &
+         dbcsr_data_exists (area, error=error)) THEN
+       CALL internal_data_allocate (area%d, area%d%data_type, (/ data_size /),&
+            memory_type = area%d%memory_type, error=error)
+       IF (pad) THEN
+          CALL dbcsr_data_zero (area, (/ 1 /), (/ data_size /), error=error)
+       ENDIF
+    ELSE
+       SELECT CASE (area%d%memory_type)
+       CASE (dbcsr_memory_default,&
+            dbcsr_memory_MPI,&
+            dbcsr_memory_CUDA_host_pinned)
+          SELECT CASE (area%d%data_type)
+          CASE (dbcsr_type_real_8)
+             CALL ensure_array_size (area%d%r_dp, ub=data_size,&
+                  memory_type=area%d%memory_type,&
+                  nocopy=nocp, zero_pad=zero_pad,&
+                  factor=factor,error=error)
+          CASE (dbcsr_type_real_4)
+             CALL ensure_array_size (area%d%r_sp, ub=data_size,&
+                  memory_type=area%d%memory_type,&
+                  nocopy=nocp, zero_pad=zero_pad,&
+                  factor=factor,error=error)
+          CASE (dbcsr_type_complex_8)
+             CALL ensure_array_size (area%d%c_dp, ub=data_size,&
+                  memory_type=area%d%memory_type,&
+                  nocopy=nocp, zero_pad=zero_pad,&
+                  factor=factor,error=error)
+          CASE (dbcsr_type_complex_4)
+             CALL ensure_array_size (area%d%c_sp, ub=data_size,&
+                  memory_type=area%d%memory_type,&
+                  nocopy=nocp, zero_pad=zero_pad,&
+                  factor=factor,error=error)
+          CASE default
+             CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+                  dbcsr_unimplemented_error_nr, routineN,&
+                  "Invalid data type are supported",__LINE__,error)
+          END SELECT
+       CASE default
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+               routineN, "Unsupported memory type.", __LINE__, error=error)
+       END SELECT
+    ENDIF
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_ensure_size
+
+
+! *****************************************************************************
+!> \brief Verifies bounds of a data area
+!> \param[in] area             Data area
+!> \param[in] lb               lower bounds
+!> \param[in] ub               upper bounds
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_verify_bounds (area, lb, ub, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, DIMENSION(:), INTENT(IN)        :: lb, ub
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_verify_bounds', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_type, error_handler
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handler, error)
+    data_type = dbcsr_data_get_type (area)
+    IF (dbcsr_type_is_2d (data_type)) THEN
+       CALL dbcsr_assert (SIZE (lb), "EQ", 2, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "size must be 2 for 2-d lb", __LINE__, error=error)
+       CALL dbcsr_assert (SIZE (ub), "EQ", 2, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "size must be 2 for 2-d ub", __LINE__, error=error)
+    ELSE
+       CALL dbcsr_assert (SIZE (lb), "EQ", 1, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "size must be 1 for 1-d lb", __LINE__, error=error)
+       CALL dbcsr_assert (SIZE (ub), "EQ", 1, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "size must be 1 for 1-d ub", __LINE__, error=error)
+    ENDIF
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb r_sp", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub r_sp",__LINE__,error)
+    CASE (dbcsr_type_real_4_2d)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r2_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb r_sp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r2_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub r_sp 2d",__LINE__,error)
+       CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%r2_sp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb r_sp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%r2_sp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub r_sp 2d",__LINE__,error)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb r_dp", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub r_dp",__LINE__,error)
+    CASE (dbcsr_type_real_8_2d)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r2_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb r_dp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r2_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub r_dp 2d",__LINE__,error)
+       CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%r2_dp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb r_dp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%r2_dp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub r_dp 2d",__LINE__,error)
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb c_sp", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub c_sp",__LINE__,error)
+    CASE (dbcsr_type_complex_4_2d)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c2_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb c_sp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c2_sp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub c_sp 2d",__LINE__,error)
+       CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%c2_sp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb c_sp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%c2_sp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub c_sp 2d",__LINE__,error)
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb c_dp", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub c_dp",__LINE__,error)
+    CASE (dbcsr_type_complex_8_2d)
+       CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c2_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb c_dp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c2_dp,1),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub c_dp 2d",__LINE__,error)
+       CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%c2_dp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "lb c_dp 2d", __LINE__, error)
+       CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%c2_dp,2),&
+            dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "ub c_dp 2d",__LINE__,error)
+    CASE default
+       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type", __LINE__, error=error)
+    END SELECT
+    CALL dbcsr_error_stop (error_handler, error)
+  END SUBROUTINE dbcsr_data_verify_bounds
+
+
+! *****************************************************************************
+!> \brief Clears a part of the data area
+!> \note Optimized for clearing big 1-D data areas from all data types.
+!> \param[in] area         data area
+!> \param[in,out] error    error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_zero (area, lb, ub, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, DIMENSION(:), INTENT(in)        :: lb, ub
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_zero', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) THEN
+       CALL dbcsr_error_set (routineN, error_handle, error)
+    ENDIF
+    !
+    SELECT CASE (area%d%memory_type)
+    CASE (dbcsr_memory_default, dbcsr_memory_MPI, dbcsr_memory_CUDA_host_pinned)
+       SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_real_4)
+          CALL memory_zero (area%d%r_sp(lb(1):), ub(1))
+       CASE (dbcsr_type_real_8)
+          CALL memory_zero (area%d%r_dp(lb(1):), ub(1))
+       CASE (dbcsr_type_complex_4)
+          CALL memory_zero (area%d%c_sp(lb(1):), ub(1))
+       CASE (dbcsr_type_complex_8)
+          CALL memory_zero (area%d%c_dp(lb(1):), ub(1))
+       CASE (dbcsr_type_real_4_2d)
+          area%d%r2_sp(lb(1):ub(1), lb(2):ub(2)) = 0.0_real_4
+       CASE (dbcsr_type_real_8_2d)
+          area%d%r2_dp(lb(1):ub(1), lb(2):ub(2)) = 0.0_real_8
+       CASE (dbcsr_type_complex_4_2d)
+          area%d%c2_sp(lb(1):ub(1), lb(2):ub(2)) = 0.0_real_4
+       CASE (dbcsr_type_complex_8_2d)
+          area%d%c2_dp(lb(1):ub(1), lb(2):ub(2)) = 0.0_real_8
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+            routineN, "Unsupported memory type.", __LINE__, error=error)
+    END SELECT
+    !
+    IF (careful_mod) THEN
+       CALL dbcsr_error_stop(error_handle, error)
+    ENDIF
+  END SUBROUTINE dbcsr_data_zero
+
+
+
+! *****************************************************************************
+!> \brief Points a 2-d pointer to current 1-d data
+!>
+!> \param[in,out] area         data area to work on
+!> \param[in] rowsize          row size of 2-d data
+!> \param[in] colsize          (optional) column size of 2-d data
+!> \param[in] offset           (optional) offset
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_set_2d_pointer (area, rowsize, colsize, offset)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: rowsize
+    INTEGER, INTENT(IN), OPTIONAL            :: colsize, offset
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_set_2d_pointer', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
+    INTEGER                                  :: bp, csize, dt1, nze
+    LOGICAL                                  :: compatible
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    dt1 = area%d%data_type
+    compatible = dt1 .EQ. dbcsr_type_real_4&
+            .OR. dt1 .EQ. dbcsr_type_real_8&
+            .OR. dt1 .EQ. dbcsr_type_complex_4&
+            .OR. dt1 .EQ. dbcsr_type_complex_8
+    CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Must target 1-D data",__LINE__,error)
+    IF (PRESENT (offset)) THEN
+       bp = offset
+       nze = dbcsr_data_get_size (area) - offset + 1
+    ELSE
+       bp = 1
+       nze = dbcsr_data_get_size (area)
+    ENDIF
+    IF (PRESENT (colsize)) THEN
+       csize = colsize
+    ELSE
+       csize = nze / rowsize
+    ENDIF
+    SELECT CASE (dt1)
+    CASE (dbcsr_type_real_4)
+       r_sp => dbcsr_get_data_p_s (area, bp, bp+nze-1)
+       CALL pointer_s_rank_remap2(area%d%r2_sp, rowsize, csize,&
+            r_sp)
+    CASE (dbcsr_type_real_8)
+       r_dp => dbcsr_get_data_p_d (area, bp, bp+nze-1)
+       CALL pointer_d_rank_remap2(area%d%r2_dp, rowsize, csize,&
+            r_dp)
+    CASE (dbcsr_type_complex_4)
+       c_sp => dbcsr_get_data_p_c (area, bp, bp+nze-1)
+       CALL pointer_c_rank_remap2(area%d%c2_sp, rowsize, csize,&
+            c_sp)
+    CASE (dbcsr_type_complex_8)
+       c_dp => dbcsr_get_data_p_z (area, bp, bp+nze-1)
+       CALL pointer_z_rank_remap2(area%d%c2_dp, rowsize, csize,&
+            c_dp)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+  END SUBROUTINE dbcsr_data_set_2d_pointer
+
+! *****************************************************************************
+!> \brief Nullifies a 2-d pointer to current 1-d data
+!>
+!> \param[in,out] area         data area to work on
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_clear_2d_pointer (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_2d_pointer', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dt1
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    dt1 = area%d%data_type
+    SELECT CASE (dt1)
+    CASE (dbcsr_type_real_4)
+       NULLIFY (area%d%r2_sp)
+    CASE (dbcsr_type_real_8)
+       NULLIFY (area%d%r2_dp)
+    CASE (dbcsr_type_complex_4)
+       NULLIFY (area%d%c2_sp)
+    CASE (dbcsr_type_complex_8)
+       NULLIFY (area%d%c2_dp)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+  END SUBROUTINE dbcsr_data_clear_2d_pointer
+
+
+! *****************************************************************************
+!> \brief Returns the allocated data size
+!> \param[in] area       data area to query for size
+!> \param[out] sizes     array with the data sizes
+!> \param[out] valid     whether the data is actually allocated
+!> \param[in,out] error  error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_get_sizes_any (area, sizes, valid, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: sizes
+    LOGICAL, INTENT(OUT)                     :: valid
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_any', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: d, error_handler
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) &
+         CALL dbcsr_error_set (routineN, error_handler, error)
+
+    valid = .FALSE.
+    sizes(:) = 0
+    IF (ASSOCIATED (area%d)) THEN
+       IF (careful_mod) THEN
+          IF (dbcsr_type_is_2d (area%d%data_type)) THEN
+             CALL dbcsr_assert (SIZE(sizes), "EQ", 2, dbcsr_fatal_level,&
+                  dbcsr_wrong_args_error, routineN,&
+                  "Sizes must have 2 elements for 2-D data", __LINE__, error=error)
+          ELSE
+             CALL dbcsr_assert (SIZE(sizes), "EQ", 1, dbcsr_fatal_level,&
+                  dbcsr_wrong_args_error, routineN,&
+                  "Sizes must have 1 elements for 1-D data", __LINE__, error=error)
+          ENDIF
+       ENDIF
+       valid = dbcsr_data_exists (area, error=error)
+       IF (valid) THEN
+          SELECT CASE (area%d%memory_type)
+          CASE (dbcsr_memory_default,&
+               dbcsr_memory_MPI,&
+               dbcsr_memory_CUDA_host_pinned)
+             SELECT CASE (area%d%data_type)
+             CASE (dbcsr_type_real_8)
+                   sizes(1) = SIZE (area%d%r_dp)
+             CASE (dbcsr_type_real_4)
+                   sizes(1) = SIZE (area%d%r_sp)
+             CASE (dbcsr_type_complex_8)
+                   sizes(1) = SIZE (area%d%c_dp)
+             CASE (dbcsr_type_complex_4)
+                   sizes(1) = SIZE (area%d%c_sp)
+             CASE (dbcsr_type_real_8_2d)
+                   sizes(1) = SIZE (area%d%r2_dp,1)
+                   sizes(2) = SIZE (area%d%r2_dp,2)
+             CASE (dbcsr_type_real_4_2d)
+                   sizes(1) = SIZE (area%d%r2_sp,1)
+                   sizes(2) = SIZE (area%d%r2_sp,2)
+             CASE (dbcsr_type_complex_8_2d)
+                   sizes(1) = SIZE (area%d%c2_dp,1)
+                   sizes(2) = SIZE (area%d%c2_dp,2)
+             CASE (dbcsr_type_complex_4_2d)
+                   sizes(1) = SIZE (area%d%c2_sp,1)
+                   sizes(2) = SIZE (area%d%c2_sp,2)
+             CASE default
+                CALL dbcsr_assert (.FALSE.,&
+                     dbcsr_fatal_level, dbcsr_caller_error,&
+                     routineN, "Incorrect data type", __LINE__, error=error)
+             END SELECT
+          END SELECT
+       ENDIF
+    ENDIF
+    IF (careful_mod) &
+         CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_get_sizes_any
+
+! *****************************************************************************
+!> \brief Returns the allocated data size
+!> \param[in] area       data area to query for size, should be 2-D
+!> \param[out] row_size  row size
+!> \param[out] row_size  column size
+!> \param[out] valid     whether the data is actually allocated
+!> \param[in,out] error  error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_get_sizes_2 (area, row_size, col_size, valid, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, INTENT(OUT)                     :: row_size, col_size
+    LOGICAL, INTENT(OUT)                     :: valid
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: d, error_handler
+    INTEGER, DIMENSION(2)                    :: s
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) &
+       CALL dbcsr_error_set (routineN, error_handler, error)
+    IF (ASSOCIATED (area%d)) THEN
+       IF (careful_mod) &
+            CALL dbcsr_assert (dbcsr_type_is_2d (area%d%data_type),&
+            dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "1-D data can not have column size", __LINE__, error=error)
+       CALL dbcsr_data_get_sizes_any (area, s, valid, error=error)
+       row_size = s(1)
+       col_size = s(2)
+    ELSE
+       valid = .FALSE.
+       row_size = 0
+       col_size = 0
+    ENDIF
+    IF (careful_mod) &
+         CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_get_sizes_2
+
+! *****************************************************************************
+!> \brief Returns the allocated data size
+!> \param[in] area         data area to query for size
+!> \param[out] total_size  size of array
+!> \param[out] valid       whether the data is actually allocated
+!> \param[in,out] error    error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_get_sizes_1 (area, total_size, valid, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, INTENT(OUT)                     :: total_size
+    LOGICAL, INTENT(OUT)                     :: valid
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: d, error_handler
+    INTEGER, DIMENSION(1)                    :: s
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handler, error)
+
+    IF (ASSOCIATED (area%d)) THEN
+       IF (careful_mod) &
+            CALL dbcsr_assert ("NOT", dbcsr_type_is_2d (area%d%data_type),&
+            dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Should not use 2-D data", __LINE__, error=error)
+       CALL dbcsr_data_get_sizes_any (area, s, valid, error=error)
+       total_size = s(1)
+    ELSE
+       valid = .FALSE.
+       total_size = 0
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_get_sizes_1
+
+
+! *****************************************************************************
+!> \brief Resizes the data stored in an object destructively.
+!> \param[in,out] area   data area to resize
+!> \param[in] sizes      array with the data sizes
+!> \param[in,out] error  error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_resize (area, sizes, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sizes
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_resize', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: d, error_handler
+    INTEGER, DIMENSION(2)                    :: old_sizes
+    LOGICAL                                  :: old_valid
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handler, error)
+    !
+    CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_fatal_level,&
+         dbcsr_caller_error, routineN,&
+         "Invalid data area", __LINE__, error=error)
+    IF (dbcsr_type_is_2d (area%d%data_type)) THEN
+       d = 2
+       IF (careful_mod) &
+            CALL dbcsr_assert (SIZE(sizes), "EQ", 2, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Sizes must have 2 elements for 2-D data", __LINE__, error=error)
+    ELSE
+       d = 1
+       IF (careful_mod) &
+            CALL dbcsr_assert (SIZE(sizes), "EQ", 1, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Sizes must have 1 elements for 1-D data", __LINE__, error=error)
+    ENDIF
+    CALL dbcsr_data_get_sizes (area, old_sizes(1:d),&
+         valid=old_valid, error=error)
+    IF (.NOT. old_valid .OR. ANY(old_sizes(1:d) .NE. sizes(1:d))) THEN
+       IF (old_valid) THEN
+          CALL internal_data_deallocate (area%d, data_type=area%d%data_type,&
+               memory_type=area%d%memory_type, error=error)
+       ENDIF
+       CALL internal_data_allocate (area%d, data_type=area%d%data_type,&
+            sizes=sizes,&
+            memory_type=area%d%memory_type, error=error)
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_resize
+
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar "1"
+!> \param[in] data_type       use the data type
+!> \result one                enpsulated value of one
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_one (data_type) RESULT (one)
+    INTEGER, INTENT(IN)                      :: data_type
+    TYPE(dbcsr_scalar_type)                  :: one
+
+    one = dbcsr_scalar_zero (data_type)
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       one%r_sp = 1.0_real_4
+    CASE (dbcsr_type_real_8)
+       one%r_dp = 1.0_real_8
+    CASE (dbcsr_type_complex_4)
+       one%c_sp = CMPLX(1.0, 0.0, real_4)
+    CASE (dbcsr_type_complex_8)
+       one%c_dp = CMPLX(1.0, 0.0, real_8)
+    END SELECT
+  END FUNCTION dbcsr_scalar_one
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar "sqrt(-1)"
+!> \param[in] data_type       use the data type
+!> \result one                enpsulated value of one
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_i (data_type) RESULT (i)
+    INTEGER, INTENT(IN)                      :: data_type
+    TYPE(dbcsr_scalar_type)                  :: i
+
+    i = dbcsr_scalar_zero (data_type)
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       i%r_sp = 0.0_real_4
+    CASE (dbcsr_type_real_8)
+       i%r_dp = 0.0_real_8
+    CASE (dbcsr_type_complex_4)
+       i%c_sp = CMPLX(0.0, 1.0, real_4)
+    CASE (dbcsr_type_complex_8)
+       i%c_dp = CMPLX(0.0, 1.0, real_8)
+    END SELECT
+  END FUNCTION dbcsr_scalar_i
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar "0"
+!> \param[in] data_type       use the data type
+!> \result zero               enpsulated value of zero
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_zero (data_type) RESULT (zero)
+    INTEGER, INTENT(IN)                      :: data_type
+    TYPE(dbcsr_scalar_type)                  :: zero
+
+    zero%data_type = data_type
+    zero%r_sp = 0.0_real_4
+    zero%r_dp = 0.0_real_8
+    zero%c_sp = CMPLX(0.0, 0.0, real_4)
+    zero%c_dp = CMPLX(0.0, 0.0, real_8)
+  END FUNCTION dbcsr_scalar_zero
+
+
+! *****************************************************************************
+!> \brief Returns whether an encapsulated scalar is equal to another value
+!> \param[in] s1                    one value
+!> \param[in] s2                    another value
+!> \result are_equal                whether values are equal
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_are_equal (s1, s2) RESULT (are_equal)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
+    LOGICAL                                  :: are_equal
+
+    IF (s1%data_type .NE. s2%data_type) THEN
+       are_equal = .FALSE.
+    ELSE
+       SELECT CASE (s1%data_type)
+       CASE (dbcsr_type_real_4)
+          are_equal = s1%r_sp .EQ. s2%r_sp
+       CASE (dbcsr_type_real_8)
+          are_equal = s1%r_dp .EQ. s2%r_dp
+       CASE (dbcsr_type_complex_4)
+          are_equal = s1%c_sp .EQ. s2%c_sp
+       CASE (dbcsr_type_complex_8)
+          are_equal = s1%c_dp .EQ. s2%c_dp
+       CASE default
+          are_equal = .FALSE.
+       END SELECT
+    ENDIF
+  END FUNCTION dbcsr_scalar_are_equal
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar as a negation of the given
+!> \param[in] v                    given value
+!> \result negated                 negated value
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_negative (s) RESULT (negated)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s
+    TYPE(dbcsr_scalar_type)                  :: negated
+
+    negated = dbcsr_scalar_zero (s%data_type)
+    SELECT CASE (s%data_type)
+    CASE (dbcsr_type_real_4)
+       negated%r_sp = -s%r_sp
+    CASE (dbcsr_type_real_8)
+       negated%r_dp = -s%r_dp
+    CASE (dbcsr_type_complex_4)
+       negated%c_sp = -s%c_sp
+    CASE (dbcsr_type_complex_8)
+       negated%c_dp = -s%c_dp
+    CASE default
+       negated = dbcsr_scalar_zero (s%data_type)
+    END SELECT
+  END FUNCTION dbcsr_scalar_negative
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar as a negation of the given
+!> \param[in] v                    given value
+!> \result negated                 negated value
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_add (s1, s2) RESULT (s_sum)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
+    TYPE(dbcsr_scalar_type)                  :: s_sum
+
+    s_sum = dbcsr_scalar_zero (s1%data_type)
+    SELECT CASE (s1%data_type)
+    CASE (dbcsr_type_real_4)
+       s_sum%r_sp = s1%r_sp + s2%r_sp
+    CASE (dbcsr_type_real_8)
+       s_sum%r_dp = s1%r_dp + s2%r_dp
+    CASE (dbcsr_type_complex_4)
+       s_sum%c_sp = s1%c_sp + s2%c_sp
+    CASE (dbcsr_type_complex_8)
+       s_sum%c_dp = s1%c_dp + s2%c_dp
+    CASE default
+       s_sum = dbcsr_scalar_zero (s1%data_type)
+    END SELECT
+  END FUNCTION dbcsr_scalar_add
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar as a negation of the given
+!> \param[in] v                    given value
+!> \result negated                 negated value
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_multiply (s1, s2) RESULT (s_product)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
+    TYPE(dbcsr_scalar_type)                  :: s_product
+
+    s_product = dbcsr_scalar_zero (s1%data_type)
+    SELECT CASE (s1%data_type)
+    CASE (dbcsr_type_real_4)
+       s_product%r_sp = s1%r_sp * s2%r_sp
+    CASE (dbcsr_type_real_8)
+       s_product%r_dp = s1%r_dp * s2%r_dp
+    CASE (dbcsr_type_complex_4)
+       s_product%c_sp = s1%c_sp * s2%c_sp
+    CASE (dbcsr_type_complex_8)
+       s_product%c_dp = s1%c_dp * s2%c_dp
+    CASE default
+       s_product = dbcsr_scalar_zero (s1%data_type)
+    END SELECT
+  END FUNCTION dbcsr_scalar_multiply
+
+
+! *****************************************************************************
+!> \brief Returns data type of a scalar
+!> \param[in] scalar       scalar
+!> \result data_type       data type of the scalar
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_get_type (scalar) RESULT (data_type)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: scalar
+    INTEGER                                  :: data_type
+
+    data_type = scalar%data_type
+  END FUNCTION dbcsr_scalar_get_type
+
+! *****************************************************************************
+!> \brief Returns data type of a scalar
+!> \param[in] scalar       scalar
+!> \result data_type       data type of the scalar
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE dbcsr_scalar_set_type (scalar, data_type)
+    TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
+    INTEGER, INTENT(IN)                      :: data_type
+
+    scalar%data_type = data_type
+  END SUBROUTINE dbcsr_scalar_set_type
+
+
+! *****************************************************************************
+!> \brief Fills all data and precision types from the set one
+!> \param[in,out] scalara         data area
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE dbcsr_scalar_fill_all (scalar)
+    TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
+
+    SELECT CASE(scalar%data_type)
+       CASE (dbcsr_type_real_4)
+          !scalar%r_sp = 0
+          scalar%r_dp = REAL(scalar%r_sp, KIND=real_8)
+          scalar%c_sp = CMPLX(scalar%r_sp, 0, KIND=real_4)
+          scalar%c_dp = CMPLX(scalar%r_sp, 0, KIND=real_8)
+       CASE (dbcsr_type_real_8)
+          scalar%r_sp = REAL(scalar%r_dp, KIND=real_4)
+          !scalar%r_dp = REAL(scalar%r_dp, KIND=real_8)
+          scalar%c_sp = CMPLX(scalar%r_dp, 0, KIND=real_4)
+          scalar%c_dp = CMPLX(scalar%r_dp, 0, KIND=real_8)
+       CASE (dbcsr_type_complex_4)
+          scalar%r_sp = REAL(scalar%c_sp, KIND=real_4)
+          scalar%r_dp = REAL(scalar%c_sp, KIND=real_8)
+          !scalar%c_sp = CMPLX(scalar%c_sp, KIND=real_4)
+          scalar%c_dp = CMPLX(scalar%c_sp, KIND=real_8)
+       CASE (dbcsr_type_complex_8)
+          scalar%r_sp = REAL(scalar%c_dp, KIND=real_4)
+          scalar%r_dp = REAL(scalar%c_dp, KIND=real_8)
+          scalar%c_sp = CMPLX(scalar%c_dp, KIND=real_4)
+          !scalar%c_dp = CMPLX(scalar%r_dp, KIND=real_8)
+    END SELECT
+  END SUBROUTINE dbcsr_scalar_fill_all
+
+! *****************************************************************************
+!> \brief Checks whether the data type is 2-D.
+!> \result Data type is 2-D.
+! *****************************************************************************
+  PURE FUNCTION dbcsr_type_is_2d (data_type)
+    INTEGER, INTENT(IN)                      :: data_type
+    LOGICAL                                  :: dbcsr_type_is_2d
+
+    dbcsr_type_is_2d = data_type .EQ. dbcsr_type_real_4_2d .OR.&
+         data_type .EQ. dbcsr_type_real_8_2d .OR.&
+         data_type .EQ. dbcsr_type_complex_4_2d .OR.&
+         data_type .EQ. dbcsr_type_complex_8_2d
+  END FUNCTION dbcsr_type_is_2d
+
+! *****************************************************************************
+!> \brief Returns 1-d data type corresponding to the given 2-D one.
+!> \result 1-D data type
+! *****************************************************************************
+  PURE FUNCTION dbcsr_type_2d_to_1d (data_type)
+    INTEGER, INTENT(IN)                      :: data_type
+    INTEGER                                  :: dbcsr_type_2d_to_1d
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_4
+    CASE (dbcsr_type_real_8_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_8
+    CASE (dbcsr_type_complex_4_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_4
+    CASE (dbcsr_type_complex_8_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_8
+    CASE (dbcsr_type_real_4)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_4
+    CASE (dbcsr_type_real_8)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_8
+    CASE (dbcsr_type_complex_4)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_4
+    CASE (dbcsr_type_complex_8)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_8
+    CASE default
+       dbcsr_type_2d_to_1d = -1
+    END SELECT
+  END FUNCTION dbcsr_type_2d_to_1d
+
+! *****************************************************************************
+!> \brief Returns 2-D data type corresponding to the given 1-D one.
+!> \result 2-D data type
+! *****************************************************************************
+  PURE FUNCTION dbcsr_type_1d_to_2d (data_type)
+    INTEGER, INTENT(IN)                      :: data_type
+    INTEGER                                  :: dbcsr_type_1d_to_2d
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_4_2d
+    CASE (dbcsr_type_real_8)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_8_2d
+    CASE (dbcsr_type_complex_4)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_4_2d
+    CASE (dbcsr_type_complex_8)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_8_2d
+    CASE (dbcsr_type_real_4_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_4_2d
+    CASE (dbcsr_type_real_8_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_8_2d
+    CASE (dbcsr_type_complex_4_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_4_2d
+    CASE (dbcsr_type_complex_8_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_8_2d
+    CASE default
+       dbcsr_type_1d_to_2d = -1
+    END SELECT
+  END FUNCTION dbcsr_type_1d_to_2d
+
+
+
+! *****************************************************************************
+!> \brief Get actual data storage used for matrix
+!> \param[in] area            Count data of this matrix
+!> \result data_size          Data size used by matrix
+! *****************************************************************************
+  PURE FUNCTION dbcsr_data_get_size_referenced (area) RESULT (data_size_referenced)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: data_size_referenced
+
+    IF (ASSOCIATED (area%d)) THEN
+       data_size_referenced = area%d%ref_size
+    ELSE
+       data_size_referenced = 0
+    ENDIF
+  END FUNCTION dbcsr_data_get_size_referenced
+
+! *****************************************************************************
+!> \brief Sets the referenced size of the data area
+!> \param[in,out] data_area  area for which to set referenced data size
+!> \param[in]                set referenced data size to this value
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_data_set_size_referenced (data_area, referenced_size)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: data_area
+    INTEGER, INTENT(IN)                      :: referenced_size
+
+    data_area%d%ref_size = referenced_size
+  END SUBROUTINE dbcsr_data_set_size_referenced
+
+
+
+
+
+
+#include "dbcsr_data_methods_d.F"
+#include "dbcsr_data_methods_z.F"
+#include "dbcsr_data_methods_s.F"
+#include "dbcsr_data_methods_c.F"
 END MODULE dbcsr_data_methods

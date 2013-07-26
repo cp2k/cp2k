@@ -23,26 +23,28 @@ MODULE dbcsr_mm_csr
 
   USE array_types,                     ONLY: array_data
   USE dbcsr_config,                    ONLY: dbcsr_get_conf_nstacks,&
-                                             mm_stack_size
+                                             mm_driver,&
+                                             mm_host_driver
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_1,&
                                              int_4,&
                                              int_8,&
                                              real_8,&
                                              sp
-  USE dbcsr_mm_sched,                  ONLY: dbcsr_mm_sched_finalize,&
-                                             dbcsr_mm_sched_init,&
-                                             dbcsr_mm_sched_lib_finalize,&
-                                             dbcsr_mm_sched_lib_init,&
-                                             dbcsr_mm_sched_process,&
-                                             dbcsr_mm_sched_type
+  USE dbcsr_mm_driver,                 ONLY: dbcsr_mm_driver_inner_finalize,&
+                                             dbcsr_mm_driver_inner_init,&
+                                             dbcsr_mm_driver_lib_finalize,&
+                                             dbcsr_mm_driver_lib_init,&
+                                             dbcsr_mm_driver_outer_finalize,&
+                                             dbcsr_mm_driver_outer_init,&
+                                             dbcsr_mm_driver_process_stack
   USE dbcsr_mm_types,                  ONLY: &
-       dbcsr_ps_width, p_a_first, p_b_first, p_c_blk, p_c_first, p_k, p_m, &
-       p_n, stack_descriptor_type
+       csr_carrier_type, dbcsr_ps_state_empty, dbcsr_ps_state_working, &
+       ele_type, hash_table_type, p_a_first, p_b_first, p_c_blk, p_c_first, &
+       p_k, p_m, p_n, stack_descriptor_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: sort
-  USE dbcsr_types,                     ONLY: dbcsr_type,&
-                                             dbcsr_work_type
+  USE dbcsr_types,                     ONLY: dbcsr_type
   USE dbcsr_util,                      ONLY: map_most_common
 
   !$ USE OMP_LIB
@@ -61,47 +63,11 @@ MODULE dbcsr_mm_csr
   INTEGER, PARAMETER :: max_stack_block_size = HUGE (INT (0))
 
 
- ! *****************************************************************************
-  TYPE dbcsr_mm_csr_type
-     PRIVATE
-     TYPE(hash_table_type), DIMENSION(:), POINTER  :: c_hashes => Null()
-     INTEGER                        :: nm_stacks, nn_stacks, nk_stacks
-     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: m_size_maps => Null()
-     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: n_size_maps => Null()
-     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: k_size_maps => Null()
-     INTEGER                        :: max_m, max_n, max_k
-     INTEGER                        :: m_size_maps_size,&
-                                       n_size_maps_size,&
-                                       k_size_maps_size
-     INTEGER(KIND=int_1), DIMENSION(:,:,:), POINTER :: stack_map => Null()
-     TYPE(stack_descriptor_type), DIMENSION(:), POINTER  :: stacks_descr => Null()
-     TYPE(dbcsr_work_type), POINTER           :: product_wm => Null()
-     INTEGER, DIMENSION(:,:,:), POINTER       :: stacks_data  => Null()
-     INTEGER, DIMENSION(:), POINTER           :: stacks_fillcount => Null()
-     TYPE(dbcsr_mm_sched_type)                      :: sched
-  END TYPE dbcsr_mm_csr_type
-
-
-! *****************************************************************************
-!> \brief Types needed for the hashtable.
-! *****************************************************************************
-  TYPE ele_type
-     INTEGER :: c=0
-     INTEGER :: p=0
-  END TYPE ele_type
-
-  TYPE hash_table_type
-     TYPE(ele_type), DIMENSION(:), POINTER :: table
-     INTEGER :: nele=0
-     INTEGER :: nmax=0
-     INTEGER :: prime=0
-  END TYPE hash_table_type
-
- ! *****************************************************************************
-  PUBLIC :: dbcsr_mm_csr_type
   PUBLIC :: dbcsr_mm_csr_lib_init,   dbcsr_mm_csr_lib_finalize
-  PUBLIC :: dbcsr_mm_csr_init, dbcsr_mm_csr_finalize
-  PUBLIC :: dbcsr_mm_csr_multiply, dbcsr_mm_csr_purge_stacks
+  PUBLIC :: dbcsr_mm_csr_outer_init, dbcsr_mm_csr_outer_finalize
+  PUBLIC :: dbcsr_mm_csr_inner_init, dbcsr_mm_csr_inner_finalize
+  PUBLIC :: dbcsr_mm_csr_multiply
+
 
   CONTAINS
 
@@ -112,7 +78,7 @@ MODULE dbcsr_mm_csr
   SUBROUTINE dbcsr_mm_csr_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-     CALL dbcsr_mm_sched_lib_init(error)
+     CALL dbcsr_mm_driver_lib_init(error)
   END SUBROUTINE
 
 
@@ -120,11 +86,10 @@ MODULE dbcsr_mm_csr
 ! \brief Finalize the library
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_lib_finalize(output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE dbcsr_mm_csr_lib_finalize(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-     CALL dbcsr_mm_sched_lib_finalize(output_unit, error)
+     CALL dbcsr_mm_driver_lib_finalize(error)
   END SUBROUTINE
 
 
@@ -132,7 +97,7 @@ MODULE dbcsr_mm_csr
 ! \brief A wrapper around dbcsr_mm_csr_multiply_low to avoid expensive dereferencings.
 ! \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE dbcsr_mm_csr_multiply(this, left, right, mi, mf, ni, nf, ki, kf,&
+ SUBROUTINE dbcsr_mm_csr_multiply(mi, mf, ni, nf, ki, kf,&
        ai, af,&
        bi, bf,&
        m_sizes, n_sizes, k_sizes,&
@@ -141,9 +106,7 @@ MODULE dbcsr_mm_csr
        row_max_epss,&
        flop,&
        a_index, b_index, a_norms, b_norms,&
-       error)
-    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+       product, csr_carrier, error)
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, ki, kf, ai, &
                                                 af, bi, bf
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: m_sizes, n_sizes, k_sizes, &
@@ -157,6 +120,8 @@ MODULE dbcsr_mm_csr
     INTEGER, DIMENSION(1:3, 1:bf), &
       INTENT(IN)                             :: b_index
     REAL(KIND=sp), DIMENSION(:), POINTER     :: a_norms, b_norms
+    TYPE(dbcsr_type), INTENT(INOUT)          :: product
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: ithread, max_new_nblks, &
@@ -171,44 +136,42 @@ MODULE dbcsr_mm_csr
     max_new_nblks = MIN(INT(mf-mi+1,int_8) * INT(nf-ni+1,int_8), &
                         INT(af-ai+1,int_8) * INT(bf-bi+1,int_8))
 
-    nblks_new = this%product_wm%lastblk + max_new_nblks
+    nblks_new = product%wms(ithread+1)%lastblk + max_new_nblks
 
-    CALL ensure_array_size(this%product_wm%row_i, ub=nblks_new,&
+    CALL ensure_array_size(product%wms(ithread+1)%row_i, ub=nblks_new,&
          factor=default_resize_factor, error=error)
-    CALL ensure_array_size(this%product_wm%col_i, ub=nblks_new,&
+    CALL ensure_array_size(product%wms(ithread+1)%col_i, ub=nblks_new,&
          factor=default_resize_factor, error=error)
-    CALL ensure_array_size(this%product_wm%blk_p, ub=nblks_new,&
+    CALL ensure_array_size(product%wms(ithread+1)%blk_p, ub=nblks_new,&
          factor=default_resize_factor, error=error)
 
-    CALL dbcsr_mm_csr_multiply_low(this, left=left, right=right,&
-            mi=mi, mf=mf,ni=ni, nf=nf, ki=ki, kf=kf,&
+    CALL dbcsr_mm_csr_multiply_low(mi=mi, mf=mf,ni=ni, nf=nf, ki=ki, kf=kf,&
             ai=ai, af=af,&
             bi=bi, bf=bf,&
-            c_row_i=this%product_wm%row_i,&
-            c_col_i=this%product_wm%col_i,&
-            c_blk_p=this%product_wm%blk_p,&
-            lastblk =this%product_wm%lastblk, &
-            datasize=this%product_wm%datasize,&
+            c_row_i=product%wms(ithread+1)%row_i,&
+            c_col_i=product%wms(ithread+1)%col_i,&
+            c_blk_p=product%wms(ithread+1)%blk_p,&
+            lastblk =product%wms(ithread+1)%lastblk, &
+            datasize=product%wms(ithread+1)%datasize,&
             m_sizes=m_sizes, n_sizes=n_sizes, k_sizes=k_sizes,&
             c_local_rows=c_local_rows, c_local_cols=c_local_cols,&
             c_has_symmetry=c_has_symmetry, keep_sparsity=keep_sparsity,&
             use_eps=use_eps,&
             row_max_epss=row_max_epss,&
             flop=flop,&
-            row_size_maps=this%m_size_maps,& 
-            col_size_maps=this%n_size_maps,& 
-            k_size_maps=this%k_size_maps,&
-            row_size_maps_size=this%m_size_maps_size,& 
-            col_size_maps_size=this%n_size_maps_size,& 
-            k_size_maps_size=this%k_size_maps_size,&
-            nm_stacks=this%nm_stacks, nn_stacks=this%nn_stacks,&
-            nk_stacks=this%nk_stacks, &
-            stack_map=this%stack_map,&
-            stacks_data=this%stacks_data,&
-            stacks_fillcount=this%stacks_fillcount,&
-            c_hashes=this%c_hashes,&
+            row_size_maps=csr_carrier%m_size_maps,& 
+            col_size_maps=csr_carrier%n_size_maps,& 
+            k_size_maps=csr_carrier%k_size_maps,&
+            row_size_maps_size=csr_carrier%m_size_maps_size,& 
+            col_size_maps_size=csr_carrier%n_size_maps_size,& 
+            k_size_maps_size=csr_carrier%k_size_maps_size,&
+            nm_stacks=csr_carrier%nm_stacks, nn_stacks=csr_carrier%nn_stacks,&
+            nk_stacks=csr_carrier%nk_stacks, &
+            stack_map=csr_carrier%stack_map,&
+            c_hashes=csr_carrier%c_hashes,&
             a_index=a_index, b_index=b_index,&
             a_norms=a_norms, b_norms=b_norms,&
+            csr_carrier=csr_carrier,&
             error=error)
 
    END SUBROUTINE dbcsr_mm_csr_multiply
@@ -217,31 +180,28 @@ MODULE dbcsr_mm_csr
 ! *****************************************************************************
 !> \brief Performs multiplication of smaller submatrices.
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_multiply_low(this, left, right, mi, mf, ni, nf, ki, kf,&
-       ai, af, bi, bf,&
-       c_row_i, c_col_i, c_blk_p, lastblk, datasize,&
+  SUBROUTINE dbcsr_mm_csr_multiply_low(mi, mf, ni, nf, ki, kf,&
+       ai, af,&
+       bi, bf,&
+       c_hashes, c_row_i, c_col_i, c_blk_p, lastblk, datasize,&
        m_sizes, n_sizes, k_sizes,&
        c_local_rows, c_local_cols,&
        c_has_symmetry, keep_sparsity, use_eps,&
-       row_max_epss, flop,&
        row_size_maps, col_size_maps, k_size_maps,&
        row_size_maps_size, col_size_maps_size, k_size_maps_size,&
        nm_stacks, nn_stacks, nk_stacks, stack_map,&
-       stacks_data, stacks_fillcount, c_hashes,&
-       a_index, b_index,a_norms, b_norms,&
-       error)
-    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+       row_max_epss, &
+       flop, a_index, b_index,a_norms, b_norms, csr_carrier, error)
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, ki, kf, ai, &
                                                 af, bi, bf
+    TYPE(hash_table_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: c_hashes
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: c_row_i, c_col_i, c_blk_p
     INTEGER, INTENT(INOUT)                   :: lastblk, datasize
     INTEGER, DIMENSION(:), INTENT(IN)        :: m_sizes, n_sizes, k_sizes, &
                                                 c_local_rows, c_local_cols
     LOGICAL, INTENT(IN)                      :: c_has_symmetry, &
                                                 keep_sparsity, use_eps
-    REAL(kind=sp), DIMENSION(:)              :: row_max_epss
-    INTEGER(KIND=int_8), INTENT(INOUT)       :: flop
     INTEGER, INTENT(IN)                      :: row_size_maps_size, &
                                                 k_size_maps_size, &
                                                 col_size_maps_size
@@ -259,16 +219,14 @@ MODULE dbcsr_mm_csr
     INTEGER(KIND=int_1), DIMENSION(&
       nn_stacks+1, nk_stacks+1, nm_stacks+1)&
       , INTENT(IN)                           :: stack_map
-    INTEGER, DIMENSION(:, :, :), &
-      INTENT(INOUT)                          :: stacks_data
-    INTEGER, DIMENSION(:), INTENT(INOUT)     :: stacks_fillcount
-    TYPE(hash_table_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: c_hashes
+    REAL(kind=sp), DIMENSION(:)              :: row_max_epss
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: flop
     INTEGER, DIMENSION(1:3, 1:af), &
       INTENT(IN)                             :: a_index
     INTEGER, DIMENSION(1:3, 1:bf), &
       INTENT(IN)                             :: b_index
     REAL(KIND=sp), DIMENSION(:), POINTER     :: a_norms, b_norms
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_multiply_low', &
@@ -282,10 +240,12 @@ MODULE dbcsr_mm_csr
       n_size, nstacks, s_dp, ws
     INTEGER, DIMENSION(mi:mf+1)              :: a_row_p
     INTEGER, DIMENSION(ki:kf+1)              :: b_row_p
+    INTEGER, DIMENSION(:, :, :), POINTER     :: stackcol_data
+    INTEGER, DIMENSION(:), POINTER           :: stackcol_fillcount
     INTEGER, DIMENSION(2, bf-bi+1)           :: b_blk_info
     INTEGER, DIMENSION(2, af-ai+1)           :: a_blk_info
     INTEGER(KIND=int_4)                      :: offset
-    LOGICAL                                  :: block_exists
+    LOGICAL                                  :: block_exists, flush_stack
     REAL(kind=sp)                            :: a_norm, a_row_eps, b_norm
     REAL(KIND=sp), DIMENSION(1:af-ai+1)      :: left_norms
     REAL(KIND=sp), DIMENSION(1:bf-bi+1)      :: right_norms
@@ -295,7 +255,7 @@ MODULE dbcsr_mm_csr
     ithread = 0
     !$ ithread = omp_get_thread_num()
 
-    nstacks = SIZE(this%stacks_data, 3)
+    nstacks = SIZE(csr_carrier%stackgrid_data, 3)
 
     IF (use_eps) THEN
        n_a_norms = af-ai+1
@@ -312,6 +272,9 @@ MODULE dbcsr_mm_csr
          n_a_norms, left_norms, a_norms)
     CALL build_csr_index (ki,kf,bi,bf,b_row_p, b_blk_info, b_index,&
          n_b_norms, right_norms, b_norms)
+
+
+    CALL get_free_stack_column(csr_carrier, stackcol_data, stackcol_fillcount, error)
 
 
     a_row_cycle: DO a_row_l = mi, mf
@@ -383,7 +346,7 @@ MODULE dbcsr_mm_csr
                 c_blk_p(lastblk) = offset
              ENDIF
 
-             ! TODO: this is only called with careful_mod
+             ! TODO: this is only called withcareful_mod 
              ! We should not call certain MM routines (netlib BLAS)
              ! with zero LDs; however, we still need to get to here
              ! to get new blocks.
@@ -398,25 +361,27 @@ MODULE dbcsr_mm_csr
 
              mapped_col_size = col_size_maps (n_size)
              ws = stack_map (mapped_col_size, mapped_k_size, mapped_row_size)
-             stacks_fillcount(ws) = stacks_fillcount(ws) + 1
-             s_dp = stacks_fillcount(ws)
+             stackcol_fillcount(ws) = stackcol_fillcount(ws) + 1
+             s_dp = stackcol_fillcount(ws)
 
-             stacks_data(p_m, s_dp, ws) = m_size
-             stacks_data(p_n, s_dp, ws) = n_size
-             stacks_data(p_k, s_dp, ws) = k_size
-             stacks_data(p_a_first, s_dp, ws) = a_blk_info(2, a_blk)
-             stacks_data(p_b_first, s_dp, ws) = b_blk_info(2, b_blk)
-             stacks_data(p_c_first, s_dp, ws) = offset
-             stacks_data(p_c_blk,   s_dp, ws) = c_blk_id
+             stackcol_data(p_m, s_dp, ws) = m_size
+             stackcol_data(p_n, s_dp, ws) = n_size
+             stackcol_data(p_k, s_dp, ws) = k_size
+             stackcol_data(p_a_first, s_dp, ws) = a_blk_info(2, a_blk)
+             stackcol_data(p_b_first, s_dp, ws) = b_blk_info(2, b_blk)
+             stackcol_data(p_c_first, s_dp, ws) = offset
+             stackcol_data(p_c_blk,   s_dp, ws) = c_blk_id
 
              flop = flop + INT(2*c_nze, int_8) * INT(k_size, int_8)
 
-             IF(stacks_fillcount(ws) >= SIZE(stacks_data, 2))&
-                CALL flush_stacks(this, left=left, right=right, error=error)
+             flush_stack = stackcol_fillcount(ws) >= SIZE(stackcol_data, 2)
+             IF (flush_stack) &
+                      CALL get_free_stack_column(csr_carrier, stackcol_data, stackcol_fillcount, error)
 
           ENDDO b_blk_cycle ! b
        ENDDO a_blk_cycle ! a_col
     ENDDO a_row_cycle ! a_row
+
 
   END SUBROUTINE dbcsr_mm_csr_multiply_low
 
@@ -424,21 +389,20 @@ MODULE dbcsr_mm_csr
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_init(this, left, right, product, fill_guess,&
+  SUBROUTINE dbcsr_mm_csr_outer_init(csr_carrier, left, right, product, fill_guess,&
     m_sizes, n_sizes, k_sizes, error)
-    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     REAL(KIND=real_8)                        :: fill_guess
     INTEGER, DIMENSION(:), POINTER           :: m_sizes, n_sizes, k_sizes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_init', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_outer_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: block_estimate, default_stack, error_handler, istack, ithread, &
-      k_map, k_size, m_map, m_size, n_map, n_size, n_stack_buffers, nstacks, &
-      nthreads, ps_g
+    INTEGER :: block_estimate, default_stack, istack, ithread, k_map, k_size, &
+      m_map, m_size, n_map, n_size, n_stack_buffers, nstacks, nthreads, ps_g
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: flop_index, flop_list, &
                                                 most_common_k, most_common_m, &
                                                 most_common_n
@@ -446,8 +410,6 @@ MODULE dbcsr_mm_csr
     LOGICAL                                  :: local_indexing
     TYPE(stack_descriptor_type), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_descr
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
 
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
@@ -461,56 +423,57 @@ MODULE dbcsr_mm_csr
     ! Setup the hash tables if needed
     block_estimate=MAX(product%nblks,left%nblks,right%nblks)/nthreads
     IF (local_indexing) THEN
-       ALLOCATE (this%c_hashes (product%nblkrows_local))
-       CALL fill_hash_tables (this%c_hashes, product,block_estimate,&
+       ALLOCATE (csr_carrier%c_hashes (product%nblkrows_local))
+       CALL fill_hash_tables (csr_carrier%c_hashes, product,block_estimate,&
             row_map=array_data(product%global_rows),&
             col_map=array_data(product%global_cols),&
             error=error)
     ELSE
-       ALLOCATE (this%c_hashes (product%nblkrows_total))
-       CALL fill_hash_tables (this%c_hashes, product,block_estimate,&
+       ALLOCATE (csr_carrier%c_hashes (product%nblkrows_total))
+       CALL fill_hash_tables (csr_carrier%c_hashes, product,block_estimate,&
             error=error)
     ENDIF
 
     ! Setup the MM stack
     CALL dbcsr_get_conf_nstacks (nxstacks, n_stack_buffers, error)
-    this%nm_stacks = nxstacks(1)
-    this%nn_stacks = nxstacks(2)
-    this%nk_stacks = nxstacks(3)
+    csr_carrier%nm_stacks = nxstacks(1)
+    csr_carrier%nn_stacks = nxstacks(2)
+    csr_carrier%nk_stacks = nxstacks(3)
     nstacks = nxstacks(1) * nxstacks(2) * nxstacks(3) + 1
-    CALL dbcsr_assert (nstacks, "LE", INT (HUGE (this%stack_map)),&
+    CALL dbcsr_assert (nstacks, "LE", INT (HUGE (csr_carrier%stack_map)),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Too many stacks requested (global/dbcsr/n_size_*_stacks in input)",&
          __LINE__, error=error)
 
 
-    ALLOCATE(this%stacks_descr(nstacks))
-    ALLOCATE(this%stacks_data(dbcsr_ps_width, mm_stack_size, nstacks))
-    ALLOCATE(this%stacks_fillcount(nstacks))
-    this%stacks_fillcount(:) = 0
+    ALLOCATE(csr_carrier%stackrow_descr(nstacks))
+
+    DO istack=1, nstacks
+       csr_carrier%stackrow_descr(istack)%total_entries = 0
+    END DO
 
     ALLOCATE (most_common_m(nxstacks(1)))
     ALLOCATE (most_common_n(nxstacks(2)))
     ALLOCATE (most_common_k(nxstacks(3)))
-    CALL map_most_common (m_sizes, this%m_size_maps, nxstacks(1),&
+    CALL map_most_common (m_sizes, csr_carrier%m_size_maps, nxstacks(1),&
          most_common_m,&
-         max_stack_block_size, this%max_m)
-    this%m_size_maps_size = SIZE (this%m_size_maps)
-    CALL map_most_common (n_sizes, this%n_size_maps, nxstacks(2),&
+         max_stack_block_size, csr_carrier%max_m)
+    csr_carrier%m_size_maps_size = SIZE (csr_carrier%m_size_maps)
+    CALL map_most_common (n_sizes, csr_carrier%n_size_maps, nxstacks(2),&
          most_common_n,&
-         max_stack_block_size, this%max_n)
-    this%n_size_maps_size = SIZE (this%n_size_maps)
+         max_stack_block_size, csr_carrier%max_n)
+    csr_carrier%n_size_maps_size = SIZE (csr_carrier%n_size_maps)
     CALL map_most_common (array_data(right%row_blk_size),&
-         this%k_size_maps, nxstacks(3), &
+         csr_carrier%k_size_maps, nxstacks(3), &
          most_common_k,&
-         max_stack_block_size, this%max_k)
-    this%k_size_maps_size = SIZE (this%k_size_maps)
+         max_stack_block_size, csr_carrier%max_k)
+    csr_carrier%k_size_maps_size = SIZE (csr_carrier%k_size_maps)
 
     ! Creates the stack map--a mapping from (mapped) stack block sizes
     ! (carrier%*_sizes) to a stack number.  Triples with even one
     ! uncommon size will be mapped to a general, non-size-specific
     ! stack.
-    ALLOCATE (this%stack_map(nxstacks(2)+1, nxstacks(3)+1, nxstacks(1)+1))
+    ALLOCATE (csr_carrier%stack_map(nxstacks(2)+1, nxstacks(3)+1, nxstacks(1)+1))
     default_stack = nstacks
 
     DO m_map = 1, nxstacks(1)+1
@@ -538,28 +501,28 @@ MODULE dbcsr_mm_csr
                 ps_g = (m_map-1)*nxstacks(2)*nxstacks(3) +&
                        (k_map-1)*nxstacks(2) + n_map
                 ps_g = nstacks-ps_g
-                this%stack_map(n_map, k_map, m_map) = ps_g
+                csr_carrier%stack_map(n_map, k_map, m_map) = ps_g
                 ! Also take care of the stack m, n, k descriptors
-                this%stacks_descr(ps_g)%m     = m_size
-                this%stacks_descr(ps_g)%n     = n_size
-                this%stacks_descr(ps_g)%k     = k_size
-                this%stacks_descr(ps_g)%max_m = m_size
-                this%stacks_descr(ps_g)%max_n = n_size
-                this%stacks_descr(ps_g)%max_k = k_size
-                this%stacks_descr(ps_g)%defined_mnk = .TRUE.
+                csr_carrier%stackrow_descr(ps_g)%m     = m_size
+                csr_carrier%stackrow_descr(ps_g)%n     = n_size
+                csr_carrier%stackrow_descr(ps_g)%k     = k_size
+                csr_carrier%stackrow_descr(ps_g)%max_m = m_size
+                csr_carrier%stackrow_descr(ps_g)%max_n = n_size
+                csr_carrier%stackrow_descr(ps_g)%max_k = k_size
+                csr_carrier%stackrow_descr(ps_g)%defined_mnk = .TRUE.
              ELSE
                 ! This is the case when at least one of m, n, or k is
                 ! undefined.
                 ps_g = default_stack
-                this%stack_map(n_map, k_map, m_map) = default_stack
+                csr_carrier%stack_map(n_map, k_map, m_map) = default_stack
                 ! Also take care of the stack m, n, k descriptors
-                this%stacks_descr(ps_g)%m     = 0
-                this%stacks_descr(ps_g)%n     = 0
-                this%stacks_descr(ps_g)%k     = 0
-                this%stacks_descr(ps_g)%max_m = this%max_m
-                this%stacks_descr(ps_g)%max_n = this%max_n
-                this%stacks_descr(ps_g)%max_k = this%max_k
-                this%stacks_descr(ps_g)%defined_mnk = .FALSE.
+                csr_carrier%stackrow_descr(ps_g)%m     = 0
+                csr_carrier%stackrow_descr(ps_g)%n     = 0
+                csr_carrier%stackrow_descr(ps_g)%k     = 0
+                csr_carrier%stackrow_descr(ps_g)%max_m = csr_carrier%max_m
+                csr_carrier%stackrow_descr(ps_g)%max_n = csr_carrier%max_n
+                csr_carrier%stackrow_descr(ps_g)%max_k = csr_carrier%max_k
+                csr_carrier%stackrow_descr(ps_g)%defined_mnk = .FALSE.
              END IF
           ENDDO
        ENDDO
@@ -574,23 +537,23 @@ MODULE dbcsr_mm_csr
     ! The default stack shall remain at the end of the gridcolumn
     ALLOCATE(flop_list(nstacks-1),flop_index(nstacks-1), tmp_descr(nstacks))
     DO istack=1,nstacks-1
-       flop_list(istack) = -2 * this%stacks_descr(istack)%m& 
-                              * this%stacks_descr(istack)%n&
-                              * this%stacks_descr(istack)%k
+       flop_list(istack) = -2 * csr_carrier%stackrow_descr(istack)%m& 
+                              * csr_carrier%stackrow_descr(istack)%n&
+                              * csr_carrier%stackrow_descr(istack)%k
     ENDDO
 
     CALL sort(flop_list, nstacks-1, flop_index)
-    tmp_descr = this%stacks_descr
+    tmp_descr = csr_carrier%stackrow_descr
     DO istack=1,nstacks-1
-       this%stacks_descr(istack) = tmp_descr(flop_index(istack)) 
+       csr_carrier%stackrow_descr(istack) = tmp_descr(flop_index(istack)) 
     ENDDO
 
-    DO m_map = 1, SIZE(this%stack_map, 1)
-      DO k_map = 1, SIZE(this%stack_map, 2)
-        map_loop: DO n_map = 1, SIZE(this%stack_map, 1)
+    DO m_map = 1, SIZE(csr_carrier%stack_map, 1)
+      DO k_map = 1, SIZE(csr_carrier%stack_map, 2)
+        map_loop: DO n_map = 1, SIZE(csr_carrier%stack_map, 1)
           DO istack=1,nstacks-1
-            IF(this%stack_map(m_map, k_map, n_map) == flop_index(istack)) THEN
-               this%stack_map(m_map, k_map, n_map) = istack
+            IF(csr_carrier%stack_map(m_map, k_map, n_map) == flop_index(istack)) THEN
+               csr_carrier%stack_map(m_map, k_map, n_map) = istack
                CYCLE map_loop
             END IF
           ENDDO
@@ -599,13 +562,29 @@ MODULE dbcsr_mm_csr
     ENDDO
     DEALLOCATE(flop_list,flop_index,tmp_descr)
 
-    this%product_wm => product%wms(ithread+1)
-    CALL dbcsr_mm_sched_init(this%sched, left=left, right=right,&
-                product_wm=this%product_wm,error=error)
 
-    CALL dbcsr_error_stop(error_handler, error)
 
-  END SUBROUTINE dbcsr_mm_csr_init
+
+    ! Driver allocates stackgrid_data and stackgrid_state, if needed as host-pinned.
+    NULLIFY(csr_carrier%stackgrid_data, csr_carrier%stackgrid_state)
+    CALL dbcsr_mm_driver_outer_init(left=left, right=right, product=product,&
+           drv_carrier=csr_carrier%drv_carrier, fill_guess=fill_guess,&
+           stackgrid_data=csr_carrier%stackgrid_data, &
+           stackgrid_state=csr_carrier%stackgrid_state, &
+           nstacks=nstacks, n_stack_buffers=n_stack_buffers, error=error)
+
+     IF(.NOT. ASSOCIATED(csr_carrier%stackgrid_data)) &
+        STOP "dbcsr_mm_csr_outer_init: stackgrid_data not associated"
+
+     IF(.NOT. ASSOCIATED(csr_carrier%stackgrid_state)) &
+        STOP "dbcsr_mm_csr_outer_init: stackgrid_state not associated"
+
+    ALLOCATE(csr_carrier%stackgrid_fillcount(nstacks, n_stack_buffers))
+    csr_carrier%stackgrid_fillcount = 0
+    csr_carrier%stackgrid_state = dbcsr_ps_state_empty
+
+
+  END SUBROUTINE dbcsr_mm_csr_outer_init
 
 
 ! *****************************************************************************
@@ -665,82 +644,234 @@ MODULE dbcsr_mm_csr
 !> \brief Finalizes a multiplication cycle for a set of C-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_finalize(this, error)
-    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
+  SUBROUTINE dbcsr_mm_csr_outer_finalize(csr_carrier, product, error)
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
+    TYPE(dbcsr_type), INTENT(inout)          :: product
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_finalize', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_outer_finalize', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
 
-    CALL dbcsr_mm_sched_finalize(this%sched, error=error)
+! The driver deallocates stackgrid_data and stackgrid_state as it might be host-pinned.
+
+    CALL dbcsr_mm_driver_outer_finalize(drv_carrier=csr_carrier%drv_carrier,&
+       product=product, stackgrid_data=csr_carrier%stackgrid_data,&
+       stackgrid_state=csr_carrier%stackgrid_state,&
+       error=error)
+
+    IF(ASSOCIATED(csr_carrier%stackgrid_data)) & 
+        STOP "dbcsr_mm_csr_outer_finalize: stackgrid_data still associated"
+    IF(ASSOCIATED(csr_carrier%stackgrid_state)) & 
+        STOP "dbcsr_mm_csr_outer_finalize: stackgrid_state still associated"
 
     ! Clear hash tables
-    DO i = 1, SIZE(this%c_hashes)
-       CALL hash_table_release (this%c_hashes(i))
+    DO i = 1, SIZE(csr_carrier%c_hashes)
+       CALL hash_table_release (csr_carrier%c_hashes(i))
     ENDDO
-    DEALLOCATE(this%c_hashes)
-    DEALLOCATE(this%stacks_descr)
-    DEALLOCATE(this%stack_map)
-    DEALLOCATE(this%m_size_maps)
-    DEALLOCATE(this%n_size_maps)
-    DEALLOCATE(this%k_size_maps)
-    DEALLOCATE(this%stacks_fillcount)
-    DEALLOCATE(this%stacks_data)
-  END SUBROUTINE dbcsr_mm_csr_finalize
+    DEALLOCATE (csr_carrier%c_hashes)
 
+    DEALLOCATE(csr_carrier%stackrow_descr)
+    DEALLOCATE(csr_carrier%stackgrid_fillcount)
+    DEALLOCATE(csr_carrier%stack_map)
+    DEALLOCATE(csr_carrier%m_size_maps)
+    DEALLOCATE(csr_carrier%n_size_maps)
+    DEALLOCATE(csr_carrier%k_size_maps)
+
+  END SUBROUTINE dbcsr_mm_csr_outer_finalize
 
 
 ! *****************************************************************************
+!> \brief Initializes a multiplication cycle for a new set of A- and B-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE dbcsr_mm_csr_purge_stacks(this, left, right, error)
-    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
+  SUBROUTINE dbcsr_mm_csr_inner_init(left, right, csr_carrier, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CALL flush_stacks(this, left, right, purge=.TRUE., error=error)
-END SUBROUTINE dbcsr_mm_csr_purge_stacks
+    CALL dbcsr_mm_driver_inner_init(left, right, csr_carrier%drv_carrier, error)
+  END SUBROUTINE dbcsr_mm_csr_inner_init
 
 ! *****************************************************************************
+!> \brief Finalizes a multiplication cycle for a set of A- and B-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE flush_stacks(this, left, right, purge, error)
-    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
-    LOGICAL, INTENT(IN), OPTIONAL            :: purge
+  SUBROUTINE dbcsr_mm_csr_inner_finalize(csr_carrier, error)
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i, min_fill, n_stacks
+! submit all left over stacks
+
+    CALL process_stacks(csr_carrier, driver=mm_driver, min_fill=0, error=error)
+    CALL dbcsr_mm_driver_inner_finalize(csr_carrier%drv_carrier, error=error)
+  END SUBROUTINE dbcsr_mm_csr_inner_finalize
+
+
+! *****************************************************************************
+!> \brief Processes stacks in the stackgrid which have min_fill or more entries.
+!> \param driver      Which driver (smm, blas, cuda,...) should be used
+!> \param min_fill    Only process stacks that contain at least min_fill items.
+!> \param max_stacks  Process only given number of stacks. Not present = no limit.
+!> \param start_below If set, the stackgrid will be search bottom-up.
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE process_stacks(csr_carrier, driver, min_fill, max_stacks, start_below, error)
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
+    INTEGER, INTENT(IN)                      :: driver, min_fill
+    INTEGER, INTENT(IN), OPTIONAL            :: max_stacks
+    LOGICAL, INTENT(IN), OPTIONAL            :: start_below
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, j, j_end, j_incr, j_start, &
+                                                n_stack_buffers, nstacks, &
+                                                num_processed
     INTEGER, DIMENSION(:, :), POINTER        :: stack_data
-    INTEGER, POINTER                         :: stack_fillcount
-    TYPE(stack_descriptor_type)              :: stack_descr
+    INTEGER, POINTER                         :: stack_fillcount, stack_state
+    TYPE(stack_descriptor_type), POINTER     :: stack_descr
 
-    n_stacks = SIZE(this%stacks_data, 3)
-    min_fill = SIZE(this%stacks_data, 2) / 2 !TODO: play with this
-    IF(PRESENT(purge)) THEN
-      IF(purge) min_fill = 0
+    num_processed = 0
+    nstacks = SIZE(csr_carrier%stackgrid_data, 3)
+    n_stack_buffers = SIZE(csr_carrier%stackgrid_data, 4)
+
+    j_start=1; j_end=nstacks; j_incr=1
+    IF(PRESENT(start_below)) THEN
+       IF(start_below) THEN
+          j_start=nstacks; j_end=1; j_incr=-1
+       ENDIF
     ENDIF
 
-    DO i=1, n_stacks
-       IF(this%stacks_fillcount(i) > min_fill) THEN
-          stack_data=>this%stacks_data(:,:,i)
-          stack_fillcount=>this%stacks_fillcount(i)
-          stack_descr = this%stacks_descr(i)
+    DO i=1, n_stack_buffers
+      DO j=j_start, j_end, j_incr
+         IF(csr_carrier%stackgrid_fillcount(j,i) > min_fill) THEN
+            stack_data=>csr_carrier%stackgrid_data(:,:,j,i)
+            stack_fillcount=>csr_carrier%stackgrid_fillcount(j,i)
+            stack_state=>csr_carrier%stackgrid_state(j,i)
+            stack_descr=>csr_carrier%stackrow_descr(j)
 
-          CALL dbcsr_mm_sched_process(this%sched,&
-                        left,right,&
-                        stack_data=stack_data,&
-                        stack_fillcount=stack_fillcount,&
-                        stack_descr=stack_descr,&
-                        error=error)
+            CALL dbcsr_mm_driver_process_stack(&
+                       drv_carrier=csr_carrier%drv_carrier,&
+                       driver=driver,&
+                       stack_data=stack_data,&
+                       stack_fillcount=stack_fillcount,&
+                       stack_state=stack_state,&
+                       stack_descr=stack_descr,&
+                       stack_id=j + (i-1)*nstacks,&
+                       error=error)
 
-          stack_fillcount = 0
-       ENDIF
+            num_processed = num_processed + 1
+            IF(PRESENT(max_stacks)) THEN
+               IF(num_processed >= max_stacks) RETURN
+            END IF
+         END IF
+      END DO
     END DO
 
-END SUBROUTINE flush_stacks
+END SUBROUTINE process_stacks
+
+
+! *****************************************************************************
+!> \brief Returns a free column of the stackgrid.
+!>        If also processes some of the stacks in the stackgrid.
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE get_free_stack_column(csr_carrier, stackcol_data, stackcol_fillcount, error)
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
+    INTEGER, DIMENSION(:, :, :), POINTER     :: stackcol_data
+    INTEGER, DIMENSION(:), POINTER           :: stackcol_fillcount
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, j, mm_stack_size, &
+                                                n_stack_buffers, nstacks
+
+    n_stack_buffers = SIZE(csr_carrier%stackgrid_data, 4)
+    nstacks = SIZE(csr_carrier%stackgrid_data, 3)
+    mm_stack_size = SIZE(csr_carrier%stackgrid_data, 2)
+
+    CALL process_stacks(csr_carrier, driver=mm_driver, min_fill=mm_stack_size/2, error=error)
+
+    ! checking for unkown stack states
+    DO i=1, n_stack_buffers
+      DO j=1, nstacks
+        IF((csr_carrier%stackgrid_state(j,i) /= dbcsr_ps_state_empty) &
+            .AND. (csr_carrier%stackgrid_state(j,i) /= dbcsr_ps_state_working)) THEN
+            WRITE (*,*) "odd stack state: ", csr_carrier%stackgrid_state(j,i)
+            STOP
+        END IF
+      END DO
+    END DO
+
+    ! looking for a free stackgrid column
+    outer_loop: DO WHILE(.TRUE.)
+       DO i=1, n_stack_buffers
+          IF(ALL(csr_carrier%stackgrid_state(:,i) == dbcsr_ps_state_empty)) THEN
+             stackcol_data => csr_carrier%stackgrid_data(:,:,:,i)
+             stackcol_fillcount => csr_carrier%stackgrid_fillcount(:,i)
+             EXIT outer_loop
+          END IF
+       END DO
+
+       ! Waiting for free stackgrid column, doing some cpu work in the meanwhile.
+       CALL process_stacks(csr_carrier, driver=mm_host_driver, &
+              min_fill=0, max_stacks=1, start_below=.TRUE., error=error)
+    END DO outer_loop
+
+
+  END SUBROUTINE get_free_stack_column
+
+
+! *****************************************************************************
+!> \brief Prints a nice tabular summary of the stackgrid's current state.
+!> \author Ole Schuett
+! *****************************************************************************
+SUBROUTINE print_stackgrid(csr_carrier)
+    TYPE(csr_carrier_type), INTENT(INOUT)    :: csr_carrier
+
+    INTEGER                                  :: i, j, n_stack_buffers, nstacks
+
+    n_stack_buffers = SIZE(csr_carrier%stackgrid_data, 4)
+    nstacks = SIZE(csr_carrier%stackgrid_data, 3)
+
+    ! print table header
+    WRITE(*,"(14X,A)",advance='no') "|     total "
+    DO i=1, n_stack_buffers
+       WRITE(*,"(A,I3,A)",advance='no') "|", i, ". grp "
+    END DO
+    WRITE(*,"(A)",advance='yes') "|"
+
+    ! print separation line below table header
+    WRITE(*,"(A)",advance='no') "--------------+-----------+"
+    DO j=1, n_stack_buffers
+       WRITE(*,"(A)",advance='no') "---------+"
+    END DO
+    WRITE(*,"(A)",advance='yes') ""
+
+    DO i=1, nstacks
+      IF(csr_carrier%stackrow_descr(i)%defined_mnk) THEN
+                  WRITE(*,"(A,I2,A,I2,A,I2,A)",advance='no') "|", & 
+                      csr_carrier%stackrow_descr(i)%m, " x ", &
+                      csr_carrier%stackrow_descr(i)%n, " x ", &
+                      csr_carrier%stackrow_descr(i)%k, " "
+       ELSE
+                  WRITE(*,"(A)",advance='no') "|       mixed "
+       END IF
+
+       WRITE(*,"(A,I9,X)",advance='no') "| ", csr_carrier%stackrow_descr(i)%total_entries
+       DO j=1, n_stack_buffers
+          IF(csr_carrier%stackgrid_state(i,j)==dbcsr_ps_state_empty) THEN 
+             WRITE(*,"(A,I7,A)",advance='no') "| ",csr_carrier%stackgrid_fillcount(i,j)," "
+          ELSE
+             WRITE(*,"(A,I1,A)",advance='no') "| busy(",csr_carrier%stackgrid_state(i,j),") "
+          END IF
+       END DO
+       WRITE(*,"(A)",advance='yes') "|"
+    END DO
+
+
+
+END SUBROUTINE print_stackgrid
+
 
 
 ! *****************************************************************************

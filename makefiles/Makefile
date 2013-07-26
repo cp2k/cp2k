@@ -34,7 +34,7 @@ PRETTYOBJDIR         = $(CP2KHOME)/obj/prettified
 TOOLDIR              = $(OBJDIR)/tools
 TOOLSRC              = $(CP2KHOME)/tools
 SRCDIR               = $(CP2KHOME)/src
-SRCDIRS              = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
+SRCDIRS              = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/machine
 MAKEFILE             = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS          = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                 = $(EXEDIR)/cp2k.$(VERSION)
@@ -50,8 +50,6 @@ LIB3_OBJECTDEFS      = $(SRCDIR)/fft_lib/OBJECTDEFS
 LIB4_OBJECTDEFS      = $(SRCDIR)/arch_lib/OBJECTDEFS
 LIB5_OBJECTDEFS      = $(SRCDIR)/elpa_lib/OBJECTDEFS
 LIBNVOBJECTDEFS      = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
-DBCSR_KERNELS_OBJDEFS = $(CP2KHOME)/cuda_tools/DBCSR_KERNELS_OBJDEFS
-DBCSR_KERNELS_DEPENDENCIES = $(CP2KHOME)/cuda_tools/DBCSR_KERNELS_DEPENDENCIES
 LIBMA_OBJECTDEFS     = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
 LIBMA_DEPENDENCIES   = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
@@ -105,7 +103,6 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 build: dirs deptool
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
-	+cp $(DBCSR_KERNELS_DEPENDENCIES) $(OBJDIR)/$(VERSION)/dbcsr_kernels.dep
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
@@ -178,7 +175,6 @@ include $(LIB5_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
-include $(DBCSR_KERNELS_OBJDEFS)
 include $(LIBMA_OBJECTDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)

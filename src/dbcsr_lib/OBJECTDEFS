@@ -13,15 +13,12 @@ LIB3_OBJECTS =\
  dbcsr_c_mpi_calls.o\
  dbcsr_config.o\
  dbcsr_cuda_device.o\
- dbcsr_cuda_devmem.o\
- dbcsr_cuda_event.o\
- dbcsr_cuda_hostmem.o\
+ dbcsr_cuda_memory.o\
+ dbcsr_cuda_methods.o\
  dbcsr_cuda_operations.o\
- dbcsr_cuda_stream.o\
- dbcsr_data_methods_low.o\
+ dbcsr_cuda_types.o\
  dbcsr_data_methods.o\
  dbcsr_data_operations.o\
- dbcsr_datatype.o\
  dbcsr_dist_operations.o\
  dbcsr_error_handling.o\
  dbcsr_example_1.o\
@@ -32,18 +29,15 @@ LIB3_OBJECTS =\
  dbcsr_iterator_operations.o\
  dbcsr_kinds.o\
  dbcsr_machine.o\
- dbcsr_mempool.o\
  dbcsr_message_passing.o\
  dbcsr_methods.o\
  dbcsr_mm_cannon.o\
  dbcsr_mm_csr.o\
- dbcsr_mm_cudadrv.o\
- dbcsr_mm_hostdrv.o\
+ dbcsr_mm_driver.o\
  dbcsr_mm_multrec.o\
- dbcsr_mm_sched.o\
+ dbcsr_mm_stack.o\
  dbcsr_mm_types.o\
  dbcsr_mp_operations.o\
- dbcsr_operations_low.o\
  dbcsr_operations.o\
  dbcsr_performance_multiply.o\
  dbcsr_plasma_interface.o\
