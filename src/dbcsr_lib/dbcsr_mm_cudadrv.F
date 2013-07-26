@@ -103,7 +103,7 @@ MODULE dbcsr_mm_cudadrv
   INTEGER :: curr_stack_buffer_idx = 0
   !$OMP THREADPRIVATE(stack_buffers, curr_stack_buffer_idx)
 
-  TYPE(dbcsr_memtype_type), PRIVATE :: memtype_cbuffer
+  TYPE(dbcsr_memtype_type), SAVE, PRIVATE :: memtype_cbuffer
   !$OMP THREADPRIVATE(memtype_cbuffer)
 
   CONTAINS
