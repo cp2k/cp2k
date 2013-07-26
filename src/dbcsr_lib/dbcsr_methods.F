@@ -60,9 +60,9 @@ MODULE dbcsr_methods
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_magic_number, &
-       dbcsr_memory_default, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
-       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_imagedistribution_type, dbcsr_magic_number, dbcsr_memtype_type, &
+       dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, &
+       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
        dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
@@ -269,7 +269,6 @@ CONTAINS
     CALL array_nullify (matrix%local_cols)
     CALL array_nullify (matrix%global_cols)
     NULLIFY (matrix%wms)
-    NULLIFY (matrix%predistributed)
   END SUBROUTINE dbcsr_init_type
 
 ! *****************************************************************************
@@ -499,15 +498,6 @@ CONTAINS
           ENDIF
           CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type,&
                error=error)
-          !CALL cp_error_init(my_error)
-          IF (ASSOCIATED (matrix%m%predistributed)) THEN
-             CALL dbcsr_assert (ASSOCIATED (matrix%m%predistributed%mats),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Predistributed data should exist if allocated",__LINE__,error)
-             CALL dbcsr_destroy_array (matrix%m%predistributed,error)
-             DEALLOCATE (matrix%m%predistributed)
-          ENDIF
-          NULLIFY (matrix%m%predistributed)
           CALL dbcsr_data_release (matrix%m%data_area)
           CALL array_release (matrix%m%row_blk_size)
           CALL array_release (matrix%m%col_blk_size)
@@ -1957,10 +1947,10 @@ CONTAINS
 !>                             declared memory type
 !> \result memory_type         memory type used for data
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_get_data_memory_type (matrix) &
+  FUNCTION dbcsr_get_data_memory_type (matrix) &
        RESULT (memory_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER                                  :: memory_type
+    TYPE(dbcsr_memtype_type)                 :: memory_type
 
     memory_type = matrix%m%data_memory_type
   END FUNCTION dbcsr_get_data_memory_type
@@ -1970,45 +1960,45 @@ CONTAINS
 !> \param[in] matrix          query this matrix
 !> \result memory_type        memory type used for the index
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_get_index_memory_type (matrix) RESULT (memory_type)
+  FUNCTION dbcsr_get_index_memory_type (matrix) RESULT (memory_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER                                  :: memory_type
+    TYPE(dbcsr_memtype_type)                 :: memory_type
 
     memory_type = matrix%m%index_memory_type
   END FUNCTION dbcsr_get_index_memory_type
 
 
-! *****************************************************************************
-!> \brief Returns whether the matrix uses specially-allocated memory
-!> \param[in] matrix          query this matrix
-!> \param[out] uses_special   whether the matrix uses specially allocated
-!>                            memory
-! *****************************************************************************
-  PURE FUNCTION uses_special_memory_matrix (matrix) RESULT (uses_special)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL                                  :: uses_special
-
-    uses_special = matrix%m%data_memory_type .NE. dbcsr_memory_default
-  END FUNCTION uses_special_memory_matrix
-
-
-! *****************************************************************************
-!> \brief Returns whether the data area uses speciall-allocated memory
-!> \param[in] data_area       query this data area
-!> \param[out] uses_special   whether the data area uses specially allocated
-!>                            memory
-! *****************************************************************************
-  PURE FUNCTION uses_special_memory_area (area) RESULT (uses_special)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    LOGICAL                                  :: uses_special
-
-    IF (ASSOCIATED (area%d)) THEN
-       uses_special = area%d%memory_type .NE. dbcsr_memory_default
-    ELSE
-       uses_special = .FALSE.
-    ENDIF
-  END FUNCTION uses_special_memory_area
-
+!! *****************************************************************************
+!!> \brief Returns whether the matrix uses specially-allocated memory
+!!> \param[in] matrix          query this matrix
+!!> \param[out] uses_special   whether the matrix uses specially allocated
+!!>                            memory
+!! *****************************************************************************
+!  PURE FUNCTION uses_special_memory_matrix (matrix) RESULT (uses_special)
+!    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+!    LOGICAL                                  :: uses_special
+!
+!    uses_special = matrix%m%data_memory_type .NE. dbcsr_memory_default
+!  END FUNCTION uses_special_memory_matrix
+!
+!
+!! *****************************************************************************
+!!> \brief Returns whether the data area uses speciall-allocated memory
+!!> \param[in] data_area       query this data area
+!!> \param[out] uses_special   whether the data area uses specially allocated
+!!>                            memory
+!! *****************************************************************************
+!  PURE FUNCTION uses_special_memory_area (area) RESULT (uses_special)
+!    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+!    LOGICAL                                  :: uses_special
+!
+!    IF (ASSOCIATED (area%d)) THEN
+!       uses_special = area%d%memory_type .NE. dbcsr_memory_default
+!    ELSE
+!       uses_special = .FALSE.
+!    ENDIF
+!  END FUNCTION uses_special_memory_area
+!
 
 ! *****************************************************************************
 !> \brief Returns the allocated data size

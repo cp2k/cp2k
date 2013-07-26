@@ -75,12 +75,13 @@ CONTAINS
 !> \param[in] n_loops           number of repetition for each multiplication
 !> \param[in] eps               eps value for filtering
 !> \param[in] deteriminstic     attempt deterministic behavior
+!> \param[in] always_checksum   checksum after each multiplication
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE cp_test_multiplies (mp_group, io_unit, nproc,&
        matrix_sizes, matrix_types, trs, &
        bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, &
-       n_loops, eps, deterministic,&
+       n_loops, eps, deterministic, always_checksum, &
        error)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
@@ -92,7 +93,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: alpha, beta
     INTEGER, INTENT(IN)                      :: data_type, n_loops
     REAL(kind=dp), INTENT(in)                :: eps
-    LOGICAL, INTENT(in)                      :: deterministic
+    LOGICAL, INTENT(in)                      :: deterministic, always_checksum
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -235,7 +236,7 @@ CONTAINS
          matrix_a, matrix_b, matrix_c, t_a, t_b,&
          dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
          n_loops=n_loops, eps=eps,&
-         io_unit = io_unit, error=error)
+         io_unit = io_unit, always_checksum=always_checksum, error=error)
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
@@ -255,7 +256,7 @@ CONTAINS
        matrix_a, matrix_b, matrix_c,&
        transa, transb, alpha, beta, limits, retain_sparsity,&
        n_loops, eps,&
-       io_unit, error)
+       io_unit, always_checksum, error)
     INTEGER, INTENT(IN)                      :: mp_group
     INTEGER, DIMENSION(:, :)                 :: group_sizes
     TYPE(dbcsr_obj), INTENT(in)              :: matrix_a, matrix_b, matrix_c
@@ -267,6 +268,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n_loops
     REAL(kind=dp), INTENT(in)                :: eps
     INTEGER, INTENT(IN)                      :: io_unit
+    LOGICAL                                  :: always_checksum
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_multiplies_multiproc', &
@@ -448,12 +450,14 @@ CONTAINS
                 WRITE(io_unit,'(A,I5,A,I5,A,F12.3,A,I9,A)')&
                      " loop ", loop_iter, " with ", numnodes," MPI ranks: using ", t1, "s ", INT(flops_all), " Mflops/rank"
              ENDIF
+             IF (loop_iter .EQ. n_loops .OR. always_checksum) THEN
+                cs = dbcsr_checksum (m_c, error=dbcsr_error)
+                cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
+                IF (io_unit>0) THEN
+                   WRITE(io_unit,*) "Final checksums",cs ,cs_pos
+                ENDIF
+             ENDIF
          ENDDO loops
-         cs = dbcsr_checksum (m_c, error=dbcsr_error)
-         cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
-         IF (io_unit>0) THEN
-            WRITE(io_unit,*) "Final checksums",cs ,cs_pos
-         ENDIF
          ! Release
          CALL dbcsr_mp_release (mp_env)
          CALL dbcsr_release (m_a)

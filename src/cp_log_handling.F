@@ -157,12 +157,12 @@ MODULE cp_log_handling
 
 ! *****************************************************************************
   TYPE default_logger_stack_type
-     TYPE(cp_logger_type), POINTER :: cp_default_logger
+     TYPE(cp_logger_type), POINTER :: cp_default_logger => Null()
   END TYPE default_logger_stack_type
 
   INTEGER, PRIVATE            :: stack_pointer=0
   INTEGER, PARAMETER, PRIVATE :: max_stack_pointer=10
-  TYPE(default_logger_stack_type), DIMENSION(max_stack_pointer) ::  default_logger_stack
+  TYPE(default_logger_stack_type), SAVE, DIMENSION(max_stack_pointer) ::  default_logger_stack
 
   INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
 

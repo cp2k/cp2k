@@ -14,7 +14,9 @@
 ! *****************************************************************************
 MODULE dbcsr_block_operations
 
-  USE dbcsr_data_methods,              ONLY: &
+  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocated,&
+                                             dbcsr_cuda_devmem_setzero
+  USE dbcsr_data_methods_low,          ONLY: &
        dbcsr_data_exists, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, &
        dbcsr_data_verify_bounds, dbcsr_get_data_p_2d_c, &
@@ -209,13 +211,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_aa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, error_handler, &
-                                                lb2_s, lb2_t, lb_s, lb_t, &
-                                                ub_s, ub_t
+    INTEGER                                  :: data_size, lb2_s, lb2_t, &
+                                                lb_s, lb_t, ub_s, ub_t
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d), 'AND', ASSOCIATED(src%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -350,7 +350,6 @@ CONTAINS
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_transpose_aa
 
 
@@ -1111,10 +1110,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l, l2, u, u2
+    INTEGER                                  :: error_handler, l, l2, u, u2
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -1124,6 +1125,12 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Incompatible data types",__LINE__,error)
     ENDIF
+
+    IF(dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) THEN
+      IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for cuda_devmem"
+      CALL dbcsr_cuda_devmem_setzero(area%d%cuda_devmem, lb, ub, area%d%cuda_stream, error)
+    END IF
+
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_4)
        l = LBOUND(area%d%r_sp, 1)
@@ -1321,6 +1328,9 @@ CONTAINS
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid or unsupported data type.",__LINE__,error)
     END SELECT
+
+    CALL dbcsr_error_stop(error_handler, error)
+
   END SUBROUTINE dbcsr_data_clear0
 
 

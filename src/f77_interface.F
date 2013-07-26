@@ -311,14 +311,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_cp2k', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ienv, stat
+    INTEGER                                  :: ienv, stat, unit_nr
     TYPE(cp_error_type)                      :: error
 
     IF (.NOT.module_initialized) THEN
        ierr=cp_failure_level
     ELSE
        ! Finalize the DBCSR configuration
-       CALL cp_dbcsr_finalize_lib (error=error)
+       unit_nr=cp_logger_get_default_io_unit( cp_error_get_logger(error) )
+       CALL cp_dbcsr_finalize_lib (output_unit=unit_nr, error=error)
        IF (has_ma .OR. has_ma_topology) THEN
          CALL cp_ma_finalize_lib(error=error)
        ENDIF

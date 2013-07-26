@@ -37,8 +37,7 @@ MODULE cp2k_runs
                                              cp_unit_set_release,&
                                              cp_unit_set_type,&
                                              print_all_units
-  USE cuda_device,                     ONLY: cuda_device_init,&
-                                             cuda_device_release
+  USE cuda_device,                     ONLY: cuda_device_init
   USE cuda_memory,                     ONLY: cuda_device_mem_init,&
                                              cuda_device_mem_release
   USE environment,                     ONLY: cp2k_finalize,&
@@ -432,6 +431,12 @@ CONTAINS
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
 
+
+          ! if CUDA is enabled we need to free memory on the graphics card
+          CALL cuda_device_mem_release()
+          CALL cp_dbcsr_finalize_lib (output_unit=output_unit, error=error)
+
+
           CALL cp_error_propagate_error(suberror,routineP,&
                "cp2k ending run", error=error,failure=failure)
           IF (prog_name_id==do_cp2k) THEN
@@ -461,10 +466,6 @@ CONTAINS
        END IF
 
     END IF
-
-    CALL cuda_device_release (error=error)
-
-    CALL cp_dbcsr_finalize_lib (error=error)
 
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)

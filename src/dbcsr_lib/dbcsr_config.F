@@ -32,7 +32,6 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
 
   PUBLIC :: dbcsr_set_conf_mpi_mem, dbcsr_get_conf_mpi_mem
-  PUBLIC :: dbcsr_set_conf_cuda_mem, dbcsr_get_conf_cuda_mem
 
   PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver
 
@@ -55,7 +54,6 @@ MODULE dbcsr_config
   PUBLIC :: use_subcommunicators
   PUBLIC :: use_combined_types
   PUBLIC :: use_MPI_memory
-  PUBLIC :: use_CUDA_host_pinned_memory
   PUBLIC :: mm_stack_size
   PUBLIC :: mm_driver, mm_host_driver,&
             mm_driver_blas,&
@@ -135,9 +133,6 @@ MODULE dbcsr_config
   ! Use MPI-allocated memory.
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
-  ! Use CUDA host-pinned memory.
-  LOGICAL, SAVE :: use_CUDA_host_pinned_memory = .FALSE.
-
   ! Which driver to use for matrix multiplications.
   INTEGER, SAVE :: mm_driver = mm_driver_smm
 
@@ -181,7 +176,6 @@ CONTAINS
     use_subcommunicators = .TRUE.
     use_combined_types = .FALSE.
     use_MPI_memory = has_MPI
-    use_CUDA_host_pinned_memory = .FALSE.
 
     !
     mm_driver = mm_driver_smm
@@ -189,9 +183,9 @@ CONTAINS
     IF (has_cuda) THEN
        mm_driver = mm_driver_cuda
        mm_stack_size = 30000
-       nm_stacks = 2
-       nn_stacks = 2
-       nk_stacks = 2
+       nm_stacks = 3
+       nn_stacks = 3
+       nk_stacks = 3
        nstackbuffers = 4
     ENDIF
     !
@@ -328,35 +322,6 @@ CONTAINS
 
     use_mpi_mem = use_MPI_memory
   END FUNCTION dbcsr_get_conf_mpi_mem
-
-
-  SUBROUTINE dbcsr_set_conf_cuda_mem (use_cuda_mem, error)
-    LOGICAL, INTENT(IN)                      :: use_cuda_mem
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_cuda_mem', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-
-    CALL dbcsr_error_set(routineN, error_handle, error)
-    CALL dbcsr_assert (use_cuda_mem, "IMP", has_cuda,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Can not use CUDA memory with no CUDA support!",&
-         __LINE__, error=error)
-    use_CUDA_host_pinned_memory = use_cuda_mem
-    CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_set_conf_cuda_mem
-
-  FUNCTION dbcsr_get_conf_cuda_mem () RESULT (use_cuda_mem)
-    LOGICAL                                  :: use_cuda_mem
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_cuda_mem', &
-      routineP = moduleN//':'//routineN
-
-    use_cuda_mem = use_CUDA_host_pinned_memory
-  END FUNCTION dbcsr_get_conf_cuda_mem
-
 
   SUBROUTINE dbcsr_set_conf_mm_stacksize (use_mm_stacksize, error)
     INTEGER, INTENT(IN)                      :: use_mm_stacksize
