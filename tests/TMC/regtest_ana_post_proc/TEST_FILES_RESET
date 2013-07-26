@@ -1,3 +1,6 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 #
+# the analysis file open was corrected, hence the analysis results change
+TMC_ana_density.inp
+TMC_ana_G_R.inp
