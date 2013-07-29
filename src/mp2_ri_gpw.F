@@ -9,6 +9,8 @@
 !>      06.2012 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_gpw
+  USE bibliography,                    ONLY: DelBen2013,&
+                                             cite_reference
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -209,6 +211,8 @@ MODULE mp2_ri_gpw
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
+
+    CALL cite_reference(DelBen2013)
 
     do_alpha_beta=.FALSE.
     IF(PRESENT(BIb_C_beta).AND.&

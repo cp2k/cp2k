@@ -60,7 +60,7 @@ MODULE bibliography
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009, DelBen2012, Sabatini2013
+             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013
 
 CONTAINS
 
@@ -2243,6 +2243,29 @@ CONTAINS
          "AR 041108(R)",&
          "ER"),&
          DOI="10.1103/PhysRevB.87.041108")
+
+    CALL add_reference(key=Delben2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Del Ben, M",&
+         "   Hutter, J",&
+         "   VandeVondele, J",&
+         "AF Del Ben, Mauro",&
+         "   Hutter, Juerg",&
+         "   VandeVondele, Joost",&
+         "TI Electron Correlation in the Condensed Phase from a Resolution of",&
+         "   Identity Approach Based on the Gaussian and Plane Waves Scheme",&
+         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+         "SN 1549-9618",&
+         "PD JUN",&
+         "PY 2013",&
+         "VL 9",&
+         "IS 6",&
+         "BP 2654",&
+         "EP 2671",&
+         "DI 10.1021/ct4002202",&
+         "UT WOS:000320484500014",&
+         "ER"),&
+         DOI="10.1021/ct4002202")
 
   END SUBROUTINE add_all_references
 

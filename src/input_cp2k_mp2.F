@@ -10,7 +10,8 @@
 !> \author MDB
 ! *****************************************************************************
 MODULE input_cp2k_mp2
-  USE bibliography,                    ONLY: DelBen2012
+  USE bibliography,                    ONLY: DelBen2012,&
+                                             DelBen2013
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -254,6 +255,7 @@ CONTAINS
        CALL section_create(section,"RI_MP2",&
             description="Parameters influencing the RI MP2 method",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
             error=error)
 
        NULLIFY(keyword)
@@ -289,6 +291,7 @@ CONTAINS
        CALL section_create(section,"RI_LAPLACE",&
             description="Parameters influencing the RI-SOS-MP2-Laplace method",&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
             error=error)
 
        NULLIFY(keyword)
@@ -336,6 +339,7 @@ CONTAINS
        CALL section_create(section,"RI_RPA",&
             description="Parameters influencing the RI RPA method",&
             n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
             error=error)
 
        NULLIFY(keyword,subsection)
