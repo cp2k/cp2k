@@ -31,23 +31,22 @@ MODULE dbcsr_util
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data_size_referenced, &
-       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_valid_index
+       dbcsr_has_symmetry, dbcsr_is_initialized, dbcsr_mp_group, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_valid_index
   USE dbcsr_toollib,                   ONLY: sort,&
                                              swap
   USE dbcsr_types,                     ONLY: &
-       dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
-       dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-       dbcsr_slot_dense, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, &
-       dbcsr_slot_home_prow, dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, &
-       dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
-       dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
-       dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
-       dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
-       dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, &
-       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_type, dbcsr_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-       dbcsr_type_real_8
+       dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_dense, &
+       dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
+       dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
+       dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
+       dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, &
+       dbcsr_slot_nfullcols_total, dbcsr_slot_nfullrows_local, &
+       dbcsr_slot_nfullrows_total, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_type, dbcsr_type, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -724,7 +723,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_assert (m%m%initialized, 'EQ', dbcsr_magic_number,&
+    CALL dbcsr_assert (dbcsr_is_initialized(m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not verify non-existing matrix object.",__LINE__,error)
     dbg = 2

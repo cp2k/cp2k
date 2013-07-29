@@ -51,7 +51,6 @@ MODULE dbcsr_types
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
             dbcsr_mutable_obj, dbcsr_mutable_type,&
-            dbcsr_magic_number,&
             dbcsr_block_buffer_obj, dbcsr_block_buffer_type
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
@@ -502,7 +501,7 @@ MODULE dbcsr_types
   TYPE dbcsr_type
      INTEGER                            :: serial_number
      LOGICAL                            :: valid
-     INTEGER                            :: initialized
+     LOGICAL                            :: initialized = .FALSE.
      CHARACTER(LEN=default_string_length) :: name
      !REAL(kind=dp), DIMENSION(:), POINTER :: DATA
      TYPE(dbcsr_data_obj)               :: data_area
@@ -545,7 +544,6 @@ MODULE dbcsr_types
 !$   INTEGER(KIND=omp_lock_kind) :: modification_lock
   END TYPE dbcsr_type
 
-  INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
 
   CHARACTER, PARAMETER        :: dbcsr_type_invalid = '0'
   CHARACTER, PARAMETER        :: dbcsr_type_no_symmetry = 'N'

@@ -60,12 +60,12 @@ MODULE dbcsr_methods
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_magic_number, dbcsr_memtype_type, &
-       dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, &
-       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
-       dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
+       dbcsr_imagedistribution_type, dbcsr_memtype_type, dbcsr_mp_obj, &
+       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&
@@ -252,7 +252,7 @@ CONTAINS
 !TYPE(dbcsr_error_type), INTENT(INOUT)   :: error
 !   ---------------------------------------------------------------------------
 
-    matrix%initialized = dbcsr_magic_number
+    matrix%initialized = .TRUE.
     matrix%valid = .FALSE.
     matrix%refcount = 0
     ! Nullifies all pointers.
@@ -277,7 +277,7 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_obj (matrix)
-    TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', &
       routineP = moduleN//':'//routineN
@@ -286,7 +286,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_init(matrix%m)
-    matrix%m%initialized = 0
   END SUBROUTINE dbcsr_init_obj
 
 
@@ -307,7 +306,6 @@ CONTAINS
     IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix, error)
     ALLOCATE(matrix)
     CALL dbcsr_init(matrix%m)
-    matrix%m%initialized = 0
   END SUBROUTINE dbcsr_init_obj_p
 
 ! *****************************************************************************
@@ -340,14 +338,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     valid_index = dbcsr_valid_index_type (matrix%m)
-    !valid_index = .FALSE.
-    !IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
-    !   IF (ASSOCIATED (matrix%m%row_p)) THEN
-    !      valid_index = SIZE (matrix%m%row_p) .GT. 0
-    !   ENDIF
-    !ELSE
-    !   valid_index = .FALSE.
-    !ENDIF
   END FUNCTION dbcsr_valid_index_obj
 
 ! *****************************************************************************
@@ -361,7 +351,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    initialized = matrix%initialized .EQ. dbcsr_magic_number
+    initialized = matrix%initialized
   END FUNCTION dbcsr_is_initialized_type
 
 ! *****************************************************************************
@@ -393,7 +383,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (matrix%m%initialized .EQ. dbcsr_magic_number,&
+    CALL dbcsr_assert (matrix%m%initialized,&
          dbcsr_failure_level, dbcsr_caller_error, routineN,&
          "Matrix not initialized",__LINE__,error)
     matrix%m%refcount = matrix%m%refcount + 1
@@ -419,7 +409,7 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_warning_level, dbcsr_caller_error, routineN,&
          "Matrix not initialized",__LINE__,error)
-    IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
+    IF (matrix%m%initialized) THEN
        matrix%m%refcount = matrix%m%refcount - 1
        IF (matrix%m%refcount .EQ. 0) THEN
           CALL dbcsr_destroy (matrix,error)
@@ -447,7 +437,7 @@ CONTAINS
        CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
             dbcsr_warning_level, dbcsr_caller_error, routineN,&
             "Matrix not initialized",__LINE__,error)
-       IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
+       IF (matrix%m%initialized) THEN
           matrix%m%refcount = matrix%m%refcount - 1
           IF (matrix%m%refcount .EQ. 0) THEN
              CALL dbcsr_destroy (matrix, error)
@@ -1637,7 +1627,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
+    CALL dbcsr_assert (matrix%m%initialized,&
          dbcsr_fatal_level, dbcsr_caller_error, routineP,&
          "Matrix not initialized",__LINE__,error)
     !vw avoid massive priting of warnings

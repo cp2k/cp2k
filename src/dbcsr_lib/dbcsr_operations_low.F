@@ -1795,9 +1795,9 @@ CONTAINS
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
     CALL dbcsr_access_flush (matrix_a, error=error)
-    !CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
-    !     dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-    !     "Target matrix must be initialized", error=error)
+    CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Target matrix must be initialized",__LINE__,error)
     CALL dbcsr_assert (.not.keep_sparse.or.dbcsr_valid_index(matrix_b),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Target matrix must be valid to keep its sparsity",__LINE__,error)
@@ -1808,7 +1808,7 @@ CONTAINS
        IF (PRESENT (name)) matrix_b%m%name = name
        CALL dbcsr_copy_into_existing(matrix_b, matrix_a, error)
     ELSE
-       IF (dbcsr_is_initialized (matrix_b)) THEN
+       IF (dbcsr_valid_index(matrix_b)) THEN
           new_type = dbcsr_get_data_type (matrix_b)
           repl_type = dbcsr_get_replication_type(matrix_b)
        ELSE

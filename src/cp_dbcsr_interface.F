@@ -2463,7 +2463,7 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN)             :: filepath
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
     INTEGER, INTENT(IN), OPTIONAL            :: groupid
-    TYPE(cp_dbcsr_type), INTENT(OUT)         :: matrix_new
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_binary_read', &

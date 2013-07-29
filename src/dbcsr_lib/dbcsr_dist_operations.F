@@ -33,16 +33,16 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_new, dbcsr_distribution_no_threads, &
        dbcsr_distribution_nrows, dbcsr_distribution_processor, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_thread_dist, dbcsr_mp_init, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_new_transposed, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_release, &
-       dbcsr_release_locals
+       dbcsr_distribution_thread_dist, dbcsr_is_initialized, dbcsr_mp_init, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_release, dbcsr_release_locals
   USE dbcsr_toollib,                   ONLY: gcd,&
                                              lcm
   USE dbcsr_types,                     ONLY: &
-       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
-       dbcsr_magic_number, dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_home_pcol, &
-       dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, &
+       dbcsr_obj, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
+       dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE min_heap,                        ONLY: heap_fill,&
@@ -264,7 +264,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (debug_mod) THEN
-       CALL dbcsr_assert (matrix%m%initialized,'EQ',dbcsr_magic_number,&
+       CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "matrix%m not associated",__LINE__,error)
     ENDIF
