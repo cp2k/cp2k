@@ -688,7 +688,8 @@ CONTAINS
           cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
           CALL numpot_matrix(integrals%tzora,cpot,basis,0,error)
           DO l=0,3
-            integrals%tzora(:,:,l) = REAL(l*(l+1),dp) * integrals%tzora(:,:,l)
+             nl = basis%nbas(l)
+             integrals%tzora(1:nl,1:nl,l) = REAL(l*(l+1),dp) * integrals%tzora(1:nl,1:nl,l)
           END DO
           cpot(1:m) = cpot(1:m)*basis%grid%rad2(1:m)
           CALL numpot_matrix(integrals%tzora,cpot,basis,2,error)
@@ -705,9 +706,11 @@ CONTAINS
              ! relativistic kinetic energy
              cpot(1:m) = cspeed*cspeed/(2._dp*cspeed*cspeed - modpot(1:m))**2
              cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
+             pvp = 0.0_dp
              CALL numpot_matrix(pvp,cpot,basis,0,error)
              DO l=0,3
-                pvp(:,:,l) = REAL(l*(l+1),dp) * pvp(:,:,l)
+                nl = basis%nbas(l)
+                pvp(1:nl,1:nl,l) = REAL(l*(l+1),dp) * pvp(1:nl,1:nl,l)
              END DO
              cpot(1:m) = cpot(1:m)*basis%grid%rad2(1:m)
              CALL numpot_matrix(pvp,cpot,basis,2,error)
