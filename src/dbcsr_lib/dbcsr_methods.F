@@ -48,6 +48,7 @@ MODULE dbcsr_methods
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             int_8,&
                                              real_8,&
                                              sp
   USE dbcsr_message_passing,           ONLY: mp_cart_create,&
@@ -2169,11 +2170,12 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(KIND=real_8)                        :: occupation
 
-    INTEGER                                  :: nfullcols, nfullrows, nze
+    INTEGER                                  :: nfullcols, nfullrows
+    INTEGER(KIND=int_8)                      :: nze_global
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
 
-    nze = matrix%m%nze
-    CALL mp_sum(nze,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    nze_global = matrix%m%nze
+    CALL mp_sum(nze_global,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
     nfullrows = dbcsr_nfullrows_total(matrix)
     nfullcols = dbcsr_nfullcols_total(matrix)
@@ -2182,18 +2184,19 @@ CONTAINS
 
     IF(nfullrows.NE.0.AND.nfullcols.NE.0) THEN
        IF(dbcsr_has_symmetry (matrix)) THEN
-          IF( 2*nze .EQ. ( nfullrows*(nfullrows+1) + SUM( row_blk_size*(row_blk_size-1) ) ) ) THEN
+          IF( 2*nze_global .EQ. &
+              ( INT(nfullrows,KIND=int_8)*INT(nfullrows+1,KIND=int_8) + SUM( row_blk_size*(row_blk_size-1) ) ) ) THEN
              occupation = 1.0_real_8
           ELSE
-             occupation = 2.0_real_8 * REAL(nze) / &
+             occupation = 2.0_real_8 * REAL(nze_global,real_8) / &
                ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
                SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
           ENDIF
        ELSE
-          IF (nze .EQ. nfullrows * nfullcols) THEN
+          IF (nze_global .EQ. INT(nfullrows,KIND=int_8) * INT(nfullcols,KIND=int_8)) THEN
              occupation = 1.0_real_8
           ELSE
-             occupation = REAL(nze) / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
+             occupation = REAL(nze_global,real_8) / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
           ENDIF
        ENDIF
     ELSE
