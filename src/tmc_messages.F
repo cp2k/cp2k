@@ -35,7 +35,8 @@ MODULE tmc_messages
        TMC_STAT_MD_REQUEST, TMC_STAT_MD_RESULT, TMC_STAT_NMC_BROADCAST, &
        TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_RESULT, &
        TMC_STAT_SCF_STEP_ENER_RECEIVE, TMC_STAT_START_CONF_REQUEST, &
-       TMC_STAT_START_CONF_RESULT, task_type_gaussian_adaptation
+       TMC_STAT_START_CONF_RESULT, TMC_STATUS_WORKER_INIT, &
+       task_type_gaussian_adaptation
   USE tmc_tree_build,                  ONLY: allocate_new_sub_tree_node
   USE tmc_tree_types,                  ONLY: elem_array_type,&
                                              elem_list_type,&
@@ -184,6 +185,8 @@ CONTAINS
            TMC_STATUS_WAIT_FOR_NEW_TASK, TMC_STATUS_CALCULATING, &
            TMC_STAT_ANALYSIS_RESULT)
         CALL create_status_message(msg_type, m_send, error)
+      CASE(TMC_STATUS_WORKER_INIT)
+        CALL create_worker_init_message(msg_type, tmc_params, m_send, error)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
         CALL create_start_conf_message(msg_type, elem, result_count, tmc_params, m_send, error)
       CASE(TMC_STAT_ENERGY_REQUEST, TMC_STAT_APPROX_ENERGY_REQUEST)
@@ -351,6 +354,8 @@ CONTAINS
            TMC_CANCELING_RECEIPT, TMC_STATUS_WAIT_FOR_NEW_TASK, &
            TMC_STATUS_CALCULATING, TMC_STAT_ANALYSIS_RESULT)
         ! nothing to do here
+      CASE(TMC_STATUS_WORKER_INIT)
+        CALL read_worker_init_message(msg_type, tmc_params, m_send, error)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
         IF(PRESENT(elem_array)) THEN
           CALL read_start_conf_message(msg_type, elem_array(dest)%elem, &
@@ -514,11 +519,125 @@ CONTAINS
 !  END SUBROUTINE read_atom_mass_message
 
 ! *****************************************************************************
+!> \brief the message for the initial values (cell size) to the workers
+!> \param msg_type the status tag 
+!> \param tmc_parms to send the cell properties
+!> \param m_send the message structure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 07.2013
+! *****************************************************************************
+  SUBROUTINE create_worker_init_message(msg_type, tmc_params, m_send, error)
+    INTEGER                                  :: msg_type
+    TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(message_send), POINTER              :: m_send
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_worker_init_message', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: counter, i, msg_size_int, &
+                                                msg_size_real
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%cell),cp_failure_level,routineP,error,failure)
+    
+    counter = 1
+    msg_size_int = 1+SIZE(tmc_params%cell%perd) +1+1 +1 +1
+    ALLOCATE(m_send%task_int(msg_size_int))
+    m_send%task_int(counter) = SIZE(tmc_params%cell%perd) ! periodicity of the cell
+    counter = counter +1+m_send%task_int(counter)
+    m_send%task_int(2:counter-1) = tmc_params%cell%perd(:)
+    m_send%task_int(counter) = 1
+    m_send%task_int(counter+1) = tmc_params%cell%symmetry_id
+    m_send%task_int(counter+2) = 0
+    IF(tmc_params%cell%orthorhombic) m_send%task_int(counter+2) = 1
+    counter = counter +3
+    m_send%task_int(counter) = message_end_flag
+    CPPostconditionNoFail(counter.EQ.SIZE(m_send%task_int),cp_failure_level,routineP,error)
+
+    !float array with cell vectors
+    msg_size_real = 1+SIZE(tmc_params%cell%hmat) +1
+    ALLOCATE(m_send%task_real(msg_size_real))
+    counter = 1
+    m_send%task_real(counter) = SIZE(tmc_params%cell%hmat) ! cell vectors for cell size
+    m_send%task_real(counter+1:counter+SIZE(tmc_params%cell%hmat)) = &
+                                    RESHAPE(tmc_params%cell%hmat(:,:),&
+                                     (/SIZE(tmc_params%cell%hmat)/))
+    counter = counter + 1+INT(m_send%task_real(counter))
+    m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+  END SUBROUTINE create_worker_init_message
+
+! *****************************************************************************
+!> \brief the message for the initial values (cell size) to the workers
+!> \param msg_type the status tag 
+!> \param tmc_parms to send the cell properties
+!> \param m_send the message structure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 07.2013
+! *****************************************************************************
+  SUBROUTINE read_worker_init_message(msg_type, tmc_params, m_send, error)
+    INTEGER                                  :: msg_type
+    TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(message_send), POINTER              :: m_send
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_worker_init_message', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: counter, i, msg_size_int, &
+                                                msg_size_real
+    LOGICAL                                  :: failure, flag
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
+    CPPrecondition(m_send%info(3).GE.4,cp_failure_level,routineP,error,failure)
+
+    IF(.NOT.ASSOCIATED(tmc_params%cell)) ALLOCATE(tmc_params%cell)
+    counter = 1
+    !int array 
+    flag = INT(m_send%task_int(1)) .EQ.SIZE(tmc_params%cell%perd)
+    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
+    counter = 1+ m_send%task_int(1)+1
+    tmc_params%cell%perd = m_send%task_int(2:counter-1)
+    tmc_params%cell%symmetry_id = m_send%task_int(counter+1)
+    tmc_params%cell%orthorhombic = .FALSE.
+    IF(m_send%task_int(counter+2).EQ.1) tmc_params%cell%orthorhombic = .TRUE.
+    counter = counter +3
+    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,error, failure)
+    CPPostcondition(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,error, failure)
+
+    !float array with cell vectors
+    counter = 1
+    flag = INT(m_send%task_real(counter)).EQ.SIZE(tmc_params%cell%hmat)
+    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
+    tmc_params%cell%hmat = &
+      RESHAPE(m_send%task_real(counter+1:counter+&
+        SIZE(tmc_params%cell%hmat)),(/3,3/) )
+    counter = counter + 1+INT(m_send%task_real(counter))
+
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+
+  END SUBROUTINE read_worker_init_message
+
+! *****************************************************************************
 !> \brief the message for sending back the initial configuration
 !> \param msg_type the status tag 
 !> \param elem the intial tree element with initial coordinates and energy 
 !>        (using the approximated potential)
-!> \param tmc_parms th send the cell properties
+!> \param tmc_parms to send the cell properties
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling

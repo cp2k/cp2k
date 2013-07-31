@@ -51,7 +51,7 @@ MODULE tmc_master
        TMC_STAT_ENERGY_RESULT, TMC_STAT_INIT_ANALYSIS, TMC_STAT_MD_REQUEST, &
        TMC_STAT_MD_RESULT, TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_RESULT, &
        TMC_STAT_SCF_STEP_ENER_RECEIVE, TMC_STAT_START_CONF_REQUEST, &
-       TMC_STAT_START_CONF_RESULT
+       TMC_STAT_START_CONF_RESULT, TMC_STATUS_WORKER_INIT
   USE tmc_tree_acceptance,             ONLY: check_acceptance_of_depending_subtree_nodes,&
                                              check_elements_for_acc_prob_update,&
                                              tree_update
@@ -331,7 +331,7 @@ CONTAINS
            error=error)
 
     CALL init_cell(cell=tmc_env%params%cell)
-!TODO check conf of both input files and calculate approx energy
+
     ! set initial configuration 
     ! set initial random number generator seed (rng seed)
     ! initialize the tree structure espacially for parallel tmepering, 
@@ -343,6 +343,17 @@ CONTAINS
     ! init restart counter (espacially for restart case)
     restart_count = INT(tmc_env%m_env%result_count(0)/&
                       REAL(tmc_env%m_env%restart_out_step, KIND=dp))+1
+
+!TODO check conf and cell of both input files (cell has to be equal, 
+!           beacuse it is used as reference cell for scaling the cell)
+    ! communicate the reference cell size
+    DO wg=1, tmc_env%tmc_comp_set%para_env_m_w%num_pe-1
+      stat = TMC_STATUS_WORKER_INIT
+      CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
+             para_env=tmc_env%tmc_comp_set%para_env_m_w,&
+             tmc_params=tmc_env%params, &
+             error=error)
+    END DO    
 
     ! send the atom informations to all analysis workers
     IF(tmc_env%tmc_comp_set%para_env_m_ana%num_pe.GT.1)THEN

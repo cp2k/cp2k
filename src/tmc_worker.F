@@ -27,7 +27,8 @@
 
 MODULE tmc_worker
   USE cell_types,                      ONLY: cell_copy,&
-                                             cell_type
+                                             cell_type,&
+                                             init_cell
   USE cp_external_control,             ONLY: set_external_comm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -78,7 +79,8 @@ MODULE tmc_worker
        TMC_STAT_ENERGY_RESULT, TMC_STAT_INIT_ANALYSIS, TMC_STAT_MD_REQUEST, &
        TMC_STAT_MD_RESULT, TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_RESULT, &
        TMC_STAT_SCF_STEP_ENER_RECEIVE, TMC_STAT_START_CONF_REQUEST, &
-       TMC_STAT_START_CONF_RESULT, task_type_MC, task_type_ideal_gas
+       TMC_STAT_START_CONF_RESULT, TMC_STATUS_WORKER_INIT, &
+       task_type_MC, task_type_ideal_gas
   USE tmc_tree_acceptance,             ONLY: acceptance_check
   USE tmc_tree_build,                  ONLY: allocate_new_sub_tree_node,&
                                              deallocate_sub_tree_node
@@ -195,6 +197,14 @@ CONTAINS
           calc_stat = TMC_STATUS_CALCULATING
           SELECT CASE(work_stat)
           CASE(TMC_STATUS_WAIT_FOR_NEW_TASK)
+          CASE(TMC_STATUS_WORKER_INIT)
+            CALL init_cell(cell=tmc_env%params%cell)
+            itmp = bcast_group
+            CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
+                             dest=itmp, &
+                             para_env=tmc_env%tmc_comp_set%para_env_sub_group,&
+                             tmc_params=tmc_env%params, &
+                             error=error)
           CASE(TMC_CANCELING_MESSAGE)
             work_stat = TMC_CANCELING_RECEIPT
             itmp = MASTER_COMM_ID
@@ -479,6 +489,8 @@ CONTAINS
                            error=error)
           calc_stat = TMC_STATUS_CALCULATING
           SELECT CASE(work_stat)
+          CASE(TMC_STATUS_WORKER_INIT)
+            CALL init_cell(cell=tmc_env%params%cell)
           CASE(TMC_CANCELING_MESSAGE)
           ! error message
           CASE(TMC_STATUS_FAILED)
