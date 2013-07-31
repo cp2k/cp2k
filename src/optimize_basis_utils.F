@@ -346,29 +346,29 @@ CONTAINS
     INTEGER                                  :: ibasis, ikind, iref, jbasis, &
                                                 unit_nr
 
-      DO ikind=1,opt_bas%nkind
-         DO ibasis=1,opt_bas%kind_basis(ikind)%nbasis_deriv
-            IF(iref==jbasis) CALL update_used_parts(opt_bas%kind_basis(ikind)%deriv_info(ibasis),&
-                                                    opt_bas%kind_basis(ikind)%flex_basis(0),&
-                                                    opt_bas%kind_basis(ikind)%flex_basis(ibasis),error)
-          END DO
-      END DO
+    DO ikind=1,opt_bas%nkind
+       DO ibasis=1,opt_bas%kind_basis(ikind)%nbasis_deriv
+           CALL update_used_parts(opt_bas%kind_basis(ikind)%deriv_info(ibasis),&
+                                  opt_bas%kind_basis(ikind)%flex_basis(0),&
+                                  opt_bas%kind_basis(ikind)%flex_basis(ibasis),error)
+        END DO
+    END DO
 
-      IF(write_it)THEN
-         IF(para_env%ionode)THEN
-              CALL open_file(file_name=output_file,file_status="UNKNOWN",&
-                       file_action="WRITE", unit_number=unit_nr)
-         ELSE
-              unit_nr=-999
-         END IF
-         DO ikind=1,opt_bas%nkind
-            DO ibasis=0,opt_bas%kind_basis(ikind)%nbasis_deriv
-                CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis),opt_bas%kind_basis(ikind)%element,&
-                                 unit_nr)
-            END DO
-         END DO
-         IF (para_env%ionode) CALL close_file(unit_number=unit_nr)
+    IF(write_it)THEN
+       IF(para_env%ionode)THEN
+            CALL open_file(file_name=output_file,file_status="UNKNOWN",&
+                     file_action="WRITE", unit_number=unit_nr)
+       ELSE
+            unit_nr=-999
        END IF
+       DO ikind=1,opt_bas%nkind
+          DO ibasis=0,opt_bas%kind_basis(ikind)%nbasis_deriv
+              CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis),opt_bas%kind_basis(ikind)%element,&
+                               unit_nr)
+          END DO
+       END DO
+       IF (para_env%ionode) CALL close_file(unit_number=unit_nr)
+     END IF
    
    END SUBROUTINE update_derived_basis_sets
 
