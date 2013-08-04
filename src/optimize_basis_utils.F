@@ -343,8 +343,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_derived_basis_sets', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ibasis, ikind, iref, jbasis, &
-                                                unit_nr
+    INTEGER                                  :: ibasis, ikind, unit_nr
 
     DO ikind=1,opt_bas%nkind
        DO ibasis=1,opt_bas%kind_basis(ikind)%nbasis_deriv

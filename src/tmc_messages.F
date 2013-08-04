@@ -28,14 +28,14 @@ MODULE tmc_messages
   USE tmc_stati,                       ONLY: &
        TMC_CANCELING_MESSAGE, TMC_CANCELING_RECEIPT, TMC_STATUS_CALCULATING, &
        TMC_STATUS_FAILED, TMC_STATUS_STOP_RECEIPT, &
-       TMC_STATUS_WAIT_FOR_NEW_TASK, TMC_STAT_ANALYSIS_REQUEST, &
-       TMC_STAT_ANALYSIS_RESULT, TMC_STAT_APPROX_ENERGY_REQUEST, &
-       TMC_STAT_APPROX_ENERGY_RESULT, TMC_STAT_ENERGY_REQUEST, &
-       TMC_STAT_ENERGY_RESULT, TMC_STAT_INIT_ANALYSIS, TMC_STAT_MD_BROADCAST, &
-       TMC_STAT_MD_REQUEST, TMC_STAT_MD_RESULT, TMC_STAT_NMC_BROADCAST, &
-       TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_RESULT, &
-       TMC_STAT_SCF_STEP_ENER_RECEIVE, TMC_STAT_START_CONF_REQUEST, &
-       TMC_STAT_START_CONF_RESULT, TMC_STATUS_WORKER_INIT, &
+       TMC_STATUS_WAIT_FOR_NEW_TASK, TMC_STATUS_WORKER_INIT, &
+       TMC_STAT_ANALYSIS_REQUEST, TMC_STAT_ANALYSIS_RESULT, &
+       TMC_STAT_APPROX_ENERGY_REQUEST, TMC_STAT_APPROX_ENERGY_RESULT, &
+       TMC_STAT_ENERGY_REQUEST, TMC_STAT_ENERGY_RESULT, &
+       TMC_STAT_INIT_ANALYSIS, TMC_STAT_MD_BROADCAST, TMC_STAT_MD_REQUEST, &
+       TMC_STAT_MD_RESULT, TMC_STAT_NMC_BROADCAST, TMC_STAT_NMC_REQUEST, &
+       TMC_STAT_NMC_RESULT, TMC_STAT_SCF_STEP_ENER_RECEIVE, &
+       TMC_STAT_START_CONF_REQUEST, TMC_STAT_START_CONF_RESULT, &
        task_type_gaussian_adaptation
   USE tmc_tree_build,                  ONLY: allocate_new_sub_tree_node
   USE tmc_tree_types,                  ONLY: elem_array_type,&
@@ -536,7 +536,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_worker_init_message', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: counter, i, msg_size_int, &
+    INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
     LOGICAL                                  :: failure
 
@@ -595,8 +595,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_worker_init_message', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: counter, i, msg_size_int, &
-                                                msg_size_real
+    INTEGER                                  :: counter
     LOGICAL                                  :: failure, flag
 
     failure = .FALSE.
