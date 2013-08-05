@@ -71,6 +71,8 @@ MODULE dbcsr_mm_cudadrv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_cudadrv'
 
+  LOGICAL, PARAMETER, PRIVATE :: careful_mod = .FALSE.
+
 
 ! *****************************************************************************
   TYPE dbcsr_mm_cudadrv_type
@@ -316,7 +318,7 @@ MODULE dbcsr_mm_cudadrv
     !===========================================================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or GPU gain is very large
-    CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
 
 IF(DO_PETERS_BINNING) THEN
       bin_top = 1
@@ -351,7 +353,7 @@ ELSE
     END DO
 ENDIF
 
-    CALL dbcsr_error_stop (error_handle2, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle2, error)
 
 
     CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf%hostmem, stream=stackbuf%stream, error=error)

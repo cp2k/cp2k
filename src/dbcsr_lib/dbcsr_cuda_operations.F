@@ -32,7 +32,7 @@ MODULE dbcsr_cuda_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_cuda_operations'
 
-  LOGICAL, PARAMETER :: careful_mod = .TRUE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
   PUBLIC :: dbcsr_cuda_do_mm_stack
@@ -86,7 +86,7 @@ CONTAINS
     INTEGER                                  :: datatype, error_handle, istat
     INTEGER(KIND=C_INT)                      :: mnk
 
-   CALL dbcsr_error_set (routineN, error_handle, error)
+   IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
 
    datatype = dbcsr_cuda_devmem_datatype(a_data)
 
@@ -114,7 +114,7 @@ CONTAINS
 
     success = (istat == 0) ! false if no suitable kernel was found
 
-    CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
 #endif
   END SUBROUTINE dbcsr_cuda_do_mm_stack
 
