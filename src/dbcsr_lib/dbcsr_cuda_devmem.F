@@ -39,6 +39,8 @@ MODULE dbcsr_cuda_devmem
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_cuda_devmem'
 
+  LOGICAL, PARAMETER, PRIVATE :: careful_mod=.FALSE.
+
 
   PUBLIC :: dbcsr_cuda_devmem_type
   PUBLIC :: dbcsr_cuda_devmem_allocate, dbcsr_cuda_devmem_deallocate
@@ -466,7 +468,7 @@ CONTAINS
     INTEGER                                  :: error_handle, istat
     TYPE(C_PTR)                              :: stream_cptr
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF(careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
     IF(this%size*sizeof(this%datatype) < n_bytes) CALL mp_abort("dbcsr_cuda_devmem_host2dev: devmem too small")
 
     stream_cptr = dbcsr_cuda_stream_cptr(stream)
@@ -475,7 +477,7 @@ CONTAINS
             INT(n_bytes, KIND=C_SIZE_T), stream_cptr)
        IF(istat /= 0) CALL mp_abort("dbcsr_cuda_devmem_host2dev: failed")
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    IF(careful_mod) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE host2dev_raw
 #endif
 

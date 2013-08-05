@@ -2513,7 +2513,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: vrow_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_other_vl_rows) THEN
        imgdist%i%has_other_vl_rows = .TRUE.
@@ -2545,7 +2545,7 @@ CONTAINS
        ENDIF
     ENDIF
     local_vrows = imgdist%i%other_vl_rows(local_vprow)
-    CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_local_vrows
 
 ! *****************************************************************************
@@ -2570,7 +2570,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: vcol_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_other_vl_cols) THEN
        imgdist%i%has_other_vl_cols = .TRUE.
@@ -2602,7 +2602,7 @@ CONTAINS
        ENDIF
     ENDIF
     local_vcols = imgdist%i%other_vl_cols(local_vpcol)
-    CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_local_vcols
 
 ! *****************************************************************************
@@ -2623,7 +2623,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nvprows
     INTEGER, DIMENSION(:), POINTER           :: rmap, vrow_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_global_vrow_map) THEN
        vrow_dist => array_data (imgdist%i%vrow_dist)
@@ -2641,7 +2641,7 @@ CONTAINS
        ENDIF
     ENDIF
     vrow_map = imgdist%i%global_vrow_map
-    CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_global_vrow_map
 
 ! *****************************************************************************
@@ -2662,7 +2662,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nvpcols
     INTEGER, DIMENSION(:), POINTER           :: rmap, vcol_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_global_vcol_map) THEN
        vcol_dist => array_data (imgdist%i%vcol_dist)
@@ -2680,7 +2680,7 @@ CONTAINS
        ENDIF
     ENDIF
     vcol_map = imgdist%i%global_vcol_map
-    CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_global_vcol_map
 
 

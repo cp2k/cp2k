@@ -263,7 +263,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED (area%d), &
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -290,7 +290,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_data_release
 

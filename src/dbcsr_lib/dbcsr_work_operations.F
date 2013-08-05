@@ -537,7 +537,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF(careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
     wm%lastblk = 0
     wm%datasize = 0
     ! Index
@@ -575,7 +575,7 @@ CONTAINS
        CALL dbcsr_data_new (wm%data_area, data_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
-    CALL dbcsr_error_stop(error_handler, error)
+    IF(careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_init_wm
 
 
@@ -1296,7 +1296,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
 
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
@@ -1313,7 +1313,7 @@ CONTAINS
     CALL dbcsr_data_release (wm%data_area)
     CALL dbcsr_mutable_destroy (wm%mutable)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_work_destroy
 
