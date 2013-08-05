@@ -62,6 +62,7 @@ MODULE dbcsr_work_operations
                                              int_8,&
                                              real_4,&
                                              real_8
+  USE dbcsr_mem_methods,               ONLY: dbcsr_memtype_equal
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
@@ -81,21 +82,21 @@ MODULE dbcsr_work_operations
                                              uppercase
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
-       dbcsr_memtype_default, dbcsr_memtype_equal, dbcsr_memtype_type, &
-       dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, &
-       dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, &
-       dbcsr_slot_col_i, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, &
-       dbcsr_slot_home_prow, dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, &
-       dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
-       dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
-       dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
-       dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
-       dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, &
-       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_work_type
+       dbcsr_memtype_default, dbcsr_memtype_type, dbcsr_meta_size, &
+       dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
+       dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
+       dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
+       dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
+       dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
+       dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, &
+       dbcsr_slot_nfullcols_total, dbcsr_slot_nfullrows_local, &
+       dbcsr_slot_nfullrows_total, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_size, dbcsr_type, dbcsr_type_antihermitian, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_calc_block_sizes,&
                                              dbcsr_verify_matrix,&

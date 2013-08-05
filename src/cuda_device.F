@@ -15,10 +15,10 @@ MODULE cuda_device
   LOGICAL, SAVE :: is_configured = .FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cuda_device'
 
-#if defined (__PW_CUDA) && !defined (__DBCSR_CUDA)
+#if defined (__PW_CUDA) || defined (__DBCSR_CUDA)
   INTERFACE
      FUNCTION cuda_set_device_cu (device_id) RESULT (istat) &
-          BIND(C, name="dc_set_device_cu")
+          BIND(C, name="cp_set_device_cu")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: device_id
     INTEGER(KIND=C_INT)                      :: istat
@@ -28,7 +28,7 @@ MODULE cuda_device
 
   INTERFACE
      FUNCTION cuda_get_ndevices_cu (n_devices) RESULT (istat) &
-          BIND(C, name="dc_get_ndevices_cu")
+          BIND(C, name="cp_get_ndevices_cu")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
     INTEGER(KIND=C_INT)                      :: istat
@@ -38,7 +38,7 @@ MODULE cuda_device
 
   INTERFACE
      FUNCTION cuda_device_sync_cu() RESULT (istat) &
-          BIND(C, name="dc_device_sync_cu")
+          BIND(C, name="cp_device_sync_cu")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -47,7 +47,7 @@ MODULE cuda_device
 
   INTERFACE
      FUNCTION cuda_device_reset_cu() RESULT (istat) &
-          BIND(C, name="dc_device_reset_cu")
+          BIND(C, name="cp_device_reset_cu")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -73,7 +73,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-#if defined (__PW_CUDA) && !defined (__DBCSR_CUDA)
+#if defined (__PW_CUDA) || defined (__DBCSR_CUDA)
     IF (is_configured) RETURN
 
     CALL mp_environ (numnode, mynode, group)
@@ -109,7 +109,7 @@ CONTAINS
 
     INTEGER :: cerror
 
-#if defined (__PW_CUDA) && !defined (__DBCSR_CUDA)
+#if defined (__PW_CUDA) || defined (__DBCSR_CUDA)
     IF (.NOT. is_configured) RETURN
 
     cerror = cuda_device_sync_cu ()

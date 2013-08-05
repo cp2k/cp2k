@@ -32,7 +32,7 @@ LIB3_OBJECTS =\
  dbcsr_iterator_operations.o\
  dbcsr_kinds.o\
  dbcsr_machine.o\
- dbcsr_mempool.o\
+ dbcsr_mem_methods.o\
  dbcsr_message_passing.o\
  dbcsr_methods.o\
  dbcsr_mm_cannon.o\

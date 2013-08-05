@@ -33,11 +33,12 @@ MODULE cp_dbcsr_interface
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nbuffers, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
+       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nbuffers, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
        dbcsr_set_conf_use_comm_thread, has_mpi, mm_driver_blas, &
        mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
@@ -466,8 +467,12 @@ CONTAINS
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
+    IF(mm_ss > 0) &
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
-    CALL dbcsr_set_conf_nstacks(nstacks, n_stack_buffers, error=dbcsr_error)
+    IF(nstacks(1) > 0) &
+    CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
+    IF(n_stack_buffers > 0) &
+    CALL dbcsr_set_conf_nbuffers(n_stack_buffers, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
     CALL dbcsr_error_stop (error_handle, dbcsr_error)
@@ -523,8 +528,8 @@ CONTAINS
     use_mpi_mem_str = l2str_r(use_mpi_mem,info_len)
     use_comm_thread_str = l2str_r(use_comm_thread,info_len)
     comm_thread_load_str = int2str_r(comm_thread_load,info_len)
-
-    CALL dbcsr_get_conf_nstacks (n_mnk_stacks, nbuffers, error=dbcsr_error)
+    CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
+    CALL dbcsr_get_conf_nbuffers (nbuffers, error=dbcsr_error)
     use_stack_buffers = int2str_r (nbuffers, info_len)
     use_m_stacks = int2str_r (n_mnk_stacks(1), info_len)
     use_n_stacks = int2str_r (n_mnk_stacks(2), info_len)

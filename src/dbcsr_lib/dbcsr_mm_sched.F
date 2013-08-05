@@ -106,8 +106,7 @@ MODULE dbcsr_mm_sched
     ALLOCATE(stats_num_mnk_stacks(1,5))
     stats_num_mnk_stacks(1,:) = 0 ! entry for the default stack
 
-     IF (mm_driver == mm_driver_cuda) &
-        CALL dbcsr_mm_cudadrv_lib_init(error)
+    CALL dbcsr_mm_cudadrv_lib_init(error)
 
 
   END SUBROUTINE dbcsr_mm_sched_lib_init
@@ -131,8 +130,7 @@ MODULE dbcsr_mm_sched
    nthreads = 1; ithread = 0
    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
 
-   IF (mm_driver == mm_driver_cuda) &
-       CALL dbcsr_mm_cudadrv_lib_finalize(output_unit, error)
+   CALL dbcsr_mm_cudadrv_lib_finalize(output_unit, error)
 
    ! Collect and output statistics ---------------------------------------------
    !$OMP MASTER

@@ -22,8 +22,7 @@ MODULE input_cp2k
                                              cp_unit_set_type
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, has_blas, &
        has_cuda, has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
        mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
@@ -810,10 +809,7 @@ CONTAINS
 
     CHARACTER(len=64)                        :: a_blas, a_cuda, a_plasma, &
                                                 a_smm
-    INTEGER                                  :: n_buffers
-    INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: failure
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
@@ -871,9 +867,10 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     !
     CALL keyword_create(keyword, name="mm_stack_size",&
-         description="Size of multiplication parameter stack.",&
+         description="Size of multiplication parameter stack."&
+         //" A negativ value leaves the decision up to DBCSR.",&
          usage="mm_stack_size 1000",&
-         default_i_val=dbcsr_get_conf_mm_stacksize(),error=error)
+         default_i_val=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
@@ -904,22 +901,23 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
-    CALL dbcsr_get_conf_nstacks (nstacks, n_buffers, dbcsr_error)
     CALL keyword_create(keyword, name="n_size_mnk_stacks",&
          description="Number of stacks to use for distinct atomic sizes" &
-         // " (e.g., 2 for a system of mostly waters).",&
+         // " (e.g., 2 for a system of mostly waters). "&
+         //"A negativ value leaves the decision up to DBCSR.",&
          usage="n_size_mnk_stacks 2",&
-         default_i_val=nstacks(1),error=error)
+         default_i_val=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+    !
     CALL keyword_create(keyword, name="n_stack_buffers",&
-         description="Number of stack buffers to use" &
-         // " (e.g., 2 when using GPUs)",&
-         usage="n_stack_buffers 2",&
-         default_i_val=n_buffers,error=error)
+         description="Number of transfer buffers used per thread to copy stacks over to the GPU."&
+         //" A negativ value leaves the decision up to DBCSR.",&
+         usage="n_stack_buffers 4",&
+         default_i_val=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+    !
     CALL keyword_create(keyword, name="use_comm_thread",&
          description="During multiplication, use a thread to periodically poll" &
          // " MPI to progress outstanding message completions.  This is" &

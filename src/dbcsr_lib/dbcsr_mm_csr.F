@@ -437,8 +437,7 @@ MODULE dbcsr_mm_csr
       routineP = moduleN//':'//routineN
 
     INTEGER :: block_estimate, default_stack, error_handler, istack, ithread, &
-      k_map, k_size, m_map, m_size, n_map, n_size, n_stack_buffers, nstacks, &
-      nthreads, ps_g
+      k_map, k_size, m_map, m_size, n_map, n_size, nstacks, nthreads, ps_g
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: flop_index, flop_list, &
                                                 most_common_k, most_common_m, &
                                                 most_common_n
@@ -473,7 +472,7 @@ MODULE dbcsr_mm_csr
     ENDIF
 
     ! Setup the MM stack
-    CALL dbcsr_get_conf_nstacks (nxstacks, n_stack_buffers, error)
+    CALL dbcsr_get_conf_nstacks (nxstacks, error)
     this%nm_stacks = nxstacks(1)
     this%nn_stacks = nxstacks(2)
     this%nk_stacks = nxstacks(3)

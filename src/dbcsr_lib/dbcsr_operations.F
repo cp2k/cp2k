@@ -16,8 +16,7 @@
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
-  USE dbcsr_config,                    ONLY: dbcsr_init_conf,&
-                                             is_configured
+  USE dbcsr_config,                    ONLY: is_initialized
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_error_handling
@@ -111,7 +110,7 @@ MODULE dbcsr_operations
 !   ---------------------------------------------------------------------------
 !TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
 
-    IF (is_configured) RETURN
+    IF (is_initialized) RETURN
     CALL dbcsr_error_set(routineN, error_handle, error)
     !
     CALL dbcsr_assert (int_1_size, "EQ", 1,&
@@ -131,13 +130,11 @@ MODULE dbcsr_operations
          "Incorrect assumption of a 64-bit integer size!",&
          __LINE__, error=error)
 
-    CALL dbcsr_init_conf (error)
-
     !$omp parallel default(none)  shared(error)
     CALL dbcsr_mm_cannon_lib_init(error)
     !$omp end parallel
 
-    is_configured = .TRUE.
+    is_initialized = .TRUE.
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_init_lib
 
@@ -159,7 +156,7 @@ MODULE dbcsr_operations
 
 !TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
 
-    IF (.NOT. is_configured) RETURN
+    IF (.NOT. is_initialized) RETURN
     CALL dbcsr_error_set(routineN, error_handle, error)
 
     IF(output_unit>0)THEN
@@ -175,7 +172,7 @@ MODULE dbcsr_operations
     !$omp end parallel
     IF(output_unit>0) WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
 
-    is_configured = .FALSE.
+    is_initialized = .FALSE.
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_finalize_lib
 

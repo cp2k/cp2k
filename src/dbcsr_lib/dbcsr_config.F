@@ -26,7 +26,6 @@ MODULE dbcsr_config
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_config'
 
 
-  PUBLIC :: dbcsr_init_conf
   PUBLIC :: dbcsr_set_conf_subcomm, dbcsr_get_conf_subcomm
   PUBLIC :: dbcsr_set_conf_combtypes, dbcsr_get_conf_combtypes
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
@@ -69,9 +68,9 @@ MODULE dbcsr_config
             mm_name_cuda
   PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers
   PUBLIC :: use_comm_thread, comm_thread_load
-
+  PUBLIC :: dbcsr_set_conf_nbuffers, dbcsr_get_conf_nbuffers
   !
-  PUBLIC :: is_configured
+  PUBLIC :: is_initialized
 
 
   ! First the constants are declared.
@@ -155,50 +154,10 @@ MODULE dbcsr_config
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
   INTEGER, SAVE :: comm_thread_load = 100
 
-  LOGICAL, SAVE :: is_configured = .FALSE.
+  LOGICAL, SAVE :: is_initialized = .FALSE.
 
 
 CONTAINS
-
-
-  SUBROUTINE dbcsr_init_conf (error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_conf', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handle, error)
-    ! subcomm are crucial for make_images for large (>4096) number of MPI tasks
-    use_subcommunicators = .TRUE.
-    use_combined_types = .FALSE.
-    use_MPI_memory = has_MPI
-
-    !
-    mm_driver = mm_driver_smm
-    mm_stack_size = 1000
-    IF (has_cuda) THEN
-       mm_driver = mm_driver_cuda
-       mm_stack_size = 30000
-       nm_stacks = 3
-       nn_stacks = 3
-       nk_stacks = 3
-       nstackbuffers = 4
-    ENDIF
-    !
-    use_comm_thread = .TRUE.
-    comm_thread_load = 100
-    mm_async = driver_is_async (mm_driver)
-    IF (mm_async) THEN
-       mm_host_driver = mm_driver_smm
-    ELSE
-       mm_host_driver = mm_driver
-    ENDIF
-    CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_init_conf
 
   SUBROUTINE dbcsr_set_conf_mm_driver (driver, error)
     INTEGER, INTENT(IN)                      :: driver
@@ -210,6 +169,13 @@ CONTAINS
     INTEGER                                  :: error_handle
 
 !   ---------------------------------------------------------------------------
+!defaults
+
+    mm_stack_size = 1000
+    nm_stacks = 0
+    nn_stacks = 0
+    nk_stacks = 0
+    nstackbuffers = 1
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     SELECT CASE (driver)
@@ -232,6 +198,11 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Support for CUDA not compiled in.", __LINE__, error=error)
        mm_driver = mm_driver_cuda
+       mm_stack_size = 30000
+       nm_stacks = 3
+       nn_stacks = 3
+       nk_stacks = 3
+       nstackbuffers = 4
     END SELECT
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
@@ -347,8 +318,8 @@ CONTAINS
   END FUNCTION dbcsr_get_conf_mm_stacksize
 
 
-  SUBROUTINE dbcsr_set_conf_nstacks (nstacks, nbuffers, error)
-    INTEGER, INTENT(IN)                      :: nstacks(:), nbuffers
+  SUBROUTINE dbcsr_set_conf_nstacks (nstacks, error)
+    INTEGER, INTENT(IN)                      :: nstacks(:)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_nstacks', &
@@ -363,12 +334,11 @@ CONTAINS
     nm_stacks        = nstacks(1)
     nn_stacks        = nstacks(2)
     nk_stacks        = nstacks(3)
-    nstackbuffers    = nbuffers
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_nstacks
 
-  SUBROUTINE dbcsr_get_conf_nstacks (nstacks, nbuffers, error)
-    INTEGER, INTENT(OUT)                     :: nstacks(:), nbuffers
+  SUBROUTINE dbcsr_get_conf_nstacks (nstacks, error)
+    INTEGER, INTENT(OUT)                     :: nstacks(:)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_nstacks', &
@@ -383,9 +353,22 @@ CONTAINS
     nstacks(1) = nm_stacks
     nstacks(2) = nn_stacks
     nstacks(3) = nk_stacks
-    nbuffers   = nstackbuffers
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
+
+  SUBROUTINE dbcsr_set_conf_nbuffers(nbuffers, error)
+    INTEGER, INTENT(IN)                      :: nbuffers
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    nstackbuffers    = nbuffers
+  END SUBROUTINE dbcsr_set_conf_nbuffers
+
+  SUBROUTINE dbcsr_get_conf_nbuffers(nbuffers, error)
+    INTEGER, INTENT(OUT)                     :: nbuffers
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    nbuffers   = nstackbuffers
+  END SUBROUTINE dbcsr_get_conf_nbuffers
 
   SUBROUTINE dbcsr_set_conf_use_comm_thread (comm_thread, error)
     LOGICAL, INTENT(IN)                      :: comm_thread

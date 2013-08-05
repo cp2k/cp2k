@@ -47,7 +47,7 @@ MODULE dbcsr_data_methods
                                              dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_mempool,                   ONLY: dbcsr_mempool_add,&
+  USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_memtype_default,&

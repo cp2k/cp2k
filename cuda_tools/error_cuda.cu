@@ -1,18 +1,7 @@
-#if defined ( __PW_CUDA )
-
 #include <cuda_runtime.h>
-#include <cufft.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-/*extern void cuda_error_check (cudaError_t cudaError) {
-  if (cudaError != cudaSuccess) {
-    printf("CUDA RT Error: %s\n", cudaGetErrorString(cudaError));
-    fflush(stdout);
-    exit(-1);
-  }
-}*/
 
 extern void cuda_error_check2 (cudaError_t cudaError, int line) {
   int         pid;
@@ -32,21 +21,9 @@ extern void cuda_error_check2 (cudaError_t cudaError, int line) {
   }
 }
 
-/*extern void cufft_error_check (cufftResult_t cufftError) {
-  if (cufftError != CUFFT_SUCCESS) {
-    switch (cufftError) {
-      case CUFFT_INVALID_PLAN:   printf("CUDA FFT Error (CUFFT_INVALID_PLAN)\n"); break;
-      case CUFFT_ALLOC_FAILED:   printf("CUDA FFT Error (CUFFT_ALLOC_FAILED)\n"); break;
-      case CUFFT_INVALID_VALUE:  printf("CUDA FFT Error (CUFFT_INVALID_VALUE)\n"); break;
-      case CUFFT_INTERNAL_ERROR: printf("CUDA FFT Error (CUFFT_INTERNAL_ERROR)\n"); break;
-      case CUFFT_EXEC_FAILED:    printf("CUDA FFT Error (CUFFT_EXEC_FAILED)\n"); break;
-      case CUFFT_INVALID_SIZE:   printf("CUDA FFT Error (CUFFT_INVALID_SIZE)\n"); break;
-      default: printf("CUDA FFT Error (--unimplemented--)\n"); break;
-    }
-    fflush(stdout);
-    exit(-1);
-  }
-}*/
+
+#if defined ( __PW_CUDA )
+#include <cufft.h>
 
 extern void cufft_error_check2 (cufftResult_t cufftError, int line) {
   int         pid;

@@ -76,9 +76,9 @@ MODULE dbcsr_mm_cannon
                                              sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush
-  USE dbcsr_mempool,                   ONLY: dbcsr_mempool_create,&
-                                             dbcsr_mempool_destruct,&
-                                             dbcsr_mempool_ensure_capacity
+  USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
+                                             dbcsr_mempool_ensure_capacity,&
+                                             dbcsr_memtype_setup
   USE dbcsr_message_passing,           ONLY: &
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_request_null, &
        mp_sum, mp_testany, mp_type_descriptor_type, mp_type_free, &
@@ -174,15 +174,6 @@ MODULE dbcsr_mm_cannon
   SUBROUTINE dbcsr_mm_cannon_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-!$omp master
-    memtype_abbuffer%mpi = .TRUE.
-    IF (mm_driver == mm_driver_cuda) THEN
-       memtype_abbuffer%cuda_hostalloc = .TRUE.
-       memtype_abbuffer%cuda_devalloc = .TRUE.
-       CALL dbcsr_mempool_create(memtype_abbuffer%pool, capacity=6, name="cannon_ab_buffers")
-    ENDIF
-!$omp end master
-
     CALL dbcsr_mm_multrec_lib_init(error)
   END SUBROUTINE
 
@@ -198,10 +189,11 @@ MODULE dbcsr_mm_cannon
      CALL dbcsr_mm_multrec_lib_finalize(output_unit, error)
 
      !$omp master
-     IF (mm_driver == mm_driver_cuda) &
+     IF (ASSOCIATED(memtype_abbuffer%pool)) &
         CALL dbcsr_mempool_destruct(memtype_abbuffer%pool, error)
      !$omp end master
   END SUBROUTINE
+
 
 
 
@@ -306,7 +298,14 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    !
+
+    IF (mm_driver==mm_driver_cuda) THEN
+       CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
+            mpi=.TRUE., pool_capacity=6, pool_name="cannon_ab_buffers", error=error)
+    ELSE
+       CALL dbcsr_memtype_setup(memtype_abbuffer, mpi=.TRUE., error=error)
+    ENDIF
+
     ! check parameters
     transa_l = transa
     transb_l = transb

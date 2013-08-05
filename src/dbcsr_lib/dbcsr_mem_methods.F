@@ -7,7 +7,7 @@
 !> \brief   DBCSR Memory Pool to avoid slow allocations e.g. of cuda memory
 !> \author  Ole Schuett
 ! *****************************************************************************
-MODULE dbcsr_mempool
+MODULE dbcsr_mem_methods
 
   USE dbcsr_data_methods_low,          ONLY: dbcsr_data_get_size,&
                                              internal_data_deallocate
@@ -17,7 +17,6 @@ MODULE dbcsr_mempool
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_mempool_entry_type,&
                                              dbcsr_mempool_type,&
-                                             dbcsr_memtype_equal,&
                                              dbcsr_memtype_type
 
   !$ USE OMP_LIB
@@ -27,11 +26,11 @@ MODULE dbcsr_mempool
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mempool'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mem_methods'
 
   PUBLIC :: dbcsr_mempool_get, dbcsr_mempool_add, dbcsr_mempool_ensure_capacity
   PUBLIC :: dbcsr_mempool_create, dbcsr_mempool_destruct
-
+  PUBLIC :: dbcsr_memtype_setup, dbcsr_memtype_equal
 
   LOGICAL, PARAMETER :: debug = .FALSE.
 
@@ -227,4 +226,69 @@ MODULE dbcsr_mempool
  END SUBROUTINE dbcsr_mempool_destruct
 
 
-END MODULE dbcsr_mempool
+! *****************************************************************************
+! \brief Ensures that given memtype has requested settings.
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_memtype_setup(memtype, cuda_hostalloc, cuda_devalloc, mpi, pool_capacity, pool_name, error)
+    TYPE(dbcsr_memtype_type), INTENT(INOUT)  :: memtype
+    LOGICAL, INTENT(IN), OPTIONAL            :: cuda_hostalloc, &
+                                                cuda_devalloc, mpi
+    INTEGER, INTENT(IN), OPTIONAL            :: pool_capacity
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: pool_name
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: capacity
+    LOGICAL                                  :: is_ok
+    TYPE(dbcsr_memtype_type)                 :: aim
+
+! variable aim is initialized with default values from type definition
+
+    capacity = 0
+    IF(PRESENT(pool_capacity)) THEN
+       capacity = pool_capacity
+       IF(.NOT. PRESENT(pool_name)) STOP "dbcsr_memtype_setup: pool_name missing"
+    ENDIF
+    IF(PRESENT(cuda_hostalloc)) aim%cuda_hostalloc = cuda_hostalloc
+    IF(PRESENT(cuda_devalloc))  aim%cuda_devalloc  = cuda_devalloc
+    IF(PRESENT(mpi))            aim%mpi            = mpi
+
+    is_ok = .TRUE.
+    is_ok = is_ok .AND. (memtype%cuda_hostalloc.EQV.aim%cuda_hostalloc)
+    is_ok = is_ok .AND. (memtype%cuda_devalloc.EQV.aim%cuda_devalloc)
+    is_ok = is_ok .AND. (memtype%mpi.EQV.aim%mpi)
+
+    is_ok = is_ok .AND. (ASSOCIATED(memtype%pool).EQV.(capacity>0))
+    IF(ASSOCIATED(memtype%pool)) THEN
+      is_ok = is_ok .AND. (memtype%pool%capacity==capacity)
+      is_ok = is_ok .AND. (TRIM(memtype%pool%name)==TRIM(pool_name))
+    ENDIF
+
+    IF(.NOT.is_ok) THEN
+        memtype%cuda_hostalloc = aim%cuda_hostalloc
+        memtype%cuda_devalloc = aim%cuda_devalloc
+        memtype%mpi = aim%mpi
+        IF(ASSOCIATED(memtype%pool)) &
+           CALL dbcsr_mempool_destruct(memtype%pool, error)
+        IF(capacity>0) &
+           CALL dbcsr_mempool_create(memtype%pool, capacity=capacity, name=pool_name)
+    ENDIF
+  END SUBROUTINE dbcsr_memtype_setup
+
+
+! *****************************************************************************
+! \brief Test if two memtypes are equal
+! \author Ole Schuett
+! *****************************************************************************
+  FUNCTION dbcsr_memtype_equal(mt1,mt2) RESULT (res)
+    TYPE(dbcsr_memtype_type), INTENT(in)     :: mt1, mt2
+    LOGICAL                                  :: res
+
+      res = (mt1%mpi .EQV. mt2%mpi) .AND. &
+            (mt1%cuda_hostalloc .EQV. mt2%cuda_hostalloc) .AND. &
+            (mt1%cuda_devalloc .EQV. mt2%cuda_devalloc) .AND. &
+            (ASSOCIATED(mt1%pool) .EQV. ASSOCIATED(mt2%pool)) .AND. &
+            (.NOT. ASSOCIATED(mt1%pool) .OR. ASSOCIATED(mt1%pool, mt2%pool))
+  END FUNCTION dbcsr_memtype_equal
+
+END MODULE dbcsr_mem_methods

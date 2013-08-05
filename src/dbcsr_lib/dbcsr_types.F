@@ -88,8 +88,7 @@ MODULE dbcsr_types
             dbcsr_mempool_entry_type,&
             dbcsr_memtype_type,&
             dbcsr_memtype_default,&
-            dbcsr_memtype_MPI,&
-            dbcsr_memtype_equal
+            dbcsr_memtype_MPI
 
   PUBLIC :: dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
@@ -657,18 +656,4 @@ MODULE dbcsr_types
      TYPE(dbcsr_imagedistribution_obj) :: image_dist
   END TYPE dbcsr_2d_array_type
 
-  CONTAINS
-
-! *****************************************************************************
-! *****************************************************************************
-  FUNCTION dbcsr_memtype_equal(mt1,mt2) RESULT (res)
-    TYPE(dbcsr_memtype_type), INTENT(in)     :: mt1, mt2
-    LOGICAL                                  :: res
-
-      res = (mt1%mpi .EQV. mt2%mpi) .AND. &
-            (mt1%cuda_hostalloc .EQV. mt2%cuda_hostalloc) .AND. &
-            (mt1%cuda_devalloc .EQV. mt2%cuda_devalloc) .AND. &
-            (ASSOCIATED(mt1%pool) .EQV. ASSOCIATED(mt2%pool)) .AND. &
-            (.NOT. ASSOCIATED(mt1%pool) .OR. ASSOCIATED(mt1%pool, mt2%pool))
-  END FUNCTION dbcsr_memtype_equal
 END MODULE dbcsr_types

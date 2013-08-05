@@ -21,9 +21,8 @@
 MODULE dbcsr_mm_cudadrv
   USE ISO_C_BINDING
   USE dbcsr_block_operations,          ONLY: block_add
-  USE dbcsr_config,                    ONLY: dbcsr_get_conf_nstacks,&
+  USE dbcsr_config,                    ONLY: dbcsr_get_conf_nbuffers,&
                                              mm_stack_size
-  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_init
   USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
                                              dbcsr_cuda_devmem_allocated,&
                                              dbcsr_cuda_devmem_deallocate,&
@@ -51,8 +50,8 @@ MODULE dbcsr_mm_cudadrv
                                              dbcsr_data_release
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: default_string_length
-  USE dbcsr_mempool,                   ONLY: dbcsr_mempool_create,&
-                                             dbcsr_mempool_destruct
+  USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
+                                             dbcsr_memtype_setup
   USE dbcsr_message_passing,           ONLY: mp_abort
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
                                              stack_descriptor_type
@@ -116,39 +115,7 @@ MODULE dbcsr_mm_cudadrv
   SUBROUTINE dbcsr_mm_cudadrv_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=default_string_length)     :: poolname
-    INTEGER                                  :: i, ithread, n_stack_buffers, &
-                                                nthreads
-    INTEGER, DIMENSION(3)                    :: nxstacks
-
-    nthreads = 1; ithread = 0
-    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
-
-    CALL dbcsr_get_conf_nstacks(nxstacks, n_stack_buffers, error)
-
-    !TODO: do we want to support multiple cards? Search: ma_set_gpu_affinity
-    CALL dbcsr_cuda_init(error=error)
-
-    !Each thread has its own memtype with its own mempool
-     memtype_cbuffer%cuda_hostalloc = .TRUE.
-     memtype_cbuffer%cuda_devalloc = .TRUE.
-     WRITE (poolname, "(A,I4,A)") "cudadrv_cbuffer (thread=", ithread,")"
-     CALL dbcsr_mempool_create(memtype_cbuffer%pool, capacity=1, name=poolname)
-
-    ! 2. Things that are local to each thread
-    !------------------------------------------------------------------------
-    ! Allocate the buffers for transfering the stack_data
-    ALLOCATE(stack_buffers(n_stack_buffers))
-    DO i=1, n_stack_buffers
-       CALL dbcsr_cuda_devmem_allocate(stack_buffers(i)%devmem,&
-                dbcsr_type_int_4, dbcsr_ps_width*mm_stack_size, error)
-       CALL dbcsr_cuda_hostmem_allocate(stack_buffers(i)%hostmem, &
-                dbcsr_ps_width, mm_stack_size, error=error)
-       CALL dbcsr_cuda_event_create(stack_buffers(i)%ready, error)
-       CALL dbcsr_cuda_event_create(stack_buffers(i)%calculated, error)
-       CALL dbcsr_cuda_stream_create(stack_buffers(i)%stream, error)
-    END DO
-
+! nothing to do here
 
   END SUBROUTINE dbcsr_mm_cudadrv_lib_init
 
@@ -161,26 +128,17 @@ MODULE dbcsr_mm_cudadrv
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i
+   IF(ALLOCATED(stack_buffers)) &
+     CALL deallocate_stackbuffers(error)
 
-   DO i=1, SIZE(stack_buffers)
-      CALL dbcsr_cuda_devmem_deallocate(stack_buffers(i)%devmem, error)
-      CALL dbcsr_cuda_hostmem_deallocate(stack_buffers(i)%hostmem, error)
-      CALL dbcsr_cuda_event_destroy(stack_buffers(i)%ready, error)
-      CALL dbcsr_cuda_event_destroy(stack_buffers(i)%calculated, error)
-      CALL dbcsr_cuda_stream_destroy(stack_buffers(i)%stream, error)
-   END DO
-   DEALLOCATE(stack_buffers)
-
-   CALL dbcsr_mempool_destruct(memtype_cbuffer%pool, error)
+   IF(ASSOCIATED(memtype_cbuffer%pool))&
+     CALL dbcsr_mempool_destruct(memtype_cbuffer%pool, error)
 
    !How much memory is still allocated on the card?
    !istat = dbcsr_cuda_dev_mem_info(mem_free, mem_avail)
    !WRITE (*,*) "after finalize cuda mem: ",mem_free, mem_avail, istat
 
   END SUBROUTINE dbcsr_mm_cudadrv_lib_finalize
-
-
 
 
 ! *****************************************************************************
@@ -194,20 +152,49 @@ MODULE dbcsr_mm_cudadrv
     TYPE(dbcsr_work_type), POINTER           :: product_wm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: data_type, size
+    CHARACTER(len=default_string_length)     :: poolname
+    INTEGER                                  :: i, ithread, n_stack_buffers, &
+                                                nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
 
-    IF(.NOT. ALLOCATED(stack_buffers)) &
-         CALL mp_abort("dbcsr_mm_driver_init: dbcsr not initialized")
+    nthreads = 1; ithread = 0
+    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
 
+    ! Setup global data which is reused in between multiplications
+    !------------------------------------------------------------------------
+    !Each thread has its own memtype with its own mempool
+     WRITE (poolname, "(A,I4,A)") "cudadrv_cbuffer (thread=", ithread,")"
+     CALL dbcsr_memtype_setup(memtype_cbuffer, cuda_hostalloc=.TRUE.,&
+          cuda_devalloc=.TRUE., pool_capacity=1, pool_name=poolname, error=error)
+
+    ! Allocate the buffers for transfering the stack_data
+    CALL dbcsr_get_conf_nbuffers(n_stack_buffers, error)
+    IF(ALLOCATED(stack_buffers)) THEN
+       IF(SIZE(stack_buffers)/=n_stack_buffers) &
+          CALL deallocate_stackbuffers(error)
+    ENDIF
+
+    IF(.NOT.ALLOCATED(stack_buffers)) THEN
+       ALLOCATE(stack_buffers(n_stack_buffers))
+       DO i=1, n_stack_buffers
+          CALL dbcsr_cuda_devmem_allocate(stack_buffers(i)%devmem,&
+                   dbcsr_type_int_4, dbcsr_ps_width*mm_stack_size, error)
+          CALL dbcsr_cuda_hostmem_allocate(stack_buffers(i)%hostmem, &
+                   dbcsr_ps_width, mm_stack_size, error=error)
+          CALL dbcsr_cuda_event_create(stack_buffers(i)%ready, error)
+          CALL dbcsr_cuda_event_create(stack_buffers(i)%calculated, error)
+          CALL dbcsr_cuda_stream_create(stack_buffers(i)%stream, error)
+       END DO
+    END IF
+
+
+    ! Setup things for this particular multipcation
+    !------------------------------------------------------------------------
     this%product_wm => product_wm
-
     c_area = this%product_wm%data_area
-    data_type = dbcsr_data_get_type(c_area)
-    size = dbcsr_data_get_size(c_area)
 
-    CALL dbcsr_data_new(this%c_buffer, data_type=data_type, data_size=size,&
-                                  memory_type=memtype_cbuffer)
+    CALL dbcsr_data_new(this%c_buffer, data_type=dbcsr_data_get_type(c_area), &
+          data_size=dbcsr_data_get_size(c_area), memory_type=memtype_cbuffer)
 
     CALL dbcsr_cuda_devmem_setzero(this%c_buffer%d%cuda_devmem,&
                              stream=this%c_buffer%d%cuda_stream, error=error)
@@ -217,6 +204,25 @@ MODULE dbcsr_mm_cudadrv
 
   END SUBROUTINE dbcsr_mm_cudadrv_init
 
+
+! *****************************************************************************
+! \brief Helper routine used by dbcsr_mm_cudadrv_init() and dbcsr_mm_cudadrv_lib_finalize()
+! \author Ole Schuett
+! *****************************************************************************
+ SUBROUTINE deallocate_stackbuffers(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i
+
+   DO i=1, SIZE(stack_buffers)
+      CALL dbcsr_cuda_devmem_deallocate(stack_buffers(i)%devmem, error)
+      CALL dbcsr_cuda_hostmem_deallocate(stack_buffers(i)%hostmem, error)
+      CALL dbcsr_cuda_event_destroy(stack_buffers(i)%ready, error)
+      CALL dbcsr_cuda_event_destroy(stack_buffers(i)%calculated, error)
+      CALL dbcsr_cuda_stream_destroy(stack_buffers(i)%stream, error)
+   END DO
+   DEALLOCATE(stack_buffers)
+ END SUBROUTINE deallocate_stackbuffers
 
 
 ! *****************************************************************************
