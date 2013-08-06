@@ -573,7 +573,7 @@ CONTAINS
                   IF (use_virial) THEN
                      rij = particle_set(iatom)%r - particle_set(jatom)%r
                      rij = pbc(rij,cell)
-                     CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
+                     CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
                   END IF
                END IF
             END DO

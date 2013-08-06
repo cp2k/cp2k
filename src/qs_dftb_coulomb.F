@@ -497,11 +497,9 @@ CONTAINS
     CALL pw_pool_create_pw ( pw_pool, phi_g,  &
          use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE, error=error)
     IF ( use_virial ) THEN
-       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
-            h_stress=h_stress, error=error)
+       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, h_stress=h_stress, error=error)
     ELSE
-       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
-            error=error)
+       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, error=error)
     END IF
 
     CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
