@@ -272,9 +272,7 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_process', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: bin_size = 100, &
-                                                flops_to_sort = 2*13*13*13, &
-                                                n_bins = 200
+    INTEGER, PARAMETER                       :: bin_size = 100, n_bins = 200
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
     INTEGER :: bin_id, error_handle, error_handle2, flop_per_entry, i, &
