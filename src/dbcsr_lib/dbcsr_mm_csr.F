@@ -30,7 +30,9 @@ MODULE dbcsr_mm_csr
                                              int_8,&
                                              real_8,&
                                              sp
-  USE dbcsr_mm_sched,                  ONLY: dbcsr_mm_sched_finalize,&
+  USE dbcsr_mm_sched,                  ONLY: dbcsr_mm_sched_begin_burst,&
+                                             dbcsr_mm_sched_end_burst,&
+                                             dbcsr_mm_sched_finalize,&
                                              dbcsr_mm_sched_init,&
                                              dbcsr_mm_sched_lib_finalize,&
                                              dbcsr_mm_sched_lib_init,&
@@ -722,6 +724,8 @@ SUBROUTINE flush_stacks(this, left, right, purge, error)
       IF(purge) min_fill = 0
     ENDIF
 
+    CALL dbcsr_mm_sched_begin_burst(this%sched, error)
+
     DO i=1, n_stacks
        IF(this%stacks_fillcount(i) > min_fill) THEN
           stack_data=>this%stacks_data(:,:,i)
@@ -739,6 +743,7 @@ SUBROUTINE flush_stacks(this, left, right, purge, error)
        ENDIF
     END DO
 
+    CALL dbcsr_mm_sched_end_burst(this%sched, error)
 END SUBROUTINE flush_stacks
 
 

@@ -21,6 +21,8 @@ MODULE input_cp2k
                                              cp_unit_set_release,&
                                              cp_unit_set_type
   USE dbcsr_config,                    ONLY: &
+       cudadrv_avoid_after_busy, cudadrv_do_inhomogenous, &
+       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, has_blas, &
@@ -811,6 +813,7 @@ CONTAINS
                                                 a_smm
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -937,7 +940,45 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    !---------------------------------------------------------------------------
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="CUDA",&
+         description="Configuration options for the CUDA-Driver.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
 
+    CALL keyword_create(keyword, name="avoid_after_busy",&
+         description="While flushing the stacks, do not use the cuda-driver "&
+         //" for processing after it has signaled congestion. "&
+         //" The driver is used again for the next round of flusing.",&
+         default_l_val=cudadrv_avoid_after_busy,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="min_flop_process",&
+         description="Only process stacks with a at least the given number of "&
+         //"floating-point operations per stack-entry (2*m*n*k).",&
+         default_i_val=cudadrv_min_flop_process,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="min_flop_sort",&
+         description="Only sort stacks with a at least the given number of "&
+         //"floating-point operations per stack-entry (2*m*n*k). "&
+         //"Alternatively the stacks are roughly ordered through a "&
+         //"binning-scheme by Peter Messmer.",&
+         default_i_val=cudadrv_min_flop_sort,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="process_inhomogenous",&
+         description="Controlls if inhomogenous stacks are processed by the cuda driver.",&
+         default_l_val=cudadrv_do_inhomogenous,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL section_add_subsection(section, subsection,error=error)
+    CALL section_release(subsection, error=error)
     !
   END SUBROUTINE create_dbcsr_section
 

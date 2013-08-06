@@ -269,9 +269,6 @@ How to compile CP2K code
      -D__USE_PAT            - craypat profiling (?)
      -D__HMD                - ?
      -D__HPM                - ?
-     -D__DBCSR_SORT_STACKS  - Do a complete sort of stacks before sending them
-                              to a cuda device. Per default a cheaper binning
-                              method from Peter Messmer is used.
 
  3e) The `I'm feeling lucky' version of building will try to guess what
      architecture you're on.

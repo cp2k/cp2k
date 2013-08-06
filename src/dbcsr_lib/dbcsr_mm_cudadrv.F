@@ -21,7 +21,8 @@
 MODULE dbcsr_mm_cudadrv
   USE ISO_C_BINDING
   USE dbcsr_block_operations,          ONLY: block_add
-  USE dbcsr_config,                    ONLY: dbcsr_get_conf_nbuffers,&
+  USE dbcsr_config,                    ONLY: cudadrv_min_flop_sort,&
+                                             dbcsr_get_conf_nbuffers,&
                                              mm_stack_size
   USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
                                              dbcsr_cuda_devmem_allocated,&
@@ -271,32 +272,20 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_process', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: flops_to_sort = 2*13*13*13
-
-    INTEGER                                  :: error_handle, error_handle2, &
-                                                i, next_stack_buffer_idx
-    TYPE(dbcsr_data_area_type), POINTER      :: a_area, b_area, c_area
-    TYPE(stack_buffer_type), POINTER         :: stackbuf
-    INTEGER                                  :: allocated_datasize, &
-                                                stacked_datasize
+    INTEGER, PARAMETER                       :: bin_size = 100, &
+                                                flops_to_sort = 2*13*13*13, &
+                                                n_bins = 200
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
-
-#if defined(__DBCSR_SORT_STACKS)
-     LOGICAL, PARAMETER                       :: DO_PETERS_BINNING = .FALSE.
-#else
-     LOGICAL, PARAMETER                       :: DO_PETERS_BINNING = .TRUE.
-#endif
-
-     INTEGER, PARAMETER :: n_bins = 200
-     INTEGER, PARAMETER :: bin_size = 100
-     INTEGER, DIMENSION(n_bins) :: bin_top
-     INTEGER            :: top, bin_id
-     INTEGER, DIMENSION(dbcsr_ps_width, bin_size, n_bins) :: bin_arr
-     INTEGER, DIMENSION(dbcsr_ps_width) :: val
-
-     INTEGER, DIMENSION(stack_size)                  :: c_sort, c_sort_ind
-
+    INTEGER :: bin_id, error_handle, error_handle2, flop_per_entry, i, &
+      next_stack_buffer_idx, stacked_datasize, top
+    INTEGER, DIMENSION(dbcsr_ps_width)       :: val
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      bin_size, n_bins)                      :: bin_arr
+    INTEGER, DIMENSION(stack_size)           :: c_sort, c_sort_ind
+    INTEGER, DIMENSION(n_bins)               :: bin_top
+    TYPE(dbcsr_data_area_type), POINTER      :: a_area, b_area, c_area
+    TYPE(stack_buffer_type), POINTER         :: stackbuf
 
     next_stack_buffer_idx = MOD(curr_stack_buffer_idx, SIZE(stack_buffers))+1
     stackbuf => stack_buffers(next_stack_buffer_idx)
@@ -319,39 +308,39 @@ MODULE dbcsr_mm_cudadrv
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or GPU gain is very large
     IF (careful_mod) CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
+    flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
-IF(DO_PETERS_BINNING) THEN
-      bin_top = 1
-      top = 1
+    IF(flop_per_entry > cudadrv_min_flop_sort) THEN
+       ! sort by the C-blocks
+       c_sort = params(6,:stack_size)
+       CALL sort(c_sort, stack_size, c_sort_ind)
+       DO i=1,stack_size
+          stackbuf%hostmem(:, i)=params(:, c_sort_ind(i))
+       END DO
 
-      DO i=1,stack_size
-         val(:) = params(:,i)
-         bin_id = MOD(val(6), n_bins) + 1
-
-         IF(bin_top(bin_id) > bin_size) THEN
-            stackbuf%hostmem(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
-            top = top + bin_top(bin_id) - 1
-            bin_top(bin_id) = 1
+    ELSE
+       ! this is a cheaper Binning-scheme by Peter Messmer
+       bin_top = 1
+       top = 1
+       DO i=1,stack_size
+          val(:) = params(:,i)
+          bin_id = MOD(val(6), n_bins) + 1
+          IF(bin_top(bin_id) > bin_size) THEN
+             stackbuf%hostmem(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
+             top = top + bin_top(bin_id) - 1
+             bin_top(bin_id) = 1
+          ENDIF
+          bin_arr(:, bin_top(bin_id), bin_id) =  val(:)
+          bin_top(bin_id) = bin_top(bin_id) + 1
+       END DO
+       DO i=1,n_bins
+         IF(bin_top(i) > 1) THEN
+            stackbuf%hostmem(:, top:top+bin_top(i)-2) = bin_arr(:, 1:bin_top(i)-1, i)
+            top = top + bin_top(i)-1
          ENDIF
-         bin_arr(:, bin_top(bin_id), bin_id) =  val(:)
-         bin_top(bin_id) = bin_top(bin_id) + 1
-      END DO
+       END DO
 
-      DO i=1,n_bins
-        IF(bin_top(i) > 1) THEN
-           stackbuf%hostmem(:, top:top+bin_top(i)-2) = bin_arr(:, 1:bin_top(i)-1, i)
-           top = top + bin_top(i)-1
-        ENDIF
-      END DO
-
-ELSE
-    ! sort by the C-blocks
-    c_sort = params(6,:stack_size)
-    CALL sort(c_sort, stack_size, c_sort_ind)
-    DO i=1,stack_size
-       stackbuf%hostmem(:, i)=params(:, c_sort_ind(i))
-    END DO
-ENDIF
+    ENDIF
 
     IF (careful_mod) CALL dbcsr_error_stop (error_handle2, error)
 

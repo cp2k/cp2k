@@ -20,7 +20,10 @@
 
 MODULE dbcsr_mm_sched
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
-  USE dbcsr_config,                    ONLY: mm_driver,&
+  USE dbcsr_config,                    ONLY: cudadrv_avoid_after_busy,&
+                                             cudadrv_do_inhomogenous,&
+                                             cudadrv_min_flop_process,&
+                                             mm_driver,&
                                              mm_driver_cuda
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size,&
@@ -61,6 +64,7 @@ MODULE dbcsr_mm_sched
   PUBLIC :: dbcsr_mm_sched_lib_init, dbcsr_mm_sched_lib_finalize
   PUBLIC :: dbcsr_mm_sched_init, dbcsr_mm_sched_finalize
   PUBLIC :: dbcsr_mm_sched_process
+  PUBLIC :: dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_end_burst
 
   ! *****************************************************************************
   TYPE dbcsr_mm_sched_type
@@ -68,6 +72,7 @@ MODULE dbcsr_mm_sched
     TYPE(dbcsr_work_type), POINTER  :: product_wm
     TYPE(dbcsr_mm_cudadrv_type) :: cudadrv
     TYPE(dbcsr_mm_hostdrv_type) :: hostdrv
+    LOGICAL                     :: avoid_cudadrv = .FALSE.
   END TYPE dbcsr_mm_sched_type
 
 
@@ -266,6 +271,28 @@ MODULE dbcsr_mm_sched
 
   END SUBROUTINE dbcsr_mm_sched_finalize
 
+! *****************************************************************************
+! \brief Signal begin of a burst of calls to dbcsr_mm_sched_process.
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_sched_begin_burst(this, error)
+    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    this%avoid_cudadrv = .FALSE.
+  END SUBROUTINE dbcsr_mm_sched_begin_burst
+
+! *****************************************************************************
+! \brief Signal end of a burst of calls to dbcsr_mm_sched_process.
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_sched_end_burst(this, error)
+    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+!nothing to do here
+
+  END SUBROUTINE dbcsr_mm_sched_end_burst
 
 ! *****************************************************************************
 ! \brief Processes a given stack.
@@ -283,7 +310,7 @@ MODULE dbcsr_mm_sched
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
     INTEGER                                  :: sp, stacked_datasize
-    INTEGER(kind=int_8)                      :: flop
+    INTEGER(kind=int_8)                      :: flop_per_entry, total_flop
     LOGICAL                                  :: success
 
     IF(stack_fillcount <= 0) CALL mp_abort("dbcsr_mm_sched_process: got empty stack")
@@ -321,11 +348,14 @@ MODULE dbcsr_mm_sched
      ENDIF
 
      ! Submitting the stack for processing -------------------------------------
+     flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
+     total_flop = stack_fillcount * flop_per_entry
 
-     flop = 2*stack_fillcount*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
-
-     IF (mm_driver == mm_driver_cuda) THEN
-         CALL dbcsr_mm_cudadrv_process(&
+     IF (mm_driver==mm_driver_cuda .AND. &
+         flop_per_entry > cudadrv_min_flop_process .AND. &
+         (.NOT. this%avoid_cudadrv) .AND. &
+         (stack_descr%defined_mnk .OR. cudadrv_do_inhomogenous) ) THEN
+            CALL dbcsr_mm_cudadrv_process(&
                     this%cudadrv,&
                     left, right,&
                     params=stack_data,&
@@ -337,10 +367,12 @@ MODULE dbcsr_mm_sched
          IF(success) THEN
             ! update statistics
             stats_num_gpu_stacks = stats_num_gpu_stacks + 1
-            stats_gpu_flop = stats_gpu_flop + flop
+            stats_gpu_flop = stats_gpu_flop + total_flop
             CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
                      stacksize_gpu=INT(stack_fillcount,kind=int_8))
             RETURN
+         ELSE
+            this%avoid_cudadrv = cudadrv_avoid_after_busy
          ENDIF
      ENDIF
 
@@ -359,7 +391,7 @@ MODULE dbcsr_mm_sched
      IF(success) THEN
         ! update statistics
         stats_num_cpu_stacks = stats_num_cpu_stacks + 1
-        stats_cpu_flop = stats_cpu_flop + flop
+        stats_cpu_flop = stats_cpu_flop + total_flop
         CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
                  stacksize_cpu=INT(stack_fillcount,kind=int_8))
         RETURN

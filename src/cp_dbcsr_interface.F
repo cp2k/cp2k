@@ -31,6 +31,8 @@ MODULE cp_dbcsr_interface
                                              dbcsr_reserve_block2d,&
                                              dbcsr_reserve_blocks
   USE dbcsr_config,                    ONLY: &
+       cudadrv_avoid_after_busy, cudadrv_do_inhomogenous, &
+       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nbuffers, &
@@ -40,7 +42,7 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nbuffers, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, has_mpi, mm_driver_blas, &
+       dbcsr_set_conf_use_comm_thread, has_cuda, has_mpi, mm_driver_blas, &
        mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
        mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
@@ -463,6 +465,16 @@ CONTAINS
          "use_comm_thread", l_val=use_comm_thread, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "comm_thread_load", i_val=comm_thread_load, error=error)
+
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%min_flop_process", i_val=cudadrv_min_flop_process, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%min_flop_sort", i_val=cudadrv_min_flop_sort, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%process_inhomogenous", l_val=cudadrv_do_inhomogenous, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%avoid_after_busy", l_val=cudadrv_avoid_after_busy, error=error)
+
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
@@ -475,6 +487,9 @@ CONTAINS
     CALL dbcsr_set_conf_nbuffers(n_stack_buffers, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
+    
+    
+    
     CALL dbcsr_error_stop (error_handle, dbcsr_error)
   END SUBROUTINE cp_dbcsr_config
 
@@ -571,6 +586,17 @@ CONTAINS
             plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len),&
             plabel, "Use Communication thread",  use_comm_thread_str(1:info_len),&
             plabel, "Communication thread load", comm_thread_load_str(1:info_len)
+
+       IF (has_cuda) THEN
+            WRITE(UNIT=unit_num, FMT='(X,A,T80,L)'),&
+             "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
+            WRITE(UNIT=unit_num, FMT='(X,A,T80,L)'),&
+             "DBCSR| CUDA: Process inhomogenous stacks", cudadrv_do_inhomogenous
+            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+             "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
+            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+             "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
+       END IF
     ENDIF
 
   END SUBROUTINE cp_dbcsr_print_config

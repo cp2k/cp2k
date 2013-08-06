@@ -72,6 +72,8 @@ MODULE dbcsr_config
   !
   PUBLIC :: is_initialized
 
+  PUBLIC :: cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
+            cudadrv_min_flop_sort, cudadrv_do_inhomogenous
 
   ! First the constants are declared.
 
@@ -156,6 +158,10 @@ MODULE dbcsr_config
 
   LOGICAL, SAVE :: is_initialized = .FALSE.
 
+  LOGICAL, SAVE :: cudadrv_avoid_after_busy = .FALSE.
+  INTEGER, SAVE :: cudadrv_min_flop_process = 0
+  INTEGER, SAVE :: cudadrv_min_flop_sort = HUGE(1)
+  LOGICAL, SAVE :: cudadrv_do_inhomogenous = .TRUE.
 
 CONTAINS
 
