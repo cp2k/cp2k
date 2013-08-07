@@ -167,8 +167,8 @@ MODULE dbcsr_config
   INTEGER, SAVE :: cudadrv_min_flop_sort = 4000
   LOGICAL, SAVE :: cudadrv_do_inhomogenous = .TRUE.
 
-  INTEGER, SAVE :: cudadrv_binning_nbins = 200
-  INTEGER, SAVE :: cudadrv_binning_binsize = 100
+  INTEGER, SAVE :: cudadrv_binning_nbins = 4096
+  INTEGER, SAVE :: cudadrv_binning_binsize = 16
 CONTAINS
 
   SUBROUTINE dbcsr_set_conf_mm_driver (driver, error)

@@ -54,7 +54,7 @@ MODULE dbcsr_mm_cudadrv
                                              dbcsr_data_new,&
                                              dbcsr_data_release
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: default_string_length
+  USE dbcsr_kinds,                     ONLY: default_string_length, int_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                              dbcsr_memtype_setup
   USE dbcsr_message_passing,           ONLY: mp_abort
@@ -306,7 +306,8 @@ MODULE dbcsr_mm_cudadrv
      top = 1
      DO i=1,stack_size
         val(:) = params_in(:,i)
-        bin_id = MOD(val(6), cudadrv_binning_nbins) + 1
+        bin_id = 1 + MODULO(INT(val(6)*(val(6)+3),KIND=int_8), &
+                            INT(cudadrv_binning_nbins,KIND=int_8))
         IF(bin_top(bin_id) > cudadrv_binning_binsize) THEN
            params_out(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
            top = top + bin_top(bin_id) - 1
