@@ -49,6 +49,7 @@ MODULE dbcsr_mm_sched
                                              p_m,&
                                              p_n,&
                                              stack_descriptor_type
+  USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
 
@@ -130,6 +131,7 @@ MODULE dbcsr_mm_sched
       POINTER, SAVE                          :: handover
     INTEGER(kind=int_8), SAVE :: stats_cpu_flop_sum, stats_gpu_flop_sum, &
       stats_num_cpu_stacks_sum, stats_num_gpu_stacks_sum
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx, sort_key
     REAL                                     :: percent
 
    nthreads = 1; ithread = 0
@@ -180,10 +182,17 @@ MODULE dbcsr_mm_sched
       WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " mutmuls inhomo. stacks",&
          stats_num_mnk_stacks(1,4:5), percent
 
-      DO i=2, SIZE(stats_num_mnk_stacks, 1)
-       percent = 100*REAL(stats_num_mnk_stacks(i,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(i,4:5))))
+      !sorting stat entries by flops per multiplication
+      ALLOCATE(sort_key(SIZE(stats_num_mnk_stacks,1)-1))
+      sort_key = 2*PRODUCT(stats_num_mnk_stacks(2:,1:3), DIM=2)
+      ALLOCATE(sort_idx(SIZE(sort_key)))
+      CALL sort(sort_key, SIZE(sort_key), sort_idx)
+
+      DO i=1, SIZE(sort_idx)
+       j = sort_idx(i)+1
+       percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(j,4:5))))
        WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,X,I20,T76,F5.1)") &
-         " matmuls",stats_num_mnk_stacks(i,:), percent
+         " matmuls",stats_num_mnk_stacks(j,:), percent
       END DO
 
       percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(1,SUM(stats_num_mnk_stacks(:,4:5))))
