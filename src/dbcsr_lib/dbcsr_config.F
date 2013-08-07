@@ -162,9 +162,9 @@ MODULE dbcsr_config
 
   LOGICAL, SAVE :: is_initialized = .FALSE.
 
-  LOGICAL, SAVE :: cudadrv_avoid_after_busy = .FALSE.
+  LOGICAL, SAVE :: cudadrv_avoid_after_busy = .TRUE.
   INTEGER, SAVE :: cudadrv_min_flop_process = 0
-  INTEGER, SAVE :: cudadrv_min_flop_sort = HUGE(1)
+  INTEGER, SAVE :: cudadrv_min_flop_sort = 4000
   LOGICAL, SAVE :: cudadrv_do_inhomogenous = .TRUE.
 
   INTEGER, SAVE :: cudadrv_binning_nbins = 200
