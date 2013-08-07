@@ -9,14 +9,10 @@
 
 #include "dbcsr_cuda.h"
 
-static cudaStream_t *streams = 0;
-static int nStreams = 0;
 
 struct cudaDeviceProp devProperties;
 #pragma omp threadprivate(devProperties)
 
-
-//static const int verbose_print = 0;
 
 int cuda_error_check (cudaError_t cudaError){
   if (cudaError != cudaSuccess){
@@ -74,4 +70,13 @@ dc_get_ndevices_cu (int *n_devices)
   return 0;
 }
 
+extern "C" int dc_set_shared_mem_config(int config){
+  if(config==0)
+      return cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeDefault);
+  if(config==1)
+      return cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeFourByte);
+  if(config==2)
+      return cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+  return(-1);
+}
 

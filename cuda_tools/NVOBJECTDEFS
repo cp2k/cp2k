@@ -15,12 +15,6 @@ dbcsr_cuda_stream_cu.o \
 ma_cuda_prop.o \
 stack_mm_c.o \
 stack_mm_d.o \
-stack_mm_mnk_d.o \
-stack_mm_mnk_sq13_d.o \
-stack_mm_mnk_sq23_d.o \
-stack_mm_mnk_sq23_d_slow.o \
-stack_mm_mnk_sq5_d.o \
-stack_mm_mnk_sq8_d.o \
 stack_mm_r.o \
 stack_mm_z.o
 

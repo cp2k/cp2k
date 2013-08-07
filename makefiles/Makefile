@@ -50,8 +50,6 @@ LIB3_OBJECTDEFS      = $(SRCDIR)/fft_lib/OBJECTDEFS
 LIB4_OBJECTDEFS      = $(SRCDIR)/arch_lib/OBJECTDEFS
 LIB5_OBJECTDEFS      = $(SRCDIR)/elpa_lib/OBJECTDEFS
 LIBNVOBJECTDEFS      = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
-DBCSR_KERNELS_OBJDEFS = $(CP2KHOME)/cuda_tools/DBCSR_KERNELS_OBJDEFS
-DBCSR_KERNELS_DEPENDENCIES = $(CP2KHOME)/cuda_tools/DBCSR_KERNELS_DEPENDENCIES
 LIBMA_OBJECTDEFS     = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
 LIBMA_DEPENDENCIES   = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
@@ -99,13 +97,12 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool\
-         dbcsr_test dbcsr_perf mrproper plumed          
+         dbcsr_test dbcsr_perf mrproper plumed libcusmm
 
 ### Master rules ###
-build: dirs deptool
+build: dirs deptool libcusmm
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
-	+cp $(DBCSR_KERNELS_DEPENDENCIES) $(OBJDIR)/$(VERSION)/dbcsr_kernels.dep
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
@@ -178,7 +175,6 @@ include $(LIB5_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
-include $(DBCSR_KERNELS_OBJDEFS)
 include $(LIBMA_OBJECTDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
@@ -187,6 +183,7 @@ FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
 # Cuda specific instructions
 ifneq ($(NVCC),)
   LIBNV_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_cuda.a
+  LIBCUSMM_ARCHIVE = $(LIBDIR)/$(VERSION)/libcusmm.a
 endif
 
 # HWTOPO
@@ -214,7 +211,7 @@ endif
 
 
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIB5_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) 
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIB5_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBCUSMM_ARCHIVE)
 ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
 
 #
@@ -369,6 +366,14 @@ ifneq ($(NVCC),)
 	$(AR) $(LIBNV_ARCHIVE) $?
 endif
 
+# libcusmm stuff
+ifneq ($(NVCC),)
+  libcusmm:
+	cd  $(CP2KHOME)/cuda_tools/libcusmm; ./generate.py $(LIBCUSMM_FLAGS)
+	$(MAKE) -C $(CP2KHOME)/cuda_tools/libcusmm/build/ AR="$(AR)" NVCC="$(NVCC)" NVFLAGS="$(NVFLAGS)"
+	cp -p $(CP2KHOME)/cuda_tools/libcusmm/build/libcusmm.a $(LIBCUSMM_ARCHIVE)
+endif
+
 ifneq ($(HWTOPO),)
   $(LIBMA_ARCHIVE): $(LIBMA_OBJECTS)
 	$(AR) $(LIBMA_ARCHIVE) $?
@@ -505,6 +510,7 @@ realclean: clean
 	-rm -f $(LIB4_ARCHIVE)
 	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
+	-rm -rf $(CP2KHOME)/cuda_tools/libcusmm/build
 
 #
 # remove plumed objectfiles

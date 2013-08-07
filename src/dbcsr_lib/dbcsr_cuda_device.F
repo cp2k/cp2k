@@ -28,8 +28,15 @@ MODULE dbcsr_cuda_device
   LOGICAL, PARAMETER :: careful_mod = .TRUE.
 
 
-  PUBLIC :: dbcsr_cuda_device_sync
 
+  PUBLIC :: dbcsr_cuda_device_sync, dbcsr_cuda_set_shared_mem_config
+
+  PUBLIC :: cudaSharedMemBankSizeDefault, cudaSharedMemBankSizeFourByte, &
+            cudaSharedMemBankSizeEightByte
+
+INTEGER, PARAMETER :: cudaSharedMemBankSizeDefault   = 0
+INTEGER, PARAMETER :: cudaSharedMemBankSizeFourByte  = 1
+INTEGER, PARAMETER :: cudaSharedMemBankSizeEightByte = 2
 
 #if defined (__DBCSR_CUDA)
   INTERFACE
@@ -38,6 +45,17 @@ MODULE dbcsr_cuda_device
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_device_sync_cu
+  END INTERFACE
+
+
+  INTERFACE
+     FUNCTION cuda_set_shared_mem_config(config) RESULT (istat) &
+       BIND(C, name="dc_set_shared_mem_config")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: config
+    INTEGER(KIND=C_INT)                      :: istat
+
+     END FUNCTION cuda_set_shared_mem_config
   END INTERFACE
 
 #endif
@@ -71,5 +89,20 @@ CONTAINS
   END SUBROUTINE dbcsr_cuda_device_sync
 
 
+! *****************************************************************************
+! \brief Fortran wrapper for cudaDeviceSetSharedMemConfig.
+! *****************************************************************************
+  SUBROUTINE dbcsr_cuda_set_shared_mem_config(config, error)
+    INTEGER, INTENT(IN) :: config
+    TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL  :: error
+    INTEGER                                  :: istat
+
+#if defined (__DBCSR_CUDA)
+    istat = cuda_set_shared_mem_config(config)
+#else
+    istat = -1
+#endif
+    IF (istat /= 0) STOP "dbcsr_cuda_set_shared_mem_config: failed"
+  END SUBROUTINE dbcsr_cuda_set_shared_mem_config
 
 END MODULE dbcsr_cuda_device

@@ -26,6 +26,8 @@ MODULE dbcsr_mm_cudadrv
                                              cudadrv_min_flop_sort,&
                                              dbcsr_get_conf_nbuffers,&
                                              mm_stack_size
+  USE dbcsr_cuda_device,               ONLY: cudaSharedMemBankSizeEightByte,&
+                                             dbcsr_cuda_set_shared_mem_config
   USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
                                              dbcsr_cuda_devmem_allocated,&
                                              dbcsr_cuda_devmem_deallocate,&
@@ -192,6 +194,7 @@ MODULE dbcsr_mm_cudadrv
        END DO
     END IF
 
+    CALL dbcsr_cuda_set_shared_mem_config(cudaSharedMemBankSizeEightByte)
 
     ! Setup things for this particular multipcation
     !------------------------------------------------------------------------

@@ -18,16 +18,8 @@ dbcsr_cuda_event_cu.o : dbcsr_cuda_event_cu.cu dbcsr_cuda.h
 
 ma_cuda_prop.o : ma_cuda_prop.cu
 
-
-stack_mm_mnk_sq13_d.o       : dbcsr_kernel.h  stack_mm_mnk_sq13_d.h       stack_mm_mnk_sq13_d.cu
-stack_mm_mnk_sq23_d.o       : dbcsr_kernel.h  stack_mm_mnk_sq23_d.h       stack_mm_mnk_sq23_d.cu
-stack_mm_mnk_sq23_d_slow.o  : dbcsr_kernel.h  stack_mm_mnk_sq23_d_slow.h  stack_mm_mnk_sq23_d_slow.cu
-stack_mm_mnk_sq5_d.o        : dbcsr_kernel.h  stack_mm_mnk_sq5_d.h        stack_mm_mnk_sq5_d.cu
-stack_mm_mnk_sq8_d.o        : dbcsr_kernel.h  stack_mm_mnk_sq8_d.h        stack_mm_mnk_sq8_d.cu
 stack_mm_r.o                : dbcsr_kernel.h  stack_mm_r.h                stack_mm_r.cu
 stack_mm_z.o                : dbcsr_kernel.h  stack_mm_z.h                stack_mm_z.cu
 stack_mm_c.o                : dbcsr_kernel.h  stack_mm_c.h                stack_mm_c.cu
 stack_mm_d.o                : dbcsr_kernel.h  stack_mm_d.h                stack_mm_d.cu
-stack_mm_mnk_d.o            : dbcsr_kernel.h  stack_mm_mnk_d.h            stack_mm_mnk_d.cu
-
 
