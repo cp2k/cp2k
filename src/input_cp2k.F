@@ -949,43 +949,45 @@ CONTAINS
          error=error)
 
     CALL keyword_create(keyword, name="avoid_after_busy",&
-         description="While flushing the stacks, do not use the cuda-driver "&
-         //" for processing after it has signaled congestion. "&
-         //" The driver is used again for the next round of flusing.",&
+         description="If enabled, stacks are not processed by the cuda-driver "&
+         //"after it has signaled congestion during a round of flushing. "&
+         //"For the next round of flusing the driver is used again.",&
          default_l_val=cudadrv_avoid_after_busy,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="min_flop_process",&
-         description="Only process stacks with a at least the given number of "&
+         description="Only process stacks with more than the given number of "&
          //"floating-point operations per stack-entry (2*m*n*k).",&
          default_i_val=cudadrv_min_flop_process,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="min_flop_sort",&
-         description="Only sort stacks with a at least the given number of "&
+         description="Only sort stacks with more than the given number of "&
          //"floating-point operations per stack-entry (2*m*n*k). "&
-         //"Alternatively the stacks are roughly ordered through a "&
+         //"Alternatively, the stacks are roughly ordered through a "&
          //"binning-scheme by Peter Messmer.",&
          default_i_val=cudadrv_min_flop_sort,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="process_inhomogenous",&
-         description="Controlls if inhomogenous stacks are processed by the cuda driver.",&
+         description="If enabled, inhomogenous stacks are also processed by the cuda driver.",&
          default_l_val=cudadrv_do_inhomogenous,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="binning_nbins",&
-         description="Number of bins when binning the stacks.",&
+         description="Number of bins used when ordering "&
+         //"the stacks with the binning-scheme.",&
          default_i_val=cudadrv_binning_nbins,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="binning_binsize",&
-         description="Size of bins used when binning the stacks.",&
+         description="Size of bins used when ordering "&
+         //"the stacks with the binning-scheme.",&
          default_i_val=cudadrv_binning_binsize,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
