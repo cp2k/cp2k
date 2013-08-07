@@ -116,7 +116,6 @@ MODULE dbcsr_config
   LOGICAL, PARAMETER :: has_MPI = .TRUE.
 #else
   LOGICAL, PARAMETER :: has_MPI = .FALSE.
-
 #endif
 
   LOGICAL, PARAMETER :: has_omp_2_5 = .TRUE.
@@ -135,7 +134,11 @@ MODULE dbcsr_config
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
   ! Which driver to use for matrix multiplications.
+#if defined (__DBCSR_CUDA)
+  INTEGER, SAVE :: mm_driver = mm_driver_cuda
+#else
   INTEGER, SAVE :: mm_driver = mm_driver_smm
+#endif
 
   ! Which driver to use for matrix multiplications (on the host).
   INTEGER, SAVE :: mm_host_driver = mm_driver_smm
@@ -145,13 +148,13 @@ MODULE dbcsr_config
 
   ! Stack size to use for multiplication parameters
   INTEGER, SAVE :: mm_stack_size = 1000
-  
+
   ! Number of stacks to use
   INTEGER, SAVE :: nm_stacks = 0
   INTEGER, SAVE :: nn_stacks = 0
   INTEGER, SAVE :: nk_stacks = 0
   INTEGER, SAVE :: nstackbuffers = 1
-  
+
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
   INTEGER, SAVE :: comm_thread_load = 100
