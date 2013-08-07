@@ -73,7 +73,8 @@ MODULE dbcsr_config
   PUBLIC :: is_initialized
 
   PUBLIC :: cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
-            cudadrv_min_flop_sort, cudadrv_do_inhomogenous
+            cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
+            cudadrv_binning_nbins, cudadrv_binning_binsize
 
   ! First the constants are declared.
 
@@ -166,6 +167,8 @@ MODULE dbcsr_config
   INTEGER, SAVE :: cudadrv_min_flop_sort = HUGE(1)
   LOGICAL, SAVE :: cudadrv_do_inhomogenous = .TRUE.
 
+  INTEGER, SAVE :: cudadrv_binning_nbins = 200
+  INTEGER, SAVE :: cudadrv_binning_binsize = 100
 CONTAINS
 
   SUBROUTINE dbcsr_set_conf_mm_driver (driver, error)

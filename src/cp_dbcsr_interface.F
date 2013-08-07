@@ -31,7 +31,8 @@ MODULE cp_dbcsr_interface
                                              dbcsr_reserve_block2d,&
                                              dbcsr_reserve_blocks
   USE dbcsr_config,                    ONLY: &
-       cudadrv_avoid_after_busy, cudadrv_do_inhomogenous, &
+       cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
+       cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
        cudadrv_min_flop_process, cudadrv_min_flop_sort, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
@@ -474,6 +475,10 @@ CONTAINS
          "CUDA%process_inhomogenous", l_val=cudadrv_do_inhomogenous, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "CUDA%avoid_after_busy", l_val=cudadrv_avoid_after_busy, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%binning_nbins", i_val=cudadrv_binning_nbins, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%binning_binsize", i_val=cudadrv_binning_binsize, error=error)
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
@@ -487,9 +492,7 @@ CONTAINS
     CALL dbcsr_set_conf_nbuffers(n_stack_buffers, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
-    
-    
-    
+
     CALL dbcsr_error_stop (error_handle, dbcsr_error)
   END SUBROUTINE cp_dbcsr_config
 
@@ -596,6 +599,10 @@ CONTAINS
              "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
             WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
              "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
+            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+             "DBCSR| CUDA: Number of binning bins", cudadrv_binning_nbins
+            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+             "DBCSR| CUDA: Size of binning bins", cudadrv_binning_binsize
        END IF
     ENDIF
 

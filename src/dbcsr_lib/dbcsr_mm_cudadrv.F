@@ -21,7 +21,9 @@
 MODULE dbcsr_mm_cudadrv
   USE ISO_C_BINDING
   USE dbcsr_block_operations,          ONLY: block_add
-  USE dbcsr_config,                    ONLY: cudadrv_min_flop_sort,&
+  USE dbcsr_config,                    ONLY: cudadrv_binning_binsize,&
+                                             cudadrv_binning_nbins,&
+                                             cudadrv_min_flop_sort,&
                                              dbcsr_get_conf_nbuffers,&
                                              mm_stack_size
   USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
@@ -253,6 +255,71 @@ MODULE dbcsr_mm_cudadrv
   END SUBROUTINE dbcsr_mm_cudadrv_finalize
 
 
+! *****************************************************************************
+! \brief Sort stack entries with respect to the c_id.
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stack_sort(params_in, params_out, stack_size)
+    INTEGER, INTENT(IN)                      :: stack_size
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      stack_size), INTENT(OUT)               :: params_out
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      stack_size), INTENT(IN)                :: params_in
+
+    INTEGER                                  :: i
+    INTEGER, DIMENSION(stack_size)           :: c_sort, c_sort_ind
+
+! sort by the C-blocks
+
+     c_sort = params_in(6,:stack_size)
+     CALL sort(c_sort, stack_size, c_sort_ind)
+     DO i=1,stack_size
+        params_out(:, i) = params_in(:, c_sort_ind(i))
+     END DO
+
+  END SUBROUTINE stack_sort
+
+
+! *****************************************************************************
+! \brief Roughly order stacks with a cheaper Binning-scheme by Peter Messmer
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stack_binning(params_in, params_out, stack_size)
+    INTEGER, INTENT(IN)                      :: stack_size
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      stack_size), INTENT(OUT)               :: params_out
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      stack_size), INTENT(IN)                :: params_in
+
+    INTEGER                                  :: bin_id, i, top
+    INTEGER, &
+      DIMENSION(cudadrv_binning_nbins)       :: bin_top
+    INTEGER, DIMENSION(dbcsr_ps_width)       :: val
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      cudadrv_binning_binsize, &
+      cudadrv_binning_nbins)                 :: bin_arr
+
+     bin_top = 1
+     top = 1
+     DO i=1,stack_size
+        val(:) = params_in(:,i)
+        bin_id = MOD(val(6), cudadrv_binning_nbins) + 1
+        IF(bin_top(bin_id) > cudadrv_binning_binsize) THEN
+           params_out(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
+           top = top + bin_top(bin_id) - 1
+           bin_top(bin_id) = 1
+        ENDIF
+        bin_arr(:, bin_top(bin_id), bin_id) =  val(:)
+        bin_top(bin_id) = bin_top(bin_id) + 1
+     END DO
+     DO i=1,cudadrv_binning_nbins
+       IF(bin_top(i) > 1) THEN
+          params_out(:, top:top+bin_top(i)-2) = bin_arr(:, 1:bin_top(i)-1, i)
+          top = top + bin_top(i)-1
+       ENDIF
+     END DO
+
+  END SUBROUTINE  stack_binning
 
 ! *****************************************************************************
 ! \brief Processes a given stack using CUDA
@@ -272,16 +339,10 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_process', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: bin_size = 100, n_bins = 200
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
-    INTEGER :: bin_id, error_handle, error_handle2, flop_per_entry, i, &
-      next_stack_buffer_idx, stacked_datasize, top
-    INTEGER, DIMENSION(dbcsr_ps_width)       :: val
-    INTEGER, DIMENSION(dbcsr_ps_width, &
-      bin_size, n_bins)                      :: bin_arr
-    INTEGER, DIMENSION(stack_size)           :: c_sort, c_sort_ind
-    INTEGER, DIMENSION(n_bins)               :: bin_top
+    INTEGER :: error_handle, error_handle2, flop_per_entry, &
+      next_stack_buffer_idx, stacked_datasize
     TYPE(dbcsr_data_area_type), POINTER      :: a_area, b_area, c_area
     TYPE(stack_buffer_type), POINTER         :: stackbuf
 
@@ -309,35 +370,9 @@ MODULE dbcsr_mm_cudadrv
     flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
     IF(flop_per_entry > cudadrv_min_flop_sort) THEN
-       ! sort by the C-blocks
-       c_sort = params(6,:stack_size)
-       CALL sort(c_sort, stack_size, c_sort_ind)
-       DO i=1,stack_size
-          stackbuf%hostmem(:, i)=params(:, c_sort_ind(i))
-       END DO
-
+       CALL stack_sort(params, stackbuf%hostmem, stack_size)
     ELSE
-       ! this is a cheaper Binning-scheme by Peter Messmer
-       bin_top = 1
-       top = 1
-       DO i=1,stack_size
-          val(:) = params(:,i)
-          bin_id = MOD(val(6), n_bins) + 1
-          IF(bin_top(bin_id) > bin_size) THEN
-             stackbuf%hostmem(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
-             top = top + bin_top(bin_id) - 1
-             bin_top(bin_id) = 1
-          ENDIF
-          bin_arr(:, bin_top(bin_id), bin_id) =  val(:)
-          bin_top(bin_id) = bin_top(bin_id) + 1
-       END DO
-       DO i=1,n_bins
-         IF(bin_top(i) > 1) THEN
-            stackbuf%hostmem(:, top:top+bin_top(i)-2) = bin_arr(:, 1:bin_top(i)-1, i)
-            top = top + bin_top(i)-1
-         ENDIF
-       END DO
-
+       CALL stack_binning(params, stackbuf%hostmem, stack_size)
     ENDIF
 
     IF (careful_mod) CALL dbcsr_error_stop (error_handle2, error)

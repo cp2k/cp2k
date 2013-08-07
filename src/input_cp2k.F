@@ -21,7 +21,8 @@ MODULE input_cp2k
                                              cp_unit_set_release,&
                                              cp_unit_set_type
   USE dbcsr_config,                    ONLY: &
-       cudadrv_avoid_after_busy, cudadrv_do_inhomogenous, &
+       cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
+       cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
        cudadrv_min_flop_process, cudadrv_min_flop_sort, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
@@ -974,6 +975,18 @@ CONTAINS
     CALL keyword_create(keyword, name="process_inhomogenous",&
          description="Controlls if inhomogenous stacks are processed by the cuda driver.",&
          default_l_val=cudadrv_do_inhomogenous,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="binning_nbins",&
+         description="Number of bins when binning the stacks.",&
+         default_i_val=cudadrv_binning_nbins,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="binning_binsize",&
+         description="Size of bins used when binning the stacks.",&
+         default_i_val=cudadrv_binning_binsize,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
