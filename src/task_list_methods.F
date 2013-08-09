@@ -2237,7 +2237,8 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
 !$omp          shared(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$omp          shared(recv_sizes,recv_disps,recv_pair_count,locks), &
 !$omp          private(i,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
-!$omp          private(nthread,h_block,error,nthread_left)
+!$omp          private(nthread,h_block,error,nthread_left),&
+!$omp          private(stat)
 
   nthread = 1
 !$ nthread = omp_get_num_threads()
@@ -2274,16 +2275,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
   ENDDO
 !$omp end do
 
-!$omp master
-  ! do communication
-  CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
-       recv_buf_r, recv_sizes, recv_disps, desc % group)
-!$omp end master
-
-  ! If this is a scatter, then no need to copy local blocks,
-  ! If not, we sum them directly into H (bypassing the alltoall)
   IF (.NOT. scatter) THEN
-
   ! We need locks to protect concurrent summation into H
 !$omp single
 !$  ALLOCATE (locks(nthread*10))
@@ -2293,7 +2285,18 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
 !$  do i=1,nthread*10
 !$    call omp_init_lock(locks(i))
 !$  end do
-!$omp end do
+!$omp end do 
+  END IF
+
+!$omp master
+  ! do communication
+  CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
+       recv_buf_r, recv_sizes, recv_disps, desc % group)
+!$omp end master
+
+  ! If this is a scatter, then no need to copy local blocks,
+  ! If not, we sum them directly into H (bypassing the alltoall)
+  IF (.NOT. scatter) THEN
 
   ! Distribute work over remaining threads assuming one is still in the alltoall
 !$omp do schedule(dynamic,MAX(1,send_pair_count(me)/nthread_left))
@@ -2378,16 +2381,18 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
 !$omp end do
 !$ END IF
 
+!$omp single
+!$ IF (.not.scatter) THEN
+!$  DEALLOCATE (locks,STAT=stat)
+!$  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"locks")
+!$ END IF
+!$omp end single nowait
+
   IF (scatter) THEN
     ! Blocks were added to P
     CALL cp_dbcsr_finalize(pmat, error=error)
   END IF
 !$omp end parallel
-
-!$ IF (.not.scatter) THEN
-!$  DEALLOCATE (locks,STAT=stat)
-!$  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"locks")
-!$ END IF
 
   DEALLOCATE (send_buf_r,STAT=stat)
   IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"send_buf_r")
