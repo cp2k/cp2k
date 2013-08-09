@@ -1,0 +1,215 @@
+.\" Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Arthur de Jong
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.TH "svn2cl" "1" "Oct 2010" "Version 0.13" "User Commands"
+.nh
+.SH "NAME"
+svn2cl - Create a ChangeLog from a subversion log.
+.SH "SYNOPSIS"
+.B svn2cl
+.RI [ OPTION ]...
+.RI [ PATH ]...
+
+.SH "DESCRIPTION"
+\fBsvn2cl\fP generates a classic GNU-style ChangeLog from the log messages in a subversion repository.
+It acts as a wrapper around the '\fBsvn log\fP' command, parsing the XML output with an XSLT stylesheet.
+Alternatively it can generate HTML output intended for use with the \fBsvn2html.css\fP style sheet that comes with \fBsvn2cl\fP.
+
+In addition to its own options, it accepts and passes along most svn log options; see '\fBsvn help log\fP' for a list of those and their documentation.
+If PATH is not given, \fBsvn2cl\fP will run svn log on the current directory, so it should do the right thing when run from the top of a subversion checkout of the project.
+
+.TP
+\fB\-\-strip\-prefix\fR=\fINAME\fR
+Strip \fINAME\fR from the first part of all file names (e.g. project/trunk).
+By defaults the current path inside the repository is stripped.
+
+.TP
+\fB\-\-linelen\fR=\fINUM\fR
+Wrap lines at \fINUM\fR characters.
+By default, lines are wrapped at 75 characters.
+This option is ignored when the \-\-html option is specified.
+
+.TP
+\fB\-\-group\-by\-day\fR
+This option causes all commit messages to be grouped by day, as long as all the changes are by the same author.
+By default each message is listed separately with its own timestamp.
+
+.TP
+\fB\-\-separate\-daylogs\fR
+Include a blank line between log entries when they are grouped by day.
+Only useful with the \fB\-\-group\-by\-day\fR option.
+This option is ignored when the \-\-html option is specified, edit \fBsvn2html.css\fP to tune the layout.
+
+.TP
+\fB\-i\fR, \fB\-\-include\-rev\fR
+Include the subversion revision number in the ChangeLog.
+If the \-\-html option is specified this is implied, edit \fBsvn2html.css\fP to turn it off.
+
+.TP
+\fB\-a\fR, \fB\-\-include\-actions\fR
+Add action labels [ADD], [DEL] and [CPY] tags to files to show the operation
+that is performned on the files.
+
+.TP
+\fB\-\-break\-before\-msg\fR[=\fINUM\fR]
+Add a line break (or multiple line breadks) between the paths and the log message.
+If the \-\-html option is specified this option is ignored, edit \fBsvn2html.css\fP to set spacing.
+
+.TP
+\fB\-\-reparagraph\fR
+Newlines inside paragraphs are ignored and paragraphs are re-wrapped.
+Paragraphs are separated by empty lines.
+
+.TP
+\fB\-\-title\fR=\fINAME\fR
+If outputting an HTML file the \fINAME\fR is used as the title.
+This option is ignored for normal text output.
+
+.TP
+\fB\-\-revision\-link\fR=\fINAME\fR
+This option is used to generate links from the revision numbers in the generated HTML file.
+If \fINAME\fR contains two hashes '\fB##\fP' that part will be replaced by the revision number, otherwise the revision number will be appended to \fINAME\fR.
+Only the first occurrence of '\fB##\fP' will be replaced.
+.br
+This option is ignored for normal text output.
+
+.TP
+\fB\-\-ticket\-link\fR=\fINAME\fR
+This option is used to generate links from references to tickets within the commit message in the generated HTML file.
+Anything that looks like a ticket reference (e.g. '\fB#foo\fP') will be replaced with a link to NAME with the ticket part ('\fBfoo\fP' in the example) appended.
+.br
+This option is ignored for normal text output.
+
+.TP
+\fB\-\-ignore\-message\-starting\fR=\fISTRING\fR
+Any log messages that start with the specified \fISTRING\fR are ignored and will not show up in the output.
+The STRING comparison is case sensitive.
+
+.TP
+\fB\-o\fR, \fB\-f\fR, \fB\-\-output\fR=\fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
+Output ChangeLog to \fIFILE\fR instead of the default \fBChangeLog\fP (or \fBChangeLog.html\fP for HTML output).
+
+.TP
+\fB\-\-stdout\fR
+Output ChangeLog to stdout instead of to a file.
+
+.TP
+\fB\-\-authors\fR=\fIFILE\fR
+The \fIFILE\fR is used to map author names as exported by svn to full names.
+See the section on AUTHORS FILES below for more information.
+.br
+Note that the \-\-authors option can have poor performance in some cases.
+
+.TP
+\fB\-\-html\fR
+Generate an HTML file containing a ChangeLog instead of the default text ChangeLog file.
+This feature is still experimental.
+The \fBsvn2html.css\fP file that is included in the distribution can be used to format the HTML.
+
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Show short summary of options.
+
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Show version of program.
+
+.PP
+Optional PATH arguments and the following options are passed directly to the '\fBsvn \-\-xml log\fP' command:
+\fB\-r\fR, \fB\-\-revision\fR, \fB\-\-targets\fR, \fB\-\-stop\-on\-copy\fR, \fB\-\-username\fR, \fB\-\-password\fR, \fB\-\-no\-auth\-cache\fR, \fB\-\-non\-interactive\fR, \fB\-\-config\-dir\fR and \fB\-\-limit\fR.
+.br
+See '\fBsvn help log\fP' for more information on these options.
+
+.SH "AUTHORS FILES"
+
+An authors file is basically an XML file that should look something like:
+.ft B
+    <?xml version="1.0" encoding="utf\-8"?>
+    <authors>
+      <author uid="arthur">
+        Arthur de Jong &lt;arthur@arthurdejong.org&gt;
+      </author>
+    </authors>
+.ft R
+.br
+svn2cl searches for <author> tags with the specified uid attribute.
+The content from the author tag is substituted for the author name.
+
+The <author> tag may also contain XML child tags which can be useful for embedding HTML into the result.
+For this to work namespace information should be included for HTML output:
+.ft B
+    <?xml version="1.0" encoding="utf\-8"?>
+    <authors xmlns:html="http://www.w3.org/1999/xhtml">
+      <author uid="arthur">
+        Arthur de Jong &lt;<html:b>arthur@arthurdejong.org</html:b>&gt;
+      </author>
+    </authors>
+.ft R
+.br
+The svn2cl distribution contains a sample authors.xml file.
+
+As a bonus a plain text authors file that looks like the following is automatically converted to the XML representation:
+.ft B
+    arthur:Arthur de Jong <arthur@arthurdejong.org>
+.ft R
+
+.SH "NOTES"
+
+Note that the default revison range for \fBsvn log\fP is BASE:1.
+This means that \fBsvn2cl\fP will not always include the most recent revisons
+of the repository. Either run '\fBsvn update\fP' before running \fBsvn2cl\fP
+or pass '\fB\-r HEAD:1\fP'.
+
+.SH "EXAMPLES"
+
+Run svn log recursively on the current directory and generate a text ChangeLog file in the current directory for the entire log history:
+.ft B
+    svn2cl
+.ft R
+
+Output the changes from the last week, while including revision numbers in the ChangeLog:
+.ft B
+    svn2cl \-i \-r "HEAD:{`date \-d '7 days ago' '+%F %T'`}"
+.ft R
+.br
+(actually subversion will include the first revision before the specified period)
+
+Generate an HTML changelog for svn://svn.example.com/project/trunk, removing "project/trunk" from the file names in the changelog.
+Group all commits per day into one ChangeLog entry and only include changes from 2005:
+.ft B
+    svn2cl \-\-html \-\-strip\-prefix=project/trunk \-\-group\-by\-day \e
+           \-r '{2006\-01\-01}:{2005\-01\-01}' \e
+           svn://svn.example.com/project/trunk
+.ft R
+
+.SH "SEE ALSO"
+.BR '\fBsvn\ help\ log\fP'
+
+.SH "COPYRIGHT"
+Copyright \(co 2005, 2006, 2007, 2008, 2009, 2010 Arthur de Jong <arthur@arthurdejong.org>.
+.br
+This is free software; see the license for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

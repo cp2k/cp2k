@@ -1,0 +1,642 @@
+2010-08-13 09:39  arthur
+
+	* [r145] svn2cl.sh: also pass -g, --use-merge-history, -c,
+	  --change, -l, --trust-server-cert and --config-option to svn
+	  commands
+
+2010-08-13 08:07  arthur
+
+	* [r144] README: direct bugreports to the svn2cl-users mailing list
+
+2010-08-13 07:24  arthur
+
+	* [r143] svn2cl.xsl: fix typo in comment
+
+2010-05-06 21:11  arthur
+
+	* [r142] svn2cl.sh: properly quote $0 (thanks Vincent Lefevre)
+
+2010-03-03 21:02  arthur
+
+	* [r141] ChangeLog, svn2cl.1, svn2cl.sh, svn2html.xsl: implement
+	  ticket-highlighting with a --ticket-link option, based on a patch
+	  by Neil Whitworth <NeilWhitworth@commontime.com>
+
+2010-03-03 20:55  arthur
+
+	* [r140] svn2html.xsl: switch to a mechanism to more easily perform
+	  more message log highlighting
+
+2010-03-03 19:54  arthur
+
+	* [r139] svn2html.xsl: also perform correct line-highlighing for
+	  last line
+
+2009-11-22 12:48  arthur
+
+	* [r138] svn2html.xsl: call urlstolinks on every line separately
+	  because we cannot store tags inside a variable
+
+2009-10-07 20:36  arthur
+
+	* [r136] ChangeLog, NEWS, README, svn2cl.1, svn2cl.sh, svn2cl.xsl,
+	  svn2html.xsl: get files ready for 0.12 release
+
+2009-10-07 20:31  arthur
+
+	* [r135] svn2html.css: trim trailing whitespace
+
+2009-10-07 20:18  arthur
+
+	* [r134] svn2cl.xsl, svn2html.xsl: fix line wrapping problem thanks
+	  to Peter Samuelson <peter@p12n.org>, Mike Hommey
+	  <mh@glandium.org> and others (see http://bugs.debian.org/546990)
+
+2009-06-12 22:00  arthur
+
+	* [r133] README, authors.xml, svn2cl.1, svn2html.xsl: replace
+	  references to ch.tudelft.nl with arthurdejong.org
+
+2009-02-02 21:20  arthur
+
+	* [r132] svn2cl.xsl: another simplification to get path stripping
+	  compacter
+
+2009-02-02 21:00  arthur
+
+	* [r131] svn2cl.xsl: simplification in printing path names
+
+2009-02-02 20:33  arthur
+
+	* [r130] svn2cl.xsl: correctly flag additions
+
+2009-01-13 22:27  arthur
+
+	* [r129] svn2cl.xsl, svn2html.xsl: properly get the previous
+	  sibling fixing a problem when --group-by-day and
+	  --ignore-message-starting were used
+
+2009-01-13 21:45  arthur
+
+	* [r128] svn2html.xsl: perform URL highlighting (very basic)
+
+2009-01-13 21:44  arthur
+
+	* [r127] svn2cl.sh: run svn info (not svn log) with
+	  --non-interactive and don't hide errors
+
+2008-12-21 15:41  arthur
+
+	* [r125] ChangeLog, NEWS, svn2cl.1, svn2cl.sh, svn2cl.xsl,
+	  svn2html.xsl: get files ready for 0.11 release
+
+2008-09-22 21:34  arthur
+
+	* [r124] svn2cl.sh: fix for OpenBSD's ksh by Carlo Marcelo Arenas
+	  Belon <carenas@sajinet.com.pe>
+
+2008-06-03 19:03  arthur
+
+	* [r123] svn2cl.sh: make awk command configurable
+
+2008-06-03 19:02  arthur
+
+	* [r122] svn2cl.sh: don't use GNU extensions to awk syntax
+
+2008-04-06 13:37  arthur
+
+	* [r120] ChangeLog, NEWS, README, TODO, svn2cl.1, svn2cl.sh,
+	  svn2cl.xsl, svn2html.xsl: get files ready for 0.10 release
+
+2008-04-06 13:27  arthur
+
+	* [r119] svn2cl.1: include not about default revision range that is
+	  used
+
+2008-04-06 12:25  arthur
+
+	* [r118] svn2cl.1, svn2cl.sh: make -a a short equivalent for
+	  --include-actions
+
+2008-01-02 21:55  arthur
+
+	* [r117] svn2cl.xsl, svn2html.xsl: escape the newline character
+	  reference in the entity definition of newl to perform the
+	  normalization at the right time (see
+	  http://mail-archives.apache.org/mod_mbox/xerces-c-dev/200010.mbox/%3COF274C146F.60A7FFAF-ON8525696D.0065F984@lotus.com%3E)
+
+2007-12-07 13:57  arthur
+
+	* [r116] README, svn2cl.1, svn2cl.sh: don't use backtick as quote
+	  character
+
+2007-10-09 20:00  arthur
+
+	* [r115] svn2cl.xsl: do not present file list if no files would be
+	  listed
+
+2007-09-25 20:03  arthur
+
+	* [r114] svn2cl.1, svn2cl.sh, svn2cl.xsl: add an --include-actions
+	  option that adds action labels about file additions and removals
+	  to the files in the log
+
+2007-04-08 12:47  arthur
+
+	* [r112] ChangeLog, NEWS, README, svn2cl.1, svn2cl.sh, svn2cl.xsl,
+	  svn2html.xsl: get files ready for 0.9 release
+
+2007-04-08 12:34  arthur
+
+	* [r111] svn2cl.1: unescape some hyphens that are not minus symbols
+
+2007-03-31 13:45  arthur
+
+	* [r110] svn2cl.xsl: completely ignore files that do not start with
+	  the specified prefix if --strip-prefix is specified
+
+2007-03-31 10:47  arthur
+
+	* [r109] svn2cl.1, svn2cl.sh, svn2cl.xsl, svn2html.xsl: add an
+	  option --ignore-message-starting to ignore any log messages that
+	  start with the specified string
+
+2006-10-19 19:18  arthur
+
+	* [r108] svn2cl.1: change hyphens into minus symbols (thanks
+	  lintian)
+
+2006-10-18 21:38  arthur
+
+	* [r106] NEWS: fix news
+
+2006-10-18 21:38  arthur
+
+	* [r105] ChangeLog, NEWS, README, TODO, svn2cl.1, svn2cl.sh,
+	  svn2cl.xsl, svn2html.xsl: get files ready for 0.8 release
+
+2006-10-18 21:27  arthur
+
+	* [r104] README: add note about VBScript port by Iwasa Kazmi
+
+2006-10-18 21:23  arthur
+
+	* [r103] README: add ant section based on snippet by Rob Moore
+	  <rmoore@espsg.com>
+
+2006-09-03 12:11  arthur
+
+	* [r102] svn2cl.xsl: fix another wrapping bug regarding spaces at
+	  the edge of the wrapped text
+
+2006-09-03 11:44  arthur
+
+	* [r101] svn2cl.xsl: fix bug in wrapping really long words
+
+2006-09-03 11:19  arthur
+
+	* [r100] svn2cl.sh: fix for having directories and/or repositories
+	  with spaces in them
+
+2006-08-26 13:04  arthur
+
+	* [r99] svn2cl.1, svn2cl.sh, svn2cl.xsl: accept a numeric paramter
+	  to --break-before-msg to specify the number of newlines that
+	  should be inserted
+
+2006-08-26 13:02  arthur
+
+	* [r98] svn2cl.xsl, svn2html.xsl: always include a space before />
+
+2006-08-26 10:26  arthur
+
+	* [r97] svn2html.xsl: fix note with reference to svn2cl.xsl
+
+2006-08-26 09:33  arthur
+
+	* [r96] svn2cl.xsl, svn2html.xsl: fix ENTITY definitions in
+	  DOCTYPE, fix by Iwasa Kazmi <iwasa@cosmo-system.jp>
+
+2006-08-26 09:28  arthur
+
+	* [r95] svn2cl.sh: explicitly set locale for svn info command to
+	  have predictable output, fix by Iwasa Kazmi
+	  <iwasa@cosmo-system.jp>
+
+2006-08-12 05:53  arthur
+
+	* [r94] svn2cl.sh: fix for running svn2cl.sh in a directory with a
+	  space in it, patch by Max Bane <max.bane@gmail.com>
+
+2006-07-02 21:21  arthur
+
+	* [r93] svn2cl.xsl: fix for problem when not using authors file
+
+2006-06-27 20:11  arthur
+
+	* [r92] svn2cl.sh: build the svn info command more or less the same
+	  way as the svn log command (but don't pass all the options)
+
+2006-06-27 19:56  arthur
+
+	* [r91] svn2cl.1: split authors file info to a separate section
+
+2006-06-27 19:52  arthur
+
+	* [r90] svn2cl.1: capitalize HTML, some spelling fixes and some
+	  wording changes
+
+2006-06-15 20:43  arthur
+
+	* [r89] authors.xml, svn2cl.1, svn2cl.xsl: also copy xml content
+	  from authors file (this change also seems to bring a small
+	  performance gain)
+
+2006-06-14 20:51  arthur
+
+	* [r88] svn2cl.1, svn2cl.sh, svn2html.xsl: implement
+	  --revision-link option to make the revision numbers in the html
+	  output linkable to some url
+
+2006-06-14 19:03  arthur
+
+	* [r87] svn2cl.1, svn2cl.sh, svn2html.xsl: implement --title option
+	  for setting a title in the html page, based on a patch by Matt
+	  Doar <matt@xensource.com>
+
+2006-06-06 21:44  arthur
+
+	* [r86] svn2cl.sh: also pass --nowrite, --nomkdir and --nonet
+	  options to xsltproc command
+
+2006-04-10 19:06  arthur
+
+	* [r84] ChangeLog, NEWS, README, TODO, svn2cl.1, svn2cl.sh,
+	  svn2html.xsl: get files ready for 0.7 release
+
+2006-04-10 18:47  arthur
+
+	* [r83] svn2cl.1, svn2html.xsl: make --reparagraph option also work
+	  for HTML output
+
+2006-04-09 21:33  arthur
+
+	* [r82] svn2cl.1: add --html compatibility information to
+	  --separate-daylogs and --repragraph options
+
+2006-04-09 21:24  arthur
+
+	* [r81] svn2cl.1, svn2cl.sh, svn2cl.xsl: implement
+	  --separate-daylogs option to put a newline between log entries
+	  when --group-by-day is used
+
+2006-04-09 20:41  arthur
+
+	* [r80] svn2cl.sh: fallback to old behaviour of stripping prefix if
+	  svn info does not provide the necessary info
+
+2006-04-09 20:32  arthur
+
+	* [r79] svn2cl.1, svn2cl.sh, svn2cl.xsl: implement --repragraph
+	  option that rewraps text inside paragraphs
+
+2006-04-02 21:10  arthur
+
+	* [r78] svn2cl.1: clearly state which options do not work with
+	  --html
+
+2006-04-02 20:43  arthur
+
+	* [r77] svn2cl.xsl: typo fix
+
+2006-04-02 09:08  arthur
+
+	* [r76] svn2cl.xsl, svn2html.xsl: split out group-by-day code to
+	  separate code block and reduce number of xsl:apply-templates
+	  calls
+
+2006-04-02 08:46  arthur
+
+	* [r75] svn2cl.xsl: typo author-lookup fix for r71 plus some
+	  readability improvements to code doing the author lookup
+
+2006-04-01 21:37  arthur
+
+	* [r74] svn2html.xsl: give template a more logical name
+
+2006-04-01 21:34  arthur
+
+	* [r73] svn2cl.sh: ensure that stringparam arguments are always
+	  properly quoted
+
+2006-04-01 21:31  arthur
+
+	* [r72] svn2cl.1, svn2cl.sh: svn option is called --targets (with
+	  the s) and some other small usage fixes
+
+2006-03-27 20:42  arthur
+
+	* [r71] svn2cl.xsl: use xsl:key when looking up author names in
+	  authors.xml file (idea from
+	  http://www-128.ibm.com/developerworks/library/x-xsltip.html)
+	  (improving performance around 10-20% with large logs)
+
+2006-03-24 17:33  arthur
+
+	* [r70] svn2cl.1, svn2cl.sh: determin prefix to strip from output
+	  of svn info command (using awk)
+
+2006-03-21 21:25  arthur
+
+	* [r69] svn2cl.sh: add comment and ensure that script returns 0 on
+	  successful exit
+
+2006-03-21 20:48  arthur
+
+	* [r68] svn2cl.1, svn2cl.sh: implement automatically converting
+	  authors file to xml if it is in colon separated format, based on
+	  a patch by Olivier Blin <oblin@mandriva.com>
+
+2006-03-17 16:22  arthur
+
+	* [r67] svn2html.css: reduce w3c css checker warnings and slightly
+	  improve layout, making anchors stand out a little less
+
+2006-03-17 16:19  arthur
+
+	* [r66] svn2html.xsl: made anchors and links for each revision
+	  based on a patch by Tobias Schäfer <tobiasschaefer@gmx.de>
+
+2006-02-11 15:29  arthur
+
+	* [r64] ChangeLog, NEWS, README, TODO, svn2cl.1, svn2cl.sh: get
+	  files ready for 0.6 release
+
+2006-02-11 15:17  arthur
+
+	* [r63] svn2html.xsl: include common formatting templates from
+	  svn2cl.xsl
+
+2006-02-11 15:03  arthur
+
+	* [r62] svn2cl.xsl, svn2html.xsl: use named entity references for
+	  newlines everywhere and put entity definitions in correct DOCTYPE
+
+2006-02-11 14:41  arthur
+
+	* [r61] svn2html.css: improve style of generated html a little
+
+2006-02-11 14:35  arthur
+
+	* [r60] svn2cl.xsl, svn2html.xsl: trim spaces from author names
+
+2006-02-11 14:34  arthur
+
+	* [r59] authors.xml: add sample authors.xml file
+
+2006-02-11 14:33  arthur
+
+	* [r58] svn2html.xsl: added footer to generated html report with a
+	  link to svn2cl homepage
+
+2006-02-01 21:22  arthur
+
+	* [r57] svn2cl.sh: make option removal expression consistent for
+	  all options (prevent copy-paste errors)
+
+2006-01-27 16:31  arthur
+
+	* [r56] svn2cl.1, svn2cl.sh, svn2cl.xsl: add --break-before-msg
+	  option, based on a patch by Vincent Danen <vdanen@linsec.ca>
+
+2006-01-27 15:44  arthur
+
+	* [r55] svn2cl.1: clarify comment about date period
+
+2006-01-27 15:38  arthur
+
+	* [r54] svn2cl.1: add extra example usage to generate changelog for
+	  last week (based on a patch by Bastian Kleineidam
+	  <calvin@users.sourceforge.net> to implement a --date option)
+
+2006-01-04 19:03  arthur
+
+	* [r53] svn2cl.1, svn2cl.sh, svn2cl.xsl, svn2html.xsl: include
+	  --authors option to specify an athors file that maps uids to
+	  author names
+
+2005-12-27 15:45  arthur
+
+	* [r52] svn2html.xsl: replace line breaks in log message with <br/>
+	  tags, thanks to Tobias Schäfer <tobiasschaefer@gmx.de> for the
+	  code
+
+2005-12-27 15:23  arthur
+
+	* [r51] svn2html.css: add commented out code to put change message
+	  on separate line
+
+2005-12-27 11:15  arthur
+
+	* [r50] svn2cl.xsl: strim trailing and double spaces and add &#10;
+	  as newline instead of &#13;, thanks to Tobias Schäfer
+	  <tobiasschaefer@gmx.de>
+
+2005-12-25 22:57  arthur
+
+	* [r48] NEWS, README, TODO, svn2cl.1, svn2cl.sh: get files ready
+	  for release 0.5
+
+2005-12-25 17:12  arthur
+
+	* [r47] svn2cl.sh: shell portability improvements to get it working
+	  on all tested shell/sed combinations, thanks to Jörg Sommer
+	  <joerg@alea.gnuu.de> for pointing this out
+
+2005-12-25 17:05  arthur
+
+	* [r46] NEWS: fix typo
+
+2005-12-25 17:03  arthur
+
+	* [r45] README: clarify usage information to include possibility to
+	  specify location of repository
+
+2005-12-25 14:44  arthur
+
+	* [r44] svn2cl.1: add manual page, some parts taken from manual
+	  page provided by Russ Allbery <rra@debian.org>
+
+2005-12-25 13:56  arthur
+
+	* [r43] svn2cl.xsl: preserve line breaks in log messages, trimming
+	  all trailing and beginning line breaks
+
+2005-12-25 13:10  arthur
+
+	* [r42] svn2cl.sh: clear up usage string, thanks to Tobias Schäfer
+	  <tobiasschaefer@gmx.de>
+
+2005-12-25 13:03  arthur
+
+	* [r41] NEWS, README: apply typo fixing and documentation improving
+	  patch by Tobias Schäfer <tobiasschaefer@gmx.de>
+
+2005-12-17 20:20  arthur
+
+	* [r40] svn2cl.sh: include --html option in --help output
+
+2005-12-04 21:26  arthur
+
+	* [r38] .: move directory back
+
+2005-12-04 21:26  arthur
+
+	* [r37] .: make release 0.4
+
+2005-12-04 21:23  arthur
+
+	* [r36] NEWS: add NEWS file
+
+2005-12-04 21:21  arthur
+
+	* [r35] TODO: include TODO file
+
+2005-12-04 21:09  arthur
+
+	* [r34] README, svn2cl.sh: bump version number to 0.4
+
+2005-12-04 21:00  arthur
+
+	* [r33] svn2cl.sh, svn2html.css, svn2html.xsl: add html stylesheet
+	  and css and --help option to output html
+
+2005-12-04 20:50  arthur
+
+	* [r32] svn2cl.sh: ensure that required arguments to options are
+	  specified (avoid silent failure)
+
+2005-12-04 20:30  arthur
+
+	* [r31] svn2cl.sh: implement passing options to the svn log
+	  command, rename -r option (--include-rev) to -i
+
+2005-12-04 20:27  arthur
+
+	* [r30] svn2cl.sh: handle --option=arg options as well as --option
+	  arg
+
+2005-12-04 20:25  arthur
+
+	* [r29] svn2cl.sh: implement handling of -f and --file options
+
+2005-12-03 12:55  arthur
+
+	* [r28] svn2cl.xsl: move adding colon to path list one level up
+
+2005-12-03 12:52  arthur
+
+	* [r27] svn2cl.xsl: remove TODO section (is now in a separate file)
+
+2005-12-03 12:52  arthur
+
+	* [r26] svn2cl.xsl: ensure that we have a space everywhere before
+	  />
+
+2005-12-03 12:14  arthur
+
+	* [r25] svn2cl.xsl: no need for xhtml namespace declaration
+
+2005-12-02 16:51  arthur
+
+	* [r24] svn2cl.xsl: explain why we use ++ for options
+
+2005-12-02 16:34  arthur
+
+	* [r23] svn2cl.xsl: switch ChangeLog encoding to utf-8
+
+2005-09-13 19:27  arthur
+
+	* [r21] README, svn2cl.sh: bump version number to 0.3
+
+2005-09-09 19:04  arthur
+
+	* [r20] svn2cl.sh: implement writing ChangeLog to a different file
+	  or stdout
+
+2005-08-16 18:24  arthur
+
+	* [r19] svn2cl.sh: make -r an alias for --include-rev
+
+2005-07-31 16:37  arthur
+
+	* [r17] README: add simple installation instructions
+
+2005-07-31 16:33  arthur
+
+	* [r16] README: add very basic README
+
+2005-07-31 16:08  arthur
+
+	* [r15] svn2cl.sh: use basename when printing program name
+
+2005-07-31 16:00  arthur
+
+	* [r14] svn2cl.sh: add code for finding the location of the .xsl
+	  file relative to the installed location of the script following
+	  symlinks
+
+2005-07-31 15:26  arthur
+
+	* [r13] svn2cl.sh: add proper command line handling to shell script
+
+2005-07-31 14:51  arthur
+
+	* [r12] svn2cl.sh: add simple shell script calling xsltproc
+
+2005-07-31 14:42  arthur
+
+	* [r11] svn2cl.xsl: add an include-rev option to also list revision
+	  number
+
+2005-07-31 14:41  arthur
+
+	* [r10] svn2cl.xsl: fix copy-pasto
+
+2005-07-31 14:40  arthur
+
+	* [r9] svn2cl.xsl: make groupbyday either have yes or no value
+
+2005-07-31 14:38  arthur
+
+	* [r8] svn2cl.xsl: add a groupbyday option to group all changes per
+	  day per author
+
+2005-03-25 17:11  arthur
+
+	* [r7] svn2cl.xsl: make linelen really configurable (param instead
+	  of variable
+
+2005-03-25 14:36  arthur
+
+	* [r6] svn2cl.xsl: move printing of trailing newline to wrap
+	  template (plus some small readability improvements)
+
+2005-03-25 14:29  arthur
+
+	* [r5] svn2cl.xsl: make line length configurable
+
+2005-03-23 21:51  arthur
+
+	* [r4] svn2cl.xsl: split out formatting of single pathname and also
+	  handle situation with trailing slash in strip-prefix
+
+2005-03-23 21:19  arthur
+
+	* [r3] svn2cl.xsl: use entities for outputting tabs, spaces and
+	  newlines
+
+2005-03-23 20:45  arthur
+
+	* [r1] ., svn2cl.xsl: check in initial version
+
