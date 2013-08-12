@@ -4102,7 +4102,7 @@ CONTAINS
          description="A method to initialize the velocities along low-curvature "&
          //"directions in order to favors MD trajectories to cross rapidly over "&
          //"small energy barriers into neighboring basins. "&
-         //"In the each iteration the forces are calculated at a point y, which "&
+         //"In each iteration the forces are calculated at a point y, which "&
          //"is slightly displaced from the current positions x in the direction "&
          //"of the original velocities v. The velocities are then updated with "&
          //"the force component F_t, which is perpendicular to N. "&

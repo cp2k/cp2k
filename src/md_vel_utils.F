@@ -883,7 +883,9 @@ CONTAINS
   END SUBROUTINE generate_velocities
 
 ! *****************************************************************************
-!> \brief TODO
+!> \brief Direct velocities along a low-curvature direction in order to 
+!>        favors MD trajectories to cross rapidly over small energy barriers
+!>        into neighboring basins.
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE soften_velocities(simpar, part, force_env, md_env, is_fixed, iw, error)
@@ -949,7 +951,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief TODO
+!> \brief Scale velocities according to temperature and remove rigid body motion.
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
 ! *****************************************************************************
   SUBROUTINE normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
