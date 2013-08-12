@@ -54,7 +54,8 @@ MODULE dbcsr_mm_cudadrv
                                              dbcsr_data_new,&
                                              dbcsr_data_release
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: default_string_length, int_8
+  USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             int_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                              dbcsr_memtype_setup
   USE dbcsr_message_passing,           ONLY: mp_abort
