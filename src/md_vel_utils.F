@@ -510,8 +510,8 @@ CONTAINS
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
   SUBROUTINE initialize_velocities(simpar, part, force_env, globenv, md_env, &
-       molecule_kinds, label, print_section, subsys_section, shell_present, shell_part, &
-       core_part, force_rescaling, para_env, error)
+       molecule_kinds, label, print_section, subsys_section, shell_present,&
+       shell_part, core_part, force_rescaling, para_env, error)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
@@ -535,48 +535,28 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_format
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, iw, natoms, &
-                                                nshell, num_x, shell_index, &
-                                                stat
+                                                num_x, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, &
-      corevel_read, failure, is_ok, rescale_regions, shellvel_explicit, &
-      shellvel_read
-    REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
-                                                fac_masss, mass, mass_tot, &
+    LOGICAL                                  :: failure, success
+    REAL(KIND=dp)                            :: ecom, ekin, mass, mass_tot, &
                                                 temp, tmp_r1
-    REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vc, vcom, vs
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
+    REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vcom
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: atom_list, core_list, &
-                                                shell_list
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(section_vals_type), POINTER         :: atomvel_section, &
-                                                corevel_section, &
-                                                shellvel_section
-    TYPE(shell_kind_type), POINTER           :: shell
-    TYPE(thermal_regions_type), POINTER      :: thermal_regions
-    TYPE(val_type), POINTER                  :: val
 
     CALL timeset(routineN,handle)
 
     ! Initializing parameters
     failure = .FALSE.
-    NULLIFY (atomic_kind, fixd_list, atom_list, shell_list, core_list, logger, molecule_kind)
-    NULLIFY (molecule_kind_set, shell, val)
-    NULLIFY (atomvel_section,shellvel_section, corevel_section)
-    atomvel_read = .FALSE.
-    corevel_read = .FALSE.
-    shellvel_read = .FALSE.
-
-    atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-    shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-    corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+    natoms = SIZE(part)
+    NULLIFY (atomic_kind, fixd_list, logger, molecule_kind)
+    NULLIFY (molecule_kind_set)
 
     ! Logging
     logger => cp_error_get_logger(error)
@@ -585,17 +565,6 @@ CONTAINS
        num_x = (79-LEN_TRIM(ADJUSTL(label))-2)/2
        WRITE(my_format,'(A,I0,A,I0,A)')'(1X,',num_x,'("*"),1X,A,1X,',num_x,'("*"))'
        WRITE ( iw, TRIM(my_format))TRIM(ADJUSTL(label))
-    END IF
-
-    ! Initializing parameters
-    natoms = SIZE(part)
-    nshell = 0
-
-    ! Core-Shell Model
-    IF (shell_present) THEN
-       CPPostcondition(ASSOCIATED(core_part),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
-       nshell = SIZE(shell_part)
     END IF
 
     ! Build a list of all fixed atoms (if any)
@@ -626,169 +595,13 @@ CONTAINS
        simpar%v_shock = simpar%v_shock * SQRT ( mass_tot )
     END IF
 
-    ! Read velocities from binary restart file if available
-    CALL read_binary_velocities("",part,force_env%root_section,para_env,&
-                                subsys_section,atomvel_read,error)
-    CALL read_binary_velocities("SHELL",shell_part,force_env%root_section,para_env,&
-                                subsys_section,shellvel_read,error)
-    CALL read_binary_velocities("CORE",core_part,force_env%root_section,para_env,&
-                                subsys_section,corevel_read,error)
 
-    ! Read or initialize the particle velocities
-    CALL section_vals_get(atomvel_section,explicit=atomvel_explicit,error=error)
-    CALL section_vals_get(shellvel_section,explicit=shellvel_explicit,error=error)
-    CALL section_vals_get(corevel_section,explicit=corevel_explicit,error=error)
-    CPPostcondition(shellvel_explicit.EQV.corevel_explicit,cp_failure_level,routineP,error,failure)
+    CALL read_input_velocities(simpar, part, force_env, md_env, subsys_section,&
+             shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success, error)
+    IF(.NOT.success) &
+       CALL generate_velocities(simpar, part, force_env, globenv, md_env, shell_present,&
+                shell_part, core_part, is_fixed, error)
 
-    IF (atomvel_explicit.OR.atomvel_read) THEN
-       IF (.NOT.atomvel_read) THEN
-          ! Read the atom velocities if explicitly given in the input file
-          CALL section_vals_list_get(atomvel_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
-          DO i = 1, natoms
-             is_ok = cp_sll_val_next(atom_list,val,error=error)
-             CALL val_get(val,r_vals=vel,error=error)
-             part(i)%v = vel
-          END DO
-       END IF
-       DO i = 1, natoms
-         SELECT CASE(is_fixed(i))
-         CASE (use_perd_x)
-            part(i)%v(1) = 0.0_dp
-         CASE (use_perd_y)
-            part(i)%v(2) = 0.0_dp
-         CASE (use_perd_z)
-            part(i)%v(3) = 0.0_dp
-         CASE (use_perd_xy)
-            part(i)%v(1) = 0.0_dp
-            part(i)%v(2) = 0.0_dp
-         CASE (use_perd_xz)
-            part(i)%v(1) = 0.0_dp
-            part(i)%v(3) = 0.0_dp
-         CASE (use_perd_yz)
-            part(i)%v(2) = 0.0_dp
-            part(i)%v(3) = 0.0_dp
-         CASE (use_perd_xyz)
-            part(i)%v    = 0.0_dp
-         END SELECT
-       END DO
-       IF (shell_present) THEN
-          IF (shellvel_explicit) THEN
-             ! If the atoms positions are given (?) and core and shell velocities are
-             ! present in the input, read the latter.
-             CALL section_vals_list_get(shellvel_section,"_DEFAULT_KEYWORD_",list=shell_list,error=error)
-             CALL section_vals_list_get(corevel_section,"_DEFAULT_KEYWORD_",list=core_list,error=error)
-             DO i=1,nshell
-                is_ok = cp_sll_val_next(shell_list,val,error=error)
-                CALL val_get(val,r_vals=vel,error=error)
-                shell_part(i)%v = vel
-                is_ok = cp_sll_val_next(core_list,val,error=error)
-                CALL val_get(val,r_vals=vel,error=error)
-                core_part(i)%v = vel
-             END DO
-          ELSE
-             IF (.NOT.(shellvel_read.AND.corevel_read)) THEN
-                ! Otherwise, just copy atom velocties into shell and core velocities.
-                CALL clone_core_shell_vel(part,shell_part,core_part)
-             END IF
-          END IF
-       END IF
-
-       ! compute vcom, ecom and ekin
-       CALL compute_vcom(part,is_fixed,vcom,ecom)
-       ekin = compute_ekin(part) - ecom
-
-       IF(simpar%do_thermal_region) THEN
-         CALL get_md_env (md_env, thermal_regions=thermal_regions, error=error)
-         IF(ASSOCIATED(thermal_regions)) THEN
-           rescale_regions = thermal_regions%force_rescaling
-         END IF
-       ELSE
-         rescale_regions = .FALSE.
-       END IF
-       IF (simpar%nfree /= 0 .AND. (force_rescaling .OR. rescale_regions)) THEN
-          IF(simpar%do_thermal_region) THEN
-            CALL rescale_vel_region(part,md_env,simpar,error=error)
-          ELSE
-            CALL rescale_vel(part,simpar,ekin,vcom=vcom)
-          END IF
-
-          ! After rescaling, the core and shell velocities must also adapt.
-          DO i = 1, natoms
-            shell_index = part(i)%shell_index
-            IF(shell_present .AND. shell_index/=0) THEN
-                atomic_kind => part(i)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass, shell=shell)
-                fac_masss = shell%mass_shell/mass
-                fac_massc = shell%mass_core/mass
-                vs = shell_part(shell_index)%v
-                vc = core_part(shell_index)%v
-
-                shell_part(shell_index)%v(1) = part(i)%v(1) + fac_massc*(vs(1)-vc(1))
-                shell_part(shell_index)%v(2) = part(i)%v(2) + fac_massc*(vs(2)-vc(2))
-                shell_part(shell_index)%v(3) = part(i)%v(3) + fac_massc*(vs(3)-vc(3))
-                core_part(shell_index)%v(1)  = part(i)%v(1) + fac_masss*(vc(1)-vs(1))
-                core_part(shell_index)%v(2)  = part(i)%v(2) + fac_masss*(vc(2)-vs(2))
-                core_part(shell_index)%v(3)  = part(i)%v(3) + fac_masss*(vc(3)-vs(3))
-            END IF
-          END DO
-       END IF
-    ELSE
-       ! Initializing velocities deterministically on all processors, if not given in input
-       DO i = 1, natoms
-          atomic_kind => part(i)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-          part(i)%v(1) = 0.0_dp
-          part(i)%v(2) = 0.0_dp
-          part(i)%v(3) = 0.0_dp
-          IF (mass.NE.0.0) THEN
-             SELECT CASE(is_fixed(i))
-             CASE (use_perd_x)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             CASE (use_perd_y)
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             CASE (use_perd_z)
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             CASE (use_perd_xy)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             CASE (use_perd_xz)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             CASE (use_perd_yz)
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             CASE (use_perd_none)
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             END SELECT
-          END IF
-       END DO
-
-       ! Subtract the vcom
-       CALL compute_vcom(part,is_fixed,vcom)
-       CALL subtract_vcom(part,is_fixed,vcom)
-       ! If requested and the system is not periodic, subtract the angular velocity
-       CALL force_env_get(force_env, cell=cell, error=error)
-       IF (SUM(cell%perd(1:3)) == 0 .AND. simpar%angvel_zero) THEN
-          CALL compute_rcom(part,is_fixed,rcom)
-          CALL compute_vang(part,is_fixed,rcom,vang,error)
-          CALL subtract_vang(part,is_fixed,rcom,vang)
-       END IF
-       ! Rescale the velocities
-       IF(simpar%do_thermal_region) THEN
-         CALL rescale_vel_region(part,md_env,simpar,error=error)
-       ELSE
-         ekin = compute_ekin(part)
-         CALL rescale_vel(part,simpar,ekin)
-       END IF
-
-       ! Initialize the core and the shell velocity. Atom velocities are just
-       ! copied so that the initial relative core-shell velocity is zero.
-       IF (shell_present) THEN
-         CALL optimize_shell_core(force_env,part,shell_part, core_part, globenv, error=error)
-       ENDIF
-    END IF
 
     IF (iw>0) THEN
        ! Recompute vcom, ecom and ekin for IO
@@ -821,6 +634,294 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE initialize_velocities
+
+
+! *****************************************************************************
+!> \brief Read velocities from binary restart file if available
+!> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
+  SUBROUTINE read_input_velocities(simpar, part, force_env, md_env, subsys_section,&
+       shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success, error)
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    LOGICAL, INTENT(IN)                      :: shell_present
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_part, core_part
+    LOGICAL, INTENT(IN)                      :: force_rescaling
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
+    LOGICAL, INTENT(OUT)                     :: success
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_input_velocities', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, natoms, nshell, shell_index
+    LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, &
+      corevel_read, failure, is_ok, rescale_regions, shellvel_explicit, &
+      shellvel_read
+    REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
+                                                fac_masss, mass
+    REAL(KIND=dp), DIMENSION(3)              :: vc, vcom, vs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_sll_val_type), POINTER           :: atom_list, core_list, &
+                                                shell_list
+    TYPE(section_vals_type), POINTER         :: atomvel_section, &
+                                                corevel_section, &
+                                                shellvel_section
+    TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
+    TYPE(val_type), POINTER                  :: val
+
+! Initializing parameters
+
+    success = .FALSE.
+    natoms = SIZE(part)
+    atomvel_read = .FALSE.
+    corevel_read = .FALSE.
+    shellvel_read = .FALSE.
+    NULLIFY (vel, atomic_kind, atom_list, core_list, shell_list)
+    NULLIFY (atomvel_section,shellvel_section, corevel_section)
+    NULLIFY (shell, thermal_regions, val)
+
+
+    ! Core-Shell Model
+    nshell = 0
+    IF (shell_present) THEN
+       CPPostcondition(ASSOCIATED(core_part),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
+       nshell = SIZE(shell_part)
+    END IF
+
+    atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+    shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+    corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+
+    ! Read or initialize the particle velocities
+    CALL section_vals_get(atomvel_section,explicit=atomvel_explicit,error=error)
+    CALL section_vals_get(shellvel_section,explicit=shellvel_explicit,error=error)
+    CALL section_vals_get(corevel_section,explicit=corevel_explicit,error=error)
+    CPPostcondition(shellvel_explicit.EQV.corevel_explicit,cp_failure_level,routineP,error,failure)
+
+    CALL read_binary_velocities("",part,force_env%root_section,para_env,&
+                                subsys_section,atomvel_read,error)
+    CALL read_binary_velocities("SHELL",shell_part,force_env%root_section,para_env,&
+                                subsys_section,shellvel_read,error)
+    CALL read_binary_velocities("CORE",core_part,force_env%root_section,para_env,&
+                                subsys_section,corevel_read,error)
+
+    IF (.NOT.(atomvel_explicit.OR.atomvel_read)) RETURN
+    success = .TRUE.
+
+     IF (.NOT.atomvel_read) THEN
+        ! Read the atom velocities if explicitly given in the input file
+        CALL section_vals_list_get(atomvel_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
+        DO i = 1, natoms
+           is_ok = cp_sll_val_next(atom_list,val,error=error)
+           CALL val_get(val,r_vals=vel,error=error)
+           part(i)%v = vel
+        END DO
+     END IF
+     DO i = 1, natoms
+       SELECT CASE(is_fixed(i))
+       CASE (use_perd_x)
+          part(i)%v(1) = 0.0_dp
+       CASE (use_perd_y)
+          part(i)%v(2) = 0.0_dp
+       CASE (use_perd_z)
+          part(i)%v(3) = 0.0_dp
+       CASE (use_perd_xy)
+          part(i)%v(1) = 0.0_dp
+          part(i)%v(2) = 0.0_dp
+       CASE (use_perd_xz)
+          part(i)%v(1) = 0.0_dp
+          part(i)%v(3) = 0.0_dp
+       CASE (use_perd_yz)
+          part(i)%v(2) = 0.0_dp
+          part(i)%v(3) = 0.0_dp
+       CASE (use_perd_xyz)
+          part(i)%v    = 0.0_dp
+       END SELECT
+     END DO
+     IF (shell_present) THEN
+        IF (shellvel_explicit) THEN
+           ! If the atoms positions are given (?) and core and shell velocities are
+           ! present in the input, read the latter.
+           CALL section_vals_list_get(shellvel_section,"_DEFAULT_KEYWORD_",list=shell_list,error=error)
+           CALL section_vals_list_get(corevel_section,"_DEFAULT_KEYWORD_",list=core_list,error=error)
+           DO i=1,nshell
+              is_ok = cp_sll_val_next(shell_list,val,error=error)
+              CALL val_get(val,r_vals=vel,error=error)
+              shell_part(i)%v = vel
+              is_ok = cp_sll_val_next(core_list,val,error=error)
+              CALL val_get(val,r_vals=vel,error=error)
+              core_part(i)%v = vel
+           END DO
+        ELSE
+           IF (.NOT.(shellvel_read.AND.corevel_read)) THEN
+              ! Otherwise, just copy atom velocties into shell and core velocities.
+              CALL clone_core_shell_vel(part,shell_part,core_part)
+           END IF
+        END IF
+     END IF
+
+     ! compute vcom, ecom and ekin
+     CALL compute_vcom(part,is_fixed,vcom,ecom)
+     ekin = compute_ekin(part) - ecom
+
+     IF(simpar%do_thermal_region) THEN
+       CALL get_md_env (md_env, thermal_regions=thermal_regions, error=error)
+       IF(ASSOCIATED(thermal_regions)) THEN
+         rescale_regions = thermal_regions%force_rescaling
+       END IF
+     ELSE
+       rescale_regions = .FALSE.
+     END IF
+     IF (simpar%nfree /= 0 .AND. (force_rescaling .OR. rescale_regions)) THEN
+        IF(simpar%do_thermal_region) THEN
+          CALL rescale_vel_region(part,md_env,simpar,error=error)
+        ELSE
+          CALL rescale_vel(part,simpar,ekin,vcom=vcom)
+        END IF
+
+        ! After rescaling, the core and shell velocities must also adapt.
+        DO i = 1, natoms
+          shell_index = part(i)%shell_index
+          IF(shell_present .AND. shell_index/=0) THEN
+              atomic_kind => part(i)%atomic_kind
+              CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass, shell=shell)
+              fac_masss = shell%mass_shell/mass
+              fac_massc = shell%mass_core/mass
+              vs = shell_part(shell_index)%v
+              vc = core_part(shell_index)%v
+
+              shell_part(shell_index)%v(1) = part(i)%v(1) + fac_massc*(vs(1)-vc(1))
+              shell_part(shell_index)%v(2) = part(i)%v(2) + fac_massc*(vs(2)-vc(2))
+              shell_part(shell_index)%v(3) = part(i)%v(3) + fac_massc*(vs(3)-vc(3))
+              core_part(shell_index)%v(1)  = part(i)%v(1) + fac_masss*(vc(1)-vs(1))
+              core_part(shell_index)%v(2)  = part(i)%v(2) + fac_masss*(vc(2)-vs(2))
+              core_part(shell_index)%v(3)  = part(i)%v(3) + fac_masss*(vc(3)-vs(3))
+          END IF
+        END DO
+     END IF
+  END SUBROUTINE read_input_velocities
+
+
+! *****************************************************************************
+!> \brief Initializing velocities deterministically on all processors, if not given in input
+!> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
+! *****************************************************************************
+  SUBROUTINE generate_velocities(simpar, part, force_env, globenv, md_env,&
+                          shell_present, shell_part, core_part, is_fixed, error)
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(md_environment_type), POINTER       :: md_env
+    LOGICAL, INTENT(IN)                      :: shell_present
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_part, core_part
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_velocities', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, natoms
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    NULLIFY (atomic_kind)
+    natoms = SIZE(part)
+
+     DO i = 1, natoms
+        atomic_kind => part(i)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+        part(i)%v(1) = 0.0_dp
+        part(i)%v(2) = 0.0_dp
+        part(i)%v(3) = 0.0_dp
+        IF (mass.NE.0.0) THEN
+           SELECT CASE(is_fixed(i))
+           CASE (use_perd_x)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           CASE (use_perd_y)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           CASE (use_perd_z)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           CASE (use_perd_xy)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           CASE (use_perd_xz)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           CASE (use_perd_yz)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           CASE (use_perd_none)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+           END SELECT
+        END IF
+     END DO
+
+     CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
+
+     ! Initialize the core and the shell velocity. Atom velocities are just
+     ! copied so that the initial relative core-shell velocity is zero.
+     IF (shell_present) THEN
+       CALL optimize_shell_core(force_env,part,shell_part, core_part, globenv, error=error)
+     ENDIF
+  END SUBROUTINE generate_velocities
+
+
+! *****************************************************************************
+!> \brief
+!> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
+! *****************************************************************************
+  SUBROUTINE normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(md_environment_type), POINTER       :: md_env
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'normalize_velocities', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp)                            :: ekin
+    REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vcom
+    TYPE(cell_type), POINTER                 :: cell
+
+     NULLIFY(cell)
+
+     ! Subtract the vcom
+     CALL compute_vcom(part,is_fixed,vcom)
+     CALL subtract_vcom(part,is_fixed,vcom)
+     ! If requested and the system is not periodic, subtract the angular velocity
+     CALL force_env_get(force_env, cell=cell, error=error)
+     IF (SUM(cell%perd(1:3)) == 0 .AND. simpar%angvel_zero) THEN
+        CALL compute_rcom(part,is_fixed,rcom)
+        CALL compute_vang(part,is_fixed,rcom,vang,error)
+        CALL subtract_vang(part,is_fixed,rcom,vang)
+     END IF
+     ! Rescale the velocities
+     IF(simpar%do_thermal_region) THEN
+       CALL rescale_vel_region(part,md_env,simpar,error=error)
+     ELSE
+       ekin = compute_ekin(part)
+       CALL rescale_vel(part,simpar,ekin)
+     END IF
+  END SUBROUTINE normalize_velocities
+
 
 ! *****************************************************************************
 !> \brief Computes Ekin, VCOM and Temp for particles
