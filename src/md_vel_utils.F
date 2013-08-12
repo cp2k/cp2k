@@ -600,7 +600,7 @@ CONTAINS
              shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success, error)
     IF(.NOT.success) &
        CALL generate_velocities(simpar, part, force_env, globenv, md_env, shell_present,&
-                shell_part, core_part, is_fixed, error)
+                shell_part, core_part, is_fixed, iw, error)
 
 
     IF (iw>0) THEN
@@ -817,7 +817,7 @@ CONTAINS
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
 ! *****************************************************************************
   SUBROUTINE generate_velocities(simpar, part, force_env, globenv, md_env,&
-                          shell_present, shell_part, core_part, is_fixed, error)
+                          shell_present, shell_part, core_part, is_fixed, iw, error)
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -828,6 +828,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: shell_part, core_part
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_velocities', &
@@ -872,6 +873,7 @@ CONTAINS
      END DO
 
      CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
+     CALL soften_velocities(simpar, part, force_env, md_env, is_fixed, iw, error)
 
      ! Initialize the core and the shell velocity. Atom velocities are just
      ! copied so that the initial relative core-shell velocity is zero.
@@ -880,9 +882,74 @@ CONTAINS
      ENDIF
   END SUBROUTINE generate_velocities
 
+! *****************************************************************************
+!> \brief TODO
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE soften_velocities(simpar, part, force_env, md_env, is_fixed, iw, error)
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(md_environment_type), POINTER       :: md_env
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'soften_velocities', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, k
+    REAL(KIND=dp), DIMENSION(SIZE(part), 3)  :: F, F_t, N, x0
+
+    IF(simpar%soften_nsteps <= 0) RETURN !nothing todo
+
+    CALL cp_assert(ALL(is_fixed==use_perd_none), cp_fatal_level, cp_assertion_failed,&
+                 routineP,"Velocitiy softening with constraints is not supported.")
+
+    !backup positions
+    DO i = 1, SIZE(part)
+          x0(i,:) = part(i)%r
+    END DO
+
+    DO k=1, simpar%soften_nsteps
+
+       !use normalized velocities as displace direction
+       DO i = 1, SIZE(part)
+          N(i,:) = part(i)%v
+       END DO
+       N = N / SQRT(SUM(N**2))
+
+       ! displace system temporarly to calculate forces
+       DO i = 1, SIZE(part)
+          part(i)%r = part(i)%r + simpar%soften_delta * N(i,:)
+       END DO
+       CALL force_env_calc_energy_force(force_env,error=error)
+
+       ! calculate velocity update direction F_t
+       DO i = 1, SIZE(part)
+          F(i,:) = part(i)%f
+       END DO
+       F_t = F - N * SUM(N*F)
+
+       ! restore positions and update velocities
+       DO i = 1, SIZE(part)
+          part(i)%r = x0(i,:)
+          part(i)%v = part(i)%v + simpar%soften_alpha * F_t(i,:)
+       END DO
+
+       CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
+    END DO
+
+    IF(iw>0) THEN
+      WRITE (iw, "(A,T71, I10)") " Velocities softening Steps: ",simpar%soften_nsteps
+      WRITE (iw, "(A,T71, E10.3)") " Velocities softening NORM(F_t): ",SQRT(SUM(F_t**2))
+    END IF
+  END SUBROUTINE soften_velocities
+
 
 ! *****************************************************************************
-!> \brief
+!> \brief TODO
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
 ! *****************************************************************************
   SUBROUTINE normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)

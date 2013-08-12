@@ -361,6 +361,12 @@ CPSourceFileRef,&
        CALL section_vals_val_get(tmp_section,"TEMP_TOL_SLOW",r_val=simpar%temp_tol_slow,error=error)
        CALL section_vals_val_get(tmp_section,"N_RESP_FAST",i_val=simpar%n_resp_fast,&
             ignore_required=.TRUE.,error=error)
+
+       ! VELOCITY SOFTENING
+       tmp_section => section_vals_get_subs_vals(md_section,"VELOCITY_SOFTENING",error=error)
+       CALL section_vals_val_get(tmp_section,"STEPS",i_val=simpar%soften_nsteps,error=error)
+       CALL section_vals_val_get(tmp_section,"ALPHA",r_val=simpar%soften_alpha,error=error)
+       CALL section_vals_val_get(tmp_section,"DELTA",r_val=simpar%soften_delta,error=error)
     END IF
   END SUBROUTINE read_md_low
 

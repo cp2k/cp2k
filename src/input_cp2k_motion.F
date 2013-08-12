@@ -1986,11 +1986,14 @@ CONTAINS
        CALL create_shell_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-!cjm
+
        CALL create_adiabatic_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-!cjm
+
+       CALL create_softening_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL create_reftraj_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -4080,6 +4083,54 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_adiabatic_section
+
+
+! *****************************************************************************
+!> \brief section will contain parameters for the velocity softening
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE create_softening_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_softening_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+
+    CALL section_create(section,name="VELOCITY_SOFTENING",&
+         description="A method to initialize the velocities along low-curvature "&
+         //"directions in order to favors MD trajectories to cross rapidly over "&
+         //"small energy barriers into neighboring basins. "&
+         //"In the each iteration the forces are calculated at a point y, which "&
+         //"is slightly displaced from the current positions x in the direction "&
+         //"of the original velocities v. The velocities are then updated with "&
+         //"the force component F_t, which is perpendicular to N. "&
+         //"N = v / |v|;  y = x + delta * N;  F_t = F(y) - <F(y) | N> * N;  "&
+         //"v' = v + alpha * F_t", error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword=keyword, name="STEPS",&
+         description="Number of softening iterations performed. "&
+         //"Typical values are around 40 steps.",&
+         default_i_val=0, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword=keyword, name="DELTA",&
+         description="Displacement used to obtain y.",&
+         default_r_val=0.1_dp, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword=keyword, name="ALPHA",&
+         description="Mixing factor used for updating velocities.",&
+         default_r_val=0.15_dp, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_softening_section
+
 
 ! *****************************************************************************
 !> \brief section will contain some parameters for the shells dynamics
