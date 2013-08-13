@@ -677,12 +677,13 @@ CPSourceFileRef,&
     ! Print to the screen info about MD
     iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
          extension=".mdLog",file_position=my_pos,file_action=my_act,error=error)
-    CALL create_md_section(section,error=error)
-    keyword => section_get_keyword(section,"ENSEMBLE",error=error)
-    CALL keyword_get(keyword,enum=enum,error=error)
 
     ! Performing protocol relevant to the first step of an MD run
     IF (iw>0) THEN
+       CALL create_md_section(section,error=error)
+       keyword => section_get_keyword(section,"ENSEMBLE",error=error)
+       CALL keyword_get(keyword,enum=enum,error=error)
+
        IF (init) THEN
           ! Write initial values of quantities of interest
           WRITE (iw,*)

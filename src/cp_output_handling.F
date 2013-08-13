@@ -204,6 +204,13 @@ CONTAINS
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="__CONTROL_VAL",&
+            description=' hidden parameter that controls storage, printing,...'//&
+            ' of the print_key',&
+            default_i_val=cp_out_default, supported_feature=supported_feature,error=error)
+       CALL section_add_keyword(print_key_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_create(subsection,name="EACH",&
             description="This section specifies how often this proprety is printed."//&
             "Each keyword inside this section is mapping to a specific iteration level and "//&
@@ -293,13 +300,6 @@ CONTAINS
             "screen everytime data, controlled by this print_key, are written)",&
             usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
             supported_feature=supported_feature, error=error)
-       CALL section_add_keyword(print_key_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="__CONTROL_VAL",&
-            description=' hidden parameter that controls storage, printing,...'//&
-            ' of the print_key',&
-            default_i_val=cp_out_default, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -396,6 +396,10 @@ CONTAINS
     CALL section_vals_val_get(print_key,"__CONTROL_VAL",&
          i_val=my_control_val,error=error)
     is_on=cp_printkey_is_on(iteration_info,print_key,error=error)
+
+    ! a shortcut for most common case
+    IF(my_control_val==cp_out_default .AND. .NOT. is_on) RETURN
+
     is_iter=cp_printkey_is_iter(iteration_info,print_key,first_time=first_time,&
          error=error)
 

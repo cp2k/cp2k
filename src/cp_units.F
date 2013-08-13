@@ -704,7 +704,8 @@ CONTAINS
                   error,failure)
           END SELECT
        CASE(cp_ukind_none)
-          CALL cp_assert(basic_unit==cp_units_none,my_error_level,&
+          IF(basic_unit/=cp_units_none)&
+               CALL cp_assert(.FALSE.,my_error_level,&
                cp_assertion_failed, routineP,&
                "if the kind of the unit is none also unit must be undefined,not:"&
                //TRIM(cp_to_string(basic_unit)),&
