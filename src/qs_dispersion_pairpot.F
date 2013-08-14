@@ -339,7 +339,9 @@ CONTAINS
     SELECT CASE (TRIM(functional))
        CASE DEFAULT
           ! unknown functional
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="No DFT-D2 s6 value available for this functional:"//TRIM(functional), &
+               error=error, error_level=cp_failure_level)
        CASE ("BLYP")
           scaling = 1.20_dp
        CASE ("B3LYP")
@@ -382,7 +384,9 @@ CONTAINS
     SELECT CASE (TRIM(functional))
     CASE DEFAULT
        ! unknown functional
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="No DFT-D3 values available for this functional:"//TRIM(functional), &
+            error=error, error_level=cp_failure_level)
     CASE ("B1B95")
        ! Not yet published
        s6  = 1.000_dp
