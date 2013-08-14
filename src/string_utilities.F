@@ -61,12 +61,12 @@ MODULE string_utilities
      "&lang;    ","&#9001;   ","&rang;    ","&#9002;   "/)
 
   INTEGER, PARAMETER :: maxlen_tag_name = 10
-  CHARACTER(LEN=maxlen_tag_name), DIMENSION(36), PARAMETER :: html_tag_table =&
+  CHARACTER(LEN=maxlen_tag_name), DIMENSION(37), PARAMETER :: html_tag_table =&
    (/"a         ","b         ","big       ","blockquote","br/       ","code      ","dd        ","del       ",&
      "div       ","dl        ","dt        ","em        ","h1        ","h2        ","h3        ","h4        ",&
      "h5        ","h6        ","hr        ","i         ","ins       ","li        ","ol        ","p         ",&
-     "span      ","sub       ","table     ","tbody     ","td        ","tfoot     ","th        ","thead     ",&
-     "tr        ","tt        ","u         ","ul        "/)
+     "span      ","sub       ","sup       ","table     ","tbody     ","td        ","tfoot     ","th        ",&
+     "thead     ","tr        ","tt        ","u         ","ul        "/)
 
   PUBLIC :: ascii_to_string,&
             compress,&
