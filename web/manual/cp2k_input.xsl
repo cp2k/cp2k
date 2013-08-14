@@ -16,6 +16,7 @@
   </head>
   <body>
    <xsl:call-template name="write_generate_manual_howto"/>
+   <xsl:call-template name="write_html_tables"/>
    <h1 align="center">CP2K input reference</h1>
    <h2>Version information</h2>
    <p>
@@ -161,10 +162,10 @@
  <xsl:variable name="description">
   <xsl:choose>
    <xsl:when test="string-length(DESCRIPTION) > 0">
-    <xsl:value-of select="string(DESCRIPTION)"/>
+    <xsl:value-of disable-output-escaping="yes" select="string(DESCRIPTION)"/>
    </xsl:when>
    <xsl:otherwise>
-    <xsl:value-of select="'CP2K input reference'"/>
+    <xsl:value-of disable-output-escaping="yes" select="'CP2K input reference'"/>
    </xsl:otherwise>
   </xsl:choose>
  </xsl:variable>
@@ -185,6 +186,15 @@
   ul.disc {list-style-type: disc}
   ul.none {list-style-type: none}
   ul.square {list-style-type: square}
+  #html_table
+  {
+   border: 1px solid #000000;
+   border-collapse: collapse;
+   margin-left: 25px;
+   padding: 6px;
+   text-align: left;
+   vertical-align: middle;
+  }
  </style>
  <script src="collapsibleList.js" type="text/javascript" language="javascript1.2"/>
 </xsl:template>
@@ -262,7 +272,7 @@
       <li>
        <em>
         <xsl:if test="string-length(DESCRIPTION) > 0">
-         <xsl:value-of select="DESCRIPTION"/>
+         <xsl:value-of disable-output-escaping="yes" select="DESCRIPTION"/>
         </xsl:if>
         <xsl:if test="string-length(DESCRIPTION) = 0">
          Without description, yet.
@@ -445,7 +455,7 @@
      <td class="r">
       <xsl:if test="string-length(USAGE) > 0">
        <big class="uctt">
-        <xsl:value-of select="USAGE"/>
+        <xsl:value-of disable-output-escaping="yes" select="USAGE"/>
        </big>
       </xsl:if>
      </td>
@@ -456,7 +466,7 @@
      <td class="r">
       <em>
        <xsl:if test="string-length(DESCRIPTION) > 0">
-        <xsl:value-of select="DESCRIPTION"/>
+        <xsl:value-of disable-output-escaping="yes" select="DESCRIPTION"/>
        </xsl:if>
        <xsl:if test="string-length(DESCRIPTION) = 0">
         Without description, yet.
@@ -564,7 +574,7 @@
            <dd>
             <em>
              <xsl:if test="string-length(DESCRIPTION) > 0">
-              <xsl:value-of select="DESCRIPTION"/>
+              <xsl:value-of disable-output-escaping="yes" select="DESCRIPTION"/>
              </xsl:if>
              <xsl:if test="string-length(DESCRIPTION) = 0">
               Without description, yet.
@@ -719,6 +729,52 @@
    &#160;[<a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">Edit</a>]
   </span>
  </xsl:if>
+</xsl:template>
+
+<xsl:template name="write_html_tables">
+ <xsl:result-document href="html_tables.html" method="html" indent="yes" format="html">
+  <html>
+   <head>
+    <title>Supported HTML entities and tags</title>
+    <xsl:call-template name="head">
+     <xsl:with-param name="root" select="''"/>
+    </xsl:call-template>
+   </head>
+   <body>
+    <xsl:call-template name="header">
+     <xsl:with-param name="root" select="''"/>
+    </xsl:call-template>
+    <h2 align="center">List of HTML tags supported by CP2K</h2>
+    <p>The following HTML tags are supported by CP2K within the input descriptions:</p>
+    <ul class="disc">
+     <xsl:for-each select="CP2K_HTML/TAG">
+      <li>
+       <xsl:value-of disable-output-escaping="no" select="NAME"/>
+      </li>
+     </xsl:for-each>
+    </ul>
+    <h2 align="center">Table of HTML entities supported by CP2K</h2>
+    <p>The following HTML entities are supported by CP2K within the input descriptions:</p>
+    <table id="html_table">
+     <tr id="html_table">
+      <th id="html_table">Name</th>
+      <th id="html_table">Code</th>
+      <th id="html_table">Character</th>
+     </tr>
+     <xsl:for-each select="CP2K_HTML/ENTITY">
+      <tr id="html_table">
+       <td id="html_table"><xsl:value-of disable-output-escaping="no" select="NAME"/></td>
+       <td id="html_table"><xsl:value-of disable-output-escaping="no" select="CODE"/></td>
+       <td id="html_table"><xsl:value-of disable-output-escaping="yes" select="CODE"/></td>
+      </tr>
+     </xsl:for-each>
+    </table>
+    <xsl:call-template name="footer">
+     <xsl:with-param name="root" select="''"/>
+    </xsl:call-template>
+   </body>
+  </html>
+ </xsl:result-document>
 </xsl:template>
 
 </xsl:stylesheet>

@@ -111,7 +111,8 @@ MODULE cp2k_runs
   USE reference_manager,               ONLY: print_all_references,&
                                              print_format_html
   USE rt_propagation,                  ONLY: rt_prop_setup
-  USE string_utilities,                ONLY: html_entity_table
+  USE string_utilities,                ONLY: html_entity_table,&
+                                             write_html_tables
   USE tamc_run,                        ONLY: qs_tamc
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1071,9 +1072,14 @@ CONTAINS
 
       WRITE (UNIT=unit_number,FMT="(A)")&
         "<?xml version=""1.0"" encoding=""ISO-8859-1""?>",&
-        "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>",&
-        "<!DOCTYPE documentElement["
+        "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>"
 
+      !MK Write a HTML translation table
+      !MK In principle this is only required for non-standard HTML entities
+      is = 0
+      ie = 0
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        "<!DOCTYPE documentElement["
       DO i=1,SIZE(html_entity_table),2
          is = INDEX(html_entity_table(i),"&") + 1
          CPPostcondition((is > 0),cp_failure_level,routineP,error,failure)
@@ -1082,40 +1088,44 @@ CONTAINS
          WRITE (UNIT=unit_number,FMT="(A)")&
           "<!ENTITY "//html_entity_table(i)(is:ie)//" """//TRIM(html_entity_table(i+1))//""">"
       END DO
-
       WRITE (UNIT=unit_number,FMT="(A)")&
-        "]>",&
+        "]>"
+
+      !MK CP2K input structure
+      WRITE (UNIT=unit_number,FMT="(A)")&
         "<CP2K_INPUT>",&
         " <CP2K_VERSION>"//TRIM(cp2k_version)//"</CP2K_VERSION>",&
         " <CP2K_YEAR>"//TRIM(cp2k_year)//"</CP2K_YEAR>",&
         " <COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
         " <COMPILE_REVISION>"//TRIM(compile_revision)//"</COMPILE_REVISION>"
-
       DO i=1,root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section,1,unit_number,error)
       END DO
+      ! Append HTML entity and tag tables
+      CALL write_html_tables(unit_number)
       WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section,error=error)
 
       ! References
       CALL open_file(unit_number=unit_number,file_name="references.html",&
-           file_action="WRITE", file_status="REPLACE")
+                     file_action="WRITE",file_status="REPLACE")
       WRITE(unit_number,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
       WRITE(unit_number,FMT='(A)') "<H1>CP2K references</H1>"
       CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE., &
-                          FORMAT=print_format_html,unit=unit_number)
+                                FORMAT=print_format_html,unit=unit_number)
       WRITE(unit_number,FMT='(A)') "</BODY></HTML>"
       CALL close_file(unit_number=unit_number)
 
       ! Units
       CALL open_file(unit_number=unit_number,file_name="units.html",&
-           file_action="WRITE", file_status="REPLACE")
+                     file_action="WRITE",file_status="REPLACE")
       WRITE(unit_number,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
       WRITE(unit_number,FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
       CALL print_all_units(unit_nr=unit_number)
       WRITE(unit_number,FMT='(A)') "</BODY></HTML>"
       CALL close_file(unit_number=unit_number)
+
     END IF
 
   END SUBROUTINE write_xml_file

@@ -855,7 +855,8 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of potential. DFTD2 and DFTD3 are the Grimme D2 and D3 methods respectively.",&
+            description="Type of potential:<ul><li>DFTD2 &rarr; Grimme D2 method</li>"//&
+                                              "<li>DFTD3 &rarr; Grimme D3 method</li></ul>",&
             citations=(/grimme2006,grimme2010/),&
             usage="TYPE DFTD2", &
             enum_c_vals=s2a("DFTD2","DFTD3"),&
@@ -871,7 +872,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="REFERENCE_FUNCTIONAL",&
             description="Use parameters for this specific density functional. "&
-            //"For D3 the following options are available:  B1B95, B2GPPLYP, "&
+            //"For D3 the following options are available: <br/>B1B95, B2GPPLYP, "&
             //"B2PLYP, DSD-BLYP, B3LYP, B97-D, BHLYP, BLYP, BP86, BPBE, MPWLYP, "&
             //"PBE, PBE0, PW6B95, PWB6K, revPBE, TPSS, TPSS0, TPSSh, B3PW91, BMK, "&
             //"CAMB3LYP, LCWPBE, M052X, M05, M062X, M06HF, M06L, and M06N.",&
