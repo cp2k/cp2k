@@ -27,6 +27,7 @@ MODULE qs_energy
   USE mp2
   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
                                              qs_energies_init,&
+                                             qs_energies_mp2,&
                                              qs_energies_properties
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -145,12 +146,8 @@ CONTAINS
     ELSE
       CALL scf(qs_env=qs_env, error=error)
 
-      ! no forces so far with MP2 (except one electron systems ;-)
-      IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-              " No forces/gradients with MP2.... yet(?!) "//&
-               CPSourceFileRef, only_ionode=.TRUE.)
-      ENDIF
+      ! Compute MP2 energy
+      CALL qs_energies_mp2(qs_env, calc_forces, error)
        
       ! if calculate forces, time to compute the w matrix
       CALL qs_energies_compute_matrix_w(qs_env,calc_forces,error)

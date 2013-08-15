@@ -599,6 +599,7 @@ OBJECTS_GENERIC =\
  qs_rho_types.o\
  qs_scf_block_davidson.o\
  qs_scf_diagonalization.o\
+ qs_scf_initialization.o\
  qs_scf_lanczos.o\
  qs_scf_methods.o\
  qs_scf.o\
@@ -606,6 +607,8 @@ OBJECTS_GENERIC =\
  qs_scf_post_gpw.o\
  qs_scf_post_se.o\
  qs_scf_types.o\
+ qs_scf_loop_utils.o\
+ qs_scf_output.o\
  qs_spin_orbit.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\

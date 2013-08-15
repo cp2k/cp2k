@@ -102,8 +102,8 @@ MODULE xas_methods
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rRc_xyz_ao
-  USE qs_scf,                          ONLY: init_scf_run,&
-                                             scf_env_cleanup
+  USE qs_scf,                          ONLY: scf_env_cleanup
+  USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
   USE qs_scf_types,                    ONLY: general_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type
@@ -474,8 +474,8 @@ CONTAINS
             END IF
           END IF
 
-          CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-               scf_section=scf_section, do_xas_tp=.TRUE., error=error)
+          CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
+                                     do_xas_tp=.TRUE., error=error)
           ! if using mo_coeff_b then copy to fm
           DO ispin=1,SIZE(mos)!fm->dbcsr
             IF(mos(1)%mo_set%use_mo_coeff_b)THEN!fm->dbcsr

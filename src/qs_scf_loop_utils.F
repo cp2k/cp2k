@@ -1,0 +1,703 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+! *****************************************************************************
+!> \brief Utility routines for qs_scf
+! *****************************************************************************
+MODULE qs_scf_loop_utils
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_name
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
+  USE cp_external_control,             ONLY: external_control
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
+  USE harris_env_types,                ONLY: harris_env_type
+  USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
+                                             harris_eigenvalue_trace_KS_Pmix,&
+                                             harris_energy_correction
+  USE input_constants,                 ONLY: outer_scf_none,&
+                                             outer_scf_scp
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
+                                             broyden_mixing_nr,&
+                                             direct_mixing_nr,&
+                                             gspace_mixing_nr,&
+                                             multisecant_mixing_nr,&
+                                             no_mixing_nr,&
+                                             pulay_mixing_nr
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_gspace_mixing,                ONLY: gspace_mixing,&
+                                             self_consistency_check
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
+  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_did_change,&
+                                             qs_ks_scp_update
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+                                             set_mo_occupation
+  USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
+                                             ot_scf_mini
+  USE qs_outer_scf,                    ONLY: outer_loop_gradient
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf_diagonalization,          ONLY: do_block_davidson_diag,&
+                                             do_block_krylov_diag,&
+                                             do_general_diag,&
+                                             do_ot_diag,&
+                                             do_roks_diag,&
+                                             do_scf_diag_subspace,&
+                                             do_special_diag
+  USE qs_scf_methods,                  ONLY: scf_env_density_mixing
+  USE qs_scf_output,                   ONLY: qs_scf_print_summary
+  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
+                                             block_krylov_diag_method_nr,&
+                                             general_diag_method_nr,&
+                                             ot_diag_method_nr,&
+                                             ot_method_nr,&
+                                             qs_scf_env_type,&
+                                             special_diag_method_nr
+  USE scf_control_types,               ONLY: scf_control_type,&
+                                             smear_type
+  USE scp_coeff_types,                 ONLY: aux_coeff_set_type
+  USE scp_density_methods,             ONLY: update_rhoscp
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type,&
+                                             set_scp_env
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_loop_utils'
+
+  PUBLIC:: qs_scf_set_loop_flags,&
+           qs_scf_new_mos, qs_scf_harris_e_correct, qs_scf_density_mixing,&
+           qs_scf_check_inner_exit, qs_scf_undo_mixing, qs_scf_ks_updates,&
+           qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief computes properties for a given hamilonian using the current wfn 
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_set_loop_flags(scp_dft,scp_nddo,scf_control,scf_env,diis_step,&
+                      use_jacobi,energy_only,just_energy,exit_inner_loop,error)
+
+    LOGICAL                                  :: scp_dft, scp_nddo
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    LOGICAL                                  :: diis_step, use_jacobi, &
+                                                energy_only, just_energy, &
+                                                exit_inner_loop
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: even_iter, odd_iter
+
+!   ****** Setting Some SCP flags*******
+! check if we are doing SCP:
+!      **** qs_ot_env%settings%scp_dft,qs_ot_env%settings%ks ARE BOTH .TRUE. here *****
+
+    IF ( scp_dft .OR. scp_nddo  ) THEN
+! check if we are doing outer SCF optimization of SCP coeffs:
+      SELECT CASE (scf_control%outer_scf%type)
+      CASE ( outer_scf_none ) 
+         scf_env%qs_ot_env(1)%settings%ks = .TRUE.
+!*** qs_ot_env%settings%scp_dft*** may be set .FALSE. on input
+!    and we will preserve this if there is no outer_scf
+      CASE ( outer_scf_scp )      
+! IF outer scf count is even, then only optimize SCP, else optimize KS
+        even_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) == 0
+        odd_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) /= 0
+        scf_env%qs_ot_env(1)%settings%ks      = even_iter                                    
+        scf_env%qs_ot_env(1)%settings%scp_dft = odd_iter .AND. scp_dft
+        scf_env%qs_ot_env(1)%settings%scp_nddo= odd_iter .AND. scp_nddo
+      END SELECT
+    END IF
+
+    ! Some flags needed to be set at the beginning of the loop
+
+    diis_step = .FALSE.
+    use_jacobi = .FALSE.
+    energy_only = .FALSE.
+    just_energy = .FALSE.
+
+    ! SCF loop, optimisation of the wfn coefficients
+    ! qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
+
+    scf_env%iter_count = 0
+    exit_inner_loop    = .FALSE.
+
+   END SUBROUTINE qs_scf_set_loop_flags
+
+! *****************************************************************************
+!> \brief takes known energy and derivatives and produces new wfns
+!>        and or density matrix
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,use_jacobi,&
+                            energy_only,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL                                  :: diis_step, use_jacobi, &
+                                                energy_only
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, has_unit_metric, &
+                                                scp_dft, scp_nddo, &
+                                                skip_diag_sub
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_environment_type), POINTER      :: scp_env
+
+    failure=.FALSE.
+    NULLIFY(energy,ks_env,scp_env,matrix_ks,rho,mos,dft_control,scf_control,aux_coeff_set,&
+            ks_scp, pscp)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    matrix_s=matrix_s,energy=energy,&
+                    ks_env=ks_env, scp_env=scp_env, &
+                    matrix_ks=matrix_ks,rho=rho,mos=mos, &
+                    dft_control=dft_control, scf_control=scf_control, &
+                    has_unit_metric=has_unit_metric,&
+                    error=error)
+    scf_env%iter_param = 0.0_dp
+
+    SELECT CASE (scf_env%method)
+    CASE DEFAULT
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"unknown scf method: "//&
+            cp_to_string(scf_env%method),error,failure)
+! Diagonlization in non orthonornmal case
+    CASE(general_diag_method_nr)
+       IF (dft_control%roks) THEN
+          CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                        scf_control,scf_section,diis_step,&
+                                        has_unit_metric,error)
+       ELSE
+          CALL do_general_diag(scf_env,mos,matrix_ks,&
+                               matrix_s,scf_control,scf_section, &
+                               diis_step,use_jacobi,error=error)
+          IF(scf_env%do_diag_sub) THEN
+            skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
+                   (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
+            IF( .NOT. skip_diag_sub) THEN
+               CALL do_scf_diag_subspace(qs_env,scf_env,scf_env%subspace_env,mos,rho,&
+                    ks_env,scf_section,scf_control,error=error)
+            END IF
+          END IF
+       END IF
+! Diagonlization in orthonornmal case
+    CASE(special_diag_method_nr)
+       IF (dft_control%roks) THEN
+          CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                        scf_control,scf_section,diis_step,&
+                                        has_unit_metric,error)
+       ELSE
+          CALL do_special_diag(scf_env,mos,matrix_ks,&
+                                           scf_control,scf_section, &
+                                           diis_step,error)
+       END IF
+! OT diagonlization
+    CASE(ot_diag_method_nr)
+       CALL do_ot_diag(scf_env,mos,matrix_ks,matrix_s,&
+                            scf_control,scf_section,diis_step,error)
+! Block Krylov diagonlization
+    CASE(block_krylov_diag_method_nr)
+       IF((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND.&
+          (scf_env%iter_count==1 .OR. scf_env%iter_delta>scf_env%krylov_space%eps_std_diag)) THEN
+          IF(scf_env%krylov_space%always_check_conv) THEN
+             CALL do_block_krylov_diag(scf_env,mos,matrix_ks,&
+                  scf_control, scf_section, check_moconv_only=.TRUE., error=error)
+          END IF
+          CALL do_general_diag(scf_env,mos,matrix_ks,&
+               matrix_s,scf_control,scf_section, diis_step,use_jacobi,error=error)
+       ELSE
+         CALL do_block_krylov_diag(scf_env,mos,matrix_ks, &
+                                   scf_control, scf_section, error=error)
+       END IF
+       IF(scf_env%do_diag_sub) THEN
+          skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
+                   (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
+          IF( .NOT. skip_diag_sub) THEN
+               CALL do_scf_diag_subspace(qs_env,scf_env,scf_env%subspace_env,mos,rho,&
+                    ks_env,scf_section, scf_control,error=error)
+          END IF
+       END IF
+! Block Davidson diagonlization
+    CASE(block_davidson_diag_method_nr)
+
+       CALL do_block_davidson_diag(qs_env,scf_env,mos,matrix_ks,matrix_s,scf_control,&
+           scf_section,.FALSE.,error=error)
+! OT without diagonlization. Needs special treatment for SCP runs
+    CASE(ot_method_nr)
+       scp_dft =  scf_env%qs_ot_env(1)%settings%scp_dft
+       scp_nddo = scf_env%qs_ot_env(1)%settings%scp_nddo
+       ! ***SCP
+       IF ( scp_dft ) THEN
+          CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
+          CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+               qs_env%mo_derivs,energy%total, &
+               matrix_s, aux_coeff_set=aux_coeff_set, energy_only=energy_only, &
+               has_unit_metric=has_unit_metric,error=error)
+       ELSEIF ( scp_nddo ) THEN
+          CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
+          CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+               qs_env%mo_derivs,energy%total, &
+               matrix_s, pscp=pscp, fscp=ks_scp, energy_only=energy_only, &
+               has_unit_metric=has_unit_metric,error=error)
+          CALL set_scp_env ( scp_env = scp_env, pscp = pscp, error = error )
+       ELSE
+          CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+               qs_env%mo_derivs,energy%total, &
+               matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
+       ENDIF
+       ! ***SCP
+    END SELECT
+ 
+  END SUBROUTINE qs_scf_new_mos 
+
+! *****************************************************************************
+!> \brief the inner loop of scf, specific to using to the orbital transformation method
+!>       basically, in goes the ks matrix out goes a new p matrix
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+!>      2013    moved from qs_scf [Florian Schiffmann]
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_loop_do_ot(qs_env,scf_env,smear,mos,rho,mo_derivs,total_energy,&
+                               matrix_s,aux_coeff_set,pscp,fscp,energy_only, &
+                               has_unit_metric,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(smear_type), POINTER                :: smear
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    REAL(KIND=dp), INTENT(IN)                :: total_energy
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(aux_coeff_set_type), OPTIONAL, &
+      POINTER                                :: aux_coeff_set
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
+    LOGICAL, INTENT(INOUT)                   :: energy_only
+    LOGICAL, INTENT(IN)                      :: has_unit_metric
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin
+    LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    IF (has_unit_metric) THEN
+      NULLIFY(orthogonality_metric)
+    ELSE
+       orthogonality_metric=>matrix_s(1)%matrix
+    END IF
+
+    ! in case of LSD the first spin qs_ot_env will drive the minimization
+    ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
+
+    CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
+                    total_energy, aux_coeff_set,    &
+                    pscp,fscp,energy_only,scf_env%iter_delta, &
+                    scf_env%qs_ot_env,qs_env%input,error=error)
+
+
+    DO ispin=1,SIZE(mos)
+       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                              smear=smear,&
+                              error=error)
+    ENDDO
+
+    DO ispin=1,SIZE(mos)
+      CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                    rho%rho_ao(ispin)%matrix,&
+                                    use_dbcsr=.TRUE.,&
+                                    error=error)
+    END DO
+
+    scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
+    scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+    qs_env%broyden_adaptive_sigma=scf_env%qs_ot_env(1)%broyden_adaptive_sigma
+
+    CALL timestop(handle)
+
+  END SUBROUTINE qs_scf_loop_do_ot
+
+! *****************************************************************************
+!> \brief calculation of the harris energy correction
+! *****************************************************************************
+  SUBROUTINE qs_scf_harris_e_correct(qs_env,harris_env,para_env,scf_env,energy,&
+                                     harris_section,harris_flag,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(section_vals_type), POINTER         :: harris_section
+    LOGICAL                                  :: harris_flag
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_harris_e_correct', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: harris_energy
+
+    IF (harris_flag) THEN
+       CALL harris_energy_correction(qs_env, harris_env, para_env=para_env, fast=.TRUE., error=error)
+       IF (scf_env%method .NE. ot_method_nr) THEN
+          CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env,error=error)
+       ELSE
+          CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env,error=error)
+       END IF
+
+       CALL section_vals_val_get(harris_section, "HARRIS_ENERGY",l_val=harris_energy,error=error)
+       IF ((harris_energy)) THEN
+          energy%total = harris_env%harris_energy%Eharris
+       END IF
+    END IF 
+
+ END SUBROUTINE qs_scf_harris_e_correct
+! *****************************************************************************
+!> \brief Performs the requested denisty mixing if any needed
+! *****************************************************************************
+
+ SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL                                  :: diis_step
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    SELECT CASE(scf_env%mixing_method)
+    CASE(direct_mixing_nr)
+       CALL scf_env_density_mixing(scf_env%p_mix_new,&
+            scf_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
+            diis=diis_step, error=error)
+    CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+              broyden_mixing_new_nr,multisecant_mixing_nr)
+       ! Compute the difference p_out-p_in
+       CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+             delta= scf_env%iter_delta, error=error)
+    CASE(no_mixing_nr)
+    CASE DEFAULT
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"unknown scf mixing method: "//&
+            cp_to_string(scf_env%mixing_method),error,failure)
+    END SELECT
+
+  END SUBROUTINE qs_scf_density_mixing
+
+! *****************************************************************************
+!> \brief checks whether exit conditions for outer loop are satisfied
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_check_outer_exit(qs_env,scf_env,scf_control,should_stop,&
+                                outer_loop_converged,exit_outer_loop,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+    LOGICAL                                  :: should_stop, &
+                                                outer_loop_converged, &
+                                                exit_outer_loop
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_outer_exit', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp)                            :: outer_loop_eps
+
+    outer_loop_converged=.TRUE.
+    IF (scf_control%outer_scf%have_scf) THEN
+       ! We have an outer SCF loop...
+       scf_env%outer_scf%iter_count=scf_env%outer_scf%iter_count+1
+       outer_loop_converged=.FALSE.
+
+       CALL outer_loop_gradient(qs_env,scf_env,error)
+       outer_loop_eps=SQRT(SUM(scf_env%outer_scf%gradient(:,scf_env%outer_scf%iter_count)**2))/ &
+            SIZE(scf_env%outer_scf%gradient,1)
+       IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
+    END IF
+ 
+    exit_outer_loop=should_stop .OR. outer_loop_converged.OR.&
+             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf 
+
+  END SUBROUTINE qs_scf_check_outer_exit
+
+
+! *****************************************************************************
+!> \brief checks whether exit conditions for inner loop are satisfied
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_check_inner_exit(qs_env,scf_env,scf_control,should_stop,&
+                               exit_inner_loop,converged,output_unit,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+    LOGICAL                                  :: should_stop, exit_inner_loop, &
+                                                converged
+    INTEGER                                  :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_inner_exit', &
+      routineP = moduleN//':'//routineN
+
+     CALL external_control(should_stop,"SCF",target_time=qs_env%target_time, &
+          start_time=qs_env%start_time,error=error)
+     IF (scf_env%iter_delta < scf_control%eps_scf) THEN
+        IF (output_unit>0) THEN
+           WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
+                "*** SCF run converged in ",scf_env%iter_count," steps ***"
+        END IF
+        exit_inner_loop = .TRUE.
+     ELSE IF (should_stop.OR.  scf_env%iter_count >= scf_control%max_scf) THEN
+        IF (output_unit>0) THEN
+           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
+                "*** SCF run NOT converged ***"
+        END IF
+        converged=.FALSE.
+        exit_inner_loop = .TRUE.
+     END IF
+ 
+  END SUBROUTINE qs_scf_check_inner_exit
+! *****************************************************************************
+!> \brief undoing density mixing. Important upon convergence
+! *****************************************************************************
+  SUBROUTINE qs_scf_undo_mixing(scf_env,rho,dft_control,para_env,diis_step,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL                                  :: diis_step
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_undo_mixing', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin
+
+     IF (scf_env%mixing_method>0) THEN
+        SELECT CASE(scf_env%mixing_method)
+        CASE(direct_mixing_nr)
+          CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_store,&
+                                      rho%rho_ao,para_env,scf_env%iter_delta,&
+                                      scf_env%iter_count,diis=diis_step,&
+                                      invert=.TRUE.,error=error)
+          DO ispin=1,dft_control%nspins
+             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+          END DO
+        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+             broyden_mixing_new_nr,multisecant_mixing_nr)
+          DO ispin=1,dft_control%nspins
+             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+          END DO
+        END SELECT
+     ENDIF
+  END SUBROUTINE qs_scf_undo_mixing
+
+! *****************************************************************************
+!> \brief Performes the updates of ks envs
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_ks_updates(qs_env,ks_env,just_energy,calculate_forces,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ks_updates', &
+      routineP = moduleN//':'//routineN
+
+! ***SCP 
+
+    IF (  qs_env % dft_control % scp )&
+       CALL qs_ks_scp_update ( qs_env, just_energy=just_energy, error=error )
+    ! ***SCP
+    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=calculate_forces,&
+         just_energy=just_energy,error=error)
+    
+  END  SUBROUTINE qs_scf_ks_updates
+
+! *****************************************************************************
+!> \brief Performes the updates rho and rhoscp (takes car of mixing as well)
+! *****************************************************************************
+  SUBROUTINE qs_scf_rho_update(rho,qs_env,scf_env,scp_dft,ks_env,mix_rho,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    LOGICAL,INTENT(IN)                       :: scp_dft, mix_rho
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_rho_updates', &
+      routineP = moduleN//':'//routineN
+
+    
+    ! ** update qs_env%rho
+    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+    ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
+    IF(mix_rho) THEN
+       CALL gspace_mixing(qs_env, scf_env, scf_env%mixing_store, rho, qs_env%para_env, error=error)
+    END IF
+    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
+    ! *** SCP
+    IF ( scp_dft ) THEN
+       CALL update_rhoscp ( qs_env = qs_env, error = error )
+       CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
+    ENDIF
+    ! *** SCP
+ 
+  END SUBROUTINE qs_scf_rho_update
+! *****************************************************************************
+!> \brief Performes the necessary steps before leaving innner scf loop
+! *****************************************************************************
+  SUBROUTINE qs_scf_inner_finalize(qs_env,harris_flag,diis_step,output_unit,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL                                  :: harris_flag, diis_step
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, scp_dft, scp_nddo
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+
+    failure=.FALSE.
+    NULLIFY(energy, rho, dft_control, scf_control, scf_env, harris_env, ks_env)
+
+    CALL get_qs_env(qs_env=qs_env,scf_env=scf_env, energy=energy,ks_env=ks_env,&
+                    rho=rho, dft_control=dft_control,harris_env=harris_env,&
+                    scf_control=scf_control, para_env=para_env,error=error)
+
+    scp_dft = dft_control%scp
+    scp_nddo = dft_control%qs_control%se_control%scp
+
+!   consistent deallocation in cleanup_scf_loop
+    IF ( scp_dft  .AND. scf_control%outer_scf%type==outer_scf_scp ) &
+    scf_env%qs_ot_env(1)%settings%scp_dft=.TRUE.
+    IF ( scp_nddo  .AND. scf_control%outer_scf%type==outer_scf_scp ) &
+    scf_env%qs_ot_env(1)%settings%scp_nddo=.TRUE.
+
+    CALL cleanup_scf_loop(scf_env,error)
+
+    ! now, print out energies and charges corresponding to the obtained wfn
+    ! (this actually is not 100% consistent at this point)!
+    CALL qs_scf_print_summary(output_unit,qs_env,scp_dft,error)
+
+    IF (harris_flag) energy%total = harris_env%harris_energy%Eharris
+
+    CALL qs_scf_undo_mixing (scf_env,rho,dft_control,para_env,diis_step,error)
+
+    !   *** update rspace rho since the mo changed
+    !   *** this might not always be needed (i.e. no post calculation / no forces )
+    !   *** but guarantees that rho and wfn are consistent at this point
+    CALL qs_scf_rho_update(rho,qs_env,scf_env,scp_dft,ks_env,&
+                           mix_rho=.FALSE.,error=error)
+
+  END SUBROUTINE qs_scf_inner_finalize
+
+! *****************************************************************************
+!> \brief perform cleanup operations at the end of an scf loop
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
+  SUBROUTINE cleanup_scf_loop(scf_env,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_scf_loop', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+! *** method dependent cleanup
+       SELECT CASE(scf_env%method)
+       CASE(ot_method_nr)
+          DO ispin=1,SIZE(scf_env%qs_ot_env)
+             CALL ot_scf_destroy(scf_env%qs_ot_env(ispin),error=error)
+          ENDDO
+          DEALLOCATE(scf_env%qs_ot_env,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CASE(ot_diag_method_nr)
+          !
+       CASE(general_diag_method_nr)
+          !
+       CASE(special_diag_method_nr)
+          !
+       CASE(block_krylov_diag_method_nr,block_davidson_diag_method_nr)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf method method:"//&
+               cp_to_string(scf_env%method),error,failure)
+       END SELECT
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cleanup_scf_loop
+
+END MODULE qs_scf_loop_utils 

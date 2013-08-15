@@ -78,12 +78,12 @@ MODULE xas_tp_scf
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf,                          ONLY: init_scf_run,&
-                                             qs_scf_print_summary,&
-                                             scf_env_cleanup,&
+  USE qs_scf,                          ONLY: scf_env_cleanup,&
                                              scf_env_do_scf
   USE qs_scf_diagonalization,          ONLY: do_general_diag
+  USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
   USE qs_scf_methods,                  ONLY: scf_env_density_mixing
+  USE qs_scf_output,                   ONLY: qs_scf_print_summary
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
@@ -291,8 +291,7 @@ CONTAINS
        IF (exit_loop) THEN
           ! now, print out energies and charges corresponding to the obtained wfn
           ! (this actually is not 100% consistent at this point)!
-          CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env%nelectron, &
-               dft_control,qs_env%qmmm,qs_env,.TRUE.,.FALSE.,error)
+          CALL qs_scf_print_summary(output_unit,qs_env,scp_dft=.FALSE.,error=error)
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
        END IF
 
@@ -663,8 +662,8 @@ CONTAINS
 
        NULLIFY(scf_env)
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-       CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-       scf_section=scf_section, do_xas_tp=.TRUE., error=error)
+       CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
+                                  do_xas_tp=.TRUE., error=error)
 
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
             converged=converged, should_stop=should_stop, error=error)

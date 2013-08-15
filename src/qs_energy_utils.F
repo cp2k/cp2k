@@ -25,6 +25,7 @@ MODULE qs_energy_utils
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
@@ -85,7 +86,8 @@ MODULE qs_energy_utils
 
   PUBLIC :: qs_energies_init,&
             qs_energies_compute_matrix_w,&
-            qs_energies_properties
+            qs_energies_properties,&
+            qs_energies_mp2
 
 CONTAINS
 
@@ -512,5 +514,36 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
   END SUBROUTINE atom_trace
+
+! *****************************************************************************
+!> \brief Enters the mp2 part of cp2k
+! *****************************************************************************
+
+  SUBROUTINE qs_energies_mp2(qs_env,calc_forces,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calc_forces
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_mp2', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: should_stop
+
+    CALL external_control(should_stop,"MP2",target_time=qs_env%target_time, &
+    start_time=qs_env%start_time,error=error)
+
+    ! Compute MP2 energy
+    IF (ASSOCIATED(qs_env%mp2_env)) THEN
+       CALL mp2_main(qs_env=qs_env,error=error)
+
+       ! no forces so far with MP2 (except one electron systems ;-)
+       IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               " No forces/gradients with MP2.... yet(?!) "//&
+                CPSourceFileRef, only_ionode=.TRUE.)
+       ENDIF
+    ENDIF
+
+  END SUBROUTINE qs_energies_mp2
 
 END MODULE qs_energy_utils
