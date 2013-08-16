@@ -20,154 +20,15 @@ transpose_flavor=1
 data_type=1
 
 #
-# target compiler... this are the options used for building the library.
-# They should be aggessive enough to e.g. perform vectorization for the specific CPU (e.g. -ftree-vectorize -march=native),
-# and allow some flexibility in reordering floating point expressions (-ffast-math).
-# Higher level optimisation (in particular loop nest optimization) should not be used.
-#
-# Note: -fp-model fast=1 is default for the Intel compiler
-# XEON Compilation
-#target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mavx -fno-inline-functions -nogen-interfaces -openmp"
-# MIC Compilation
-#target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces -openmp"
-target_compile="gfortran -O2 -funroll-loops -ffast-math -ftree-vectorize -march=native -fno-inline-functions"
-
-#
-# SIMD registers size (bytes)
-# set to zero: remove the specific vector version
-# otherwise set to 32 (AVX) or 64 (MIC) to generate the vector version
-#
-SIMD_size=32 # default is AVX size
-
-#
-# cross-compilation for the Intel MIC in case the flag -mmic is specified in target_compile
-# Set the variable MIC
-#
-if [[ $target_compile = *-mmic* ]]; then
-mic=MIC
-fi
-
-#
-# set the name of the directory for the compiled files and output results
-#
-out_dir="output"
-if [ -n "${mic+xxxx}" ]; then
-SIMD_size=64
-out_dir="${out_dir}_${mic}"
-
-ssh_mic_cmd() {
-# copy in the exported directory on MIC
-cp $1 ~
-# execute on MIC
-ssh mic0 "ulimit -s 256000; export OMP_NUM_THREADS=1; export LD_LIBRARY_PATH=/apps/dommic/mic/intel/composer_xe_2013.1.117/compiler/lib/mic; ./$1"
-# remove the file
-rm ~/$1
-}
-
-export SINK_LD_LIBRARY_PATH=${INTEL_PATH}/lib/mic/
-mic_cmd="/opt/intel/mic/bin/micnativeloadex "
-
-fi
-
-#
-# target dgemm link options... these are the options needed to link blas (e.g. -lblas)
-# blas is used as a fall back option for sizes not included in the library or in those cases where it is faster
-# the same blas library should thus also be used when libsmm is linked.
-#
-OMP_NUM_THREADS=1
-#blas_linking="-static-intel -mkl=sequential"
-blas_linking="-L/data_cp2k/vondele/mkl/lib/em64t/ -Wl,--start-group -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group"
-
-#
 # matrix dimensions for which optimized routines will be generated. 
 # since all combinations of M,N,K are being generated the size of the library becomes very large
 # if too many sizes are being optimized for. Numbers have to be ascending.
 #
-dims_small="1 4 5 6 9 13 16 17 22 23 24"
+dims_small="1 4 5 6 8 9 13 16 17 22 23 24 26 32"
 
 #
 # tiny dimensions used are used as primivitves and generated in an 'exhaustive' search.
 # They should be a sequence from 1 to N,
 # where N is a number that is large enough to have good in cache performance (e.g. for modern SSE cpus 8 to 12)
-# Too large (>12?) is not beneficial, but increases the time needed to build the library
-# Too small (<8)   will lead to a slow library, but the build might proceed quickly
-# The minimum number for a successful build is 4
 #
 dims_tiny=`seq 1 24`
-
-#
-# host compiler... this is used only to compile a few tools needed to build the library. The library itself is not compiled this way.
-# This compiler needs to be able to deal with some Fortran2003 constructs.
-#
-#host_compile="ftn -O2 "
-#host_compile="ifort -O2 "
-host_compile="gfortran "
-
-#
-# Target for makefile: source, compile, all
-#
-target="all"
-#target="compile"
-#target="source"
-
-#
-# number of processes to use in parallel for compiling / building and benchmarking the library.
-# Should *not* be more than the physical (available) number of cores of the machine
-#
-tasks=16 # Sandy Bridge node
-#tasks=40 # MIC
-
-#
-# set the number of jobs
-#
-jobs=20
-#jobs=350 # MIC
-
-#
-# running command for batch (PBS or Slurm)
-#
-WLM="pbs"
-#WLM="slurm"
-if [ ${WLM} = "pbs" ]; then
-  batch_cmd() {
-    echo "aprun -B -j1 -cc none $@" | \
-      qsub -N ${test_name} -j oe -V -d ${PWD} -lmppwidth=1 -lmppnppn=1 -lwalltime=02:00:00; 
-  }      
-else
-  batch_cmd() {
-    sbatch -J ${test_name} -o "${test_name}-%j.out" -D ${PWD} --ntasks=1 --ntasks-per-node=1 -t 02:00:00 <<EOF
-#!/bin/bash -e
-aprun -B -j1 -cc none $@
-EOF
-  }
-fi
-
-#run_cmd=batch_cmd
-#run_cmd=true # command for skipping the Make part
-
-#
-# common commands. Do not modify!
-#
-type_label="_"
-case "${data_type}" in
-     1 )
-     type_label+="d";;
-     2 )
-     type_label+="s";;	
-     3 )
-     type_label+="z";;
-     4 )
-     type_label+="c";;
-esac
-
-case "${transpose_flavor}" in
-     1 )
-     type_label+="nn";;
-     2 )
-     type_label+="tn";;	
-     3 )
-     type_label+="nt";;
-     4 )
-     type_label+="tt";;
-esac
-

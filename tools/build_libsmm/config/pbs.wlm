@@ -1,0 +1,6 @@
+# Author: Alfio Lazzaro, alazzaro@cray.com (2013)
+
+batch_cmd() {
+    echo "${aprun_cmd} $@" | \
+	qsub -N ${test_name} -j oe -V -d ${PWD} -lmppwidth=1 -lmppnppn=1 -lwalltime=${wtime};
+}

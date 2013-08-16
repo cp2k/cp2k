@@ -70,17 +70,63 @@ CONTAINS
     ENDIF
   END FUNCTION trsum
   
-  SUBROUTINE MULTVECTOR(M,N,K,data_type,nSIMD,stride)
+  SUBROUTINE write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label,Cbuffer_row,Cbuffer_col)
+    CHARACTER(LEN=*) :: label
+    INTEGER :: M,N,K,transpose_flavor,data_type
+    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+    INTEGER, OPTIONAL :: Cbuffer_row, Cbuffer_col
+
+    IF (PRESENT(stack_size_label)) THEN
+       write(6,'(A,I0,A,I0,A,I0,A)') "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+            M,"_",N,"_",K,"_stack"//TRIM(label)//"("//TRIM(trparam(stack_size_label))//")"
+       CALL write_stack_params(data_type,stack_size_label)
+       write(6,'(A)')                    "      INTEGER            :: sp"
+       IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
+          write(6,'(A,I0,A,I0,A)')   "       "//trdat(data_type)//":: Cbuffer(",Cbuffer_row,",",Cbuffer_col,")"
+       ENDIF
+       write(6,'(A)')                    "      DO sp = 1, "//TRIM(stack_size_label)
+       IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
+          write(6,'(A,I0,A,I0,A,I0,A)') "         CALL smm_"//trstr(transpose_flavor,data_type)//"_",&
+               M,"_",N,"_",K,TRIM(label)//"_buffer(A(params(p_a_first,sp)),B(params(p_b_first,sp)),C(params(p_c_first,sp)),Cbuffer)"
+       ELSE
+       write(6,'(A,I0,A,I0,A,I0,A)') "         CALL smm_"//trstr(transpose_flavor,data_type)//"_",&
+            M,"_",N,"_",K,TRIM(label)//"(A(params(p_a_first,sp)),B(params(p_b_first,sp)),C(params(p_c_first,sp)))"
+       ENDIF
+       write(6,'(A)')                  "      ENDDO"
+       write(6,'(A)') "   END SUBROUTINE"
+    ENDIF
+  END SUBROUTINE write_subroutine_stack
+
+  SUBROUTINE MULTVECTOR(label,M,N,K,transpose_flavor,data_type,nSIMD,stride,stack_size_label)
     INTEGER :: M,N,K,sj,je,ji,sl,le,li
-    INTEGER :: data_type,nSIMD,stride
+    INTEGER :: transpose_flavor,data_type,nSIMD,stride
     INTEGER :: multElements,modElements
+    CHARACTER(LEN=*) :: label
+    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
 
     multElements=(M/nSIMD)*nSIMD
     modElements=MOD(M,nSIMD)
 
     IF (modElements>0.AND.nSIMD>0.AND.stride>0) THEN
-       write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type)//":: Cbuffer(",nSIMD,",",stride,")"
+       if (PRESENT(stack_size_label)) THEN
+          write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+               M,"_",N,"_",K,TRIM(label)//"_buffer(A,B,C,Cbuffer)"
+          write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type,"INOUT")//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
+       ELSE
+          write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+               M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+          write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type)//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
+       ENDIF
+    ELSE
+       if (PRESENT(stack_size_label)) THEN
+          write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+               M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+       ELSE
+          RETURN
+       ENDIF
     ENDIF
+
+    CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.) 
     
     write(6,'(A)') "      INTEGER :: i"
 
@@ -92,7 +138,7 @@ CONTAINS
        DO le=1,K,sl
 
           IF (multElements>0) THEN
-             write(6,*) "     DO i=",1,",",multElements,",",1
+             write(6,'(A,I0,A,I0,A,I0)') "     DO i=",1,",",multElements,",",1
              DO ji=je,MIN(je+sj-1,N),1
                 write(6,'(A,I0,A,I0,A)') "       C(i,",ji,")=C(i,",ji,")+ &"
                 DO li=le,MIN(le+sl-1,K),1
@@ -100,12 +146,12 @@ CONTAINS
                      li,")*B(",li,",",ji,")"//trsum(li==MIN(le+sl-1,K))
                 ENDDO
              ENDDO
-             write(6,*) "     ENDDO "
+             write(6,'(A)') "     ENDDO "
           ENDIF
 
           ! consider remaining elements
           IF (modElements>0) THEN
-             write(6,*) "     DO i=",1,",",nSIMD,",",1
+             write(6,'(A,I0,A,I0,A,I0)') "     DO i=",1,",",nSIMD,",",1
              DO ji=je,MIN(je+sj-1,N),1
                 IF (le>1) THEN
                    write(6,'(A,I0,A,I0,A)') "       Cbuffer(i,",&
@@ -120,7 +166,7 @@ CONTAINS
                      multElements,",",li,")*B(",li,",",ji,")"//trsum(li==MIN(le+sl-1,K))
                 ENDDO
              ENDDO
-             write(6,*) "     ENDDO "
+             write(6,'(A)') "     ENDDO "
           
           ENDIF
        ENDDO
@@ -135,14 +181,28 @@ CONTAINS
 
     ENDDO
 
+    write(6,'(A)') "   END SUBROUTINE"
+
+    if (PRESENT(stack_size_label)) THEN
+
+       IF (modElements>0.AND.nSIMD>0.AND.stride>0) THEN
+          CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label,nSIMD,MIN(stride,N))
+       ELSE
+          CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label)
+       ENDIF
+    ENDIF
+
   END SUBROUTINE MULTVECTOR
 
-  SUBROUTINE mult_versions(M,N,K,version,label,transpose_flavor,data_type,SIMD_size,filename)
-     INTEGER :: m,n,k,version,transpose_flavor,data_type,SIMD_size
+  SUBROUTINE mult_versions(M,N,K,version,label,transpose_flavor,data_type,SIMD_size,filename,&
+                           stack_size_label,write_buffer_interface)
+     INTEGER :: M,N,K,version,transpose_flavor,data_type,SIMD_size
      INTEGER, ALLOCATABLE, DIMENSION(:,:) :: tiny_opts
      INTEGER :: best_square(4)
      REAL, ALLOCATABLE, DIMENSION(:)      :: tiny_perf,square_perf
      CHARACTER(LEN=1024) :: filename,line
+     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+     LOGICAL, OPTIONAL :: write_buffer_interface
      CHARACTER(LEN=*) :: label
      INTEGER :: opts(4),blocksize,i,iline,nline,max_dim,isquare
      REAL :: tmp
@@ -206,37 +266,37 @@ CONTAINS
      ENDDO
      IF (ANY(best_square<1)) STOP "tiny opts file needs sufficiently many square sizes"
 
+     IF (version.ge.1.and.version.le.7) THEN
+        IF (version.ne.3) THEN
+           write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+                M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+           ELSE
+              write(6,'(A,I0,A,I0,A,I0,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+                   M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+           ENDIF
+        CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.) 
+     ENDIF
+
      SELECT CASE(version)
      CASE(1) 
        ! generation of the tiny version
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
-              M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        write(6,'(A)')                     "      INTEGER ::i,j,l"
        CALL find_tiny_opts(opts,tiny_opts,m,n,k)
        CALL smm_inner(1,M,1,N,1,K,opts(1),opts(2),opts(3),opts(4),transpose_flavor,data_type)
-       write(6,'(A)') "   END SUBROUTINE"
      CASE(2)
        ! generation of the matmul version
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
-              M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        SELECT CASE(transpose_flavor)
        CASE(1)
-          write(6,'(A)')                         "      C = C + MATMUL(A,B) ! so easy"
+          write(6,'(A)')                  "      C = C + MATMUL(A,B) ! so easy"
        CASE(2)
-          write(6,'(A)')                         "      C = C + MATMUL(TRANSPOSE(A),B) ! so easy"
+          write(6,'(A)')                  "      C = C + MATMUL(TRANSPOSE(A),B) ! so easy"
        CASE(3)
-          write(6,'(A)')                         "      C = C + MATMUL(A,TRANSPOSE(B)) ! so easy"
-       CASE(4)
-          write(6,'(A)')                         "      C = C + MATMUL(TRANSPOSE(A),TRANSPOSE(B)) ! so easy"
+          write(6,'(A)')                  "      C = C + MATMUL(A,TRANSPOSE(B)) ! so easy"
+       CASE(4)          
+          write(6,'(A)')                  "      C = C + MATMUL(TRANSPOSE(A),TRANSPOSE(B)) ! so easy"
        END SELECT
-       write(6,'(A)') "   END SUBROUTINE"
      CASE(3)
        ! generation of the gemm version
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
-                                          M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        WRITE(6,'(A)') "      "//trdat(data_type)//", PARAMETER :: one=1"
        SELECT CASE(transpose_flavor)
        CASE(1)
@@ -252,29 +312,30 @@ CONTAINS
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
                "      CALL "//trgemm(data_type)//"('T','T',",M,",",N,",",K,",one,A,",K,",B,",N,",one,C,",M,")"
        END SELECT
-       write(6,'(A)') "   END SUBROUTINE"
      CASE(4,5,6,7)
        isquare=version-3
        ! generation of the multrec versions
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_", &
-                                          M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        write(6,'(A)')                     "      INTEGER ::i,j,l"
        blocksize=best_square(isquare)
        CALL MULTREC(1,M,1,N,1,K,blocksize,tiny_opts,transpose_flavor,data_type)
-       write(6,'(A)') "   END SUBROUTINE"
      CASE(8)
         ! generation of the vector version
         IF (nSIMD>0) THEN
-           write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
-                M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-           CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
-           CALL MULTVECTOR(M,N,K,data_type,nSIMD,stride)
-           write(6,'(A)') "   END SUBROUTINE"
+           CALL MULTVECTOR(label,M,N,K,transpose_flavor,data_type,nSIMD,stride,stack_size_label)
+           IF (PRESENT(write_buffer_interface).AND.write_buffer_interface) THEN
+              CALL MULTVECTOR(label,M,N,K,transpose_flavor,data_type,nSIMD,stride)
+           ENDIF
+
         ENDIF
      CASE DEFAULT
        STOP "MISSING CASE mult_versions"
      END SELECT
+
+     IF (version.ge.1.and.version.le.7) THEN
+        write(6,'(A)') "   END SUBROUTINE"
+        CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label)
+     ENDIF
+
   END SUBROUTINE mult_versions
 
 END MODULE multrec_gen

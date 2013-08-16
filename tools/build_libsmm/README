@@ -2,89 +2,102 @@ libsmm: a library for small matrix multiplies.
 
 in order to deal efficiently with small matrix multiplies,
 often involving 'special' matrix dimensions such as 5,13,17,22, 
-a dedicated matrix library can be generated that outperforms (or matches) general purpose (optimized) blas libraries.
+a dedicated matrix library can be generated that outperforms (or matches)
+general purpose (optimized) blas libraries.
 
 Generation requires extensive compilation and timing runs, and is machine specific, 
 i.e. the library should be constructed on the architecture it is supposed to run.
-Using an 8 core machine, generation takes approx. 4 hours.
 
-There are 3 possible methods to generate the library:
-a) execution on a single computer that allows for both execution and compilation (by Joost VandeVondele)
-b) execution in a cluster, where each computer allows for both execution and 
-   compilation (by Alfio Lazzaro, alazzaro@cray.com (2013))
-c) cross-compilation and execution for the Intel Xeon Phi (by Alfio Lazzaro, alazzaro@cray.com (2013))
+Users can modify the values inside the file config.in to set which kind of library
+they want to generate. Furthermore, they can modify (or add) the files inside
+the config directory to set the compiler options used to build the
+library. They can use the existing files as template.
 
-Below you can find the detailed instructions per each method.
-
-====================================================================================================================
-a) How to generate the library on a computer that allows for both execution and compilation
-
-   1) Modify config.in to set options such as compiler, compilation flags, blas library,
-      matrix sizes, and the number of available cores. In particular, some variables 
-      you may want to change are:
-      target_compile        --> compiler and compilation flags. For example:
-                                ifort -O2 -funroll-loops -vec-report2 -warn -mavx -fno-inline-functions -nogen-interfaces
-      SIMD_size             --> SIMD registers size (in bytes). Set to 32 (AVX) or 64 (Xeon Phi) to generate an 
-                                optimized vector version. Any other value (e.g. 16 for SSE) will not generate the vector version.
-                                Note that in the case of compilation for Intel Xeon Phi, the value 64 is automatically set.
-				The vector version is only generated for single and double precision real and no transpose matrices.
-      blas_linking          --> blas library. For example (Intel compiler case): -static-intel -mkl=sequential
-      dims_small, dims_tiny --> Matrix dimensions 
-      tasks                 --> Number of parallel tasks used by the make command
-
-   2) Run the master script ./do_all
-
-      (Alternatively, edit config.mk and run the Makefile through GNU make.)
-
-   3) The library is generated, check test_smm_*.out for performance, and correctness.
-
-   4) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
-
+There are several options for building the library. Run ./generate -h to see them.
+Below you can find the detailed instructions for some examples.
 
 ====================================================================================================================
-b) How to generate the library running several jobs in a cluster, where each computer allows for both execution and
-   compilation
+a) How to generate the library running several jobs in a cluster, where each
+   computer allows for both execution and compilation. 
+   For this example we will use a CRAY system with GNU compiler and PBS.
+   Run "./generate -h" to see the meaning of the options.
 
-   1) Follow the instructions in the point 1) of the method a). Furthermore, it requires to set in the config.in:
-      - the number of jobs (variable jobs)
-      - the command to run in batch inside the batch_cmd function. By default is PBS in a CRAY environment
+   1) Run: ./generate -c config/cray.gnu -j 100 -t 16 -w slurm tiny1
+      This command submits 100 jobs in batch. Wait until their completion.
 
-   2) Uncomment the line 'run_cmd=batch_cmd' in the config.in
+   2) Run: ./generate -c config/cray.gnu tiny2
+      This command collects all results produced in the tiny1 phase and it
+      generates a file tiny_gen_optimal_dnn_cray.gnu.out
 
-   3) Run ./do_generate_tiny, which will submit the batch jobs
+   3) As done in 1) and 2), run: ./generate -c config/cray.gnu -j 20 -t 16 -w slurm small1
+      This command submits 20 jobs in batch. Wait until their completion.
+      Then run: ./generate -c config/cray.gnu small2
+      This command collects all results produced in the small1 phase and it
+      generates a file small_gen_optimal_dnn_cray.gnu.out
+      
+   4) Run: ./generate -c config/cray.gnu -t 16 -w slurm lib
+      This commman submit in batch a single job that compiles the library.
+      At the end the library is produced inside the directory lib/
+      (libsmm_dnn_cray.gnu.a). 
 
-   4) Once all jobs have completed their execution, comment in config.in 'run_cmd=batch_cmd' and uncomment 'run_cmd=true'
+   5) It is highly recommended to run the final test to check the correctness of the library.
+      Run: ./generate -c config/cray.gnu -j 20 -w slurm check1
+      After the batch jobs completion, run: ./generate -c config/cray.gnu -j 20 check2
+      Note that it is important to use the same number of jobs specified in
+      check1 phase. Finally check test_smm_dnn_cray.gnu.out for performance and correctness.
 
-   5) Run again ./do_generate_tiny. At this time it will run on the local node, collecting all results (it can take a while)
-
-   6) Repeat points 3), 4), and 5) running ./do_generate_small
-
-   7) Finally set 'run_cmd=batch_cmd' and  run ./do_generate_lib.
-      The library is generated, check test_smm_*.out for performance, and correctness.
-
-   8) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
+   6) Intermediate files (but not some key output and the library itself)
+      might be removed using ./generate clean
 
 
 ====================================================================================================================
-c) How to generate the library for the Intel Xeon Phi
+b) How to generate the library for the Intel Xeon Phi in batch mode
+   For this example we will use a cluster with PBS, where each node has a MIC card.
+   Run "./generate -h" to see the meaning of the options.
+   We use the config file mic.intel (inside the directory config).
+   Check if all options are OK for your case, in particular:
+    - the target_compile variable with the flag -mmic, e.g.:
+      target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces -openmp"
+    - the variable MICFS to the exported directory between host and Intel Xeon Phi, 
+      e.g. MICFS=~/.mic_exported_directory. Note that the directory is created if doesn't exist.
+    - the variable MIC_LD_LIBRARY_PATH where to find the Intel Xeon Phi library on the card
+    - the variable ssh_mic_cmd, e.g ssh_mic_cmd="ssh mic0"
+    - the variable SINK_LD_LIBRARY_PATH, i.e. where to find the Intel Xeon Phi library on the host
+    - the variable mic_cmd, which by default is mic_cmd="/opt/intel/mic/bin/micnativeloadex"
+   
+   1) Run: ./generate -c config/mic.intel -j 100 -t 40 -w slurm tiny1
+      This command submits 100 jobs in batch. Each job offloads executions
+      to the MIC card. Wait until completion of all jobs.
 
-   1) First of all you need to connect to the host system of the Intel Xeon Phi.
+   2) Run: ./generate -c config/mic.intel tiny2
+      This command collects all results of the tiny1 phase and it generates
+      the file tiny_gen_optimal_dnn_mic.intel.out.
 
-   2) Follow the instructions in the point 1) of the method a). Furthermore, it requires to set in the config.in:
-      - the target_compile variable with the flag -mmic, e.g.:
-        target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces"
-      - the variable MICFS to the exported directory between host and Intel Xeon Phi, e.g. MICFS=~
-  
-   3) Run the master script ./do_all
+   3) As done in 1) and 2), run: ./generate -c config/mic.intel -j 200 -t 10 -w slurm small1
+      This command submits 200 jobs in batch, where each job offloads
+      executions to the MIC card. Note that the maximum number of threads is 10.
+      Wait until their completion. Then run: ./generate -c config/mic.intel small2
+      This command collects all results produced in the small1 phase and it
+      generates a file small_gen_optimal_dnn_mic.intel.out
 
-   4) The library is generated, check test_smm_*_MIC.out for performance, and correctness.
+   4) Run: ./generate -c config/mic.intel -t 16 -w slurm lib
+      This commman submit in batch a single job that compiles the library.
+      At the end the library is produced inside the directory lib/
+      (libsmm_dnn_mic.intel.a). 
 
-   5) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean   
+   5) It is highly recommended to run the final test to check the correctness of the library.
+      Run: ./generate -c config/mic.intel -j 200 -w slurm check1
+      After the batch jobs completion, run: ./generate -c config/mic.intel -j 200 check2
+      Note that it is important to use the same number of jobs specified in
+      check1 phase. Finally check test_smm_dnn_mic.intel.out for performance and correctness.
+
+   6) Intermediate files (but not some key output and the library itself)
+      might be removed using ./generate clean
 
 
 The following copyright covers code and generated library
 !====================================================================================================================
-! * Copyright (c) 2011 Joost VandeVondele
+! * Copyright (c) 2013 Joost VandeVondele and Alfio Lazzaro
 ! * All rights reserved.
 ! *
 ! * Redistribution and use in source and binary forms, with or without

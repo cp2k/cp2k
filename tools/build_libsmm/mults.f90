@@ -3,18 +3,26 @@ MODULE mults
   IMPLICIT NONE
 
 CONTAINS
-  FUNCTION trdat(data_type)
+  FUNCTION trdat(data_type,in_intent_label)
     INTEGER :: data_type
-    CHARACTER(LEN=25) :: trdat
+    CHARACTER(LEN=*), OPTIONAL :: in_intent_label
+    CHARACTER(LEN=50) :: intent_label
+    CHARACTER(LEN=50) :: trdat
+    
+    IF (PRESENT(in_intent_label).AND.(in_intent_label.ne."")) THEN
+       intent_label=", INTENT("//TRIM(in_intent_label)//")"
+    ELSE
+       intent_label=""
+    ENDIF
     SELECT CASE(data_type)
     CASE(1)
-      trdat="REAL(KIND=KIND(0.0D0))"
+      trdat="REAL(KIND=KIND(0.0D0))"//TRIM(intent_label)
     CASE(2)
-      trdat="REAL(KIND=KIND(0.0))"
+      trdat="REAL(KIND=KIND(0.0))"//TRIM(intent_label)
     CASE(3)
-      trdat="COMPLEX(KIND=KIND(0.0D0))"
+      trdat="COMPLEX(KIND=KIND(0.0D0))"//TRIM(intent_label)
     CASE(4)
-      trdat="COMPLEX(KIND=KIND(0.0))"
+      trdat="COMPLEX(KIND=KIND(0.0))"//TRIM(intent_label)
     END SELECT
   END FUNCTION
   FUNCTION trgemm(data_type)
@@ -31,8 +39,8 @@ CONTAINS
       trgemm="CGEMM"
     END SELECT
   END FUNCTION
-  FUNCTION trstr(tranpose_flavor,data_type)
-    INTEGER :: tranpose_flavor, data_type
+  FUNCTION trstr(transpose_flavor,data_type)
+    INTEGER :: transpose_flavor, data_type
     CHARACTER(LEN=3) :: trstr
     CHARACTER(LEN=1) :: dstr
     SELECT CASE(data_type)
@@ -45,7 +53,7 @@ CONTAINS
     CASE(4)
      dstr="c"
     END SELECT
-    SELECT CASE(tranpose_flavor)
+    SELECT CASE(transpose_flavor)
     CASE(1)
      trstr=dstr//"nn"
     CASE(2)
@@ -56,45 +64,99 @@ CONTAINS
      trstr=dstr//"tt"
     END SELECT
   END FUNCTION trstr
+  FUNCTION trparam(stack_size_label)
+    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+    CHARACTER(LEN=128) :: trparam
+    if (PRESENT(stack_size_label)) THEN
+       trparam = "A,B,C,"//TRIM(stack_size_label)//",dbcsr_ps_width,params,p_a_first,p_b_first,p_c_first"
+    ELSE
+       trparam = "A,B,C"
+    ENDIF
+  END FUNCTION trparam
+  SUBROUTINE write_stack_params(data_type,stack_size_label)
+    INTEGER          :: data_type
+    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+    CALL write_matrix_defs(data_type=data_type,write_intent=.TRUE.)
+    IF (PRESENT(stack_size_label)) THEN
+       write(6,'(A)')                    "        INTEGER, INTENT(IN) :: "//TRIM(stack_size_label)//", dbcsr_ps_width"
+       write(6,'(A)')                    "        INTEGER, INTENT(IN) :: params(dbcsr_ps_width, "//TRIM(stack_size_label)//")"
+       write(6,'(A)')                    "        INTEGER, INTENT(IN) :: p_a_first, p_b_first, p_c_first"
+    ENDIF
+  END SUBROUTINE write_stack_params
+  SUBROUTINE write_matrix_defs(M,N,K,transpose_flavor,data_type,write_intent,stack_size_label)
+   INTEGER, OPTIONAL          :: M,N,K,transpose_flavor
+   INTEGER                    :: data_type
+   LOGICAL                    :: write_intent
+   CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+   CHARACTER(LEN=50)          :: intent_label   
 
-  SUBROUTINE write_matrix_defs(M,N,K,tranpose_flavor,data_type)
-   INTEGER M,N,K,tranpose_flavor,data_type
-   SELECT CASE(tranpose_flavor)
-   CASE(1)
-     write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",K,",",N,"), A(",M,",",K,")"
-   CASE(2)
-     write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",K,",",N,"), A(",K,",",M,")"
-   CASE(3)
-     write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",N,",",K,"), A(",M,",",K,")"
-   CASE(4)
-     write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') & 
-        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",N,",",K,"), A(",K,",",M,")"
-   END SELECT
+   IF (PRESENT(M).AND.PRESENT(N).AND.PRESENT(K).AND.PRESENT(transpose_flavor)) THEN
+      IF (PRESENT(stack_size_label)) THEN
+         write(6,'(A)') "      "//trdat(data_type)// &
+              " :: C(M*N*"//TRIM(stack_size_label)// &
+              "), B(K*N*"//TRIM(stack_size_label)// &
+              "), A(M*K*"//TRIM(stack_size_label)//")"
+      ELSE
+         IF (write_intent) THEN
+            write(6,'(A,I0,A,I0,A)') &
+                 "      "//trdat(data_type,"INOUT")//" :: C(",M,",",N,")"
+            intent_label="IN"
+         ELSE
+            write(6,'(A,I0,A,I0,A)') &
+                 "      "//trdat(data_type)//" :: C(",M,",",N,")"
+            intent_label=""
+         ENDIF
+         SELECT CASE(transpose_flavor)
+         CASE(1)
+            write(6,'(A,I0,A,I0,A,I0,A,I0,A)') &
+                 "      "//trdat(data_type,intent_label)//" :: B(",K,",",N,"), A(",M,",",K,")"                 
+         CASE(2)
+            write(6,'(A,I0,A,I0,A,I0,A,I0,A)') &
+                 "      "//trdat(data_type,intent_label)//" :: B(",K,",",N,"), A(",K,",",M,")"
+         CASE(3)
+            write(6,'(A,I0,A,I0,A,I0,A,I0,A)') &
+                 "      "//trdat(data_type,intent_label)//" :: B(",N,",",K,"), A(",M,",",K,")"
+         CASE(4)
+            write(6,'(A,I0,A,I0,A,I0,A,I0,A)') & 
+                 "      "//trdat(data_type,intent_label)//" :: B(",N,",",K,"), A(",K,",",M,")"
+         END SELECT
+      ENDIF
+   ELSE
+      write(6,'(A)') "      "//trdat(data_type,"INOUT")//" :: C(*)"
+      write(6,'(A)') "      "//trdat(data_type,"IN")//" :: B(*), A(*)"
+   ENDIF
   END SUBROUTINE write_matrix_defs
 
-  SUBROUTINE write_test_fun(M,N,K,transpose_flavor,data_type)
+  SUBROUTINE write_test_fun(M,N,K,transpose_flavor,data_type,stack_size_label)
    INTEGER :: M,N,K,transpose_flavor,data_type
-   write(6,*)                    "FUNCTION TEST(X,A,B,C,N) RESULT(res)"
-   write(6,*)                    "      "//trdat(data_type)//" ::C(*), A(*), B(*)"
-   write(6,*)                    "   INTEGER :: N"
-   write(6,*)                    "   REAL :: t2,t1,res"
-   write(6,*)                    "   INTERFACE"
-   write(6,*)                    "     SUBROUTINE X(A,B,C)"
-   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
-   write(6,*)                    "     END SUBROUTINE"
-   write(6,*)                    "   END INTERFACE"
-   write(6,*)                    "   INTEGER :: i"
+   CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+   
+   write(6,'(A)')                    "FUNCTION TEST(X,"//TRIM(trparam(stack_size_label))//",Niter) RESULT(res)"
+   IF (PRESENT(stack_size_label)) THEN
+      CALL write_stack_params(data_type,stack_size_label)
+   ELSE
+      CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.)
+   ENDIF
+   write(6,'(A)')                    "   INTEGER :: Niter"
+   write(6,'(A)')                    "   REAL :: t2,t1,res"
+   write(6,'(A)')                    "   INTERFACE"
+   write(6,'(A)')                    "     SUBROUTINE X("//TRIM(trparam(stack_size_label))//")"
+   IF (PRESENT(stack_size_label)) THEN
+      CALL write_stack_params(data_type,stack_size_label)
+   ELSE
+      CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.)
+   ENDIF
+   write(6,'(A)')                    "     END SUBROUTINE"
+   write(6,'(A)')                    "   END INTERFACE"
+   write(6,'(A)')                    "   INTEGER :: i"
 
-   write(6,*)                    "   CALL CPU_TIME(t1)"
-   write(6,*)                    "   DO i=1,N"
-   write(6,*)                    "      CALL X(A,B,C)"
-   write(6,*)                    "   ENDDO"
-   write(6,*)                    "   CALL CPU_TIME(t2)"
-   write(6,*)                    "   res=REAL(t2-t1,KIND=KIND(res))"
-   write(6,*)                    "END FUNCTION"
+   write(6,'(A)')                    "   CALL CPU_TIME(t1)"
+   write(6,'(A)')                    "   DO i=1,Niter"
+   write(6,'(A)')                    "      CALL X("//TRIM(trparam(stack_size_label))//")"
+   write(6,'(A)')                    "   ENDDO"
+   write(6,'(A)')                    "   CALL CPU_TIME(t2)"
+   write(6,'(A)')                    "   res=REAL(t2-t1,KIND=KIND(res))"
+   write(6,'(A)')                    "END FUNCTION"
   END SUBROUTINE
 
   SUBROUTINE smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type)
@@ -134,7 +196,7 @@ CONTAINS
      ENDDO
      ENDDO
      DO ido=1,have_loops
-     write(6,*) "     ENDDO "
+     write(6,'(A)') "     ENDDO "
      ENDDO
   END SUBROUTINE smm_inner
 
@@ -142,26 +204,26 @@ CONTAINS
      INTEGER :: mi,mf,ni,nf,ki,kf,ichoice,mu,nu,ku,have_loops
      IF (ichoice==1) THEN
         IF (nf-ni+1>nu) THEN
-           write(6,*) "     DO j=",ni,",",nf,",",nu
+           write(6,'(A,I0,A,I0,A,I0)') "     DO j=",ni,",",nf,",",nu
            have_loops=have_loops+1
         ELSE
-           write(6,*) "     j=",ni 
+           write(6,'(A,I0)') "     j=",ni 
         ENDIF
      ENDIF
      IF (ichoice==2) THEN
         IF (mf-mi+1>mu) THEN
-           write(6,*) "     DO i=",mi,",",mf,",",mu
+           write(6,'(A,I0,A,I0,A,I0)') "     DO i=",mi,",",mf,",",mu
            have_loops=have_loops+1
         ELSE
-           write(6,*) "     i=",mi 
+           write(6,'(A,I0)') "     i=",mi 
         ENDIF
      ENDIF
      IF (ichoice==3) THEN
         IF (kf-ki+1>ku) THEN
-           write(6,*) "     DO l=",ki,",",kf,",",ku
+           write(6,'(A,I0,A,I0,A,I0)') "     DO l=",ki,",",kf,",",ku
            have_loops=have_loops+1
         ELSE
-           write(6,*) "     l=",ki 
+           write(6,'(A,I0)') "     l=",ki 
         ENDIF
      ENDIF
   END SUBROUTINE

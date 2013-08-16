@@ -96,6 +96,7 @@ How to compile CP2K code
        precision real library.  Similarly use -D__HAS_smm_snn for single
        precision real and -D__HAS_smm_znn / -D__HAS_smm_cnn for
        double / single precision complex.
+     * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
  2h) CUDA support (optional, under development):
      * (Experimental): Use the __DBCSR_CUDA to compile with CUDA

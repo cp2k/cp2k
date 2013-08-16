@@ -95,12 +95,14 @@
 !> \param[in,out] c_data       Product data
 !> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE smm_process_mm_stack_c(params,&
+  SUBROUTINE smm_process_mm_stack_c(stack_descr, params,&
        stack_size,&
        a_data, b_data, c_data, error)
-    INTEGER, INTENT(IN)                       :: stack_size
+    TYPE(stack_descriptor_type), INTENT(IN)   :: stack_descr
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
       INTENT(IN)                              :: params
+    INTEGER, INTENT(IN)                       :: stack_size
+
     COMPLEX(kind=real_4), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     COMPLEX(kind=real_4), DIMENSION(*), INTENT(INOUT)      :: c_data
@@ -112,6 +114,16 @@
     INTEGER                                   :: sp
 
 !   ---------------------------------------------------------------------------
+#if defined(__HAS_smm_vec) && defined(__HAS_smm_cnn)
+
+    IF(stack_descr%defined_mnk) THEN
+       CALL smm_vec_cnn (stack_descr%m, stack_descr%n, stack_descr%k, &
+         a_data, b_data, c_data, stack_size, &
+         dbcsr_ps_width, params, p_a_first, p_b_first, p_c_first)
+       RETURN
+    ENDIF
+
+#endif
 
     DO sp = 1, stack_size
        CALL smm_cnn(&
@@ -122,6 +134,7 @@
             b_data(params(p_b_first,sp)),&
             c_data(params(p_c_first,sp)))
     ENDDO
+
   END SUBROUTINE smm_process_mm_stack_c
 
 

@@ -101,6 +101,12 @@ MODULE dbcsr_config
   LOGICAL, PARAMETER :: has_smm_gemm = .FALSE.
 #endif
 
+#if defined(__HAS_smm_vec)
+  LOGICAL, PARAMETER :: has_smm_vec = .TRUE.
+#else
+  LOGICAL, PARAMETER :: has_smm_vec = .FALSE.
+#endif
+
 #if defined(__PLASMA)
   LOGICAL, PARAMETER :: has_plasma = .TRUE.
 #else
@@ -181,13 +187,20 @@ CONTAINS
     INTEGER                                  :: error_handle
 
 !   ---------------------------------------------------------------------------
-!defaults
-
+    !defaults
     mm_stack_size = 1000
     nm_stacks = 0
     nn_stacks = 0
     nk_stacks = 0
-    nstackbuffers = 1
+    nstackbuffers = 0
+
+    IF(has_smm_vec) THEN
+      mm_stack_size = 30000
+      nm_stacks = 3
+      nn_stacks = 3
+      nk_stacks = 3
+      nstackbuffers = 0
+    ENDIF
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     SELECT CASE (driver)

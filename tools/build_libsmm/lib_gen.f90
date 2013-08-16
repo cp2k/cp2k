@@ -9,6 +9,7 @@ PROGRAM lib_gen
    INTEGER, DIMENSION(:,:), ALLOCATABLE ::  small_opts
    REAL, DIMENSION(:), ALLOCATABLE :: small_perf
    INTEGER :: opt,iline,nline,transpose_flavor,data_type, SIMD_size
+   CHARACTER(LEN=10), PARAMETER :: stack_size_label = "stack_size"
    
    CALL GET_COMMAND_ARGUMENT(1,arg)
    READ(arg,*) M
@@ -49,7 +50,7 @@ PROGRAM lib_gen
    CALL find_small_opt(opt,small_opts,m,n,k)
 
    label=""
-   CALL mult_versions(M,N,K,opt,label,transpose_flavor,data_type,SIMD_size,filename_tiny)
+   CALL mult_versions(M,N,K,opt,label,transpose_flavor,data_type,SIMD_size,filename_tiny,stack_size_label,.TRUE.)
 
 CONTAINS
 
