@@ -943,19 +943,24 @@ CONTAINS
                   row=iatom,col=jatom,block=ksblock,found=found)
              ksblock = ksblock - dq*sblock
           END DO
-          IF ( calculate_forces ) THEN
+          IF ( calculate_forces .AND. iatom /= jatom ) THEN
              NULLIFY(pblock)
              CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                   row=iatom,col=jatom,block=pblock,found=found)
              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             dq = (cw%vector(ikind)%vmat(1,iat) + &
+                   cw%vector(ikind)%vmat(1,iat) * cself%vector(ikind)%vmat(1,iat) + &
+                   cw%vector(jkind)%vmat(1,jat) + &
+                   cw%vector(jkind)%vmat(1,jat) * cself%vector(jkind)%vmat(1,jat))/SQRT(fourpi)
              DO i=1,3
                 NULLIFY(dsblock)
                 CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                      row=iatom,col=jatom,block=dsblock,found=found)
                 CPPostcondition(found,cp_failure_level,routineP,error,failure)
                 fi = dq*SUM(pblock*dsblock)
-                force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) - fi
-                force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) + fi
+!deb what about these forces?
+!               force(ikind)%rho_elec(i,iat) = force(ikind)%rho_elec(i,iat) + fi
+!               force(jkind)%rho_elec(i,jat) = force(jkind)%rho_elec(i,jat) - fi
              END DO
           END IF
        END DO
@@ -986,8 +991,7 @@ CONTAINS
 
     INTEGER                                  :: i
 
-! dot product without l=0 term
-
+    ! dot product without l=0 term
     res = 0._dp
     DO i=1,SIZE(vec1%vector)
       res = res + SUM(vec1%vector(i)%vmat(2:,:)*vec2%vector(i)%vmat(2:,:))
@@ -1060,11 +1064,14 @@ CONTAINS
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
     LOGICAL                                  :: defined, failure, use_virial
+    REAL(KIND=dp), PARAMETER                 :: dr = 0.001_dp
     REAL(KIND=dp)                            :: alpha, beta, ehartree
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: aintegral
+      DIMENSION(:, :)                        :: aintegral, paint, maint
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: daintegral
     REAL(KIND=dp), DIMENSION(16)             :: normi, normj
-    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(3)              :: rij, drij, fij
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cii, cij, coi, coj
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1080,11 +1087,13 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,virial=virial,para_env=para_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,force=force,virial=virial,para_env=para_env,error=error)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     IF (do_ewald) THEN
@@ -1146,6 +1155,10 @@ CONTAINS
              cij => cin%vector(jkind)%vmat
              ALLOCATE (aintegral(ni,nj),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             IF(calculate_forces) THEN
+                ALLOCATE (daintegral(ni,nj,3),paint(ni,nj),maint(ni,nj),STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             END IF
              CALL calc_norm(normj,lj,beta)
              DO iatom=1,nai
                 ia = atkindi%atom_list(iatom)
@@ -1156,8 +1169,8 @@ CONTAINS
                    rij = pbc(rij,cell)
                    CALL calc_int(aintegral,rij,alpha,li,beta,lj,error)
                    ! add normalization constants to integrals
-                   DO i=1,ni
-                      DO j=1,nj
+                   DO j=1,nj
+                      DO i=1,ni
                          aintegral(i,j) = aintegral(i,j)*normi(i)*normj(j)
                       END DO
                    END DO
@@ -1165,10 +1178,36 @@ CONTAINS
                    coi(1:ni,iatom) = coi(1:ni,iatom) + MATMUL(aintegral(1:ni,1:nj),cij(1:nj,jatom))
                    IF(ikind==jkind .AND. jatom == iatom) CYCLE
                    coj(1:nj,jatom) = coj(1:nj,jatom) + MATMUL(cii(1:ni,iatom),aintegral(1:ni,1:nj))
+                   IF(calculate_forces) THEN
+                      DO i=1,3
+                         drij = rij
+                         drij(i) = drij(i) + dr
+                         CALL calc_int(paint,drij,alpha,li,beta,lj,error)
+                         drij(i) = drij(i) - 2.0_dp*dr
+                         CALL calc_int(maint,drij,alpha,li,beta,lj,error)
+                         daintegral(:,:,i) = (paint - maint)/(2.0_dp*dr)
+                      END DO
+                      DO j=1,nj
+                         DO i=1,ni
+                            daintegral(i,j,1) = daintegral(i,j,1)*normi(i)*normj(j)
+                            daintegral(i,j,2) = daintegral(i,j,2)*normi(i)*normj(j)
+                            daintegral(i,j,3) = daintegral(i,j,3)*normi(i)*normj(j)
+                         END DO
+                      END DO
+                      fij(1) = SUM(cii(1:ni,iatom) * MATMUL(daintegral(1:ni,1:nj,1),cij(1:nj,jatom)))
+                      fij(2) = SUM(cii(1:ni,iatom) * MATMUL(daintegral(1:ni,1:nj,2),cij(1:nj,jatom)))
+                      fij(3) = SUM(cii(1:ni,iatom) * MATMUL(daintegral(1:ni,1:nj,3),cij(1:nj,jatom)))
+                      force(ikind)%rho_elec(:,iatom) = force(ikind)%rho_elec(:,iatom) + fij
+                      force(jkind)%rho_elec(:,jatom) = force(jkind)%rho_elec(:,jatom) - fij
+                   END IF
                 END DO
              END DO
              DEALLOCATE (aintegral,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             IF(calculate_forces) THEN
+                DEALLOCATE (daintegral,paint,maint,STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             END IF
           END DO
        END DO
 
