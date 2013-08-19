@@ -1319,11 +1319,11 @@ CONTAINS
     !$OMP BARRIER
     !$OMP MASTER
 
-    IF (comm_thread_load .NE. 0) THEN
-       load_fraction = REAL(comm_thread_load)/100.0
-    ELSE
-       load_fraction = 1.0
-    END IF
+    IF (comm_thread_load == 0)&
+       CALL dbcsr_assert(nthreads>1, dbcsr_fatal_level, dbcsr_wrong_args_error,&
+       routineN, "comm_thread_load==0 requires OMP_NUM_THREADS > 1", __LINE__, error=error)
+
+    load_fraction = REAL(comm_thread_load)/100.0
 
     IF (.NOT. dist%d%has_thread_dist) THEN
        dist%d%num_threads = nthreads
@@ -1383,11 +1383,12 @@ CONTAINS
              block_size0 = load_fraction*(group_size/soft_thr)
              block_size = group_size/soft_thr
 
-             IF (.NOT. (block_size0 .EQ. 0 .AND. block_size .EQ. 0)) THEN
-                !blocks for master thread
+             !blocks for master thread
+             IF (block_size0 > 0) &
                 td(reorder(last_row:last_row-block_size0+1:-1)) = 0
 
-                !Other threads
+             !Other threads
+             IF (block_size > 0) THEN
                 DO t=1, nthreads-1
                    td(reorder(last_row-block_size0-(t-1)*block_size:&
                         last_row-block_size0-(t)*block_size+1:-1)) = t
