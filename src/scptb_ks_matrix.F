@@ -991,7 +991,8 @@ CONTAINS
 
     INTEGER                                  :: i
 
-    ! dot product without l=0 term
+! dot product without l=0 term
+
     res = 0._dp
     DO i=1,SIZE(vec1%vector)
       res = res + SUM(vec1%vector(i)%vmat(2:,:)*vec2%vector(i)%vmat(2:,:))
@@ -1057,6 +1058,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_scp_vector', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: dr = 0.001_dp
 
     INTEGER                                  :: i, ia, iatom, ikind, istat, &
                                                 j, ja, jatom, jkind, li, lj, &
@@ -1064,14 +1066,13 @@ CONTAINS
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
     LOGICAL                                  :: defined, failure, use_virial
-    REAL(KIND=dp), PARAMETER                 :: dr = 0.001_dp
     REAL(KIND=dp)                            :: alpha, beta, ehartree
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: aintegral, paint, maint
+      DIMENSION(:, :)                        :: aintegral, maint, paint
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: daintegral
     REAL(KIND=dp), DIMENSION(16)             :: normi, normj
-    REAL(KIND=dp), DIMENSION(3)              :: rij, drij, fij
+    REAL(KIND=dp), DIMENSION(3)              :: drij, fij, rij
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cii, cij, coi, coj
     TYPE(atomic_kind_type), DIMENSION(:), &

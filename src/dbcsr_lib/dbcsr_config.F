@@ -187,7 +187,8 @@ CONTAINS
     INTEGER                                  :: error_handle
 
 !   ---------------------------------------------------------------------------
-    !defaults
+!defaults
+
     mm_stack_size = 1000
     nm_stacks = 0
     nn_stacks = 0
