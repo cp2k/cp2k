@@ -98,11 +98,10 @@
   SUBROUTINE smm_process_mm_stack_d(stack_descr, params,&
        stack_size,&
        a_data, b_data, c_data, error)
+    INTEGER, INTENT(IN)                       :: stack_size
     TYPE(stack_descriptor_type), INTENT(IN)   :: stack_descr
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
       INTENT(IN)                              :: params
-    INTEGER, INTENT(IN)                       :: stack_size
-
     REAL(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     REAL(kind=real_8), DIMENSION(*), INTENT(INOUT)      :: c_data
