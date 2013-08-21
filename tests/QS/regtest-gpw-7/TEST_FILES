@@ -1,7 +1,7 @@
 # Krylov space refiniment
 si8_pmix_otdiag.inp     1
-si8_broy_kry.inp        1
-si8_broy_kry_r.inp      1
+si8_broy_kry.inp        1 1E-13
+si8_broy_kry_r.inp      1 1E-13
 #metadyn with min displacement
 H2O-meta-mindisp.inp    2
 H2O-meta-mindisp2.inp   2

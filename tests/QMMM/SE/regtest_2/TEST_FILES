@@ -13,4 +13,4 @@ water_fixd_excl_qm.inp    2
 water_g3x3_excl_mm.inp    2
 water_g3x3_excl_qm.inp    2
 # QMMM with manybody potential
-Si_tersoff_qmmm.inp       3
+Si_tersoff_qmmm.inp       3 1E-13

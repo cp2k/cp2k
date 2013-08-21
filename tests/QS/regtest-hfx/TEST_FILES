@@ -13,6 +13,6 @@ H2O_pw.inp           22
 H2O-geminal-1.inp     1
 He-ri.inp             1
 H2O-hfx-emd.inp       2
-H2O-hfx-emd-restart.inp  2 
+H2O-hfx-emd-restart.inp  2 1E-11
 He-gemopt.inp         1
 H2O-hfx-atprop.inp    1

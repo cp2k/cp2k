@@ -8,7 +8,7 @@ H2O-5.inp          1
 # the added_MOs keyword
 H2O-6.inp          1
 # tests BFGS and LBFGS and CG
-H2-geo-1.inp       1
+H2-geo-1.inp       1 1E-11
 H2-geo-2.inp       1
 H2-geo-3.inp       1
 H2-geo-4.inp       1
@@ -26,7 +26,7 @@ test-pdb.inp       1
 # Spin density DDAP charges
 H2O+SC.inp         0
 # spin restraint
-spin_restraint.inp 1
+spin_restraint.inp 1 1E-12
 #New grouping colvar
 H2O-meta_g.inp     1
 #Colvar for hydronium
@@ -38,26 +38,26 @@ H2O_wavelet_free.inp  1
 H2O_wavelet_free2.inp 1
 H2O_wavelet_XZ.inp    1
 #function to compute splined values - distributed grids
-NO2-EFG-1.inp        19
+NO2-EFG-1.inp        19 1E-12
 H2O-8.inp            1
 H2O-9.inp            1
 # a system with a very small (1x1) KS matrix
 H.inp                1
 # one (ghost) atom has no basis set associated
-basis_none_1.inp     1
+basis_none_1.inp     1 1E-13
 basis_none_2.inp     1
 # cell opt with a restart
 cell-1.inp           7
 cell-2.inp           7
 #multiple ddapc restraints
-He3_multi_ddapc.inp  1
+He3_multi_ddapc.inp  1 1E-11
 #many added MOS with LSD
 N.inp                1
 N_notfixedMM.inp     1
 #new diagonalization
-h2o-otdiag.inp       1
+h2o-otdiag.inp       1 1E-13
 h2o-diag.inp         1
-h2o-otdiag-lsd.inp   1
+h2o-otdiag-lsd.inp   1 1E-13
 #external electrostatic field
 H2O-extpot.inp      11
 H-extpot.inp        11

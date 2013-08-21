@@ -13,7 +13,7 @@ He2H-bloechl-md.inp  1
 He2H-bloechl.inp     1
 H2O-bloechl.inp      1
 H2O-bloechl-Spl.inp  1
-H2O-bloechl-restraint.inp 1
+H2O-bloechl-restraint.inp 1 1E-12
 # S**2
 CN.inp             4
 # testing of distributed rs grids
@@ -45,7 +45,7 @@ H2O-solv.inp       1
 #XC_FUN NONE
 H2O-xc_none.inp    1
 # ghost atom dynamics
-dynamics.inp       1
+dynamics.inp       1 1E-11
 # RESP charges
 CH3OH.inp          0
 # distributed non-ortho grids

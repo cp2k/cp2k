@@ -11,7 +11,7 @@ H2O-MNDO.inp       11
 H2_check.inp       11
 O2.inp             11
 H2O-3.inp          11
-N3-rp_colvar.inp   11
+N3-rp_colvar.inp   11 1E-13
 Periclase.inp      11
 # dumped KDSO
 H2O-MNDO-KDSOd.inp  3
@@ -35,7 +35,7 @@ Al2O3.inp          11
 #angvel_tol
 gly_noangvel.inp    2
 #extended cif test
-Co_complex.inp     11
+Co_complex.inp     11 1E-12
 #cv distance from path
 N3_rp_md.inp       11
 N3_dp_md.inp       11

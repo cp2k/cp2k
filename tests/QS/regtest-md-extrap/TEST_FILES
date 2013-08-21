@@ -16,7 +16,7 @@ extrap-10.inp 1
 extrap-1-far.inp 1
 extrap-2-far.inp 1
 extrap-3-far.inp 1
-extrap-4-far.inp 1
+extrap-4-far.inp 1 1E-12
 extrap-5-far.inp 1
 extrap-6-far.inp 1
 extrap-7-far.inp 1

@@ -56,7 +56,7 @@ UO2-4x4x4-core-forces.inp      43
 UO2-4x4x4-core-shell-debug.inp 42
 UO2-4x4x4-shell-forces.inp     44
 # Automatic fitting of the BUCK4RANGES polynomials
-UO2-4x4x4-autofit.inp          11
+UO2-4x4x4-autofit.inp          11    1E-13
 # Connectivity user
 UO2-2x2x2-conn_user.inp        47
 UO2-2x2x2-conn_user_nvt.inp     2

@@ -23,7 +23,7 @@ H2-rtp-efield.inp 1
 H2-emd-efield.inp 2
 H2-rtp_ETRS_ARNOLDI.inp 1
 wfn_mix_0.inp 1
-wfn_mix_1.inp 1
+wfn_mix_1.inp 1 1E-12
 wfn_mix_2.inp 1
 wfn_mix_loc-0.inp 1
 wfn_mix_loc-1.inp 1

@@ -5,4 +5,4 @@ H2O-02.inp 11
 H2O-03.inp 11
 CH3_GPW.inp 11
 H2O_NO_HFX.inp 11
-H2O_ADMM_MP2.inp 11
+H2O_ADMM_MP2.inp 11 1E-13
