@@ -5,13 +5,13 @@
 #      for details see cp2k/tools/do_regtest
 O2-UKS-NMR-1.inp 14
 O2-UKS-NMR-2.inp 14
-O2-UKS-NMR-3.inp 14
+O2-UKS-NMR-3.inp 14 1E-04
 O2-UKS-NMR-4.inp 14
-O2-UKS-NMR-5.inp 14
-O2-UKS-NMR-6.inp 14
+O2-UKS-NMR-5.inp 14 1E-04
+O2-UKS-NMR-6.inp 14 1E-05
 O2-UKS-NMR-7.inp 14
-O2-UKS-NMR-8.inp 14
+O2-UKS-NMR-8.inp 14 1E-05
 O2-UKS-NMR-9.inp 14
-O2-UKS-NMR-10.inp 14
+O2-UKS-NMR-10.inp 14 1E-04
 O2-UKS-NMR-11.inp 14
 O2-UKS-NMR-12.inp 14
