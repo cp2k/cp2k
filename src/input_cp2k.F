@@ -872,7 +872,7 @@ CONTAINS
     !
     CALL keyword_create(keyword, name="mm_stack_size",&
          description="Size of multiplication parameter stack."&
-         //" A negativ value leaves the decision up to DBCSR.",&
+         //" A negative value leaves the decision up to DBCSR.",&
          usage="mm_stack_size 1000",&
          default_i_val=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -908,7 +908,7 @@ CONTAINS
     CALL keyword_create(keyword, name="n_size_mnk_stacks",&
          description="Number of stacks to use for distinct atomic sizes" &
          // " (e.g., 2 for a system of mostly waters). "&
-         //"A negativ value leaves the decision up to DBCSR.",&
+         //"A negative value leaves the decision up to DBCSR.",&
          usage="n_size_mnk_stacks 2",&
          default_i_val=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -916,7 +916,7 @@ CONTAINS
     !
     CALL keyword_create(keyword, name="n_stack_buffers",&
          description="Number of transfer buffers used per thread to copy stacks over to the GPU."&
-         //" A negativ value leaves the decision up to DBCSR.",&
+         //" A negative value leaves the decision up to DBCSR.",&
          usage="n_stack_buffers 4",&
          default_i_val=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
