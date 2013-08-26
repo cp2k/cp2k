@@ -108,26 +108,6 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 
 END SUBROUTINE copy_cri
 
-!-----------------------------------------------------------------------------!
-! *****************************************************************************
-SUBROUTINE copy_cc ( n, in, out )
-!
-  USE lib_kinds,                        ONLY: wp
-  IMPLICIT NONE
-
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( wp ), INTENT ( IN ) :: in(n)
-  REAL ( wp ), INTENT ( OUT ) :: out(n)
-  INTEGER :: i
-!$OMP PARALLEL DO
-  DO i=1,n
-       out(i)=in(i)
-  ENDDO
-
-END SUBROUTINE copy_cc
-
-!-----------------------------------------------------------------------------!
-
 ! *****************************************************************************
 SUBROUTINE copy_cr ( n, z, r1 )
 !
@@ -172,83 +152,6 @@ END SUBROUTINE copy_rc
 
 !-----------------------------------------------------------------------------!
 
-! *****************************************************************************
-SUBROUTINE copy_cz ( n, c, z )
-!
-! z = c
-!
-  USE lib_kinds,                        ONLY: dp, sp
-  IMPLICIT NONE
-
-  INTEGER, INTENT ( IN ) :: n
-  COMPLEX ( sp ), INTENT ( IN ) :: c(n)
-  COMPLEX ( dp ), INTENT ( OUT ) :: z(n)
-  INTEGER :: i
-!$OMP PARALLEL DO
-  DO i=1,n
-    z(i)=c(i)
-  ENDDO
-
-END SUBROUTINE copy_cz
-! *****************************************************************************
-SUBROUTINE copy_zc ( n, z, c )
-!
-! c = z
-!
-  USE lib_kinds,                        ONLY: dp, sp
-  IMPLICIT NONE
-
-  INTEGER, INTENT ( IN ) :: n
-  COMPLEX ( dp ), INTENT ( IN ) :: z(n)
-  COMPLEX ( sp ), INTENT ( OUT ) :: c(n)
-  INTEGER :: i
-!$OMP PARALLEL DO
-  DO i=1,n
-    c(i)=z(i)
-  ENDDO
-
-END SUBROUTINE copy_zc
-! *****************************************************************************
-SUBROUTINE copy_zz ( n, c, z )
-!
-! z = c
-!
-  USE lib_kinds,                        ONLY: wp
-  IMPLICIT NONE
-
-  INTEGER, INTENT ( IN ) :: n
-  COMPLEX ( wp ), INTENT ( IN ) :: c(n)
-  COMPLEX ( wp ), INTENT ( OUT ) :: z(n)
-  INTEGER :: i
-!$OMP PARALLEL DO
-  DO i=1,n
-    z(i)=c(i)
-  ENDDO
-
-END SUBROUTINE copy_zz
-
-!-----------------------------------------------------------------------------!
-
-!-----------------------------------------------------------------------------!
-! *****************************************************************************
-SUBROUTINE zero_r ( n, r)
-!
-! r = 0.0_wp
-!
-
-  USE lib_kinds,                        ONLY: wp
-
-  INTEGER, INTENT (IN)     :: n
-  REAL ( wp ), INTENT(OUT) :: r(n)
-  INTEGER                  :: i
-
-!$OMP PARALLEL DO default(none), private(i), shared(r,n)
-  DO i=1,n
-     r(i) = 0.0_wp
-  ENDDO
-
-END SUBROUTINE zero_r
-! *****************************************************************************
 SUBROUTINE zero_c ( n, z)
 !
 ! z = ( 0.0_wp , 0.0_wp)
