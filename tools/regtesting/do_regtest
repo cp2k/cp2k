@@ -161,6 +161,9 @@ svndate="$datum_full"
 # command line argument passing
 #
 ###################################################################################
+
+full_time_t1=`date +%s`
+
 while [ $# -ge 1 ]; do
  case $1 in
  # build a list of directories to skip
@@ -251,6 +254,10 @@ error_description_file=${dir_out}/error_summary
 #
 ###################################################################################
 function end_test() {
+full_time_t2=`date +%s`
+full_timing_all=`echo "1+(${full_time_t2})-(${full_time_t1})" | bc -l`
+echo "--------------------------------------------------------------------------"
+printf "Regtest took %0.2f seconds.\n" $full_timing_all
 echo "--------------------------------------------------------------------------"
 date
 echo "*************************** testing ended ********************************"
