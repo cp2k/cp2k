@@ -30,7 +30,10 @@ QS/regtest-gpw-4
 QS/regtest-dm-ls-scf
 QS/regtest-dft-vdw-corr
 QS/regtest-gpw-1
-QS/regtest-mp2
+QS/regtest-mp2-1
+QS/regtest-mp2-2
+QS/regtest-mp2-3
+QS/regtest-mp2-4
 SE/regtest-2
 Fist/regtest-5
 ATOM/regtest-1
