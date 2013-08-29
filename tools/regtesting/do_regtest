@@ -2,6 +2,7 @@
 
 ###################################################################################
 # do_regtest some info [Joost VandeVondele, 2005-02-25]
+# Major revision of the script [Marko Misic, PRACE, July - August 2013]
 #
 # Regression testing cp2k ... 
 #    - maintain code quality
@@ -66,7 +67,8 @@
 #  -config string : loads a site/compiler/environment specific configuration
 #  -retest : regtesting will be restricted only to those directories than contained failed tests
 #            in the previous execution 
-#  -noemptycheck : use this to force regression testing 
+#  -noemptycheck : use this to force regression testing even if no changes exist in SVN
+#  -nobuild : do not build cp2k, but use one built by the user (turns on quick option automatically)
 #
 # Possible exit statuses:
 # -  end_test 1   : problem with svn update
@@ -109,9 +111,7 @@ cp2k_version=sopt
 dir_triplet=Linux-x86-64-${FORT_C_NAME}
 export ARCH=${dir_triplet}
 cp2k_dir=cp2k
-numprocs=1
 maxtasks=1
-export OMP_NUM_THREADS=1
 emptycheck="NO"
 leakcheck="NO"
 
@@ -126,7 +126,7 @@ default_err_tolerance="1.0E-14"
 # *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
 # Leave empty for serial, uncomment for parallel
 cp2k_run_prefix=""
-#cp2k_run_prefix="mpiexec -np ${numprocs}"
+#cp2k_run_prefix="mpiexec -np 2"
 cp2k_run_postfix=""
 #cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix="-llfile ${dir_base}/llfile"
@@ -150,6 +150,7 @@ ndirstorestrict=0
 restrict_dirs[1]=""
 doretest="no"
 nosvn="svn"
+nobuild="build"
 svndate="$datum_full"
 
 ###################################################################################
@@ -161,8 +162,6 @@ svndate="$datum_full"
 # command line argument passing
 #
 ###################################################################################
-
-full_time_t1=`date +%s`
 
 while [ $# -ge 1 ]; do
  case $1 in
@@ -197,8 +196,13 @@ while [ $# -ge 1 ]; do
  -svndate)
   svndate=$2
   shift;;
+ # do not check if code has changed
  -noemptycheck)
   emptycheck="NO";;
+ # do not build cp2k 
+ # turns on automatically quick option, so that do_regtest does not do realclean
+ -nobuild)
+  quick="quick"; nobuild="nobuild";
  # stop on invalid flag
  -*)
   echo "ERROR: Invalid command line flag $1 found"
@@ -254,10 +258,6 @@ error_description_file=${dir_out}/error_summary
 #
 ###################################################################################
 function end_test() {
-full_time_t2=`date +%s`
-full_timing_all=`echo "1+(${full_time_t2})-(${full_time_t1})" | bc -l`
-echo "--------------------------------------------------------------------------"
-printf "Regtest took %0.2f seconds.\n" $full_timing_all
 echo "--------------------------------------------------------------------------"
 date
 echo "*************************** testing ended ********************************"
@@ -319,6 +319,7 @@ function do_test() {
 echo "*************************** testing started ******************************"
 echo " started on " `date`
 echo " checking version ${svndate} "
+echo " configuration: ${dir_triplet}-${cp2k_version} "
 echo "--------------------------- SVN ------------------------------------------"
 
 if [[ ${nosvn} != "nosvn" ]]; then
@@ -328,7 +329,6 @@ if [[ ${nosvn} != "nosvn" ]]; then
  
   # If ChangeLog does not exist for the first time, it is created 
   if [[ ! -s ${dir_last}/ChangeLog ]]; then
-     echo "Creating ChangeLog file for the first time. This may take a while ..."
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog 
   fi
 
@@ -372,7 +372,6 @@ if [[ ${nosvn} != "nosvn" ]]; then
   cd ${dir_base}/${cp2k_dir}/tests
   
   if [[ ! -s ${dir_last}/ChangeLog-tests ]]; then
-     echo "Creating ChangeLog-tests file for the first time. This may take a while ..."
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog-tests
   fi
 
@@ -448,22 +447,30 @@ else
 fi 
 
 # *** from here failures are likely to be bugs in cp2k
-echo "-------------------------compiling cp2k-----------------------------------"
-echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
-echo "(make output is written to ${cp2k_dir}/makefiles/out)"
-cd ${dir_base}/${cp2k_dir}/makefiles
-${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} &> out
-if (( $? )); then
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-tail -40 out >> ${error_description_file}
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-echo "error happened : make VERSION=${cp2k_version} "
-cat "${error_description_file}"
-end_test 4
+if [[ ${nobuild} != "nobuild" ]]
+then
+  echo "-------------------------compiling cp2k-----------------------------------"
+  echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
+  echo "(make output is written to ${cp2k_dir}/makefiles/out)"
+  cd ${dir_base}/${cp2k_dir}/makefiles
+  ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} &> out
+  if (( $? )); then
+    echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+    tail -40 out >> ${error_description_file}
+    echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+    echo "error happened : make VERSION=${cp2k_version} "
+    cat "${error_description_file}"
+    end_test 4
+  else
+  compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
+  echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
+  fi
 else
-compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
-echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
+  echo "no build, continue regression testing"
 fi
+
+rm out
+
 echo "-------------------------regtesting cp2k----------------------------------"
 
 ###################################################################################
@@ -523,7 +530,7 @@ last_test_dir=""
 retest_dirs=""
 if [[ $doretest == "yes" ]];
 then
-  last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
+  last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9][+-][0-9][0-9][0-9][0-9] | tail -2 | head -1`
   if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
   then
     echo "No TEST directory with latest test results found. Nothing to test!" 
@@ -645,7 +652,7 @@ for dir in ${dirs}; do
      
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
-     ( ulimit -t ${job_max_time} -v 2000000 ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
+     ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
      # *** cp2k failed obviously
      if (( $? )); then
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -717,7 +724,7 @@ for dir in ${dirs}; do
            grep -i "${leak_error_string}" ${output_file} >> ${memory_description_file}
         fi
      fi 
-     printf "    %-50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+     printf "%50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
   t2=`date +%s`
   timing_all=`echo "1+($t2)-($t1)" | bc -l`
@@ -731,7 +738,7 @@ for dir in ${dirs}; do
  # here we allow only a given maximum of tasks
  #
  runningtasks=10000
- while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) ))
+ while (( runningtasks >= maxtasks ))
  do
    # sleep 1
    runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
@@ -790,7 +797,7 @@ if [[ ${leakcheck} == "YES" ]]; then
    fi 
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
 else
-   echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} 0"
+   echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
 fi
 
 end_test 0
