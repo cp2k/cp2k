@@ -2,7 +2,10 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
-Fist/regtest
+Fist/regtest-1-1
+Fist/regtest-1-2
+Fist/regtest-1-3
+Fist/regtest-1-4
 QS/regtest-gpw-2
 SE/regtest-3
 Fist/regtest-7-1
