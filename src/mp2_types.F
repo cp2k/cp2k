@@ -17,6 +17,7 @@ MODULE mp2_types
                                              mp2_method_gpw,&
                                              mp2_method_laplace,&
                                              mp2_method_none,&
+                                             mp2_ri_optimize_basis,&
                                              ri_mp2_laplace,&
                                              ri_mp2_method_gpw,&
                                              ri_rpa_method_gpw
@@ -38,6 +39,7 @@ MODULE mp2_types
             mp2_method_laplace,&
             mp2_method_direct,&
             mp2_method_gpw,&
+            mp2_ri_optimize_basis,&
             ri_mp2_method_gpw,&
             ri_rpa_method_gpw,&
             ri_mp2_laplace,&
@@ -91,6 +93,13 @@ MODULE mp2_types
                                 :: x_data
   END TYPE
 
+  TYPE ri_basis_opt
+       REAL(KIND=dp)            :: DI_rel
+       REAL(KIND=dp)            :: DRI
+       REAL(KIND=dp)            :: eps_step
+       INTEGER                  :: max_num_iter
+  END TYPE
+
   TYPE mp2_type
        REAL(KIND=dp)            :: energy
        LOGICAL                  :: compute_reference
@@ -101,6 +110,7 @@ MODULE mp2_types
        TYPE(mp2_gpw_type)       :: mp2_gpw
        TYPE(ri_mp2_type)        :: ri_mp2
        TYPE(ri_rpa_type)        :: ri_rpa
+       TYPE(ri_basis_opt)       :: ri_opt_param
        REAL(dp) :: mp2_memory
        REAL(dp) :: scale_S
        REAL(dp) :: scale_T

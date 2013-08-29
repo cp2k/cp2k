@@ -410,6 +410,8 @@ OBJECTS_GENERIC =\
  mp2_laplace.o\
  mp2.o\
  mp2_ri_gpw.o\
+ mp2_optimize_ri_basis.o\
+ mp2_ri_libint.o\
  mp2_setup.o\
  mp2_types.o\
  mt_util.o\

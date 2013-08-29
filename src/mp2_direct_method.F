@@ -89,7 +89,7 @@ MODULE mp2_direct_method
   SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_section,para_env,&
                                                mp2_biel,dimen,C,Auto,i_batch_start,Ni_occupied,&
                                                occupied,elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
-                                               occupied_beta,C_beta,Auto_beta,error)
+                                               occupied_beta,C_beta,Auto_beta,Integ_MP2,error)
 
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
     TYPE(mp2_type), POINTER                  :: mp2_env
@@ -110,6 +110,8 @@ MODULE mp2_direct_method
       OPTIONAL                               :: C_beta
     REAL(KIND=dp), DIMENSION(dimen), &
       OPTIONAL                               :: Auto_beta
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :), OPTIONAL        :: Integ_MP2
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -156,7 +158,8 @@ MODULE mp2_direct_method
     INTEGER, DIMENSION(:, :), POINTER, SAVE  :: shm_is_assoc_atomic_block
     INTEGER, DIMENSION(:, :, :, :), POINTER  :: shm_set_offset
     INTEGER, SAVE                            :: shm_number_of_p_entries
-    LOGICAL                                  :: alpha_beta_case, do_periodic, &
+    LOGICAL                                  :: alpha_beta_case, &
+                                                copy_integrals, do_periodic, &
                                                 failure, treat_lsd_in_core
     LOGICAL, DIMENSION(:, :), POINTER        :: shm_atomic_pair_list
     REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, &
@@ -225,6 +228,13 @@ MODULE mp2_direct_method
       POINTER                                :: particle_set
 
     CALL timeset(routineN,handle)
+ 
+    ! The Integ_MP2 will contain the (ia|jb) integrals, necessary for example
+    ! for the RI-MP2 basis optimization. In this case the number of ij batches 
+    ! has to be equal to 1 (all integrals over molecular orbitals are compituted
+    ! in a sigle step).
+    copy_integrals=.FALSE.
+    IF(PRESENT(Integ_MP2)) copy_integrals=.TRUE.
 
     alpha_beta_case=.FALSE.
 
@@ -1153,6 +1163,28 @@ MODULE mp2_direct_method
       DEALLOCATE(C_beta_T)
     END IF
 
+    IF(copy_integrals) THEN
+      IF(.NOT.alpha_beta_case) THEN
+        ALLOCATE(Integ_MP2(dimen-occupied,dimen-occupied,occupied,occupied),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        Integ_MP2=0.0_dp
+        DO i=1, elements_ij_proc
+          iiB=ij_list_proc(i,1)
+          jjB=ij_list_proc(i,2)
+          Integ_MP2(:,:,iiB+i_batch_start,jjB+j_batch_start)=BIb(1:dimen-occupied,1:dimen-occupied,i)
+        END DO
+      ELSE
+        ALLOCATE(Integ_MP2(dimen-occupied,dimen-occupied_beta,occupied,occupied_beta),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        Integ_MP2=0.0_dp
+        DO i=1, elements_ij_proc
+          iiB=ij_list_proc(i,1)
+          jjB=ij_list_proc(i,2)
+          Integ_MP2(:,:,iiB+i_batch_start,jjB+j_batch_start)=BIb(1:dimen-occupied,1:dimen-occupied_beta,i)
+        END DO
+      END IF
+    END IF
+    DEALLOCATE(BIb)
 
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1664,7 +1696,6 @@ MODULE mp2_direct_method
     END DO
 
     DEALLOCATE(BIa)
-    DEALLOCATE(BIb)
 
     CALL timestop(handle)
 
@@ -1765,7 +1796,6 @@ MODULE mp2_direct_method
     END DO
 
     DEALLOCATE(BIa)
-    DEALLOCATE(BIb)
 
     CALL timestop(handle)
 

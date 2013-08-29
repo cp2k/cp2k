@@ -904,7 +904,8 @@ MODULE input_constants
                                               mp2_method_gpw=6,&
                                               ri_mp2_method_gpw=7,&
                                               ri_rpa_method_gpw=8,&
-                                              ri_mp2_laplace=9
+                                              ri_mp2_laplace=9,&
+                                              mp2_ri_optimize_basis=10
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&
                                               do_resp_y_dir=1,&

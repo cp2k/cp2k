@@ -74,14 +74,16 @@ CONTAINS
             citations=(/DelBen2012/),&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD MP2_GPW",&
-            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE"),&
-            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,ri_rpa_method_gpw,ri_mp2_laplace/),&
+            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE","OPTIMIZE_RI_BASIS"),&
+            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,&
+                          ri_rpa_method_gpw,ri_mp2_laplace,mp2_ri_optimize_basis/),&
             enum_desc=s2a("Skip MP2 calculation",&
                           "Use the direct mp2 canonical approach",&
                           "Use the GPW approach to MP2",&
                           "Use the GPW approach to RI-MP2",&
                           "Use the GPW approach to RI-RPA",&
-                          "Use the GPW approach to RI-SOS-Laplace-MP2"),&
+                          "Use the GPW approach to RI-SOS-Laplace-MP2",&
+                          "Optimize RIMP2 basis set"),&
             default_i_val=mp2_method_direct, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -186,6 +188,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_opt_ri_basis(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_ri_rpa(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -273,6 +279,75 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_ri_mp2
+
+  SUBROUTINE create_opt_ri_basis(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_ri_basis', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"OPT_RI_BASIS",&
+            description="Parameters influencing the optimization of the RI MP2 basis. "//&
+                        "Only exponents of non-contracted auxiliary basis can be optimized. "//&
+                        "An initial RI auxiliary basis has to be specified.",&
+            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="DELTA_I_REL",&
+            variants=(/"DI_REL"/),&
+            description="Target accuracy in the relative deviation of the amplitudes calculated with "//&
+                        "and without RI approximation, (more details in Chem.Phys.Lett.294(1998)143).",&
+            usage="DELTA_I_REL  1.0E-6_dp",&
+            default_r_val=1.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DELTA_RI",&
+            variants=(/"DRI"/),&
+            description="Target accuracy in the absolute difference between the RI-MP2 "//&
+                        "and the exact MP2 energy, DRI=ABS(E_MP2-E_RI-MP2).",&
+            usage="DELTA_RI  1.0E-6_dp",&
+            default_r_val=5.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+ 
+       CALL keyword_create(keyword, name="EPS_DERIV",&
+            variants=(/"EPS_NUM_DERIV"/),&
+            description="The derivatives of the MP2 energy with respect to the "//&
+                        "exponents of the basis are calculated numerically. "//&
+                        "The change in the exponent a_i employed for the numerical evaluation "//&
+                        "is defined as h_i=EPS_DERIV*a_i.",&
+            usage="EPS_DERIV  1.0E-3_dp",&
+            default_r_val=1.0E-2_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            variants=(/"MAX_NUM_ITER"/),&
+            description="Specifies the maximum number of steps in the RI basis optimization.",&
+            usage="MAX_ITER 100",&
+            default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_opt_ri_basis
 
   SUBROUTINE create_ri_laplace(section,error)
     TYPE(section_type), POINTER              :: section

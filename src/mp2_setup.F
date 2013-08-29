@@ -18,6 +18,7 @@ MODULE mp2_setup
   USE mp2_types,                       ONLY: mp2_method_direct,&
                                              mp2_method_gpw,&
                                              mp2_method_none,&
+                                             mp2_ri_optimize_basis,&
                                              mp2_type,&
                                              ri_mp2_laplace,&
                                              ri_mp2_method_gpw,&
@@ -98,6 +99,14 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"RI_MP2%BLOCK_SIZE",&
                               i_val=mp2_env%ri_mp2%block_size, error=error)
 
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%DELTA_I_REL",&
+                              r_val=mp2_env%ri_opt_param%DI_rel, error=error)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%DELTA_RI",&
+                              r_val=mp2_env%ri_opt_param%DRI, error=error)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%EPS_DERIV",&
+                              r_val=mp2_env%ri_opt_param%eps_step, error=error)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%MAX_ITER",&
+                              i_val=mp2_env%ri_opt_param%max_num_iter, error=error)
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&
@@ -115,6 +124,8 @@ CONTAINS
          WRITE(unit_nr,'(T2,A)') "RI-RPA| using GPW style"
        CASE(ri_mp2_laplace)
          WRITE(unit_nr,'(T2,A)') "RI-SOS-Laplace-MP2| using GPW style"
+       CASE(mp2_ri_optimize_basis)
+         WRITE(unit_nr,'(T2,A)') "MP2| Optimize RI auxiliary basis"
        CASE DEFAULT
          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT

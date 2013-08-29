@@ -60,14 +60,11 @@ MODULE mp2
                                              mp_sync
   USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
   USE mp2_gpw,                         ONLY: mp2_gpw_main
-  USE mp2_types,                       ONLY: mp2_biel_type,&
-                                             mp2_method_direct,&
-                                             mp2_method_gpw,&
-                                             mp2_method_laplace,&
-                                             mp2_type,&
-                                             ri_mp2_laplace,&
-                                             ri_mp2_method_gpw,&
-                                             ri_rpa_method_gpw
+  USE mp2_optimize_ri_basis,           ONLY: optimize_ri_basis_main
+  USE mp2_types,                       ONLY: &
+       mp2_biel_type, mp2_method_direct, mp2_method_gpw, mp2_method_laplace, &
+       mp2_ri_optimize_basis, mp2_type, ri_mp2_laplace, ri_mp2_method_gpw, &
+       ri_rpa_method_gpw
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -498,6 +495,58 @@ MODULE mp2
                                 qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                 unit_nr,error=error)
 
+
+       END IF
+
+     CASE (mp2_ri_optimize_basis)
+       ! optimize ri basis set
+       IF (unit_nr>0) THEN
+         WRITE(unit_nr,*)
+         WRITE(unit_nr,'(T3,A)') 'Optimization of the auxiliary RI-MP2 basis'
+         WRITE(unit_nr,*)
+       END IF
+       CALL get_mo_set( mo_set=mos_mp2(1)%mo_set,&
+                    nelectron=nelectron,&
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
+       ALLOCATE(C(dimen,dimen),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE(Auto(dimen),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE., error)
+       Auto(:)=mo_eigenvalues(:)
+
+       IF(nspins==2) THEN
+         ! get the beta coeff and eigenvalues open-shell case
+         CALL get_mo_set( mo_set=mos_mp2(2)%mo_set,&
+                      nelectron=nelec_beta,&
+                      eigenvalues=mo_eigenvalues,&
+                      mo_coeff=mo_coeff)
+         ALLOCATE(C_beta(dimen,dimen),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+         ALLOCATE(Auto_beta(dimen),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+         CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE., error)
+         Auto_beta(:)=mo_eigenvalues(:)
+
+         CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron, &
+                                     mp2_biel,mp2_env,C,Auto, &
+                                     kind_of,basis_parameter, &
+                                     qs_env,particle_set,matrix_ks,rho,hfx_sections,para_env, &
+                                     unit_nr,error,&
+                                     nelec_beta,C_beta,Auto_beta)
+
+       ELSE
+
+         CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron/2, &
+                                     mp2_biel,mp2_env,C,Auto, &
+                                     kind_of,basis_parameter, &
+                                     qs_env,particle_set,matrix_ks,rho,hfx_sections,para_env, &
+                                     unit_nr,error)
 
        END IF
 
