@@ -72,7 +72,7 @@ MODULE mp2_ri_libint
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC  libint_ri_mp2, read_RI_basis_set
+  PUBLIC  libint_ri_mp2, read_RI_basis_set, release_RI_basis_set
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_libint'
 
@@ -140,7 +140,7 @@ MODULE mp2_ri_libint
 ! *****************************************************************************
 !> \brief Read the auxiliary basis set for RI approxiamtion
 !> \par History
-!>      01.2012 created [Mauro Del Ben]
+!>      08.2013 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
   SUBROUTINE read_RI_basis_set(qs_env,RI_basis_parameter,RI_basis_info,&
@@ -346,6 +346,70 @@ MODULE mp2_ri_libint
   END SUBROUTINE read_RI_basis_set
 
 ! *****************************************************************************
+!> \brief Release the auxiliary basis set for RI approxiamtion (to be used
+!>        only in the case of basis optimization)
+!> \par History
+!>      08.2013 created [Mauro Del Ben]
+!> \author Mauro Del Ben
+! *****************************************************************************
+  SUBROUTINE release_RI_basis_set(RI_basis_parameter,basis_S0,error)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: RI_basis_parameter, basis_S0
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'release_RI_basis_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    ! RI basis 
+    DO i=1,SIZE(RI_basis_parameter)
+       DEALLOCATE(RI_basis_parameter(i)%nsgfl,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(RI_basis_parameter(i)%sphi_ext,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(RI_basis_parameter,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! S0 basis
+    DO i=1, SIZE(basis_S0)
+       DEALLOCATE(basis_S0(i)%set_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%lmax,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%lmin,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%npgf,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%nsgf,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%nshell,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%pgf_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%sphi,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%zet,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%first_sgf,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%nl,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%nsgfl,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_S0(i)%sphi_ext,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(basis_S0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE release_RI_basis_set 
+
+! *****************************************************************************
 !> \brief 
 !> \param qs_env  
 !> \param energy
@@ -358,7 +422,7 @@ MODULE mp2_ri_libint
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      06.2011 created [Mauro Del Ben]
+!>      08.2013 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
   SUBROUTINE calc_lai_libint(mp2_env,qs_env,hfx_section,para_env,& 

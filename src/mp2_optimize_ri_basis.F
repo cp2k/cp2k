@@ -29,7 +29,8 @@ MODULE mp2_optimize_ri_basis
                                              mp_sum
   USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
   USE mp2_ri_libint,                   ONLY: libint_ri_mp2,&
-                                             read_RI_basis_set
+                                             read_RI_basis_set,&
+                                             release_RI_basis_set
   USE mp2_types,                       ONLY: mp2_biel_type,&
                                              mp2_type
   USE particle_types,                  ONLY: particle_type
@@ -413,6 +414,9 @@ MODULE mp2_optimize_ri_basis
     END IF
     DEALLOCATE(index_table_RI)
 
+    ! Release RI basis set
+    CALL release_RI_basis_set(RI_basis_parameter,basis_S0,error)
+ 
     CALL cp_para_env_release(para_env_sub,error)
     CALL cp_error_dealloc_ref(error_sub,error=error)
     CALL cp_logger_release(logger_sub)
