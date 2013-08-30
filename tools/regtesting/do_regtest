@@ -163,6 +163,8 @@ svndate="$datum_full"
 #
 ###################################################################################
 
+full_time_t1=`date +%s`
+
 while [ $# -ge 1 ]; do
  case $1 in
  # build a list of directories to skip
@@ -202,7 +204,7 @@ while [ $# -ge 1 ]; do
  # do not build cp2k 
  # turns on automatically quick option, so that do_regtest does not do realclean
  -nobuild)
-  quick="quick"; nobuild="nobuild";
+  quick="quick"; nobuild="nobuild";;
  # stop on invalid flag
  -*)
   echo "ERROR: Invalid command line flag $1 found"
@@ -258,6 +260,10 @@ error_description_file=${dir_out}/error_summary
 #
 ###################################################################################
 function end_test() {
+full_time_t2=`date +%s`
+full_timing_all=`echo "1+(${full_time_t2})-(${full_time_t1})" | bc -l`
+echo "--------------------------------------------------------------------------"
+printf "Regtest took %0.2f seconds.\n" $full_timing_all
 echo "--------------------------------------------------------------------------"
 date
 echo "*************************** testing ended ********************************"
