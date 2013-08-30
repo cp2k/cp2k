@@ -1,0 +1,56 @@
+# --------------------------------------------------------------------------
+# cp2k_update_checker configuration file
+# 
+# Make necessary changes to customize cp2k_update_checker behavior
+# This file is then sourced in the main script
+# --------------------------------------------------------------------------
+
+# Owner mail address
+owner_mail="marko.misic@etf.bg.ac.rs"
+
+# If this switch is enabled, emails are sent to developers
+# Owner of the automated regtester is always mailed if there are any problems
+email_developers=false
+
+# Directory structure
+# - regtestdir  - where all the scripts are
+# - wwwdir      - actual www dir 
+# - wwwtestdir  - all output files are generated here and then copied to wwwdir
+
+regtestdir=/disk/cp2k-www0/home/cp2ktest/regtest/remote-testing/indy-sopt/
+wwwdir=/disk/cp2k-www0/websites/cp2k-www.epcc.ed.ac.uk/indy/sopt/
+wwwtestdir=/disk/cp2k-www0/home/cp2ktest/regtest/remote-testing/indy-sopt/www-indy-sopt/
+
+# Regtest filenames 
+# - html - file name of the main page
+# - plot - file name of the plot
+# - par  - grace input file with plot configuration 
+# - dat  - data for the plot
+regtesthtml="regtest.html"
+regtestplot="regplot.png"
+regtestpar="regplot.par"
+regtestdat="regplot.dat"
+
+# Must be specified to produce memory leaks report
+# Only if g95 is the compiler!
+memcheck=false
+
+# Maximum number of errors to be displayed in the plot
+(( maxvalue = 40 ))
+
+# Sleep time
+(( sleep_time = 600 ))
+
+# Test configuration
+regtest_tarball="regtest-indy-sopt.tar.gz"
+
+# For remote execution, make sure you can make loginless connection
+
+# Test command should call cp2k_regtester script either localy or remotely
+#test_command="${regtestdir}/cp2k_regtester.sh ${regtestdir}/cp2k_regtester.conf ${regtest_tarball}"
+test_command="ssh cp2ktest@indy0 \"/home/w02/cp2ktest/regtest/indy-sopt/cp2k_regtester.sh /home/w02/cp2ktest/regtest/indy-sopt/cp2k_regtester.conf ${regtest_tarball}\""
+
+# Copy command should copy the tarball produced by cp2k_regtester script
+# For local execution, keep it empty, and make sure wwwtestdir is the same for both scripts
+#copy_command=""
+copy_command="scp cp2ktest@indy0:/home/w02/cp2ktest/regtest/indy-sopt/www/${regtest_tarball} ${wwwtestdir}"

@@ -1,0 +1,30 @@
+# --------------------------------------------------------------------------
+# cp2k_regtester configuration file
+# 
+# Make necessary changes to customize cp2k_regtester behavior
+# This file is then sourced in the main script
+# --------------------------------------------------------------------------
+
+# Owner mail address
+owner_mail="marko.misic@etf.bg.ac.rs"
+
+# Directory structure
+# - regtestdir  - where all the scripts are
+# - cp2kdir     - where cp2k and do_regtest script reside
+# - wwwtestdir  - all output files are generated here and then copied to wwwdir
+
+cp2kdir=/home/w02/cp2ktest/cp2k/
+regtestdir=/home/w02/cp2ktest/regtest/indy-sopt/
+wwwtestdir=/home/w02/cp2ktest/regtest/indy-sopt/www/
+
+# Command line configuration for do_regtest script
+# .conf file defines environment variables for do_regtest script
+conf_file="${cp2kdir}/conf/regtest.popt.conf"
+cmd_line="-config ${conf_file} -nosvn -noemptycheck"
+
+# Must be specified to produce memory leaks report
+# Only if g95 is the compiler!
+memcheck=false
+
+# Execution type: local or remote
+exec_type="remote"

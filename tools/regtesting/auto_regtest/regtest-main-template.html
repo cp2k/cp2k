@@ -1,0 +1,93 @@
+<html><head>
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"><title>CP2K project: Automatic regression tester</title>
+ 
+ <meta name="language" content="en">
+ <meta name="copyright" content="2000 - 2012 CP2K developers group">
+ <meta name="description" content="CP2K: Results of the automatic regression tester">
+ <meta name="keywords" content="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel,molecular dynamics,MD,density functional theory,DFT,electronic structure,linear scaling,force field,Quickstep,GPW,GAPW,FIST,QM,MM">
+ <meta name="author" content="Matthias Krack, Marko Misic">
+ <meta http-equiv="Pragma" content="no-cache">
+ <link xmlns="" rel="shortcut icon" href="favicon.png" type="image/png"></head><body bgcolor="WHITE" link="blue" text="BLACK" vlink="blue">
+
+<center><table cellpadding="5" width="100%">
+<tbody><tr>
+<td background="regtest_files/background.htm" bgcolor="#dddddd">
+<center><b><font size="+2">C P 2 K&nbsp;&nbsp;&nbsp; R E G R E S S I O N &nbsp;&nbsp;&nbsp; T E S T E R&nbsp;</font></b></center>
+</td>
+</tr>
+</tbody></table></center>
+
+<h3>Goal</h3> 
+CP2K should be kept in good shape during its development. 
+Bugs that are fixed should stay fixed, features that are working should remain in this state. 
+In order to do so, an automated tester downloads, builds, and tests CP2K after each new commit
+which changes the CP2K source code.
+
+<h3>Info</h3> 
+Correctness runs are parallel runs using the gfortran compiler with full 
+error checking on a PC architecture. Even though we strive to reach the 
+above goal, the rapid development of CP2K does imply that not all 
+features are working or passing the high standard of Fortran conformance
+we require during this testing. Failing tests are an indication of 
+possible problems, but as yet still quite common.
+<!--
+Memory leak checking is performed using the free Fortran compiler g95
+(<a href="http://www.g95.org/">www.g95.org</a>).
+-->
+These reference results are not aimed to be used for porting/validating 
+the code on different platforms. In this case you may easily
+expect to have several tests failing with a "WRONG RESULT" status.
+Anyway they can still be used to check if errors between the regtest 
+and the reference are larger than a reasonable value,
+clearly identifying a problem with the compiler or the libraries.
+Usually an error of about 1.0E-8 or less is acceptable if (total) energies
+are compared. Larger errors can be tolerated for other quantities like
+NMR shifts (1.0E-5). 
+
+<h3>Latest CP2K source code</h3>
+The most recent version of CP2K can be downloaded from
+<a href="http://sourceforge.net/projects/cp2k/files/">here</a>.
+		
+<h3>CP2K code status</h3> 
+<table border="1" bordercolor="#000000" style="background-color:#FFFFFF" width="90%" cellpadding="6" cellspacing="3" align="center">
+  <tr>
+    <th>Automated regtester name</th>
+	  <th>Configuration</th>
+    <th>Number of tests</th>
+		<th>Ok</th>
+	  <th>Wrong</th>
+		<th>New</th>
+		<th>Runtime fail</th>
+    <th>Memory leaks</th>
+    <th>Revision</th>
+    <th>Timestamp</th>
+  </tr>
+  {{TAG_TESTERS_ROW}}
+</table>
+
+<p align="center">
+* - problem with automated regtester in the last run<br>
+<br>
+Page last updated: {{TAG_DATE_TIME}} 
+</p>
+
+<hr>
+Back to the <a href="http://www.cp2k.org/">CP2K homepage</a>
+<!-- Start of StatCounter Code -->
+<script type="text/javascript">
+ var sc_project=4809628; 
+ var sc_invisible=1; 
+ var sc_partition=54; 
+ var sc_click_stat=1; 
+ var sc_security="dc16cf88"; 
+</script>
+
+<script type="text/javascript" src="regtest_files/counter.js"></script><noscript><div
+  class="statcounter"><a title="myspace hits counter"
+   href="http://www.statcounter.com/myspace/"
+   target="_blank"><img class="statcounter"
+   src="http://c.statcounter.com/4809628/0/dc16cf88/1/"
+   alt="myspace hits counter" ></a></div></noscript>
+<!-- End of StatCounter Code -->
+</body></html>

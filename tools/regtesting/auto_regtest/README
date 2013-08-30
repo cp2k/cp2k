@@ -1,0 +1,144 @@
+# -----------------------------------------------------------------------------
+# CP2K automated regtester README file
+# Developed by Matthias Krack (2012), Marko Misic (2013)
+# Readme written by Marko Misic (PRACE Summer of HPC, July-August 2013)
+# -----------------------------------------------------------------------------
+
+===============================================================================
+Files included in the automated regression tester suite
+===============================================================================
+
+Here is the short description of the files needed to set up automated
+regression tester at the new test site:
+
+  addressbook.dat  - contains SVN usernames and e-mail addresses of 
+                     the developers of CP2K 
+  cp2k_page_update.sh - script that updates main page that aggregates results 
+                        from all regression testers listed in 
+                        cp2k_regtesters_list.conf file  
+  cp2k_regtester.conf.template - template configuration file for 
+                                 regtester script
+  cp2k_regtester.sh - script that performs actual testing, localy or remotely
+  cp2k_regtesters_list.conf - configuration file for page updater
+  cp2k_svn_update.sh - helper script to perform SVN update on those systems
+                       that do not have SVN installed on the backnodes
+  cp2k_update_checker.conf.template - template configuration file for
+                                      update checker script
+  cp2k_update_checker.sh - main script that spins forever & process results
+  README - this file
+  regtest-main-template.html - html template file for front page
+  regtest-template.html - html template file for detailed page for each 
+                          regression tester
+  setup_environment.sh - helper script to set up all environment variables 
+  regplot.par - grace (plotting tool) configuration file
+  regplot.dat - (optional) file that contains testing history
+
+===============================================================================
+Installing the automated regression tester
+===============================================================================
+
+Automated regression testing is supported both localy or remotely. Local and 
+remote testing do not differ a lot, and changes should be made only to 
+configuration files in order to support it. Depending on the remote system
+software (mainly batch system/job scheduler), small changes should be made in 
+regtester script.
+
+Script and configurations file template are well-documented and commented,
+especially at those lines that need to be changed.
+
+Installation steps follow:
+
+1) Acquire automated regression tester files
+  
+   You can find it in regtesting directory of CP2K's tools directory
+
+2) Make sure you have working webserver and grace tool installed there
+
+   You can obtain Grace from: http://plasma-gate.weizmann.ac.il/Grace/
+   or as package in numerous repositories.
+
+3) Make sure you have a copy of CP2K that is configured and tested
+   with do_regtest localy. Automated regression tester is written
+   to use configuration files for do_regtest script, so make sure
+   they are present in conf/ directory relative to do_regtest script.
+
+4) Setup all the paths in configuration files using the given templates
+
+   Automated regression tester requires you to set up a specific directory 
+   structure to store files generated during regression testing.
+
+   cp2k_update_checker script:
+   You need separate directories for regression tester and its configuration
+   files, reports, and your website. First, set up or find the path to www 
+   directory that webserver uses to serve web pages. Next, create the directory
+   for your regression tester. That folder should contain all the files that
+   are not supposed to be visible in www. In the end, create a directory 
+   (usually in regtester directory) to serve as a temporary directory that is 
+   copied to www directory.
+    
+   cp2k_regtester:
+   This script is usually located on the remote machine that runs the tests.
+   Find the location of your local instance of CP2K and configure cp2kdir. 
+   Create a directory for regtester files. Create subdirectory to store results.
+   Content of that directory is used to produce a tarball containg files needed
+   by update checker to produce a report.If you want to set up local automated 
+   regression testing, former two directories can be the same as for the update checker.
+
+5) Set up other options in configuration files
+
+   Especially, make sure that test command and copy command are set properly. If 
+   you use remote machine for testing, make sure that you set up passworldless
+   authentication for remote script execution.
+
+   Configuration files are passed to scripts as a command line argument, but
+   usually they should be in the same directory.
+
+6) Copy regtest-template.html to www directory and rename it to regtest.html.
+   It needs to be there for the first time, update checker will check for its
+   existence to see if webserver storage is available or not.
+
+7) Copy addressbook.dat to update checker directory
+
+8) Copy svn update & setup environment script to regtester directory
+
+9) Change setup environment accordingly, so that you can compile and execute
+   CP2K on remote host. If you use batch system on the remote host, make
+   sure that you can compile and execute CP2K on backend nodes. You might need
+   to write another script to call setup environment and call do_regtest when
+   submitting the job to job scheduler.
+
+10) Copy regplot.par (and optionally regplot.dat you obtained from another regtester)
+    to temporary www directory in your update checker directory.
+
+11) Copy page update script and regtester list to update checker directory
+
+12) Copy html templates to the same directory where page update script is
+
+13) Edit page update script and regtester list to define regtesters and their
+    locations that will be used to aggregate results.
+
+14) Run update checker with configuration file as a command line option. 
+    Make sure that it can run when you disconnect from the shell, either by running 
+    it with screen utility or adding it to your machine boot sequence and starting it 
+    as a background process. Repeat this with each regtester/configuration you 
+    would like to test.
+
+15) Run page update script in the same way
+
+16) You should have set up you automated regression tester by now. 
+    If it does not work, check the next section of this readme or
+    go through the steps again.
+
+    Each script is very well commented, so it should not be too hard to figure out 
+    if something goes wrong.
+
+    Good luck!
+
+===============================================================================
+Testing the automated regression tester
+===============================================================================
+
+Regression tester could be tested in a simple way, just by enabling the testing
+lines in do_regression_test_local function in regtester script and setting
+testing flag to local. That way you can check if everything works well before
+you start to use do_regtest script.
