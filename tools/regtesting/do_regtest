@@ -65,8 +65,8 @@
 #  -restrictdir string : this switch can repeat, restrict regtesting to certain dirs, useful to 
 #                        speed-up regtesting after very localised changes (e.g. -restrictdir QS/regtest)
 #  -config string : loads a site/compiler/environment specific configuration
-#  -retest : regtesting will be restricted only to those directories than contained failed tests
-#            in the previous execution 
+#  -retest : regtesting will be restricted only to those directories that contained failed tests
+#            in the previous run 
 #  -noemptycheck : use this to force regression testing even if no changes exist in SVN
 #  -nobuild : do not build cp2k, but use one built by the user (turns on quick option automatically)
 #
@@ -112,6 +112,8 @@ dir_triplet=Linux-x86-64-${FORT_C_NAME}
 export ARCH=${dir_triplet}
 cp2k_dir=cp2k
 maxtasks=1
+numprocs=1
+export OMP_NUM_THREADS=1
 emptycheck="NO"
 leakcheck="NO"
 
@@ -126,7 +128,7 @@ default_err_tolerance="1.0E-14"
 # *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
 # Leave empty for serial, uncomment for parallel
 cp2k_run_prefix=""
-#cp2k_run_prefix="mpiexec -np 2"
+#cp2k_run_prefix="mpiexec -np ${numprocs}"
 cp2k_run_postfix=""
 #cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix="-llfile ${dir_base}/llfile"
@@ -335,6 +337,7 @@ if [[ ${nosvn} != "nosvn" ]]; then
  
   # If ChangeLog does not exist for the first time, it is created 
   if [[ ! -s ${dir_last}/ChangeLog ]]; then
+     echo "Creating ChangeLog file for the first time. This may take a while ..."
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog 
   fi
 
@@ -378,6 +381,7 @@ if [[ ${nosvn} != "nosvn" ]]; then
   cd ${dir_base}/${cp2k_dir}/tests
   
   if [[ ! -s ${dir_last}/ChangeLog-tests ]]; then
+     echo "Creating ChangeLog-tests file for the first time. This may take a while ..."
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog-tests
   fi
 
@@ -536,7 +540,7 @@ last_test_dir=""
 retest_dirs=""
 if [[ $doretest == "yes" ]];
 then
-  last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9][+-][0-9][0-9][0-9][0-9] | tail -2 | head -1`
+  last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
   if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
   then
     echo "No TEST directory with latest test results found. Nothing to test!" 
@@ -552,6 +556,10 @@ then
       let ndirstorestrict=ndirstorestrict+1;
       restrict_dirs[ndirstorestrict]=$t;
     done
+    if (( ndirstorestrict == 0 )); then
+       echo "No error occurred during the last run. Nothing to retest!"
+       end_test 0
+    fi
   fi
 fi
 
@@ -730,7 +738,7 @@ for dir in ${dirs}; do
            grep -i "${leak_error_string}" ${output_file} >> ${memory_description_file}
         fi
      fi 
-     printf "%50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+     printf "    %-50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
   t2=`date +%s`
   timing_all=`echo "1+($t2)-($t1)" | bc -l`
@@ -744,7 +752,7 @@ for dir in ${dirs}; do
  # here we allow only a given maximum of tasks
  #
  runningtasks=10000
- while (( runningtasks >= maxtasks ))
+ while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) ))
  do
    # sleep 1
    runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
