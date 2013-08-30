@@ -99,9 +99,12 @@ do
 
 # Get results from http://people.web.psi.ch/krack/cp2k/regtest/regtest.html
   
-  wget -q -P ${regtestdir}/mkrack-popt/www/ http://people.web.psi.ch/krack/cp2k/regtest/regtest-0
+  wget -q -N -P ${regtestdir}/mkrack-popt/www/ http://people.web.psi.ch/krack/cp2k/regtest/regtest-0
   if [[ -f ${regtestdir}/mkrack-popt/www/regtest-0 ]]
   then
+    date=`cat ${regtestdir}/mkrack-popt/www/regtest-0 | grep "Date: " | sed 's/Date: \([0-9\-]*\)/\1/'`
+    time=`cat ${regtestdir}/mkrack-popt/www/regtest-0 | grep "Time: " | sed 's/Time: \([0-9\:]*\)/\1/'`
+    
     (( runtime_errors = 0 ))
     (( wrong_results = 0 ))
     (( correct_tests = 0 ))
