@@ -25,7 +25,7 @@ MODULE tmc_analysis
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diag
-  USE physcon,                         ONLY: a_mass,&
+  USE physcon,                         ONLY: a_mass, n_avogadro, &
                                              au2a => angstrom,&
                                              boltzmann,&
                                              joule,&
@@ -740,9 +740,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: atom_pos, cell_size, &
                                                 interval_size
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: density_tmp
+      POINTER                                :: mass_bin
+    REAL(KIND=dp)                            :: r_tmp
 
-    NULLIFY(density_tmp)
+    NULLIFY(mass_bin)
 
     CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,error,failure)
@@ -765,24 +766,27 @@ CONTAINS
     bin_x = SIZE(ana_env%density_3d%sum_density(:,1,1))
     bin_y = SIZE(ana_env%density_3d%sum_density(1,:,1))
     bin_z = SIZE(ana_env%density_3d%sum_density(1,1,:))
-    ALLOCATE(density_tmp(bin_x, bin_y, bin_z))
-    density_tmp(:,:,:) = 0.0_dp
+    ALLOCATE(mass_bin(bin_x, bin_y, bin_z))
+    mass_bin(:,:,:) = 0.0_dp
 
     ! if NPT -> box_scale.NE.1.0 use the scaled cell 
     ! ATTENTION then the sub box middle points are not correct in the output
     !  espacially if we use multiple sub boxes
     CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
                          abc=cell_size, vol=vol_cell, error=error)
-    ! volume in [cm^3]
+    ! volume summed over configurations for average volume [A]
     ana_env%density_3d%sum_vol = ana_env%density_3d%sum_vol + &
                                    vol_cell*(au2a)**3 *weight
     ana_env%density_3d%sum_box_length(:) = ana_env%density_3d%sum_box_length(:)&
                                           + cell_size(:)*(au2a)*weight
-    interval_size(1) = cell_size(1)/bin_x
-    interval_size(2) = cell_size(2)/bin_y
-    interval_size(3) = cell_size(3)/bin_z
+    ! sub interval length
+    interval_size(1) = cell_size(1)/REAL(bin_x,dp)
+    interval_size(2) = cell_size(2)/REAL(bin_y,dp)
+    interval_size(3) = cell_size(3)/REAL(bin_z,dp)
+
+    ! volume in [cm^3]
     vol_cell = vol_cell* (au2a*1E-8)**3
-    vol_sub_box = interval_size(1)*interval_size(2)*interval_size(2)* &
+    vol_sub_box = interval_size(1)*interval_size(2)*interval_size(3)* &
                   (au2a*1E-8)**3
 
     ! count every atom
@@ -794,25 +798,38 @@ CONTAINS
                            vec=atom_pos, error=error)
       ! shifts the box to positive values (before 0,0,0 is the center)
       atom_pos(:) = atom_pos(:)+0.5_dp*cell_size(:)
+      ! calculate the index of the sub box
       bin_x = INT(atom_pos(1)/interval_size(1))+1
       bin_y = INT(atom_pos(2)/interval_size(2))+1
       bin_z = INT(atom_pos(3)/interval_size(3))+1
+      CPPostcondition(bin_x.GT.0.AND.bin_y.GT.0.AND.bin_z.GT.0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(bin_x.LE.SIZE(ana_env%density_3d%sum_density(:,1,1)),cp_failure_level,routineP,error,failure)
+      CPPostcondition(bin_y.LE.SIZE(ana_env%density_3d%sum_density(1,:,1)),cp_failure_level,routineP,error,failure)
+      CPPostcondition(bin_z.LE.SIZE(ana_env%density_3d%sum_density(1,1,:)),cp_failure_level,routineP,error,failure)
 
-      ! mass in [g]
-      density_tmp(bin_x,bin_y,bin_z) = density_tmp(bin_x,bin_y,bin_z) + &
+      ! sum mass in [g] (in bins and total)
+      mass_bin(bin_x,bin_y,bin_z) = mass_bin(bin_x,bin_y,bin_z) + &
         atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/massunit*1000*a_mass
       mass_total = mass_total + &
         atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/massunit*1000*a_mass
+      !mass_bin(bin_x,bin_y,bin_z) = mass_bin(bin_x,bin_y,bin_z) + &
+      !  atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/&
+      !     massunit/n_avogadro
+      !mass_total = mass_total + &
+      !  atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/&
+      !     massunit/n_avogadro
     END DO
+    ! check total cell density
+    r_tmp = mass_total/vol_cell - SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:))
+    CPPostcondition(abs(r_tmp).LT.1E-5,cp_failure_level,routineP,error,failure)
 
-    ana_env%density_3d%sum_dens2(:,:,:) = ana_env%density_3d%sum_dens2(:,:,:) +&
-      weight* (density_tmp(:,:,:)/vol_sub_box)**2
-
-!      REAL(weight,KIND=dp)* (density_tmp(:,:,:)/vol_sub_box - &
-!      mass_total/SIZE(ana_env%density_3d%sum_density(:,:,:))/vol_cell)**2
-
+    ! calculate density (mass per volume) and sum up for average value
     ana_env%density_3d%sum_density(:,:,:) = ana_env%density_3d%sum_density(:,:,:) +&
-                                             weight* density_tmp(:,:,:)/vol_sub_box
+                                             weight* mass_bin(:,:,:)/vol_sub_box
+
+    ! calculate density squared ( (mass per volume)^2 ) for variance and sum up for average value
+    ana_env%density_3d%sum_dens2(:,:,:) = ana_env%density_3d%sum_dens2(:,:,:) +&
+      weight* (mass_bin(:,:,:)/vol_sub_box)**2
 
     ana_env%density_3d%conf_counter = ana_env%density_3d%conf_counter + weight
 
@@ -829,7 +846,7 @@ CONTAINS
                    "dens_average[g/cm^3]","density_variance", &
                    "average_volume", "box_lenth_x", "box_lenth_y","box_lenth_z"
       WRITE(19,FMT="(I8,7F20.10)") ana_env%density_3d%conf_counter+1-weight, &
-        SUM(density_tmp(:,:,:))/vol_sub_box/SIZE(density_tmp(:,:,:)), &
+        SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:)), &
          SUM(ana_env%density_3d%sum_density(:,:,:))/&
          SIZE(ana_env%density_3d%sum_density(:,:,:))/&
          REAL(ana_env%density_3d%conf_counter, KIND=dp), &
@@ -846,7 +863,7 @@ CONTAINS
       CLOSE(19)
     END IF
     
-    DEALLOCATE(density_tmp)
+    DEALLOCATE(mass_bin)
     ! end the timing
     CALL timestop(handle)
   END SUBROUTINE calc_density_3d
