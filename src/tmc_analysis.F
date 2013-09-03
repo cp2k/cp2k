@@ -658,15 +658,22 @@ CONTAINS
     ! start the timing
     CALL timeset(routineN,handle)
 
+    ! open the files
+    CALL analyse_files_open(tmc_ana=ana_env, stat=stat, dir_ind=dir_ind, &
+                            error=error)
+    ! set the existence of exact dipoles (from file)
+    IF(ana_env%id_dip .GT. 0) THEN
+      tmc_params%print_dipole = .TRUE.
+    ELSE
+      tmc_params%print_dipole = .FALSE.
+    END IF
+
+    ! allocate the actual element structure
     CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem,&
            nr_dim=ana_env%nr_dim, error=error)
 
     IF(ASSOCIATED(ana_env%last_elem)) conf_nr = ana_env%last_elem%nr
     nr_dim = SIZE(elem%pos)
-
-    ! open the files
-    CALL analyse_files_open(tmc_ana=ana_env, stat=stat, dir_ind=dir_ind, &
-                            error=error)
 
     IF(stat .EQ. TMC_STATUS_OK) THEN
       conf_loop: DO
@@ -1269,8 +1276,7 @@ CONTAINS
       dip_cl(:) = dip_cl(:)+ elem%pos(i:i+ana_env%dim_per_elem-1)*&
         ana_env%dip_mom%charges(INT(i/REAL(ana_env%dim_per_elem,KIND=dp))+1)
     END DO
-
-    
+   
     ! if there are no exact dipoles save these ones in element structure
     IF(.NOT.ASSOCIATED(elem%dipole))THEN
       ALLOCATE(elem%dipole(ana_env%dim_per_elem))
