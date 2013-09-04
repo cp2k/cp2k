@@ -25,7 +25,7 @@ MODULE tmc_analysis
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diag
-  USE physcon,                         ONLY: a_mass, n_avogadro, &
+  USE physcon,                         ONLY: a_mass,&
                                              au2a => angstrom,&
                                              boltzmann,&
                                              joule,&
@@ -742,13 +742,12 @@ CONTAINS
     INTEGER                                  :: atom, bin_x, bin_y, bin_z, &
                                                 handle
     LOGICAL                                  :: failure, flag
-    REAL(KIND=dp)                            :: mass_total, vol_cell, &
+    REAL(KIND=dp)                            :: mass_total, r_tmp, vol_cell, &
                                                 vol_sub_box
     REAL(KIND=dp), DIMENSION(3)              :: atom_pos, cell_size, &
                                                 interval_size
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mass_bin
-    REAL(KIND=dp)                            :: r_tmp
 
     NULLIFY(mass_bin)
 
@@ -828,7 +827,7 @@ CONTAINS
     END DO
     ! check total cell density
     r_tmp = mass_total/vol_cell - SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:))
-    CPPostcondition(abs(r_tmp).LT.1E-5,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ABS(r_tmp).LT.1E-5,cp_failure_level,routineP,error,failure)
 
     ! calculate density (mass per volume) and sum up for average value
     ana_env%density_3d%sum_density(:,:,:) = ana_env%density_3d%sum_density(:,:,:) +&

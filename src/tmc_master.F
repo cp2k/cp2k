@@ -238,8 +238,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: cancel_count, handle, last_output, reactivation_cc_count, &
-      reactivation_ener_count, restart_count, stat, walltime_delay, &
-      walltime_offset, wg, worker_counter
+      reactivation_ener_count, restart_count, restarted_elem_nr, stat, &
+      walltime_delay, walltime_offset, wg, worker_counter
     INTEGER, DIMENSION(6)                    :: nr_of_job
     INTEGER, DIMENSION(:), POINTER           :: tree_elem_counters, &
                                                 tree_elem_heads
@@ -255,6 +255,7 @@ CONTAINS
 
     failure = .FALSE.
     external_stop = .FALSE.
+    restarted_elem_nr = 0
     NULLIFY(init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)
 
     CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
@@ -344,6 +345,7 @@ CONTAINS
     ! init restart counter (espacially for restart case)
     restart_count = INT(tmc_env%m_env%result_count(0)/&
                       REAL(tmc_env%m_env%restart_out_step, KIND=dp))+1
+    restarted_elem_nr = tmc_env%m_env%result_count(0)
 
 !TODO check conf and cell of both input files (cell has to be equal, 
 !           beacuse it is used as reference cell for scaling the cell)
@@ -931,6 +933,10 @@ CONTAINS
       WRITE(tmc_env%m_env%io_unit,*) &
         " reactivated cc ", reactivation_cc_count
     END IF
+    WRITE(tmc_env%m_env%io_unit,FMT="(A,F10.2)") &
+      " computing time of one Markov chain element ", &
+      (m_walltime()-run_time_start)/REAL(tmc_env%m_env%result_count(0)-&
+                                         restarted_elem_nr,KIND=dp)
     WRITE(tmc_env%m_env%io_unit,FMT="(A,F10.2)") " TMC run time[s]: ", m_walltime()-run_time_start
     WRITE(tmc_env%m_env%io_unit,FMT="(/,T2,A)") REPEAT("=",79)
 
