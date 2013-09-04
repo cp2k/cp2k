@@ -510,6 +510,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
          DO igrid_level = 1, SIZE ( pw_pools )
            CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
          ENDDO
+         IF (set_vdw_pool) CALL pw_grid_change( cell, pw_env%vdw_pw_pool%pw_grid )
          CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
