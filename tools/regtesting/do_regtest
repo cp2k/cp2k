@@ -493,7 +493,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
       cat "${error_description_file}"
       end_test 4 ${lockfile}
    else
-      compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
+      compile_warnings=`grep "Warning" ${make_out} | wc -l`
       echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
    fi
 else
