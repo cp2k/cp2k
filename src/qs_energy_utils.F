@@ -529,11 +529,13 @@ CONTAINS
 
     LOGICAL                                  :: should_stop
 
-    CALL external_control(should_stop,"MP2",target_time=qs_env%target_time, &
-    start_time=qs_env%start_time,error=error)
+! Compute MP2 energy
 
-    ! Compute MP2 energy
     IF (ASSOCIATED(qs_env%mp2_env)) THEN
+
+       CALL external_control(should_stop,"MP2",target_time=qs_env%target_time, &
+       start_time = qs_env%start_time,error=error)
+
        CALL mp2_main(qs_env=qs_env,error=error)
 
        ! no forces so far with MP2 (except one electron systems ;-)
