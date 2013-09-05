@@ -4,7 +4,7 @@
 # do_regtest some info [Joost VandeVondele, 2005-02-25]
 # Major revision of the script [Marko Misic, PRACE, July - August 2013]
 #
-# Regression testing cp2k ... 
+# Regression testing cp2k ...
 #    - maintain code quality
 #    - helps rapid development and refactoring
 #
@@ -19,27 +19,27 @@
 #    - you must be able to build and run cp2k on the given machine, the rest should be 'easy'
 #    - decide on a directory for doing the regtest, there will be plenty of files in this dir
 #      (after a while) so make it something like $HOME/rt
-#    - checkout a version of cp2k into $HOME/rt. 
+#    - checkout a version of cp2k into $HOME/rt.
 #      If you set up your svn account so that you don't need to provide
 #      a passwd for doing svn update, things will be more convenient later on.
 #    - set up the arch files so that you can cleanly build cp2k (test this)
 #    - cp $HOME/rt/cp2k/tools/do_regtest $HOME/rt
-#    - modify the do_regtest script to match your local environment (e.g. specify 
+#    - modify the do_regtest script to match your local environment (e.g. specify
 #      if you wish a sdbg or a sopt build, which compiler, gmake, ....) see below
 #    - execute './do_regtest' regularly (i.e. after comitting new code)
 #
 # Interpretation of the results
 #  test can be:
 #    - 'OK' if the results match those of a previous run precisely. The execution time is also given.
-#    - 'NEW' if they have not been executed previously. The reference result is generated 
-#      automatically in this run. Tests can also be 'NEW' if they have been reset, i.e. been newly 
+#    - 'NEW' if they have not been executed previously. The reference result is generated
+#      automatically in this run. Tests can also be 'NEW' if they have been reset, i.e. been newly
 #      added to the TEST_FILES_RESET files.
 #    - 'RUNTIME FAILURE' if they stopped unexpectedly (e.g. core dump, or stop)
 #    - 'WRONG RESULT' if they produce a result that deviates (even a tiny bit) from an old reference
 #  the last two options generally mean that a bug has been introduced, which requires investigation.
 #  since regtesting only yields information relative to a previously known result, it is most useful
-#  to do a regtest before and after you make changes. To allow per-test numerical difference higher 
-#  than that set as a default, add third column in appropriete TEST_FILES file with a relative value 
+#  to do a regtest before and after you make changes. To allow per-test numerical difference higher
+#  than that set as a default, add third column in appropriete TEST_FILES file with a relative value
 #  of the difference.
 #
 # Adding/resetting/creating tests to the testsuite
@@ -53,32 +53,33 @@
 #                      a bug fix, do not reset these that fail because of unclear reasons. Try to add
 #                      a comment to the svn message and/or the file itself
 #  -TEST_TYPES : this file allows you to create a new test type. I.e. to specify for which words should
-#                be grepped and what field should be used in the numerical comparison. 
+#                be grepped and what field should be used in the numerical comparison.
 #
 # Command line switches to the do_regtest script (also configurable from within the script)
 #  -nosvn   : do not access the SVN for any updating, makes regtesting fully local
 #  -quick   : rebuild the code if needed, but do not perform a realclean before (noquick is not needed anymore)
 #  -noreset : do not reset the reference outputs automatically
 #  -svndate string : specify any string to svn update (most likely used as "2005-02-17")
-#  -skipdir string : this switch can repeat, exclude certain dirs from regtesting, useful to 
+#  -skipdir string : this switch can repeat, exclude certain dirs from regtesting, useful to
 #                    speed-up regtesting after very localised changes (e.g. -skipdir QS/regtest)
-#  -restrictdir string : this switch can repeat, restrict regtesting to certain dirs, useful to 
+#  -restrictdir string : this switch can repeat, restrict regtesting to certain dirs, useful to
 #                        speed-up regtesting after very localised changes (e.g. -restrictdir QS/regtest)
 #  -config string : loads a site/compiler/environment specific configuration
 #  -retest : regtesting will be restricted only to those directories that contained failed tests
-#            in the previous run 
+#            in the previous run
 #  -noemptycheck : use this to force regression testing even if no changes exist in SVN
 #  -nobuild : do not build cp2k, but use one built by the user (turns on quick option automatically)
 #
 # Possible exit statuses:
 # -  end_test 1   : problem with svn update
-# -  end_test 100 : no svn changes since last run - clean exit without testing  
+# -  end_test 100 : no svn changes since last run - clean exit without testing
 # -  end_test 3   : problem with realclean
 # -  end_test 4   : build errors
 # -  end_test 5   : problem with retest option - no TEST directory with latest test results found
 # -  end_test 6   : problem with retest option - no error summary exists in the last TEST directory
+# -  end_test 7   : reference directory is locked
 # -  end_test 0   : clean exit with testing
-# 
+#
 # Script configuration. The value of the follow variables can be redefined, see below
 #   dir_base, FORT_C_NAME, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
 #   make, awk, datum_full, datum_short, default_err_tolerance
@@ -91,7 +92,7 @@
 # - dir_base: the base directory for testing (e.g. $HOME/rt)
 # - FORT_C_NAME: compiler selection (e.g. intel)
 # - cp2k_version: sopt,sdbg,popt....
-# - dir_triplet: the result of tools/get_arch_name, where the executable can be found 
+# - dir_triplet: the result of tools/get_arch_name, where the executable can be found
 # - cp2k_dir: normally cp2k
 # - maxtasks: how many instances of cp2k should run simultaneously (~> #CPUs)
 # - emptycheck: useful for automatic testers, no testing if nothing changed in SVN (YES|NO)
@@ -174,7 +175,7 @@ while [ $# -ge 1 ]; do
   let ndirstoskip=ndirstoskip+1
   skip_dirs[ndirstoskip]=$2
   shift;;
- # build a list of directories to restrict, i.e. only matching dirs will be run 
+ # build a list of directories to restrict, i.e. only matching dirs will be run
  -restrictdir)
   let ndirstorestrict=ndirstorestrict+1
   restrict_dirs[ndirstorestrict]=$2
@@ -187,7 +188,7 @@ while [ $# -ge 1 ]; do
   [[ -f $2 ]] || { echo "ERROR: Configuration file $2 not found"; exit 1; }
   source $2   || { echo "ERROR: Sourcing of the configuration file $2 failed" ; exit 1; }
   shift;;
- # do not update the SVN 
+ # do not update the SVN
  -nosvn)
   nosvn="nosvn";;
  # do not reset reference outputs
@@ -203,7 +204,7 @@ while [ $# -ge 1 ]; do
  # do not check if code has changed
  -noemptycheck)
   emptycheck="NO";;
- # do not build cp2k 
+ # do not build cp2k
  # turns on automatically quick option, so that do_regtest does not do realclean
  -nobuild)
   quick="quick"; nobuild="nobuild";;
@@ -240,21 +241,28 @@ job_max_time=${job_max_time:-"600"}
 test_types_file=${dir_base}/${cp2k_dir}/tests/TEST_TYPES
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
-changelog_diff=${dir_out}/ChangeLog.diff
-changelog_diff_tests=${dir_out}/ChangeLog-tests.diff
+changelog=${dir_last}/ChangeLog
+changelog_diff=${changelog}.diff
+changelog_new=${changelog}.new
+changelog_old=${changelog}.old
+changelog_tests=${changelog}-tests
+changelog_tests_diff=${changelog_tests}.diff
+changelog_tests_new=${changelog_tests}.new
+changelog_tests_old=${changelog_tests}.old
 error_description_file=${dir_out}/error_summary
-    mkdir -p ${dir_out}
-    mkdir -p ${dir_last}
-    rm -fR ${error_description_file}
-    touch  ${error_description_file}
-    touch  ${dir_last}/ChangeLog-tests
-    if [[ ${leakcheck} == "YES" ]]; then
-       memory_description_file=${dir_out}/memory_summary
-       memory_summary=${dir_base}/memory_leaks.txt
-       rm -fR ${memory_description_file}
-       touch  ${memory_description_file}
-       echo "" > ${memory_summary}
-    fi
+make_out=${dir_out}/make.out
+svn_out=${dir_out}/svn.out
+mkdir -p ${dir_out}
+mkdir -p ${dir_last}
+rm -fR ${error_description_file}
+touch  ${error_description_file}
+if [[ ${leakcheck} == "YES" ]]; then
+   memory_description_file=${dir_out}/memory_summary
+   rm -fR ${memory_description_file}
+   touch  ${memory_description_file}
+   memory_summary=${dir_out}/memory_leaks.txt
+   echo "" > ${memory_summary}
+fi
 
 ###################################################################################
 #
@@ -264,8 +272,12 @@ error_description_file=${dir_out}/error_summary
 function end_test() {
 full_time_t2=`date +%s`
 full_timing_all=`echo "1+(${full_time_t2})-(${full_time_t1})" | bc -l`
+# Remove lockfile
+if [[ -n $2 ]]; then
+   [[ -f $2 ]] && rm $2
+fi
 echo "--------------------------------------------------------------------------"
-printf "Regtest took %0.2f seconds.\n" $full_timing_all
+printf "Regtest took %0.2f seconds.\n" ${full_timing_all}
 echo "--------------------------------------------------------------------------"
 date
 echo "*************************** testing ended ********************************"
@@ -282,7 +294,7 @@ function do_test_grep(){
  output_old=$2
  error_file=$3
  grep_string=$4
- grep_field=$5 
+ grep_field=$5
  error_tolerance=$6
  e1=`grep -a "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
  e2=`grep -a "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
@@ -299,7 +311,7 @@ function do_test_grep(){
   echo " relative error : ${big} >  numerical tolerance = ${error_tolerance}  " >> ${error_file}
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
   return 1 ;;
- esac 
+ esac
 }
 
 ###################################################################################
@@ -314,7 +326,7 @@ function do_test() {
  output_old=$4
  error_file=$5
  case ${which_test} in
- 0) 
+ 0)
    #just be happy you executed
    return 0;;
  *)
@@ -323,7 +335,20 @@ function do_test() {
  esac
 }
 
-# *** start testing
+# Check for lockfile
+lockfile=${dir_last}/LOCKFILE
+if [[ -f ${lockfile} ]]; then
+   echo "ERROR: Directory ${dir_last} is locked"
+   echo "       Check if a regtest is already running for the same directory and if not then"
+   echo "       remove the lockfile ${lockfile}"
+   echo "       first and retry"
+   rm -rf ${dir_out}
+   end_test 7
+else
+   touch ${lockfile}
+fi
+
+# Start testing
 echo "*************************** testing started ******************************"
 echo " started on " `date`
 echo " checking version ${svndate} "
@@ -332,154 +357,148 @@ echo "--------------------------- SVN ------------------------------------------
 
 if [[ ${nosvn} != "nosvn" ]]; then
 
-  # *** svn update src
+  # SVN update src
   cd ${dir_base}/${cp2k_dir}/src
- 
-  # If ChangeLog does not exist for the first time, it is created 
-  if [[ ! -s ${dir_last}/ChangeLog ]]; then
+
+  # If ChangeLog does not exist for the first time, it is created
+  if [[ ! -s ${changelog} ]]; then
      echo "Creating ChangeLog file for the first time. This may take a while ..."
-     ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog 
+     ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog}
   fi
 
-  svn update -r {${svndate}} &> out
+  svn update -r {${svndate}} &> ${svn_out}
   if (( $? )); then
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-  tail -20 out >> ${error_description_file}
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-  echo "error happened : no svn update ... bailing out"
-  end_test 1
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+     tail -20 ${svn_out} >> ${error_description_file}
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+     echo "error happened : no svn update ... bailing out"
+     end_test 1 ${lockfile}
   fi
 
   echo "--- svn update src ---"
-  cat out
-  echo "svn src update went fine"
+  cat ${svn_out}
+  echo "svn update src went fine"
   cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
   echo "cp2k is now ${cp2k_lines} lines .F"
-  
-  # *** using svn2cl.pl to generate GNU like changelog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ChangeLog.new &> out
-  
-  line1="$(head -n 1 ${dir_last}/ChangeLog)"
-  nline=$(grep -n "${line1}" ChangeLog.new | head -n 1 | cut -f 1 -d:)
-  head -n $((nline - 1)) ChangeLog.new >ChangeLog
-  cat ${dir_last}/ChangeLog >>ChangeLog
 
-  diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
+  # Using svn2cl.pl to generate GNU like ChangeLog
+  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} &> ${svn_out}
+
+  line1="$(head -n 1 ${changelog})"
+  nline=$(grep -n "${line1}" ${changelog_new} | head -n 1 | cut -f 1 -d:)
+  mv ${changelog} ${changelog_old}
+  head -n $((nline - 1)) ${changelog_new} > ${changelog}
+  cat ${changelog_old} >> ${changelog}
+
+  diff ${changelog} ${changelog_old} > ${changelog_diff}
   echo "------- differences --------" >> ${changelog_diff}
 
-  rm ChangeLog.new 
+  rm ${changelog_new} ${changelog_old}
 
-  echo "---  changelog diff src  ---"
-  cat ${changelog_diff} 
+  echo "---  ChangeLog diff src  ---"
+  cat ${changelog_diff}
   echo "----------------------------"
- 
-  cp ChangeLog ${dir_last}/ChangeLog
 
-  rm out
-
-  # *** svn update test 
+  # SVN update tests
   cd ${dir_base}/${cp2k_dir}/tests
-  
-  if [[ ! -s ${dir_last}/ChangeLog-tests ]]; then
+
+  if [[ ! -s ${changelog_tests} ]]; then
      echo "Creating ChangeLog-tests file for the first time. This may take a while ..."
-     ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog-tests
+     ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog_tests}
   fi
 
-  svn update -r {${svndate}} &> out
+  svn update -r {${svndate}} &> ${svn_out}
   if (( $? )); then
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-  tail -20 out >> ${error_description_file}
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-  echo "error happened : no svn update ... bailing out"
-  end_test 1
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+     tail -20 ${svn_out} >> ${error_description_file}
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+     echo "error happened : no svn update ... bailing out"
+     end_test 1 ${lockfile}
   fi
-  
-  echo "--- svn update test ---"
-  cat out
-  echo "svn tests update went fine"
-  
-  # *** using svn2cl.pl to generate GNU like changlelog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ChangeLog-tests.new &> out
-  
-  line1="$(head -n 1 ${dir_last}/ChangeLog-tests)"
-  nline=$(grep -n "${line1}" ChangeLog-tests.new | head -n 1 | cut -f 1 -d:)
-  head -n $((nline - 1)) ChangeLog-tests.new >ChangeLog-tests
-  cat ${dir_last}/ChangeLog-tests >>ChangeLog-tests
 
-  diff ChangeLog-tests ${dir_last}/ChangeLog-tests > ${changelog_diff_tests}
-  echo "------- differences --------" >> ${changelog_diff_tests}
+  echo "--- svn update tests ---"
+  cat ${svn_out}
+  echo "svn update tests went fine"
 
-  rm ChangeLog-tests.new 
+  # Using svn2cl.pl to generate GNU like ChangeLog
+  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_tests_new} &> ${svn_out}
 
-  echo "---  changelog diff tests  ---"
-  cat ${changelog_diff_tests} 
+  line1="$(head -n 1 ${changelog_tests})"
+  nline=$(grep -n "${line1}" ${changelog_tests_new} | head -n 1 | cut -f 1 -d:)
+  mv ${changelog_tests} ${changelog_tests_old}
+  head -n $((nline - 1)) ${changelog_tests_new} > ${changelog_tests}
+  cat ${changelog_tests_old} >> ${changelog_tests}
+
+  diff ${changelog_tests} ${changelog_tests_old} > ${changelog_tests_diff}
+  echo "------- differences --------" >> ${changelog_tests_diff}
+
+  rm ${changelog_tests_new} ${changelog_tests_old}
+
+  echo "---  ChangeLog diff tests  ---"
+  cat ${changelog_tests_diff}
   echo "----------------------------"
- 
-  cp ChangeLog-tests ${dir_last}/ChangeLog-tests
-  
-  rm out
+
 else
-  echo "no svn updating"
+
+  echo "No SVN updating"
+
 fi
 
-# *** check if there is any update or difference that thus requires a rerun
+# Check if there is any update or difference that thus requires a rerun
 # one day, this requires improvement for speed.
 if [[ ${emptycheck} == "YES" ]]; then
    isempty_1=`nl ${changelog_diff} | awk '{print $1}'`
-   isempty_2=`nl ${changelog_diff_tests} | awk '{print $1}'`
-   
+   isempty_2=`nl ${changelog_tests_diff} | awk '{print $1}'`
+
    if [[ ${isempty_1} == "1" && ${isempty_2} == "1" ]]; then
       echo "No changes since last run -- clean exit without testing "
-      
+
       # cleanup of empty directories
       rm -rf ${dir_out}
-      end_test 100
+      end_test 100 ${lockfile}
    else
       echo "Code has changed since last run -- continue regtest "
    fi
 fi
 
-# *** make realclean
+# make realclean
 if [[ ${quick} != "quick" ]]; then
    cd ${dir_base}/${cp2k_dir}/makefiles
-   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} &> out
+   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} &> ${make_out}
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-      tail -20 out >> ${error_description_file}
+      tail -20 ${make_out} >> ${error_description_file}
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
       echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
-      end_test 3
+      end_test 3 ${lockfile}
    else
       echo "make realclean VERSION=${cp2k_version} went fine"
    fi
 else
-  echo "quick testing, no realclean"
-fi 
-
-# *** from here failures are likely to be bugs in cp2k
-if [[ ${nobuild} != "nobuild" ]]
-then
-  echo "-------------------------compiling cp2k-----------------------------------"
-  echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
-  echo "(make output is written to ${cp2k_dir}/makefiles/out)"
-  cd ${dir_base}/${cp2k_dir}/makefiles
-  ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} &> out
-  if (( $? )); then
-    echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-    tail -40 out >> ${error_description_file}
-    echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-    echo "error happened : make VERSION=${cp2k_version} "
-    cat "${error_description_file}"
-    end_test 4
-  else
-  compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
-  echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
-  fi
-else
-  echo "no build, continue regression testing"
+   echo "Quick testing, no realclean"
 fi
 
-rm out
+# *** from here failures are likely to be bugs in cp2k
+if [[ ${nobuild} != "nobuild" ]]; then
+   echo "-------------------------compiling cp2k-----------------------------------"
+   echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
+   echo "(make output is written to ${make_out})"
+   cd ${dir_base}/${cp2k_dir}/makefiles
+   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} &> ${make_out}
+   if (( $? )); then
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+      tail -40 ${make_out} >> ${error_description_file}
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+      echo "error happened : make VERSION=${cp2k_version} "
+      cat "${error_description_file}"
+      end_test 4 ${lockfile}
+   else
+      compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
+      echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
+   fi
+else
+   echo "no build, continue regression testing"
+fi
 
 echo "-------------------------regtesting cp2k----------------------------------"
 
@@ -487,7 +506,7 @@ echo "-------------------------regtesting cp2k----------------------------------
 #
 # parse the TEST_TYPES file to do different kinds of test (done after svn update)
 #
-# tests grep for the last line in the file where a string matches (test_grep) 
+# tests grep for the last line in the file where a string matches (test_grep)
 # and compares a numeric field at a given column (test_col)
 #
 # the format of the TEST_TYPES file is (notice the '!' as a field separator, to allow
@@ -512,7 +531,7 @@ done
 
 ###################################################################################
 #
-# *** now start testing 
+# *** now start testing
 # *** for a given directory we do a run on all files in TEST_FILES and
 # *** do the test as indicated by the number
 # *** files are run in order so that they can e.g. restart
@@ -543,12 +562,12 @@ then
   last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
   if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
   then
-    echo "No TEST directory with latest test results found. Nothing to test!" 
-    end_test 5
+    echo "No TEST directory with latest test results found. Nothing to test!"
+    end_test 5 ${lockfile}
   elif [[ ! -f "${dir_base}/${last_test_dir}/error_summary" ]]
   then
     echo "No error summary exists in the last TEST directory. Nothing to test!"
-    end_test 6
+    end_test 6 ${lockfile}
   else
     retest_dirs=`grep .inp.out ${dir_base}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
     for t in $retest_dirs
@@ -558,7 +577,7 @@ then
     done
     if (( ndirstorestrict == 0 )); then
        echo "No error occurred during the last run. Nothing to retest!"
-       end_test 0
+       end_test 0 ${lockfile}
     fi
   fi
 fi
@@ -572,20 +591,20 @@ for dir in ${dirs}
 do
   match="no"
   t=1
-  # *** match to exclusion list
+  # Match to exclusion list
   while [ $t -le ${ndirstoskip} ]; do
      if [[ "${skip_dirs[t]}" == "${dir}" ]]; then
-        match="yes" 
+        match="yes"
      fi
      let t=t+1
   done
-  # *** match to the restrict list, if no restrict list is found, all dirs match
+  # Match to the restrict list, if no restrict list is found, all dirs match
   if [ ${ndirstorestrict} -gt 0 ]; then
      restrictmatch="no"
      t=1
      while [ $t -le ${ndirstorestrict} ]; do
         if [[ "${restrict_dirs[t]}" == "${dir}" ]]; then
-           restrictmatch="yes" 
+           restrictmatch="yes"
         fi
         let t=t+1
      done
@@ -593,7 +612,7 @@ do
     restrictmatch="yes"
   fi
 
-  # *** if not excluded add to list of dirs
+  # If not excluded add to list of dirs
   if [[ "${match}" == "no" && "${restrictmatch}" == "yes" ]]; then
      new_dirs="$new_dirs $dir"
   fi
@@ -633,7 +652,7 @@ for dir in ${dirs}; do
   mkdir -p ${dir_last}/${dir}
   touch ${dir_last}/${dir}/TEST_FILES_RESET
 
-  # 
+  #
   # first reset reference outputs that have become out-dated since the last run
   #
   if [[ ${noreset} != "noreset" ]]; then
@@ -663,11 +682,11 @@ for dir in ${dirs}; do
      # third field allows numerical tolerances to be read from the TEST_FILES
      # if value does not exist set to the default of 1.0E-14
      test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF == 3) { print $3 } else { print def_err_tol } }'`
-     
+
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
      ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
-     # *** cp2k failed obviously
+     # CP2K failed obviously
      if (( $? )); then
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
         echo ${output_file} >> ${error_description_file}
@@ -676,8 +695,8 @@ for dir in ${dirs}; do
         this_test="RUNTIME FAIL"
         n_runtime_error=$((n_runtime_error+1))
         failed_tests="${failed_tests} ${output_file}"
-     else 
-        # *** but didn't end !?
+     else
+        # but didn't end !?
         grep -a "ENDED" ${output_file} &> /dev/null
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -688,9 +707,9 @@ for dir in ${dirs}; do
            n_runtime_error=$((n_runtime_error+1))
            failed_tests="${failed_tests} ${output_file}"
         else
-           # *** still running, you must be joking...
-           # *** see if we manage to pass the testing
-           # *** but only if we can compare
+           # Still running, you must be joking...
+           # see if we manage to pass the testing
+           # but only if we can compare
            if [ -f ${output_last} ]; then
               for test_type in ${test_types};
               do
@@ -698,7 +717,7 @@ for dir in ${dirs}; do
                  if (( $? )); then
                     this_test="WRONG RESULT TEST ${test_type}"
                     n_wrong_results=$((n_wrong_results+1))
-                    # *** no further testing
+                    # No further testing
                     break;
                  else
                     n_correct=$((n_correct+1))
@@ -715,7 +734,7 @@ for dir in ${dirs}; do
      timing=0
      case ${this_test} in
      "NEW" )
-        cp ${output_file} ${output_last} 
+        cp ${output_file} ${output_last}
         timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      "OK" )
@@ -737,7 +756,7 @@ for dir in ${dirs}; do
            echo "XXXXXXXX  ${output_file} XXXXXXX" >> ${memory_description_file}
            grep -i "${leak_error_string}" ${output_file} >> ${memory_description_file}
         fi
-     fi 
+     fi
      printf "    %-50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
   t2=`date +%s`
@@ -749,13 +768,12 @@ for dir in ${dirs}; do
  )&
 
  #
- # here we allow only a given maximum of tasks
+ # Here we allow only a given maximum of tasks
  #
  runningtasks=10000
- while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) ))
- do
-   # sleep 1
-   runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
+ while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
+    runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
+    # sleep 1
  done
 
 done
@@ -808,10 +826,10 @@ if [[ ${leakcheck} == "YES" ]]; then
    if [[ -f ${changelog_diff} ]]; then
       echo "----- changelog diff file ------" >>  ${memory_summary}
       cat ${changelog_diff} >> ${memory_summary}
-   fi 
+   fi
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
 else
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
 fi
 
-end_test 0
+end_test 0 ${lockfile}
