@@ -258,8 +258,9 @@ MODULE dbcsr_types
      TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
   END TYPE dbcsr_memtype_type
 
-  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_default = dbcsr_memtype_type()
-  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_MPI = dbcsr_memtype_type(mpi=.TRUE.)
+  !providing pool=Null() explicitly to circumvent bug in ifort 12.1
+  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_default = dbcsr_memtype_type(pool=Null())
+  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_MPI = dbcsr_memtype_type(mpi=.TRUE., pool=Null())
 
 ! *****************************************************************************
 !> \brief Stores actual data
