@@ -318,7 +318,7 @@ CONTAINS
        ierr=cp_failure_level
     ELSE
        ! Finalize the DBCSR configuration
-       CALL cp_dbcsr_finalize_lib (output_unit=0, error=error)
+       CALL cp_dbcsr_finalize_lib (group=default_para_env%group, output_unit=0, error=error)
        IF (has_ma .OR. has_ma_topology) THEN
          CALL cp_ma_finalize_lib(error=error)
        ENDIF

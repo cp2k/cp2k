@@ -182,11 +182,11 @@ MODULE dbcsr_mm_cannon
 ! \brief Finalize the library
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_cannon_lib_finalize(output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE dbcsr_mm_cannon_lib_finalize(group, output_unit, error)
+    INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-     CALL dbcsr_mm_multrec_lib_finalize(output_unit, error)
+     CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
      !$omp master
      IF (ASSOCIATED(memtype_abbuffer%pool)) &

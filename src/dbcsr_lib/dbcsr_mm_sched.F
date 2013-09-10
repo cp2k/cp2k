@@ -31,7 +31,11 @@ MODULE dbcsr_mm_sched
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8
-  USE dbcsr_message_passing,           ONLY: mp_abort
+  USE dbcsr_message_passing,           ONLY: mp_abort,&
+                                             mp_bcast,&
+                                             mp_environ,&
+                                             mp_min,&
+                                             mp_sum
   USE dbcsr_mm_cudadrv,                ONLY: dbcsr_mm_cudadrv_finalize,&
                                              dbcsr_mm_cudadrv_init,&
                                              dbcsr_mm_cudadrv_lib_finalize,&
@@ -76,15 +80,20 @@ MODULE dbcsr_mm_sched
     LOGICAL                     :: avoid_cudadrv = .FALSE.
   END TYPE dbcsr_mm_sched_type
 
+  ! *****************************************************************************
+  TYPE stats_type
+    INTEGER(kind=int_8)   :: cpu_num_stacks = 0
+    INTEGER(kind=int_8)   :: gpu_num_stacks = 0
+    INTEGER(kind=int_8)   :: gpu_flop = 0
+    INTEGER(kind=int_8)   :: cpu_flop = 0
+  END TYPE stats_type
 
 ! *****************************************************************************
 !>  Statistics Counter
 ! *****************************************************************************
   ! Threadprivate counters to collect statistics
-  INTEGER(kind=int_8), SAVE :: stats_num_cpu_stacks, stats_num_gpu_stacks
-  !$OMP THREADPRIVATE(stats_num_cpu_stacks, stats_num_gpu_stacks)
-  INTEGER(kind=int_8), SAVE :: stats_gpu_flop, stats_cpu_flop
-  !$OMP THREADPRIVATE(stats_gpu_flop, stats_cpu_flop)
+  TYPE(stats_type), SAVE :: stats
+  !$OMP THREADPRIVATE(stats)
 
   INTEGER(kind=int_8), DIMENSION(:,:), POINTER, SAVE :: stats_num_mnk_stacks
   !$OMP THREADPRIVATE(stats_num_mnk_stacks)
@@ -105,10 +114,7 @@ MODULE dbcsr_mm_sched
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
 
     ! reset statistics counter
-    stats_num_cpu_stacks = 0
-    stats_num_gpu_stacks = 0
-    stats_gpu_flop = 0
-    stats_cpu_flop = 0
+    stats = stats_type()
     ALLOCATE(stats_num_mnk_stacks(1,5))
     stats_num_mnk_stacks(1,:) = 0 ! entry for the default stack
 
@@ -118,94 +124,30 @@ MODULE dbcsr_mm_sched
   END SUBROUTINE dbcsr_mm_sched_lib_init
 
 
+
+
 ! *****************************************************************************
 ! \brief Finalize the library and prints DBCSR statistics
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_sched_lib_finalize(output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE dbcsr_mm_sched_lib_finalize(group, output_unit, error)
+    INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i, ithread, j, nthreads
-    INTEGER(kind=int_8), DIMENSION(:, :), &
-      POINTER, SAVE                          :: handover
-    INTEGER(kind=int_8), SAVE :: stats_cpu_flop_sum, stats_gpu_flop_sum, &
-      stats_num_cpu_stacks_sum, stats_num_gpu_stacks_sum
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx, sort_key
-    REAL                                     :: percent
-
-   nthreads = 1; ithread = 0
-   !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+    TYPE(stats_type), SAVE                   :: report
 
    CALL dbcsr_mm_cudadrv_lib_finalize(output_unit, error)
 
    ! Collect and output statistics ---------------------------------------------
-   !$OMP MASTER
-   stats_num_cpu_stacks_sum = 0
-   stats_num_gpu_stacks_sum = 0
-   stats_gpu_flop_sum = 0
-   stats_cpu_flop_sum = 0
-   !$OMP END MASTER
+
+   CALL stats_collect_from_threads(report, error)
    !$OMP BARRIER
 
-   !$OMP CRITICAL
-   stats_num_cpu_stacks_sum = stats_num_cpu_stacks_sum + stats_num_cpu_stacks
-   stats_num_gpu_stacks_sum = stats_num_gpu_stacks_sum + stats_num_gpu_stacks
-   stats_gpu_flop_sum = stats_gpu_flop_sum + stats_gpu_flop
-   stats_cpu_flop_sum = stats_cpu_flop_sum + stats_cpu_flop
-   !$OMP END CRITICAL
-
-   DO i=1, nthreads-1
-     !$OMP BARRIER
-     IF(ithread==i) handover => stats_num_mnk_stacks
-     !$OMP BARRIER
-     IF(ithread==0) THEN
-       DO j=1, SIZE(handover, 1)
-         CALL stats_add(m=INT(handover(j,1), kind=int_4),&
-                        n=INT(handover(j,2), kind=int_4),&
-                        k=INT(handover(j,3), kind=int_4),&
-                        stacksize_cpu=handover(j,4),&
-                        stacksize_gpu=handover(j,5))
-       END DO
-     END IF
-   END DO
-
    !$OMP MASTER
-   IF(output_unit>0) THEN
-      WRITE (output_unit,"(X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
-
-      percent = 100*REAL(stats_num_gpu_stacks_sum)/REAL(MAX(1,stats_num_cpu_stacks_sum+stats_num_gpu_stacks_sum))
-      WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " number of processed stacks",&
-         stats_num_cpu_stacks_sum, stats_num_gpu_stacks_sum, percent
-
-      percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(1,4:5))))
-      WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " mutmuls inhomo. stacks",&
-         stats_num_mnk_stacks(1,4:5), percent
-
-      !sorting stat entries by flops per multiplication
-      ALLOCATE(sort_key(SIZE(stats_num_mnk_stacks,1)-1))
-      sort_key = 2*PRODUCT(stats_num_mnk_stacks(2:,1:3), DIM=2)
-      ALLOCATE(sort_idx(SIZE(sort_key)))
-      CALL sort(sort_key, SIZE(sort_key), sort_idx)
-
-      DO i=1, SIZE(sort_idx)
-       j = sort_idx(i)+1
-       percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(j,4:5))))
-       WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,X,I20,T76,F5.1)") &
-         " matmuls",stats_num_mnk_stacks(j,:), percent
-      END DO
-
-      percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(1,SUM(stats_num_mnk_stacks(:,4:5))))
-      WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " matmuls total",&
-         SUM(stats_num_mnk_stacks(:,4)), SUM(stats_num_mnk_stacks(:,5)), percent
-
-      percent = 100*REAL(stats_gpu_flop_sum)/REAL(MAX(1,stats_cpu_flop_sum+stats_gpu_flop_sum))
-      WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " flops total",&
-         stats_cpu_flop_sum, stats_gpu_flop_sum, percent
-
-   END IF
-   DEALLOCATE(stats_num_mnk_stacks)
+      CALL stats_collect_from_ranks(report, group, error)
+      CALL stats_print_report(report, output_unit, error)
    !$OMP END MASTER
+   DEALLOCATE(stats_num_mnk_stacks)
   END SUBROUTINE dbcsr_mm_sched_lib_finalize
 
 
@@ -375,8 +317,8 @@ MODULE dbcsr_mm_sched
 
          IF(success) THEN
             ! update statistics
-            stats_num_gpu_stacks = stats_num_gpu_stacks + 1
-            stats_gpu_flop = stats_gpu_flop + total_flop
+            stats%gpu_num_stacks = stats%gpu_num_stacks + 1
+            stats%gpu_flop = stats%gpu_flop + total_flop
             CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
                      stacksize_gpu=INT(stack_fillcount,kind=int_8))
             RETURN
@@ -399,8 +341,8 @@ MODULE dbcsr_mm_sched
 
      IF(success) THEN
         ! update statistics
-        stats_num_cpu_stacks = stats_num_cpu_stacks + 1
-        stats_cpu_flop = stats_cpu_flop + total_flop
+        stats%cpu_num_stacks = stats%cpu_num_stacks + 1
+        stats%cpu_flop = stats%cpu_flop + total_flop
         CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
                  stacksize_cpu=INT(stack_fillcount,kind=int_8))
         RETURN
@@ -411,9 +353,11 @@ MODULE dbcsr_mm_sched
 
   END SUBROUTINE dbcsr_mm_sched_process
 
- ! *****************************************************************************
- ! \brief Helper-routine used by dbcsr_mm_sched_process to supply statistics.
- ! *****************************************************************************
+
+! ******************************************************************************
+! \brief Helper-routine used by dbcsr_mm_sched_process to supply statistics.
+! \author Ole Schuett
+! ******************************************************************************
  SUBROUTINE stats_add(m,n,k, stacksize_cpu, stacksize_gpu)
     INTEGER, INTENT(IN)                      :: m, n, k
     INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_gpu
@@ -449,6 +393,146 @@ MODULE dbcsr_mm_sched
      stats_num_mnk_stacks(s+1,5) = stacksize_gpu
    DEALLOCATE(tmp)
  END SUBROUTINE stats_add
+
+
+! *****************************************************************************
+! \brief Collects statistics from all OpenMP-threads
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stats_collect_from_threads(report, error)
+    TYPE(stats_type), INTENT(INOUT)          :: report
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, ithread, j, nthreads
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER, SAVE                          :: handover
+
+   nthreads = 1; ithread = 0
+   !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+
+   !$OMP CRITICAL
+   report%cpu_num_stacks = report%cpu_num_stacks + stats%cpu_num_stacks
+   report%gpu_num_stacks = report%gpu_num_stacks + stats%gpu_num_stacks
+   report%gpu_flop = report%gpu_flop + stats%gpu_flop
+   report%cpu_flop = report%cpu_flop + stats%cpu_flop
+   !$OMP END CRITICAL
+
+   DO i=1, nthreads-1
+     !$OMP BARRIER
+     IF(ithread==i) handover => stats_num_mnk_stacks
+     !$OMP BARRIER
+     IF(ithread==0) THEN
+       DO j=1, SIZE(handover, 1)
+         CALL stats_add(m=INT(handover(j,1), kind=int_4),&
+                        n=INT(handover(j,2), kind=int_4),&
+                        k=INT(handover(j,3), kind=int_4),&
+                        stacksize_cpu=handover(j,4),&
+                        stacksize_gpu=handover(j,5))
+       END DO
+     END IF
+   END DO
+  END SUBROUTINE stats_collect_from_threads
+
+
+! *****************************************************************************
+! \brief Collects statistics from all MPI-ranks
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stats_collect_from_ranks(report, group, error)
+    TYPE(stats_type), INTENT(INOUT)          :: report
+    INTEGER, INTENT(IN)                      :: group
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, myrank, nranks, &
+                                                sending_rank
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: mnk_collected
+    INTEGER, DIMENSION(3)                    :: mnk
+
+    CALL mp_environ(nranks, myrank, group)
+
+    CALL mp_sum(report%gpu_flop, group)
+    CALL mp_sum(report%cpu_flop, group)
+    CALL mp_sum(report%cpu_num_stacks, group)
+    CALL mp_sum(report%gpu_num_stacks, group)
+
+    ! array mnk_collected is used as a logical-array, allows to use minloc
+    ALLOCATE(mnk_collected(SIZE(stats_num_mnk_stacks,1)))
+    mnk_collected = 0 ! init all to false
+
+    ! broadcast stats of all mnk-combinations, which occured on any mpi rank
+    DO
+      ! each rank with uncollected stats tries to become the sending_rank
+      sending_rank = -1
+      IF(.NOT. ALL(mnk_collected==1)) sending_rank = myrank
+      CALL mp_min(sending_rank, group)
+      IF(sending_rank < 0) EXIT ! every rank got all mnk collected
+
+      IF(sending_rank == myrank) THEN
+        i = MINLOC(mnk_collected, dim=1)
+        mnk = INT(stats_num_mnk_stacks(i,1:3), kind=int_4)
+      ENDIF
+      CALL mp_bcast(msg=mnk, source=sending_rank, gid=group)
+
+      CALL stats_add(m=mnk(1), n=mnk(2), k=mnk(3), stacksize_cpu=0_int_8, stacksize_gpu=0_int_8)
+      DO i=1, SIZE(stats_num_mnk_stacks, 1)
+         IF(ALL(stats_num_mnk_stacks(i,1:3)==mnk)) THEN
+            IF(i<=SIZE(mnk_collected)) mnk_collected(i) = 1
+            CALL mp_sum(stats_num_mnk_stacks(i,4:5), group)
+         END IF
+      END DO
+    END DO
+
+  END SUBROUTINE stats_collect_from_ranks
+
+
+! *****************************************************************************
+! \brief Prints collected statistics
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stats_print_report(report, output_unit, error)
+    TYPE(stats_type), INTENT(INOUT)          :: report
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, j
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx, sort_key
+    REAL                                     :: percent
+
+    IF(output_unit<0) RETURN
+
+    WRITE (output_unit,"(X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
+
+    percent = 100*REAL(report%gpu_num_stacks)/REAL(MAX(1,report%cpu_num_stacks+report%gpu_num_stacks))
+    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " number of processed stacks",&
+       report%cpu_num_stacks, report%gpu_num_stacks, percent
+
+    percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(1,4:5))))
+    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " mutmuls inhomo. stacks",&
+       stats_num_mnk_stacks(1,4:5), percent
+
+    !sorting stat entries by flops per multiplication
+    ALLOCATE(sort_key(SIZE(stats_num_mnk_stacks,1)-1))
+    sort_key = 2*PRODUCT(stats_num_mnk_stacks(2:,1:3), DIM=2)
+    ALLOCATE(sort_idx(SIZE(sort_key)))
+    CALL sort(sort_key, SIZE(sort_key), sort_idx)
+
+    DO i=1, SIZE(sort_idx)
+     j = sort_idx(i)+1
+     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(j,4:5))))
+     WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,X,I20,T76,F5.1)") &
+       " matmuls",stats_num_mnk_stacks(j,:), percent
+    END DO
+
+    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(1,SUM(stats_num_mnk_stacks(:,4:5))))
+    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " matmuls total",&
+       SUM(stats_num_mnk_stacks(:,4)), SUM(stats_num_mnk_stacks(:,5)), percent
+
+    percent = 100*REAL(report%gpu_flop)/REAL(MAX(1,report%cpu_flop+report%gpu_flop))
+    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " flops total",&
+       report%cpu_flop, report%gpu_flop, percent
+
+  END SUBROUTINE stats_print_report
+
 END MODULE dbcsr_mm_sched
 
 

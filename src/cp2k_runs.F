@@ -308,7 +308,12 @@ CONTAINS
           CASE (do_optimize_input)
              CALL run_optimize_input(root_section, para_env, suberror)
           CASE (do_farming)
+             ! Hack: DBCSR should be uninitialized when entering farming.
+             ! But, we don't want to change the public f77_interface.
+             ! TODO: refactor cp2k's startup code
+             CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=-1, error=error)
              CALL farming_run ( root_section, para_env, suberror )
+             CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
           CASE (do_opt_basis)
              CALL run_optimize_basis ( root_section, para_env, suberror )
              globenv%run_type_id = none_run
@@ -435,7 +440,7 @@ CONTAINS
 
           ! if CUDA is enabled we need to free memory on the graphics card
           CALL cuda_device_mem_release()
-          CALL cp_dbcsr_finalize_lib (output_unit=output_unit, error=error)
+          CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
 
 
           CALL cp_error_propagate_error(suberror,routineP,&

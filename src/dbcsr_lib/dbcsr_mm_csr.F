@@ -122,11 +122,11 @@ MODULE dbcsr_mm_csr
 ! \brief Finalize the library
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_lib_finalize(output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE dbcsr_mm_csr_lib_finalize(group, output_unit, error)
+    INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-     CALL dbcsr_mm_sched_lib_finalize(output_unit, error)
+     CALL dbcsr_mm_sched_lib_finalize(group, output_unit, error)
   END SUBROUTINE
 
 

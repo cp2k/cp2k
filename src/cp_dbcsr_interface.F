@@ -406,8 +406,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalizes DBCSR
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_finalize_lib (output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE cp_dbcsr_finalize_lib (group, output_unit, error)
+    INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize_lib', &
@@ -415,7 +415,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_finalize_lib (output_unit, dbcsr_error)
+    CALL dbcsr_finalize_lib (group, output_unit, dbcsr_error)
   END SUBROUTINE cp_dbcsr_finalize_lib
 
 

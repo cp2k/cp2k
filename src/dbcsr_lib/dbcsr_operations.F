@@ -145,8 +145,8 @@ MODULE dbcsr_operations
 !> Cleans up after the DBCSR library.  Used to deallocate persistent objects.
 !> \param[in,out] error     error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_finalize_lib (output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE dbcsr_finalize_lib (group, output_unit, error)
+    INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize_lib', &
@@ -167,8 +167,8 @@ MODULE dbcsr_operations
        WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
     END IF
 
-    !$omp parallel default(none) shared(output_unit, error)
-    CALL dbcsr_mm_cannon_lib_finalize(output_unit, error)
+    !$omp parallel default(none) shared(output_unit, group, error)
+    CALL dbcsr_mm_cannon_lib_finalize(group, output_unit, error)
     !$omp end parallel
     IF(output_unit>0) WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
 
