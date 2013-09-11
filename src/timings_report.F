@@ -37,8 +37,10 @@ MODULE timings_report
 
   IMPLICIT NONE
   PRIVATE
+
+  INTEGER, PARAMETER :: accu_type_time=17, accu_type_energy=18
   
-  PUBLIC :: timings_report_print, timings_report_callgraph
+  PUBLIC :: timings_report_print, timings_report_callgraph, accu_type_time, accu_type_energy
 
   CONTAINS
         
@@ -49,10 +51,11 @@ MODULE timings_report
 !>      none
 !> \author JGH                                                                                   
 ! *****************************************************************************
-  SUBROUTINE timings_report_print(iw,r_timings,sort_by_self_time,para_env)
+  SUBROUTINE timings_report_print(iw,r_timings,sort_by_self_time,accu_type,para_env)
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: r_timings
     LOGICAL, INTENT(IN)                      :: sort_by_self_time
+    INTEGER, INTENT(IN)                      :: accu_type
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
     CHARACTER(LEN=default_string_length)     :: fmt, routineN
@@ -97,10 +100,20 @@ MODULE timings_report
            ! assinged routine_id might vary between nodes 
            routine_id = dict_get(timer_env%routine_names, routineN)
            r_stat => list_get(timer_env%routine_stats, routine_id)
-           max_iwalltime(i) = r_stat%incl_walltime_accu
-           sum_iwalltime(i) = r_stat%incl_walltime_accu
-           max_ewalltime(i) = r_stat%excl_walltime_accu
-           sum_ewalltime(i) = r_stat%excl_walltime_accu
+           SELECT CASE(accu_type)
+           CASE(accu_type_energy)
+               max_iwalltime(i) = r_stat%incl_energy_accu
+               sum_iwalltime(i) = r_stat%incl_energy_accu
+               max_ewalltime(i) = r_stat%excl_energy_accu
+               sum_ewalltime(i) = r_stat%excl_energy_accu
+           CASE(accu_type_time)
+               max_iwalltime(i) = r_stat%incl_walltime_accu
+               sum_iwalltime(i) = r_stat%incl_walltime_accu
+               max_ewalltime(i) = r_stat%excl_walltime_accu
+               sum_ewalltime(i) = r_stat%excl_walltime_accu
+           CASE DEFAULT
+               STOP "BUG"
+           END SELECT
        ELSE
            ! this node did not register the routine 
            max_iwalltime(i) = 0.0_dp
@@ -130,12 +143,27 @@ MODULE timings_report
        
        WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
        WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-       WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
+       SELECT CASE(accu_type)
+       CASE(accu_type_energy)
+           WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","E N E R G Y","-"
+       CASE(accu_type_time)
+           WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
+       CASE DEFAULT
+           STOP "BUG"
+       END SELECT
        WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
        WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
   
-       WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
-            "SUBROUTINE","CALLS"," ASD","SELF TIME","TOTAL TIME"
+       SELECT CASE(accu_type)
+       CASE(accu_type_energy)
+         WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
+              "SUBROUTINE","CALLS"," ASD","SELF ENER","TOTAL ENER"
+       CASE(accu_type_time)
+         WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
+              "SUBROUTINE","CALLS"," ASD","SELF TIME","TOTAL TIME"
+       CASE DEFAULT
+           STOP "BUG"
+       END SELECT
        WRITE (UNIT=iw,FMT="(T45,4A9)")&
             "AVERAGE", "MAXIMUM", "AVERAGE","MAXIMUM"
   

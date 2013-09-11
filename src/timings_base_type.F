@@ -2,8 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2013  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
-	
 ! *****************************************************************************
 !> \brief Types used by timings.F and timings_report.F
 !>        The types in this module are used within dict or list, which are 
@@ -14,7 +12,6 @@
 !>      12.2012 Created [ole]	
 !> \author Ole Schuett
 ! *****************************************************************************
-	
 MODULE timings_base_type       
  
   USE kinds,                           ONLY: default_string_length,&
@@ -28,6 +25,8 @@ MODULE timings_base_type
      CHARACTER(len=default_string_length) :: routineN
      REAL(kind=dp) :: excl_walltime_accu
      REAL(kind=dp) :: incl_walltime_accu
+     REAL(kind=dp) :: excl_energy_accu
+     REAL(kind=dp) :: incl_energy_accu
      INTEGER       :: active_calls
      INTEGER       :: total_calls
      INTEGER       :: stackdepth_accu
@@ -37,14 +36,15 @@ MODULE timings_base_type
   TYPE call_stat_type
      INTEGER       :: total_calls
      REAL(kind=dp) :: incl_walltime_accu
+     REAL(kind=dp) :: incl_energy_accu
   END TYPE call_stat_type
 
   
   TYPE callstack_entry_type
      INTEGER       :: routine_id
      REAL(kind=dp) :: walltime_start
+     REAL(kind=dp) :: energy_start
   END TYPE callstack_entry_type
-     
   
   PUBLIC :: routine_stat_type, call_stat_type, callstack_entry_type
 

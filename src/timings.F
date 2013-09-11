@@ -35,7 +35,8 @@ MODULE timings
                                              list_push,&
                                              list_size
   USE list_timerenv,                   ONLY: list_timerenv_type
-  USE machine,                         ONLY: m_flush,&
+  USE machine,                         ONLY: m_energy,&
+                                             m_flush,&
                                              m_memory,&
                                              m_walltime
   USE timings_base_type,               ONLY: call_stat_type,&
@@ -203,6 +204,7 @@ MODULE timings
 !$OMP CRITICAL(time_setstop)
 
     cs_entry%walltime_start = m_walltime()
+    cs_entry%energy_start = m_energy()
     timer_env => list_peek(timers_stack)
 
     IF (LEN_TRIM(routineN) > default_string_length) THEN
@@ -265,7 +267,8 @@ MODULE timings
     INTEGER                                  :: a, routine_id, stack_size
     INTEGER(KIND=int_8)                      :: gpumem_free, gpumem_total
     INTEGER, DIMENSION(2)                    :: routine_tuple
-    REAL(KIND=dp)                            :: wt_elapsed, wt_now
+    REAL(KIND=dp)                            :: en_elapsed, en_now, &
+                                                wt_elapsed, wt_now
     TYPE(call_stat_type), POINTER            :: c_stat
     TYPE(callstack_entry_type)               :: cs_entry, prev_cs_entry
     TYPE(routine_stat_type), POINTER         :: prev_stat, r_stat
@@ -282,6 +285,7 @@ MODULE timings
 #endif
 
     wt_now = m_walltime()
+    en_now = m_energy()
     timer_env => list_peek(timers_stack)
     cs_entry = list_pop(timer_env%callstack)
     r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
@@ -295,14 +299,18 @@ MODULE timings
 
     ! add the elapsed time for this timeset/timestop to the time accumulator
     wt_elapsed = wt_now - cs_entry%walltime_start
+    en_elapsed = en_now - cs_entry%energy_start
     r_stat%active_calls = r_stat%active_calls - 1
 
     ! if we're the last instance in the stack, we do the accounting of the total time
-    IF(r_stat%active_calls == 0) &
+    IF(r_stat%active_calls == 0) THEN
        r_stat%incl_walltime_accu = r_stat%incl_walltime_accu + wt_elapsed
+       r_stat%incl_energy_accu = r_stat%incl_energy_accu + en_elapsed
+    ENDIF
 
     ! exclusive time we always sum, since children will correct this time with their total time
     r_stat%excl_walltime_accu = r_stat%excl_walltime_accu + wt_elapsed
+    r_stat%excl_energy_accu = r_stat%excl_energy_accu + en_elapsed
 
 
     stack_size = list_size(timer_env%callstack)
@@ -311,6 +319,7 @@ MODULE timings
        prev_stat => list_get(timer_env%routine_stats, prev_cs_entry%routine_id)
        ! we fixup the clock of the caller
        prev_stat%excl_walltime_accu = prev_stat%excl_walltime_accu - wt_elapsed
+       prev_stat%excl_energy_accu = prev_stat%excl_energy_accu - en_elapsed
 
        !update callgraph
        routine_tuple = (/ prev_cs_entry%routine_id, routine_id /)
@@ -319,12 +328,13 @@ MODULE timings
           ALLOCATE(c_stat)
           c_stat%total_calls = 0
           c_stat%incl_walltime_accu = 0.0_dp
+          c_stat%incl_energy_accu = 0.0_dp
           CALL dict_set(timer_env%callgraph, routine_tuple, c_stat)
        END IF
        c_stat%total_calls = c_stat%total_calls + 1
        c_stat%incl_walltime_accu = c_stat%incl_walltime_accu + wt_elapsed
+       c_stat%incl_energy_accu = c_stat%incl_energy_accu + en_elapsed
     ENDIF
-
 
     !..if debug mode echo the subroutine name
     IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
@@ -447,6 +457,8 @@ MODULE timings
     r_stat%active_calls = 0
     r_stat%excl_walltime_accu = 0.0_dp
     r_stat%incl_walltime_accu = 0.0_dp
+    r_stat%excl_energy_accu = 0.0_dp
+    r_stat%incl_energy_accu = 0.0_dp
     r_stat%total_calls = 0
     r_stat%stackdepth_accu = 0
     r_stat%trace = .FALSE.

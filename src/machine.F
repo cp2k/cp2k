@@ -13,7 +13,7 @@
 MODULE machine
 
   !$ USE OMP_LIB
-  USE  kinds,  ONLY        : dp
+  USE  kinds,  ONLY        : dp, int_8
 #if defined ( __AIX )
   USE machine_aix, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
@@ -125,7 +125,7 @@ MODULE machine
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, m_flush_internal, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_procrun,&
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, m_energy
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
@@ -192,6 +192,39 @@ FUNCTION m_walltime() RESULT (wt)
     !$    wt = OMP_GET_WTIME ()
     !$ ENDIF
 END FUNCTION m_walltime
+! *****************************************************************************
+!> \brief returns the energy used since some time in the past.
+!>        The precise meaning depends on the infrastructure is available.
+!>        Best case, this is the energy used by the node.
+!> \par History
+!>      09.2013 created [Joost VandeVondele]
+! *****************************************************************************
+FUNCTION m_energy() RESULT (wt)
+    REAL(KIND=dp)                            :: wt
+
+    CHARACTER(LEN=80)                        :: DATA
+    INTEGER                                  :: i, iostat
+    INTEGER(KIND=int_8)                      :: raw
+
+    wt = 0.0_dp
+
+#if defined(__CRAY_PM_ENERGY)
+      OPEN(121245,FILE="/sys/cray/pm_counters/energy",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
+      DO I=1,80
+         READ(121245,END=999) DATA(I:I)
+      ENDDO
+999   CLOSE(121245)
+      DATA(I:80)=""
+      READ(DATA,*,IOSTAT=iostat) raw
+      IF (iostat.NE.0) THEN
+         wt=0.0_dp
+      ELSE
+         !maybe convert J in kJ
+         wt=raw ! /1000.0_dp
+      ENDIF
+#endif
+
+END FUNCTION m_energy
 
 ! *****************************************************************************
 !> \brief returns a datum in human readable format using a standard Fortran routine

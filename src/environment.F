@@ -58,6 +58,7 @@ MODULE environment
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
+                                             m_energy,&
                                              m_flush_internal,&
                                              m_memory_details,&
                                              m_procrun
@@ -89,7 +90,9 @@ MODULE environment
                                              timeset,&
                                              timestop,&
                                              timings_setup_tracing
-  USE timings_report,                  ONLY: timings_report_callgraph,&
+  USE timings_report,                  ONLY: accu_type_energy,&
+                                             accu_type_time,&
+                                             timings_report_callgraph,&
                                              timings_report_print
 
   !$ USE OMP_LIB
@@ -1071,7 +1074,10 @@ CONTAINS
             extension=".Log",error=error)
        r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
        sort_by_self_time = section_get_lval(root_section,"GLOBAL%TIMINGS%SORT_BY_SELF_TIME",error)
-       CALL timings_report_print(iw,r_timings,sort_by_self_time,para_env)
+       IF (m_energy().NE.0.0_dp) THEN
+          CALL timings_report_print(iw,r_timings,sort_by_self_time,accu_type_energy,para_env)
+       ENDIF
+       CALL timings_report_print(iw,r_timings,sort_by_self_time,accu_type_time,para_env)
     
        !Write the callgraph, if desired by user
        CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH",i_val=cg_mode,error=error)

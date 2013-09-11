@@ -12,8 +12,6 @@
 !>      12.2012 Created [ole]	
 !> \author Ole Schuett
 ! *****************************************************************************
-
-	
 MODULE timings_types      
   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_type
   USE dict_str_i4,                     ONLY: dict_str_i4_type
