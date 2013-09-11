@@ -311,7 +311,7 @@ CONTAINS
              ! Hack: DBCSR should be uninitialized when entering farming.
              ! But, we don't want to change the public f77_interface.
              ! TODO: refactor cp2k's startup code
-             CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=-1, error=error)
+             CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
              CALL farming_run ( root_section, para_env, suberror )
              CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
           CASE (do_opt_basis)

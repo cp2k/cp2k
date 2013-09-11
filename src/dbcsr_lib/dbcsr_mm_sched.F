@@ -498,7 +498,7 @@ MODULE dbcsr_mm_sched
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx, sort_key
     REAL                                     :: percent
 
-    IF(output_unit<0) RETURN
+    IF(output_unit<=0) RETURN
 
     WRITE (output_unit,"(X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
 
