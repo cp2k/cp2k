@@ -1755,34 +1755,34 @@ MODULE dbcsr_mm_cannon
     LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
 
     INTEGER :: data_size, data_type, error_handler, error_handler2, &
-      error_handler3, flop_metronome, grp, i, ithread, left_col_image, &
-      left_col_mult, left_col_nimages, left_data_recv_size, &
+      error_handler3, error_handler4, flop_metronome, grp, i, ithread, &
+      left_col_image, left_col_mult, left_col_nimages, left_data_recv_size, &
       left_data_send_size, left_dst_icol, left_dst_irow, left_dst_p, &
       left_dst_pcol, left_dst_prow, left_dst_vcol, left_dst_vrow, &
       left_index_recv_size, left_index_send_size, left_max_nblks, &
       left_max_nze, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
       left_myprow, left_npcols, left_nprows, left_recv_icol, left_recv_irow, &
       left_recv_p, left_recv_pcol, left_recv_prow, left_recv_vcol, &
-      left_recv_vrow, left_row_image, left_row_mult, left_row_nimages
-    INTEGER :: left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
-      left_send_prow, left_send_vcol, left_send_vrow, left_src_icol, &
-      left_src_irow, left_src_p, left_src_pcol, left_src_prow, left_src_vcol, &
-      left_src_vrow, metronome, min_nimages, mp_group, mynode, &
+      left_recv_vrow, left_row_image, left_row_mult
+    INTEGER :: left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
+      left_send_pcol, left_send_prow, left_send_vcol, left_send_vrow, &
+      left_src_icol, left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
+      left_src_vcol, left_src_vrow, metronome, min_nimages, mp_group, mynode, &
       nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
       output_unit, right_col_image, right_col_mult, right_col_nimages, &
       right_data_recv_size, right_data_send_size, right_dst_icol, &
       right_dst_irow, right_dst_p, right_dst_pcol, right_dst_prow, &
       right_dst_vcol, right_dst_vrow, right_index_recv_size, &
-      right_index_send_size, right_max_nblks
-    INTEGER :: right_max_nze, right_myfirstvcol, right_myfirstvrow, &
-      right_mypcol, right_myprow, right_npcols, right_nprows, &
-      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
-      right_recv_prow, right_recv_vcol, right_recv_vrow, right_row_image, &
-      right_row_mult, right_row_nimages, right_send_icol, right_send_irow, &
-      right_send_p, right_send_pcol, right_send_prow, right_send_vcol, &
-      right_send_vrow, right_src_icol, right_src_irow, right_src_p, &
-      right_src_pcol, right_src_prow, right_src_vcol, right_src_vrow, row, &
-      size_guess, stat, threads_finished, v_k, v_ki
+      right_index_send_size
+    INTEGER :: right_max_nblks, right_max_nze, right_myfirstvcol, &
+      right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
+      right_nprows, right_recv_icol, right_recv_irow, right_recv_p, &
+      right_recv_pcol, right_recv_prow, right_recv_vcol, right_recv_vrow, &
+      right_row_image, right_row_mult, right_row_nimages, right_send_icol, &
+      right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
+      right_send_vcol, right_send_vrow, right_src_icol, right_src_irow, &
+      right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
+      right_src_vrow, row, size_guess, stat, threads_finished, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
@@ -2678,13 +2678,18 @@ MODULE dbcsr_mm_cannon
 !$omp         filter_eps, right_norms, left_norms, row_max_epss, &
 !$omp         keep_sparsity, error, threads_finished, &
 !$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
-!$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, use_comm_thread,error_handler2) &
+!$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, &
+!$omp         use_comm_thread,error_handler2, error_handler4) &
 !$omp private (ithread,nthreads, t_error) &
 !$omp firstprivate (metronome, nsteps_k, min_nimages) &
 !$omp reduction (+: flop_single)
-             t_error=error
-             CALL dbcsr_error_set(routineN//"_multrec_sparse", error_handler2, t_error)
+             ithread = 0; nthreads = 1
+!$           ithread = omp_get_thread_num(); nthreads = omp_get_num_threads()
 
+             t_error=error
+             CALL dbcsr_error_set(routineN//"_multrec", error_handler2, t_error)
+             IF(ithread==0)&
+               CALL dbcsr_error_set(routineN//"_multrec_master", error_handler4, t_error)
              CALL dbcsr_mm_multrec_multiply(multrec,&
                   left=left_buffer_calc%mats(1, v_ki+1)%m,&
                   right=right_buffer_calc%mats(v_ki+1, 1)%m,&
@@ -2692,15 +2697,13 @@ MODULE dbcsr_mm_cannon
                   a_norms=left_norms, b_norms=right_norms,&
                   error=t_error)
 
+             IF(ithread==0) CALL dbcsr_error_stop(error_handler4, t_error)
+
              IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
                 CALL dbcsr_mm_multrec_finalize(multrec, t_error)
 
 !$omp atomic
              threads_finished = threads_finished + 1
-             ithread = 0
-             nthreads = 1
-!$           ithread = omp_get_thread_num()
-!$           nthreads = omp_get_num_threads()
              IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
                DO WHILE (threads_finished .NE. nthreads)
                   CALL mp_testany(right_data_sr)
