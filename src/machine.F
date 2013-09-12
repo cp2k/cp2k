@@ -192,39 +192,59 @@ FUNCTION m_walltime() RESULT (wt)
     !$    wt = OMP_GET_WTIME ()
     !$ ENDIF
 END FUNCTION m_walltime
+
+
 ! *****************************************************************************
 !> \brief returns the energy used since some time in the past.
 !>        The precise meaning depends on the infrastructure is available.
 !>        In the cray_pm_energy case, this is the energy used by the node in kJ.
 !> \par History
-!>      09.2013 created [Joost VandeVondele]
+!>      09.2013 created [Joost VandeVondele, Ole Schuett]
 ! *****************************************************************************
 FUNCTION m_energy() RESULT (wt)
+    REAL(KIND=dp)                            :: wt
+
+#if defined(__CRAY_PM_ENERGY)
+   wt = read_energy("/sys/cray/pm_counters/energy")
+#elif defined(__CRAY_PM_ACCEL_ENERGY)
+   wt = read_energy("/sys/cray/pm_counters/accel_energy")
+#elif defined(__CRAY_PM_FAKE_ENERGY)
+   ! reads from the current working dir
+   wt = read_energy("energy")
+#else
+   wt = 0.0
+#endif
+END FUNCTION m_energy
+
+
+! *****************************************************************************
+!> \brief reads energy values from the sys-filesystem
+!> \par History
+!>      09.2013 created [Joost VandeVondele, Ole Schuett]
+! *****************************************************************************
+FUNCTION read_energy(filename) RESULT (wt)
+    CHARACTER(LEN=*)                         :: filename
     REAL(KIND=dp)                            :: wt
 
     CHARACTER(LEN=80)                        :: DATA
     INTEGER                                  :: i, iostat
     INTEGER(KIND=int_8)                      :: raw
 
-    wt = 0.0_dp
+    OPEN(121245,FILE=filename,ACTION="READ",STATUS="OLD",ACCESS="STREAM")
+    DO I=1,80
+       READ(121245,END=999) DATA(I:I)
+    ENDDO
+999 CLOSE(121245)
+    DATA(I:80)=""
+    READ(DATA,*,IOSTAT=iostat) raw
+    IF (iostat.NE.0) THEN
+       wt=0.0_dp
+    ELSE
+       ! convert from J to kJ
+       wt=raw/1000.0_dp
+    ENDIF
+END FUNCTION read_energy
 
-#if defined(__CRAY_PM_ENERGY)
-      OPEN(121245,FILE="/sys/cray/pm_counters/energy",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
-      DO I=1,80
-         READ(121245,END=999) DATA(I:I)
-      ENDDO
-999   CLOSE(121245)
-      DATA(I:80)=""
-      READ(DATA,*,IOSTAT=iostat) raw
-      IF (iostat.NE.0) THEN
-         wt=0.0_dp
-      ELSE
-         ! convert from J to kJ
-         wt=raw/1000.0_dp
-      ENDIF
-#endif
-
-END FUNCTION m_energy
 
 ! *****************************************************************************
 !> \brief returns a datum in human readable format using a standard Fortran routine
