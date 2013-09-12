@@ -195,7 +195,7 @@ END FUNCTION m_walltime
 ! *****************************************************************************
 !> \brief returns the energy used since some time in the past.
 !>        The precise meaning depends on the infrastructure is available.
-!>        Best case, this is the energy used by the node.
+!>        In the cray_pm_energy case, this is the energy used by the node in kJ.
 !> \par History
 !>      09.2013 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -219,8 +219,8 @@ FUNCTION m_energy() RESULT (wt)
       IF (iostat.NE.0) THEN
          wt=0.0_dp
       ELSE
-         !maybe convert J in kJ
-         wt=raw ! /1000.0_dp
+         ! convert from J to kJ
+         wt=raw/1000.0_dp
       ENDIF
 #endif
 
