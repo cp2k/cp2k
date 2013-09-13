@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-ethanol_both_rcut10.0_e1-1_v1-1___R.inp 11
+ethanol_both_rcut10.0_e1-1_v1-1___R.inp   11     3e-14
 ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp 11
 ethanol_both_rcut10.0_e1-1_v1-1_RSR.inp 11
 ethanol_both_rcut10.0_e1-1_v1-1__SR.inp 11
@@ -19,7 +19,7 @@ ethanol_both_rcut10.0_e1-1_v1-3__SR.inp 11
 ethanol_both_rcut10.0_e1-1_v1-4___R.inp 11
 ethanol_both_rcut10.0_e1-1_v1-4_R_R.inp 11
 ethanol_both_rcut10.0_e1-1_v1-4_RSR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-4__SR.inp 11
+ethanol_both_rcut10.0_e1-1_v1-4__SR.inp   11     5e-14
 ethanol_both_rcut10.0_e1-2_v1-1___R.inp 11
 ethanol_both_rcut10.0_e1-2_v1-1_R_R.inp 11
 ethanol_both_rcut10.0_e1-2_v1-1_RSR.inp 11

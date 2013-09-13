@@ -58,8 +58,8 @@ nh3_fixd_xy.inp           2
 nh3_fixd_y.inp            2
 nh3_fixd_z.inp            2
 #Cell opt
-argon_opt_cell.inp        7
-argon_opt_cell_ks.inp     7
+argon_opt_cell.inp                7     2e-07
+argon_opt_cell_ks.inp             7     8e-07
 argon_opt_cell_md.inp     7
 Si_tersoff.inp            7
 #initial orthorombic cells under npt_f dynamics

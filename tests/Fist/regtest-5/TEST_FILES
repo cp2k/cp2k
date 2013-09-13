@@ -1,6 +1,6 @@
 #JAC 
 JAC.inp                   2
-JAC_us.inp                2
+JAC_us.inp                        2     2e-11
 #vibrational analysis
 wat_freq.inp              8
 wat_freq_norot.inp        8
@@ -10,8 +10,8 @@ wat_mode_sel_range.inp   18
 ethene-vib-mode-sel-int.inp 21
 # new mode_selective tests for several restart types
 N3dye_geoopt.inp          7
-N3dye_vib_bfgs.inp        18
-N3dye_vib_bfgs2.inp       18
+N3dye_vib_bfgs.inp               18     6e-06
+N3dye_vib_bfgs2.inp              18     1e-08
 N3dye_vib_inv_atoms.inp   18 
 N3dye_vib_restart_vec3.inp 18
 N3dye_vib_restart_vec2.inp 18

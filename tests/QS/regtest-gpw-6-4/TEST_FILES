@@ -1,7 +1,7 @@
 c8_kerker_gapw.inp  1
 #
 c8_broy.inp          1
-c8_broy_gop.inp      1 1E-9
+c8_broy_gop.inp                   1     9e-07
 c8_broy_gapw.inp     1
 c8_broy_gapw_gop.inp 1 1E-6
 # NLCC corrected pseudos with forces
