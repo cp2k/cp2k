@@ -229,8 +229,7 @@ MODULE timings_report
  SUBROUTINE timings_report_callgraph(filename)
     CHARACTER(len=*), INTENT(in)             :: filename
 
-    INTEGER, PARAMETER                       :: T = 100000
-    INTEGER, PARAMETER                       :: E = 1000
+    INTEGER, PARAMETER                       :: E = 1000, T = 100000
 
     INTEGER                                  :: i, unit
     TYPE(call_stat_type), POINTER            :: c_stat
