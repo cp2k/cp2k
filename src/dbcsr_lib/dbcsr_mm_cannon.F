@@ -275,9 +275,8 @@ MODULE dbcsr_mm_cannon
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
-    INTEGER                                  :: comm, error_handler, f_col, &
-                                                f_k, f_row, i, l_col, l_k, &
-                                                l_row, numnodes, output_unit
+    INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, i, &
+      l_col, l_k, l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
       new_right, plasma_is_set, product_reindex, release_tdist, &
@@ -846,10 +845,12 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_finalize(product_matrix, error=error)
     IF (PRESENT (flop)) THEN
        ! return the average number of flops per MPI rank. Variance (which is fairly large) could be computed as well.
+       CALL dbcsr_error_set(routineN//"_mpsum_flop",error_handler2, error)
        comm = dbcsr_mp_group (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
        numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
        CALL mp_sum(my_flop,comm)
        flop = (my_flop + numnodes - 1) / numnodes
+       CALL dbcsr_error_stop(error_handler2, error)
     ENDIF
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
