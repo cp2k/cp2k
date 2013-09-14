@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 H2_MD.inp                        11     2e-07
 H2_MD-2.inp                      11     4e-07
-H2_MD-3.inp                      11     3e-07
+H2_MD-3.inp                      11     7e-07
 H2-libxc.inp 11
 H2-libxc-ot.inp 11
 H2-libxc-diag.inp 11

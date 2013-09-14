@@ -60,7 +60,7 @@ ethanol_both_rcut10.0_e1-4_v1-2___R.inp 11
 ethanol_both_rcut10.0_e1-4_v1-2_R_R.inp 11
 ethanol_both_rcut10.0_e1-4_v1-2_RSR.inp 11
 ethanol_both_rcut10.0_e1-4_v1-2__SR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-3___R.inp 11
+ethanol_both_rcut10.0_e1-4_v1-3___R.inp   11     9e-12
 ethanol_both_rcut10.0_e1-4_v1-3_R_R.inp 11
 ethanol_both_rcut10.0_e1-4_v1-3_RSR.inp 11
 ethanol_both_rcut10.0_e1-4_v1-3__SR.inp 11
