@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 #
 ethanol_both_rcut10.0_e1-1_v1-1___R.inp   11     3e-14
-ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp 11
+ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp   11     4e-14
 ethanol_both_rcut10.0_e1-1_v1-1_RSR.inp 11
 ethanol_both_rcut10.0_e1-1_v1-1__SR.inp 11
 ethanol_both_rcut10.0_e1-1_v1-2___R.inp 11

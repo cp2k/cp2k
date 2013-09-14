@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 H2O_tddfpt-s-1.inp 37
-H2O_tddfpt-t-1.inp 37
+H2O_tddfpt-t-1.inp               37     7e-06
 NO_tddfpt-s-1.inp 37
 NO_tddfpt-t-1.inp 37
 H2O_tddfpt-s-2.inp 37
@@ -12,5 +12,5 @@ H2O_tddfpt-t-2.inp 37
 NO_tddfpt-t-2.inp 37
 H2O_tddfpt-s-3.inp 37
 H2O_tddfpt-t-3.inp 37
-NO_tddfpt-s-3.inp 37
-NO_tddfpt-t-3.inp 37
+NO_tddfpt-s-3.inp                37     4e-06
+NO_tddfpt-t-3.inp                37     3e-06

@@ -11,7 +11,7 @@ ethene-vib-mode-sel-int.inp 21
 # new mode_selective tests for several restart types
 N3dye_geoopt.inp          7
 N3dye_vib_bfgs.inp               18     6e-06
-N3dye_vib_bfgs2.inp              18     1e-08
+N3dye_vib_bfgs2.inp              18     2e-08
 N3dye_vib_inv_atoms.inp   18 
 N3dye_vib_restart_vec3.inp 18
 N3dye_vib_restart_vec2.inp 18

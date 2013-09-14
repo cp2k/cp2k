@@ -34,20 +34,20 @@ cs_cell_opt_direct_lbfgs.inp 11
 # Cell optimisation using core-shell models
 cs_cell_opt_bfgs_geo_opt_bfgs.inp 11
 cs_cell_opt_bfgs_geo_opt_lbfgs.inp   11     1e-08
-cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     3e-13
-cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     2e-10
+cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     6e-13
+cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     1e-09
 cs_cell_opt_lbfgs_geo_opt_lbfgs.inp   11     2e-09
 # Test parsing of products
 mc_cs_geo_opt_lbfgs.inp 11
 # Cell symmetry constraint
-cell_sym_cubic.inp               11     2e-11
+cell_sym_cubic.inp               11     5e-11
 cell_sym_hexagonal.inp           11     4e-09
 cell_sym_monoclinic.inp          11     1e-09
-cell_sym_none.inp                11     3e-10
+cell_sym_none.inp                11     1e-09
 cell_sym_orthorhombic.inp 11 1E-11
 cell_sym_rhombohedral.inp 11 1E-13
-cell_sym_tetragonal_ab.inp       11     6e-10
+cell_sym_tetragonal_ab.inp       11     1e-09
 cell_sym_tetragonal_ac.inp       11     2e-08
 cell_sym_tetragonal_bc.inp 11 1E-13
 cell_sym_tetragonal.inp          11     1e-09
-cell_sym_triclinic.inp           11     3e-10
+cell_sym_triclinic.inp           11     1e-09

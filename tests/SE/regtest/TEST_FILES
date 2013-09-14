@@ -14,7 +14,7 @@ h2op.inp           3
 hcn.inp            3
 hf.inp             3
 nh4.inp            3
-st.inp             3
+st.inp                            3     1e-11
 # test the initial adaptation to OT
 ch4-ot.inp         3
 h2o_lsd-ot.inp     3
@@ -25,7 +25,7 @@ NO2-ROKS.inp       3
 #RM1 Model
 c2h4_rm1.inp       3
 h2op_2.inp         3
-h2po4.inp          3
+h2po4.inp                         3     1e-12
 geom.inp           3
 b2h6_pm6.inp       3
 ch2o_pm6.inp       3
@@ -43,19 +43,19 @@ H2O-MNDO-si-nc.inp 3
 # SCP NDDO
 dimer.inp          3
 dimer2.inp          3
-dimer3.inp          3
-dimer4.inp          3
+dimer3.inp                        3     3e-13
+dimer4.inp                        3     4e-14
 # GKS INTEGRALS
 h2o_gks.inp        3
 h2o_gks_p.inp      3
 # GKS INTEGRALS + EWALD
 h2o_gks_e.inp      3
 # SCP ice
-ice-scp-ewald.inp 3
-ice-scp-ewald_gks.inp 3
+ice-scp-ewald.inp                 3     2e-13
+ice-scp-ewald_gks.inp             3     2e-14
 # ewald with a molecular topology defined
 ice-ewald-mol.inp 3
 ice-ewald-nomol.inp 3
 ice-ewald-r_cut.inp 3
 # Atprop energy
-dimer_atprop.inp 3
+dimer_atprop.inp                  3     5e-14

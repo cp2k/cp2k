@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 ch4-gapw-issc-1.inp 0
 ch4-gapw-issc-2.inp 36
-no-gapw-issc-1.inp 36 1E-10
+no-gapw-issc-1.inp               36     4e-10
 nh3-issc-op-1.inp 34
 ch4-gapw-issc-pso-1.inp 38
 he-polar-1.inp 38
