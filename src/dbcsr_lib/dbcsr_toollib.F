@@ -269,7 +269,8 @@ CONTAINS
     hash=IAND(     hash+IAND(ISHFT(hash,  3),b32)  ,b32)
     hash=IAND(IEOR(hash,IAND(ISHFT(hash,-11),b32)) ,b32)
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
-    hash_index = hash
+    ! In fortran 4-byte-integers have only 31 bits because they are signed
+    hash_index = IBCLR(hash, 32)
   END FUNCTION joaat_hash
 
 END MODULE dbcsr_toollib
