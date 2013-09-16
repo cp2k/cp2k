@@ -3833,7 +3833,7 @@ SUBROUTINE hh_transform_complex(alpha, xnorm_sq, xf, tau)
     REAL*8                                   :: ALPHI, ALPHR, BETA
 
    ALPHR = DBLE( ALPHA )
-   ALPHI = DIMAG( ALPHA )
+   ALPHI = AIMAG( ALPHA )
 
    IF( XNORM_SQ==0. .AND. ALPHI==0. ) THEN
 
@@ -3855,8 +3855,8 @@ SUBROUTINE hh_transform_complex(alpha, xnorm_sq, xf, tau)
       ELSE
          ALPHR = ALPHI * (ALPHI/DBLE( ALPHA ))
          ALPHR = ALPHR + XNORM_SQ/DBLE( ALPHA )
-         TAU = DCMPLX( ALPHR/BETA, -ALPHI/BETA )
-         ALPHA = DCMPLX( -ALPHR, ALPHI )
+         TAU = CMPLX( ALPHR/BETA, -ALPHI/BETA )
+         ALPHA = CMPLX( -ALPHR, ALPHI )
       END IF
       XF = 1./ALPHA
       ALPHA = BETA

@@ -27,10 +27,10 @@ SUBROUTINE tum_pdlarfb_1dcomm(m,mb,n,k,a,lda,v,ldv,tau,t,ldt,baseidx,idx,rev,mpi
 
 ! input variables (local)
 
+    INTEGER m,mb,n,k,baseidx,idx,rev,mpicomm
     DOUBLE PRECISION a(lda,*),v(ldv,*),tau(*),t(ldt,*),work(k,*)
 
     ! input variables (global)
-    INTEGER m,mb,n,k,baseidx,idx,rev,mpicomm
  
     ! output variables (global)
 
@@ -90,10 +90,10 @@ SUBROUTINE tum_pdlarft_pdlarfb_1dcomm(m,mb,n,oldk,k,v,ldv,tau,t,ldt,a,lda,baseid
 
 ! input variables (local)
 
+    INTEGER m,mb,n,k,oldk,baseidx,rev,mpicomm
     DOUBLE PRECISION v(ldv,*),tau(*),t(ldt,*),work(k,*),a(lda,*)
 
     ! input variables (global)
-    INTEGER m,mb,n,k,oldk,baseidx,rev,mpicomm
  
     ! output variables (global)
 
@@ -168,10 +168,10 @@ SUBROUTINE tum_pdlarft_set_merge_1dcomm(m,mb,n,blocksize,v,ldv,t,ldt,baseidx,rev
 
 ! input variables (local)
 
+    INTEGER m,mb,n,blocksize,baseidx,rev,mpicomm
     DOUBLE PRECISION v(ldv,*),t(ldt,*),work(n,*)
 
     ! input variables (global)
-    INTEGER m,mb,n,blocksize,baseidx,rev,mpicomm
  
     ! output variables (global)
 
@@ -213,10 +213,10 @@ SUBROUTINE tum_pdlarft_tree_merge_1dcomm(m,mb,n,blocksize,treeorder,v,ldv,t,ldt,
 
 ! input variables (local)
 
+    INTEGER m,mb,n,blocksize,treeorder,baseidx,rev,mpicomm
     DOUBLE PRECISION v(ldv,*),t(ldt,*),work(n,*)
 
     ! input variables (global)
-    INTEGER m,mb,n,blocksize,treeorder,baseidx,rev,mpicomm
  
     ! output variables (global)
 

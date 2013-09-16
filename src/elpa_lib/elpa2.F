@@ -2097,7 +2097,7 @@ CONTAINS
         !if(jjj==1) call single_hh_trafo(a(1,1+off+a_off,istripe,my_thread),bcast_buffer(1,off+1), nbw, nl, stripe_width)
         
         IF(my_thread==1) THEN
-            kernel_flops = kernel_flops + 4*INT(nl,8)*INT(ncols,8)*INT(nbw,8)
+            kernel_flops = kernel_flops + 4*INT(nl)*INT(ncols)*INT(nbw)
             kernel_time  = kernel_time + mpi_wtime()-ttt
         ENDIF
 
@@ -2852,7 +2852,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
         ! Transform first column of remaining matrix
         ! Opposed to the real case, the last step (istep=na-1) is needed here for making
         ! the last subdiagonal element a real number
-        vnorm2 = SUM(DBLE(ab(3:n+1,na_s-n_off))**2+dimag(ab(3:n+1,na_s-n_off))**2)
+        vnorm2 = SUM(DBLE(ab(3:n+1,na_s-n_off))**2+aimag(ab(3:n+1,na_s-n_off))**2)
         IF(n<2) vnorm2 = 0. ! Safety only
         CALL hh_transform_complex(ab(2,na_s-n_off),vnorm2,hf,tau)
 
@@ -2965,7 +2965,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
                 ! calculate new Householder transformation for first column
                 ! (stored in hv_t(:,my_thread) and tau_t(my_thread))
 
-                vnorm2 = SUM(DBLE(ab(nb+2:nb+nr,ns))**2+dimag(ab(nb+2:nb+nr,ns))**2)
+                vnorm2 = SUM(DBLE(ab(nb+2:nb+nr,ns))**2+aimag(ab(nb+2:nb+nr,ns))**2)
                 CALL hh_transform_complex(ab(nb+1,ns),vnorm2,hf,tau_t(my_thread))
                 hv_t(1   ,my_thread) = 1.
                 hv_t(2:nr,my_thread) = ab(nb+2:nb+nr,ns)*hf
@@ -3111,7 +3111,7 @@ SUBROUTINE tridiag_band_complex(na, nb, nblk, a, lda, d, e, mpi_comm_rows, mpi_c
 
             ! calculate new Householder transformation ...
             IF(nr>1) THEN
-              vnorm2 = SUM(DBLE(ab(nb+2:nb+nr,ns))**2+dimag(ab(nb+2:nb+nr,ns))**2)
+              vnorm2 = SUM(DBLE(ab(nb+2:nb+nr,ns))**2+aimag(ab(nb+2:nb+nr,ns))**2)
               CALL hh_transform_complex(ab(nb+1,ns),vnorm2,hf,tau_new)
               hv_new(1) = 1.
               hv_new(2:nr) = ab(nb+2:nb+nr,ns)*hf
@@ -3854,7 +3854,7 @@ CONTAINS
           CALL single_hh_trafo_complex(a(1,j+off+a_off,istripe,my_thread),bcast_buffer(1,j+off),nbw,nl,stripe_width)
         ENDDO
         IF(my_thread==1) THEN
-          kernel_flops = kernel_flops + 4*4*INT(nl,8)*INT(ncols,8)*INT(nbw,8)
+          kernel_flops = kernel_flops + 4*4*INT(nl)*INT(ncols)*INT(nbw)
           kernel_time  = kernel_time + mpi_wtime()-ttt
         ENDIF
 
