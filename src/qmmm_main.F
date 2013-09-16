@@ -10,6 +10,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qmmm_main
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE bibliography,                    ONLY: Laino2005,&
                                              Laino2006,&
                                              cite_reference
@@ -25,7 +26,6 @@ MODULE qmmm_main
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
-                                             cp_subsys_set,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
@@ -58,7 +58,6 @@ MODULE qmmm_main
   USE md_energies,                     ONLY: update_nfree_qm
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
-  USE multipole_types,                 ONLY: multipole_type
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
   USE qmmm_init,                       ONLY: &
@@ -83,6 +82,7 @@ MODULE qmmm_main
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain
+  USE wiener_process,                  ONLY: copy_wiener_process
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -141,7 +141,7 @@ CONTAINS
         ELSE
           CALL qmmm_create_force_env_low(use_dummy_force_env, &
             root_section, para_env, globenv,&
-            force_env_section, qmmm_section, subsys_section, use_motion_section, error)
+            force_env_section, qmmm_section, subsys_section, use_motion_section, error=error)
         ENDIF
         CALL force_env_get(use_dummy_force_env, subsys=subsys, error=error)
 
@@ -158,11 +158,11 @@ CONTAINS
         NULLIFY(sub_force_env(force_mixing_core_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_core_subsys)%force_env, &
           root_section, para_env, globenv,&
-          force_env_section, qmmm_core_section, subsys_section, use_motion_section, error)
+          force_env_section, qmmm_core_section, subsys_section, use_motion_section, error=error)
         NULLIFY(sub_force_env(force_mixing_extended_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_extended_subsys)%force_env, &
           root_section, para_env, globenv,&
-          force_env_section, qmmm_extended_section, subsys_section, use_motion_section, error)
+          force_env_section, qmmm_extended_section, subsys_section, use_motion_section, error=error)
 
         CALL section_vals_release(qmmm_core_section, error=error)
         CALL section_vals_release(qmmm_extended_section, error=error)
@@ -175,7 +175,7 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL qmmm_create_force_env_low(sub_force_env(1)%force_env, &
         root_section, para_env, globenv,&
-        force_env_section, qmmm_section, subsys_section, use_motion_section, error)
+        force_env_section, qmmm_section, subsys_section, use_motion_section, error=error)
     ENDIF
 
      CALL force_env_get(sub_force_env(primary_subsys)%force_env,qmmm_env=qmmm_env_qm,error=error)
@@ -229,12 +229,12 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure, force_mixing_active, &
                                                 labels_changed
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds, new_atomic_kinds
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules_new, &
-                                                local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_particles, &
+                                                new_local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
-    TYPE(multipole_type), POINTER            :: multipoles
     TYPE(section_vals_type), POINTER :: qmmm_core_section, &
       qmmm_extended_Section, qmmm_force_mixing, qmmm_section, subsys_section
 
@@ -274,29 +274,34 @@ CPSourceFileRef,&
         ![ADAPT] no sure about use_motion_section
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_core_subsys)%force_env, &
           force_env%root_section, force_env%para_env, force_env%globenv,&
-          force_env%force_env_section, qmmm_core_section, subsys_section, use_motion_section=.TRUE., error=error)
+          force_env%force_env_section, qmmm_core_section, subsys_section, use_motion_section=.TRUE., &
+          prev_subsys=subsys, error=error)
         NULLIFY(sub_force_env(force_mixing_extended_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_extended_subsys)%force_env, &
           force_env%root_section, force_env%para_env, force_env%globenv,&
-          force_env%force_env_section, qmmm_extended_section, subsys_section, use_motion_section=.TRUE., error=error)
+          force_env%force_env_section, qmmm_extended_section, subsys_section, use_motion_section=.TRUE., &
+          prev_subsys=subsys, error=error)
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! [NB] if any other data isn't preserved in new subsys structures, it'll need to be copied here
-        ! save local_particles from original subsys for two new subsys
-        ! think about colvar_p and gci
+        ! [NB] need to copy wiener process data, since it's not recreated when
+        ! fist subsys is recreated by qmmm_create_force_env_low
+
         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env, subsys=subsys, error=error)
-        CALL cp_subsys_get(subsys, local_particles=local_particles,local_molecules_new=local_molecules_new, &
-             multipoles=multipoles,error=error)
-        CALL cp_subsys_set(sub_force_env(force_mixing_core_subsys)%force_env%subsys, &
-             local_particles=local_particles,local_molecules_new=local_molecules_new, &
-             multipoles=multipoles,error=error)
+        CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
+        CALL cp_subsys_get(sub_force_env(force_mixing_core_subsys)%force_env%subsys, &
+                           atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+        IF (ASSOCIATED(local_particles%local_particle_set)) THEN
+           CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles, error=error)
+        ENDIF
 
         CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env, subsys=subsys, error=error)
-        CALL cp_subsys_get(subsys, local_particles=local_particles,local_molecules_new=local_molecules_new, &
-             multipoles=multipoles,error=error)
-        CALL cp_subsys_set(sub_force_env(force_mixing_extended_subsys)%force_env%subsys, &
-             local_particles=local_particles,local_molecules_new=local_molecules_new, &
-             multipoles=multipoles,error=error)
+        CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
+        CALL cp_subsys_get(sub_force_env(force_mixing_extended_subsys)%force_env%subsys, &
+                           atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+        IF (ASSOCIATED(local_particles%local_particle_set)) THEN
+           CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles, error=error)
+        ENDIF
+
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         CALL section_vals_release(qmmm_core_section, error=error)
@@ -335,7 +340,7 @@ CPSourceFileRef,&
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE  qmmm_create_force_env_low(force_env, root_section, para_env, globenv,&
-       force_env_section, qmmm_section, subsys_section, use_motion_section, error)
+       force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -343,6 +348,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 qmmm_section, subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_create_force_env_low', &
@@ -463,7 +469,8 @@ CPSourceFileRef,&
        CALL fist_create_force_env(sub_force_env(fist_subsys)%force_env, &
             root_section, para_env, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm,&
             force_env_section=force_env_section, subsys_section=subsys_section,&
-            use_motion_section=use_motion_section,error=error)
+            use_motion_section=use_motion_section, prev_subsys=prev_subsys, &
+            error=error)
 
        CALL force_env_get(sub_force_env(fist_subsys)%force_env,subsys=subsys_mm,&
             cell=mm_cell,fist_env=fist_env,error=error)

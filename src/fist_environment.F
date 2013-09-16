@@ -96,7 +96,7 @@ CONTAINS
 !>      fist_main
 ! *****************************************************************************
   SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
-       subsys_section, use_motion_section, error )
+       subsys_section, use_motion_section, prev_subsys, error)
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -104,6 +104,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_init', &
@@ -229,7 +230,7 @@ CONTAINS
     CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
     CALL fist_init_subsys ( fist_env, subsys, cell, cell_ref, fist_nonbond_env, ewald_env,&
-                            force_env_section, subsys_section,error )
+                            force_env_section, subsys_section, prev_subsys, error)
 
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
@@ -249,7 +250,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsys, cell, cell_ref, fist_nonbond_env,&
-                                ewald_env, force_env_section, subsys_section, error )
+                                ewald_env, force_env_section, subsys_section, &
+                                prev_subsys, error)
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -258,6 +260,7 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_init_subsys', &
@@ -267,11 +270,13 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
+                                                local_particles, &
+                                                prev_local_molecules
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
+      POINTER                                :: molecule_kind_set, &
+                                                prev_molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(multipole_type), POINTER            :: multipoles
@@ -285,6 +290,14 @@ CONTAINS
     atomic_kind_set => subsys % atomic_kinds % els
     molecule_set => subsys % molecules_new % els
     molecule_kind_set => subsys % molecule_kinds_new % els
+
+    IF (PRESENT(prev_subsys)) THEN
+      prev_molecule_kind_set => prev_subsys % molecule_kinds_new % els
+      prev_local_molecules => prev_subsys % local_molecules_new
+    ELSE
+      NULLIFY(prev_molecule_kind_set)
+      NULLIFY(prev_local_molecules)
+    ENDIF
 
     ! Create the fist_energy_type
     CALL allocate_fist_energy( thermo )
@@ -308,6 +321,8 @@ CONTAINS
                                    molecule_kind_set=molecule_kind_set,&
                                    molecule_set=molecule_set,&
                                    local_molecules=local_molecules,&
+                                   prev_molecule_kind_set=prev_molecule_kind_set,&
+                                   prev_local_molecules=prev_local_molecules,&
                                    force_env_section=force_env_section,&
                                    error=error )
 

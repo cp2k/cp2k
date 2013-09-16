@@ -13,6 +13,7 @@
 ! *****************************************************************************
 MODULE fist_main
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_blas
   USE fist_environment,                ONLY: fist_init
   USE fist_environment_types,          ONLY: fist_env_create,&
@@ -54,7 +55,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE fist_create_force_env ( force_env, root_section, para_env, globenv,&
-       qmmm, qmmm_env, force_env_section, subsys_section, use_motion_section, error )
+       qmmm, qmmm_env, force_env_section, subsys_section, use_motion_section, prev_subsys, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -65,6 +66,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
@@ -89,7 +91,7 @@ CONTAINS
     ! *** Read the input and the database files and perform further  ***
     ! *** initializations for the setup of the FIST environment ***
     CALL fist_init ( fist_env, root_section, para_env, force_env_section,&
-         subsys_section, use_motion_section, error )
+         subsys_section, use_motion_section, prev_subsys=prev_subsys, error=error )
 
     CALL force_env_create ( force_env, root_section, fist_env = fist_env, &
          para_env = para_env, globenv = globenv, &

@@ -85,6 +85,10 @@ CONTAINS
 !> \param molecule_kind_set molecule kind information
 !> \param molecule_set molecule information
 !> \param local_molecules distribution of molecules created by this routine
+!> \param prev_molecule_kind_set previous molecule kind information, used with
+!>        prev_local_molecules
+!> \param prev_local_molecules previous distribution of molecules, new one will 
+!>        be identical if all the prev_* arguments are present and associated
 !> \param error variable to control error logging, stopping, ...
 !>               see module cp_error_handling
 !> \par History
@@ -94,7 +98,10 @@ CONTAINS
   SUBROUTINE distribute_molecules_1d(particle_kind_set,particle_set,&
                                      local_particles,&
                                      molecule_kind_set,molecule_set,&
-                                     local_molecules, force_env_section, error)
+                                     local_molecules, force_env_section, &
+                                     prev_molecule_kind_set, &
+                                     prev_local_molecules, &
+                                     error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: particle_kind_set
@@ -107,27 +114,45 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: prev_molecule_kind_set
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: prev_local_molecules
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_1d', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, bin, bin_price, group, handle, iatom, imolecule, &
-      imolecule_kind, imolecule_local, iparticle_kind, ipe, istat, iw, &
-      kind_a, molecule_a, mype, n, natom, nbins, nload, nmolecule, &
-      nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
+      imolecule_kind, imolecule_local, imolecule_prev_kind, iparticle_kind, &
+      ipe, istat, iw, kind_a, molecule_a, mype, n, natom, nbins, nload, &
+      nmolecule, nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nmolecule_local, &
                                                 nparticle_local, work, &
                                                 workload_count, workload_fill
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: found, heap_error
+    LOGICAL                                  :: found, has_prev_subsys_info, &
+                                                heap_error, is_local
     TYPE(cp_1d_i_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: local_molecule
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(heap_t)                             :: bin_heap_count, bin_heap_fill
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
+! integer n_local_molecules
+! integer, allocatable :: all_local_molecules(:)
+
     CALL timeset(routineN,handle)
+
+
+    has_prev_subsys_info = .FALSE.
+    IF (PRESENT(prev_local_molecules) .AND.  &
+        PRESENT(prev_molecule_kind_set)) THEN
+       IF (ASSOCIATED(prev_local_molecules) .AND. &
+           ASSOCIATED(prev_molecule_kind_set)) THEN
+         has_prev_subsys_info = .TRUE.
+       ENDIF
+    ENDIF
 
     logger => cp_error_get_logger(error)
 
@@ -204,25 +229,35 @@ CONTAINS
 !     *** Get the number of local molecules of the current molecule kind ***
 
       DO imolecule=1,nmolecule
-         CALL heap_get_first (bin_heap_count, bin, bin_price, found, heap_error)
-         CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-              routineN, "Error getting topmost heap element.", error=error)
-         CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
-              routineN, "No topmost heap element found.", error=error)
+         IF (has_prev_subsys_info) THEN
+            DO imolecule_prev_kind=1, SIZE(prev_molecule_kind_set)
+               IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array(1:prev_local_molecules%n_el(imolecule_prev_kind)) == &
+                        molecule_list(imolecule))) THEN
+                  ! molecule used to be local
+                  nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
+               ENDIF
+            END DO
+         ELSE
+            CALL heap_get_first (bin_heap_count, bin, bin_price, found, heap_error)
+            CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+                 routineN, "Error getting topmost heap element.", error=error)
+            CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
+                 routineN, "No topmost heap element found.", error=error)
 
-         ipe = bin
-         CALL cp_assert (bin_price==workload_count(ipe), cp_fatal_level, cp_internal_error,&
-              routineN, "inconsistent heap", error=error)
+            ipe = bin
+            CALL cp_assert (bin_price==workload_count(ipe), cp_fatal_level, cp_internal_error,&
+                 routineN, "inconsistent heap", error=error)
 
-         workload_count(ipe) = workload_count(ipe) + nload
-         IF (ipe == mype) THEN
-           nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
+            workload_count(ipe) = workload_count(ipe) + nload
+            IF (ipe == mype) THEN
+              nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
+            END IF
+
+            bin_price = workload_count(ipe)
+            CALL heap_reset_first (bin_heap_count, bin_price, heap_error)
+            CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+                 routineN, "Error setting price of top heap element.", error=error)
          END IF
-
-         bin_price = workload_count(ipe)
-         CALL heap_reset_first (bin_heap_count, bin_price, heap_error)
-         CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-              routineN, "Error setting price of top heap element.", error=error)
       END DO
 
 
@@ -242,18 +277,29 @@ CONTAINS
 
       imolecule_local = 0
       DO imolecule=1,nmolecule
-         CALL heap_get_first (bin_heap_fill, bin, bin_price, found, heap_error)
-         CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-              routineN, "Error getting topmost heap element.", error=error)
-         CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
-              routineN, "No topmost heap element found.", error=error)
+         is_local = .FALSE.
+         IF (has_prev_subsys_info) THEN
+            DO imolecule_prev_kind=1, SIZE(prev_molecule_kind_set)
+               IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array(1:prev_local_molecules%n_el(imolecule_prev_kind)) == &
+                        molecule_list(imolecule))) THEN
+                  is_local = .TRUE.
+               END IF
+            END DO
+         ELSE
+            CALL heap_get_first (bin_heap_fill, bin, bin_price, found, heap_error)
+            CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+                 routineN, "Error getting topmost heap element.", error=error)
+            CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
+                 routineN, "No topmost heap element found.", error=error)
 
-         ipe = bin
-         CALL cp_assert (bin_price==workload_fill(ipe), cp_fatal_level, cp_internal_error,&
-              routineN, "inconsistent heap", error=error)
+            ipe = bin
+            CALL cp_assert (bin_price==workload_fill(ipe), cp_fatal_level, cp_internal_error,&
+                 routineN, "inconsistent heap", error=error)
 
-         workload_fill(ipe) = workload_fill(ipe) + nload
-         IF (ipe == mype) THEN
+            workload_fill(ipe) = workload_fill(ipe) + nload
+            is_local = (ipe == mype)
+         ENDIF
+         IF (is_local) THEN
             imolecule_local = imolecule_local + 1
             molecule_a = molecule_list(imolecule)
             local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
@@ -265,10 +311,12 @@ CONTAINS
               nparticle_local(kind_a) = nparticle_local(kind_a) + 1
             END DO
          END IF
-         bin_price = workload_fill(ipe)
-         CALL heap_reset_first (bin_heap_fill, bin_price, heap_error)
-         CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-              routineN, "Error setting price of top heap element.", error=error)
+         IF (.NOT. has_prev_subsys_info) THEN
+            bin_price = workload_fill(ipe)
+            CALL heap_reset_first (bin_heap_fill, bin_price, heap_error)
+            CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+                 routineN, "Error setting price of top heap element.", error=error)
+         END IF
       END DO
 
     END DO
