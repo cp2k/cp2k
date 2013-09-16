@@ -11,6 +11,7 @@
 ! *****************************************************************************
 
 MODULE tmc_calculations
+  USE erf_fn, ONLY: erfc
   USE cell_types,                      ONLY: cell_copy,&
                                              cell_type,&
                                              get_cell,&

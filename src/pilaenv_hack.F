@@ -4,9 +4,14 @@
 ! most libraries do not provide a good default, but an old value of 32, which leads to poor pdgemm performance
 ! set -D__PILAENV_BLOCKSIZE=1024 or some number (depending on the hardware, and application), might lead to better performance
 !
-INTEGER FUNCTION PILAENV( ICTXT, PREC )
-  INTEGER ICTXT
-  CHARACTER(LEN=1) PREC
+INTEGER FUNCTION PILAENV (ICTXT, PREC) 
+  INTEGER :: ICTXT
+  CHARACTER(LEN=1) :: PREC
+
   PILAENV = __PILAENV_BLOCKSIZE
-END FUNCTION
+END FUNCTION PILAENV
 #endif
+
+SUBROUTINE NAG_dummy()
+
+END SUBROUTINE NAG_dummy

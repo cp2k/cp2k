@@ -10,6 +10,7 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_types
+  USE erf_fn, ONLY: erfc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set

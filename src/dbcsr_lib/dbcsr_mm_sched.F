@@ -500,14 +500,14 @@ MODULE dbcsr_mm_sched
 
     IF(output_unit<=0) RETURN
 
-    WRITE (output_unit,"(X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
+    WRITE (output_unit,"(1X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
 
-    percent = 100*REAL(report%gpu_num_stacks)/REAL(MAX(1,report%cpu_num_stacks+report%gpu_num_stacks))
-    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " number of processed stacks",&
+    percent = 100*REAL(report%gpu_num_stacks)/REAL(MAX(INT(1,KIND=4),report%cpu_num_stacks+report%gpu_num_stacks))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
        report%cpu_num_stacks, report%gpu_num_stacks, percent
 
-    percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(1,4:5))))
-    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " mutmuls inhomo. stacks",&
+    percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(1,4:5))))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " mutmuls inhomo. stacks",&
        stats_num_mnk_stacks(1,4:5), percent
 
     !sorting stat entries by flops per multiplication
@@ -518,17 +518,17 @@ MODULE dbcsr_mm_sched
 
     DO i=1, SIZE(sort_idx)
      j = sort_idx(i)+1
-     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(1,SUM(stats_num_mnk_stacks(j,4:5))))
-     WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,X,I20,T76,F5.1)") &
+     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(j,4:5))))
+     WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,1X,I20,T76,F5.1)") &
        " matmuls",stats_num_mnk_stacks(j,:), percent
     END DO
 
-    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(1,SUM(stats_num_mnk_stacks(:,4:5))))
-    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " matmuls total",&
+    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(:,4:5))))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
        SUM(stats_num_mnk_stacks(:,4)), SUM(stats_num_mnk_stacks(:,5)), percent
 
-    percent = 100*REAL(report%gpu_flop)/REAL(MAX(1,report%cpu_flop+report%gpu_flop))
-    WRITE (output_unit,'(A,T30,I20,X,I20,T76,F5.1)') " flops total",&
+    percent = 100*REAL(report%gpu_flop)/REAL(MAX(INT(1,KIND=4),report%cpu_flop+report%gpu_flop))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
        report%cpu_flop, report%gpu_flop, percent
 
   END SUBROUTINE stats_print_report

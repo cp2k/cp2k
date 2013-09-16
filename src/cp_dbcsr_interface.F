@@ -591,17 +591,17 @@ CONTAINS
             plabel, "Communication thread load", comm_thread_load_str(1:info_len)
 
        IF (has_cuda) THEN
-            WRITE(UNIT=unit_num, FMT='(X,A,T80,L)'),&
+            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&
              "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
-            WRITE(UNIT=unit_num, FMT='(X,A,T80,L)'),&
+            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&
              "DBCSR| CUDA: Process inhomogenous stacks", cudadrv_do_inhomogenous
-            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
              "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
-            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
              "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
-            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
              "DBCSR| CUDA: Number of binning bins", cudadrv_binning_nbins
-            WRITE(UNIT=unit_num, FMT='(X,A,T70,I11)'),&
+            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
              "DBCSR| CUDA: Size of binning bins", cudadrv_binning_binsize
        END IF
     ENDIF
