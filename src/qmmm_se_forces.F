@@ -65,13 +65,13 @@ CONTAINS
 !>      QMMM terms
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
-  SUBROUTINE deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+  SUBROUTINE deriv_se_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,&
        calc_force, Forces, Forces_added_charges, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: mm_particles
+      POINTER                                :: particles_mm
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
@@ -95,6 +95,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(se_int_control_type)                :: se_int_control
@@ -105,13 +107,15 @@ CONTAINS
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, se_taper)
-       NULLIFY (se_kind_a, se_kind_mm)
+       NULLIFY (se_kind_a, se_kind_mm, particles_qm)
        CALL get_qs_env(qs_env=qs_env,&
                        rho=rho,&
                        se_taper=se_taper,&
                        atomic_kind_set=atomic_kind_set,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
-                       dft_control=dft_control,error=error)
+                       dft_control=dft_control,&
+                       particle_set=particles_qm,&
+                       error=error)
        number_qm_atoms = SIZE(qs_env%subsys%particles%els)
        SELECT CASE (dft_control%qs_control%method_id)
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,&
@@ -165,13 +169,13 @@ CONTAINS
                                                  se_kind_a,&
                                                  se_kind_mm,&
                                                  qmmm_env%Potentials,&
-                                                 mm_particles,&
+                                                 particles_mm,&
                                                  qmmm_env%mm_atom_chrg,&
                                                  qmmm_env%mm_el_pot_radius,&
                                                  qmmm_env%mm_atom_index,&
                                                  qmmm_env%num_mm_atoms,&
                                                  mm_cell,&
-                                                 qmmm_env%qm_atom_index(iatom),&
+                                                 iatom,&
                                                  itype,&
                                                  Forces,&
                                                  Forces_QM(:,iqm),&
@@ -180,6 +184,7 @@ CONTAINS
                                                  anag,&
                                                  delta,&
                                                  qmmm_env%spherical_cutoff,&
+                                                 particles_qm,&
                                                  error)
                    ! Possibly added charges
                    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -193,7 +198,7 @@ CONTAINS
                                                     qmmm_env%added_charges%mm_atom_index,&
                                                     qmmm_env%added_charges%num_mm_atoms,&
                                                     mm_cell,&
-                                                    qmmm_env%qm_atom_index(iatom),&
+                                                    iatom,&
                                                     itype,&
                                                     Forces_added_charges,&
                                                     Forces_QM(:,iqm),&
@@ -202,6 +207,7 @@ CONTAINS
                                                     anag,&
                                                     delta,&
                                                     qmmm_env%spherical_cutoff,&
+                                                    particles_qm,&
                                                     error)
                    END IF
                 END IF
@@ -224,7 +230,7 @@ CONTAINS
           DO i = 1, SIZE(list)
              iqm = iqm + 1
              iatom = qmmm_env%qm_atom_index(list(i))
-             mm_particles(iatom)%f(:) = mm_particles(iatom)%f(:) + Forces_QM(:,iqm)
+             particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:) + Forces_QM(:,iqm)
           END DO
        END DO
        ! MM forces will be handled directly from the QMMM module in the same way
@@ -243,16 +249,16 @@ CONTAINS
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
-       potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
+       potentials, particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, &
        num_mm_atoms, mm_cell, IndQM, itype, forces, forces_qm, se_taper,&
-       se_int_control, anag, delta, qmmm_spherical_cutoff, error)
+       se_int_control, anag, delta, qmmm_spherical_cutoff, particles_qm, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: mm_particles
+      POINTER                                :: particles_mm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
@@ -266,6 +272,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     REAL(KIND=dp), INTENT(IN)                :: delta, &
                                                 qmmm_spherical_cutoff(2)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_se_qmmm_matrix_low', &
@@ -287,7 +295,7 @@ CONTAINS
        LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
           Imm = Pot%mm_atom_index(Imp)
           IndMM = mm_atom_index(Imm)
-          r_pbc=pbc(mm_particles(IndMM)%r-mm_particles(IndQM)%r, mm_cell)
+          r_pbc=pbc(particles_mm(IndMM)%r-particles_qm(IndQM)%r, mm_cell)
           rt1= r_pbc(1)
           rt2= r_pbc(2)
           rt3= r_pbc(3)

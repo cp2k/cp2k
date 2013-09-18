@@ -76,12 +76,12 @@ CONTAINS
 !> \brief Constructs the 1-el semi-empirical hamiltonian
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
-  SUBROUTINE build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
+  SUBROUTINE build_se_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: mm_particles
+      POINTER                                :: particles_mm
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -103,6 +103,8 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -114,7 +116,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     NULLIFY (matrix_s, atomic_kind_set)
-    NULLIFY (se_kind_a, se_kind_mm, se_taper)
+    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
     CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
@@ -129,7 +131,9 @@ CONTAINS
                     se_taper=se_taper,&
                     atomic_kind_set=atomic_kind_set,&
                     ks_qmmm_env=ks_qmmm_env_loc,&
-                    dft_control=dft_control,error=error)
+                    dft_control=dft_control,&
+                    particle_set=particles_qm,&
+                    error=error)
 
     SELECT CASE (dft_control%qs_control%method_id)
     CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
@@ -189,19 +193,20 @@ CONTAINS
                                               se_kind_a,&
                                               se_kind_mm,&
                                               qmmm_env%Potentials,&
-                                              mm_particles,&
+                                              particles_mm,&
                                               qmmm_env%mm_atom_chrg,&
                                               qmmm_env%mm_el_pot_radius,&
                                               qmmm_env%mm_atom_index,&
                                               qmmm_env%num_mm_atoms,&
                                               mm_cell,&
-                                              qmmm_env%qm_atom_index(iatom),&
+                                              iatom,&
                                               enuclear,&
                                               itype,&
                                               se_taper,&
                                               se_int_control,&
                                               anag,&
                                               qmmm_env%spherical_cutoff,&
+                                              particles_qm,&
                                               error)
                 ! Possibly added charges
                 IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -215,13 +220,14 @@ CONTAINS
                                                  qmmm_env%added_charges%mm_atom_index,&
                                                  qmmm_env%added_charges%num_mm_atoms,&
                                                  mm_cell,&
-                                                 qmmm_env%qm_atom_index(iatom),&
+                                                 iatom,&
                                                  enuclear,&
                                                  itype,&
                                                  se_taper,&
                                                  se_int_control,&
                                                  anag,&
                                                  qmmm_env%spherical_cutoff,&
+                                                 particles_qm,&
                                                  error)
                 END IF
              END IF
@@ -253,16 +259,16 @@ CONTAINS
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
-       mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
+       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        mm_cell, IndQM, enuclear, itype, se_taper, se_int_control, anag, &
-       qmmm_spherical_cutoff, error)
+       qmmm_spherical_cutoff, particles_qm, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: mm_particles
+      POINTER                                :: particles_mm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
@@ -274,6 +280,8 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: anag
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix_low', &
@@ -296,7 +304,7 @@ CONTAINS
        LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
           Imm = Pot%mm_atom_index(Imp)
           IndMM = mm_atom_index(Imm)
-          r_pbc=pbc(mm_particles(IndMM)%r-mm_particles(IndQM)%r, mm_cell)
+          r_pbc=pbc(particles_mm(IndMM)%r-particles_qm(IndQM)%r, mm_cell)
           rt1= r_pbc(1)
           rt2= r_pbc(2)
           rt3= r_pbc(3)
