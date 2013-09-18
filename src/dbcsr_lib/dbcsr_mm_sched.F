@@ -502,11 +502,11 @@ MODULE dbcsr_mm_sched
 
     WRITE (output_unit,"(1X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
 
-    percent = 100*REAL(report%gpu_num_stacks)/REAL(MAX(INT(1,KIND=4),report%cpu_num_stacks+report%gpu_num_stacks))
+    percent = 100*REAL(report%gpu_num_stacks)/REAL(MAX(INT(1,KIND=int_8),report%cpu_num_stacks+report%gpu_num_stacks))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
        report%cpu_num_stacks, report%gpu_num_stacks, percent
 
-    percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(1,4:5))))
+    percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(1,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " mutmuls inhomo. stacks",&
        stats_num_mnk_stacks(1,4:5), percent
 

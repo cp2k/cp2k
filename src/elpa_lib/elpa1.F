@@ -3855,8 +3855,8 @@ SUBROUTINE hh_transform_complex(alpha, xnorm_sq, xf, tau)
       ELSE
          ALPHR = ALPHI * (ALPHI/DBLE( ALPHA ))
          ALPHR = ALPHR + XNORM_SQ/DBLE( ALPHA )
-         TAU = CMPLX( ALPHR/BETA, -ALPHI/BETA )
-         ALPHA = CMPLX( -ALPHR, ALPHI )
+         TAU = CMPLX( ALPHR/BETA, -ALPHI/BETA, KIND=KIND(ALPHI) )
+         ALPHA = CMPLX( -ALPHR, ALPHI, KIND=KIND(ALPHI) )
       END IF
       XF = 1./ALPHA
       ALPHA = BETA

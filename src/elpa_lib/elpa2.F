@@ -2097,7 +2097,8 @@ CONTAINS
         !if(jjj==1) call single_hh_trafo(a(1,1+off+a_off,istripe,my_thread),bcast_buffer(1,off+1), nbw, nl, stripe_width)
         
         IF(my_thread==1) THEN
-            kernel_flops = kernel_flops + 4*INT(nl)*INT(ncols)*INT(nbw)
+            kernel_flops = kernel_flops + 4*INT(nl,KIND(kernel_flops))* &
+                               INT(ncols,KIND(kernel_flops))*INT(nbw,KIND(kernel_flops))
             kernel_time  = kernel_time + mpi_wtime()-ttt
         ENDIF
 
