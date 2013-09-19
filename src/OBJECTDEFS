@@ -608,6 +608,7 @@ OBJECTS_GENERIC =\
  qs_scf_post_dftb.o\
  qs_scf_post_gpw.o\
  qs_scf_post_se.o\
+ qs_scf_post_scptb.o\
  qs_scf_types.o\
  qs_scf_loop_utils.o\
  qs_scf_output.o\

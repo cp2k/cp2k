@@ -97,6 +97,7 @@ MODULE qs_scf_initialization
   USE qs_scf_output,                   ONLY: qs_scf_initial_info
   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
+  USE qs_scf_post_scptb,               ONLY: scf_post_calculation_scptb
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
   USE qs_scf_types,                    ONLY: &
        block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
@@ -719,7 +720,7 @@ CONTAINS
     ELSEIF (dft_control%qs_control%dftb) THEN
        CALL scf_post_calculation_dftb (dft_section, scf_env, qs_env, error)
     ELSEIF (dft_control%qs_control%scptb) THEN
-       ! Do Nothing
+       CALL scf_post_calculation_scptb(dft_section, scf_env, qs_env, error)
     ELSEIF (dft_control%qs_control%ofgpw) THEN
        ! Do Nothing
     ELSE

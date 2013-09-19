@@ -451,6 +451,9 @@ CONTAINS
        ELSE IF (gapw) THEN
           CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
                print_section=print_section,error=error)
+       ELSE IF (dft_control%qs_control%scptb) THEN
+          CALL write_forces(force,atomic_kind_set,5,output_unit=output_unit,&
+               print_section=print_section,error=error)
        ELSE
           CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
                print_section=print_section,error=error)
@@ -660,6 +663,20 @@ CONTAINS
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       CASE (5)
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+                  iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
+                  iatom,ikind," all potential",qs_force(ikind)%all_potential(1:3,i),&
+                  iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
+                  iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
        END SELECT

@@ -49,6 +49,7 @@ MODULE atom_energy
                                              pi
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
+  USE physcon,                         ONLY: evolt
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -75,8 +76,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, maxl, mb, &
-      method, mo, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
+    INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, maxl, mb, &
+      method, mo, n, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -289,6 +290,50 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
           CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+
+          ! rk: Print out the energies needed for the scptb parametrization
+          ! (Orbital energies minus Kinetic, etc)
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%ENERGIES_MINUS_KINETIC",extension=".log",error=error)
+          IF (iw > 0) THEN
+                WRITE(iw,'(T36,A,T61,F20.12)') "     Etot-Ekin   ::",atom_info(in,im)%atom%energy%etot &
+                         - atom_info(in,im)%atom%energy%ekin
+
+                ! Output of Epsilon-kin, used in SCPTB parameter generation.
+                IF ( atom_info(in,im)%atom%state%multiplicity == -1 ) THEN
+                   WRITE(iw,'(/,A,T20,A,T30,A,T36,A,T49,A,T71,A,/)') " Orbital Epsilon-T",&
+                        "State","L","Occupation","Energy[a.u.]","Energy[eV]"
+                   DO l=0,atom_info(in,im)%atom%state%maxl_calc
+                     n = atom_info(in,im)%atom%state%maxn_calc(l)
+                     DO i=1,n 
+                       WRITE(iw,'(T23,I2,T30,I1,T36,F10.3,T46,F15.6,T66,F15.6)') &
+                          i,l,atom_info(in,im)%atom%state%occupation(l,i), &
+                          atom_info(in,im)%atom%orbitals%ener(i,l)-atom_info(in,im)%atom%integrals%kin(i,i,l),&
+                          (atom_info(in,im)%atom%orbitals%ener(i,l)-atom_info(in,im)%atom%integrals%kin(i,i,l))*evolt
+                     END DO
+                     IF (n>0) WRITE(iw,*)
+                   END DO
+                ELSE
+                   WRITE(iw,'(/,A,T20,A,T30,A,T36,A,T42,A,T55,A,T71,A,/)') " Orbital Epsilon-T",&
+                        "State","Spin","L","Occupation","Energy[a.u.]","Energy[eV]"
+                   DO l=0,atom_info(in,im)%atom%state%maxl_calc
+                     n = atom_info(in,im)%atom%state%maxn_calc(l)
+                     DO i=1,n 
+                       WRITE(iw,'(T23,I2,T29,A,T36,I1,T42,F10.3,T52,F15.6,T68,F13.6)') &
+                          i,"alpha",l,atom_info(in,im)%atom%state%occa(l,i),&
+                          atom_info(in,im)%atom%orbitals%enera(i,l)-atom_info(in,im)%atom%integrals%kin(i,i,l),&
+                          (atom_info(in,im)%atom%orbitals%ener(i,l)-atom_info(in,im)%atom%integrals%kin(i,i,l))*evolt
+                     END DO
+                     DO i=1,n 
+                       WRITE(iw,'(T23,I2,T29,A,T36,I1,T42,F10.3,T52,F15.6,T68,F13.6)') &
+                          i," beta",l,atom_info(in,im)%atom%state%occb(l,i),&
+                          atom_info(in,im)%atom%orbitals%enerb(i,l)-atom_info(in,im)%atom%integrals%kin(i,i,l),&
+                          (atom_info(in,im)%atom%orbitals%ener(i,l)-atom_info(in,im)%atom%integrals%kin(i,i,l))*evolt
+                     END DO
+                     IF (n>0) WRITE(iw,*)
+                   END DO
+                END IF
+          END IF
+
 
           ! Print out the orbitals if requested
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%ORBITALS",extension=".log",error=error)
