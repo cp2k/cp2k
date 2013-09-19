@@ -13,7 +13,8 @@ MODULE ma_process_mapping
 
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_stop
-  USE ma_kinds,                        ONLY: dp
+  USE ma_kinds,                        ONLY: dp,&
+                                             int_size
   USE ma_topology,                     ONLY: allocated_topology,&
                                              ma_2dgrid_dimensions,&
                                              ma_allocated_topology,&
@@ -549,7 +550,7 @@ SUBROUTINE ma_hilbert_bits(ranks_order,ntask,mp_comm)
       hodd = IOR(IAND(NOT(v0),IEOR(v1,x)),IAND(v0,IEOR(v1,noty)))
 
       z=0
-      DO i=0, SIZEOF(heven)*8-1
+      DO i=0, int_size*8-1
        temp = IOR(ISHFT(IAND(heven,ISHFT(1,i)),i),ISHFT(IAND(hodd,ISHFT(1,i)),i+1))
        z = IOR(z,temp)
       ENDDO

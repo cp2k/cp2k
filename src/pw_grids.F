@@ -35,7 +35,8 @@ MODULE pw_grids
   USE cell_types,                      ONLY: cell_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
-                                             int_8
+                                             int_8,&
+                                             int_size
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
@@ -1765,7 +1766,7 @@ CONTAINS
     nmaps = 1
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    length = INT(sizeof(1) * ng * nmaps, KIND=C_SIZE_T)
+    length = INT(int_size * ng * nmaps, KIND=C_SIZE_T)
     allocstat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
     CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/ng, nmaps/))
 #elif defined ( __PW_CUDA ) && defined ( __PW_CUDA_NO_HOSTALLOC )
