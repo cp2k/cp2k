@@ -200,9 +200,27 @@ CONTAINS
 
     INTEGER                                  :: fft_library, istat, isuccess, &
                                                 iunit
-    LOGICAL                                  :: exist, fftw3_is_mkl_wrapper
+    LOGICAL                                  :: exist, fftw3_is_mkl_wrapper, &
+                                                mkl_is_safe
 
 !$  INTEGER :: omp_get_max_threads
+
+! If using the Intel compiler then we need to declare
+! a C interface to a global variable in MKL that sets
+! the number of threads which can concurrently execute
+! an FFT
+#if defined (__INTEL) && !defined(__HAS_NO_ISO_C_BINDING)
+!$    include "mkl.fi"
+!DEC$ IF DEFINED (INTEL_MKL_VERSION)
+!DEC$ IF INTEL_MKL_VERSION .GE. 110100
+!DIR$ ATTRIBUTES ALIGN : 8 :: fftw3_mkl
+!$    COMMON/fftw3_mkl/ignore(4),mkl_dft_number_of_user_threads,ignore2(7)
+!$    INTEGER*4 :: ignore, mkl_dft_number_of_user_threads, ignore2 
+!$    BIND (c) :: /fftw3_mkl/
+!DEC$ ENDIF
+!DEC$ ENDIF
+#endif
+
 
     use_fftsg_sizes = fftsg_sizes
     alltoall_sgl = alltoall
@@ -230,15 +248,30 @@ CONTAINS
        ENDIF
 
        ! Check if we have a real FFTW3 library, or are using MKL wrappers
-       ! Once Intel provide a fortran routine to set the number of threads
-       ! Using a single plan, can replace the stop_program() with it
+
 !$     IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
-!$        CALL stop_program(routineN,moduleN,__LINE__,&
+!$        mkl_is_safe = .TRUE.
+#if defined (__INTEL) && !defined (__HAS_NO_ISO_C_BINDING)
+!DEC$ IF DEFINED (INTEL_MKL_VERSION)
+!DEC$ IF INTEL_MKL_VERSION .GE. 110100
+!$        mkl_dft_number_of_user_threads=omp_get_max_threads() 
+!DEC$ ELSE
+!$        mkl_is_safe = .FALSE.
+!DEC$ ENDIF
+!DEC$ ENDIF
+#else
+          ! If we are not using the Intel compiler, there is no way to tell which
+          ! MKL version is in use, so fail safe...
+!$        mkl_is_safe = .FALSE.
+#endif
+!$        IF (.NOT.mkl_is_safe) THEN
+!$           CALL stop_program(routineN,moduleN,__LINE__,&
 !$                          "Intel's FFTW3 interface to MKL is not "//&
 !$                          "thread-safe!  Please rebuild CP2K, linking "//&
 !$                          "against FFTW 3 from www.fftw.org. "//&
 !$                          "Now exiting...")
-!$     END IF
+!$        ENDIF
+!$     ENDIF
 
     ENDIF
 
