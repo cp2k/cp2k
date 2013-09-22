@@ -157,9 +157,9 @@ MODULE dbcsr_config
   INTEGER, SAVE :: mm_stack_size = 1000
 
   ! Number of stacks to use
-  INTEGER, SAVE :: nm_stacks = 0
-  INTEGER, SAVE :: nn_stacks = 0
-  INTEGER, SAVE :: nk_stacks = 0
+  INTEGER, SAVE :: nm_stacks = 3
+  INTEGER, SAVE :: nn_stacks = 3
+  INTEGER, SAVE :: nk_stacks = 3
   INTEGER, SAVE :: nstackbuffers = 1
 
   ! Configuration of an MPI progress thread
@@ -190,9 +190,9 @@ CONTAINS
 !defaults
 
     mm_stack_size = 1000
-    nm_stacks = 0
-    nn_stacks = 0
-    nk_stacks = 0
+    nm_stacks = 3
+    nn_stacks = 3
+    nk_stacks = 3
     nstackbuffers = 0
 
     IF(has_smm_vec) THEN
