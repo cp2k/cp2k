@@ -14,7 +14,7 @@ h2op.inp           3
 hcn.inp            3
 hf.inp             3
 nh4.inp            3
-st.inp                            3     1e-11
+st.inp                            3     3e-11
 # test the initial adaptation to OT
 ch4-ot.inp         3
 h2o_lsd-ot.inp     3
