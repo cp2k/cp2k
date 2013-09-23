@@ -39,6 +39,7 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
   PUBLIC :: dbcsr_set_conf_external_timing
+  PUBLIC :: dbcsr_get_conf_max_ele_block, dbcsr_set_conf_max_ele_block
   
   PUBLIC :: driver_is_async
 
@@ -69,6 +70,7 @@ MODULE dbcsr_config
   PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers
   PUBLIC :: use_comm_thread, comm_thread_load
   PUBLIC :: dbcsr_set_conf_nbuffers, dbcsr_get_conf_nbuffers
+  PUBLIC :: max_elements_per_block
   !
   PUBLIC :: is_initialized
 
@@ -155,6 +157,9 @@ MODULE dbcsr_config
 
   ! Stack size to use for multiplication parameters
   INTEGER, SAVE :: mm_stack_size = 1000
+
+  ! Default blocking parameter
+  INTEGER, SAVE :: max_elements_per_block = 16
 
   ! Number of stacks to use
   INTEGER, SAVE :: nm_stacks = 3
@@ -343,6 +348,28 @@ CONTAINS
     use_mm_stacksize = mm_stack_size
   END FUNCTION dbcsr_get_conf_mm_stacksize
 
+  SUBROUTINE dbcsr_set_conf_max_ele_block (max_ele_block, error)
+    INTEGER, INTENT(IN)                      :: max_ele_block
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_max_ele_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    max_elements_per_block = max_ele_block
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_max_ele_block
+
+  FUNCTION dbcsr_get_conf_max_ele_block () RESULT (max_ele_block)
+    INTEGER                                  :: max_ele_block
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_max_ele_block', &
+      routineP = moduleN//':'//routineN
+
+    max_ele_block = max_elements_per_block
+  END FUNCTION dbcsr_get_conf_max_ele_block
 
   SUBROUTINE dbcsr_set_conf_nstacks (nstacks, error)
     INTEGER, INTENT(IN)                      :: nstacks(:)

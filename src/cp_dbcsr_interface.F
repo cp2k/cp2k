@@ -40,12 +40,13 @@ MODULE cp_dbcsr_interface
        dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
        dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nbuffers, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, has_cuda, has_mpi, mm_driver_blas, &
-       mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nbuffers, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_cuda, &
+       has_mpi, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
+       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
+       mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -430,8 +431,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: comm_thread_load, &
-                                                error_handle, mm_driver, &
-                                                mm_ss, n_stack_buffers
+                                                error_handle, max_ele_block, &
+                                                mm_driver, mm_ss, &
+                                                n_stack_buffers
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_combtypes, &
                                                 use_comm_thread, use_mpi_mem, &
@@ -457,6 +459,8 @@ CONTAINS
          "mm_stack_size", i_val=mm_ss, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "mm_driver", i_val=mm_driver, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "MAX_ELEMENTS_PER_BLOCK", i_val=max_ele_block, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "n_size_mnk_stacks", i_val=nstacks(1), error=error)
     nstacks(2:3) = nstacks(1)
@@ -484,6 +488,7 @@ CONTAINS
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
+    CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=dbcsr_error)
     IF(mm_ss > 0) &
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
     IF(nstacks(1) > 0) &

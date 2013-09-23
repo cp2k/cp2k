@@ -17,6 +17,7 @@ MODULE dbcsr_dist_operations
   USE array_types,                     ONLY: &
        array_data, array_equality, array_exists, array_hold, array_i1d_obj, &
        array_new, array_nullify, array_release, array_size
+  USE dbcsr_config,                    ONLY: max_elements_per_block
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: sp
   USE dbcsr_message_passing,           ONLY: mp_cart_create,&
@@ -1176,7 +1177,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: max_elements_per_block = 16
 
     INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
       max_blocks_per_bin, nblks, nblocks, stat
