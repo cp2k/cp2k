@@ -23,11 +23,12 @@ CONTAINS
 SUBROUTINE tum_pdlarfb_1dcomm(m,mb,n,k,a,lda,v,ldv,tau,t,ldt,baseidx,idx,rev,mpicomm,work,lwork)
     
     USE tum_utils
-    INTEGER                                  :: lda, ldv, ldt, lwork
+    INTEGER                                  :: m, mb, n, k, lda, ldv, ldt, &
+                                                baseidx, idx, rev, mpicomm, &
+                                                lwork
 
 ! input variables (local)
 
-    INTEGER m,mb,n,k,baseidx,idx,rev,mpicomm
     DOUBLE PRECISION a(lda,*),v(ldv,*),tau(*),t(ldt,*),work(k,*)
 
     ! input variables (global)
@@ -86,11 +87,12 @@ END SUBROUTINE tum_pdlarfb_1dcomm
 ! TODO: include T merge here (seperate by "old" and "new" index)
 SUBROUTINE tum_pdlarft_pdlarfb_1dcomm(m,mb,n,oldk,k,v,ldv,tau,t,ldt,a,lda,baseidx,rev,mpicomm,work,lwork)
     USE tum_utils
-    INTEGER                                  :: ldv, ldt, lda, lwork
+    INTEGER                                  :: m, mb, n, oldk, k, ldv, ldt, &
+                                                lda, baseidx, rev, mpicomm, &
+                                                lwork
 
 ! input variables (local)
 
-    INTEGER m,mb,n,k,oldk,baseidx,rev,mpicomm
     DOUBLE PRECISION v(ldv,*),tau(*),t(ldt,*),work(k,*),a(lda,*)
 
     ! input variables (global)
@@ -164,11 +166,12 @@ END SUBROUTINE tum_pdlarft_pdlarfb_1dcomm
 
 SUBROUTINE tum_pdlarft_set_merge_1dcomm(m,mb,n,blocksize,v,ldv,t,ldt,baseidx,rev,mpicomm,work,lwork)
     USE tum_utils
-    INTEGER                                  :: ldv, ldt, lwork
+    INTEGER                                  :: m, mb, n, blocksize, ldv, &
+                                                ldt, baseidx, rev, mpicomm, &
+                                                lwork
 
 ! input variables (local)
 
-    INTEGER m,mb,n,blocksize,baseidx,rev,mpicomm
     DOUBLE PRECISION v(ldv,*),t(ldt,*),work(n,*)
 
     ! input variables (global)
@@ -209,11 +212,12 @@ END SUBROUTINE tum_pdlarft_set_merge_1dcomm
 
 SUBROUTINE tum_pdlarft_tree_merge_1dcomm(m,mb,n,blocksize,treeorder,v,ldv,t,ldt,baseidx,rev,mpicomm,work,lwork)
     USE tum_utils
-    INTEGER                                  :: ldv, ldt, lwork
+    INTEGER                                  :: m, mb, n, blocksize, &
+                                                treeorder, ldv, ldt, baseidx, &
+                                                rev, mpicomm, lwork
 
 ! input variables (local)
 
-    INTEGER m,mb,n,blocksize,treeorder,baseidx,rev,mpicomm
     DOUBLE PRECISION v(ldv,*),t(ldt,*),work(n,*)
 
     ! input variables (global)
