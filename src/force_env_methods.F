@@ -1097,9 +1097,9 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: description, iter
     INTEGER                                  :: ip, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                qmmm_added_chrg, qmmm_link, &
-                                                qmmm_link_imomm
+    LOGICAL                                  :: calculate_forces, check, &
+                                                failure, qmmm_added_chrg, &
+                                                qmmm_link, qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
     REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
                                                 max_coord, min_coord
@@ -1147,6 +1147,15 @@ CPSourceFileRef,&
 
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
+    
+    DO ip=1, SIZE(particles_qm)
+      check = ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) >= 0.0) .AND. &
+              ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) <= 1.0)
+      CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
+           "QM atoms must be fully contained in the QM box - No wrapping of coordinates is allowed! "//&
+ CPSourceFileRef,&
+           error)
+    END DO
 
     ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
     IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index, error)
