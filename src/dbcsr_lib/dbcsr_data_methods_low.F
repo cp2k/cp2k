@@ -735,7 +735,8 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: current_size, error_handler
+    INTEGER                                  :: current_size, error_handler, &
+                                                wanted_size
     LOGICAL                                  :: nocp, pad
 
 !   ---------------------------------------------------------------------------
@@ -744,6 +745,9 @@ MODULE dbcsr_data_methods_low
     CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data area must be setup.",__LINE__,error)
     current_size = dbcsr_data_get_size (area)
+
+    ! allocate some more as padding for libsmm kernels which read over the end.
+    wanted_size = data_size + 10
 
     !IF(area%d%memory_type%cuda_devalloc) THEN
     !    IF(current_size==dbcsr_cuda_devmem_size(area%d%cuda_devmem)) &
@@ -754,7 +758,7 @@ MODULE dbcsr_data_methods_low
     !          routineN, "Host and device buffer differ in size.",__LINE__,error)
 
     CALL dbcsr_data_set_size_referenced (area, data_size)
-    IF (current_size .GT. 1 .AND. current_size .GE. data_size) THEN
+    IF (current_size .GT. 1 .AND. current_size .GE. wanted_size) THEN
        IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
@@ -766,27 +770,27 @@ MODULE dbcsr_data_methods_low
 
     IF (.NOT. &
          dbcsr_data_exists (area, error=error)) THEN
-       CALL internal_data_allocate (area%d, (/ data_size /), error=error)
-       IF (pad) CALL dbcsr_data_zero (area, (/ 1 /), (/ data_size /), error=error)
+       CALL internal_data_allocate (area%d, (/ wanted_size /), error=error)
+       IF (pad) CALL dbcsr_data_zero (area, (/ 1 /), (/ wanted_size /), error=error)
     ELSE
        SELECT CASE (area%d%data_type)
           CASE (dbcsr_type_real_8)
-             CALL ensure_array_size(area%d%r_dp, ub=data_size,&
+             CALL ensure_array_size(area%d%r_dp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
                   factor=factor,error=error)
           CASE (dbcsr_type_real_4)
-             CALL ensure_array_size (area%d%r_sp, ub=data_size,&
+             CALL ensure_array_size (area%d%r_sp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
                   factor=factor,error=error)
           CASE (dbcsr_type_complex_8)
-             CALL ensure_array_size (area%d%c_dp, ub=data_size,&
+             CALL ensure_array_size (area%d%c_dp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
                   factor=factor,error=error)
           CASE (dbcsr_type_complex_4)
-             CALL ensure_array_size (area%d%c_sp, ub=data_size,&
+             CALL ensure_array_size (area%d%c_sp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
                   factor=factor,error=error)
