@@ -160,10 +160,15 @@ MODULE dbcsr_mm_cudadrv
     TYPE(dbcsr_work_type), POINTER           :: product_wm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_init', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(len=default_string_length)     :: poolname
-    INTEGER                                  :: i, ithread, n_stack_buffers, &
-                                                nthreads
+    INTEGER                                  :: error_handler, i, ithread, &
+                                                n_stack_buffers, nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
@@ -211,6 +216,7 @@ MODULE dbcsr_mm_cudadrv
     CALL dbcsr_cuda_event_record(this%c_buffer%d%cuda_ready,&
                              stream=this%c_buffer%d%cuda_stream, error=error)
 
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mm_cudadrv_init
 
 

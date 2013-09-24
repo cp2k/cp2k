@@ -326,7 +326,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: error_handler, error_handler2
 
 !   ---------------------------------------------------------------------------
 
@@ -365,9 +365,11 @@ MODULE dbcsr_data_methods_low
     END SELECT
 
     IF(area%memory_type%cuda_devalloc) THEN
+       CALL dbcsr_error_set (routineN//"_cuda", error_handler2, error)
        CALL dbcsr_cuda_devmem_deallocate(area%cuda_devmem, error)
        CALL dbcsr_cuda_event_destroy(area%cuda_ready, error)
        CALL dbcsr_cuda_stream_destroy(area%cuda_stream, error)
+       CALL dbcsr_error_stop(error_handler2, error)
     ENDIF
 
     CALL dbcsr_error_stop(error_handler, error)
