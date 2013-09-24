@@ -265,11 +265,12 @@ MODULE dbcsr_mem_methods
     ENDIF
 
     IF(.NOT.is_ok) THEN
+        IF(ASSOCIATED(memtype%pool)) &
+           CALL dbcsr_mempool_destruct(memtype%pool, error)
+
         memtype%cuda_hostalloc = aim%cuda_hostalloc
         memtype%cuda_devalloc = aim%cuda_devalloc
         memtype%mpi = aim%mpi
-        IF(ASSOCIATED(memtype%pool)) &
-           CALL dbcsr_mempool_destruct(memtype%pool, error)
         IF(capacity>0) &
            CALL dbcsr_mempool_create(memtype%pool, capacity=capacity, name=pool_name)
     ENDIF
