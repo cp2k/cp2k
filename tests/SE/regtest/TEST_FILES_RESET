@@ -843,3 +843,5 @@ geom.inp
 b2h6_pm6.inp
 #improvement of bfgs and curvy steps
 hcn_pm6.inp
+# Numerics 
+dimer2.inp
