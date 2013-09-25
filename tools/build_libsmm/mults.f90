@@ -92,9 +92,11 @@ CONTAINS
 
    IF (PRESENT(M).AND.PRESENT(N).AND.PRESENT(K).AND.PRESENT(transpose_flavor)) THEN
       IF (PRESENT(stack_size_label)) THEN
+         ! +8 ... the buffered routines need to be able to read past the last 'used' elements of the C array.
+         !        the array therefore needs to be padded appropriately.
          write(6,'(A)') "      "//trdat(data_type)// &
               " :: C(M*N*"//TRIM(stack_size_label)// &
-              "), B(K*N*"//TRIM(stack_size_label)// &
+              "+8), B(K*N*"//TRIM(stack_size_label)// &
               "), A(M*K*"//TRIM(stack_size_label)//")"
       ELSE
          IF (write_intent) THEN
