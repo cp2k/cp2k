@@ -772,8 +772,8 @@ for dir in ${dirs}; do
  #
  runningtasks=10000
  while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
+    sleep 1
     runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
-    # sleep 1
  done
 
 done
