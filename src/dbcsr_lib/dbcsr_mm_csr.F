@@ -719,7 +719,7 @@ SUBROUTINE flush_stacks(this, left, right, purge, error)
     TYPE(stack_descriptor_type)              :: stack_descr
 
     n_stacks = SIZE(this%stacks_data, 3)
-    min_fill = SIZE(this%stacks_data, 2) / 2 !TODO: play with this
+    min_fill = SIZE(this%stacks_data, 2) * 3 / 4 !TODO: play with this
     IF(PRESENT(purge)) THEN
       IF(purge) min_fill = 0
     ENDIF
