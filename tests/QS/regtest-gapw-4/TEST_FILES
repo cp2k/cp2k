@@ -6,11 +6,11 @@
 # tests GAPW GTH and ALL
 #XAS
 CO.inp                  1
-CO_xastpxfh.inp                   1     4e-13
+CO_xastpxfh.inp                   1     2e-12
 CO_xastpxfh_locall.inp  1
 CO_xastpxfh_150Ry.inp   1
 #bug fix gpw_type
-H2O_gpw.inp             1
+H2O_gpw.inp                       1     2e-14
 #bug fix perdew_zunger
 Ne-BP.inp               1
 # mixed GPW/FULL_GAPW run
