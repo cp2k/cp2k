@@ -36,9 +36,6 @@ MODULE qs_scf_output
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              special_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_energy_types,                ONLY: scp_energy_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -61,10 +58,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes a summary of information after scf
 ! *****************************************************************************
-  SUBROUTINE qs_scf_print_summary(output_unit,qs_env,scp_dft,error)
+  SUBROUTINE qs_scf_print_summary(output_unit,qs_env,error)
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: scp_dft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_summary', &
@@ -77,18 +73,16 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(scp_environment_type), POINTER      :: scp_env
 
-    NULLIFY(rho,energy,dft_control,scf_env,qs_charges,scp_env)
+    NULLIFY(rho,energy,dft_control,scf_env,qs_charges)
     CALL get_qs_env(qs_env=qs_env,rho=rho,energy=energy,dft_control=dft_control,&
-                    scf_env=scf_env,qs_charges=qs_charges,scp_env=scp_env,error=error)
+                    scf_env=scf_env,qs_charges=qs_charges,error=error)
 
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     qmmm=qs_env%qmmm
     nelectron_total=scf_env%nelectron
 
-    IF(scp_dft)CALL qs_scf_scp_print_summary ( output_unit, scp_env, qmmm, error)
     CALL qs_scf_print_scf_summary(output_unit,rho,qs_charges,energy,nelectron_total,&
                                dft_control,qmmm,qs_env,gapw,gapw_xc,error)
 
@@ -238,38 +232,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_scf_loop_info
-
-! *****************************************************************************
-!> \brief writes rather detailed summary of SCP info
-!>      after the SCF
-!> \par History
-!>      03.2008 created [CJM]
-! *****************************************************************************
-  SUBROUTINE qs_scf_scp_print_summary(output_unit,scp_env,qmmm,error)
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    LOGICAL, INTENT(IN)                      :: qmmm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    TYPE(scp_energy_type), POINTER           :: energy
-
-    CALL get_scp_env ( scp_env=scp_env,&
-         energy=energy, error=error)
-    IF (output_unit>0) THEN
-       IF ( qmmm )  WRITE (UNIT=output_unit,FMT="((T3,A,T55,F25.14))")&
-            "SCP Hartree (SCP density, QMMM potential)       ",energy % e_scp_qmmm
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "SCP Hartree (SCP,SCP)                          ",energy % e_scp_hartree,&
-            "SCP Hartree Self (SCP,SCP)                     ",energy%e_scp_self,&
-            "SCP Hartree (KS,SCP)                           ",energy % e_scp_ks,&
-            "SCP Hartree Self (KS,SCP)                      ",energy%e_scp_ks_self,&
-            "SCP Hartree Self Core (KS core,SCP)            ",energy%e_scp_core,&
-            "SCP Polarization Kernel                        ",energy % e_scp_kernel, &
-            "SCP TOTAL                                      ",energy % e_scp_total
-
-       CALL m_flush(output_unit)
-    END IF
-  END SUBROUTINE qs_scf_scp_print_summary
 
 ! *****************************************************************************
 !> \brief writes rather detailed summary of densities and energies

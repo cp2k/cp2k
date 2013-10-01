@@ -152,8 +152,7 @@ CONTAINS
        CALL make_moment(qs_env,error)
        CALL write_available_results(qs_env=qs_env,error=error)
        dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-       CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,&
-                                     qs_env%dft_control%scp,qs_env%scp_env,atomic_kind_set,error)
+       CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
 
     END IF
 

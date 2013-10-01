@@ -1009,7 +1009,7 @@ CONTAINS
              CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b,&
                                    error=error)
        END DO
-       CALL write_mo_set(mos_new,particle_set,dft_section=dft_section,scp=.FALSE., &
+       CALL write_mo_set(mos_new,particle_set,dft_section=dft_section, &
                          atomic_kind_set=atomic_kind_set,error=error)
 
        DO ispin=1,SIZE(mos_new)

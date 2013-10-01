@@ -64,8 +64,7 @@ MODULE qs_energy_utils
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
-                                             scp_qs_dispersion
+  USE scp_dispersion,                  ONLY: scp_nddo_dispersion
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
@@ -243,15 +242,9 @@ CONTAINS
        CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
        CALL external_e_potential(qs_env,error=error)
 
-       IF ( dft_control%scp ) THEN
-          IF(dft_control%scp_control%dispersion ) THEN
-             CALL scp_qs_dispersion ( qs_env, calc_forces, error )
-          END IF
-       ELSE
-          ! Add possible pair potential dispersion energy - Evaluate first so we can print
-          ! energy info at the end of the SCF
-          CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
-       END IF
+       ! Add possible pair potential dispersion energy - Evaluate first so we can print
+       ! energy info at the end of the SCF
+       CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
 
     END IF
 

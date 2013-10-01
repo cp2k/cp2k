@@ -63,7 +63,6 @@ MODULE qs_force
                                              qs_force_type,&
                                              zero_qs_force
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
@@ -71,9 +70,6 @@ MODULE qs_force
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_utils,            ONLY: calc_c_mat_force
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
-  USE scp_force_types,                 ONLY: scp_force_type
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
@@ -147,8 +143,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
 
@@ -170,7 +164,6 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (rho)
     NULLIFY (scf_control)
-    NULLIFY ( scp_env, scp_force )
     NULLIFY (admm_env)
     NULLIFY (matrix_s_aux_fit_vs_orb)
 
@@ -306,8 +299,6 @@ CONTAINS
           CALL external_e_potential(qs_env,error)
        END IF
 
-       IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
-
        ! Compute grid-based forces
 
        IF (.NOT.qs_env%run_rtp)&
@@ -388,20 +379,6 @@ CONTAINS
                force(ikind)%efield(:,:)+&
                force(ikind)%eev(:,:)
 
-          ! **** SCP
-          IF ( dft_control%scp ) THEN
-             CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-             CALL get_scp_env ( scp_env = scp_env, force = scp_force, error = error )
-             ! The minus is because in SCP the forces are really -dE/dR ( search for "XXXX" below )
-             CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
-             force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )
-             ! Add dispersion if it is activated
-             IF (dft_control%scp_control%dispersion) THEN
-                CALL mp_sum ( scp_force ( ikind )%f_scp_disp, para_env % group )
-                force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp_disp ( :, : )
-             ENDIF
-          END IF
-          ! **** SCP
        END DO
 
 

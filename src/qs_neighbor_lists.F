@@ -775,18 +775,6 @@ CONTAINS
 
     END IF
 
-    ! SCP dispersion interaction
-    IF (qs_env%dft_control%scp) THEN
-       IF ( qs_env%dft_control%scp_control%dispersion ) THEN
-          c_radius(:) = 10.45_dp ! hard wired for now
-          CALL pair_radius_setup(aux_present,aux_present,c_radius,c_radius,pair_radius,error)
-          CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,subcells=subcells,&
-                                    name="sab_scp",error=error)
-          CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
-          CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,neighbor_list_section,&
-               "/SAB_SCP","sab_scp","SCP DISPERSION PAIR POTENTIAL",error)
-       END IF
-    END IF
     IF (scptb) THEN
        ! Build the neighbor lists for the Core term
        default_present = .FALSE.

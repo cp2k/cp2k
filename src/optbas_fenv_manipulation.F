@@ -193,7 +193,7 @@ CONTAINS
  
     CALL read_mo_set(mos,atomic_kind,particle_set,qs_env%para_env,&
       id_nr=0,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-      scp=dft_control%scp, scp_env=qs_env%scp_env, natom_mismatch=natom_mismatch,error=error)
+      natom_mismatch=natom_mismatch,error=error)
    
     CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
            error=error)

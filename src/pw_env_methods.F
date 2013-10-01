@@ -73,8 +73,6 @@ MODULE pw_env_methods
        realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
        rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
        rs_grid_release_descriptor
-  USE scp_environment_types,           ONLY: scp_environment_type
-  USE scp_rspw_methods,                ONLY: maxradius_scp_init
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -629,7 +627,6 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
     TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
                                                 orb_basis_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(scp_environment_type), POINTER      :: scp_env
 
 ! a very small safety factor might be needed for roundoff issues
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
@@ -787,15 +784,6 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        maxradius = maxradius * safety_factor
        radius(igrid_level)=maxradius
     END DO
-
-    ! Compare the maxradius with that of the AUX_BASIS used with SCP
-    IF ( dft_control % scp ) THEN
-       CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
-       CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
-                                pw_env%gridlevel_info, radius, &
-                                dft_control%qs_control%eps_gvg_rspace, &
-                                dft_control%qs_control%eps_rho_rspace, error )
-    END IF
 
   CALL timestop(handle)
 

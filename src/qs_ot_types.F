@@ -59,9 +59,7 @@ MODULE qs_ot_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
-                                             aux_coeff_type,&
-                                             get_aux_coeff
+  USE scp_coeff_types,                 ONLY: aux_coeff_set_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -85,7 +83,7 @@ MODULE qs_ot_types
   TYPE qs_ot_settings_type
      LOGICAL           :: do_rotation, do_ener
      ! **** SCP
-     LOGICAL           :: scp_dft, scp_nddo, ks
+     LOGICAL           :: scp_nddo, ks
      ! **** SCP
      CHARACTER(LEN=4)  :: ot_method
      CHARACTER(LEN=3)  :: ot_algorithm
@@ -281,7 +279,6 @@ CONTAINS
     settings%on_the_fly_loc=.FALSE.
     settings%ortho_irac="CHOL"
     settings%scp_nddo=.FALSE.
-    settings%scp_dft=.FALSE.
     settings%ks=.TRUE.
     settings%occupation_preconditioner=.FALSE.
     settings%add_nondiag_energy=.FALSE.
@@ -321,13 +318,6 @@ CONTAINS
             CALL cp_dbcsr_set(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
     ENDIF
     ! **** SCP
-    IF (qs_ot_env%settings%scp_dft) THEN
-       qs_ot_env % gx ( : ) = 0.0_dp
-       IF (qs_ot_env%use_dx) &
-            qs_ot_env % dx ( : ) = 0.0_dp
-       IF (qs_ot_env%use_gx_old) &
-            qs_ot_env % gx_old ( : ) = 0.0_dp
-    ENDIF
     IF (qs_ot_env%settings%scp_nddo) THEN
        CALL cp_dbcsr_set( qs_ot_env % gxmat, 0.0_dp, error=error )
        IF (qs_ot_env%use_dx) &
@@ -363,13 +353,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, ikind, istat, k, &
-                                                m_diis, my_ortho_k, n, ncoef, &
-                                                ncoef_of_kind, nkind
+    INTEGER                                  :: i, ii, istat, k, m_diis, &
+                                                my_ortho_k, n, ncoef
     LOGICAL                                  :: failure, mixed_precision
     TYPE(array_i1d_obj) :: col_blk_size_k, col_blk_size_o, col_dist, &
       col_dist_o, row_blk_size_k, row_blk_size_o, row_dist, row_dist_o
-    TYPE(aux_coeff_type), POINTER            :: local_coeff
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj)             :: dist_k_k, dist_n_k, dist_n_o, &
@@ -811,43 +799,6 @@ CONTAINS
       qs_ot_env % n_el_scp = ncoef
 
     END IF
-    IF ( qs_ot_env % settings % scp_dft ) THEN
-       CALL cp_para_env_retain (  aux_coeff_set % distribution % para_env, error )
-       qs_ot_env % scp_para_env => aux_coeff_set % distribution % para_env
-       ncoef = 0
-       nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
-       DO ikind = 1, nkind
-          local_coeff => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
-          IF ( ASSOCIATED ( local_coeff ) ) THEN
-             CALL get_aux_coeff ( coeffs = local_coeff,  &
-                  ncoef_of_kind = ncoef_of_kind, error = error  )
-             ncoef = ncoef + ncoef_of_kind
-          END IF
-       ENDDO
-       ALLOCATE ( qs_ot_env % x ( ncoef  ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          ALLOCATE(qs_ot_env%h_e( m_diis, ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(qs_ot_env%h_x( m_diis, ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       ALLOCATE ( qs_ot_env%gx ( ncoef  ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-       IF (qs_ot_env%use_gx_old) THEN
-          ALLOCATE ( qs_ot_env%gx_old ( ncoef  ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF (qs_ot_env%use_dx) THEN
-          ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          qs_ot_env%dx = 0.0_dp
-       ENDIF
-    ENDIF
     ! **** SCP
 
     CALL cp_dbcsr_distribution_release (dist_n_k)
@@ -948,28 +899,6 @@ CONTAINS
        IF(ASSOCIATED(qs_ot_env%rot_mat_dx)) CALL cp_dbcsr_release_p(qs_ot_env%rot_mat_dx, error=error)
     ENDIF
     ! **** SCP
-    IF (qs_ot_env%settings%scp_dft) THEN
-       DEALLOCATE ( qs_ot_env % x, STAT=istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( qs_ot_env % gx, STAT=istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          DEALLOCATE (qs_ot_env % h_x, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE (qs_ot_env % h_e, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-       IF (qs_ot_env%use_dx) THEN
-          DEALLOCATE ( qs_ot_env % dx, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-       IF (qs_ot_env%use_gx_old) THEN
-          DEALLOCATE ( qs_ot_env % gx_old, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-       CALL cp_para_env_release ( qs_ot_env % scp_para_env, error )
-    END IF
-
     IF (qs_ot_env%settings%scp_nddo) THEN
        CALL cp_dbcsr_deallocate_matrix ( qs_ot_env % xmat, error=error )
        CALL cp_dbcsr_deallocate_matrix ( qs_ot_env % gxmat, error=error )
@@ -1168,7 +1097,6 @@ error=error)
     CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=settings%eps_taylor,error=error)
     CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=settings%max_taylor,error=error)
     CALL section_vals_val_get(ot_section,"ROTATION",l_val=settings%do_rotation,error=error)
-    CALL section_vals_val_get(ot_section,"SCP_DFT",l_val=settings%scp_dft,error=error)
     CALL section_vals_val_get(ot_section,"SCP_NDDO",l_val=settings%scp_nddo,error=error)
     CALL section_vals_val_get(ot_section,"ENERGIES",l_val=settings%do_ener,error=error)
     CALL section_vals_val_get(ot_section,"OCCUPATION_PRECONDITIONER", &

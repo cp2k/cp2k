@@ -29,7 +29,6 @@ MODULE scp_environment
                                              dbcsr_repl_full,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pnnl,&
                                              use_scp_basis_set
@@ -42,18 +41,10 @@ MODULE scp_environment
   USE periodic_table,                  ONLY: get_ptable_info
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_create,&
-                                             aux_coeff_set_initialize,&
-                                             aux_coeff_set_release,&
-                                             aux_coeff_set_type
   USE scp_energy_types,                ONLY: allocate_scp_energy,&
                                              scp_energy_type
-  USE scp_environment_methods,         ONLY: scp_qs_env_setup
   USE scp_environment_types,           ONLY: scp_environment_type,&
                                              set_scp_env
-  USE scp_force_types,                 ONLY: allocate_scp_force,&
-                                             init_scp_force,&
-                                             scp_force_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -69,90 +60,13 @@ MODULE scp_environment
 
   PRIVATE
 
-  PUBLIC :: scp_dft_init, scp_nddo_init
+  PUBLIC :: scp_nddo_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_environment'
 
 
 CONTAINS
 
-! *****************************************************************************
-!> \brief Initializes the SCP environment using the QS environment
-! *****************************************************************************
-  SUBROUTINE scp_dft_init ( scp_env, qs_env, error )
-
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(qs_environment_type), OPTIONAL, &
-      POINTER                                :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_dft_init', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nkind, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(scp_energy_type), POINTER           :: energy
-    TYPE(scp_force_type), POINTER            :: force( : )
-    TYPE(section_vals_type), POINTER         :: dft_section, input
-
-    CALL timeset(routineN,handle)
-
-    failure = .FALSE.
-    ! Nullifying  pointers
-    NULLIFY ( aux_coeff_set )
-    NULLIFY ( energy, force )
-    NULLIFY ( para_env )
-    NULLIFY ( input )
-    NULLIFY ( atomic_kind_set )
-    NULLIFY ( local_particles )
-
-    IF ( PRESENT ( qs_env ) ) THEN
-      CALL get_qs_env (qs_env, para_env = para_env, input = input, &
-                       atomic_kind_set = atomic_kind_set, &
-                       local_particles = local_particles, error = error )
-
-      dft_section =>  section_vals_get_subs_vals( input, "DFT", error = error )
-      ! Set the input section of the SCP
-      CALL set_scp_env(scp_env,input=dft_section,&
-           error=error)
-
-      ! Allocate and initialize coefs pointer
-      CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,atomic_kind_set=atomic_kind_set,&
-           distribution=local_particles, error=error)
-      CALL aux_coeff_set_initialize(aux_coeff_set,para_env,error)
-      CALL set_scp_env (scp_env=scp_env,aux_coeff_set = aux_coeff_set, error=error)
-      CALL aux_coeff_set_release(aux_coeff_set, error=error)
-
-      ! Allocate the data structure for energies ***
-      CALL allocate_scp_energy (energy)
-
-      ! Allocate the data structure for energies ***
-      nkind = SIZE(atomic_kind_set)
-      ALLOCATE (natom_of_kind(nkind),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom_of_kind=natom_of_kind)
-      CALL allocate_scp_force(force,natom_of_kind)
-      DEALLOCATE (natom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL init_scp_force(force)
-
-      ! set the scp_env
-      CALL set_scp_env (scp_env=scp_env, energy=energy,force=force,error=error)
-
-      !Sets up pw, grids, densities
-      CALL scp_qs_env_setup(scp_env,qs_env,error)
-    END IF
-    CALL timestop(handle)
-
-  END SUBROUTINE scp_dft_init
 ! *****************************************************************************
 !> \brief Initializes the SCP environment using the QS environment
 ! *****************************************************************************

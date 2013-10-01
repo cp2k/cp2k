@@ -73,13 +73,8 @@ MODULE force_env_types
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_create
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_create
-  USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type,&
-                                             qs_ks_scp_release
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
-  USE scp_environment_types,           ONLY: set_scp_env
-  USE scp_rspw_methods,                ONLY: scp_qs_rspw_rebuild
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
@@ -819,7 +814,6 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
-    TYPE(qs_ks_scp_env_type), POINTER        :: new_ks_scp_env
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -836,18 +830,6 @@ CONTAINS
           CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error = error )
           CALL set_qs_env( force_env % qs_env, ks_env=new_ks_env ,error=error)
           CALL qs_ks_release ( new_ks_env ,error=error)
-          IF ( force_env % qs_env % dft_control % scp ) THEN
-             ! initialize the SCP env to the qs env
-             CALL scp_qs_rspw_rebuild (force_env%qs_env%scp_env%rspw,  &
-                                       qs_env = force_env % qs_env, &
-                                       error = error)
-             ! update the ks_scp_environment
-             CALL qs_ks_scp_create (new_ks_scp_env, force_env % qs_env, error )
-             CALL set_scp_env (force_env % qs_env % scp_env,  &
-                               ks_scp_env = new_ks_scp_env,   &
-                               error = error )
-             CALL qs_ks_scp_release ( new_ks_scp_env, error=error )
-          ENDIF
        CASE (use_ep_force)
           NULLIFY ( new_ks_env )
           CPPrecondition(ASSOCIATED(force_env%ep_env),cp_failure_level,routineP,error,failure)

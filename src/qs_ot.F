@@ -36,9 +36,6 @@ MODULE qs_ot
   USE preconditioner,                  ONLY: apply_preconditioner
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_ot_types,                     ONLY: qs_ot_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
-                                             aux_coeff_type,&
-                                             get_aux_coeff
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -53,8 +50,6 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_get_orbitals_ref
   PUBLIC  :: qs_ot_get_derivative_ref
   PUBLIC  :: qs_ot_new_preconditioner
-  PUBLIC  :: qs_ot_get_scp_dft_derivative
-  PUBLIC  :: qs_ot_get_scp_dft_coeffs
   PUBLIC  :: qs_ot_get_scp_nddo_derivative
   PUBLIC  :: qs_ot_get_scp_nddo_coeffs
   PRIVATE :: qs_ot_p2m_diag
@@ -114,12 +109,6 @@ CONTAINS
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
        ! ***SCP
-       IF ( qs_ot_env % settings % scp_dft ) THEN
-          ncoef = SIZE ( qs_ot_env % gx )
-          ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          qs_ot_env%dx = 0.0_dp
-       ENDIF
        IF ( qs_ot_env % settings % scp_nddo ) THEN
           ALLOCATE(qs_ot_env % dxmat)
           CALL cp_dbcsr_init(qs_ot_env % dxmat, error=error)
@@ -1137,69 +1126,6 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_scp_nddo_derivative
 ! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_dft_coeffs ( qs_ot_env, aux_coeff_set, error )
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: i, icoef, icoef_atom, ikind, &
-                                                n_els, ncoef_atom, nkind
-    REAL(dp), DIMENSION(:, :), POINTER       :: c
-    TYPE(aux_coeff_type), POINTER            :: local_coeffs
-
-    icoef = 0
-    nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
-    DO ikind = 1, nkind
-       local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
-       IF ( ASSOCIATED ( local_coeffs ) ) THEN
-          CALL get_aux_coeff ( coeffs = local_coeffs, c = c,  &
-               n_els = n_els, ncoef_atom = ncoef_atom, &
-               error = error  )
-          DO i = 1, n_els
-             DO icoef_atom = 1, ncoef_atom
-                icoef = icoef + 1
-                !DBG
-                !              IF ( icoef == 1 ) &
-                !              c ( i, icoef_atom ) = qs_ot_env % x ( icoef ) + .05
-                !DBG
-                c ( i, icoef_atom ) = qs_ot_env % x ( icoef )
-             END DO
-          END DO
-       END IF
-    END DO
-  END SUBROUTINE qs_ot_get_scp_dft_coeffs
-  ! this routines sets the SCP derivative to the appropriate
-  ! qs_ot_env subtype
-! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_dft_derivative ( qs_ot_env, aux_coeff_set, error )
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: i, icoef, icoef_atom, ikind, &
-                                                n_els, ncoef_atom, nkind
-    REAL(dp), DIMENSION(:, :), POINTER       :: c, fc
-    TYPE(aux_coeff_type), POINTER            :: local_coeffs
-
-    icoef = 0
-    nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
-    DO ikind = 1, nkind
-       local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
-       IF ( ASSOCIATED ( local_coeffs ) ) THEN
-          CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  &
-               n_els = n_els, ncoef_atom = ncoef_atom, &
-               error = error  )
-          DO i = 1, n_els
-             DO icoef_atom = 1, ncoef_atom
-                icoef = icoef + 1
-                qs_ot_env % x ( icoef ) = c ( i, icoef_atom )
-                qs_ot_env % gx ( icoef ) = -fc ( i, icoef_atom )
-             END DO
-          END DO
-       END IF
-    END DO
-  END SUBROUTINE qs_ot_get_scp_dft_derivative
-
   ! this routines computes dE/dx=dx, with dx ortho to sc0
   ! needs dE/dC=hc,C0,X,SX,p
   ! if preconditioned it will not be the derivative, but the lagrangian multiplier

@@ -45,7 +45,6 @@ MODULE qs_ot_scf
   USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                              qs_ot_get_orbitals_ref,&
                                              qs_ot_get_p,&
-                                             qs_ot_get_scp_dft_coeffs,&
                                              qs_ot_get_scp_nddo_coeffs
   USE qs_ot_minimizer,                 ONLY: ot_mini
   USE qs_ot_types,                     ONLY: ot_readwrite_input,&
@@ -55,9 +54,7 @@ MODULE qs_ot_scf
                                              qs_ot_settings_init,&
                                              qs_ot_type
   USE scf_control_types,               ONLY: smear_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
-                                             aux_coeff_type,&
-                                             get_aux_coeff
+  USE scp_coeff_types,                 ONLY: aux_coeff_set_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -344,7 +341,6 @@ CONTAINS
     ENDIF
     ! **** SCP
     ! generate the SCP aux coeffs using the new x
-    IF (qs_ot_env(1)%settings%scp_dft) CALL qs_ot_get_scp_dft_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
     IF (qs_ot_env(1)%settings%scp_nddo) CALL qs_ot_get_scp_nddo_coeffs ( qs_ot_env ( 1 ), pscp, error )
     ! **** SCP
 
@@ -409,13 +405,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, icoef, icoef_atom, &
-                                                ikind, ispin, k, n, n_els, &
-                                                ncoef_atom, nkind, nspin
+    INTEGER                                  :: handle, ispin, k, n, nspin
     LOGICAL                                  :: failure, is_equal
-    REAL(dp), DIMENSION(:, :), POINTER       :: c, fc
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
-    TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff_fm
     TYPE(dbcsr_distribution_obj)             :: dist
@@ -448,7 +440,6 @@ CONTAINS
     ENDDO
 
     ! **** SCP
-    NULLIFY ( local_coeffs, c, fc )
     ! **** SCP
     ! adapted for work with the restricted keyword
     nspin=SIZE(qs_ot_env)
@@ -487,9 +478,6 @@ CONTAINS
           CALL cp_dbcsr_set(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
        ENDIF
 !********** PERHAPS ONLY ALLOCATE spin=1 for SCP ???????
-       IF (qs_ot_env(ispin)%settings%scp_dft) THEN
-          qs_ot_env ( ispin ) % x ( : ) = 0.0_dp
-       ENDIF
        IF (qs_ot_env(ispin)%settings%scp_nddo) THEN
           CALL cp_dbcsr_set ( qs_ot_env ( ispin ) % xmat, 0.0_dp, error=error )
        ENDIF
@@ -513,25 +501,6 @@ CONTAINS
 !!!  CAN WE REPLACE WITH THE CALL TO QS_OT_GET_SCP_*_DERIVATIVE???????
        ! **** SCP
        ! set c = qs_ot_env % x and -fc = qs_ot_env % gx  for SCP
-       IF (qs_ot_env(1)%settings%scp_dft .AND. ispin == 1) THEN
-          icoef = 0
-          nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
-          DO ikind = 1, nkind
-             local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
-             IF ( ASSOCIATED ( local_coeffs ) ) THEN
-                CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  &
-                     n_els = n_els, ncoef_atom = ncoef_atom, &
-                     error = error  )
-                DO i = 1, n_els
-                   DO icoef_atom = 1, ncoef_atom
-                      icoef = icoef + 1
-                      qs_ot_env ( 1 ) % x ( icoef ) = c ( i, icoef_atom )
-                      qs_ot_env ( 1 ) % gx ( icoef ) = -fc ( i, icoef_atom )
-                   END DO
-                END DO
-             END IF
-          END DO
-       END IF
        IF (qs_ot_env(1)%settings%scp_nddo .AND. ispin == 1) THEN
          CALL cp_dbcsr_copy ( qs_ot_env(1)%xmat, pscp, error=error )
          CALL cp_dbcsr_copy ( qs_ot_env(1)%gxmat, fscp, error=error )

@@ -64,8 +64,7 @@ MODULE qs_environment_methods
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment,                 ONLY: scp_dft_init,&
-                                             scp_nddo_init
+  USE scp_environment,                 ONLY: scp_nddo_init
   USE scp_environment_types,           ONLY: scp_env_create,&
                                              scp_env_release,&
                                              scp_environment_type
@@ -113,7 +112,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
     INTEGER                                  :: handle, n_ao_aux_fit, &
                                                 nhistory, nvariables, stat
-    LOGICAL                                  :: failure, scp_dft, scp_nddo
+    LOGICAL                                  :: failure, scp_nddo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -151,7 +150,6 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     scp_nddo = dft_control%qs_control%se_control%scp
-    scp_dft = dft_control%scp
     IF (.NOT. failure) THEN
        ! allocate qs_charges
        CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
@@ -215,21 +213,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
        CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
 
-
-
        ! SCP
-       IF ( scp_nddo .OR. scp_dft ) THEN
+       IF ( scp_nddo ) THEN
        ! create the SCP env
           CALL scp_env_create ( scp_env, error )
-          ! Specific to scp_dft
-          IF ( scp_dft ) THEN
-          ! initialize the SCP env to the qs env
-             CALL scp_dft_init ( scp_env, qs_env, error )
-          ENDIF
-          ! Specific to scp_nddo
-          IF ( scp_nddo ) THEN
-            CALL scp_nddo_init ( scp_env, qs_env, error )
-          ENDIF
+          CALL scp_nddo_init ( scp_env, qs_env, error )
           CALL set_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
           ! keeping only one copy
           CALL scp_env_release ( scp_env, error )

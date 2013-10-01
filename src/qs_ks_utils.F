@@ -119,10 +119,6 @@ MODULE qs_ks_utils
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
-  USE qs_ks_scp_methods,               ONLY: scp_calculate_gpw_energy,&
-                                             scp_calculate_qmmm_energy,&
-                                             scp_modify_hartree_pot
-  USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -134,11 +130,9 @@ MODULE qs_ks_utils
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE rtp_admm_methods,                ONLY: rtp_admm_density_matrix,&
                                              rtp_admm_merge_ks_matrix
-  USE scp_energy,                      ONLY: scp_qs_energies
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
   USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
   USE timings,                         ONLY: timeset,&

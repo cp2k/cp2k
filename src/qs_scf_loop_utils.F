@@ -37,8 +37,6 @@ MODULE qs_scf_loop_utils
                                              self_consistency_check
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_did_change,&
-                                             qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
@@ -67,7 +65,6 @@ MODULE qs_scf_loop_utils
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
-  USE scp_density_methods,             ONLY: update_rhoscp
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type,&
                                              set_scp_env
@@ -92,10 +89,10 @@ CONTAINS
 !> \brief computes properties for a given hamilonian using the current wfn 
 ! *****************************************************************************
 
-  SUBROUTINE qs_scf_set_loop_flags(scp_dft,scp_nddo,scf_control,scf_env,diis_step,&
+  SUBROUTINE qs_scf_set_loop_flags(scp_nddo,scf_control,scf_env,diis_step,&
                       use_jacobi,energy_only,just_energy,exit_inner_loop,error)
 
-    LOGICAL                                  :: scp_dft, scp_nddo
+    LOGICAL                                  :: scp_nddo
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     LOGICAL                                  :: diis_step, use_jacobi, &
@@ -108,23 +105,16 @@ CONTAINS
 
     LOGICAL                                  :: even_iter, odd_iter
 
-!   ****** Setting Some SCP flags*******
-! check if we are doing SCP:
-!      **** qs_ot_env%settings%scp_dft,qs_ot_env%settings%ks ARE BOTH .TRUE. here *****
-
-    IF ( scp_dft .OR. scp_nddo  ) THEN
+    IF ( scp_nddo  ) THEN
 ! check if we are doing outer SCF optimization of SCP coeffs:
       SELECT CASE (scf_control%outer_scf%type)
       CASE ( outer_scf_none ) 
          scf_env%qs_ot_env(1)%settings%ks = .TRUE.
-!*** qs_ot_env%settings%scp_dft*** may be set .FALSE. on input
-!    and we will preserve this if there is no outer_scf
       CASE ( outer_scf_scp )      
 ! IF outer scf count is even, then only optimize SCP, else optimize KS
         even_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) == 0
         odd_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) /= 0
         scf_env%qs_ot_env(1)%settings%ks      = even_iter                                    
-        scf_env%qs_ot_env(1)%settings%scp_dft = odd_iter .AND. scp_dft
         scf_env%qs_ot_env(1)%settings%scp_nddo= odd_iter .AND. scp_nddo
       END SELECT
     END IF
@@ -162,9 +152,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, has_unit_metric, &
-                                                scp_dft, scp_nddo, &
-                                                skip_diag_sub
-    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+                                                scp_nddo, skip_diag_sub
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
@@ -178,8 +166,8 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
 
     failure=.FALSE.
-    NULLIFY(energy,ks_env,scp_env,matrix_ks,rho,mos,dft_control,scf_control,aux_coeff_set,&
-            ks_scp, pscp)
+    NULLIFY(energy, ks_env, scp_env, matrix_ks, rho, mos, dft_control, &
+         scf_control, ks_scp, pscp)
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,energy=energy,&
@@ -258,16 +246,9 @@ CONTAINS
            scf_section,.FALSE.,error=error)
 ! OT without diagonlization. Needs special treatment for SCP runs
     CASE(ot_method_nr)
-       scp_dft =  scf_env%qs_ot_env(1)%settings%scp_dft
        scp_nddo = scf_env%qs_ot_env(1)%settings%scp_nddo
        ! ***SCP
-       IF ( scp_dft ) THEN
-          CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
-          CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
-               qs_env%mo_derivs,energy%total, &
-               matrix_s, aux_coeff_set=aux_coeff_set, energy_only=energy_only, &
-               has_unit_metric=has_unit_metric,error=error)
-       ELSEIF ( scp_nddo ) THEN
+       IF ( scp_nddo ) THEN
           CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
           CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
                qs_env%mo_derivs,energy%total, &
@@ -554,24 +535,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ks_updates', &
       routineP = moduleN//':'//routineN
 
-! ***SCP 
-
-    IF (  qs_env % dft_control % scp )&
-       CALL qs_ks_scp_update ( qs_env, just_energy=just_energy, error=error )
-    ! ***SCP
     CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=calculate_forces,&
          just_energy=just_energy,error=error)
     
   END  SUBROUTINE qs_scf_ks_updates
 
 ! *****************************************************************************
-!> \brief Performes the updates rho and rhoscp (takes car of mixing as well)
+!> \brief Performes the updates rho (takes care of mixing as well)
 ! *****************************************************************************
-  SUBROUTINE qs_scf_rho_update(rho,qs_env,scf_env,scp_dft,ks_env,mix_rho,error)
+  SUBROUTINE qs_scf_rho_update(rho,qs_env,scf_env,ks_env,mix_rho,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_rho_type), POINTER               :: rho
-    LOGICAL,INTENT(IN)                       :: scp_dft, mix_rho
+    LOGICAL,INTENT(IN)                       :: mix_rho
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
@@ -587,13 +563,6 @@ CONTAINS
     END IF
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-    ! *** SCP
-    IF ( scp_dft ) THEN
-       CALL update_rhoscp ( qs_env = qs_env, error = error )
-       CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
-    ENDIF
-    ! *** SCP
- 
   END SUBROUTINE qs_scf_rho_update
 ! *****************************************************************************
 !> \brief Performes the necessary steps before leaving innner scf loop
@@ -607,7 +576,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, scp_dft, scp_nddo
+    LOGICAL                                  :: failure, scp_nddo
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -624,12 +593,9 @@ CONTAINS
                     rho=rho, dft_control=dft_control,harris_env=harris_env,&
                     scf_control=scf_control, para_env=para_env,error=error)
 
-    scp_dft = dft_control%scp
     scp_nddo = dft_control%qs_control%se_control%scp
 
 !   consistent deallocation in cleanup_scf_loop
-    IF ( scp_dft  .AND. scf_control%outer_scf%type==outer_scf_scp ) &
-    scf_env%qs_ot_env(1)%settings%scp_dft=.TRUE.
     IF ( scp_nddo  .AND. scf_control%outer_scf%type==outer_scf_scp ) &
     scf_env%qs_ot_env(1)%settings%scp_nddo=.TRUE.
 
@@ -637,7 +603,7 @@ CONTAINS
 
     ! now, print out energies and charges corresponding to the obtained wfn
     ! (this actually is not 100% consistent at this point)!
-    CALL qs_scf_print_summary(output_unit,qs_env,scp_dft,error)
+    CALL qs_scf_print_summary(output_unit,qs_env,error)
 
     IF (harris_flag) energy%total = harris_env%harris_energy%Eharris
 
@@ -646,8 +612,7 @@ CONTAINS
     !   *** update rspace rho since the mo changed
     !   *** this might not always be needed (i.e. no post calculation / no forces )
     !   *** but guarantees that rho and wfn are consistent at this point
-    CALL qs_scf_rho_update(rho,qs_env,scf_env,scp_dft,ks_env,&
-                           mix_rho=.FALSE.,error=error)
+    CALL qs_scf_rho_update(rho,qs_env,scf_env,ks_env,mix_rho=.FALSE.,error=error)
 
   END SUBROUTINE qs_scf_inner_finalize
 

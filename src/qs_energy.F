@@ -33,7 +33,6 @@ MODULE qs_energy
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_scf,                          ONLY: scf
   USE rt_propagation_methods,          ONLY: propagation_step,&
@@ -156,9 +155,6 @@ CONTAINS
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
-        IF ( dft_control%scp ) THEN
-           CALL qs_ks_scp_update ( qs_env, just_energy=.TRUE., error=error )
-        END IF
         CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &

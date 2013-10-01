@@ -36,14 +36,6 @@ MODULE cp_control_types
   END TYPE pw_grid_option
 
 ! *****************************************************************************
-! \brief Control parameters for SCP calculations
-! *****************************************************************************
-  TYPE scp_control_type
-     LOGICAL                              :: dispersion
-     INTEGER                              :: coeff_guess
-  END TYPE scp_control_type
-
-! *****************************************************************************
 ! \brief Control parameters for REAL_TIME_PROPAGATION calculations
 ! *****************************************************************************
   TYPE rtp_control_type
@@ -285,7 +277,6 @@ MODULE cp_control_types
     LOGICAL                                       :: ofgpw
     LOGICAL                                       :: dftb
     LOGICAL                                       :: scptb
-    LOGICAL                                       :: scp
     LOGICAL                                       :: semi_empirical
     LOGICAL                                       :: mulliken_restraint
     LOGICAL                                       :: ddapc_restraint
@@ -358,7 +349,6 @@ MODULE cp_control_types
      TYPE(qs_control_type), POINTER    :: qs_control
      TYPE(tddfpt_control_type),POINTER :: tddfpt_control
      TYPE(xas_control_type), POINTER   :: xas_control
-     TYPE(scp_control_type),POINTER    :: scp_control
      TYPE(rtp_control_type),POINTER    :: rtp_control
      TYPE(admm_control_type), POINTER &
                                        :: admm_control
@@ -385,7 +375,6 @@ MODULE cp_control_types
                                           uks,&
                                           lsd,&
                                           dft_plus_u,&
-                                          scp,&
                                           apply_efield_field,&
                                           apply_period_efield,&
                                           apply_external_potential,&
@@ -414,7 +403,6 @@ MODULE cp_control_types
             ddapc_restraint_p_type,&
             dftb_control_type,&
             scptb_control_type,&
-            scp_control_type,&
             becke_restraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type,&
@@ -426,7 +414,6 @@ MODULE cp_control_types
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
             dft_control_create,&
-            scp_control_create,&
             xas_control_create,&
             tddfpt_control_create,&
             admm_control_create,&
@@ -783,7 +770,6 @@ CONTAINS
        last_dft_control_id=last_dft_control_id+1
        dft_control%id_nr=last_dft_control_id
        NULLIFY(dft_control%xas_control)
-       NULLIFY(dft_control%scp_control)
        NULLIFY(dft_control%qs_control)
        NULLIFY(dft_control%tddfpt_control)
        NULLIFY(dft_control%efield_fields)
@@ -839,7 +825,6 @@ CONTAINS
           CALL qs_control_release(dft_control%qs_control, error=error)
           CALL tddfpt_control_release(dft_control%tddfpt_control, error=error)
           CALL xas_control_release(dft_control%xas_control, error=error)
-          CALL scp_control_release(dft_control%scp_control, error=error)
           CALL admm_control_release(dft_control%admm_control, error=error)
           CALL efield_fields_release(dft_control%efield_fields, error=error)
           IF (ASSOCIATED(dft_control%period_efield))THEN
@@ -1072,44 +1057,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE efield_fields_release
-
-! *****************************************************************************
-  SUBROUTINE scp_control_create(scp_control,error)
-    TYPE(scp_control_type), POINTER          :: scp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(scp_control),cp_failure_level,routineP,error,failure)
-    ALLOCATE(scp_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE scp_control_create
-
-! *****************************************************************************
-  SUBROUTINE scp_control_release(scp_control,error)
-    TYPE(scp_control_type), POINTER          :: scp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    IF (ASSOCIATED(scp_control)) THEN
-       DEALLOCATE(scp_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-  END SUBROUTINE scp_control_release
 
 ! *****************************************************************************
   SUBROUTINE dftb_control_create(dftb_control,error)

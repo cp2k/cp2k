@@ -79,7 +79,6 @@ MODULE qs_scf_initialization
                                              mixing_init
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
@@ -108,7 +107,6 @@ MODULE qs_scf_initialization
                                              wfi_get_method_label,&
                                              wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_density_methods,             ONLY: update_rhoscp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_env_types,                   ONLY: xas_environment_type
@@ -993,13 +991,6 @@ CONTAINS
                            qs_env%para_env,error=error)
           END IF
        END IF
-
-! *** SCP
-       IF ( qs_env % dft_control % scp ) THEN
-         CALL update_rhoscp ( qs_env = qs_env, error = error )
-         CALL qs_ks_scp_did_change ( qs_env=qs_env, rho_changed = .TRUE., error = error )
-       END IF
-! *** SCP
 
        DO ispin=1,SIZE(qs_env%mos)!fm->dbcsr
           IF(qs_env%mos(ispin)%mo_set%use_mo_coeff_b) THEN

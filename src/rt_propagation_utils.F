@@ -57,7 +57,6 @@ MODULE  rt_propagation_utils
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE scp_environment_types,           ONLY: scp_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -303,7 +302,6 @@ MODULE  rt_propagation_utils
 
     INTEGER                                  :: i, id_nr, ispin, nspin, &
                                                 qs_env_id
-    LOGICAL                                  :: scp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -313,21 +311,19 @@ MODULE  rt_propagation_utils
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     NULLIFY(atomic_kind_set,mo_array,particle_set)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, &
-         input=input,scp_env=scp_env,&
+         input=input,&
          id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
 
     id_nr=0
     nspin=SIZE(mo_array)
     p_rmpv => qs_env%rho%rho_ao
-    scp = dft_control%scp
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
@@ -336,7 +332,7 @@ MODULE  rt_propagation_utils
     CASE(use_restart_wfn)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            scp=scp, scp_env=scp_env, error=error)
+            error=error)
        DO i=1,SIZE(qs_env%mos)
           CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,qs_env%rtp%mos_old(2*i-1)%matrix,error)
           CALL cp_fm_set_all(qs_env%rtp%mos_new(2*i)%matrix,zero,zero,error)

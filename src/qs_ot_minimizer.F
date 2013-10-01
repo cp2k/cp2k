@@ -25,11 +25,9 @@ MODULE qs_ot_minimizer
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathlib,                         ONLY: diamat_all
-  USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                              qs_ot_get_derivative_ref,&
-                                             qs_ot_get_scp_dft_derivative,&
                                              qs_ot_get_scp_nddo_derivative
   USE qs_ot_types,                     ONLY: qs_ot_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
@@ -74,8 +72,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo
+    LOGICAL                                  :: do_ener, do_ks, do_scp_nddo
     REAL(KIND=dp)                            :: tmp
 
    CALL timeset(routineN,handle)
@@ -83,7 +80,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
    nspin=SIZE(qs_ot_env)
 
    do_ks = qs_ot_env ( 1 ) % settings % ks
-   do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
    do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
@@ -93,7 +89,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
    IF (.NOT. qs_ot_env(1)%energy_only) THEN
       qs_ot_env(1)%gradient=0.0_dp
 ! **** SCP
-      IF  ( do_scp_dft ) CALL qs_ot_get_scp_dft_derivative ( qs_ot_env ( 1 ), aux_coeff_set, error )
       IF  ( do_scp_nddo ) CALL qs_ot_get_scp_nddo_derivative ( qs_ot_env ( 1 ), pscp, fscp, error )
 ! **** SCP
       DO ispin=1,nspin
@@ -122,12 +117,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
              ENDIF
            END IF
 ! ***SCP
-           IF ( do_scp_dft .AND. ispin == 1 ) THEN
-             tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % dx )
-             CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-             qs_ot_env ( 1 ) % gradient = qs_ot_env ( 1 ) % gradient + tmp
-           ENDIF
-
            IF ( do_scp_nddo .AND. ispin == 1 ) THEN
              CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, local_sum=.TRUE., &
                   error=error )
@@ -148,12 +137,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
             ENDIF
            ENDIF
 ! ***SCP
-           IF (  do_scp_dft .AND. ispin == 1 ) THEN
-             tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % gx )
-             CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-             qs_ot_env ( 1 ) % gradient = qs_ot_env ( 1 ) % gradient - tmp
-           ENDIF
-
            IF (  do_scp_nddo .AND. ispin == 1 ) THEN
              CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE.,&
                   error=error )
@@ -171,11 +154,11 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
    SELECT CASE(qs_ot_env(1)%settings%OT_METHOD)
    CASE ("CG")
         IF (current_point_is_fine(qs_ot_env)) THEN
-           IF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. .NOT. do_ks ) THEN
+           IF ( do_scp_nddo .AND. .NOT. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="SCP CG"
-           ELSEIF ( do_ks .AND. .NOT. do_scp_dft .AND. .NOT. do_scp_nddo ) THEN
+           ELSEIF ( do_ks .AND. .NOT. do_scp_nddo ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT CG"
-           ELSEIF ( do_ks .AND. ( do_scp_dft .OR. do_scp_nddo ) ) THEN
+           ELSEIF ( do_ks .AND. do_scp_nddo ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT CG"
            END IF
            CALL ot_new_cg_direction(qs_ot_env,error=error)
@@ -186,11 +169,11 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
         CALL do_line_search(qs_ot_env,error=error)
    CASE ("SD")
         IF (current_point_is_fine(qs_ot_env)) THEN
-           IF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. .NOT. do_ks ) THEN
+           IF ( do_scp_nddo .AND. .NOT. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="SCP SD"
-           ELSEIF ( do_ks .AND. .NOT. do_scp_dft .AND. .NOT. do_scp_nddo) THEN
+           ELSEIF ( do_ks .AND. .NOT. do_scp_nddo) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT SD"
-           ELSEIF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. do_ks ) THEN
+           ELSEIF ( do_scp_nddo .AND. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT SD"
            ENDIF
            CALL ot_new_sd_direction(qs_ot_env,error=error)
@@ -200,11 +183,11 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
         ENDIF
         CALL do_line_search(qs_ot_env,error=error)
    CASE ("DIIS")
-           IF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. .NOT. do_ks ) THEN
+           IF ( do_scp_nddo .AND. .NOT. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="SCP DIIS"
-           ELSEIF ( do_ks .AND. .NOT. do_scp_dft .AND. .NOT. do_scp_nddo ) THEN
+           ELSEIF ( do_ks .AND. .NOT. do_scp_nddo ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
-           ELSEIF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. do_ks) THEN
+           ELSEIF ( do_scp_nddo .AND. do_ks) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
            END IF
            CALL ot_diis_step(qs_ot_env,error=error)
@@ -288,13 +271,11 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspin
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo
+    LOGICAL                                  :: do_ener, do_ks, do_scp_nddo
 
     nspin=SIZE(qs_ot_env)
 
    do_ks = qs_ot_env ( 1 ) % settings % ks
-   do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
    do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
@@ -312,9 +293,6 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
          ENDDO
        END IF
 ! **** SCP
-       IF (do_scp_dft) THEN
-           qs_ot_env(1)%x = qs_ot_env ( 1 ) % x + ds * qs_ot_env ( 1 ) % dx
-       ENDIF
        IF (do_scp_nddo) THEN
           CALL  cp_dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % dxmat, &
                alpha_scalar=1.0_dp, beta_scalar=ds, error=error )
@@ -337,9 +315,6 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
          ENDDO
        ENDIF
 ! **** SCP
-       IF (do_scp_dft) THEN
-           qs_ot_env(1)%x = qs_ot_env ( 1 ) % x - ds * qs_ot_env ( 1 ) % gx
-       ENDIF
        IF (do_scp_nddo) THEN
           CALL  cp_dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % gxmat, &
                alpha_scalar=1.0_dp, beta_scalar=-ds, error=error )
@@ -597,8 +572,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
 
     INTEGER                                  :: ispin, itmp, k, n, nener, &
                                                 nscp, nspin
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo
+    LOGICAL                                  :: do_ener, do_ks, do_scp_nddo
     REAL(KIND=dp)                            :: tmp
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -607,7 +581,6 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
    nspin=SIZE(qs_ot_env)
    logger=>cp_error_get_logger(error)
    do_ks = qs_ot_env ( 1 ) % settings % ks
-   do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
    do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
@@ -642,15 +615,6 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
          ENDIF
        ENDIF
 ! **** SCP
-       IF (do_scp_dft ) THEN
-       ! Remember, SCP is formally a spin restricted theory
-       ! right now no preconditioner yet
-         qs_ot_env ( 1 ) % dx = qs_ot_env ( 1 )  % gx
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % dx )
-         qs_ot_env ( 1 ) % dx = -1.0_dp * qs_ot_env ( 1 ) % dx
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 )%gnorm=qs_ot_env(1)%gnorm+tmp
-       ENDIF
        IF (do_scp_nddo ) THEN
        ! Remember, SCP is formally a spin restricted theory
        ! right now no preconditioner yet
@@ -685,12 +649,6 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
          ENDIF
        ENDIF
 ! **** SCP
-       IF ( do_scp_dft ) THEN
-       ! Remember, SCP is formally a spin restricted theory
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % gx )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 )%gnorm=qs_ot_env(1)%gnorm+tmp
-       ENDIF
        IF ( do_scp_nddo ) THEN
        ! Remember, SCP is formally a spin restricted theory
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE.,&
@@ -720,9 +678,6 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
 ! **** SCP
    IF ( do_scp_nddo ) THEN
      nscp = qs_ot_env ( 1 ) % n_el_scp
-   ELSEIF ( do_scp_dft) THEN
-     nscp = SIZE ( qs_ot_env ( 1 ) % x )
-     CALL mp_sum ( nscp, qs_ot_env ( 1 ) % scp_para_env % group )
    ENDIF
    IF ( do_ener ) THEN
      DO ispin=1,nspin
@@ -755,8 +710,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
 
     INTEGER                                  :: ispin, itmp, k, n, nener, &
                                                 nscp, nspin
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo
+    LOGICAL                                  :: do_ener, do_ks, do_scp_nddo
     REAL(KIND=dp)                            :: beta_pr, gnorm_cross, &
                                                 test_down, tmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -765,7 +719,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    logger=>cp_error_get_logger(error)
 
    do_ks = qs_ot_env ( 1 ) % settings % ks
-   do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
    do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
@@ -784,11 +737,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
      ENDIF
    END IF
 ! ***SCP
-   IF ( do_scp_dft ) THEN
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % gx_old )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         gnorm_cross = gnorm_cross + tmp
-   END IF
    IF ( do_scp_nddo ) THEN
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, local_sum=.TRUE.,&
               error=error )
@@ -834,13 +782,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
          ENDIF
        END IF
 ! ***SCP
-       IF ( do_scp_dft ) THEN
-             qs_ot_env ( 1 ) % gx_old = qs_ot_env ( 1 ) % gx
-             tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % gx_old )
-             CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-             qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-             qs_ot_env ( 1 ) % gx = qs_ot_env ( 1 ) % gx_old
-       END IF
        IF ( do_scp_nddo ) THEN
              CALL cp_dbcsr_copy ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error=error )
              CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, local_sum=.TRUE.,&
@@ -874,12 +815,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
          ENDIF
        ENDIF
 ! ***SCP
-       IF ( do_scp_dft ) THEN
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % gx )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         qs_ot_env ( 1 ) % gx_old = qs_ot_env ( 1 ) % gx
-       END IF
        IF ( do_scp_nddo ) THEN
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE., &
               error=error )
@@ -908,10 +843,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
      ENDDO
    END IF
 !***SCP
-   IF ( do_scp_dft ) THEN
-     nscp = SIZE ( qs_ot_env ( 1 ) % x )
-     CALL mp_sum ( nscp, qs_ot_env ( 1 ) % scp_para_env % group )
-   ELSEIF ( do_scp_nddo ) THEN
+   IF ( do_scp_nddo ) THEN
      nscp = qs_ot_env ( 1 ) % n_el_scp
    ENDIF
 !***SCP
@@ -946,12 +878,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
      ENDDO
    END IF
 ! ***SCP
-   IF ( do_scp_dft ) THEN
-     qs_ot_env ( 1 ) % dx = beta_pr  * qs_ot_env ( 1 ) % dx - qs_ot_env ( 1 ) % gx
-     tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx, qs_ot_env ( 1 ) % dx )
-     CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-     test_down = test_down + tmp
-   END IF
    IF ( do_scp_nddo ) THEN
      CALL  cp_dbcsr_add ( qs_ot_env ( 1 ) % dxmat, qs_ot_env ( 1 ) % gxmat, alpha_scalar=beta_pr,&
           beta_scalar=-1.0_dp, error=error )
@@ -981,9 +907,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
            ENDDO
          END IF
 ! ***SCP
-         IF ( do_scp_dft ) THEN
-           qs_ot_env ( 1 ) % dx = beta_pr * qs_ot_env ( 1 ) % dx - qs_ot_env ( 1 ) % gx
-         END IF
          IF ( do_scp_nddo ) THEN
             CALL  cp_dbcsr_add ( qs_ot_env ( 1 ) % dxmat, qs_ot_env ( 1 ) % gxmat, &
                  alpha_scalar=beta_pr, beta_scalar=-1.0_dp, error=error )
@@ -1011,14 +934,12 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
     INTEGER                                  :: diis_bound, diis_m, i, info, &
                                                 ispin, itmp, j, k, n, nener, &
                                                 nscp, nspin
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo
+    LOGICAL                                  :: do_ener, do_ks, do_scp_nddo
     REAL(KIND=dp)                            :: overlap, tmp, tr_xnew_gx, &
                                                 tr_xold_gx
     TYPE(cp_logger_type), POINTER            :: logger
 
    do_ks = qs_ot_env ( 1 ) % settings % ks
-   do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
    do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
    nspin=SIZE(qs_ot_env)
@@ -1042,9 +963,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
            CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix,qs_ot_env(ispin)%rot_mat_x,error=error)
         ENDIF
      ENDDO
-   END IF
-   IF ( do_scp_dft )THEN
-        qs_ot_env ( 1 ) % h_x ( j, : ) =  qs_ot_env ( 1 ) % x ( : )
    END IF
    IF ( do_scp_nddo ) THEN
       CALL cp_dbcsr_copy ( qs_ot_env ( 1 ) % hx_mat ( j )%matrix, qs_ot_env ( 1 ) % xmat, error=error)
@@ -1084,13 +1002,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          ENDIF
        END IF
 ! ***SCP
-       IF (do_scp_dft) THEN
-         qs_ot_env ( 1 ) % h_e ( j, : ) = qs_ot_env ( 1 ) % gx ( : )
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % h_e ( j, : ), qs_ot_env ( 1 ) % gx ( : ) )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         qs_ot_env ( 1 ) % h_e ( j, : ) =  -qs_ot_env ( 1 ) % ds_min * qs_ot_env ( 1 ) % h_e ( j, : )
-       END IF
        IF ( do_scp_nddo ) THEN
          CALL cp_dbcsr_copy ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix ,qs_ot_env ( 1 ) % gxmat,error=error)
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix, tmp, &
@@ -1126,12 +1037,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          ENDIF
        END IF
 ! ***SCP
-       IF (do_scp_dft) THEN
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx ( : ), qs_ot_env ( 1 ) % gx ( : ) )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         qs_ot_env ( 1 ) % h_e ( j, : ) =  -qs_ot_env ( 1 ) % ds_min * qs_ot_env ( 1 ) % gx ( : )
-       END IF
        IF ( do_scp_nddo ) THEN
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE., &
               error=error )
@@ -1161,10 +1066,7 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
      ENDDO
    END IF
 !***SCP
-   IF ( do_scp_dft ) THEN
-     nscp = SIZE ( qs_ot_env ( 1 ) % x )
-     CALL mp_sum ( nscp, qs_ot_env ( 1 ) % scp_para_env % group )
-   ELSEIF ( do_scp_nddo ) THEN
+   IF ( do_scp_nddo ) THEN
      nscp = qs_ot_env ( 1 ) % n_el_scp
    ENDIF
 !***SCP
@@ -1205,11 +1107,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          ENDDO
        END IF
 ! ***SCP
-       IF (do_scp_dft) THEN
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % h_e ( j, : ), qs_ot_env ( 1 ) % h_e ( i, : ) )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 ) % ls_diis ( i, j ) = qs_ot_env ( 1 ) % ls_diis ( i, j ) + tmp
-       END IF
        IF ( do_scp_nddo ) THEN
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, &
               tmp, local_sum=.TRUE.,error=error )
@@ -1239,11 +1136,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          ENDDO
        END IF
 ! ***SCP
-       IF (do_scp_dft) THEN
-         tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % gx ( : ), qs_ot_env ( 1 ) % h_e ( i, : ) )
-         CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-         qs_ot_env ( 1 ) % ls_diis ( i, j ) = qs_ot_env ( 1 ) % ls_diis ( i, j ) - qs_ot_env ( 1 ) % ds_min * tmp
-       END IF
        IF ( do_scp_nddo ) THEN
          CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, tmp, &
               local_sum=.TRUE., error=error )
@@ -1301,17 +1193,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
      ENDDO
    END IF
 ! ***SCP
-   IF (do_scp_dft) THEN
-     qs_ot_env ( 1 ) % x ( : ) = 0.0_dp
-     DO i = 1, diis_bound
-       qs_ot_env ( 1 ) % x ( : ) = qs_ot_env ( 1 ) % x ( : ) &
-                                 + qs_ot_env ( 1 ) % c_diis ( i ) * qs_ot_env ( 1 ) % h_e ( i, : )
-     END DO
-     DO i = 1, diis_bound
-       qs_ot_env ( 1 ) % x ( : ) = qs_ot_env ( 1 ) % x ( : ) &
-                                 + qs_ot_env ( 1 ) % c_diis ( i ) * qs_ot_env ( 1 ) % h_x ( i, : )
-     END DO
-   END IF
    IF (do_scp_nddo) THEN
      CALL cp_dbcsr_set( qs_ot_env ( 1 ) % xmat, 0.0_dp, error=error)
      DO i = 1, diis_bound
@@ -1363,14 +1244,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
        ENDDO
      END IF
 ! ***SCP
-     IF (do_scp_dft) THEN
-       tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % h_x ( j, : ), qs_ot_env ( 1 ) % gx ( : ) )
-       CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-       tr_xold_gx = tr_xold_gx+tmp
-       tmp = DOT_PRODUCT ( qs_ot_env ( 1 ) % x ( : ), qs_ot_env ( 1 ) % gx ( : ) )
-       CALL mp_sum ( tmp, qs_ot_env ( 1 ) % scp_para_env % group )
-       tr_xnew_gx = tr_xnew_gx+tmp
-     END IF
      IF (do_scp_nddo) THEN
        CALL cp_dbcsr_trace ( qs_ot_env ( 1 ) % hx_mat ( j ) % matrix, qs_ot_env ( 1 ) % gxmat, tmp, &
             local_sum=.TRUE., error=error )
@@ -1413,11 +1286,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
            ENDDO
          END IF
 ! ***SCP
-         IF (do_scp_dft) THEN
-           qs_ot_env ( 1 ) % x ( : ) = 0._dp
-           qs_ot_env ( 1 ) % x ( : ) = qs_ot_env ( 1 ) % x ( : ) + qs_ot_env ( 1 ) % h_e ( j, : )
-           qs_ot_env ( 1 ) % x ( : ) = qs_ot_env ( 1 ) % x ( : ) + qs_ot_env ( 1 ) % h_x ( j, : )
-         END IF
          IF (do_scp_nddo) THEN
            CALL cp_dbcsr_set ( qs_ot_env ( 1 ) % xmat ,  0._dp , error=error)
            CALL  cp_dbcsr_add ( qs_ot_env ( 1 ) % xmat,  &
@@ -1455,9 +1323,8 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
                                                 itmp, j, k, n, nspin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: circ_index
     LOGICAL                                  :: adaptive_sigma, do_ener, &
-                                                do_ks, do_scp_dft, &
-                                                do_scp_nddo, enable_flip, &
-                                                forget_history
+                                                do_ks, do_scp_nddo, &
+                                                enable_flip, forget_history
     REAL(KIND=dp)                            :: beta, eta, gamma, omega, &
                                                 sigma, sigma_dec, sigma_min, &
                                                 tmp, tmp2
@@ -1476,7 +1343,6 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
     enable_flip = qs_ot_env ( 1 ) % settings % broyden_enable_flip
 
     do_ks = qs_ot_env ( 1 ) % settings % ks
-    do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
     do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
     do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
@@ -1493,7 +1359,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
     ENDIF
 
     ! simplify our life....
-    IF (do_ener .OR. do_scp_nddo .OR. do_scp_dft .OR. .NOT. do_ks .OR. &
+    IF (do_ener .OR. do_scp_nddo .OR. .NOT. do_ks .OR. &
         qs_ot_env(1)%settings%do_rotation) THEN
         CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented")
     ENDIF

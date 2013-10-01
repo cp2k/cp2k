@@ -399,10 +399,6 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_scp_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
     CALL create_admm_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -2687,53 +2683,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_qs_section
-
-! *****************************************************************************
-  SUBROUTINE create_scp_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_scp_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
-    NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,"SCP",&
-            description="Parameters needed to set up the SCP-DFT method",&
-            n_keywords=4, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="controls the activation of the SCP method",&
-            usage="&SCP T",&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DISPERSION",&
-            description="Use dispersion correction through SCP method",&
-            usage="DISPERSION",default_l_val=.FALSE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing of basic information during the run", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-    END IF
-  END SUBROUTINE create_scp_section
 
 ! *****************************************************************************
   SUBROUTINE create_dftb_control_section(section,error)
@@ -5845,14 +5794,6 @@ CONTAINS
             " a rotation of the occupied subspace such as non-singlet restricted calculations "//&
             " or fractional occupations.",&
             usage="ROTATION",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SCP_DFT",&
-            description="Introduce additional self-consistent polarization through"//&
-            " additional response basis functions (read in through AUX_BASIS.)",&
-            usage="SCP_DFT",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

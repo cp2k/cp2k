@@ -66,9 +66,6 @@ MODULE qs_mo_types
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE scf_control_types,               ONLY: smear_type
-  USE scp_environment_types,           ONLY: scp_environment_type
-  USE scp_restarts,                    ONLY: read_aux_coeff_set,&
-                                             write_scp_coeff_set
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1090,17 +1087,14 @@ CONTAINS
   END SUBROUTINE set_mo_set
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,scp,&
-                                     scp_env,atomic_kind_set,error)
+  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,&
+                                     atomic_kind_set,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    LOGICAL, INTENT(IN)                      :: scp
-    TYPE(scp_environment_type), OPTIONAL, &
-      POINTER                                :: scp_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1146,7 +1140,6 @@ CONTAINS
 
              CALL write_mo_set_low(mo_array, particle_set=particle_set, ires=ires, error=error)
 
-             IF (scp) CALL write_scp_coeff_set(ires, scp_env, atomic_kind_set, particle_set, error)
              CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
           END IF
        END DO
@@ -1157,8 +1150,8 @@ CONTAINS
   END SUBROUTINE write_mo_set_to_restart
 
 ! *****************************************************************************
-  SUBROUTINE write_rt_mos_to_restart(mo_array,rt_mos,particle_set,dft_section,scp,&
-                                     scp_env,atomic_kind_set,error)
+  SUBROUTINE write_rt_mos_to_restart(mo_array,rt_mos,particle_set,dft_section,&
+                                     atomic_kind_set,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1167,9 +1160,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    LOGICAL, INTENT(IN)                      :: scp
-    TYPE(scp_environment_type), OPTIONAL, &
-      POINTER                                :: scp_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1203,7 +1193,6 @@ CONTAINS
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
              CALL write_mo_set_low(mo_array, rt_mos=rt_mos, particle_set=particle_set, ires=ires, error=error)
-             IF (scp) CALL write_scp_coeff_set(ires, scp_env, atomic_kind_set, particle_set, error)
              CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
           END IF
        END DO
@@ -1408,7 +1397,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-       para_env,id_nr,multiplicity,dft_section,scp,scp_env,natom_mismatch,error)
+       para_env,id_nr,multiplicity,dft_section,natom_mismatch,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1419,8 +1408,6 @@ CPSourceFileRef,&
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
-    LOGICAL, INTENT(IN)                      :: scp
-    TYPE(scp_environment_type), POINTER      :: scp_env
     LOGICAL, INTENT(OUT), OPTIONAL           :: natom_mismatch
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1473,8 +1460,6 @@ CPSourceFileRef,&
           RETURN
        ENDIF
     ENDIF
-
-    IF (scp) CALL read_aux_coeff_set(restart_unit, scp_env%aux_coeff_set, para_env, error)
 
     ! Close restart file
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)

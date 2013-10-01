@@ -291,7 +291,7 @@ CONTAINS
        IF (exit_loop) THEN
           ! now, print out energies and charges corresponding to the obtained wfn
           ! (this actually is not 100% consistent at this point)!
-          CALL qs_scf_print_summary(output_unit,qs_env,scp_dft=.FALSE.,error=error)
+          CALL qs_scf_print_summary(output_unit,qs_env,error=error)
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
        END IF
 

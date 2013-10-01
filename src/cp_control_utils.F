@@ -15,8 +15,7 @@ MODULE cp_control_utils
   USE cp_control_types,                ONLY: &
        admm_control_create, ddapc_control_create, ddapc_restraint_type, &
        dft_control_create, dft_control_type, efield_type, qs_control_type, &
-       scp_control_create, tddfpt_control_create, tddfpt_control_type, &
-       xas_control_create
+       tddfpt_control_create, tddfpt_control_type, xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -83,9 +82,8 @@ CONTAINS
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
     TYPE(section_vals_type), POINTER         :: admm_block_section, &
-                                                scf_section, scp_section, &
-                                                tmp_section, xc_fun_section, &
-                                                xc_section
+                                                scf_section, tmp_section, &
+                                                xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
     failure=.FALSE.
@@ -212,14 +210,6 @@ CPSourceFileRef,&
           END IF
          END SELECT
       END IF
-    END IF
-
-    CALL section_vals_val_get(dft_section,"SCP%_SECTION_PARAMETERS_",l_val=dft_control%scp,error=error)
-    IF (dft_control%scp) THEN
-       CALL scp_control_create(dft_control%scp_control, error=error)
-       scp_section => section_vals_get_subs_vals(dft_section,"SCP", error=error)
-       CALL section_vals_val_get(scp_section,"DISPERSION",l_val=l_param,error=error)
-       dft_control%scp_control%dispersion = l_param
     END IF
 
     ! Set restricted to true, if both OT and ROKS are requested

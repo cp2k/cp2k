@@ -138,7 +138,7 @@ CONTAINS
     LOGICAL                                  :: did_guess, do_std_diag, &
                                                 exist, failure, &
                                                 has_unit_metric, &
-                                                natom_mismatch, ofgpw, scp
+                                                natom_mismatch, ofgpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, maxocc, occ, &
@@ -192,7 +192,6 @@ CONTAINS
          has_unit_metric=has_unit_metric, error=error)
 
     nspin=dft_control%nspins
-    scp = dft_control%scp
     p_rmpv => qs_env%rho%rho_ao
 
     work1 => scf_env%scf_work1
@@ -227,7 +226,7 @@ CONTAINS
 
     ! if a restart was requested, check that the file exists,
     ! if not we fall back to an atomic guess. No kidding, the file name should remain
-    ! in sync with read_mo_set_from_restart
+    ! in sync with read_mo_set
     id_nr=0
     IF (density_guess == restart_guess) THEN
         ! only check existence on I/O node, otherwise if file exists there but
@@ -293,7 +292,7 @@ CPSourceFileRef,&
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            scp=scp, scp_env=scp_env, natom_mismatch=natom_mismatch, error=error)
+            natom_mismatch=natom_mismatch, error=error)
 
        IF (natom_mismatch) THEN
          density_guess = safe_density_guess
@@ -344,7 +343,7 @@ CPSourceFileRef,&
              j = last_read -i
              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
              CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
-                  id_nr=j,multiplicity=dft_control%multiplicity,scp=scp, scp_env=scp_env,&
+                  id_nr=j,multiplicity=dft_control%multiplicity,&
                   dft_section=dft_section, error=error)
 
              DO ispin=1,nspin

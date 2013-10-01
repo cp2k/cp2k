@@ -128,10 +128,6 @@ MODULE qs_ks_methods
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
-  USE qs_ks_scp_methods,               ONLY: scp_calculate_gpw_energy,&
-                                             scp_calculate_qmmm_energy,&
-                                             scp_modify_hartree_pot
-  USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_ks_utils,                     ONLY: low_spin_roks,&
@@ -146,11 +142,9 @@ MODULE qs_ks_methods
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE rtp_admm_methods,                ONLY: rtp_admm_density_matrix,&
                                              rtp_admm_merge_ks_matrix
-  USE scp_energy,                      ONLY: scp_qs_energies
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
   USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
   USE timings,                         ONLY: timeset,&
@@ -306,7 +300,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
       failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
-      my_print, scp_dft, uniform_occupation, use_virial
+      my_print, uniform_occupation, use_virial
     REAL(KIND=dp)                            :: ecore_ppl, ee_ener, ekin_mol, &
                                                 mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
@@ -341,10 +335,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_struct
-    TYPE(scp_energy_type), POINTER           :: scp_energy
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_sections, input, &
                                                 scf_section, xc_section
@@ -352,10 +343,11 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(admm_env,becke,cell,dft_control,ep_qs_env,logger,&
-         mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, mo_derivs_aux_fit, &
-         mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, my_rho_xc, rho_struct, &
-         occupation_numbers,para_env,pw_env, scp_energy,scp_env, virial,vppl_rspace)
+    NULLIFY(admm_env, becke, cell, dft_control, ep_qs_env, logger, &
+         mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, &
+         mo_derivs_aux_fit, mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, &
+         my_rho_xc, rho_struct, occupation_numbers, para_env, pw_env, &
+         virial, vppl_rspace)
     NULLIFY(adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section)
     NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
          poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit, &
@@ -379,9 +371,6 @@ CONTAINS
          virial=virial,&
          ep_qs_env=ep_qs_env,&
          error=error)
-
-! Define logicals for SCP
-    scp_dft =  dft_control % scp
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     do_ep=ASSOCIATED(ep_qs_env)
@@ -501,14 +490,6 @@ CONTAINS
                              v_hartree_gspace%pw,error=error)
        END IF
 
-       IF ( scp_dft ) THEN
-          ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
-          ! potential due to the ions + electrons.
-          ! Get the SCP environment
-          CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
-          CALL scp_calculate_gpw_energy ( scp_env, v_hartree_gspace, error )
-       END IF
-
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN
           CALL qs_ks_ddapc(qs_env, auxbas_pw_pool, rho_tot_gspace, v_hartree_gspace,&
@@ -587,21 +568,6 @@ CONTAINS
           END IF
        END IF
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
-
-       ! SCP: Add the polarization potential
-       IF ( scp_dft ) THEN
-          ! Get the KS_SCP environment
-          CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
-          IF (qs_env % qmmm ) THEN
-             CALL scp_calculate_qmmm_energy ( scp_env, qs_env%ks_qmmm_env%v_qmmm_rspace, error )
-          END IF
-          IF (.NOT.just_energy) THEN
-             ! Needs up-to-date KS_SCP_ENV
-             CALL scp_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
-                                         v_scp=ks_scp_env%v_scp_rspace,&
-                                         input=input,error=error)
-          END IF
-       END IF
 
        ! calculate the density matrix for the fitted mo_coeffs
        IF( dft_control%do_admm ) THEN
@@ -760,15 +726,6 @@ CONTAINS
           CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
                                      calculate_forces, error=error)
        END IF
-
-       ! Single atom contributions to KS matrix due to self-correction of the SCP with
-       ! the orbitals.
-       IF (scp_dft) THEN
-          CALL integrate_a_vhscp_b ( qs_env, ks_matrix, rho%rho_ao, &
-                                     just_energy, error=error )
-          CALL scp_qs_energies ( qs_env, calculate_forces, just_energy, error=error )
-
-       ENDIF
 
        IF(gapw .OR. gapw_xc) THEN
           ! Single atom contributions in the KS matrix ***
@@ -936,13 +893,6 @@ CONTAINS
             energy%ee + energy%ee_core+&
             energy%exc_aux_fit+&
             energy%image_charge
-!       WRITE(*,*)'ENERGIES:',energy%total, energy%core_overlap , energy%core_self , &
-!            energy%core , energy%hartree,energy%exc_aux_fit, energy%exc, energy%exc1
-       IF (scp_dft) THEN
-         CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
-         energy%total = energy%total + scp_energy%e_scp_total
-         energy%total = energy%total + scp_energy%e_scp_disp
-       ENDIF
 
        !Print detailed energy
        IF(my_print) THEN
