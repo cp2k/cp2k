@@ -818,16 +818,7 @@ CONTAINS
     subh3_disps = CSHIFT(subh3_disps,shift=-1)+ginfo_size+2*numnodes
     subh3_disps(1)=ginfo_size+2*numnodes
 
-    SELECT CASE (data_type)
-    CASE (dbcsr_type_real_4)
-       data_area_size = SIZE(data_area%d%r_sp)
-    CASE (dbcsr_type_real_8)
-       data_area_size = SIZE(data_area%d%r_dp)
-    CASE (dbcsr_type_complex_4)
-       data_area_size = SIZE(data_area%d%c_sp)
-    CASE (dbcsr_type_complex_8)
-       data_area_size = SIZE(data_area%d%c_dp)
-    END SELECT
+    data_area_size = dbcsr_get_data_size_referenced(matrix)
     sendbuf = data_area_size
     CALL mp_allgather(sendbuf,da_sizes,mp_group) 
     CALL cumsum_l(INT(da_sizes,kind=file_offset),bdata_disps)
@@ -865,16 +856,16 @@ CONTAINS
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        r_sp => data_area%d%r_sp
-       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), r_sp) 
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), r_sp, msglen = data_area_size) 
     CASE (dbcsr_type_real_8)
        r_dp => data_area%d%r_dp
-       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), r_dp)
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), r_dp, msglen = data_area_size)
     CASE (dbcsr_type_complex_4)
        c_sp => data_area%d%c_sp
-       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), c_sp) 
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), c_sp, msglen = data_area_size) 
     CASE (dbcsr_type_complex_8)
        c_dp => data_area%d%c_dp
-       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), c_dp) 
+       CALL mp_file_write_at_all(thefile, bdata_offsets(mynode+1), c_dp, msglen = data_area_size) 
     END SELECT
     CALL mp_file_close(thefile)
 
