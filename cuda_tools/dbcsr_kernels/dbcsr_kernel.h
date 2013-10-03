@@ -51,14 +51,4 @@ static __device__ double atomicAdd(double *address, double val) {
     return __longlong_as_double(old);
 }
 
-
-
-static __device__ __forceinline__ double
-dbl_shfl (double r, int lane)
-{
-  int hi = __shfl (__double2hiint (r), lane);
-  int lo = __shfl (__double2loint (r), lane);
-  return __hiloint2double (hi, lo);
-}
-
 #endif

@@ -108,7 +108,7 @@ cusmm_kernel_default(const int *__restrict__ param_stack,
       }
       syncthreads();
       /* Add results to global C block. */
-      c_loc = param_stack_s[psp + 2]; //__shfl (param_r, 5) - 1;
+      c_loc = param_stack_s[psp + 2];
       for(int i = threadIdx.x; i < mn; i += blockDim.x)
         atomicAdd (&c_data[c_loc + i], buff[i]);
 

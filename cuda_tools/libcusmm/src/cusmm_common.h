@@ -24,15 +24,12 @@ static __device__ double atomicAdd(double *address, double val) {
     return __longlong_as_double(old);
 }
 
-
 /******************************************************************************
+ * A simple __ldg replacement for older cuda devices.                         *
  ******************************************************************************/
-static __device__ __forceinline__ double
-dbl_shfl (double r, int lane)
-{
-  int hi = __shfl (__double2hiint (r), lane);
-  int lo = __shfl (__double2loint (r), lane);
-  return __hiloint2double (hi, lo);
-}
+
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 350)
+#define __ldg(x)  (*(x))
+#endif
 
 #endif

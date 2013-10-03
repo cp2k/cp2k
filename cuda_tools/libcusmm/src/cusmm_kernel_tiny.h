@@ -106,7 +106,7 @@ cusmm_kernel_tiny(const int* __restrict__ param_stack, int  careful,  int nruns,
 
       //if ( run== nrun-1  || flushMap & (1 << run)) {
       if ( flushMap & (1 << run)) {
-        c_loc = param_stack_s[psp + 2]; //__shfl (param_r, 5) - 1;
+        c_loc = param_stack_s[psp + 2];
 //        if(threadIdx.x < mn) {
          atomicAdd (&c_data[c_loc + threadIdx.x], myc);
 //        }

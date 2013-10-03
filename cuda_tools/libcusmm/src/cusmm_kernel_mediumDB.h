@@ -286,7 +286,7 @@ cusmm_kernel_mediumDB(const int* __restrict__ param_stack, int  careful,  int nr
     if (run == nrun - 1
         || param_stack_s[psp + 3] != param_stack_s[psp + 3 + 4] )
     {
-      int c_loc = param_stack_s[psp + 2]; //__shfl (param_r, 5) - 1;
+      int c_loc = param_stack_s[psp + 2];
 
       syncthreads();
 
