@@ -73,7 +73,7 @@ How to compile CP2K code
      (NAG f95, Intel IA32/gfortran) should either not use '--enable-sse2'
      or otherwise set the define -D__FFTW3_UNALIGNED in the arch file.
      When building an OpenMP parallel version of CP2K (ssmp or psmp), the
-     FFTW3 threading library libfftw3_threads is required.
+     FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
  2f) Hartree-Fock exchange (optional, use -D__LIBINT) requires the libint
      package to be installed.  It is easiest to install with a Fortran compiler
@@ -310,8 +310,8 @@ How to compile CP2K code
 
     systematic testing can be done following the description on regtesting:
 
-    http://www.cp2k.org/index.php/for-developers
-    http://people.web.psi.ch/krack/cp2k/regtest/regtest.html
+    http://www.cp2k.org/dev
+    http://cp2k-www.epcc.ed.ac.uk/
 
  7) In any case please tell us your comments, praise, criticism, thanks, ...
 
