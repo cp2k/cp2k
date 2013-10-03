@@ -1,7 +1,7 @@
 H2O-rks-diag.inp 24 1E-11
 H2O-rks-otcg.inp                 24     5e-09
 H2O-uks-diag.inp                 24     3e-12
-H2O-uks-otcg.inp                 24     8e-10
+H2O-uks-otcg.inp                 24     2e-09
 H2O-rks-diag-mulliken.inp        24     2e-12
 H2O-rks-otcg-mulliken.inp        24     3e-09
 H2O-uks-diag-mulliken.inp        24     5e-13
