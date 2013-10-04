@@ -311,7 +311,11 @@ CONTAINS
 
     message = " "
     length  = LEN_TRIM(section%description)
-    IF (length>0 .AND. section%description(length:length)/=".") message = "."
+    IF (length>0) THEN
+       IF (section%description(length:length)/=".") THEN
+          message = "."
+       ENDIF
+    ENDIF
     IF (section%repeats) THEN
        message=TRIM(message)//" This section can be repeated and "
     ELSE
