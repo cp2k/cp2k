@@ -99,6 +99,7 @@ MODULE force_env_methods
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -1095,12 +1096,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description, iter
+    COMPLEX(KIND=dp)                         :: center_z(3)
     INTEGER                                  :: ip, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: calculate_forces, check, &
                                                 failure, qmmm_added_chrg, &
                                                 qmmm_link, qmmm_link_imomm
-    REAL(KIND=dp)                            :: energy_mm, energy_qm
+    REAL(KIND=dp)                            :: center_lat(3), energy_mm, &
+                                                energy_qm, r_lat(3)
     REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
                                                 max_coord, min_coord
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
@@ -1148,13 +1151,26 @@ CPSourceFileRef,&
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
     
+    center_z = 0.0_dp
     DO ip=1, SIZE(particles_qm)
-      check = ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) >= 0.0) .AND. &
-              ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) <= 1.0)
+      center_z = center_z + EXP(CMPLX(0.0_dp, 1.0_dp)*2.0_dp*PI*(MATMUL(mm_cell%h_inv, particles_qm(ip)%r)))
+    END DO
+    center_z = center_z / ABS(center_z)
+    center_lat = REAL(LOG(center_z)/(CMPLX(0.0_dp,1.0_dp)*2.0_dp*PI),dp)
+    DO ip=1, SIZE(particles_qm)
+      ! check that we're not wrapped around edge of MM box
+      r_lat = MATMUL(mm_cell%h_inv, particles_qm(ip)%r)
+      check = ALL(ABS(r_lat-center_lat) < 0.5_dp)
       CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
-           "QM atoms must be fully contained in the QM box - No wrapping of coordinates is allowed! "//&
- CPSourceFileRef,&
+           "QM/MM QM atoms must be fully contained in the same image of the MM box - No wrapping of coordinates is allowed! "//&
+CPSourceFileRef,&
            error)
+!       check = ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) >= 0.0) .AND. &
+!               ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) <= 1.0)
+!       CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
+!            "QM/MM QM atoms must be fully contained in the QM box - No wrapping of coordinates is allowed! "//&
+! CPSourceFileRef,&
+!            error)
     END DO
 
     ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
