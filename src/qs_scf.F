@@ -242,8 +242,9 @@ CONTAINS
     INTEGER :: ext_master_id, external_comm, handle, handle2, ispin, &
       iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, exit_outer_loop, &
-      failure, gapw, gapw_xc, harris_flag, has_unit_metric, just_energy, &
-      inner_loop_converged, outer_loop_converged, scp_nddo, use_jacobi
+      failure, gapw, gapw_xc, harris_flag, has_unit_metric, &
+      inner_loop_converged, just_energy, outer_loop_converged, scp_nddo, &
+      use_jacobi
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
