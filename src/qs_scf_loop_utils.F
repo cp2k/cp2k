@@ -455,17 +455,20 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_scf_check_inner_exit(qs_env,scf_env,scf_control,should_stop,&
-                               exit_inner_loop,converged,output_unit,error)
+                               exit_inner_loop,inner_loop_converged,output_unit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL                                  :: should_stop, exit_inner_loop, &
-                                                converged
+                                                inner_loop_converged
     INTEGER                                  :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_inner_exit', &
       routineP = moduleN//':'//routineN
+
+     inner_loop_converged=.FALSE.
+     exit_inner_loop = .FALSE.
 
      CALL external_control(should_stop,"SCF",target_time=qs_env%target_time, &
           start_time=qs_env%start_time,error=error)
@@ -474,13 +477,14 @@ CONTAINS
            WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                 "*** SCF run converged in ",scf_env%iter_count," steps ***"
         END IF
+        inner_loop_converged=.TRUE.
         exit_inner_loop = .TRUE.
-     ELSE IF (should_stop.OR.  scf_env%iter_count >= scf_control%max_scf) THEN
+     ELSE IF (should_stop .OR.  scf_env%iter_count >= scf_control%max_scf) THEN
         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                 "*** SCF run NOT converged ***"
         END IF
-        converged=.FALSE.
+        inner_loop_converged=.FALSE.
         exit_inner_loop = .TRUE.
      END IF
  

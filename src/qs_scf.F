@@ -243,7 +243,7 @@ CONTAINS
       iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, exit_outer_loop, &
       failure, gapw, gapw_xc, harris_flag, has_unit_metric, just_energy, &
-      outer_loop_converged, scp_nddo, use_jacobi
+      inner_loop_converged, outer_loop_converged, scp_nddo, use_jacobi
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -270,7 +270,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    converged=.TRUE.
 
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
@@ -393,7 +392,7 @@ CONTAINS
           END IF
 
           CALL qs_scf_check_inner_exit(qs_env,scf_env,scf_control,should_stop,exit_inner_loop,&
-                               converged,output_unit,error)
+                               inner_loop_converged,output_unit,error)
 
           ! ** In case we decide to exit we perform few more check to see if this one
           ! ** is really the last SCF step
@@ -452,6 +451,7 @@ CONTAINS
 
     END DO scf_outer_loop
 
+    converged = inner_loop_converged .AND. outer_loop_converged
 
     !if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
     DO ispin=1,SIZE(mos)!fm -> dbcsr
