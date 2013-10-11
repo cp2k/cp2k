@@ -670,7 +670,7 @@ CONTAINS
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
          routineN, "Could not allocate memory for sorting buffer.", __LINE__,&
          error=error)
-    sort_keys(:) = IOR (ISHFT(INT(row_i(:),int_8), 32), INT(col_i(:),int_8))
+    sort_keys(:) = IOR (ISHFT(INT(row_i(1:n),int_8), 32), INT(col_i(1:n),int_8))
     IF (PRESENT (blk_p)) col_i(1:n) = (/ (i, i=1,n) /)
     !> Now do a nice quicksort.
     CALL sort(sort_keys, n, col_i)
