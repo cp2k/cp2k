@@ -5,7 +5,9 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Allocates 1D fortan-array as cuda host-pinned memory.
+!> \param n size given in terms of item-count (not bytes!)
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE host_mem_alloc_l (host_mem, n, error)
     INTEGER(KIND=int_8), DIMENSION(:), POINTER           :: host_mem
@@ -22,10 +24,13 @@
   END SUBROUTINE host_mem_alloc_l
 
 
+
 ! *****************************************************************************
-!> \brief
+!> \brief Allocates 2D fortan-array as cuda host-pinned memory.
+!> \param n1,n2 sizes given in terms of item-count (not bytes!)
+!> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_alloc_l_2D (host_mem, n1, n2, error)
+SUBROUTINE host_mem_alloc_l_2D (host_mem, n1, n2, error)
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
@@ -42,7 +47,9 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Allocates 3D fortan-array as cuda host-pinned memory.
+!> \param n1,n2,n3 sizes given in terms of item-count (not bytes!)
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE host_mem_alloc_l_3D (host_mem, n1, n2, n3, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:), POINTER           :: host_mem
@@ -62,9 +69,11 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Allocates 4D fortan-array as cuda host-pinned memory.
+!> \param n1,..,n4 sizes given in terms of item-count (not bytes!)
+!> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
+SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
@@ -83,7 +92,8 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Deallocates a 1D fortan-array, which is cuda host-pinned memory.
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE host_mem_dealloc_l (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:), &
@@ -107,7 +117,8 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Deallocates a 2D fortan-array, which is cuda host-pinned memory.
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE host_mem_dealloc_l_2D (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:,:), &
@@ -131,7 +142,8 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Deallocates a 3D fortan-array, which is cuda host-pinned memory.
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE host_mem_dealloc_l_3D (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:), &
@@ -152,9 +164,11 @@
 #endif
      IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE host_mem_dealloc_l_3D
-  
+
+
 ! *****************************************************************************
-!> \brief
+!> \brief Deallocates a 4D fortan-array, which is cuda host-pinned memory.
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE host_mem_dealloc_l_4D (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:,:), &

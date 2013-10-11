@@ -1,5 +1,6 @@
 ! *****************************************************************************
-!> \brief
+!> \brief Transfers 1D fortran-array from host to cuda devmem.
+!> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE host2dev_c8_1D(this, hostmem, stream, error)
     TYPE(dbcsr_cuda_devmem_type), INTENT(IN) :: this
@@ -17,7 +18,8 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Transfers 2D fortran-array from host to cuda devmem.
+!> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE host2dev_c8_2D(this, hostmem, stream, error)
     TYPE(dbcsr_cuda_devmem_type), INTENT(IN) :: this
@@ -35,7 +37,8 @@
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief Transfers cuda devmem to 1D fortran-array.
+!> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dev2host_c8_1D(this, hostmem, stream, error)
     TYPE(dbcsr_cuda_devmem_type), INTENT(IN) :: this
