@@ -625,7 +625,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, blk_d)
     INTEGER, INTENT(IN)                      :: n
-    INTEGER, DIMENSION(1:), INTENT(INOUT)   :: row_i, col_i
+    INTEGER, DIMENSION(1:), INTENT(INOUT)    :: row_i, col_i
     INTEGER, DIMENSION(1:), INTENT(INOUT), &
       OPTIONAL                               :: blk_p, blk_d
 

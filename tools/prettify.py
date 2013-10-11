@@ -204,7 +204,11 @@ if __name__ == '__main__':
     else:
         bkDir=defaultsDict['backup-dir']
         if not os.path.exists(bkDir):
-            os.mkdir(bkDir)
+            # Another parallel running instance might just have created the dir.
+            try:
+                os.mkdir(bkDir)
+            except:
+                assert(os.path.exists(bkDir))
         if not os.path.isdir(bkDir):
             print "bk-dir must be a directory"
             print usageDesc
