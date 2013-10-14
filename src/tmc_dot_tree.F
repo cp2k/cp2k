@@ -145,7 +145,7 @@ CONTAINS
     CLOSE(file_ptr)
 
     DO i=1, SIZE(tmc_params%Temp)
-      OPEN(file_ptr+i,FILE=get_dot_file_name(tmc_params, i, error))
+      OPEN(file_ptr+i,FILE=get_dot_file_name(tmc_params, i, error),POSITION="APPEND")
       WRITE(file_ptr+i,*)"}"
       CLOSE(file_ptr+i)
     END DO

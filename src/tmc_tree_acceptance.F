@@ -326,18 +326,27 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
                          vol=n_vol, error=error)
     ! H=enthalpy, U=energy, P=pressure, V=volume, kB=Boltzmann constant, T=temperature, N=amount particle
     ! delta_H  =      delta_U                               + P*delta_V           - kB*T*N*ln(V_n/V_p) 
-    IF(tmc_params%v_isotropic) THEN
-      d_enthalpy = (new_elem%potential-parent_elem%potential) + &
-                   tmc_params%pressure*(n_vol-p_vol) - &
-                   kB*temperature*((SIZE(new_elem%pos)/&
-                     tmc_params%dim_per_elem)+2/REAL(3,KIND=dp))*&
-                   LOG(n_vol/p_vol)
-    ELSE
+    IF(.FALSE.) THEN
+      ! the volume move in volume space (dV)
       d_enthalpy = (new_elem%potential-parent_elem%potential) + &
                    tmc_params%pressure*(n_vol-p_vol) - &
                    kB*temperature*(SIZE(new_elem%pos)/&
                      tmc_params%dim_per_elem)*&
                    LOG(n_vol/p_vol)
+    ELSE
+      IF(tmc_params%v_isotropic) THEN
+        d_enthalpy = (new_elem%potential-parent_elem%potential) + &
+                     tmc_params%pressure*(n_vol-p_vol) - &
+                     kB*temperature*((SIZE(new_elem%pos)/&
+                       tmc_params%dim_per_elem)+2/REAL(3,KIND=dp))*&
+                     LOG(n_vol/p_vol)
+      ELSE
+        d_enthalpy = (new_elem%potential-parent_elem%potential) + &
+                     tmc_params%pressure*(n_vol-p_vol) - &
+                     kB*temperature*(SIZE(new_elem%pos)/&
+                       tmc_params%dim_per_elem)*&
+                     LOG(n_vol/p_vol)
+      END IF
     END IF
     ! acc(o->n) = min(1, exp(-beta*delta_H))
     IF(d_enthalpy .LE. 0.0_dp)THEN

@@ -783,8 +783,14 @@ CONTAINS
     ! volume summed over configurations for average volume [A]
     ana_env%density_3d%sum_vol = ana_env%density_3d%sum_vol + &
                                    vol_cell*(au2a)**3 *weight
+    ana_env%density_3d%sum_vol2 = ana_env%density_3d%sum_vol2 + &
+                                   (vol_cell*(au2a)**3)**2 *weight
+
     ana_env%density_3d%sum_box_length(:) = ana_env%density_3d%sum_box_length(:)&
                                           + cell_size(:)*(au2a)*weight
+    ana_env%density_3d%sum_box_length2(:) = ana_env%density_3d%sum_box_length2(:)&
+                                          + (cell_size(:)*(au2a))**2 *weight
+
     ! sub interval length
     interval_size(1) = cell_size(1)/REAL(bin_x,dp)
     interval_size(2) = cell_size(2)/REAL(bin_y,dp)
@@ -848,12 +854,13 @@ CONTAINS
       INQUIRE(FILE=file_name, EXIST=flag)
       OPEN(19,FILE=file_name, POSITION="APPEND")
       IF(.NOT.flag) &
-        WRITE(19,FMT='(A8,7A20)')"# conf_nr","dens_act[g/cm^3]",&
+        WRITE(19,FMT='(A8,11A20)')"# conf_nr","dens_act[g/cm^3]",&
                    "dens_average[g/cm^3]","density_variance", &
-                   "average_volume", "box_lenth_x", "box_lenth_y","box_lenth_z"
-      WRITE(19,FMT="(I8,7F20.10)") ana_env%density_3d%conf_counter+1-weight, &
+                   "averages:volume", "box_lenth_x", "box_lenth_y","box_lenth_z", &
+                   "variances:volume", "box_lenth_x", "box_lenth_y","box_lenth_z"
+      WRITE(19,FMT="(I8,11F20.10)") ana_env%density_3d%conf_counter+1-weight, &
         SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:)), &
-         SUM(ana_env%density_3d%sum_density(:,:,:))/&
+        SUM(ana_env%density_3d%sum_density(:,:,:))/&
          SIZE(ana_env%density_3d%sum_density(:,:,:))/&
          REAL(ana_env%density_3d%conf_counter, KIND=dp), &
         SUM(ana_env%density_3d%sum_dens2(:,:,:))/&
@@ -865,7 +872,15 @@ CONTAINS
         ana_env%density_3d%sum_vol/&
          REAL(ana_env%density_3d%conf_counter, KIND=dp),&
         ana_env%density_3d%sum_box_length(:)/&
-         REAL(ana_env%density_3d%conf_counter, KIND=dp)
+         REAL(ana_env%density_3d%conf_counter, KIND=dp),&
+        ana_env%density_3d%sum_vol2/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
+         (ana_env%density_3d%sum_vol/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp))**2,&
+        ana_env%density_3d%sum_box_length2(:)/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
+         (ana_env%density_3d%sum_box_length(:)/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp))**2
       CLOSE(19)
     END IF
     

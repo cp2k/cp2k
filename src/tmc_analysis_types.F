@@ -80,7 +80,9 @@ MODULE tmc_analysis_types
     INTEGER                                       :: conf_counter
     INTEGER, DIMENSION(3)                         :: nr_bins
     REAL(KIND=dp)                                 :: sum_vol
+    REAL(KIND=dp)                                 :: sum_vol2
     REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length
+    REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length2
     REAL(KIND=dp), DIMENSION(:,:,:), POINTER      :: sum_density, sum_dens2
     LOGICAL                                       :: print_dens
   END TYPE density_3d_type
@@ -259,6 +261,8 @@ CONTAINS
     ana_dens%conf_counter = 0
     ana_dens%sum_vol      = 0.0_dp
     ana_dens%sum_box_length(:) = 0.0_dp
+    ana_dens%sum_vol2     = 0.0_dp
+    ana_dens%sum_box_length2(:) = 0.0_dp
 
     ALLOCATE(ana_dens%sum_density(nr_bins(1), nr_bins(2), nr_bins(3)))
     ALLOCATE(ana_dens%sum_dens2(nr_bins(1), nr_bins(2), nr_bins(3)))

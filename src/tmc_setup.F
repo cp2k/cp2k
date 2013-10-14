@@ -27,7 +27,8 @@ MODULE tmc_setup
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: default_output_unit,&
                                              m_flush
@@ -54,7 +55,9 @@ MODULE tmc_setup
   USE tmc_move_handle,                 ONLY: init_move_types,&
                                              print_move_types
   USE tmc_move_types,                  ONLY: move_types_release
-  USE tmc_stati,                       ONLY: tmc_NMC_worker_out_file_name,&
+  USE tmc_stati,                       ONLY: task_type_ideal_gas, &
+                                             task_type_MC,&
+                                             tmc_NMC_worker_out_file_name,&
                                              tmc_ana_out_file_name,&
                                              tmc_default_restart_in_file_name,&
                                              tmc_default_restart_out_file_name,&
@@ -590,8 +593,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tmc_preread_input', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: c_tmp
     INTEGER                                  :: itmp
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: explicit_key, failure, flag
     REAL(KIND=dp)                            :: tmax, tmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp
     TYPE(section_vals_type), POINTER         :: tmc_section
@@ -680,6 +684,25 @@ CONTAINS
                    "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}",&
                    error, failure=flag, only_ionode=.TRUE.)
     END IF
+
+    CALL section_vals_val_get(tmc_section,"TASK_TYPE" ,explicit=explicit_key,error=error)
+    IF(explicit_key)THEN
+      CALL section_vals_val_get(tmc_section,"TASK_TYPE",c_val=c_tmp,error=error)
+      SELECT CASE (TRIM(c_tmp))
+      CASE (TRIM(tmc_default_unspecified_name))
+        tmc_env%params%task_type = task_type_MC
+      CASE ("IDEAL_GAS")
+        tmc_env%params%task_type = task_type_ideal_gas
+      CASE DEFAULT
+        CALL cp_assert(.FALSE.,&
+               cp_warning_level,cp_assertion_failed,routineP,&
+               'unknown TMC task type "'//TRIM(c_tmp)//'" specified. '//&
+               " Set to default.",&
+               error, failure=flag, only_ionode=.TRUE.)
+        tmc_env%params%task_type = task_type_MC
+      END SELECT
+    END IF
+
   END SUBROUTINE tmc_preread_input
 
 

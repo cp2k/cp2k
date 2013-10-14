@@ -119,6 +119,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
+            name="TASK_TYPE",&
+            description="Select specialized types. Selectable:"//&
+                        "IDEAL_GAS (constant configuration energy E=0.0), ",&
+            usage="TASK_TYPE {OPTION}",&
+            default_c_val="", lone_keyword_c_val=tmc_default_unspecified_name,&
+            required=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
             name="NR_TEMPERATURE",&
             description="the number of different temperature for parallel tempering",&
             usage="NR_TEMP {INTEGER}",&
