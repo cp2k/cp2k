@@ -27,6 +27,9 @@ def process_log_file(fn):
     re_procedure = re.compile(r"^\s+procedure name = (.*)$")
     re_symbol    = re.compile(r"^\s+symtree.* symbol: '([^']+)'.*$")
     re_attr      = re.compile(r"^\s+attributes: (.*)$")
+    re_open      = re.compile(r"^\s+OPEN")
+
+    direct_open_allowed = ["cp_files", "machine_gfortran", "machine",]
 
     for line in lines:
         m = re_procedure.match(line)
@@ -44,6 +47,10 @@ def process_log_file(fn):
             msg  = fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-SAVE'
             print(msg)
 
+        m = re_open.match(line)
+        if(m and curr_procedure and fn.rsplit(".",1)[0] not in direct_open_allowed):
+            msg = fn+': direct call to OPEN in procedure "'+curr_procedure+"'"
+            print(msg)
 
 #===============================================================================
 main()
