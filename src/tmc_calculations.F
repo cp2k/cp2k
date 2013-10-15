@@ -80,9 +80,10 @@ CONTAINS
 
     INTEGER                                  :: ierr
     LOGICAL                                  :: failure, flag
-    REAL(KIND=dp)                            :: e_pot, rnd = 0.0_dp
+    REAL(KIND=dp)                            :: e_pot, rnd
     TYPE(cell_type), POINTER                 :: tmp_cell
 
+    rnd = 0.0_dp
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)

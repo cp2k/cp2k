@@ -240,14 +240,17 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: c_t
     CHARACTER(LEN=50)                        :: FMT_c, FMT_i, FMT_r
-    CHARACTER(LEN=500)                       :: c_a = "", c_b = "", c_c = "", &
-                                                c_d = "", c_e = "", c_tit = ""
-    INTEGER                                  :: column_size = 10, temper, typ
-    LOGICAL                                  :: failure, &
-                                                subbox_out = .FALSE., &
-                                                type_title = .FALSE.
+    CHARACTER(LEN=500)                       :: c_a, c_b, c_c, c_d, c_e, c_tit
+    INTEGER                                  :: column_size, temper, typ
+    LOGICAL                                  :: failure, subbox_out, &
+                                                type_title
 
-    failure = .FALSE.
+    c_a=""; c_b=""; c_c=""
+    c_d=""; c_e=""; c_tit=""
+    column_size = 10
+    subbox_out = .FALSE.
+    type_title = .FALSE.
+    failure    = .FALSE.
     CPPrecondition(file_io.GT.0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,error,failure)
 

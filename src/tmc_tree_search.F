@@ -245,9 +245,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag = .FALSE.
-    REAL(KIND=dp)                            :: prob = 0.0_dp
+    LOGICAL                                  :: failure, flag
+    REAL(KIND=dp)                            :: prob
 
+    prob = 0.0_dp
+    flag = .FALSE.
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(gt_head),cp_failure_level,routineP,error,failure)
 
