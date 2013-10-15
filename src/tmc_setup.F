@@ -55,15 +55,11 @@ MODULE tmc_setup
   USE tmc_move_handle,                 ONLY: init_move_types,&
                                              print_move_types
   USE tmc_move_types,                  ONLY: move_types_release
-  USE tmc_stati,                       ONLY: task_type_ideal_gas, &
-                                             task_type_MC,&
-                                             tmc_NMC_worker_out_file_name,&
-                                             tmc_ana_out_file_name,&
-                                             tmc_default_restart_in_file_name,&
-                                             tmc_default_restart_out_file_name,&
-                                             tmc_default_unspecified_name,&
-                                             tmc_energy_worker_out_file_name,&
-                                             tmc_master_out_file_name
+  USE tmc_stati,                       ONLY: &
+       task_type_MC, task_type_ideal_gas, tmc_NMC_worker_out_file_name, &
+       tmc_ana_out_file_name, tmc_default_restart_in_file_name, &
+       tmc_default_restart_out_file_name, tmc_default_unspecified_name, &
+       tmc_energy_worker_out_file_name, tmc_master_out_file_name
   USE tmc_tree_build,                  ONLY: allocate_new_sub_tree_node,&
                                              deallocate_sub_tree_node
   USE tmc_tree_types,                  ONLY: tree_type

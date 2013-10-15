@@ -11,9 +11,7 @@
 ! *****************************************************************************
 
 MODULE tmc_stati
-  USE kinds,                           ONLY: default_path_length
 #include "cp_common_uses.h"
-
   IMPLICIT NONE
 
   PRIVATE
