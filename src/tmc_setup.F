@@ -52,8 +52,8 @@ MODULE tmc_setup
                                              tmc_ana_list_type
   USE tmc_file_io,                     ONLY: expand_file_name_int
   USE tmc_master,                      ONLY: do_tmc_master
-  USE tmc_move_handle,                 ONLY: init_move_types,&
-                                             print_move_types
+  USE tmc_move_handle,                 ONLY: print_move_types,&
+                                             read_init_move_types
   USE tmc_move_types,                  ONLY: move_types_release
   USE tmc_stati,                       ONLY: &
        task_type_MC, task_type_ideal_gas, tmc_NMC_worker_out_file_name, &
@@ -769,7 +769,6 @@ CONTAINS
 
     ! stuff everyone needs to know
 
-    ALLOCATE(tmc_env%params%moves_init_sizes)
     ! the NMC_FILE_NAME is already read in tmc_preread_input
     CALL section_vals_val_get(tmc_section,"ENERGY_FILE_NAME",c_val=tmc_env%params%energy_inp_file,error=error)
     ! file name keyword without file name
@@ -785,24 +784,11 @@ CONTAINS
                    TRIM(tmc_env%params%energy_inp_file)//" does not exist.",&
                    error, failure=flag, only_ionode=.TRUE.)
 
-    CALL section_vals_val_get(tmc_section,"START_ACC_PROB",r_val=tmc_env%params%moves_init_sizes%start_acc_prob,error=error)
     CALL section_vals_val_get(tmc_section,"NUM_MV_ELEM_IN_CELL",i_val=tmc_env%params%nr_elem_mv,error=error)    
     CALL section_vals_val_get(tmc_section,"NR_NMC_STEPS",i_val=tmc_env%params%nr_NMC_steps,error=error)
     CALL cp_assert(.NOT.(tmc_env%params%NMC_inp_file.NE."".AND.tmc_env%params%nr_NMC_steps.LE.0),&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     error, failure=flag, only_ionode=.TRUE.)
-    CALL section_vals_val_get(tmc_section,"MOVE_TYPES",i_vals=tmc_env%params%moves_init_sizes%mv_types,error=error)
-    CALL section_vals_val_get(tmc_section,"MOVE_SIZES",r_vals=tmc_env%params%moves_init_sizes%mv_sizes,error=error)
-    CALL section_vals_val_get(tmc_section,"MOVE_PROBS",r_vals=tmc_env%params%moves_init_sizes%mv_probs,error=error)
-    CALL cp_assert((SIZE(tmc_env%params%moves_init_sizes%mv_types).EQ.SIZE(tmc_env%params%moves_init_sizes%mv_sizes)),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The entered move sizes does not fit in the amount to the entered move types.",&
-                     error, failure=flag, only_ionode=.TRUE.)
-    CALL cp_assert((SIZE(tmc_env%params%moves_init_sizes%mv_probs).EQ.1.OR.&
-                   SIZE(tmc_env%params%moves_init_sizes%mv_probs).EQ.SIZE(tmc_env%params%moves_init_sizes%mv_types)),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The entered move probabilities does not fit in the amount to the entered move types.",&
                      error, failure=flag, only_ionode=.TRUE.)
 
     CALL section_vals_val_get(tmc_section,"VOLUME_ISOTROPIC",l_val=tmc_env%params%v_isotropic,error=error)
@@ -827,8 +813,9 @@ CONTAINS
       tmc_env%params%sub_box_size(:) = r_tmp
     END IF
 
-    ! init the move types (set all move sizes and weights)
-    CALL init_move_types(tmc_params=tmc_env%params, error=error)
+    ! read all the distinct moves
+    CALL read_init_move_types(tmc_params=tmc_env%params, &
+                              tmc_section=tmc_section, error=error)
 
     CALL section_vals_val_get(tmc_section,"ESIMATE_ACC_PROB",l_val=tmc_env%params%esimate_acc_prob,error=error)
     CALL section_vals_val_get(tmc_section,"SPECULATIVE_CANCELING",l_val=tmc_env%params%SPECULATIVE_CANCELING,error=error)

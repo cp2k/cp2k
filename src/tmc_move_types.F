@@ -34,7 +34,7 @@ MODULE tmc_move_types
   INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 9 !-- allways update the number of possible types!!
   INTEGER, PARAMETER, PUBLIC :: nr_nmc_mv_types        = 4 ! the first n move types are used in the NMC algorithm
 
-  PUBLIC :: tmc_move_type, moves_init_sizes_type, move_types_create, move_types_release
+  PUBLIC :: tmc_move_type, move_types_create, move_types_release
 
   TYPE tmc_move_type
      !-- mv_type, handling indeces to move type (are equal for all several configurations/temperatures)
@@ -65,12 +65,6 @@ MODULE tmc_move_types
 !     INTEGER, DIMENSION(:), ALLOCATABLE :: nmc_count
   END TYPE tmc_move_type
 
-  TYPE moves_init_sizes_type
-    INTEGER, DIMENSION(:), POINTER       :: mv_types
-    REAL(KIND=dp), DIMENSION(:),POINTER  :: mv_sizes, mv_probs
-    REAL(KIND=dp)                        :: start_acc_prob
-  END TYPE moves_init_sizes_type
-
 CONTAINS
 
 ! *****************************************************************************
@@ -93,7 +87,7 @@ CONTAINS
 
     ALLOCATE(move_types)
     ALLOCATE(move_types%mv_weight(nr_mv_types))
-    move_types%mv_weight(:) = 0
+    move_types%mv_weight(:) = 0.0_dp
     ALLOCATE(move_types%mv_size(nr_mv_types,nr_temp))
     move_types%mv_size(:,:) = 0.0_dp
     ALLOCATE(move_types%acc_prob(0:nr_mv_types,nr_temp))

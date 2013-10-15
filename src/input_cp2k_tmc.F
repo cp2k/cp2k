@@ -149,15 +149,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-            name="START_ACC_PROB",&
-            description="expected average acceptance probability, "//&
-                        "used as starting guess",&
-            usage="START_ACC_PROB {REAL}",&
-            default_r_val=0.2_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword,&
             name="NUM_MV_ELEM_IN_CELL",&
             description="the number of elements (atoms or molecules) "//&
                         "moves in cell or sub box."//&
@@ -176,37 +167,10 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
-       CALL keyword_create(keyword, &
-            name="MOVE_TYPES",&
-            description="types of moves: 1 atom translation, "//&
-                        "2 molecule translation, 3 molecule rotation, "//&
-                        "4 proton reordering, 5 MD steps, "//&
-                        "6 temperature swap, 7 volume change, 8 gaussian adap",&
-            usage="MOVE_TYPES {INTEGER} {INTEGER} ... ",&
-            default_i_vals=(/-1/), &
-            n_var=-1,type_of_var=integer_t,required=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, &
-            name="MOVE_SIZES",&
-            description="sizes of the moves, the dimensions to the related move types are:"//&
-                        "1 [A], 2 [A], 3 [degree], 4 [], 5 [#], 6 prob, 7 [A]",&
-            usage="MOVE_SIZE {REAL} {REAL} ... ",&
-            default_r_vals=(/-1.0_dp/), &
-            n_var=-1,type_of_var=real_t,required=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, &
-            name="MOVE_PROBS",&
-            description="specifies the ratio of each move type ", &
-            usage="MOVE_PROB {REAL} {REAL} ... ",&
-            default_r_vals=(/-1.0_dp/), &
-            n_var=-1,type_of_var=real_t,required=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       ! the moves MOVE_TYPE
+       CALL create_TMC_move_type_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL keyword_create(keyword, &
             name="SUB_BOX",&
@@ -399,6 +363,94 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes
 ! *****************************************************************************
+  SUBROUTINE create_TMC_move_type_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_move_type_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="MOVE_TYPE",&
+            description="This section specifies the TMC move type, "//&
+                        "and its properties. "//&
+                        "Selectable types are: "//&
+                        "ATOM_TRANS atom translation, "//&
+                        "MOL_TRANS molecule translation, "//&
+                        "MOL_ROT molecule rotation, "//&
+                        "PROT_REORDER proton reordering, "//&
+                        "PT_SWAP Parallel Tempering swap, "//&
+                        "VOL_MOVE volume change. ",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The name of the move type described in this section.",&
+            usage="ATOM_TRANS", default_c_val="DEFAULT", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+!       CALL keyword_create(keyword, name="TYPE",&
+!            description="Defines the type of selected move. "//&
+!                        "Selectable types are: "//&
+!                        "ATOM_TRANS atom translation, "//&
+!                        "MOL_TRANS molecule translation, "//&
+!                        "MOL_ROT molecule rotation, "//&
+!                        "PROT_REORDER proton reordering, "//&
+!                        "PT_SWAP Parallel Tempering swap, "//&
+!                        "VOL_MOVE volume change, ",&
+!            usage="TYPE {selected type}", required=.TRUE., type_of_var=char_t,&
+!            n_var=1, error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SIZE",&
+            description="Defines the size of the move:"//&
+                        "ATOM_TRANS [A], "//&
+                        "MOL_TRANS [A], "//&
+                        "MOL_ROT [degree], "//&
+                        "PROT_REORDER [], "//&
+                        "PROT_REORDER [], "//&
+                        "VOL_MOVE [A]",&
+            usage="SIZE {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=-1.0_dp, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PROB",&
+            description="Defines the probability of the move "//&
+                        "(considering the ration between the selected moves)",&
+            usage="PROB {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.0_dp, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INIT_ACC_PROB",&
+            description="Defines the initial probability of accepting the move. ",&
+            usage="INIT_ACC_PROB {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=0.23_dp, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+    
+
+  END SUBROUTINE create_TMC_move_type_section
+
+! *****************************************************************************
+!> \brief creates the TreeMonteCarlo subsection
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes
+! *****************************************************************************
   SUBROUTINE create_TMC_ana_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -410,8 +462,8 @@ CONTAINS
 
     failure=.FALSE.
 
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="TMC_ANALYSIS",&
             description="Analysing the Markov Chain elments with the specified methods",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
@@ -442,8 +494,8 @@ CONTAINS
     NULLIFY(keyword)
     failure=.FALSE.
 
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="TMC_ANALYSIS_FILES",&
             description="Analysing the Markov Chain elments with the specified methods, "//&
                         "reading form default or specified files",&

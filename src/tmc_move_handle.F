@@ -13,16 +13,22 @@
 ! *****************************************************************************
 
 MODULE tmc_move_handle
-  USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: pi
   USE physcon,                         ONLY: au2a => angstrom
+  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE tmc_move_types,                  ONLY: &
        move_types_create, move_types_release, mv_type_MD, mv_type_NMC_moves, &
        mv_type_atom_trans, mv_type_gausian_adapt, mv_type_mol_rot, &
-       mv_type_mol_trans, mv_type_none, mv_type_proton_reorder, &
-       mv_type_swap_conf, mv_type_volume_move, nr_nmc_mv_types, tmc_move_type
+       mv_type_mol_trans, mv_type_proton_reorder, mv_type_swap_conf, &
+       mv_type_volume_move, nr_nmc_mv_types, tmc_move_type
   USE tmc_stati,                       ONLY: task_type_MC,&
                                              task_type_gaussian_adaptation,&
                                              task_type_ideal_gas
@@ -39,7 +45,7 @@ MODULE tmc_move_handle
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_handle'
 
-  PUBLIC :: finalize_mv_types, init_move_types, print_move_types
+  PUBLIC :: finalize_mv_types, print_move_types, read_init_move_types
   PUBLIC :: select_random_move_type
   PUBLIC :: prob_update, add_mv_prob
   PUBLIC :: clear_move_probs
@@ -52,149 +58,173 @@ CONTAINS
 !> \param move_types pointer to the structure which should be deallocated
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author Mandes 11.2012
+!> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE init_move_types(tmc_params, error)
+  SUBROUTINE read_init_move_types(tmc_params, tmc_section, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(section_vals_type), POINTER         :: tmc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_move_types', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_init_move_types', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ind
-    LOGICAL                                  :: failure, flag
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: probs
+    CHARACTER(LEN=default_string_length)     :: inp_kind_name
+    INTEGER                                  :: i_rep, ind, n_items
+    LOGICAL                                  :: explicit
+    REAL(KIND=dp)                            :: delta_x, init_acc_prob, &
+                                                mv_prob, mv_prob_sum
+    TYPE(section_vals_type), POINTER         :: move_type_section
 
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params%moves_init_sizes),cp_failure_level,routineP,error,failure)
-    flag = (SIZE(tmc_params%moves_init_sizes%mv_types).EQ.&
-            SIZE(tmc_params%moves_init_sizes%mv_sizes))
-    CPPrecondition( flag , cp_failure_level,routineP,error,failure)
-    flag = (SIZE(tmc_params%moves_init_sizes%mv_probs).EQ.1) .OR. &
-            SIZE(tmc_params%moves_init_sizes%mv_probs).EQ.&
-            SIZE(tmc_params%moves_init_sizes%mv_types)
-    CPPrecondition( flag, cp_failure_level,routineP,error,failure)
+    move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE",error=error)
+    CALL section_vals_get(move_type_section, explicit=explicit, error=error)
+    IF(explicit) THEN
+      ! initilaize the move array with related sizes, probs, etc.
+      CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp, error)
 
-    ALLOCATE(probs(SIZE(tmc_params%moves_init_sizes%mv_types)))
-    IF((SIZE(tmc_params%moves_init_sizes%mv_probs).EQ.1).AND.&
-       (tmc_params%moves_init_sizes%mv_probs(1).LT.0.0_dp))THEN
-      probs(:) = 1.0_dp
-    ELSE
-      probs(:) = tmc_params%moves_init_sizes%mv_probs
-    END IF
+      CALL section_vals_get(move_type_section,n_repetition=n_items,error=error)
+      ! get the total weight/amount of move probabilities
+      mv_prob = 0.0_dp
+      DO i_rep = 1, n_items
+        CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
+                                  r_val=mv_prob,error=error)
+        mv_prob_sum = mv_prob_sum + mv_prob
+      END DO
 
-    CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp, error)
+      ! get the sizes, probs, etc. for each move type and convert units
+      DO i_rep = 1, n_items
+        CALL section_vals_val_get(move_type_section, "_SECTION_PARAMETERS_",&
+                                  c_val=inp_kind_name, i_rep_section=i_rep, &
+                                  error=error)
+        CALL uppercase(inp_kind_name)
+        CALL section_vals_val_get(move_type_section,"SIZE",i_rep_section=i_rep,&
+                                  r_val=delta_x,error=error)
+        ! move sizes are checked afterwards, because not all moves require a valid move size
+        CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
+                                  r_val=mv_prob,error=error)
+        CALL cp_assert(mv_prob.GE.0.0_dp,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "Please select a valid move probability (>0.0) "//&
+                      "for the move type "//inp_kind_name,&
+                      error)
+        CALL section_vals_val_get(move_type_section,"INIT_ACC_PROB",i_rep_section=i_rep,&
+                                  r_val=init_acc_prob,error=error)
+        CALL cp_assert(init_acc_prob.GE.0.0_dp,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "Please select a valid initial acceptance probability (>0.0) "//&
+                      "for the move type "//inp_kind_name,&
+                      error)
 
-    tmc_params%move_types%acc_prob(0,:) = &
-      tmc_params%moves_init_sizes%start_acc_prob
-    ! mv_weights are used within NMC, special moves like NMC, 
-    !  swap and volume moves are treated seperately.
-    ! the probability to do a swap move is defined by the move size of this type.
-    DO ind=1, SIZE(tmc_params%moves_init_sizes%mv_types)
-      SELECT CASE(tmc_params%moves_init_sizes%mv_types(ind))
-      ! molecule rotation
-      CASE(mv_type_mol_rot)
-         tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = probs(ind)/SUM(probs(:))
-         tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = tmc_params%moves_init_sizes%mv_sizes(ind)
-         ! convert units
-         SELECT CASE(tmc_params%task_type)
-         CASE(task_type_MC, task_type_ideal_gas)
-            tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = &
-                          tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) *PI/180.0_dp
-         CASE DEFAULT
-           CALL cp_assert(.FALSE.,&
-                    cp_failure_level,cp_assertion_failed,routineP,&
-                    "move type mol_rot is not defined for this task type",&
+        ! set the related index and perform unit conversion of move sizes
+        SELECT CASE(inp_kind_name)
+        ! atom / molecule translation
+        CASE("ATOM_TRANS", "MOL_TRANS")
+          SELECT CASE(inp_kind_name)
+          CASE("ATOM_TRANS")
+            ind = mv_type_atom_trans
+          CASE("MOL_TRANS")
+            ind = mv_type_mol_trans
+          CASE DEFAULT
+            CALL cp_assert(.FALSE.,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "move type is not defined in the translation types",&
+                      error)
+          END SELECT
+          ! convert units
+          SELECT CASE(tmc_params%task_type)
+          CASE(task_type_MC, task_type_ideal_gas)
+            delta_x = delta_x /au2a
+          CASE(task_type_gaussian_adaptation)
+             !nothing to do (no unit conversion)
+          CASE DEFAULT
+            CALL cp_assert(.FALSE.,&
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "move type atom / mol trans is not defined for this TMC run type",&
+                   error)
+          END SELECT
+        ! molecule rotation
+        CASE("MOL_ROT")
+          ind = mv_type_mol_rot
+          ! convert units
+          SELECT CASE(tmc_params%task_type)
+          CASE(task_type_MC, task_type_ideal_gas)
+            delta_x = delta_x *PI/180.0_dp
+          CASE DEFAULT
+            CALL cp_assert(.FALSE.,&
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "move type MOL_ROT is not defined for this TMC run type",&
                     error)
-         END SELECT
-         tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = &
-                                             tmc_params%moves_init_sizes%start_acc_prob
-      ! atom / molecule translation
-      CASE(mv_type_atom_trans, mv_type_mol_trans)
-         tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = probs(ind)/SUM(probs(:))
-         tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = tmc_params%moves_init_sizes%mv_sizes(ind)
-         ! convert units
-         SELECT CASE(tmc_params%task_type)
-         CASE(task_type_MC, task_type_ideal_gas)
-            tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = &
-                                          tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1)/au2a
-         CASE(task_type_gaussian_adaptation)
-            !nothing to do (no unit conversion)
-         CASE DEFAULT
-           CALL cp_assert(.FALSE.,&
-                    cp_failure_level,cp_assertion_failed,routineP,&
-                    "move type atom / mol trans is not defined for this task type",&
-                    error)
-         END SELECT
-         tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = &
-                                             tmc_params%moves_init_sizes%start_acc_prob
-      ! Hybrid MC (MD)
-      CASE(mv_type_MD)
-         tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = probs(ind)/SUM(probs(:))
-         tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = &
-                          tmc_params%moves_init_sizes%mv_sizes(ind) *Pi/180.0_dp !input in degree, calculating in rad
-         tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = &
-                          tmc_params%moves_init_sizes%start_acc_prob
-         tmc_params%print_forces = .TRUE.
-      ! proton reordering
-      CASE(mv_type_proton_reorder)
-         tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = &
-                          probs(ind)/SUM(probs(:))
-         tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = &
-                          tmc_params%moves_init_sizes%start_acc_prob
-      ! volume moves
-      CASE(mv_type_volume_move)
-         CALL cp_assert(tmc_params%pressure .GE. 0.0_dp,&
-                    cp_warning_level,cp_assertion_failed,routineP,&
-                    "no valid pressure defined, but volume move defined. Volume move disabled.",&
-                    error)
-         IF(tmc_params%pressure .GE. 0.0_dp)THEN
+          END SELECT
+        ! proton reordering
+        CASE("PROT_REORDER")
+          ind = mv_type_proton_reorder
+          ! the move size is not necessary
+          delta_x = 0.0_dp
+        ! Hybrid MC (MD)
+        CASE("HYBRID_MC")
+          ind = mv_type_MD
+          delta_x = delta_x *Pi/180.0_dp !input in degree, calculating in rad
+          tmc_params%print_forces = .TRUE.
+        ! parallel tempering swap move
+        CASE("PT_SWAP")
+          ind = mv_type_swap_conf
+          ! the move size is not necessary
+          delta_x = 0.0_dp
+          IF(tmc_params%nr_temp.LE.1) THEN
+            ! no configurational swapping if only one temperature
+            mv_prob = 0.0_dp
+            CALL cp_assert(.FALSE.,&
+                   cp_warning_level,cp_assertion_failed,routineP,&
+                   "Configurational swap disabled, because "//&
+                   "Parallel Tempering requires more than one temperature.",&
+                   error)
+           END IF
+        ! volume moves
+        CASE("VOL_MOVE")
+          ind = mv_type_volume_move
+          ! check the selected pressure
+          IF(tmc_params%pressure .GE. 0.0_dp)THEN
+            delta_x = delta_x /au2a
             tmc_params%print_cell = .TRUE. ! print the cell sizes by default
-            tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = &
-                          tmc_params%moves_init_sizes%mv_sizes(ind)/au2a
-            tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = &
-                          probs(ind)/SUM(probs(:))
-            tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = &
-                          tmc_params%moves_init_sizes%start_acc_prob
-            tmc_params%print_cell = .TRUE.
-         END IF
-      ! parallel tempering swap move
-      CASE(mv_type_swap_conf)
-         IF(tmc_params%nr_temp.GT.1) THEN
-            tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = &
-                          probs(ind)/SUM(probs(:))
-             IF(probs(ind).GT.0.0_dp) &
-               tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = &
-                          probs(ind)
-         END IF
-         tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = &
-                          tmc_params%moves_init_sizes%start_acc_prob
-      ! gaussian adaptation
-      CASE(mv_type_gausian_adapt)
-         tmc_params%move_types%mv_weight(tmc_params%moves_init_sizes%mv_types(ind)) = probs(ind)/SUM(probs(:))
-         tmc_params%move_types%mv_size(tmc_params%moves_init_sizes%mv_types(ind),1) = tmc_params%moves_init_sizes%mv_sizes(ind)
-         tmc_params%move_types%acc_prob(tmc_params%moves_init_sizes%mv_types(ind),:) = 0.5_dp
-      CASE(mv_type_none, mv_type_NMC_moves)
-      CASE DEFAULT
-        CALL cp_assert(.FALSE.,&
-                    cp_failure_level,cp_assertion_failed,routineP,&
-                    "entered unknown move type"//cp_to_string(tmc_params%moves_init_sizes%mv_types(ind)),&
-                    error)
-      END SELECT
-    END DO
+          ELSE
+            CALL cp_assert(.FALSE.,&
+                 cp_warning_level,cp_assertion_failed,routineP,&
+                 "no valid pressure defined, but volume move defined. "//&
+                 "Consequently, the volume move is disabled.",&
+                 error)
+            mv_prob = 0.0_dp
+          END IF
 
-    ! set NMC start acceptance probability if necessary
-    IF(tmc_params%NMC_inp_file.NE."") THEN
-      tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = &
-        tmc_params%moves_init_sizes%start_acc_prob
+        ! gaussian adaptation
+        CASE("GAUSS_ADAPT")
+          ind = mv_type_gausian_adapt
+          init_acc_prob = 0.5_dp
+        CASE DEFAULT
+          CALL cp_assert(.FALSE.,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "A unknown move type is selected: "//inp_kind_name,&
+                      error)
+        END SELECT
+        ! check for valid move sizes
+        CALL cp_assert(delta_x.GE.0.0_dp,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "Please select a valid move size (>0.0) "//&
+                      "for the move type "//inp_kind_name,&
+                      error)
+
+        ! set the move size
+        tmc_params%move_types%mv_size(ind,:) = delta_x
+        ! set the probability to perform move
+        tmc_params%move_types%mv_weight(ind) = mv_prob/mv_prob_sum
+        ! set the initial acceptance probability
+        tmc_params%move_types%acc_prob(ind,:) = init_acc_prob
+
+      END DO
+      ! set NMC start acceptance probability if necessary
+      IF(tmc_params%NMC_inp_file.NE."") THEN
+        tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = 0.5_dp
+      END IF
     END IF
-
-    ! distribute to all temperatures
-    DO ind=2, tmc_params%nr_temp, 1
-       tmc_params%move_types%mv_size(:,ind) = tmc_params%move_types%mv_size(:,1)
-    END DO
-    DEALLOCATE(probs)
-  END SUBROUTINE init_move_types
+  END SUBROUTINE read_init_move_types
 
 ! *****************************************************************************
 !> \brief deallocating the module variables
@@ -366,8 +396,8 @@ error)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "H-Reorder"
                    IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX"
                 CASE(mv_type_swap_conf)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "(swap)"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(mv_type_swap_conf,1)
+                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "PT(swap)"
+                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX" !tmc_params%move_types%mv_size(mv_type_swap_conf,1)
                 CASE(mv_type_NMC_moves)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "NMC"
                    IF(init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), tmc_params%nr_NMC_steps
