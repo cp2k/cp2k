@@ -47,8 +47,13 @@ def process_log_file(fn):
             msg  = fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-SAVE'
             print(msg)
 
+        m = re_attr.match(line)
+        if(m and curr_procedure and ("IMPLICIT-TYPE" in line)):
+            msg  = fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-TYPE'
+            print(msg)
+
         m = re_open.match(line)
-        if(m and curr_procedure and fn.rsplit(".",1)[0] not in direct_open_allowed):
+        if(m and curr_procedure and (fn.rsplit(".",1)[0] not in direct_open_allowed)):
             msg = fn+': direct call to OPEN in procedure "'+curr_procedure+"'"
             print(msg)
 
