@@ -19,13 +19,21 @@
       NR_NMC_STEPS 2
       NR_TEMPERATURE 3
       TEMPERATURE 270 330
-      MOVE_TYPES 1 7 6
-      MOVE_SIZES 0.1 0.01 0.5
-      MOVE_PROBS 1 8 5
+      &MOVE_TYPE      ATOM_TRANS
+        SIZE          0.1
+        PROB          1
+        INIT_ACC_PROB 0.2
+      &END
+      &MOVE_TYPE      VOL_MOVE
+        SIZE          0.01
+        PROB          8
+      &END
+      &MOVE_TYPE      PT_SWAP
+        PROB          5
+      &END
       PRESSURE 0.001
       NUM_MV_ELEM_IN_CELL 1
       RND_DETERMINISTIC 42
-      START_ACC_PROB 0.2
       INFO_OUT_STEP_SIZE 10
       RESTART_OUT 0
       PRINT_TEST_OUTPUT

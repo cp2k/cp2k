@@ -17,12 +17,24 @@
       ENERGY_FILE_NAME H2O.inp
       NR_TEMPERATURE 3
       TEMPERATURE 300 460
-      MOVE_TYPES 1 2 3 6
-      MOVE_SIZES 0.05 0.1 4 0.1
-      MOVE_PROBS 1 1 1 3
+      &MOVE_TYPE      ATOM_TRANS
+        SIZE          0.05
+        PROB          1
+        INIT_ACC_PROB 0.2
+      &END
+      &MOVE_TYPE      MOL_TRANS
+        SIZE          0.1
+        PROB          1
+      &END
+      &MOVE_TYPE      MOL_ROT
+        SIZE          4
+        PROB          1
+      &END
+      &MOVE_TYPE      PT_SWAP
+        PROB          3
+      &END
       NUM_MV_ELEM_IN_CELL 0
       RND_DETERMINISTIC 42
-      START_ACC_PROB 0.2
       INFO_OUT_STEP_SIZE 1
       RESTART_OUT 0
       PRINT_ONLY_ACC .FALSE.
