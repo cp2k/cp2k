@@ -121,7 +121,7 @@ FUNCTION dpmpar (i) RESULT(fn_val)
     INTEGER, INTENT(IN)                      :: i
     REAL(dp)                                 :: fn_val
 
-    REAL(dp)                                 :: one = 1._dp
+    REAL(dp), PARAMETER                      :: one = 1._dp
 
 ! Local variable
 
@@ -145,7 +145,7 @@ FUNCTION epsln () RESULT(fn_val)
 !--------------------------------------------------------------------
     REAL                                     :: fn_val
 
-    REAL                                     :: one = 1.0
+    REAL, PARAMETER                          :: one = 1.0
 
 ! Local variable
 
@@ -167,7 +167,7 @@ FUNCTION exparg (l) RESULT(fn_val)
     INTEGER, INTENT(IN)                      :: l
     REAL                                     :: fn_val
 
-    REAL                                     :: one = 1.0
+    REAL, PARAMETER                          :: one = 1.0
 
 ! Local variable
 
@@ -187,7 +187,7 @@ FUNCTION depsln () RESULT(fn_val)
 !--------------------------------------------------------------------
     REAL(dp)                                 :: fn_val
 
-    REAL(dp)                                 :: one = 1._dp
+    REAL(dp), PARAMETER                      :: one = 1._dp
 
 ! Local variable
 
@@ -209,7 +209,7 @@ FUNCTION dxparg (l) RESULT(fn_val)
     INTEGER, INTENT(IN)                      :: l
     REAL(dp)                                 :: fn_val
 
-    REAL(dp)                                 :: one = 1._dp
+    REAL(dp), PARAMETER                      :: one = 1._dp
 
 ! Local variable
 
@@ -229,11 +229,13 @@ FUNCTION alnrel(a) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: half = 0.5e0_dp, one = 1.e0_dp, &
+    REAL(dp), PARAMETER :: half = 0.5e0_dp, one = 1.e0_dp, &
       p1 = -.129418923021993e+01_dp, p2 = .405303492862024e+00_dp, &
       p3 = -.178874546012214e-01_dp, q1 = -.162752256355323e+01_dp, &
-      q2 = .747811014037616e+00_dp, q3 = -.845104217945565e-01_dp, t, t2, &
-      two = 2.e0_dp, w, x, zero = 0.e0_dp
+      q2 = .747811014037616e+00_dp, q3 = -.845104217945565e-01_dp, &
+      two = 2.e0_dp, zero = 0.e0_dp
+
+    REAL(dp)                                 :: t, t2, w, x
 
 !--------------------------
 
@@ -259,23 +261,26 @@ FUNCTION erf (x) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: x
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: a(5) = (/ .771058495001320e-04_dp, -.133733772997339e-02_dp,  &
-      .323076579225834e-01_dp,  .479137145607681e-01_dp, &
-      .128379167095513e+00_dp /), ax, b(3) = (/ .301048631703895e-02_dp,  &
-      .538971687740286e-01_dp,.375795757275549e+00_dp /), bot, &
-      c = .564189583547756e0_dp, p(8) = (/-1.36864857382717e-07_dp,  &
-      5.64195517478974e-01_dp, 7.21175825088309e+00_dp,  &
-      4.31622272220567e+01_dp, 1.52989285046940e+02_dp,3.39320816734344e+02_dp&
-      , 4.51918953711873e+02_dp,  3.00459261020162e+02_dp /), q(8) = (/ &
-      1.00000000000000e+00_dp,  1.27827273196294e+01_dp, &
-      7.70001529352295e+01_dp,  2.77585444743988e+02_dp,&
-      6.38980264465631e+02_dp,  9.31354094850610e+02_dp, &
-      7.90950925327898e+02_dp,  3.00459260956983e+02_dp /)
-    REAL(dp) :: r(5) = (/ 2.10144126479064e+00_dp,  2.62370141675169e+01_dp, &
-      2.13688200555087e+01_dp,  4.65807828718470e+00_dp, &
-      2.82094791773523e-01_dp /), s(4) = (/ 9.41537750555460e+01_dp,  &
-      1.87114811799590e+02_dp, 9.90191814623914e+01_dp, &
-      1.80124575948747e+01_dp /), t, top, x2
+    REAL(dp), PARAMETER :: a(5) = (/ .771058495001320e-04_dp, &
+      -.133733772997339e-02_dp,  .323076579225834e-01_dp,  &
+      .479137145607681e-01_dp, .128379167095513e+00_dp /), b(3) = (/ &
+      .301048631703895e-02_dp,  .538971687740286e-01_dp,&
+      .375795757275549e+00_dp /), c = .564189583547756e0_dp, p(8) = (/&
+      -1.36864857382717e-07_dp,  5.64195517478974e-01_dp, &
+      7.21175825088309e+00_dp,  4.31622272220567e+01_dp, &
+      1.52989285046940e+02_dp,3.39320816734344e+02_dp, 4.51918953711873e+02_dp&
+      ,  3.00459261020162e+02_dp /), q(8) = (/ 1.00000000000000e+00_dp,  &
+      1.27827273196294e+01_dp, 7.70001529352295e+01_dp,  &
+      2.77585444743988e+02_dp,6.38980264465631e+02_dp,  &
+      9.31354094850610e+02_dp, 7.90950925327898e+02_dp,  &
+      3.00459260956983e+02_dp /)
+    REAL(dp), PARAMETER :: r(5) = (/ 2.10144126479064e+00_dp,  &
+      2.62370141675169e+01_dp, 2.13688200555087e+01_dp,  &
+      4.65807828718470e+00_dp, 2.82094791773523e-01_dp /), s(4) = (/ &
+      9.41537750555460e+01_dp,  1.87114811799590e+02_dp, &
+      9.90191814623914e+01_dp, 1.80124575948747e+01_dp /)
+
+    REAL(dp)                                 :: ax, bot, t, top, x2
 
 ax = ABS(x)
 IF (ax < 0.5e0_dp) THEN
@@ -323,24 +328,26 @@ FUNCTION erfc1 (ind, x) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: x
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: a(5) = (/ .771058495001320e-04_dp, -.133733772997339e-02_dp,  &
-      .323076579225834e-01_dp,  .479137145607681e-01_dp,  &
-      .128379167095513e+00_dp /), ax, b(3) = (/ .301048631703895e-02_dp,  &
-      .538971687740286e-01_dp,.375795757275549e+00_dp /), bot, &
-      c = .564189583547756e0_dp, e, p(8) = (/-1.36864857382717e-07_dp,  &
-      5.64195517478974e-01_dp,  7.21175825088309e+00_dp,  &
-      4.31622272220567e+01_dp,  1.52989285046940e+02_dp,&
-      3.39320816734344e+02_dp,  4.51918953711873e+02_dp,  &
-      3.00459261020162e+02_dp /), q(8) = (/ 1.00000000000000e+00_dp,  &
-      1.27827273196294e+01_dp,  7.70001529352295e+01_dp,  &
-      2.77585444743988e+02_dp,6.38980264465631e+02_dp,  &
-      9.31354094850610e+02_dp,  7.90950925327898e+02_dp,  &
-      3.00459260956983e+02_dp /)
-    REAL(dp) :: r(5) = (/ 2.10144126479064e+00_dp,  2.62370141675169e+01_dp,  &
-      2.13688200555087e+01_dp,  4.65807828718470e+00_dp,  &
-      2.82094791773523e-01_dp /), s(4) = (/ 9.41537750555460e+01_dp,  &
-      1.87114811799590e+02_dp,  9.90191814623914e+01_dp, &
-      1.80124575948747e+01_dp /), t, top, w
+    REAL(dp), PARAMETER :: a(5) = (/ .771058495001320e-04_dp, &
+      -.133733772997339e-02_dp,  .323076579225834e-01_dp,  &
+      .479137145607681e-01_dp,  .128379167095513e+00_dp /), b(3) = (/ &
+      .301048631703895e-02_dp,  .538971687740286e-01_dp,&
+      .375795757275549e+00_dp /), c = .564189583547756e0_dp, p(8) = (/&
+      -1.36864857382717e-07_dp,  5.64195517478974e-01_dp,  &
+      7.21175825088309e+00_dp,  4.31622272220567e+01_dp,  &
+      1.52989285046940e+02_dp,3.39320816734344e+02_dp,  &
+      4.51918953711873e+02_dp,  3.00459261020162e+02_dp /), q(8) = (/ &
+      1.00000000000000e+00_dp,  1.27827273196294e+01_dp,  &
+      7.70001529352295e+01_dp,  2.77585444743988e+02_dp,&
+      6.38980264465631e+02_dp,  9.31354094850610e+02_dp,  &
+      7.90950925327898e+02_dp,  3.00459260956983e+02_dp /)
+    REAL(dp), PARAMETER :: r(5) = (/ 2.10144126479064e+00_dp,  &
+      2.62370141675169e+01_dp,  2.13688200555087e+01_dp,  &
+      4.65807828718470e+00_dp,  2.82094791773523e-01_dp /), s(4) = (/ &
+      9.41537750555460e+01_dp,  1.87114811799590e+02_dp,  &
+      9.90191814623914e+01_dp, 1.80124575948747e+01_dp /)
+
+    REAL(dp)                                 :: ax, bot, e, t, top, w
 
 ax = ABS(x)
 IF (ax > 0.5e0_dp) GO TO 10
@@ -407,7 +414,7 @@ FUNCTION gam1(a) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: bot, d, p(7) = (/  .577215664901533e+00_dp, &
+    REAL(dp), PARAMETER :: p(7) = (/  .577215664901533e+00_dp, &
       -.409078193005776e+00_dp,-.230975380857675e+00_dp,  &
       .597275330452234e-01_dp, .766968181649490e-02_dp, &
       -.514889771323592e-02_dp, .589597428611429e-03_dp /), q(5) = (/  &
@@ -418,8 +425,9 @@ FUNCTION gam1(a) RESULT(fn_val)
       .118378989872749e+00_dp, .930357293360349e-03_dp,&
       -.118290993445146e-01_dp, .223047661158249e-02_dp,  &
       .266505979058923e-03_dp, -.132674909766242e-03_dp /), &
-      s1 = .273076135303957e+00_dp
-    REAL(dp) :: s2 = .559398236957378e-01_dp, t, top, w
+      s1 = .273076135303957e+00_dp, s2 = .559398236957378e-01_dp
+
+    REAL(dp)                                 :: bot, d, t, top, w
 
 t = a
 d = a - 0.5e0_dp
@@ -466,11 +474,13 @@ FUNCTION algdiv (a, b) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a, b
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: c, c0 = .833333333333333e-01_dp, &
+    REAL(dp), PARAMETER :: c0 = .833333333333333e-01_dp, &
       c1 = -.277777777760991e-02_dp, c2 = .793650666825390e-03_dp, &
       c3 = -.595202931351870e-03_dp, c4 = .837308034031215e-03_dp, &
-      c5 = -.165322962780713e-02_dp, d, h, s11, s3, s5, s7, s9, t, u, v, w, &
-      x, x2
+      c5 = -.165322962780713e-02_dp
+
+    REAL(dp)                                 :: c, d, h, s11, s3, s5, s7, s9, &
+                                                t, u, v, w, x, x2
 
 IF (a > b) THEN
   h = b/a
@@ -520,10 +530,12 @@ FUNCTION rexp (x) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: x
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: e, p1 = .914041914819518e-09_dp, &
+    REAL(dp), PARAMETER :: p1 = .914041914819518e-09_dp, &
       p2 = .238082361044469e-01_dp, q1 = -.499999999085958e+00_dp, &
       q2 = .107141568980644e+00_dp, q3 = -.119041179760821e-01_dp, &
       q4 = .595130811860248e-03_dp
+
+    REAL(dp)                                 :: e
 
 IF (ABS(x) < 0.15e0_dp) THEN
   fn_val = x*(((p2*x + p1)*x + 1.0e0_dp)/((((q4*x + q3)*x + q2)*x + q1)*x + 1.0e0_dp))
@@ -558,10 +570,16 @@ SUBROUTINE bgrat (a, b, x, y, w, eps, ierr)
     REAL(dp), INTENT(IN)                     :: eps
     INTEGER, INTENT(OUT)                     :: ierr
 
+    REAL(dp), PARAMETER                      :: half = 0.5e0_dp, &
+                                                one = 1.e0_dp, &
+                                                quarter = 0.25e0_dp, &
+                                                zero = 0.e0_dp
+
     INTEGER                                  :: i, n
-    REAL(dp) :: bm1, bp2n, c(30), cn, coef, d(30), dj, half = 0.5e0_dp, j, l, &
-      lnx, n2, nu, one = 1.e0_dp, q, quarter = 0.25e0_dp, r, s, sum, t, t2, &
-      tol, u, v, z, zero = 0.e0_dp
+    REAL(dp)                                 :: bm1, bp2n, c(30), cn, coef, &
+                                                d(30), dj, j, l, lnx, n2, nu, &
+                                                q, r, s, sum, t, t2, tol, u, &
+                                                v, z
 
 bm1 = (b - half) - half
 nu = a + half*bm1
@@ -634,9 +652,12 @@ SUBROUTINE grat1 (a, x, r, p, q, eps)
     REAL(dp), INTENT(OUT), OPTIONAL          :: p, q
     REAL(dp), INTENT(IN)                     :: eps
 
-    REAL(dp) :: a2n, a2nm1, an, b2n, b2nm1, c, g, h, half = 0.5e0_dp, j, l, &
-      one = 1.e0_dp, pp, qq, quarter = 0.25e0_dp, sum, t, three = 3.e0_dp, &
-      tol, two = 2.e0_dp, w, z, zero = 0.e0_dp
+    REAL(dp), PARAMETER :: half = 0.5e0_dp, one = 1.e0_dp, &
+      quarter = 0.25e0_dp, three = 3.e0_dp, two = 2.e0_dp, zero = 0.e0_dp
+
+    REAL(dp)                                 :: a2n, a2nm1, an, b2n, b2nm1, &
+                                                c, g, h, j, l, pp, qq, sum, &
+                                                t, tol, w, z
 
 IF (a*x == zero) GO TO 130
 IF (a == half) GO TO 120
@@ -771,10 +792,12 @@ FUNCTION rlog1(x) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: x
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: a = .566749439387324e-01_dp, b = .456512608815524e-01_dp, &
-      p0 = .333333333333333e+00_dp, p1 = -.224696413112536e+00_dp, &
-      p2 = .620886815375787e-02_dp, q1 = -.127408923933623e+01_dp, &
-      q2 = .354508718369557e+00_dp, r, t, u, up2, w, w1
+    REAL(dp), PARAMETER :: a = .566749439387324e-01_dp, &
+      b = .456512608815524e-01_dp, p0 = .333333333333333e+00_dp, &
+      p1 = -.224696413112536e+00_dp, p2 = .620886815375787e-02_dp, &
+      q1 = -.127408923933623e+01_dp, q2 = .354508718369557e+00_dp
+
+    REAL(dp)                                 :: r, t, u, up2, w, w1
 
 IF (x < -0.39e0_dp .OR. x > 0.57e0_dp) GO TO 100
 IF (x < -0.18e0_dp) GO TO 10
@@ -824,11 +847,13 @@ FUNCTION gamln (a) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a
     REAL(dp)                                 :: fn_val
 
+    REAL(dp), PARAMETER :: c0 = .833333333333333e-01_dp, &
+      c1 = -.277777777760991e-02_dp, c2 = .793650666825390e-03_dp, &
+      c3 = -.595202931351870e-03_dp, c4 = .837308034031215e-03_dp, &
+      c5 = -.165322962780713e-02_dp, d = .418938533204673e0_dp
+
     INTEGER                                  :: i, n
-    REAL(dp) :: c0 = .833333333333333e-01_dp, c1 = -.277777777760991e-02_dp, &
-      c2 = .793650666825390e-03_dp, c3 = -.595202931351870e-03_dp, &
-      c4 = .837308034031215e-03_dp, c5 = -.165322962780713e-02_dp, &
-      d = .418938533204673e0_dp, t, w
+    REAL(dp)                                 :: t, w
 
 IF (a > 0.8e0_dp) GO TO 10
 fn_val = gamln1(a) - LOG(a)
@@ -864,18 +889,22 @@ FUNCTION gamln1 (a) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: p0 = .577215664901533e+00_dp, p1 = .844203922187225e+00_dp, &
-      p2 = -.168860593646662e+00_dp, p3 = -.780427615533591e+00_dp, &
-      p4 = -.402055799310489e+00_dp, p5 = -.673562214325671e-01_dp, &
-      p6 = -.271935708322958e-02_dp, q1 = .288743195473681e+01_dp, &
-      q2 = .312755088914843e+01_dp, q3 = .156875193295039e+01_dp, &
-      q4 = .361951990101499e+00_dp, q5 = .325038868253937e-01_dp, &
-      q6 = .667465618796164e-03_dp, r0 = .422784335098467e+00_dp, &
-      r1 = .848044614534529e+00_dp, r2 = .565221050691933e+00_dp, &
-      r3 = .156513060486551e+00_dp, r4 = .170502484022650e-01_dp, &
-      r5 = .497958207639485e-03_dp, s1 = .124313399877507e+01_dp
-    REAL(dp) :: s2 = .548042109832463e+00_dp, s3 = .101552187439830e+00_dp, &
-      s4 = .713309612391000e-02_dp, s5 = .116165475989616e-03_dp, w, x
+    REAL(dp), PARAMETER :: p0 = .577215664901533e+00_dp, &
+      p1 = .844203922187225e+00_dp, p2 = -.168860593646662e+00_dp, &
+      p3 = -.780427615533591e+00_dp, p4 = -.402055799310489e+00_dp, &
+      p5 = -.673562214325671e-01_dp, p6 = -.271935708322958e-02_dp, &
+      q1 = .288743195473681e+01_dp, q2 = .312755088914843e+01_dp, &
+      q3 = .156875193295039e+01_dp, q4 = .361951990101499e+00_dp, &
+      q5 = .325038868253937e-01_dp, q6 = .667465618796164e-03_dp, &
+      r0 = .422784335098467e+00_dp, r1 = .848044614534529e+00_dp, &
+      r2 = .565221050691933e+00_dp, r3 = .156513060486551e+00_dp, &
+      r4 = .170502484022650e-01_dp, r5 = .497958207639485e-03_dp, &
+      s1 = .124313399877507e+01_dp
+    REAL(dp), PARAMETER :: s2 = .548042109832463e+00_dp, &
+      s3 = .101552187439830e+00_dp, s4 = .713309612391000e-02_dp, &
+      s5 = .116165475989616e-03_dp
+
+    REAL(dp)                                 :: w, x
 
 IF (a >= 0.6e0_dp) GO TO 10
 w = ((((((p6*a + p5)*a + p4)*a + p3)*a + p2)*a + p1)*a + p0)/  &
@@ -913,8 +942,7 @@ FUNCTION psi(xx) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: xx
     REAL(dp)                                 :: fn_val
 
-    INTEGER                                  :: i, m, n, nq
-    REAL(dp) :: aug, den, dx0 = 1.461632144968362341262659542325721325e0_dp, &
+    REAL(dp), PARAMETER :: dx0 = 1.461632144968362341262659542325721325e0_dp, &
       p1(7) = (/ .895385022981970e-02_dp, .477762828042627e+01_dp,  &
       .142441585084029e+03_dp, .118645200713425e+04_dp,  &
       .363351846806499e+04_dp,.413810161269013e+04_dp,  &
@@ -926,7 +954,10 @@ FUNCTION psi(xx) RESULT(fn_val)
       .190831076596300e+04_dp,.691091682714533e-05_dp /), q2(4) = (/  &
       .322703493791143e+02_dp, .892920700481861e+02_dp,  &
       .546117738103215e+02_dp,  .777788548522962e+01_dp /)
-    REAL(dp) :: sgn, upper, w, x, xmax1, xmx0, xsmall, z
+
+    INTEGER                                  :: i, m, n, nq
+    REAL(dp)                                 :: aug, den, sgn, upper, w, x, &
+                                                xmax1, xmx0, xsmall, z
 
 !---------------------------------------------------------------------
 !     PIOV4 = PI/4
@@ -1067,10 +1098,10 @@ FUNCTION betaln (a0, b0) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a0, b0
     REAL(dp)                                 :: fn_val
 
+    REAL(dp), PARAMETER                      :: e = .918938533204673e0_dp
+
     INTEGER                                  :: i, n
-    REAL(dp)                                 :: a, b, c, &
-                                                e = .918938533204673e0_dp, h, &
-                                                u, v, w, z
+    REAL(dp)                                 :: a, b, c, h, u, v, w, z
 
 !--------------------------
 
@@ -1183,10 +1214,13 @@ FUNCTION bcorr (a0, b0) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a0, b0
     REAL(dp)                                 :: fn_val
 
-    REAL(dp) :: a, b, c, c0 = .833333333333333e-01_dp, &
+    REAL(dp), PARAMETER :: c0 = .833333333333333e-01_dp, &
       c1 = -.277777777760991e-02_dp, c2 = .793650666825390e-03_dp, &
       c3 = -.595202931351870e-03_dp, c4 = .837308034031215e-03_dp, &
-      c5 = -.165322962780713e-02_dp, h, s11, s3, s5, s7, s9, t, w, x, x2
+      c5 = -.165322962780713e-02_dp
+
+    REAL(dp)                                 :: a, b, c, h, s11, s3, s5, s7, &
+                                                s9, t, w, x, x2
 
 a = MIN(a0, b0)
 b = MAX(a0, b0)
@@ -1485,9 +1519,9 @@ FUNCTION apser (a, b, x, eps) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a, b, x, eps
     REAL(dp)                                 :: fn_val
 
-    REAL(dp)                                 :: aj, bx, c, &
-                                                g = .577215664901533e0_dp, j, &
-                                                s, t, tol
+    REAL(dp), PARAMETER                      :: g = .577215664901533e0_dp
+
+    REAL(dp)                                 :: aj, bx, c, j, s, t, tol
 
 bx = b*x
 t = x - bx
@@ -1746,11 +1780,11 @@ FUNCTION brcomp (a, b, x, y) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a, b, x, y
     REAL(dp)                                 :: fn_val
 
+    REAL(dp), PARAMETER                      :: const = 0.398942280401433e0_dp
+
     INTEGER                                  :: i, n
-    REAL(dp)                                 :: a0, apb, b0, c, const = &
-                                                .398942280401433e0_dp, e, h, &
-                                                lambda, lnx, lny, t, u, v, &
-                                                x0, y0, z
+    REAL(dp)                                 :: a0, apb, b0, c, e, h, lambda, &
+                                                lnx, lny, t, u, v, x0, y0, z
 
 !-----------------
 !     CONST = 1/SQRT(2*PI)
@@ -1868,11 +1902,11 @@ FUNCTION brcmp1 (mu, a, b, x, y) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a, b, x, y
     REAL(dp)                                 :: fn_val
 
+    REAL(dp), PARAMETER                      :: const = 0.398942280401433e0_dp
+
     INTEGER                                  :: i, n
-    REAL(dp)                                 :: a0, apb, b0, c, const = &
-                                                .398942280401433e0_dp, e, h, &
-                                                lambda, lnx, lny, t, u, v, &
-                                                x0, y0, z
+    REAL(dp)                                 :: a0, apb, b0, c, e, h, lambda, &
+                                                lnx, lny, t, u, v, x0, y0, z
 
 !-----------------
 !     CONST = 1/SQRT(2*PI)
@@ -1990,11 +2024,17 @@ FUNCTION basym (a, b, lambda, eps) RESULT(fn_val)
     REAL(dp), INTENT(IN)                     :: a, b, lambda, eps
     REAL(dp)                                 :: fn_val
 
+    INTEGER, PARAMETER                       :: num = 20
+    REAL(dp), PARAMETER                      :: e0 = 1.12837916709551e0_dp, &
+                                                e1 = .353553390593274e0_dp
+
     INTEGER                                  :: i, im1, imj, j, m, mm1, mmj, &
-                                                n, np1, num = 20
-    REAL(dp) :: a0(21), b0(21), bsum, c(21), d(21), dsum, &
-      e0 = 1.12837916709551e0_dp, e1 = .353553390593274e0_dp, f, h, h2, hn, &
-      j0, j1, r, r0, r1, s, sum, t, t0, t1, u, w, w0, z, z0, z2, zn, znm1
+                                                n, np1
+    REAL(dp)                                 :: a0(21), b0(21), bsum, c(21), &
+                                                d(21), dsum, f, h, h2, hn, &
+                                                j0, j1, r, r0, r1, s, sum, t, &
+                                                t0, t1, u, w, w0, z, z0, z2, &
+                                                zn, znm1
 
 !------------------------
 !     ****** NUM IS THE MAXIMUM VALUE THAT N CAN TAKE IN THE DO LOOP

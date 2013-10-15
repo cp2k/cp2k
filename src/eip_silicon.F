@@ -2420,80 +2420,80 @@ CONTAINS
         REAL(KIND=dp) :: hi_phi= 3.00000000000e0_dp
         REAL(KIND=dp) :: hsixth_phi=5.55555555555556e-002_dp
         REAL(KIND=dp) :: h2sixth_phi=1.85185185185185e-002_dp
-        REAL(KIND=dp), DIMENSION(0:9) :: cof_phi  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_phi  = &
                      (/ 0.69299400000000e+01_dp, -0.43995000000000e+00_dp, &
                        -0.17012300000000e+01_dp, -0.16247300000000e+01_dp, &
                        -0.99696000000000e+00_dp, -0.27391000000000e+00_dp, &
                        -0.24990000000000e-01_dp, -0.17840000000000e-01_dp, &
                        -0.96100000000000e-02_dp,  0.00000000000000e+00_dp /)
-        REAL(KIND=dp), DIMENSION(0:9) :: dof_phi  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: dof_phi  = &
                      (/ 0.16533229480429e+03_dp,  0.39415410391417e+02_dp, &
                         0.68710036300407e+01_dp,  0.53406950884203e+01_dp, &
                         0.15347960162782e+01_dp, -0.63347591535331e+01_dp, &
                        -0.17987794021458e+01_dp,  0.47429676211617e+00_dp, &
                        -0.40087646318907e-01_dp, -0.23942617684055e+00_dp /)
-        REAL(KIND=dp) :: tmin_rho= 0.1500000e+01_dp
-        REAL(KIND=dp) :: tmax_rho= 0.3500000e+01_dp
-        REAL(KIND=dp) :: hi_rho= 5.00000000000e0_dp
-        REAL(KIND=dp) :: hsixth_rho=3.33333333333333e-002_dp
-        REAL(KIND=dp) :: h2sixth_rho=6.66666666666667e-003_dp
-        REAL(KIND=dp), DIMENSION(0:10) :: cof_rho =  &
+        REAL(KIND=dp), PARAMETER :: tmin_rho= 0.1500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_rho= 0.3500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_rho= 5.00000000000e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_rho=3.33333333333333e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_rho=6.66666666666667e-003_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:10) :: cof_rho =  &
                      (/ 0.13747000000000e+00_dp, -0.14831000000000e+00_dp, &
                        -0.55972000000000e+00_dp, -0.73110000000000e+00_dp, &
                        -0.76283000000000e+00_dp, -0.72918000000000e+00_dp, &
                        -0.66620000000000e+00_dp, -0.57328000000000e+00_dp, &
                        -0.40690000000000e+00_dp, -0.16662000000000e+00_dp, &
                         0.00000000000000e+00_dp /)
-        REAL(KIND=dp), DIMENSION(0:10) :: dof_rho =  &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:10) :: dof_rho =  &
                     (/ -0.32275496741918e+01_dp, -0.64119006516165e+01_dp, &
                         0.10030652280658e+02_dp,  0.22937915289857e+01_dp, &
                         0.17416816033995e+01_dp,  0.54648205741626e+00_dp, &
                         0.47189016693543e+00_dp,  0.20569572748420e+01_dp, &
                         0.23192807336964e+01_dp, -0.24908020962757e+00_dp, &
                        -0.12371959895186e+02_dp /)
-        REAL(KIND=dp) :: tmin_fff= 0.1500000e+01_dp
-        REAL(KIND=dp) :: tmax_fff= 0.3500000e+01_dp
-        REAL(KIND=dp) :: hi_fff= 4.50000000000e0_dp
-        REAL(KIND=dp) :: hsixth_fff=3.70370370370370e-002_dp
-        REAL(KIND=dp) :: h2sixth_fff=8.23045267489712e-003_dp
-        REAL(KIND=dp), DIMENSION(0:9) :: cof_fff  = &
+        REAL(KIND=dp), PARAMETER :: tmin_fff= 0.1500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_fff= 0.3500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_fff= 4.50000000000e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_fff=3.70370370370370e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_fff=8.23045267489712e-003_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_fff  = &
                      (/ 0.12503100000000e+01_dp,  0.86821000000000e+00_dp, &
                         0.60846000000000e+00_dp,  0.48756000000000e+00_dp, &
                         0.44163000000000e+00_dp,  0.37610000000000e+00_dp, &
                         0.27145000000000e+00_dp,  0.14814000000000e+00_dp, &
                         0.48550000000000e-01_dp,  0.00000000000000e+00_dp /)
-        REAL(KIND=dp), DIMENSION(0:9) :: dof_fff  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: dof_fff  = &
                      (/ 0.27904652711432e+02_dp, -0.45230754228635e+01_dp, &
                         0.50531739800222e+01_dp,  0.11806545027747e+01_dp, &
                        -0.66693699112098e+00_dp, -0.89430653829079e+00_dp, &
                        -0.50891685571587e+00_dp,  0.66278396115427e+00_dp, &
                         0.73976101109878e+00_dp,  0.25795319944506e+01_dp /)
-        REAL(KIND=dp) :: tmin_uuu= -0.1770930e+01_dp
-        REAL(KIND=dp) :: tmax_uuu= 0.7908520e+01_dp
-        REAL(KIND=dp) :: hi_uuu= 0.723181585730594e0_dp
-        REAL(KIND=dp) :: hsixth_uuu=0.230463095238095e0_dp
-        REAL(KIND=dp) :: h2sixth_uuu=0.318679429600340e0_dp
-        REAL(KIND=dp), DIMENSION(0:7) :: cof_uuu  = &
+        REAL(KIND=dp), PARAMETER :: tmin_uuu= -0.1770930e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_uuu= 0.7908520e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_uuu= 0.723181585730594e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_uuu=0.230463095238095e0_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_uuu=0.318679429600340e0_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: cof_uuu  = &
                     (/ -0.10749300000000e+01_dp, -0.20045000000000e+00_dp, &
                         0.41422000000000e+00_dp,  0.87939000000000e+00_dp, &
                         0.12668900000000e+01_dp,  0.16299800000000e+01_dp, &
                         0.19773800000000e+01_dp,  0.23961800000000e+01_dp /)
-        REAL(KIND=dp), DIMENSION(0:7) :: dof_uuu  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: dof_uuu  = &
                     (/ -0.14827125747284e+00_dp, -0.14922155328475e+00_dp, &
                        -0.70113224223509e-01_dp, -0.39449020349230e-01_dp, &
                        -0.15815242579643e-01_dp,  0.26112640061855e-01_dp, &
                        -0.13786974745095e+00_dp,  0.74941595372657e+00_dp /)
-        REAL(KIND=dp) :: tmin_ggg= -0.1000000e+01_dp
-        REAL(KIND=dp) :: tmax_ggg= 0.8001400e+00_dp
-        REAL(KIND=dp) :: hi_ggg= 3.88858644327663e0_dp
-        REAL(KIND=dp) :: hsixth_ggg=4.28604761904762e-002_dp
-        REAL(KIND=dp) :: h2sixth_ggg=1.10221225156463e-002_dp
-        REAL(KIND=dp), DIMENSION(0:7) :: cof_ggg  = &
+        REAL(KIND=dp), PARAMETER :: tmin_ggg= -0.1000000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_ggg= 0.8001400e+00_dp
+        REAL(KIND=dp), PARAMETER :: hi_ggg= 3.88858644327663e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_ggg=4.28604761904762e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_ggg=1.10221225156463e-002_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: cof_ggg  = &
                      (/ 0.52541600000000e+01_dp,  0.23591500000000e+01_dp, &
                         0.11959500000000e+01_dp,  0.12299500000000e+01_dp, &
                         0.20356500000000e+01_dp,  0.34247400000000e+01_dp, &
                         0.49485900000000e+01_dp,  0.56179900000000e+01_dp /)
-        REAL(KIND=dp), DIMENSION(0:7) :: dof_ggg  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: dof_ggg  = &
                      (/ 0.15826876132396e+02_dp,  0.31176239377907e+02_dp, &
                         0.16589446539683e+02_dp,  0.11083892500520e+02_dp, &
                         0.90887216383860e+01_dp,  0.54902279653967e+01_dp, &
