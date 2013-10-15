@@ -21,23 +21,23 @@ MODULE tmc_stati
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_stati'
 
   ! IO
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_default_trajectory_file_name  = "tmc_trajectory.dat"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_default_restart_out_file_name = "tmc_restart.dat"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_default_restart_in_file_name  = "tmc_restart.last"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_energy_worker_out_file_name   = "tmc_E_worker.out"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_NMC_worker_out_file_name      = "tmc_NMC_worker.out"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_master_out_file_name          = "tmc_master.out"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_ana_out_file_name             = "tmc_ana.out"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_default_dot_file_name         = "tmc_tree.dot"
-  CHARACTER(LEN= default_path_length ), PARAMETER, &
+  CHARACTER(LEN=*), PARAMETER, &
     PUBLIC                   :: tmc_default_unspecified_name      = "xxx_unspecified_xxx"
 
   ! TASK TYPES
