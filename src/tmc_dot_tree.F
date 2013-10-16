@@ -15,6 +15,7 @@
 ! \author Mandes Schoenherr
 !----------------------------------------------------------------------!
 MODULE tmc_dot_tree
+  USE cp_files,                        ONLY: close_file, open_file
   USE tmc_file_io,                     ONLY: expand_file_name_char,&
                                              expand_file_name_temp
   USE tmc_move_types,                  ONLY: mv_type_swap_conf
@@ -93,7 +94,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_draw_trees', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: file_ptr = 268547 
+    INTEGER                                  :: file_ptr 
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -102,19 +103,21 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     ! global tree
-    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params, 0, error))
+    CALL open_file(file_name=get_dot_file_name(tmc_params, 0, error), file_status="REPLACE", &
+                   file_action="WRITE", unit_number=file_ptr)
     WRITE(file_ptr,*)"digraph G {"
     WRITE(file_ptr,*)'  size="8.27,11.69"'
     CALL write_legend(file_ptr, error)
-    CLOSE(file_ptr)
+    CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
  
     ! subtrees
     DO i=1, SIZE(tmc_params%Temp)
-       OPEN(file_ptr+i,FILE=get_dot_file_name(tmc_params, i, error))
-       WRITE(file_ptr+i,*)"digraph G {"
-       WRITE(file_ptr+i,*)'  size="8.27,11.69"'
-       CALL write_legend(file_ptr+i, error)
-       CLOSE(file_ptr+i)
+       CALL open_file(file_name=get_dot_file_name(tmc_params, i, error), file_status="REPLACE", &
+                   file_action="WRITE", unit_number=file_ptr)
+       WRITE(file_ptr,*)"digraph G {"
+       WRITE(file_ptr,*)'  size="8.27,11.69"'
+       CALL write_legend(file_ptr, error)
+       CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
     END DO
   END SUBROUTINE init_draw_trees
 
@@ -131,7 +134,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_draw_tree', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: file_ptr = 268548
+    INTEGER                                  :: file_ptr
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -140,14 +143,17 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     ! global tree
-    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params,0,error),POSITION="APPEND")
+    CALL open_file(file_name=get_dot_file_name(tmc_params, 0, error), &
+                   file_status="OLD", file_action="WRITE", &
+                   file_position="APPEND", unit_number=file_ptr)
     WRITE(file_ptr,*)"}"
-    CLOSE(file_ptr)
+    CALL close_file(unit_number=file_ptr)
 
     DO i=1, SIZE(tmc_params%Temp)
-      OPEN(file_ptr+i,FILE=get_dot_file_name(tmc_params, i, error),POSITION="APPEND")
-      WRITE(file_ptr+i,*)"}"
-      CLOSE(file_ptr+i)
+      CALL open_file(file_name=get_dot_file_name(tmc_params, i, error), file_status="OLD", &
+                     file_action="WRITE", file_position="APPEND", unit_number=file_ptr)
+      WRITE(file_ptr,*)"}"
+      CALL close_file(unit_number=file_ptr)
     END DO
   END SUBROUTINE finalize_draw_tree
 
@@ -223,14 +229,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=11)                        :: label
-    INTEGER                                  :: file_ptr = 268549
+    INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(filename.NE."",cp_failure_level,routineP,error,failure)
     CPPrecondition(node_nr.GE.0,cp_failure_level,routineP,error,failure)
 
-    OPEN(file_ptr,FILE=TRIM(filename), POSITION="APPEND")
+    CALL open_file(file_name=filename, file_status="OLD", &
+                   file_action="WRITE", file_position="APPEND", unit_number=file_ptr)
     WRITE(label, FMT='(I10,A)')node_nr, "["
     SELECT CASE(stat)
     CASE(status_created)
@@ -269,8 +276,8 @@ CONTAINS
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
               routineP,"element status"//cp_to_string(stat),error,failure)
     END SELECT
-    CLOSE(file_ptr)
-   END SUBROUTINE write_color
+    CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
+  END SUBROUTINE write_color
 
 ! *****************************************************************************
 !> \brief creates an new branch (hence a new element is created)
@@ -293,20 +300,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot_branch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: file_ptr = 268550
+    INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
-    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params, tree, error), &
-         POSITION="APPEND")
+    CALL open_file(file_name=get_dot_file_name(tmc_params, tree, error), &
+                   file_status="OLD", file_action="WRITE", &
+                   file_position="APPEND", unit_number=file_ptr)
     IF(acc) THEN
       WRITE(file_ptr,*)parent_nr," -> ", child_nr, ":nw [color=darkolivegreen1]"
     ELSE
       WRITE(file_ptr,*)parent_nr," -> ", child_nr, ":ne [color=coral]"
     END IF
-    CLOSE(file_ptr)
+    CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
   END SUBROUTINE create_dot_branch
 
 ! *****************************************************************************
@@ -356,7 +364,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1000)                      :: label, list_of_nr
-    INTEGER                                  :: file_ptr = 268551, i, &
+    INTEGER                                  :: file_ptr, i, &
                                                 ref_count
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
@@ -410,7 +418,9 @@ CONTAINS
                              tmc_params=tmc_params, tree=0, error=error)
     END IF
     ! write in dot file
-    OPEN(file_ptr,FILE=get_dot_file_name(tmc_params, 0, error), POSITION="APPEND")
+    CALL open_file(file_name=get_dot_file_name(tmc_params, 0, error), &
+                   file_status="OLD", file_action="WRITE", &
+                   file_position="APPEND", unit_number=file_ptr)
     IF(new_element%swaped)THEN
       WRITE(file_ptr,*) new_element%nr,'[label="',new_element%nr, ' |', new_element%mv_conf,' |', &
                         mv_type_swap_conf,'\n ',&
@@ -420,7 +430,7 @@ CONTAINS
                         new_element%conf(new_element%mv_conf)%elem%move_type,'\n ',&
                         TRIM(ADJUSTL(list_of_nr)), '"]'
     END IF
-    CLOSE(file_ptr)
+    CALL close_file(file_ptr, keep_preconnection=.TRUE.)
   END SUBROUTINE create_global_tree_dot
 
 ! *****************************************************************************

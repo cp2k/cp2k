@@ -66,7 +66,7 @@ MODULE tmc_analysis_types
     CHARACTER(LEN= default_path_length )          :: costum_pos_file_name 
     CHARACTER(LEN= default_path_length )          :: costum_dip_file_name
     CHARACTER(LEN= default_path_length )          :: costum_cell_file_name
-    LOGICAL                                       :: restart
+    LOGICAL                                       :: restart, restarted
     LOGICAL                                       :: print_test_output
 
     TYPE(density_3d_type), POINTER                :: density_3d
@@ -175,6 +175,7 @@ CONTAINS
     tmc_ana%costum_dip_file_name  = ""
     tmc_ana%costum_cell_file_name = ""
     tmc_ana%restart               = .TRUE.
+    tmc_ana%restarted             = .FALSE.
     tmc_ana%print_test_output     = .FALSE.
 
     ! configuration control

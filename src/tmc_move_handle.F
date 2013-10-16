@@ -75,6 +75,10 @@ CONTAINS
                                                 mv_prob, mv_prob_sum
     TYPE(section_vals_type), POINTER         :: move_type_section
 
+    delta_x       = 0.0_dp
+    mv_prob       = 0.0_dp
+    init_acc_prob = 0.0_dp
+
     move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE",error=error)
     CALL section_vals_get(move_type_section, explicit=explicit, error=error)
     IF(explicit) THEN
@@ -83,7 +87,7 @@ CONTAINS
 
       CALL section_vals_get(move_type_section,n_repetition=n_items,error=error)
       ! get the total weight/amount of move probabilities
-      mv_prob = 0.0_dp
+      mv_prob_sum = 0.0_dp
       DO i_rep = 1, n_items
         CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
                                   r_val=mv_prob,error=error)
@@ -217,7 +221,6 @@ CONTAINS
         tmc_params%move_types%mv_weight(ind) = mv_prob/mv_prob_sum
         ! set the initial acceptance probability
         tmc_params%move_types%acc_prob(ind,:) = init_acc_prob
-
       END DO
       ! set NMC start acceptance probability if necessary
       IF(tmc_params%NMC_inp_file.NE."") THEN

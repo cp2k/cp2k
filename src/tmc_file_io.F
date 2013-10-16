@@ -16,6 +16,7 @@
 ! *****************************************************************************
 
 MODULE tmc_file_io
+  USE cp_files,                        ONLY: close_file, open_file
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -244,7 +245,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: c_tmp, file_name
-    INTEGER                                  :: i
+    INTEGER                                  :: i, f_unit
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -260,9 +261,11 @@ CONTAINS
     file_name=TRIM(expand_file_name_char(&
                         file_name=tmc_default_restart_out_file_name, &
                         extra=c_tmp, error=error)) 
-    OPEN(46, FILE=file_name, FORM="UNFORMATTED")
-    WRITE(46) SIZE(tmc_env%params%Temp)
-    WRITE(46) tmc_env%params%Temp(:), &
+    CALL open_file(file_name=file_name, file_status="NEW", &
+                   file_action="WRITE", file_form="UNFORMATTED", &
+                   unit_number=f_unit)
+    WRITE(f_unit) SIZE(tmc_env%params%Temp)
+    WRITE(f_unit) tmc_env%params%Temp(:), &
               tmc_env%m_env%gt_act%nr, &
               tmc_env%m_env%gt_act%rng_seed, &
               tmc_env%m_env%gt_act%rnd_nr, &
@@ -279,7 +282,7 @@ CONTAINS
               job_counts, &
               timings
     DO i=1, SIZE(tmc_env%params%Temp)
-       WRITE(46) tmc_env%m_env%result_list(i)%elem%nr, &
+       WRITE(f_unit) tmc_env%m_env%result_list(i)%elem%nr, &
                  tmc_env%m_env%result_list(i)%elem%rng_seed, &
                  tmc_env%m_env%result_list(i)%elem%pos, &
                  tmc_env%m_env%result_list(i)%elem%vel, &
@@ -290,10 +293,13 @@ CONTAINS
                  tmc_env%m_env%result_list(i)%elem%ekin_before_md, &
                  tmc_env%m_env%result_list(i)%elem%temp_created
     END DO
-    CLOSE(46)
-    OPEN(46, FILE=tmc_default_restart_in_file_name)
-       WRITE(46,*)TRIM(file_name)
-    CLOSE(46)
+    CALL close_file(unit_number=f_unit)
+    ! write the file, where the restart file name is written in
+    CALL open_file(file_name=tmc_default_restart_in_file_name, &
+                   file_action="WRITE", file_status="REPLACE", &
+                   unit_number=f_unit)
+    WRITE(f_unit,*)TRIM(file_name)
+    CALL close_file(unit_number=f_unit)
   END SUBROUTINE print_restart_file
 
 ! *****************************************************************************
@@ -317,7 +323,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_restart_file', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, temp_size
+    INTEGER                                  :: file_ptr, i, temp_size
     LOGICAL                                  :: failure, flag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp_temp
     REAL(KIND=dp), DIMENSION(nr_mv_types)    :: mv_weight_tmp
@@ -332,35 +338,37 @@ CONTAINS
     IF(file_name.EQ.tmc_default_restart_in_file_name) THEN
       INQUIRE(FILE=tmc_default_restart_in_file_name, EXIST=flag)
       CPPrecondition(flag,cp_failure_level,routineP,error, failure)
-      OPEN(46, FILE=tmc_default_restart_in_file_name, STATUS='OLD')
-      READ(46,*) file_name
-      CLOSE(46)
+      CALL open_file(file_name=tmc_default_restart_in_file_name, file_status="OLD", &
+                   file_action="READ", unit_number=file_ptr)
+      READ(file_ptr,*) file_name
+      CALL close_file(unit_number=file_ptr)
     END IF
 
-    OPEN(46, FILE=TRIM(file_name), FORM="UNFORMATTED", STATUS='OLD', ACTION="READ")
-    READ(46) temp_size
+    CALL open_file(file_name=file_name, file_status="OLD", file_form="UNFORMATTED", &
+                   file_action="READ", unit_number=file_ptr)
+    READ(file_ptr) temp_size
     CALL cp_assert(temp_size.EQ. SIZE(tmc_env%params%Temp),&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the actual specified temperatures does not "//&
                    "fit in amount with the one from restart file ",&
                    error, failure=flag)
     ALLOCATE(tmp_temp(temp_size))
-    READ(46)  tmp_temp(:), &
-              tmc_env%m_env%gt_act%nr, &
-              tmc_env%m_env%gt_act%rng_seed, &
-              tmc_env%m_env%gt_act%rnd_nr, &
-              tmc_env%m_env%gt_act%prob_acc, &
-              tmc_env%m_env%gt_act%mv_conf, &         !
-              tmc_env%m_env%gt_act%mv_next_conf, &    !
-              tmc_env%m_env%result_count(0:), &
-              mv_weight_tmp, &                    !
-              tmc_env%params%move_types%acc_count, &
-              tmc_env%params%move_types%mv_count, &
-              tmc_env%params%move_types%subbox_acc_count, &
-              tmc_env%params%move_types%subbox_count, &          !
-              tmc_env%params%cell%hmat, &
-              job_counts, &
-              timings
+    READ(file_ptr) tmp_temp(:), &
+                   tmc_env%m_env%gt_act%nr, &
+                   tmc_env%m_env%gt_act%rng_seed, &
+                   tmc_env%m_env%gt_act%rnd_nr, &
+                   tmc_env%m_env%gt_act%prob_acc, &
+                   tmc_env%m_env%gt_act%mv_conf, &         !
+                   tmc_env%m_env%gt_act%mv_next_conf, &    !
+                   tmc_env%m_env%result_count(0:), &
+                   mv_weight_tmp, &                    !
+                   tmc_env%params%move_types%acc_count, &
+                   tmc_env%params%move_types%mv_count, &
+                   tmc_env%params%move_types%subbox_acc_count, &
+                   tmc_env%params%move_types%subbox_count, &          !
+                   tmc_env%params%cell%hmat, &
+                   job_counts, &
+                   timings
 
     CALL cp_assert(ALL(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .LT. 0.005),&
                    cp_failure_level,cp_assertion_failed,routineP,&
@@ -373,18 +381,18 @@ CONTAINS
 
     DO i=1, SIZE(tmc_env%params%Temp)
        tmc_env%m_env%gt_act%conf(i)%elem => tmc_env%m_env%result_list(i)%elem
-       READ(46)  tmc_env%m_env%result_list(i)%elem%nr, &
-                 tmc_env%m_env%result_list(i)%elem%rng_seed, &
-                 tmc_env%m_env%result_list(i)%elem%pos, &
-                 tmc_env%m_env%result_list(i)%elem%vel, &
-                 tmc_env%m_env%result_list(i)%elem%box_scale, &
-                 tmc_env%m_env%result_list(i)%elem%potential, &
-                 tmc_env%m_env%result_list(i)%elem%e_pot_approx, &
-                 tmc_env%m_env%result_list(i)%elem%ekin, &
-                 tmc_env%m_env%result_list(i)%elem%ekin_before_md, &
-                 tmc_env%m_env%result_list(i)%elem%temp_created
+       READ(file_ptr) tmc_env%m_env%result_list(i)%elem%nr, &
+                      tmc_env%m_env%result_list(i)%elem%rng_seed, &
+                      tmc_env%m_env%result_list(i)%elem%pos, &
+                      tmc_env%m_env%result_list(i)%elem%vel, &
+                      tmc_env%m_env%result_list(i)%elem%box_scale, &
+                      tmc_env%m_env%result_list(i)%elem%potential, &
+                      tmc_env%m_env%result_list(i)%elem%e_pot_approx, &
+                      tmc_env%m_env%result_list(i)%elem%ekin, &
+                      tmc_env%m_env%result_list(i)%elem%ekin_before_md, &
+                      tmc_env%m_env%result_list(i)%elem%temp_created
     END DO
-    CLOSE(46)
+    CALL close_file(unit_number=file_ptr)
   END SUBROUTINE read_restart_file
 
   !----------------------------------------------------------------------------
@@ -484,7 +492,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name_act, tmp_name
     CHARACTER(LEN=default_string_length)     :: header
-    INTEGER                                  :: handle, i, nr_atoms
+    INTEGER                                  :: file_ptr, handle, i, nr_atoms
     LOGICAL                                  :: failure, file_exists, print_it
     REAL(KIND=dp)                            :: vol
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_scaled
@@ -531,29 +539,33 @@ CONTAINS
       ! write the coordinates
       IF(tmc_params%print_trajectory) THEN
         tmp_name = expand_file_name_ending(file_name_act,"xyz",error)
-        OPEN(46,FILE=tmp_name,POSITION="APPEND")
-        WRITE(46,FMT="(I8)") nr_atoms
-        WRITE(46,*) TRIM(header)
+        CALL open_file(file_name=tmp_name, file_status="UNKNOWN", &
+                       file_action="WRITE", file_position="APPEND", &
+                       unit_number=file_ptr)
+        WRITE(file_ptr,FMT="(I8)") nr_atoms
+        WRITE(file_ptr,*) TRIM(header)
         DO i=1, SIZE(elem%pos), tmc_params%dim_per_elem
-           WRITE(46,FMT="(A4,1X,1000F20.10)") &
+           WRITE(file_ptr,FMT="(A4,1X,1000F20.10)") &
              TRIM(tmc_params%atoms((i-1)/tmc_params%dim_per_elem+1)%name), &
              elem%pos(i:i+tmc_params%dim_per_elem-1)*au2a
         END DO
-        CLOSE(46)
+        CALL close_file(unit_number=file_ptr)
       END IF
   
       ! write the forces
       IF(tmc_params%print_forces) THEN
          tmp_name = expand_file_name_ending(file_name_act,"frc",error)
-         OPEN(36,FILE=tmp_name, POSITION="APPEND")
-         WRITE(36,FMT="(I8)") nr_atoms
-         WRITE(36,*) TRIM(header)
+         CALL open_file(file_name=tmp_name, file_status="UNKNOWN", &
+                       file_action="WRITE", file_position="APPEND", &
+                       unit_number=file_ptr)
+         WRITE(file_ptr,FMT="(I8)") nr_atoms
+         WRITE(file_ptr,*) TRIM(header)
          DO i=1, SIZE(elem%pos), tmc_params%dim_per_elem
-            WRITE(36,FMT="(A4,1X,1000F20.10)") &
+            WRITE(file_ptr,FMT="(A4,1X,1000F20.10)") &
               TRIM(tmc_params%atoms((i-1)/tmc_params%dim_per_elem+1)%name), &
               elem%frc(i:i+tmc_params%dim_per_elem-1)
          END DO
-         CLOSE(36)
+         CALL close_file(unit_number=file_ptr)
       END IF
 
       ! write the cell dipoles
@@ -568,20 +580,23 @@ CONTAINS
          ! header
          INQUIRE(FILE=tmp_name, EXIST=file_exists)   ! file_exists will be TRUE if the file exist
          IF(.NOT.file_exists) THEN
-            OPEN(37,FILE=tmp_name)
-            WRITE (37,FMT='(A,9(7X,A2," [Angstrom]"),6X,A)')&
+            CALL open_file(file_name=tmp_name, file_status="NEW", &
+                           file_action="WRITE", unit_number=file_ptr)
+            WRITE (file_ptr,FMT='(A,9(7X,A2," [Angstrom]"),6X,A)')&
                "# MC step ","Ax","Ay","Az","Bx","By","Bz","Cx","Cy","Cz",&
                "Volume [Angstrom^3]"
          ELSE
-            OPEN(37,FILE=tmp_name, POSITION="APPEND")
+            CALL open_file(file_name=tmp_name, file_status="OLD", &
+                           file_action="WRITE", file_position="APPEND", &
+                           unit_number=file_ptr)
          END IF
          CALL get_scaled_cell(cell=tmc_params%cell, &
                 box_scale=elem%box_scale, scaled_hmat=hmat_scaled, &
                 vol=vol, error=error)
-         WRITE (37,FMT="(I8,9(1X,F19.10),1X,F24.10)") conf_nr, &
+         WRITE (file_ptr,FMT="(I8,9(1X,F19.10),1X,F24.10)") conf_nr, &
            hmat_scaled(:,:)*au2a, vol* au2a**3 
            !TODO better cell output e.g. using cell_types routine
-         CLOSE(37)
+         CALL close_file(unit_number=file_ptr)
       END IF
 
       ! write the different energies
@@ -590,15 +605,18 @@ CONTAINS
          ! header
          INQUIRE(FILE=tmp_name, EXIST=file_exists)   ! file_exists will be TRUE if the file exist
          IF(.NOT.file_exists) THEN
-            OPEN(38,FILE=tmp_name)
-            WRITE (38,FMT='(A,4A20)')&
+            CALL open_file(file_name=tmp_name, file_status="NEW", &
+                           file_action="WRITE", unit_number=file_ptr)
+            WRITE (file_ptr,FMT='(A,4A20)')&
                "# MC step "," exact "," approx "," last SCF "," kinetic "
          ELSE
-           OPEN(38,FILE=tmp_name, POSITION="APPEND")
+           CALL open_file(file_name=tmp_name, file_status="OLD", &
+                          file_action="WRITE", file_position="APPEND", &
+                          unit_number=file_ptr)
          END IF
-         WRITE(38,FMT="(I8,14F20.10)")conf_nr, elem%potential, elem%e_pot_approx, &
+         WRITE(file_ptr,FMT="(I8,14F20.10)")conf_nr, elem%potential, elem%e_pot_approx, &
            elem%scf_energies(MOD(elem%scf_energies_count,4)+1), elem%ekin
-         CLOSE(38)
+         CALL close_file(unit_number=file_ptr)
       END IF
 
       ! end the timing
@@ -625,6 +643,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name_tmp
     LOGICAL                                  :: failure, file_exists
+    INTEGER                                  :: file_ptr
 
     CPPrecondition(ASSOCIATED(dip),cp_failure_level,routineP,error,failure)
 
@@ -636,14 +655,17 @@ CONTAINS
     END IF
     INQUIRE(FILE=file_name_tmp, EXIST=file_exists)
     IF(.NOT.file_exists) THEN
-      OPEN(36,FILE=file_name_tmp)
-      WRITE(36, FMT='(A8,10A20)')"# conf_nr", "dip_x [C Angstrom]", &
+      CALL open_file(file_name=file_name_tmp, file_status="NEW", &
+                     file_action="WRITE", unit_number=file_ptr)
+      WRITE(file_ptr, FMT='(A8,10A20)')"# conf_nr", "dip_x [C Angstrom]", &
                                  "dip_y [C Angstrom]",  "dip_z [C Angstrom]"
     ELSE
-      OPEN(36,FILE=file_name_tmp, POSITION="APPEND")
+      CALL open_file(file_name=file_name_tmp, file_status="OLD", &
+                     file_action="WRITE", file_position="APPEND", &
+                     unit_number=file_ptr)
     END IF
-    WRITE(36,FMT="(I8,10F20.10)")conf_nr, dip(:)
-    CLOSE(36)
+    WRITE(file_ptr,FMT="(I8,10F20.10)")conf_nr, dip(:)
+    CALL close_file(unit_number=file_ptr)
   END SUBROUTINE write_dipoles_in_file
 
   !----------------------------------------------------------------------------
@@ -1059,8 +1081,8 @@ CONTAINS
     END IF
     INQUIRE(FILE=file_name_act, EXIST=file_exists)
     IF(file_exists) THEN
-      tmc_ana%id_traj = 54321
-      OPEN(tmc_ana%id_traj, FILE=file_name_act, ACTION="READ")
+      CALL open_file(file_name=file_name_act, file_status="OLD", &
+                   file_action="READ", unit_number=tmc_ana%id_traj)
       WRITE(tmc_ana%io_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
             "read xyz file",TRIM(file_name_act)
     END IF
@@ -1074,8 +1096,8 @@ CONTAINS
     END IF
     INQUIRE(FILE=file_name_act, EXIST=file_exists)
     IF(file_exists) THEN
-      tmc_ana%id_cell = 54322
-      OPEN(tmc_ana%id_cell, FILE=file_name_act, ACTION="READ")
+      CALL open_file(file_name=file_name_act, file_status="OLD", &
+                     file_action="READ", unit_number=tmc_ana%id_cell)
       WRITE(tmc_ana%io_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
             "read cell file",TRIM(file_name_act)
     END IF
@@ -1089,8 +1111,8 @@ CONTAINS
     END IF
     INQUIRE(FILE=file_name_act, EXIST=file_exists)
     IF(file_exists) THEN
-      tmc_ana%id_dip = 54323
-      OPEN(tmc_ana%id_dip, FILE=file_name_act, ACTION="READ")
+      CALL open_file(file_name=file_name_act, file_status="OLD", &
+                   file_action="READ", unit_number=tmc_ana%id_dip)
       WRITE(tmc_ana%io_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
             "read dip file",TRIM(file_name_act)
     END IF
@@ -1133,13 +1155,13 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! position file
-    IF(tmc_ana%id_traj.GT.0) CLOSE(tmc_ana%id_traj)
+    IF(tmc_ana%id_traj.GT.0)  CALL close_file(unit_number=tmc_ana%id_traj) 
 
     ! cell file
-    IF(tmc_ana%id_cell.GT.0) CLOSE(tmc_ana%id_cell)
+    IF(tmc_ana%id_cell.GT.0) CALL close_file(unit_number=tmc_ana%id_cell)
 
     ! dipole file
-    IF(tmc_ana%id_dip.GT.0) CLOSE(tmc_ana%id_dip)
+    IF(tmc_ana%id_dip.GT.0) CALL close_file(unit_number=tmc_ana%id_dip)
 
     ! end the timing
     CALL timestop(handle)
