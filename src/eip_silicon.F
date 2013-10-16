@@ -28,7 +28,6 @@ MODULE eip_silicon
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_environment_type
   USE f77_blas
-!IMPLICIT NONE
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -44,6 +43,7 @@ MODULE eip_silicon
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
+  IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_silicon'
@@ -674,7 +674,8 @@ CONTAINS
     SUBROUTINE eip_bazant_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                   coord_var,count)
 
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        INTEGER       :: nat
+        REAL(KIND=dp) :: alat,rxyz0,fxyz,ener,coord,ener_var, coord_var,count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -686,6 +687,12 @@ CONTAINS
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: txyz
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: s2,s3,sz
         INTEGER, ALLOCATABLE, DIMENSION(:)         :: num2,num3,numz
+
+        REAL(KIND=dp) :: coord2, cut, cut2, ener2, rlc1i, rlc2i, rlc3i, tcoord, &
+                         tcoord2, tener, tener2
+        INTEGER       :: iam, iat, iat1, iat2, ii, i, il, in, indlst, indlstx, istop, &
+                         istopg, l2, l3, laymx, ll1, ll2, ll3, lot, max_nbrs, myspace, &
+                         l1, myspaceout, ncx, nn, nnbrx, npr
 
 !        cut=par_a
         cut= 3.1213820e0_dp + 1.e-14_dp
@@ -1706,9 +1713,15 @@ CONTAINS
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        INTEGER :: iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
+                   icell,lstb,lay,indlst
+        REAL(KIND=dp) :: rxyz,rel,cut2
+
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
+
+        INTEGER       :: jat, k1, k2, k3, jj
+        REAL(KIND=dp) :: rr2, tt, tti, xrel, yrel, zrel, coord2, cut
 
         DO 6003,k3=l3-1,l3+1
         DO 6002,k2=l2-1,l2+1
@@ -1770,7 +1783,10 @@ CONTAINS
     SUBROUTINE eip_lenosky_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                    coord_var,count)
 
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        INTEGER :: nat
+        REAL(KIND=dp) :: alat,rxyz0,fxyz,ener,coord,ener_var,&
+                                   coord_var,count
+
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -1781,6 +1797,13 @@ CONTAINS
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rel
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: txyz
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: f2ij,f3ij,f3ik
+
+        REAL(KIND=dp) :: coord2, cut, cut2, ener2, tcoord, &
+                         tcoord2, tener, tener2
+        INTEGER       :: i, iam, iat, iat1, iat2, ii, il, in, indlst, indlstx,&
+                         istop, istopg, l1, l2, l3, ll1, ll2, ll3, lot, ncx, nn, &
+                         nnbrx, npjkx, npjx, laymx, npr, rlc1i, rlc2i, rlc3i, jat, &
+                         jj, myspace, myspaceout
 
 !        tmax_phi= 0.4500000e+01_dp
 !        cut=tmax_phi
@@ -2412,7 +2435,8 @@ CONTAINS
 ! with them and their contribution to the energy (tener).
 ! In addition the coordination number tcoord and the second moment of the
 ! local energy tener2 and coordination number tcoord2 are returned
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        INTEGER :: iat1,iat2,nat,lsta,lstb,nnbrx,npjx,npjkx,istop
+        REAL(KIND=dp) rel,tener,tener2,tcoord,tcoord2,txyz,f2ij,f3ij,f3ik
         DIMENSION lsta(2,nat),lstb(nnbrx*nat),rel(5,nnbrx*nat),txyz(3,nat)
         DIMENSION f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx)
         REAL(KIND=dp) :: tmin_phi= 0.1500000e+01_dp
@@ -2498,6 +2522,21 @@ CONTAINS
                         0.16589446539683e+02_dp,  0.11083892500520e+02_dp, &
                         0.90887216383860e+01_dp,  0.54902279653967e+01_dp, &
                        -0.18823313223755e+02_dp, -0.77183416481005e+01_dp /)
+
+       REAL(KIND=dp) :: a2_fff, a2_ggg, a_fff, a_ggg, b2_fff, b2_ggg, b_fff,&
+                        b_ggg, cof1_fff, cof1_ggg, cof2_fff, cof2_ggg,cof3_fff,&
+                        cof3_ggg, cof4_fff, cof4_ggg, cof_fff_khi, cof_fff_klo, &
+                        cof_ggg_khi, cof_ggg_klo, coord_iat, costheta, dens, &
+                        dens2, dens3, dof_fff_khi, dof_fff_klo, dof_ggg_khi, &
+                        dof_ggg_klo, e_phi, e_uuu, ener_iat, ep_phi, ep_uuu, &
+                        fij, fijp, fik, fikp, fxij, fxik, fyij, fyik, fzij, fzik,&
+                        gjik, gjikp, rho, rhop, rij, rik, sij, sik, t1, t2, t3, t4, &
+                        tt, tt_fff, tt_ggg, xarg, ypt1_fff, ypt1_ggg, ypt2_fff,&
+                        ypt2_ggg, yt1_fff, yt1_ggg, yt2_fff, yt2_ggg
+
+       INTEGER       :: iat, jat, jbr, jcnt, jkcnt, kat, kbr, khi_fff, khi_ggg,&
+                        klo_fff, klo_ggg
+
 
 ! initialize temporary private scalars for reduction sum on energies and
 ! private workarray txyz for forces forces
@@ -2819,9 +2858,13 @@ CONTAINS
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        INTEGER :: iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace,icell,lstb,lay,indlst
+        REAL(KIND=dp) :: rxyz,rel,cut2
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
+
+        INTEGER       :: jat,jj,k1,k2,k3
+        REAL(KIND=dp) :: rr2,tt,xrel,yrel,zrel,tti
 
         DO 6363,k3=l3-1,l3+1
         DO 6364,k2=l2-1,l2+1
@@ -2856,8 +2899,12 @@ CONTAINS
 
 ! *****************************************************************************
         SUBROUTINE splint(ya,y2a,tmin,tmax,hsixth,h2sixth,hi,n,x,y,yp)
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        REAL(KIND=dp) :: ya,y2a,tmin,tmax,hsixth,h2sixth,hi,x,y,yp
+        INTEGER :: n
         DIMENSION y2a(0:n-1),ya(0:n-1)
+        REAL(KIND=dp) :: a,a2,b,b2,cof1,cof2,cof3,cof4,tt,&
+          y2a_khi,ya_klo,y2a_klo,ya_khi,ypt1,ypt2,yt1,yt2
+        INTEGER :: klo,khi
 
 ! interpolate if the argument is outside the cubic spline interval [tmin,tmax]
         tt=(x-tmin)*hi
