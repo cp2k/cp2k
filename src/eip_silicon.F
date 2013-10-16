@@ -674,8 +674,10 @@ CONTAINS
     SUBROUTINE eip_bazant_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                   coord_var,count)
 
-        INTEGER       :: nat
-        REAL(KIND=dp) :: alat,rxyz0,fxyz,ener,coord,ener_var, coord_var,count
+    INTEGER                                  :: nat
+    REAL(KIND=dp)                            :: alat, rxyz0, fxyz, ener, &
+                                                coord, ener_var, coord_var, &
+                                                count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -1713,9 +1715,12 @@ CONTAINS
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-        INTEGER :: iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
-                   icell,lstb,lay,indlst
-        REAL(KIND=dp) :: rxyz,rel,cut2
+    INTEGER                                  :: iat, nn, ncx, ll1, ll2, ll3, &
+                                                l1, l2, l3, myspace
+    REAL(KIND=dp)                            :: rxyz
+    INTEGER                                  :: icell, lstb, lay
+    REAL(KIND=dp)                            :: rel, cut2
+    INTEGER                                  :: indlst
 
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
@@ -1783,10 +1788,10 @@ CONTAINS
     SUBROUTINE eip_lenosky_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                    coord_var,count)
 
-        INTEGER :: nat
-        REAL(KIND=dp) :: alat,rxyz0,fxyz,ener,coord,ener_var,&
-                                   coord_var,count
-
+    INTEGER                                  :: nat
+    REAL(KIND=dp)                            :: alat, rxyz0, fxyz, ener, &
+                                                coord, ener_var, coord_var, &
+                                                count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -2435,15 +2440,24 @@ CONTAINS
 ! with them and their contribution to the energy (tener).
 ! In addition the coordination number tcoord and the second moment of the
 ! local energy tener2 and coordination number tcoord2 are returned
-        INTEGER :: iat1,iat2,nat,lsta,lstb,nnbrx,npjx,npjkx,istop
-        REAL(KIND=dp) rel,tener,tener2,tcoord,tcoord2,txyz,f2ij,f3ij,f3ik
+    INTEGER                                  :: iat1, iat2, nat, lsta, lstb
+    REAL(KIND=dp)                            :: rel, tener, tener2, tcoord, &
+                                                tcoord2
+    INTEGER                                  :: nnbrx
+    REAL(KIND=dp)                            :: txyz, f2ij
+    INTEGER                                  :: npjx
+    REAL(KIND=dp)                            :: f3ij
+    INTEGER                                  :: npjkx
+    REAL(KIND=dp)                            :: f3ik
+    INTEGER                                  :: istop
+
         DIMENSION lsta(2,nat),lstb(nnbrx*nat),rel(5,nnbrx*nat),txyz(3,nat)
         DIMENSION f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx)
-        REAL(KIND=dp) :: tmin_phi= 0.1500000e+01_dp
-        REAL(KIND=dp) :: tmax_phi= 0.4500000e+01_dp
-        REAL(KIND=dp) :: hi_phi= 3.00000000000e0_dp
-        REAL(KIND=dp) :: hsixth_phi=5.55555555555556e-002_dp
-        REAL(KIND=dp) :: h2sixth_phi=1.85185185185185e-002_dp
+        REAL(KIND=dp), PARAMETER :: tmin_phi= 0.1500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_phi= 0.4500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_phi= 3.00000000000e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_phi=5.55555555555556e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_phi=1.85185185185185e-002_dp
         REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_phi  = &
                      (/ 0.69299400000000e+01_dp, -0.43995000000000e+00_dp, &
                        -0.17012300000000e+01_dp, -0.16247300000000e+01_dp, &
@@ -2858,8 +2872,13 @@ CONTAINS
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-        INTEGER :: iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace,icell,lstb,lay,indlst
-        REAL(KIND=dp) :: rxyz,rel,cut2
+    INTEGER                                  :: iat, nn, ncx, ll1, ll2, ll3, &
+                                                l1, l2, l3, myspace
+    REAL(KIND=dp)                            :: rxyz
+    INTEGER                                  :: icell, lstb, lay
+    REAL(KIND=dp)                            :: rel, cut2
+    INTEGER                                  :: indlst
+
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
 
@@ -2899,8 +2918,11 @@ CONTAINS
 
 ! *****************************************************************************
         SUBROUTINE splint(ya,y2a,tmin,tmax,hsixth,h2sixth,hi,n,x,y,yp)
-        REAL(KIND=dp) :: ya,y2a,tmin,tmax,hsixth,h2sixth,hi,x,y,yp
-        INTEGER :: n
+    REAL(KIND=dp)                            :: ya, y2a, tmin, tmax, hsixth, &
+                                                h2sixth, hi
+    INTEGER                                  :: n
+    REAL(KIND=dp)                            :: x, y, yp
+
         DIMENSION y2a(0:n-1),ya(0:n-1)
         REAL(KIND=dp) :: a,a2,b,b2,cof1,cof2,cof3,cof4,tt,&
           y2a_khi,ya_klo,y2a_klo,ya_khi,ypt1,ypt2,yt1,yt2
