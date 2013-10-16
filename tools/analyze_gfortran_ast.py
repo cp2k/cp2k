@@ -28,8 +28,9 @@ def process_log_file(fn):
     re_symbol    = re.compile(r"^\s+symtree.* symbol: '([^']+)'.*$")
     re_attr      = re.compile(r"^\s+attributes: (.*)$")
     re_open      = re.compile(r"^\s+OPEN")
+    re_close     = re.compile(r"^\s+CLOSE")
 
-    direct_open_allowed = ["cp_files", "machine_gfortran", "machine",]
+    open_close_exceptions = ["cp_files", "machine_gfortran", "machine",]
 
     for line in lines:
         m = re_procedure.match(line)
@@ -53,8 +54,13 @@ def process_log_file(fn):
             print(msg)
 
         m = re_open.match(line)
-        if(m and curr_procedure and (fn.rsplit(".",1)[0] not in direct_open_allowed)):
+        if(m and curr_procedure and (fn.rsplit(".",1)[0] not in open_close_exceptions)):
             msg = fn+': direct call to OPEN in procedure "'+curr_procedure+"'"
+            print(msg)
+
+        m = re_close.match(line)
+        if(m and curr_procedure and (fn.rsplit(".",1)[0] not in open_close_exceptions)):
+            msg = fn+': direct call to CLOSE in procedure "'+curr_procedure+"'"
             print(msg)
 
 #===============================================================================
