@@ -15,7 +15,8 @@
 ! \author Mandes Schoenherr
 !----------------------------------------------------------------------!
 MODULE tmc_dot_tree
-  USE cp_files,                        ONLY: close_file, open_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE tmc_file_io,                     ONLY: expand_file_name_char,&
                                              expand_file_name_temp
   USE tmc_move_types,                  ONLY: mv_type_swap_conf
@@ -94,9 +95,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_draw_trees', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: file_ptr 
 
-    INTEGER                                  :: i
+    INTEGER                                  :: file_ptr, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -134,9 +134,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_draw_tree', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: file_ptr
 
-    INTEGER                                  :: i
+    INTEGER                                  :: file_ptr, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -364,8 +363,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1000)                      :: label, list_of_nr
-    INTEGER                                  :: file_ptr, i, &
-                                                ref_count
+    INTEGER                                  :: file_ptr, i, ref_count
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 

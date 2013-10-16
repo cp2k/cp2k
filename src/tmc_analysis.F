@@ -12,10 +12,11 @@
 ! *****************************************************************************
 
 MODULE tmc_analysis
-  USE cp_files,                        ONLY: close_file, open_file
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE force_fields_input,              ONLY: read_chrg_section
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -299,8 +300,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp, &
                                                 restart_file_name
-    LOGICAL                                  :: failure, l_tmp
     INTEGER                                  :: file_ptr
+    LOGICAL                                  :: failure, l_tmp
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
@@ -386,8 +387,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
-    LOGICAL                                  :: failure, l_tmp
     INTEGER                                  :: file_ptr
+    LOGICAL                                  :: failure, l_tmp
     REAL(KIND=dp)                            :: temp
 
     failure = .FALSE.
@@ -918,7 +919,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_vari
     INTEGER                                  :: bin_x, bin_y, bin_z, &
-                                                file_ptr_dens, file_ptr_vari,&
+                                                file_ptr_dens, file_ptr_vari, &
                                                 handle, i, j, k
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_size, interval_size

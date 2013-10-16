@@ -16,7 +16,8 @@
 ! *****************************************************************************
 
 MODULE tmc_file_io
-  USE cp_files,                        ONLY: close_file, open_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -245,7 +246,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: c_tmp, file_name
-    INTEGER                                  :: i, f_unit
+    INTEGER                                  :: f_unit, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -642,8 +643,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name_tmp
-    LOGICAL                                  :: failure, file_exists
     INTEGER                                  :: file_ptr
+    LOGICAL                                  :: failure, file_exists
 
     CPPrecondition(ASSOCIATED(dip),cp_failure_level,routineP,error,failure)
 
