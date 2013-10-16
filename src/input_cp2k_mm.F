@@ -885,8 +885,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="K",&
-            description="Defines the force constant of the potential. For QUARTIC potentials"//&
-            " three numbers are expected.",&
+            description="Defines the force constant of the potential. "//&
+            "For MORSE potentials 2 numbers are expected. "//&
+            "For QUARTIC potentials 3 numbers are expected.",&
             usage="K {real}", required=.TRUE., type_of_var=real_t,&
             n_var=-1, unit_str="hartree*bohr^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
