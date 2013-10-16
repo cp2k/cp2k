@@ -299,7 +299,9 @@ CONTAINS
 
        CALL section_create(subsection,name="KE_GGA",&
             description="Uses one of the KE_GGA functionals (optimized versions of "//&
-            "some of these functionals might be available outside this section).",&
+            "some of these functionals might be available outside this section). "//&
+            "These functionals are needed for the computation of the kinetic "//&
+            "energy in the Kim-Gordon method.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
