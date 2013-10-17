@@ -13,10 +13,12 @@ MODULE iterate_matrix
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_transposed
+       cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_transposed
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE dbcsr_types,                     ONLY: dbcsr_norm_maxabsnorm,&
+                                             dbcsr_type_no_symmetry
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -47,12 +49,14 @@ CONTAINS
 !>        explicit symmetrization makes this code not suitable for other matrix types
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
+!>       2011.10 guess option added [Rustam Z Khaliullin]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,error)
+  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_inverse, matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_inv_as_guess
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
@@ -60,9 +64,9 @@ CONTAINS
 
     INTEGER                                  :: handle, i, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
-    REAL(KIND=dp)                            :: frob_matrix, &
-                                                frob_matrix_base, &
-                                                gershgorin_norm, occ_matrix, &
+    LOGICAL                                  :: prepare_to_exit, use_inv_guess
+    REAL(KIND=dp)                            :: frob_matrix, gershgorin_norm, &
+                                                maxnorm_matrix, occ_matrix, &
                                                 t1, t2
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -78,10 +82,17 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
-    frob_matrix=cp_dbcsr_frobenius_norm(matrix)
-    CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
-    CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
+    use_inv_guess=.FALSE.
+    IF (PRESENT(use_inv_as_guess)) THEN
+       use_inv_guess=use_inv_as_guess
+    ENDIF
+
+    IF (.NOT.use_inv_guess) THEN
+       gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
+       frob_matrix=cp_dbcsr_frobenius_norm(matrix)
+       CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
+       CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
+    ENDIF
 
     CALL cp_dbcsr_init(tmp1,error=error)
     CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
@@ -89,6 +100,8 @@ CONTAINS
     CALL cp_dbcsr_create(tmp2,template=matrix_inverse,error=error)
 
     IF (unit_nr>0) WRITE(unit_nr,*)
+
+    prepare_to_exit=.FALSE.
 
     DO i=1,100
 
@@ -98,9 +111,12 @@ CONTAINS
                               0.0_dp, tmp1,flop=flop1, error=error)
 
        ! for the convergence check
-       frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
+       !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-       frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+       !frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+       CALL cp_dbcsr_norm(tmp1,&
+               dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
+
        CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
        occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
 
@@ -115,25 +131,29 @@ CONTAINS
 
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter",i,occ_matrix, &
-                                                             frob_matrix/frob_matrix_base,t2-t1,&
+                                                             maxnorm_matrix,t2-t1,&
                                                                     (flop1+flop2)/(1.0E6_dp*(t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
-       ! convergence.... convergence is quadratic, so the current iteration made is below the threshold
-       IF (frob_matrix/frob_matrix_base<SQRT(threshold)) EXIT
+       
+       ! use max_norm 
+       IF (maxnorm_matrix<threshold) EXIT 
 
     ENDDO
 
-    ! this check is not really needed
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
-    frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-    CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-    frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
-    occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+    !! this check is not really needed
+    !CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
+    !!frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
+    !CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
+    !!frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+    !CALL cp_dbcsr_norm(tmp1,&
+    !        dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
+    !occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
     IF (unit_nr>0) THEN
-       WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,frob_matrix/frob_matrix_base
-
+    !   WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,&
+    !      !frob_matrix/frob_matrix_base
+    !      maxnorm_matrix
        WRITE(unit_nr,'()')
        CALL m_flush(unit_nr)
     ENDIF

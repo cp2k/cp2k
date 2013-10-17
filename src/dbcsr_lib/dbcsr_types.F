@@ -99,6 +99,16 @@ MODULE dbcsr_types
   PUBLIC :: dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm,&
             dbcsr_norm_gershgorin, dbcsr_norm_column
 
+  PUBLIC :: dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_func_dtanh,&
+            dbcsr_func_ddtanh, dbcsr_func_artanh, dbcsr_func_inverse_special,&
+            dbcsr_func_spread_from_zero,&
+            dbcsr_func_sin,&
+            dbcsr_func_dsin,&
+            dbcsr_func_ddsin,&
+            dbcsr_func_asin,&
+            dbcsr_func_truncate,&
+            dbcsr_func_cos
+
 ! *****************************************************************************
 !> \brief A processor (process) grid distribution
 !> \var myproc                my processor (process) number
@@ -562,6 +572,22 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER        :: dbcsr_repl_row = 'R'
   CHARACTER, PARAMETER        :: dbcsr_repl_col = 'C'
   CHARACTER, PARAMETER        :: dbcsr_repl_full = 'A'
+
+  ! 
+  ! Function types 
+  INTEGER, PARAMETER          :: dbcsr_func_inverse = 0 
+  INTEGER, PARAMETER          :: dbcsr_func_tanh = 1 
+  INTEGER, PARAMETER          :: dbcsr_func_dtanh = 2 
+  INTEGER, PARAMETER          :: dbcsr_func_ddtanh = 3 
+  INTEGER, PARAMETER          :: dbcsr_func_artanh = 4 
+  INTEGER, PARAMETER          :: dbcsr_func_inverse_special = 5 
+  INTEGER, PARAMETER          :: dbcsr_func_spread_from_zero = 6 
+  INTEGER, PARAMETER          :: dbcsr_func_sin = 7  
+  INTEGER, PARAMETER          :: dbcsr_func_dsin = 8 
+  INTEGER, PARAMETER          :: dbcsr_func_ddsin = 9 
+  INTEGER, PARAMETER          :: dbcsr_func_asin = 10 
+  INTEGER, PARAMETER          :: dbcsr_func_cos = 11 
+  INTEGER, PARAMETER          :: dbcsr_func_truncate = 12 
 
 
 ! *****************************************************************************

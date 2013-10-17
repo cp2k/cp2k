@@ -248,6 +248,7 @@ MODULE qs_environment_types
 !> \param sab_cn: neighbor lists for the calculation of coordination numbers
 !> \param sab_scp: neighbor lists for the calculation of the dispersion interactions
 !>        when self-consistent polarization (SCP) is included
+!> \param sab_almo: neighbor lists to create ALMO delocalization template
 !> \param energy place where the energies calculated are stored
 !> \param matrix_h core hamiltonian (matrix_h(1)), if needed by the calculation also
 !>        its derivatives wrt. x,y, and z (matrix_h(2:4))
@@ -352,7 +353,8 @@ MODULE qs_environment_types
                                                              sap_oce,sab_se,sab_vdw,sab_cn,&
                                                              sab_tbe,sab_core,sab_all,sab_scp,&
                                                              sab_aux_fit, sab_aux_fit_vs_orb,&
-                                                             sab_aux_fit_asymm, sab_lrc
+                                                             sab_aux_fit_asymm, sab_lrc,&
+                                                             sab_almo
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(harris_env_type), POINTER                        :: harris_env
@@ -460,7 +462,8 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_cn,sab_scp,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,particle_set,energy,force,harris_env,matrix_h,matrix_ks,matrix_vxc,run_rtp,rtp,&
+       sab_se,sab_tbe,sab_core,sab_almo,particle_set,energy,force,harris_env,&
+       matrix_h,matrix_ks,matrix_vxc,run_rtp,rtp,&
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
@@ -489,7 +492,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_cn, sab_scp, sap_oce, sab_lrc, &
-      sab_se, sab_tbe, sab_core
+      sab_se, sab_tbe, sab_core, sab_almo
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
@@ -670,6 +673,7 @@ CONTAINS
     IF (PRESENT(sab_lrc)) sab_lrc =>  qs_env%sab_lrc
     IF (PRESENT(sab_tbe)) sab_tbe =>  qs_env%sab_tbe
     IF (PRESENT(sab_core)) sab_core =>  qs_env%sab_core
+    IF (PRESENT(sab_almo)) sab_almo =>  qs_env%sab_almo
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
     IF (PRESENT(use_harris)) use_harris = qs_env%use_harris
@@ -835,6 +839,7 @@ CONTAINS
     NULLIFY (qs_env%sab_lrc)
     NULLIFY (qs_env%sab_tbe)
     NULLIFY (qs_env%sab_core)
+    NULLIFY (qs_env%sab_almo)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
     NULLIFY (qs_env%harris_env)
@@ -956,7 +961,8 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,energy,force,harris_env,matrix_h,matrix_ks,matrix_vxc,&
+       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,sab_almo,energy,force,harris_env,&
+       matrix_h,matrix_ks,matrix_vxc,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,&
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,&
@@ -980,7 +986,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
-      sab_scp, sab_vdw, sab_cn
+      sab_scp, sab_vdw, sab_cn, sab_almo
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -1154,6 +1160,7 @@ CONTAINS
     IF (PRESENT(sab_lrc)) qs_env%sab_lrc => sab_lrc
     IF (PRESENT(sab_tbe)) qs_env%sab_tbe => sab_tbe
     IF (PRESENT(sab_core)) qs_env%sab_core => sab_core
+    IF (PRESENT(sab_almo)) qs_env%sab_almo => sab_almo
     IF (PRESENT(energy)) qs_env%energy => energy
     ! if intels checking (-C) complains here, you have rediscovered a bug in the intel
     ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
@@ -1629,6 +1636,14 @@ CONTAINS
                      qs_env%sab_core(i)%neighbor_list_set)
              END DO
              DEALLOCATE(qs_env%sab_core,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sab_almo)) THEN
+             DO i=1,SIZE(qs_env%sab_almo)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_almo(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_almo,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(qs_env%rtp))THEN

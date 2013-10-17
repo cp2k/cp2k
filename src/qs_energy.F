@@ -10,6 +10,7 @@
 !> \author MK (29.10.2002)
 ! *****************************************************************************
 MODULE qs_energy
+  USE almo_scf,                        ONLY: almo_entry_scf
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
@@ -142,6 +143,8 @@ CONTAINS
     ! *** Perform a SCF run ***
     IF (dft_control%qs_control%do_ls_scf) THEN
       CALL ls_scf(qs_env=qs_env, error=error)
+    ELSE IF (qs_env%dft_control%qs_control%do_almo_scf) THEN
+      CALL almo_entry_scf(qs_env=qs_env, error=error)
     ELSE
       CALL scf(qs_env=qs_env, error=error)
 

@@ -57,9 +57,11 @@ MODULE cp_dbcsr_interface
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
+  USE dbcsr_index_operations,          ONLY: dbcsr_index_compact
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                              dbcsr_binary_write,&
-                                             dbcsr_print
+                                             dbcsr_print,&
+                                             dbcsr_print_block_sum
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -83,7 +85,8 @@ MODULE cp_dbcsr_interface
        dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_init_lib, dbcsr_maxabs, &
        dbcsr_multiply, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
        dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
-       dbcsr_trace
+       dbcsr_trace, dbcsr_triu
+  USE dbcsr_operations_low,            ONLY: dbcsr_function_of_elements
   USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_desymmetrize_deep,&
@@ -207,7 +210,9 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_name
   PUBLIC :: cp_dbcsr_binary_write
   PUBLIC :: cp_dbcsr_binary_read
-
+  PUBLIC :: cp_dbcsr_function_of_elements
+  PUBLIC :: cp_dbcsr_print_block_sum
+  PUBLIC :: cp_dbcsr_triu
 
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
@@ -2867,9 +2872,32 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_transposed
 
-  SUBROUTINE cp_dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, error)
+  SUBROUTINE cp_dbcsr_function_of_elements(matrix_a, func, a0, a1, a2, a3, a4,& 
+    a5, a6, a7, a8, a9, error) 
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
+    INTEGER, INTENT(IN)                      :: func
+    REAL(kind=dp), INTENT(IN), OPTIONAL      :: a0, a1, a2, a3, a4, a5, a6, &
+                                                a7, a8, a9
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_function_of_elements', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle) 
+    CALL dbcsr_function_of_elements(matrix_a%matrix,func,a0,a1,a2,a3,a4,a5,a6,& 
+            a7,a8,a9,dbcsr_error) 
+    CALL timestop(timing_handle) 
+  END SUBROUTINE cp_dbcsr_function_of_elements 
+ 
+  SUBROUTINE cp_dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, b_assume_value,& 
+    error) 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_c
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: b_assume_value
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_hadamard_product', &
@@ -2879,7 +2907,8 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-    CALL dbcsr_hadamard_product(matrix_a%matrix, matrix_b%matrix, matrix_c%matrix, dbcsr_error)
+    CALL dbcsr_hadamard_product(matrix_a%matrix, matrix_b%matrix, matrix_c%matrix,&
+            b_assume_value, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_hadamard_product
 
@@ -3506,5 +3535,42 @@ CONTAINS
        new_data(sz+1:new_size) = 0
     ENDIF
   END SUBROUTINE match_1_dist
+
+  SUBROUTINE cp_dbcsr_print_block_sum(matrix, unit_nr, error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER, OPTIONAL                        :: unit_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_block_sum', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN,handle)
+
+    CALL dbcsr_print_block_sum(matrix%matrix, unit_nr, dbcsr_error)
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_dbcsr_print_block_sum
+
+  SUBROUTINE cp_dbcsr_triu(matrix, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_triu', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle)
+    !CALL cluster_buffer_flush (matrix%buffers, error=error)
+    CALL dbcsr_triu(matrix%matrix, dbcsr_error)
+    CALL dbcsr_index_compact(matrix%matrix, dbcsr_error)
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE cp_dbcsr_triu
+
 
 END MODULE cp_dbcsr_interface

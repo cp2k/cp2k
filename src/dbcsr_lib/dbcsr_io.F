@@ -79,6 +79,7 @@ MODULE dbcsr_io
   PUBLIC :: all_print
   PUBLIC :: dbcsr_binary_write
   PUBLIC :: dbcsr_binary_read
+  PUBLIC :: dbcsr_print_block_sum
 
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
@@ -1233,5 +1234,100 @@ CONTAINS
       END SUBROUTINE cumsum_l
 
   END SUBROUTINE dbcsr_binary_read
+
+! *****************************************************************************
+!> \brief Prints the sum of elements for each block
+!> \param[in] matrix          matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_print_block_sum(matrix, unit_nr, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print_block_sum', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=real_4)                     :: blk_sum_c_sp
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8)                     :: blk_sum_c_dp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
+    INTEGER                                  :: bc, blk, blk_p, br, &
+                                                error_handler, iunit, m, mn, n
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
+                                                row_blk_offset, row_blk_size
+    REAL(KIND=real_4)                        :: blk_sum_r_sp
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8)                        :: blk_sum_r_dp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert (dbcsr_valid_index (matrix),&
+         dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Can not print invalid matrix.",__LINE__,error)
+
+    iunit=6
+    IF (PRESENT(unit_nr)) iunit=unit_nr
+
+    SELECT CASE (matrix%m%data_type)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
+    END SELECT
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    row_blk_offset => array_data (matrix%m%row_blk_offset)
+    col_blk_offset => array_data (matrix%m%col_blk_offset)
+
+    IF (matrix%m%nblks .GT. 0) THEN
+       DO br = 1, matrix%m%nblkrows_total
+          m = row_blk_size(br)
+          DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
+             bc = matrix%m%col_i(blk)
+             n = col_blk_size(bc)
+             mn = m*n
+             blk_p = ABS(matrix%m%blk_p(blk))
+             block_exists: IF (blk_p .NE. 0) THEN
+                IF (mn .GT. 0) THEN
+                   SELECT CASE (matrix%m%data_type)
+                   CASE (dbcsr_type_real_8)
+                      blk_sum_r_dp = SUM(r_dp(blk_p:blk_p+mn-1))
+                      WRITE(iunit,'("Block (",I6,",",I6,") sum = ",ES18.9)')&
+                         br,bc,blk_sum_r_dp
+                   CASE (dbcsr_type_real_4)
+                      blk_sum_r_sp = SUM(r_sp(blk_p:blk_p+mn-1))
+                      WRITE(iunit,'(" (",I6,",",I6,") sum = ",ES18.9)')&
+                         br,bc,blk_sum_r_sp
+                   CASE (dbcsr_type_complex_8)
+                      blk_sum_c_dp = SUM(c_dp(blk_p:blk_p+mn-1))
+                      WRITE(iunit,'(" (",I6,",",I6,") sum = ",ES18.9," I*",ES18.9)')&
+                         br,bc,REAL(blk_sum_c_dp),AIMAG(blk_sum_c_dp)
+                   CASE (dbcsr_type_complex_4)
+                      blk_sum_c_sp = SUM(c_sp(blk_p:blk_p+mn-1))
+                      WRITE(iunit,'(" (",I6,",",I6,") sum = ",ES18.9," I*",ES18.9)')&
+                         br,bc,REAL(blk_sum_c_sp),AIMAG(blk_sum_c_sp)
+                   END SELECT
+                ELSE
+                   blk_sum_r_dp = 0.0_dp
+                   WRITE(iunit,'(" (",I6,",",I6,") sum = ",ES18.9)')&
+                      br,bc,blk_sum_r_dp
+                ENDIF
+             ENDIF block_exists
+          ENDDO
+       ENDDO
+    ENDIF
+
+    CALL dbcsr_error_stop(error_handler, error)
+  
+  END SUBROUTINE dbcsr_print_block_sum
 
 END MODULE dbcsr_io

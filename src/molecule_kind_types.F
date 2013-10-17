@@ -200,7 +200,9 @@ MODULE molecule_kind_types
                                                          nfixd, nfixd_restraint,&
                                                          nmolecule, nshell
     TYPE(colvar_counters)                             :: ncolv
-    INTEGER                                           :: nsgf, nelectron
+    INTEGER                                           :: nsgf, nelectron,&
+                                                         nelectron_alpha,&
+                                                         nelectron_beta
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
     LOGICAL                                           :: molname_generated
   END TYPE molecule_kind_type
@@ -543,7 +545,8 @@ CONTAINS
                                nimpr,nopbend,nconstraint,nconstraint_fixd,nfixd,ncolv,ng3x3,ng4x6,&
                                nvsite,nfixd_restraint,ng3x3_restraint, ng4x6_restraint,&
                                nvsite_restraint,nrestraints,nmolecule,nsgf,nshell,ntorsion,&
-                               molecule_list,nelectron, bond_kind_set,bend_kind_set,&
+                               molecule_list,nelectron, nelectron_alpha,nelectron_beta, &
+                               bond_kind_set,bend_kind_set,&
                                ub_kind_set,impr_kind_set,opbend_kind_set,torsion_kind_set,&
                                molname_generated)
 
@@ -587,7 +590,8 @@ CONTAINS
       ng3x3_restraint, ng4x6_restraint, nvsite_restraint, nrestraints, &
       nmolecule, nsgf, nshell, ntorsion
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
-    INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
+    INTEGER, INTENT(OUT), OPTIONAL           :: nelectron, nelectron_alpha, &
+                                                nelectron_beta
     TYPE(bond_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -679,6 +683,8 @@ CONTAINS
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
       IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
       IF (PRESENT(nelectron)) nelectron = molecule_kind%nelectron
+      IF (PRESENT(nelectron_alpha)) nelectron_alpha = molecule_kind%nelectron_beta
+      IF (PRESENT(nelectron_beta)) nelectron_beta = molecule_kind%nelectron_alpha
       IF (PRESENT(molecule_list)) molecule_list => molecule_kind%molecule_list
 
     ELSE

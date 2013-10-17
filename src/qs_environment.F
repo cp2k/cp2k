@@ -828,7 +828,8 @@ CONTAINS
 
     ! decide what conditions need mo_derivs
     ! right now, this only appears to be OT
-    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+    IF (qs_env%dft_control%qs_control%do_ls_scf .OR. &
+        qs_env%dft_control%qs_control%do_almo_scf) THEN
       CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
     ELSE
       IF (scf_control%use_ot) THEN
@@ -1226,7 +1227,8 @@ CONTAINS
     ENDIF
 
     ! no point in allocating these things here ?
-    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+    IF (qs_env%dft_control%qs_control%do_ls_scf .OR. &
+        qs_env%dft_control%qs_control%do_almo_scf) THEN
       NULLIFY(mos)
     ELSE
       ALLOCATE (mos(dft_control%nspins),STAT=istat)
@@ -1317,7 +1319,8 @@ CONTAINS
     CALL write_symmetry(particle_set,cell,subsys_section,error)
 
     ! Print the SCF parameters
-    IF (.NOT. qs_env%dft_control%qs_control%do_ls_scf) THEN
+    IF ((.NOT. qs_env%dft_control%qs_control%do_ls_scf) .AND. &
+        (.NOT. qs_env%dft_control%qs_control%do_almo_scf) ) THEN
        CALL scf_c_write_parameters(scf_control,dft_section,error=error)
     ENDIF
 

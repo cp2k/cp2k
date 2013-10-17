@@ -577,7 +577,7 @@ CONTAINS
         CALL cp_dbcsr_create(ls_scf_env%matrix_s_inv,template=ls_scf_env%matrix_s,&
                              matrix_type=dbcsr_type_no_symmetry,error=error)
         IF (.NOT.ls_scf_env%use_s_sqrt) THEN
-           CALL invert_Hotelling(ls_scf_env%matrix_s_inv,ls_scf_env%matrix_s,ls_scf_env%eps_filter,error)
+           CALL invert_Hotelling(ls_scf_env%matrix_s_inv,ls_scf_env%matrix_s,ls_scf_env%eps_filter,error=error)
         ELSE
            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
                                         0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter,error=error)

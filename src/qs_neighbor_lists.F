@@ -337,12 +337,15 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, stat, zat
-    LOGICAL :: all_potential_present, dftb, failure, gth_potential_present, &
-      lripaw, mic, molecule_only, nddo, paw_atom, paw_atom_present, scptb
+    LOGICAL :: all_potential_present, almo, dftb, failure, &
+      gth_potential_present, lripaw, mic, molecule_only, nddo, paw_atom, &
+      paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
-    REAL(dp)                                 :: alpha, subcells
+    REAL(dp)                                 :: almo_max_cutoff_multiplier, &
+                                                almo_rcov, almo_rvdw, alpha, &
+                                                subcells
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, calpha, core_radius, oce_radius, orb_radius, ppl_radius, &
       ppnl_radius, zeff
@@ -365,9 +368,9 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_all, &
-      sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, &
-      sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_ppl, &
-      sap_oce, sap_ppnl, sip_list, soo_list
+      sab_almo, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, &
+      sab_core, sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, &
+      sac_ppl, sap_oce, sap_ppnl, sip_list, soo_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -402,6 +405,7 @@ CONTAINS
     NULLIFY (sab_scp)
     NULLIFY (soo_list)
     NULLIFY (sip_list)
+    NULLIFY (sab_almo)
 
     neighbor_list_section => section_vals_get_subs_vals(force_env_section,"DFT%PRINT%NEIGHBOR_LISTS",error=error)
 
@@ -437,11 +441,13 @@ CONTAINS
                     sab_core=sab_core,&
                     sab_all=sab_all, &
                     sab_scp=sab_scp, &
+                    sab_almo=sab_almo, &
                     error=error)
 
     nddo = qs_env%dft_control%qs_control%semi_empirical
     dftb = qs_env%dft_control%qs_control%dftb
     scptb = qs_env%dft_control%qs_control%scptb
+    almo = qs_env%dft_control%qs_control%do_almo_scf
     lripaw = (qs_env%dft_control%qs_control%method_id == do_method_lripaw)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -837,6 +843,25 @@ CONTAINS
                "/SIP_LIST","sip_list","RI_BASIS PAW-PRJ",error)
        END IF
     END IF
+
+    ! Build the neighbor lists for the ALMO delocalization
+    IF ( almo ) THEN
+       almo_max_cutoff_multiplier=2.5_dp
+       DO ikind = 1, nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,rcov=almo_rcov,rvdw=almo_rvdw)
+          ! multiply the radius by some hard-coded number
+          ! make sure that this number is larger than the 
+          ! the largest cutoff multiplier in the ALMO code
+          c_radius(ikind) = MAX(almo_rcov,almo_rvdw)*bohr*&
+                            almo_max_cutoff_multiplier
+       END DO
+       default_present=.TRUE. !include all atoms (even without basis)
+       CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
+       CALL build_neighbor_lists(sab_almo,particle_set,atom2d,cell,pair_radius,&
+            subcells=subcells,operator_type="PP",name="sab_almo",error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_almo=sab_almo,error=error)
+    ENDIF
 
     ! Print particle distribution
     print_key_path = "PRINT%DISTRIBUTION"

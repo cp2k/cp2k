@@ -1448,7 +1448,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
     S = 0.0_dp
     DO ispin=1,nspin
-        CALL dbcsr_init_random(qs_ot_env(ispin)%matrix_x%matrix, dbcsr_error)
+        CALL dbcsr_init_random(qs_ot_env(ispin)%matrix_x%matrix,error=dbcsr_error)
         DO i=1,diis_bound
             CALL cp_dbcsr_trace( &
                 qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &

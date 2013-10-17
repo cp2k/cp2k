@@ -201,7 +201,8 @@ MODULE input_constants
                                               history_guess=6,&
                                               no_guess=7,&
                                               mopac_guess=8,&
-                                              sparse_guess=9
+                                              sparse_guess=9,&
+                                              almo_scf_guess=10
 
   INTEGER, PARAMETER, PUBLIC               :: pw_interp=1,&
                                               spline3_nopbc_interp=2,&
@@ -896,6 +897,49 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
                                               ls_scf_line_search_3point_2d=6
+
+  ! parameters for ALMO methods
+  INTEGER, PARAMETER, PUBLIC   :: almo_domain_layout_orbital=1, &
+                                  almo_domain_layout_atomic=10, &
+                                  almo_domain_layout_molecular=100
+
+  INTEGER, PARAMETER, PUBLIC   :: almo_mat_distr_atomic=1, &
+                                  almo_mat_distr_molecular=2
+
+  INTEGER, PARAMETER, PUBLIC   :: almo_constraint_block_diagonal=0, &
+                                  almo_constraint_distance=1,&
+                                  almo_constraint_ao_overlap=2
+
+  INTEGER, PARAMETER, PUBLIC   :: almo_deloc_none=0,&
+                                  almo_deloc_x=10,&
+                                  almo_deloc_qx=11,&
+                                  almo_deloc_xk=12,&
+                                  almo_deloc_qscf=13,&
+                                  almo_deloc_full_scf=100,&
+                                  almo_deloc_x_then_full_scf=110
+  
+  INTEGER, PARAMETER, PUBLIC   :: almo_scf_dm_sign=1,&
+                                  almo_scf_diag=2,&
+                                  almo_scf_pcg=3
+
+  ! parameters for CT methods
+  INTEGER, PARAMETER, PUBLIC   :: cg_zero=0,&
+                                  cg_polak_ribiere=1,&
+                                  cg_fletcher_reeves=2,&
+                                  cg_hestenes_stiefel=3,&
+                                  cg_fletcher=4,&
+                                  cg_liu_storey=5,&
+                                  cg_dai_yuan=6,& 
+                                  cg_hager_zhang=7 
+  
+  INTEGER, PARAMETER, PUBLIC   :: tensor_orthogonal = 1, & 
+                                  tensor_up_down = 2 
+  
+  INTEGER, PARAMETER, PUBLIC   :: virt_full = 1,&
+                                  virt_minimal = 2,&
+                                  virt_occ_size = 3,&
+                                  virt_number = 4
+
 
   ! some MP2 parameters
   INTEGER, PARAMETER, PUBLIC               :: mp2_method_none=0,&

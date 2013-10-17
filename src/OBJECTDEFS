@@ -26,6 +26,13 @@ OBJECTS_GENERIC =\
  al_system_init.o\
  al_system_mapping.o\
  al_system_types.o\
+ almo_scf.o\
+ almo_scf_aux_types.o\
+ almo_scf_aux2_types.o\
+ almo_scf_aux2_methods.o\
+ almo_scf_methods.o\
+ almo_scf_special.o\
+ almo_scf_types.o\
  atom_basis.o\
  atom_electronic_structure.o\
  atom_energy.o\
@@ -296,6 +303,7 @@ OBJECTS_GENERIC =\
  hfx_screening_methods.o\
  hfx_types.o\
  input_constants.o\
+ input_cp2k_almo.o\
  input_cp2k_atom.o\
  input_cp2k_atprop.o\
  input_cp2k_barostats.o\

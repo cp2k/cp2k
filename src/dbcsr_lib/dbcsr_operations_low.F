@@ -85,6 +85,10 @@ MODULE dbcsr_operations_low
                                              swap
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_filter_frobenius, &
+       dbcsr_func_artanh, dbcsr_func_asin, dbcsr_func_cos, dbcsr_func_ddsin, &
+       dbcsr_func_ddtanh, dbcsr_func_dsin, dbcsr_func_dtanh, &
+       dbcsr_func_inverse, dbcsr_func_inverse_special, dbcsr_func_sin, &
+       dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, &
        dbcsr_iterator, dbcsr_memtype_MPI, dbcsr_mp_obj, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
        dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, &
@@ -120,6 +124,7 @@ MODULE dbcsr_operations_low
             dbcsr_get_block_diag, dbcsr_hadamard_product, &
             dbcsr_filter, dbcsr_scale_by_vector,&
             dbcsr_replace_blocks, &
+            dbcsr_function_of_elements, &
             dbcsr_btriu, dbcsr_triu, dbcsr_tril,&
             dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
             dbcsr_init_random, dbcsr_block_in_limits
@@ -1232,6 +1237,171 @@ CONTAINS
     CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_reduce
 
+! *****************************************************************************
+!> \brief Computes varios functions (defined by func) of matrix elements
+!>        NOTE: sign(A,B) returns the value of A with the sign of B
+!>        dbcsr_func_inverse:   1/(a1*x+a0)
+!>           fails if the inversion produces infinite numbers 
+!>        dbcsr_func_inverse_special: 1/(x+sign(a0,x))
+!>           safe inverse: if a0>0 then the denominator is never zero
+!>        dbcsr_func_tanh:    tanh(a1*x+a0)
+!>        dbcsr_func_dtanh:   d(tanh(a1*x+a0)) / dx
+!>        dbcsr_func_ddtanh:  d2(tanh(a1*x+a0)) / dx2
+!>        dbcsr_func_artanh:  artanh(a1*x+a0)=ln[(1+(a1*x+a0))/(1-(a1*x+a0))]/2
+!>           fails if |a1*x+a0| >= 1
+!>        dbcsr_func_sread_from_zero:  if |x|<|a0| then x=sign(a0,x) 
+!>        dbcsr_func_truncate:  if |x|>|a0| then x=sign(a0,x)
+!>        dbcsr_func_sin:     sin(a1*x+a0)
+!>        dbcsr_func_cos:     cos(a1*x+a0)
+!>        dbcsr_func_dsin:    d(sin(a1*x+a0)) / dx = a1*cos(a1*x+a0)
+!>        dbcsr_func_ddsin:   d2(sin(a1*x+a0)) / dx2 = -a1*a1*sin(a1*x+a0)
+!>        dbcsr_func_asin:    asin(a1*x+a0)
+!>           fails if |a1*x+a0| > 1
+!> \param[in] matrix_a        DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_function_of_elements(matrix_a, func, a0, a1, a2, a3, a4,&
+    a5, a6, a7, a8, a9, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    INTEGER, INTENT(IN)                      :: func
+    REAL(kind=dp), INTENT(IN), OPTIONAL      :: a0, a1, a2, a3, a4, a5, a6, &
+                                                a7, a8, a9
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_function_of_elements', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_size, &
+                                                data_type, error_handler, &
+                                                ielem, nze, row, row_size
+    LOGICAL                                  :: tr_a
+    REAL(kind=dp)                            :: p0, p1, p2
+    TYPE(dbcsr_data_obj)                     :: a_data
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    
+    IF (PRESENT(a0)) THEN
+       p0=a0
+    ELSE
+       p0=0.0_dp
+    ENDIF
+    IF (PRESENT(a1)) THEN
+       p1=a1
+    ELSE
+       p1=1.0_dp
+    ENDIF
+    IF (PRESENT(a2)) THEN
+       p2=a2
+    ELSE
+       p2=0.0_dp
+    ENDIF
+
+    data_type = dbcsr_get_data_type(matrix_a)
+    CALL dbcsr_data_init (a_data)
+    CALL dbcsr_data_new (a_data, data_type)
+    CALL dbcsr_iterator_start(iter, matrix_a)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, a_data, tr_a, blk, &
+            row_size=row_size, col_size=col_size)
+       nze = row_size * col_size
+       SELECT CASE (data_type)
+       !CASE (dbcsr_type_real_4)
+       !   a_data%d%r_sp(1:nze) = 1.0_real_4/a_data%d%r_sp(1:nze)
+       !   CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_sp)).LT.HUGE(0.0_real_4),&
+       !           dbcsr_fatal_level,dbcsr_internal_error, routineN,&
+       !           "Division by zero", __LINE__, error=error)
+       CASE (dbcsr_type_real_8)
+          SELECT CASE (func)
+          CASE (dbcsr_func_spread_from_zero)
+             ! if |x|<|a0| then x=|a0|*sign(x)
+             DO ielem=1,nze
+               IF (ABS(a_data%d%r_dp(ielem)).lt.ABS(p0)) THEN
+                  a_data%d%r_dp(ielem) = SIGN(p0,a_data%d%r_dp(ielem))
+               ENDIF
+             ENDDO
+          CASE (dbcsr_func_truncate)
+             ! if |x|>|a0| then x=|a0|*sign(x)
+             DO ielem=1,nze
+               IF (ABS(a_data%d%r_dp(ielem)).gt.ABS(p0)) THEN
+                  a_data%d%r_dp(ielem) = SIGN(p0,a_data%d%r_dp(ielem))
+               ENDIF
+             ENDDO
+          CASE (dbcsr_func_inverse_special)
+             !IF (MINVAL(ABS(a_data%d%r_dp)).le.ABS(p2)) THEN
+             !   ! there is at least one near-zero element,
+             !   ! invert element-by-element
+             !   DO ielem=1,nze
+             !     IF (a_data%d%r_dp(ielem).le.ABS(p2)) THEN
+             !        a_data%d%r_dp(ielem) = 0.0_real_8
+             !     ELSE
+             !        a_data%d%r_dp(ielem) = &
+             !           1.0_real_8/(p1*a_data%d%r_dp(ielem)+p0)
+             !     ENDIF
+             !   ENDDO
+             !ELSE
+             !   a_data%d%r_dp(1:nze) = 1.0_real_8/(p1*a_data%d%r_dp(1:nze)+p0)
+             !ENDIF
+             a_data%d%r_dp(1:nze) = 1.0_real_8/(a_data%d%r_dp(1:nze)+SIGN(p0,a_data%d%r_dp(1:nze)))
+          CASE (dbcsr_func_inverse)
+             a_data%d%r_dp(1:nze) = 1.0_real_8/(p1*a_data%d%r_dp(1:nze)+p0)
+             CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_dp)).LT.HUGE(0.0_real_8),&
+                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
+                     "Division by zero", __LINE__, error=error)
+          CASE (dbcsr_func_tanh)
+             a_data%d%r_dp(1:nze) = TANH(p1*a_data%d%r_dp(1:nze)+p0)
+          CASE (dbcsr_func_dtanh)
+             a_data%d%r_dp(1:nze) = TANH(p1*a_data%d%r_dp(1:nze)+p0)
+             a_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze)**2
+             a_data%d%r_dp(1:nze) = p1*(1.0_real_8-a_data%d%r_dp(1:nze))
+          CASE (dbcsr_func_ddtanh)
+             a_data%d%r_dp(1:nze) = TANH(p1*a_data%d%r_dp(1:nze)+p0)
+             a_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze)**3-a_data%d%r_dp(1:nze)
+             a_data%d%r_dp(1:nze) = 2.0_real_8*(p1**2)*a_data%d%r_dp(1:nze)
+          CASE (dbcsr_func_artanh)
+             a_data%d%r_dp(1:nze) = p1*a_data%d%r_dp(1:nze)+p0
+             CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_dp)).LT.1.0_real_8,&
+                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
+                     "ARTANH is undefined for |x|>=1", __LINE__, error=error)
+             a_data%d%r_dp(1:nze) = (1.0_real_8+a_data%d%r_dp(1:nze))&
+                                  / (1.0_real_8-a_data%d%r_dp(1:nze))
+             a_data%d%r_dp(1:nze) = 0.5_real_8*LOG(a_data%d%r_dp(1:nze))
+          CASE (dbcsr_func_sin)
+             a_data%d%r_dp(1:nze) = SIN(p1*a_data%d%r_dp(1:nze)+p0)
+          CASE (dbcsr_func_cos)
+             a_data%d%r_dp(1:nze) = COS(p1*a_data%d%r_dp(1:nze)+p0)
+          CASE (dbcsr_func_dsin)
+             a_data%d%r_dp(1:nze) = p1*COS(p1*a_data%d%r_dp(1:nze)+p0)
+          CASE (dbcsr_func_ddsin)
+             a_data%d%r_dp(1:nze) = -p1*p1*SIN(p1*a_data%d%r_dp(1:nze)+p0)
+          CASE (dbcsr_func_asin)
+             a_data%d%r_dp(1:nze) = p1*a_data%d%r_dp(1:nze)+p0
+             CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_dp)).LE.1.0_real_8,&
+                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
+                     "ASIN is undefined for |x|>1", __LINE__, error=error)
+             a_data%d%r_dp(1:nze) = ASIN(a_data%d%r_dp(1:nze))
+          CASE DEFAULT
+             CALL dbcsr_assert(.FALSE.,&
+                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
+                     "Unknown function of matrix elements", __LINE__,&
+                     error=error)
+          END SELECT
+       !CASE (dbcsr_type_complex_4)
+       !CASE (dbcsr_type_complex_8)
+       CASE DEFAULT
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
+                  dbcsr_unimplemented_error_nr, routineN,&
+                  "Operation is implemented only for dp real values",&
+                  __LINE__,error)
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (a_data)
+    CALL dbcsr_data_release (a_data)
+    CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE dbcsr_function_of_elements
 
 ! *****************************************************************************
 !> \brief Hadamard product
@@ -1239,9 +1409,12 @@ CONTAINS
 !> \param[in,out] matrix_c        DBCSR matrix
 !> \param[in] matrix_a, matrix_b  DBCSR matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, error)
+  SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c,&
+    b_assume_value, error)
+
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: b_assume_value
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product', &
@@ -1250,11 +1423,21 @@ CONTAINS
     INTEGER                                  :: blk, col, col_size, &
                                                 data_type, error_handler, &
                                                 nze, row, row_size
-    LOGICAL                                  :: found, tr_a, tr_b
+    LOGICAL                                  :: assume_blocks_in_b, found, &
+                                                tr_a, tr_b
+    REAL(KIND=dp)                            :: assumed_b_value
     TYPE(dbcsr_data_obj)                     :: a_data, b_data, c_data
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
+
+    IF (PRESENT(b_assume_value)) THEN
+       assume_blocks_in_b=.TRUE.
+       assumed_b_value=b_assume_value
+    ELSE
+       assume_blocks_in_b=.FALSE.
+       assumed_b_value=0.0_dp
+    ENDIF
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b).AND.&
@@ -1300,6 +1483,21 @@ CONTAINS
              END SELECT
              CALL dbcsr_put_block(matrix_c, row, col, c_data, tr_a, &
                   summation=.FALSE.)
+          ELSE
+             IF (assume_blocks_in_b) THEN
+                SELECT CASE (data_type)
+                CASE (dbcsr_type_real_4)
+                   c_data%d%r_sp(1:nze) = a_data%d%r_sp(1:nze) * assumed_b_value 
+                CASE (dbcsr_type_real_8)
+                   c_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze) * assumed_b_value 
+                CASE (dbcsr_type_complex_4)
+                   c_data%d%c_sp(1:nze) = a_data%d%c_sp(1:nze) * assumed_b_value
+                CASE (dbcsr_type_complex_8)
+                   c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze) * assumed_b_value
+                END SELECT
+                CALL dbcsr_put_block(matrix_c, row, col, c_data, tr_a, &
+                     summation=.FALSE.)
+             ENDIF
           ENDIF
           !CASE (dbcsr_type_complex_4)
           !CASE (dbcsr_type_complex_8)
@@ -1475,8 +1673,9 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_on_diag_anytype
 
-  SUBROUTINE dbcsr_init_random(matrix, error)
+  SUBROUTINE dbcsr_init_random(matrix, keep_sparsity, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, OPTIONAL                        :: keep_sparsity
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_random', &
@@ -1487,11 +1686,14 @@ CONTAINS
                                                 row_size, stored_col, &
                                                 stored_row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found, my_keep_sparsity, tr
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: rnd
     REAL(real_8), DIMENSION(:, :), POINTER   :: buff, data_d
 
 !   ---------------------------------------------------------------------------
+
+    my_keep_sparsity=.FALSE.
+    IF (PRESENT(keep_sparsity)) my_keep_sparsity=keep_sparsity
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
@@ -1500,26 +1702,32 @@ CONTAINS
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
     CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
 
-    iseed(1)=4;iseed(2)=3;iseed(3)=2;iseed(4)=1! set the seed for dlarnv
     ALLOCATE(rnd(MAXVAL(row_blk_size)*MAXVAL(col_blk_size)))
     DO row = 1,dbcsr_nblkrows_total(matrix)
     DO col = 1,dbcsr_nblkcols_total(matrix)
        row_size = row_blk_size(row)
        col_size = col_blk_size(col)
-       CALL dlarnv(1,iseed,row_size*col_size,rnd(1))
        tr = .FALSE.
        stored_row = row
        stored_col = col
        CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr, hold)
        IF(hold.EQ.mynode) THEN
           CALL dbcsr_get_block_p(matrix, stored_row, stored_col, data_d, tr, found)
+          IF(found.OR.(.NOT.my_keep_sparsity)) THEN
+             ! set the seed for dlarnv, is here to guarantee same value of the random numbers
+             ! for all layouts (and block distributions)
+             iseed(1)=4;iseed(2)=row;iseed(3)=col;iseed(4)=1
+             CALL dlarnv(1,iseed,row_size*col_size,rnd(1))
+          ENDIF
           IF(found) THEN
              CALL dcopy(row_size*col_size,rnd,1,data_d,1)
           ELSE
-             ALLOCATE(buff(row_size,col_size))
-             CALL dcopy(row_size*col_size,rnd,1,buff,1)
-             CALL dbcsr_put_block (matrix, stored_row, stored_col, buff)
-             DEALLOCATE(buff)
+             IF (.NOT. my_keep_sparsity) THEN
+                ALLOCATE(buff(row_size,col_size))
+                CALL dcopy(row_size*col_size,rnd,1,buff,1)
+                CALL dbcsr_put_block (matrix, stored_row, stored_col, buff)
+                DEALLOCATE(buff)
+             ENDIF
           ENDIF
        ENDIF
     ENDDO

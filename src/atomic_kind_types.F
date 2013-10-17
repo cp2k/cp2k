@@ -428,7 +428,7 @@ CONTAINS
        lri_basis_set, &
        element_symbol, name, mass, kind_number, natom, atom_list, &
        alpha_core_charge, ccore_charge, core_charge, alpha_scp, I_scp, &
-       core_charge_radius, ncgf, nsgf, rcov, z, zeff, qeff, apol, cpol, mm_radius, &
+       core_charge_radius, ncgf, nsgf, rcov, rvdw, z, zeff, qeff, apol, cpol, mm_radius, &
        soft_basis_set, elec_conf, hard_basis_set, paw_proj_set, softb, &
        paw_atom,qm_atom, hard_radius, hard0_radius, max_rad_local, &
        gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
@@ -471,7 +471,7 @@ CONTAINS
                                                 alpha_scp, I_scp, &
                                                 core_charge_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov, rvdw
     INTEGER, INTENT(OUT), OPTIONAL           :: z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol, cpol, &
                                                 mm_radius
@@ -722,6 +722,9 @@ CONTAINS
        END IF
        IF (PRESENT(rcov)) THEN
           CALL get_ptable_info(atomic_kind%element_symbol, covalent_radius=rcov)
+       END IF
+       IF (PRESENT(rvdw)) THEN
+          CALL get_ptable_info(atomic_kind%element_symbol, vdw_radius=rvdw)
        END IF
        IF (PRESENT(qeff)) THEN
           IF (ASSOCIATED(atomic_kind%fist_potential)) THEN

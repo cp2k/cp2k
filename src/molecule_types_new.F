@@ -23,6 +23,7 @@ MODULE molecule_types_new
                                              fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
+                                             get_molecule_kind,&
                                              molecule_kind_type,&
                                              vsite_constraint_type
   USE termination,                     ONLY: stop_memory,&
@@ -128,7 +129,8 @@ MODULE molecule_types_new
             get_molecule,&
             set_molecule,&
             set_molecule_set,&
-            molecule_of_atom
+            molecule_of_atom,&
+            get_molecule_set_info
 
 CONTAINS
 
@@ -449,5 +451,77 @@ CONTAINS
     END DO  ! imol
 
   END SUBROUTINE molecule_of_atom
+
+! *****************************************************************************
+!> \brief returns information about molecules in the set.
+!> \par History
+!>       2011.06 created [Rustam Z Khaliullin]
+!> \author Rustam Z Khaliullin
+! *****************************************************************************
+  SUBROUTINE get_molecule_set_info(molecule_set,atom_to_mol,mol_to_first_atom,&
+    mol_to_last_atom,mol_to_nelectrons,mol_to_nbasis,error)
+    
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: atom_to_mol, &
+                                                mol_to_first_atom, &
+                                                mol_to_last_atom
+    INTEGER, DIMENSION(:, :), INTENT(OUT), &
+      OPTIONAL                               :: mol_to_nelectrons
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: mol_to_nbasis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, iatom, imol, &
+                                                last_atom, nbasis, nelec
+    LOGICAL                                  :: failure
+    TYPE(molecule_kind_type), POINTER        :: my_molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    failure=.FALSE.
+
+    DO imol = 1,SIZE(molecule_set)
+
+       molecule => molecule_set(imol)
+       CALL get_molecule( molecule=molecule,molecule_kind=my_molecule_kind,&
+                           first_atom = first_atom,last_atom = last_atom )
+
+       IF (PRESENT(mol_to_nelectrons)) THEN
+         CALL get_molecule_kind(my_molecule_kind,nelectron=nelec)
+         IF (MOD(nelec,2).ne.0) THEN
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                        "ODD NUMBER OF ELECTRONS ON A MOLECULE")
+         ELSE
+           !ZZZlater number of beta? 
+           mol_to_nelectrons(imol,1)=nelec/2
+         ENDIF
+       ENDIF
+
+       IF (PRESENT(mol_to_nbasis)) THEN
+         CALL get_molecule_kind(my_molecule_kind,nsgf=nbasis)
+         mol_to_nbasis(imol)=nbasis
+       ENDIF
+
+       IF (PRESENT(mol_to_first_atom)) THEN
+         mol_to_first_atom(imol)=first_atom
+       ENDIF
+
+       IF (PRESENT(mol_to_last_atom)) THEN
+         mol_to_last_atom(imol)=last_atom
+       ENDIF
+
+       IF (PRESENT(atom_to_mol)) THEN
+         DO iatom = first_atom, last_atom
+            atom_to_mol(iatom)=imol
+         ENDDO  ! iatom
+       ENDIF
+
+    END DO  ! imol
+
+  END SUBROUTINE get_molecule_set_info 
 
 END MODULE molecule_types_new

@@ -267,6 +267,7 @@ MODULE cp_control_types
                                                      eps_gvg_rspace,&
                                                      progression_factor,&
                                                      relative_cutoff
+    LOGICAL                                       :: do_almo_scf
     LOGICAL                                       :: do_ls_scf
     LOGICAL                                       :: do_kg
     LOGICAL                                       :: commensurate_mgrids

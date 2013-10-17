@@ -550,6 +550,7 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)
 
     CALL section_vals_val_get(qs_section,"LS_SCF",l_val=qs_control%do_ls_scf,error=error)
+    CALL section_vals_val_get(qs_section,"ALMO_SCF",l_val=qs_control%do_almo_scf,error=error)
     CALL section_vals_val_get(qs_section,"KG_METHOD",l_val=qs_control%do_kg,error=error)
 
     ! Logicals
