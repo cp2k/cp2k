@@ -87,8 +87,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: act_nr_elem_mv, counter, d, &
-                                                dim_per_mol, i, ind, ind_e, m, &
-                                                nr_molec, nr_sub_box_elem
+                                                i, ind, ind_e, m, nr_molec, &
+                                                nr_sub_box_elem
     INTEGER, DIMENSION(:), POINTER           :: mol_in_sb
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
@@ -375,16 +375,17 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_mol_indeces(tmc_params, mol_arr, mol, start_ind, end_ind, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    INTEGER, DIMENSION(:),INTENT(IN),POINTER :: mol_arr
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: mol_arr
     INTEGER, INTENT(IN)                      :: mol
-    INTEGER, INTENT(OUT)                     :: end_ind, start_ind
+    INTEGER, INTENT(OUT)                     :: start_ind, end_ind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mol_indeces', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -569,7 +570,7 @@ CONTAINS
   SUBROUTINE do_mol_rot(pos, ind_start, ind_end, max_angle, rng_stream, &
                         dim_per_elem, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
-    INTEGER                                  :: ind_end, ind_start
+    INTEGER                                  :: ind_start, ind_end
     REAL(KIND=dp)                            :: max_angle
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER                                  :: dim_per_elem
@@ -711,9 +712,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1000)                      :: tmp_chr
-    INTEGER                                  :: counter, dim_per_mol, &
-                                                donor_acceptor, handle, ind, &
-                                                ind_e, k, mol, nr_mol
+    INTEGER                                  :: counter, donor_acceptor, &
+                                                handle, k, mol, nr_mol
     INTEGER, DIMENSION(:), POINTER           :: mol_arr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
@@ -813,7 +813,7 @@ CONTAINS
   SUBROUTINE find_nearest_proton_acceptor_donator(elem, mol, donor_acceptor, &
                                                tmc_params, rng_stream, error)
     TYPE(tree_type), POINTER                 :: elem
-    INTEGER                                  :: donor_acceptor, mol
+    INTEGER                                  :: mol, donor_acceptor
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -822,8 +822,8 @@ CONTAINS
       routineN = 'find_nearest_proton_acceptor_donator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ind, ind_n, ind_e, &
-                                                mol_tmp, molec, nr_mol
+    INTEGER                                  :: handle, ind, ind_e, ind_n, &
+                                                mol_tmp, nr_mol
     INTEGER, DIMENSION(2)                    :: neighbor_mol
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist_tmp, rnd
@@ -862,7 +862,7 @@ CONTAINS
              mol=mol_tmp, start_ind=ind_n, end_ind=ind_e, error=error)
       ! check if selected molecule is water respectively consists of 3 atoms
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
-write(6,*)"### test a not water molecule for proton reordering, skip it"
+WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
         CYCLE list_distances
       END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN
@@ -1181,8 +1181,8 @@ write(6,*)"### test a not water molecule for proton reordering, skip it"
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_volume', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, dir, handle, ind, ind_e,&
-                                                mol
+    INTEGER                                  :: atom, dir, handle, ind, &
+                                                ind_e, mol
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd, vol
     REAL(KIND=dp), DIMENSION(3)              :: box_length_new, &

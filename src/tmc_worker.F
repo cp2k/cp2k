@@ -43,6 +43,7 @@ MODULE tmc_worker
                                              force_env_get_natom
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mol_new_list_types,              ONLY: mol_new_list_type
   USE parallel_rng_types,              ONLY: get_rng_stream,&
                                              next_random_number,&
                                              set_rng_stream
@@ -89,7 +90,6 @@ MODULE tmc_worker
                                              tmc_atom_type,&
                                              tmc_env_type,&
                                              tmc_param_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -809,13 +809,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_initial_conf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, ndim, nr_atoms
+    INTEGER                                  :: handle, ierr, mol, ndim, &
+                                                nr_atoms
     LOGICAL                                  :: failure
-
-    TYPE(mol_new_list_type), POINTER         :: molecule_new
-    INTEGER                                  :: mol
-    TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(mol_new_list_type), POINTER         :: molecule_new
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(init_conf),cp_failure_level,routineP,error,failure)
