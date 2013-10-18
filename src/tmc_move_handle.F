@@ -227,6 +227,9 @@ CONTAINS
         tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = 0.5_dp
       END IF
     END IF
+    CALL cp_assert(SUM(tmc_params%move_types%mv_weight(:)).GT.0.0,&
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "NO move type is selected.", error)
   END SUBROUTINE read_init_move_types
 
 ! *****************************************************************************

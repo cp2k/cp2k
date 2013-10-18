@@ -9,7 +9,7 @@
 #
 # testing global tree creation using single exact potential, the deterministic random number generator
 #   with the standard move types, check if at the end the same configuration is created (energy)
-TMC_1pot.inp 1
+TMC_1pot_H2ONH4.inp
 # testing the deterministic random Number generator and the walltime program stop
 TMC_walltime.inp 39
 # testing the standard atom/molecule moves and the proton reordering as well as the two potential checks

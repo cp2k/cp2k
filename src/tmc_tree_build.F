@@ -193,12 +193,14 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(next_el)
-    NULLIFY(next_el%subbox_center, next_el%pos, next_el%vel, next_el%frc, &
-            next_el%dipole, next_el%elem_stat, next_el%gt_nodes_references)
+    NULLIFY(next_el%subbox_center, next_el%pos, next_el%mol, next_el%vel, &
+            next_el%frc, next_el%dipole, next_el%elem_stat, &
+            next_el%gt_nodes_references)
 
     next_el%scf_energies(:) = HUGE(next_el%scf_energies)
     next_el%scf_energies_count = 0
     ALLOCATE(next_el%pos(nr_dim))
+    ALLOCATE(next_el%mol(nr_dim/tmc_params%dim_per_elem))
     ALLOCATE(next_el%vel(nr_dim))
     IF(tmc_params%print_dipole) ALLOCATE(next_el%dipole(tmc_params%dim_per_elem))
     ALLOCATE(next_el%elem_stat(nr_dim))
@@ -213,6 +215,8 @@ CONTAINS
        next_el%frc = 0.0_dp
     END IF
     ALLOCATE(next_el%box_scale(3))
+    next_el%pos(:) = -1.0_dp
+    next_el%mol(:) = -1
     next_el%box_scale(:) = 1.0_dp
     next_el%scf_energies(:) = 0.0_dp
     next_el%e_pot_approx = 0.0_dp
@@ -264,6 +268,7 @@ CONTAINS
     IF(ASSOCIATED(tree_elem%elem_stat)) DEALLOCATE(tree_elem%elem_stat)
     IF(ASSOCIATED(tree_elem%dipole)) DEALLOCATE(tree_elem%dipole)
     IF(ASSOCIATED(tree_elem%vel)) DEALLOCATE(tree_elem%vel)
+    IF(ASSOCIATED(tree_elem%mol)) DEALLOCATE(tree_elem%mol)
     IF(ASSOCIATED(tree_elem%pos)) DEALLOCATE(tree_elem%pos)
 
     DEALLOCATE(tree_elem)
@@ -334,6 +339,7 @@ CONTAINS
        global_tree%conf(i)%elem%sub_tree_nr   = i
        global_tree%conf(i)%elem%elem_stat     = status_ok
        global_tree%conf(i)%elem%pos           = start_elem%pos
+       global_tree%conf(i)%elem%mol           = start_elem%mol
        global_tree%conf(i)%elem%e_pot_approx  = start_elem%e_pot_approx
        global_tree%conf(i)%elem%temp_created  = i
        global_tree%conf(i)%elem%stat          = status_calculate_energy
@@ -955,6 +961,7 @@ CONTAINS
     ! search parent
     parent_elem => search_parent_element(current=new_elem, error=error)
     new_elem%pos(:)       = parent_elem%pos(:)
+    new_elem%mol(:)       = parent_elem%mol(:)
     new_elem%vel(:)       = parent_elem%vel(:)
     new_elem%ekin         = parent_elem%ekin
     new_elem%e_pot_approx = parent_elem%e_pot_approx

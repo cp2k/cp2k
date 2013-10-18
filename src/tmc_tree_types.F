@@ -81,6 +81,7 @@ MODULE tmc_tree_types
      INTEGER                                  :: stat = status_created
      REAL(KIND=dp), DIMENSION(:), POINTER     :: subbox_center
      REAL(KIND=dp), DIMENSION(:), POINTER     :: pos          ! position array
+     INTEGER, DIMENSION(:), POINTER           :: mol          ! specifies the molecules the atoms participate
      REAL(KIND=dp), DIMENSION(:), POINTER     :: vel          ! velocity array
      REAL(KIND=dp), DIMENSION(:), POINTER     :: frc          ! force array
      REAL(KIND=dp), DIMENSION(:), POINTER     :: dipole       ! dipole moments array

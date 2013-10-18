@@ -89,6 +89,7 @@ MODULE tmc_worker
                                              tmc_atom_type,&
                                              tmc_env_type,&
                                              tmc_param_type
+  USE mol_new_list_types,              ONLY: mol_new_list_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -811,6 +812,11 @@ CONTAINS
     INTEGER                                  :: handle, ierr, ndim, nr_atoms
     LOGICAL                                  :: failure
 
+    TYPE(mol_new_list_type), POINTER         :: molecule_new
+    INTEGER                                  :: mol
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(init_conf),cp_failure_level,routineP,error,failure)
 
@@ -826,6 +832,20 @@ CONTAINS
                                     error=error)
     CALL get_pos(env_id=env_id, pos=init_conf%pos, n_el=SIZE(init_conf%pos), &
                  ierr=ierr)
+
+    ! get the molecule info 
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+      CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+
+      CALL cp_subsys_get(subsys=subsys, molecules_new=molecule_new,&
+                         error=error)
+      loop_mol: DO mol=1, SIZE(molecule_new%els(:))
+        init_conf%mol(molecule_new%els(mol)%first_atom:&
+                      molecule_new%els(mol)%last_atom) = mol
+      END DO loop_mol
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
 
     ! end the timing
     CALL timestop(handle)

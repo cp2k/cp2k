@@ -91,7 +91,6 @@ MODULE tmc_types
   TYPE tmc_param_type
     INTEGER                                       :: task_type
     INTEGER                                       :: dim_per_elem
-    INTEGER                                       :: elem_per_struct
     INTEGER                                       :: nr_NMC_steps
     INTEGER                                       :: nr_temp
     REAL(KIND=dp), DIMENSION(:), POINTER          :: Temp
@@ -224,9 +223,6 @@ CONTAINS
     !  I used it originally for the n dimension oscillator, 
     !  where each dimension is a single position
     tmc_env%params%dim_per_elem = 3 
-    !TODO elem_per_struct sould be variable, to handle different molecules, get from somewhere 
-    !  up to now it is 3, to simulate H2O molecules
-    tmc_env%params%elem_per_struct = 3
     tmc_env%params%nr_NMC_steps = -1
     tmc_env%params%nr_elem_mv = -1
     tmc_env%params%nr_temp = -1 

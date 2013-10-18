@@ -86,8 +86,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_pos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: act_nr_elem_mv, d, &
-                                                dim_per_mol, i, ind, m, &
+    INTEGER                                  :: act_nr_elem_mv, counter, d, &
+                                                dim_per_mol, i, ind, ind_e, m, &
                                                 nr_molec, nr_sub_box_elem
     INTEGER, DIMENSION(:), POINTER           :: mol_in_sb
     LOGICAL                                  :: failure
@@ -127,9 +127,6 @@ CONTAINS
     ELSE
       act_nr_elem_mv = tmc_params%nr_elem_mv
     END IF
-
-    dim_per_mol = tmc_params%dim_per_elem*tmc_params%elem_per_struct
-    nr_molec = SIZE(elem%pos)/dim_per_mol
 
     !-- select the type of move (looked up in list, using the move type index)
     !-- for each move type exist single moves of certain number of elements 
@@ -188,42 +185,43 @@ CONTAINS
       DEALLOCATE(elem_center)
 
     !-- molecule translation
-!TODO use cp2k structures for getting molecule information espacially sizes...(for particle structure)
     CASE(mv_type_mol_trans)
+      nr_molec = MAXVAL(elem%mol(:))
+      ! if all particles should be displaced, set the amount of molecules
       IF(act_nr_elem_mv.EQ.0) &
-        act_nr_elem_mv = SIZE(elem%pos)/dim_per_mol
-      ! check which molecules in subbox
+        act_nr_elem_mv = nr_molec
       ALLOCATE(mol_in_sb(nr_molec))
       ALLOCATE(elem_center(tmc_params%dim_per_elem))
       mol_in_sb(:) = status_frozen
-      DO ind=1, SIZE(elem%pos), dim_per_mol
-        CALL geometrical_center(pos=elem%pos(ind:ind+dim_per_mol-1), &
+      ! check if any molecule is in sub_box
+      DO m=1, nr_molec
+        CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
+                             start_ind=ind, end_ind=ind_e, error=error)
+        CALL geometrical_center(pos=elem%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
                                 center=elem_center, error=error)
         IF(check_pos_in_subbox(pos=elem_center, &
              subbox_center=elem%subbox_center, &
              box_scale=elem%box_scale, tmc_params=tmc_params, &
              error=error)) &
-          mol_in_sb(INT(ind/dim_per_mol)+1) = status_ok
+          mol_in_sb(m) = status_ok
       END DO
+      ! displace the selected amount of molecules
       IF(ANY(mol_in_sb(:).EQ.status_ok)) THEN
         ALLOCATE(direction(tmc_params%dim_per_elem))
-        m=1
+        counter = 1
         move_molecule_loop: DO 
           ! select molecule
           IF(tmc_params%nr_elem_mv.EQ.0) THEN
-            ind = (m-1) * dim_per_mol +1
+            m = counter
           ELSE
             rnd = next_random_number(rng_stream, error=error) ! next random number
-            ind = INT(rnd*nr_molec)*dim_per_mol+1
+            m = INT(rnd*nr_molec)+1
           END IF
-          ! apply move
+          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
+                               start_ind=ind, end_ind=ind_e, error=error)
+          ! calculate displacement
           !  move only molecules, with geom. center in subbox
-          CALL geometrical_center(pos=elem%pos(ind:ind+dim_per_mol-1), &
-                                  center=elem_center, error=error)
-          IF(check_pos_in_subbox(pos=elem_center,&
-              subbox_center=elem%subbox_center, &
-              box_scale=elem%box_scale, tmc_params=tmc_params, &
-              error=error))THEN
+          IF(mol_in_sb(m) .EQ. status_ok) THEN
             ! calculate displacement
             DO d=1, tmc_params%dim_per_elem
               rnd = next_random_number(rng_stream, error=error) ! next random number
@@ -236,7 +234,8 @@ CONTAINS
                  subbox_center=elem%subbox_center, &
                  box_scale=elem%box_scale, tmc_params=tmc_params, &
                  error=error)) THEN
-              atom_in_mol_loop:DO i=ind, ind+dim_per_mol-1, tmc_params%dim_per_elem
+              ! apply move
+              atom_in_mol_loop:DO i=ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
                 dim_loop:DO d=0, tmc_params%dim_per_elem-1
                   elem%pos(i+d) = elem%pos(i+d) + direction(d+1)
                 END DO dim_loop
@@ -248,10 +247,10 @@ CONTAINS
             END IF
           ELSE 
             ! element was not in sub box, search new one instead
-            IF(tmc_params%nr_elem_mv.GT.0) m = m-1
+            IF(tmc_params%nr_elem_mv.GT.0) counter = counter-1
           END IF
-          m=m+1
-          IF(m.GT.act_nr_elem_mv) EXIT move_molecule_loop
+          counter = counter+1
+          IF(counter.GT.act_nr_elem_mv) EXIT move_molecule_loop
         END DO move_molecule_loop
         DEALLOCATE(direction)
       END IF
@@ -259,43 +258,47 @@ CONTAINS
       DEALLOCATE(mol_in_sb)
 
     !-- molecule rotation
-!TODO use cp2k structures for getting molecule information espacially sizes...(for particle structure)
     CASE(mv_type_mol_rot)
+      nr_molec = MAXVAL(elem%mol(:))
       IF(act_nr_elem_mv.EQ.0) &
-        act_nr_elem_mv = SIZE(elem%pos)/dim_per_mol
-      ! check which molecules in subbox
+        act_nr_elem_mv = nr_molec
       ALLOCATE(mol_in_sb(nr_molec))
       ALLOCATE(elem_center(tmc_params%dim_per_elem))
       mol_in_sb(:) = status_frozen
-      DO ind=1, SIZE(elem%pos), dim_per_mol
-         CALL geometrical_center(pos=elem%pos(ind:ind+dim_per_mol-1), &
-                                 center=elem_center, error=error)
-         IF(check_pos_in_subbox(pos=elem_center,&
-            subbox_center=elem%subbox_center, &
-            box_scale=elem%box_scale, tmc_params=tmc_params, &
-            error=error))&
-            mol_in_sb(INT(ind/dim_per_mol)+1) = status_ok
+      ! check if any molecule is in sub_box
+      DO m=1, nr_molec
+        CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
+                             start_ind=ind, end_ind=ind_e, error=error)
+        CALL geometrical_center(pos=elem%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
+                                center=elem_center, error=error)
+        IF(check_pos_in_subbox(pos=elem_center, &
+             subbox_center=elem%subbox_center, &
+             box_scale=elem%box_scale, tmc_params=tmc_params, &
+             error=error)) &
+          mol_in_sb(m) = status_ok
       END DO
+      ! rotate the selected amount of molecules
       IF(ANY(mol_in_sb(:).EQ.status_ok)) THEN
-        m=1
+        counter=1
         rot_molecule_loop:DO
           ! select molecule
           IF(tmc_params%nr_elem_mv.EQ.0) THEN
-            ind = (m-1) * dim_per_mol +1
+            m = counter
           ELSE
             rnd = next_random_number(rng_stream, error=error) ! next random number
-            ind = INT(rnd*nr_molec)*dim_per_mol+1
+            m = INT(rnd*nr_molec)+1
           END IF
+          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
+                               start_ind=ind, end_ind=ind_e, error=error)
           ! apply move
-          IF(mol_in_sb(INT(ind/dim_per_mol)+1).EQ.status_ok)THEN
-            CALL do_mol_rot(pos=elem%pos, ind=ind, &
+          IF(mol_in_sb(m).EQ.status_ok)THEN
+            CALL do_mol_rot(pos=elem%pos, ind_start=ind, ind_end=ind_e, &
                    max_angle=tmc_params%move_types%mv_size(&
                                mv_type_mol_rot,mv_conf), &
                    rng_stream=rng_stream, &
-                   dim_per_elem=tmc_params%dim_per_elem, &
-                   elem_per_struct=tmc_params%elem_per_struct, error=error)
+                   dim_per_elem=tmc_params%dim_per_elem, error=error)
             ! update sub box status of single atom
-            DO i=ind, ind+dim_per_mol-1, tmc_params%dim_per_elem
+            DO i=ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
               elem_center = elem%pos(i:i+tmc_params%dim_per_elem-1)
               IF(check_pos_in_subbox(pos=elem_center, &
                    subbox_center=elem%subbox_center, &
@@ -308,10 +311,10 @@ CONTAINS
             END DO
           ELSE
             ! element was not in sub box, search new one instead
-            IF(tmc_params%nr_elem_mv.GT.0) m= m-1
+            IF(tmc_params%nr_elem_mv.GT.0) counter = counter-1
           END IF
-          m = m+1
-          IF(m.GT.act_nr_elem_mv) EXIT rot_molecule_loop
+          counter = counter+1
+          IF(counter.GT.act_nr_elem_mv) EXIT rot_molecule_loop
         END DO rot_molecule_loop
       END IF
       DEALLOCATE(elem_center)
@@ -358,6 +361,60 @@ CONTAINS
            cg=elem%rng_seed(:,:,2), ig=elem%rng_seed(:,:,3), error=error)
 
   END SUBROUTINE change_pos
+
+! *****************************************************************************
+!> \brief gets the index of the first molecule element position and the size
+!> \param tmc_params TMC parameters with dim_per_elem
+!> \param mol_arr array with molecule information (which atom attend which mol)
+!> \param mol the selected molecule number
+!> \param start_ind start index of the first atom in molecule
+!> \param end_ind index of the last atom in molecule
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 10.2013
+! *****************************************************************************
+  SUBROUTINE get_mol_indeces(tmc_params, mol_arr, mol, start_ind, end_ind, error)
+    TYPE(tmc_param_type), POINTER            :: tmc_params
+    INTEGER, DIMENSION(:),INTENT(IN),POINTER :: mol_arr
+    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(OUT)                     :: end_ind, start_ind
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mol_indeces', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: i
+
+    failure = .FALSE.
+
+    start_ind = -1
+    end_ind   = -1
+
+    CPPrecondition(ASSOCIATED(mol_arr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(mol.LE.MAXVAL(mol_arr(:)),cp_failure_level,routineP,error,failure)
+    ! get start index
+    loop_start: DO i=1, SIZE(mol_arr)
+      IF(mol_arr(i) .EQ. mol) THEN
+        start_ind = i
+        EXIT loop_start
+      END IF
+    END DO loop_start
+    ! get end index
+    loop_end: DO i=SIZE(mol_arr), i, -1
+      IF(mol_arr(i) .EQ. mol) THEN
+        end_ind = i
+        EXIT loop_end
+      END IF
+    END DO loop_end
+    ! check if all atoms inbetween attend to molecule
+    CPPostcondition(ALL(mol_arr(start_ind:end_ind).EQ.mol),cp_failure_level,routineP,error,failure)
+    CPPostcondition(start_ind.GT.0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(end_ind.GT.0,cp_failure_level,routineP,error,failure)
+    ! convert to indeces mapped for the position array (multiple dim per atom)
+    start_ind = (start_ind-1)*tmc_params%dim_per_elem+1
+    end_ind   = (end_ind-1)*tmc_params%dim_per_elem+1
+  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief checks if a position is within the sub box
@@ -500,22 +557,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief molecule rotation using quaternions
 !> \param pos atom positions
-!> \param ind starting index in the array
+!> \param ind_start starting index in the array
+!> \param ind_end index of last atom in the array
 !> \param max_angle maximal angle in each direction
 !> \param rng_stream ramdon stream
 !> \param dim_per_elem dimension per atom
-!> \param elem_per_struct atoms per molecule
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE do_mol_rot(pos, ind, max_angle, rng_stream, dim_per_elem, &
-                        elem_per_struct, error)
+  SUBROUTINE do_mol_rot(pos, ind_start, ind_end, max_angle, rng_stream, &
+                        dim_per_elem, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
-    INTEGER                                  :: ind
+    INTEGER                                  :: ind_end, ind_start
     REAL(KIND=dp)                            :: max_angle
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    INTEGER                                  :: dim_per_elem, elem_per_struct
+    INTEGER                                  :: dim_per_elem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mol_rot', &
@@ -533,9 +590,8 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
     CPPrecondition(dim_per_elem.EQ.3,cp_failure_level,routineP,error,failure)
-    CPPrecondition(elem_per_struct.GT.0.AND.elem_per_struct.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ind.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ind.LE.SIZE(pos)-elem_per_struct*dim_per_elem+1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ind_start.GT.0.AND.ind_start.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ind_end.GT.0.AND.ind_end.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
 
     ! calculate rotation matrix (using quanternions)
     rnd = next_random_number(rng_stream, error=error) ! next random number
@@ -554,11 +610,11 @@ CONTAINS
 
     ALLOCATE(elem_center(dim_per_elem))
     ! calculate geometrical center
-    CALL geometrical_center(pos=pos(ind:ind+elem_per_struct*dim_per_elem-1), &
+    CALL geometrical_center(pos=pos(ind_start:ind_end+dim_per_elem-1), &
                             center=elem_center, error=error)
 
     ! proceed rotation
-    atom_loop:DO i=ind, ind+elem_per_struct*dim_per_elem-1, dim_per_elem
+    atom_loop:DO i=ind_start, ind_end+dim_per_elem-1, dim_per_elem
        pos(i:i+2) = MATMUL(pos(i:i+2)-elem_center(:), rot) + elem_center(:)
     END DO atom_loop
     DEALLOCATE(elem_center)
@@ -656,13 +712,14 @@ CONTAINS
 
     CHARACTER(LEN=1000)                      :: tmp_chr
     INTEGER                                  :: counter, dim_per_mol, &
-                                                donor_acceptor, handle, ind, k
-    INTEGER, DIMENSION(:), POINTER           :: ind_arr
+                                                donor_acceptor, handle, ind, &
+                                                ind_e, k, mol, nr_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_arr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
 
     failure = .FALSE.
-    NULLIFY(ind_arr)
+    NULLIFY(mol_arr)
 
     CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
@@ -673,28 +730,25 @@ CONTAINS
 
     short_loop = .FALSE.
     counter = 0
-    dim_per_mol = tmc_params%dim_per_elem*tmc_params%elem_per_struct
+    nr_mol  = MAXVAL(elem%mol(:))
     ! ind_arr: one array element for each molecule
-    ALLOCATE(ind_arr(SIZE(elem%pos)/(dim_per_mol))) 
-    ind_arr(:) = -1
+    ALLOCATE(mol_arr(nr_mol))
+    mol_arr(:) = -1
     donor_acceptor = not_selected
-
     ! select randomly if neighboring molecule is donor / acceptor
-    IF(donor_acceptor.EQ.not_selected) THEN
-       IF(next_random_number(rng_stream, error=error).LT.0.5_dp) THEN
-          donor_acceptor = proton_acceptor
-       ELSE
-          donor_acceptor = proton_donor
-       END IF
+    IF(next_random_number(rng_stream, error=error).LT.0.5_dp) THEN
+      donor_acceptor = proton_acceptor
+    ELSE
+      donor_acceptor = proton_donor
     END IF
 
     ! first step build loop
     !  select randomly one atom
     rnd = next_random_number(rng_stream, error=error)
     ! the randomly selected first atom
-    ind = INT(rnd*(SIZE(elem%pos)/(dim_per_mol)))* dim_per_mol+1
+    mol = INT(rnd*nr_mol) +1
     counter = counter +1
-    ind_arr(counter) = ind
+    mol_arr(counter) = mol
 
     ! do until the loop is closed 
     !  (until path connects back to any spot of the path)
@@ -702,21 +756,21 @@ CONTAINS
        counter = counter+1
        ! find nearest neighbor
        !  (with same state, in the chain, proton donator or proton accptor)
-       CALL find_nearest_proton_acceptor_donator(elem=elem, ind=ind, &
+       CALL find_nearest_proton_acceptor_donator(elem=elem, mol=mol, &
               donor_acceptor=donor_acceptor, tmc_params=tmc_params, &
               rng_stream=rng_stream, error=error)
-       IF(ANY(ind_arr(:).EQ.ind))&
+       IF(ANY(mol_arr(:).EQ.mol))&
          EXIT chain_completition_loop
-       ind_arr(counter) = ind
+       mol_arr(counter) = mol
     END DO chain_completition_loop
     counter = counter -1 ! last searched element is equal to one other in list
 
     ! just take the loop of molecules out of the chain
     DO k = 1,counter
-      IF(ind_arr(k).EQ.ind)&
+      IF(mol_arr(k).EQ.mol)&
         EXIT
     END DO
-    ind_arr(1:counter-k+1) = ind_arr(k:counter)
+    mol_arr(1:counter-k+1) = mol_arr(k:counter)
     counter = counter-k+1
 
     ! check if loop is minimum size of 6 molecules
@@ -725,7 +779,7 @@ CONTAINS
                  "molecules.", error,failure)
     IF(failure) THEN
       tmp_chr=""
-      WRITE(tmp_chr, *) NINT(ind_arr(1:counter)/(tmc_params%dim_per_elem*1.0_dp))
+      WRITE(tmp_chr, *) mol_arr(1:counter)
       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                  routineP,"selected molecules:"//TRIM(tmp_chr),&
                  error,failure)
@@ -734,9 +788,9 @@ CONTAINS
     ! rotate the molecule along the not involved O-H bond 
     !   (about the angle in of the neighboring chain elements)
     CALL rotate_molecules_in_chain(tmc_params=tmc_params, elem=elem, &
-           ind_arr_in=ind_arr(1:counter), donor_acceptor=donor_acceptor, &
+           mol_arr_in=mol_arr(1:counter), donor_acceptor=donor_acceptor, &
            error=error)
-    DEALLOCATE(ind_arr)
+    DEALLOCATE(mol_arr)
 
     ! end the timing
     CALL timestop(handle)
@@ -746,8 +800,7 @@ CONTAINS
 !> \brief searches the next (first atom of) neighboring molecule 
 !>        which is proton donor / acceptor
 !> \param elem sub tree element with actual positions 
-!> \param ind (in_out) actual regarded atom index, neighbor is searched for 
-!>        result in the neighbor atom index
+!> \param mol (in_out) actual regarded molecule, which neighbor is searched for
 !> \param donor_acceptor type of searched neighbor 
 !>        (proton donor or proton acceptor)
 !> \param tmc_params TMC parameters with numbers of dimensions per element
@@ -757,10 +810,10 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE find_nearest_proton_acceptor_donator(elem, ind, donor_acceptor, &
+  SUBROUTINE find_nearest_proton_acceptor_donator(elem, mol, donor_acceptor, &
                                                tmc_params, rng_stream, error)
     TYPE(tree_type), POINTER                 :: elem
-    INTEGER                                  :: ind, donor_acceptor
+    INTEGER                                  :: donor_acceptor, mol
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -769,8 +822,8 @@ CONTAINS
       routineN = 'find_nearest_proton_acceptor_donator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dim_per_mol, handle, ind_n, &
-                                                mol
+    INTEGER                                  :: handle, ind, ind_n, ind_e, &
+                                                mol_tmp, molec, nr_mol
     INTEGER, DIMENSION(2)                    :: neighbor_mol
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist_tmp, rnd
@@ -784,10 +837,10 @@ CONTAINS
     ! start the timing
     CALL timeset(routineN,handle)
 
-    dim_per_mol = tmc_params%dim_per_elem*tmc_params%elem_per_struct
-    ALLOCATE(distO(SIZE(elem%pos)/(dim_per_mol)))
-    ALLOCATE(distH1(SIZE(elem%pos)/(dim_per_mol)))
-    ALLOCATE(distH2(SIZE(elem%pos)/(dim_per_mol)))
+    nr_mol = MAXVAL(elem%mol)
+    ALLOCATE(distO(nr_mol))
+    ALLOCATE(distH1(nr_mol))
+    ALLOCATE(distH2(nr_mol))
     !-- initialize the distances to huge values
     ! distance of nearest proton of certain molecule to preselected O
     distO(:)  = HUGE(distO(1))
@@ -796,36 +849,45 @@ CONTAINS
     ! distance of (second) proton of preselected molecule to certain molecule
     distH2(:) = HUGE(distH2(1))
 
+    ! get the indices of the old O atom (assuming the first atom of the molecule the first atom)
+    CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=mol, &
+                               start_ind=ind, end_ind=ind_e, error=error)
+
     ! calculate distances to all molecules
-    list_distances: DO ind_n=1, SIZE(elem%pos), dim_per_mol
-      IF(ind_n.EQ.ind) CYCLE list_distances
+    list_distances: DO mol_tmp=1, nr_mol
+      IF(mol_tmp.EQ.mol) CYCLE list_distances
       ! index of the molecule (the O atom)
-      mol = ind_n/(dim_per_mol)+1
-      !check for neighboring proton acceptors
+      ! assume the first atom of the molecule the first atom
+      CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
+             mol=mol_tmp, start_ind=ind_n, end_ind=ind_e, error=error)
+      ! check if selected molecule is water respectively consists of 3 atoms
+      IF(MOD(ind_e-ind_n,3).GT.0) THEN
+write(6,*)"### test a not water molecule for proton reordering, skip it"
+        CYCLE list_distances
+      END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN
         IF(check_donor_acceptor(elem=elem, i_orig=ind, i_neighbor=ind_n, &
              tmc_params=tmc_params, error=error).EQ.proton_acceptor) THEN
           !distance of fist proton to certain O
-          distH1(mol) = nearest_distance(&
+          distH1(mol_tmp) = nearest_distance(&
                           x1=elem%pos(ind+tmc_params%dim_per_elem:&
                                       ind+2*tmc_params%dim_per_elem-1), &
                           x2=elem%pos(ind_n:ind_n+tmc_params%dim_per_elem-1),&
                           cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
           !distance of second proton to certain O
-          distH2(mol) = nearest_distance(&
+          distH2(mol_tmp) = nearest_distance(&
                           x1=elem%pos(ind+2*tmc_params%dim_per_elem:&
                                       ind+3*tmc_params%dim_per_elem-1), &
                           x2=elem%pos(ind_n:ind_n+tmc_params%dim_per_elem-1), &
                           cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
         END IF
       END IF
-
       !check for neighboring proton donors
       IF(donor_acceptor.EQ.proton_donor) THEN
         IF(check_donor_acceptor(elem=elem, i_orig=ind, i_neighbor=ind_n, &
              tmc_params=tmc_params, error=error).EQ.proton_donor) THEN
           !distance of selected O to all first protons of other melecules
-          distO(mol) = nearest_distance(&
+          distO(mol_tmp) = nearest_distance(&
                          x1=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
                          x2=elem%pos(ind_n+tmc_params%dim_per_elem:&
                                      ind_n+2*tmc_params%dim_per_elem-1), &
@@ -835,42 +897,42 @@ CONTAINS
                          x2=elem%pos(ind_n+2*tmc_params%dim_per_elem:&
                                      ind_n+3*tmc_params%dim_per_elem-1), &
                          cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
-          IF(dist_tmp.LT.distO(mol)) distO(mol) = dist_tmp
+          IF(dist_tmp.LT.distO(mol_tmp)) distO(mol_tmp) = dist_tmp
          END IF
       END IF
     END DO list_distances
 
-    ind_n = 1
+    mol_tmp = 1
     ! select the nearest neighbors
     !check for neighboring proton acceptors
     IF(donor_acceptor.EQ.proton_acceptor) THEN
-      neighbor_mol(ind_n) = MINLOC(distH1(:),1)
-      neighbor_mol(ind_n+1) = MINLOC(distH2(:),1)
+      neighbor_mol(mol_tmp) = MINLOC(distH1(:),1)
+      neighbor_mol(mol_tmp+1) = MINLOC(distH2(:),1)
       ! if both smallest distances points to the shortest molecule search also the second next shortest distance
-      IF(neighbor_mol(ind_n).EQ.neighbor_mol(ind_n+1))THEN
-        distH1(neighbor_mol(ind_n)) = HUGE(distH1(1))
-        distH2(neighbor_mol(ind_n+1)) = HUGE(distH2(1))
+      IF(neighbor_mol(mol_tmp).EQ.neighbor_mol(mol_tmp+1))THEN
+        distH1(neighbor_mol(mol_tmp)) = HUGE(distH1(1))
+        distH2(neighbor_mol(mol_tmp+1)) = HUGE(distH2(1))
         IF(MINVAL(distH1(:),1).LT.MINVAL(distH2(:),1)) THEN
-           neighbor_mol(ind_n) = MINLOC(distH1(:),1)
+           neighbor_mol(mol_tmp) = MINLOC(distH1(:),1)
         ELSE
-           neighbor_mol(ind_n+1) = MINLOC(distH2(:),1)
+           neighbor_mol(mol_tmp+1) = MINLOC(distH2(:),1)
         END IF
       END IF
-      ind_n = ind_n +2
+      mol_tmp = mol_tmp +2
     END IF
 
     !check for neighboring proton donors
     IF(donor_acceptor.EQ.proton_donor) THEN
-      neighbor_mol(ind_n) = MINLOC(distO(:),1)
-      distO(neighbor_mol(ind_n)) = HUGE(distO(1))
-      neighbor_mol(ind_n+1) = MINLOC(distO(:),1)
+      neighbor_mol(mol_tmp) = MINLOC(distO(:),1)
+      distO(neighbor_mol(mol_tmp)) = HUGE(distO(1))
+      neighbor_mol(mol_tmp+1) = MINLOC(distO(:),1)
     END IF
 
     ! select randomly the next neighboring molecule
     rnd = next_random_number(rng_stream, error=error)
     ! the randomly selected atom: return value!
-    ind_n = (neighbor_mol(INT(rnd*SIZE(neighbor_mol(:)))+1)-1)*dim_per_mol+1
-    ind = ind_n
+    mol_tmp = neighbor_mol(INT(rnd*SIZE(neighbor_mol(:)))+1)
+    mol = mol_tmp
 
     DEALLOCATE(distO)
     DEALLOCATE(distH1)
@@ -945,17 +1007,17 @@ CONTAINS
 !> \param tmc_params TMC environment parameters
 !> \param elem sub tree element the pos of the molecules in chain should be 
 !>        changed by rotating
-!> \param ind_arr_in array of indeces of molecules, should be rotated
+!> \param mol_arr_in array of indeces of molecules, should be rotated
 !> \param donor_acceptor gives the direction of rotation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE rotate_molecules_in_chain(tmc_params, elem, ind_arr_in, &
+  SUBROUTINE rotate_molecules_in_chain(tmc_params, elem, mol_arr_in, &
                                        donor_acceptor, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(tree_type), POINTER                 :: elem
-    INTEGER, DIMENSION(:)                    :: ind_arr_in
+    INTEGER, DIMENSION(:)                    :: mol_arr_in
     INTEGER                                  :: donor_acceptor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -981,10 +1043,14 @@ CONTAINS
     ! start the timing
     CALL timeset(routineN,handle)
 
-    ALLOCATE(ind_arr(0:SIZE(ind_arr_in)+1))
-    ind_arr(0) = ind_arr_in(SIZE(ind_arr_in))
-    ind_arr(1:SIZE(ind_arr_in)) = ind_arr_in(:)
-    ind_arr(SIZE(ind_arr_in)+1) = ind_arr_in(1)
+    ALLOCATE(ind_arr(0:SIZE(mol_arr_in)+1))
+    DO i=1, SIZE(mol_arr_in)
+      CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
+                           mol=mol_arr_in(i), &
+                           start_ind=ind_arr(i), end_ind=ind, error=error)
+    END DO
+    ind_arr(0) = ind_arr(SIZE(ind_arr)-2)
+    ind_arr(SIZE(ind_arr)-1) = ind_arr(1)
 
     ! get the scaled cell
     ALLOCATE(tmp_cell)
@@ -992,13 +1058,13 @@ CONTAINS
            scaled_cell=tmp_cell, error=error)
 
     ! rotate single molecules
-    DO i=1, SIZE(ind_arr_in)
+    DO i=1, SIZE(ind_arr)-2
       ! the 3 O atoms
       vec_1O(:) = elem%pos(ind_arr(i-1):ind_arr(i-1)+tmc_params%dim_per_elem-1)
       vec_2O(:) = elem%pos(ind_arr( i ):ind_arr( i )+tmc_params%dim_per_elem-1)
       vec_3O(:) = elem%pos(ind_arr(i+1):ind_arr(i+1)+tmc_params%dim_per_elem-1)
       ! the H atoms 
-      ! distinguished between the one fixed (rotation axis with 2O) 
+      ! distinguished between the one fixed (rotation axis with 2 O) 
       ! and the moved one
       ! if true the first H atom is between the O atoms
       IF(nearest_distance(&
@@ -1035,8 +1101,7 @@ CONTAINS
         tmp_2 = pbc(vec_3O-vec_2H_f, tmp_cell)
 
         dihe_angle = donor_acceptor*dihedral_angle(tmp_1,vec_2H_f-vec_2O,tmp_2)
-        DO ind=ind_arr(i), ind_arr(i)+tmc_params%dim_per_elem*&
-                     tmc_params%elem_per_struct-1, tmc_params%dim_per_elem
+        DO ind=ind_arr(i), ind_arr(i)+tmc_params%dim_per_elem*3-1, tmc_params%dim_per_elem
           ! set rotation vector
           !vec_rotated = rotate_vector(vec_2H_m-vec_2O, dihe_angle, vec_2H_f-vec_2O)
           vec_rotated = rotate_vector(elem%pos(ind:&
@@ -1055,7 +1120,7 @@ CONTAINS
         ! O atom next to not involved proton for axis calculation
         dist_near = HUGE(dist_near)
         search_O_loop: DO ind=1, SIZE(elem%pos), &
-                       tmc_params%dim_per_elem*tmc_params%elem_per_struct
+                       tmc_params%dim_per_elem*3
           IF(ind.EQ.ind_arr(i)) CYCLE search_O_loop
           tmp = nearest_distance(x1=vec_2H_f, &
                   x2=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
@@ -1116,7 +1181,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_volume', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, dir, handle, mol
+    INTEGER                                  :: atom, dir, handle, ind, ind_e,&
+                                                mol
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd, vol
     REAL(KIND=dp), DIMENSION(3)              :: box_length_new, &
@@ -1200,23 +1266,22 @@ CONTAINS
             conf%pos(atom:atom+tmc_params%dim_per_elem-1)*scaling(:)
        END DO
     ELSE
-       ! rescale the coordinates, but molecule wise
-       DO mol=1, SIZE(conf%pos), tmc_params%elem_per_struct*&
-                                 tmc_params%dim_per_elem
-          ! move the molecule related to the molecule center of mass
-             ! get center of mass
-             CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error) 
-             CALL center_of_mass(&
-                    pos=conf%pos(mol:mol+tmc_params%elem_per_struct*&
-                                         tmc_params%dim_per_elem-1),&
-                    atoms=tmc_params%atoms(INT(mol/REAL(tmc_params%dim_per_elem,KIND=dp))+1:&
-                      INT(mol/REAL(tmc_params%dim_per_elem,KIND=dp))+1+tmc_params%elem_per_struct-1),&
+       DO mol=1, MAXVAL(conf%mol(:))
+         ! move the molecule related to the molecule center of mass
+         ! get center of mass
+         CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error)
+
+         CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=conf%mol, mol=mol, &
+                              start_ind=ind, end_ind=ind_e, error=error)
+         CALL center_of_mass(&
+                    pos=conf%pos(ind:ind_e+tmc_params%dim_per_elem-1),&
+                    atoms=tmc_params%atoms(INT(ind/REAL(tmc_params%dim_per_elem,KIND=dp))+1:&
+                            INT(ind_e/REAL(tmc_params%dim_per_elem,KIND=dp))+1),&
                     center=disp, error=error)
-             ! calculate the center of mass DISPLACEMENT
-             disp(:) = disp(:) * (scaling(:)-1.0_dp)
-             ! displace all atoms of the molecule
-             DO atom=mol, mol+tmc_params%elem_per_struct*&
-                          tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
+         ! calculate the center of mass DISPLACEMENT
+         disp(:) = disp(:) * (scaling(:)-1.0_dp)
+         ! displace all atoms of the molecule
+         DO atom=ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
                 conf%pos(atom:atom+tmc_params%dim_per_elem-1) = &
                   conf%pos(atom:atom+tmc_params%dim_per_elem-1) + disp(:)
              END DO
