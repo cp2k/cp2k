@@ -352,7 +352,7 @@ MODULE  rt_propagation_utils
   END SUBROUTINE get_restart_wfn
 
 ! *****************************************************************************
-!> \brief calculats the imaginary part of the density matrix
+!> \brief calculates the imaginary part of the density matrix
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -396,7 +396,7 @@ MODULE  rt_propagation_utils
   END SUBROUTINE calculate_dp_imag
 
 ! *****************************************************************************
-!> \brief calculats the three additional force contribution needed in EMD
+!> \brief calculates the three additional force contributions needed in EMD
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************

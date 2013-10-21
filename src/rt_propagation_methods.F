@@ -192,7 +192,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief performes a crank nicholson or exponential midpoint propagation
+!> \brief performes a crank-nicolson or exponential midpoint propagation
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -272,7 +272,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief applys the propagator on the MO coefficients
+!> \brief applies the propagator on the MO coefficients
 !>        at the moment only the ETRS, might have to be splitted when different
 !>        propagators are implemented
 !> \author Florian Schiffmann (02.09)

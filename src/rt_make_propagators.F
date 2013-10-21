@@ -63,7 +63,7 @@ MODULE rt_make_propagators
 
 CONTAINS
 ! *****************************************************************************
-!> \brief calculats the exponentials for th ETRS propagator
+!> \brief calculates the exponentials for the ETRS propagator
 !>        depending on input exp(i*H(t)*dt/2) or   exp(i*H(t+dt)*dt/2)
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
@@ -172,7 +172,7 @@ CONTAINS
   END SUBROUTINE make_etrs_exp
 
 ! *****************************************************************************
-!> \brief computs the Crank Nicholson propagator
+!> \brief computes the Crank-Nicolson propagator
 !>        [1-idt/2H(t+dt/2)-dt/2B(t+dt/2)]/ (1+idt/2H(t+dt/2)+dt/2B(t+dt/2))
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
@@ -254,7 +254,7 @@ CONTAINS
   END SUBROUTINE make_cn_propagator
 
 ! *****************************************************************************
-!> \brief computs exponential midpoint propagator
+!> \brief computes exponential midpoint propagator
 !>        exp[-idt/2H(t+dt/2)-tB(t+dt/2)]
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
@@ -341,7 +341,7 @@ CONTAINS
   END SUBROUTINE make_em_propagator
 
 ! *****************************************************************************
-!> \brief computs U_prop*MOs using arnoldi subspace algorithm
+!> \brief computes U_prop*MOs using arnoldi subspace algorithm
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 

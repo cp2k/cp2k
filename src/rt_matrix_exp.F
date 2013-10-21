@@ -167,7 +167,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief subroutine for general complex matrix exponentials
 !>        on input a separate cp_fm_type for real and complex part
-!>        on output a size 2 cp_fm_p_type, frst element is the real part of
+!>        on output a size 2 cp_fm_p_type, first element is the real part of
 !>        the exponential second the imaginary
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
