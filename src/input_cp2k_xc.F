@@ -74,7 +74,7 @@ CONTAINS
 
        NULLIFY(subsection,keyword)
        CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
-            description="shorcut for the most commont functionals combinations",&
+            description="Shortcut for the most common functional combinations.",&
             usage="&xc_functional BLYP",&
             enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT","NONE"),&
             enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pbe,&
