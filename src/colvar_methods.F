@@ -950,6 +950,7 @@ CPSourceFileRef)
        CALL section_vals_val_get(wrk_section,"ATOM",i_val=iatm,error=error)
        CALL section_vals_val_get(wrk_section,"COMPONENT",i_val=icomponent,error=error)
        CALL section_vals_val_get(wrk_section,"PBC",l_val=colvar%xyz_diag_param%use_pbc,error=error)
+       CALL section_vals_val_get(wrk_section,"ABSOLUTE_POSITION",l_val=colvar%xyz_diag_param%use_absolute_position,error=error)
        colvar%xyz_diag_param%i_atom     = iatm
        colvar%xyz_diag_param%component  = icomponent
     ELSE IF (my_subsection(18)) THEN
@@ -1741,10 +1742,14 @@ CPSourceFileRef)
     CALL get_coordinates(colvar, i, xpi, my_particles)
     ! Use the current coordinates as initial coordinates, if no initialization
     ! was performed yet
-    IF (ALL(colvar%xyz_diag_param%r0 == HUGE(0.0_dp))) THEN
-       colvar%xyz_diag_param%r0 = xpi
-    END IF
-    r0 = colvar%xyz_diag_param%r0
+    IF (.NOT.colvar%xyz_diag_param%use_absolute_position) THEN
+       IF (ALL(colvar%xyz_diag_param%r0 == HUGE(0.0_dp))) THEN
+          colvar%xyz_diag_param%r0 = xpi
+       END IF
+       r0 = colvar%xyz_diag_param%r0
+    ELSE
+       r0 = 0.0_dp
+    ENDIF
 
     IF(colvar%xyz_diag_param%use_pbc)THEN
        ss=MATMUL(cell%h_inv,xpi-r0)
@@ -1754,30 +1759,54 @@ CPSourceFileRef)
        xi=xpi-r0
     END IF
 
-    SELECT CASE (colvar%xyz_diag_param%component)
-    CASE(do_clv_x)
-       xi(2)=0.0_dp
-       xi(3)=0.0_dp
-    CASE(do_clv_y)
-       xi(1)=0.0_dp
-       xi(3)=0.0_dp
-    CASE(do_clv_z)
-       xi(1)=0.0_dp
-       xi(2)=0.0_dp
-    CASE(do_clv_xy)
-       xi(3)=0.0_dp
-    CASE(do_clv_xz)
-       xi(2)=0.0_dp
-    CASE(do_clv_yz)
-       xi(1)=0.0_dp
-    CASE DEFAULT
-       ! do_clv_xyz
-    END SELECT
+    IF (.NOT.colvar%xyz_diag_param%use_absolute_position) THEN
+       SELECT CASE (colvar%xyz_diag_param%component)
+       CASE(do_clv_x)
+          xi(2)=0.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_y)
+          xi(1)=0.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_z)
+          xi(1)=0.0_dp
+          xi(2)=0.0_dp
+       CASE(do_clv_xy)
+          xi(3)=0.0_dp
+       CASE(do_clv_xz)
+          xi(2)=0.0_dp
+       CASE(do_clv_yz)
+          xi(1)=0.0_dp
+       CASE DEFAULT
+          ! do_clv_xyz
+       END SELECT
 
-    r=xi(1)**2+xi(2)**2+xi(3)**2
+       r=xi(1)**2+xi(2)**2+xi(3)**2
+       fi(:)= 2.0_dp*xi
+    ELSE
+       SELECT CASE (colvar%xyz_diag_param%component)
+       CASE(do_clv_x)
+          r=xi(1)
+          xi(1)=1.0_dp
+          xi(2)=0.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_y)
+          r=xi(2)
+          xi(1)=0.0_dp
+          xi(2)=1.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_z)
+          r=xi(3)
+          xi(1)=0.0_dp
+          xi(2)=0.0_dp
+          xi(3)=1.0_dp
+       CASE DEFAULT
+          !Not implemented for anything which is not a single component.
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       fi(:)= xi
+    ENDIF
 
     colvar%ss=r
-    fi(:)= 2.0_dp*xi
     CALL put_derivative(colvar, 1, fi)
 
   END SUBROUTINE xyz_diag_colvar

@@ -265,6 +265,7 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE xyz_diag_colvar_type
      LOGICAL                                  :: use_pbc
+     LOGICAL                                  :: use_absolute_position
      INTEGER                                  :: i_atom
      INTEGER                                  :: component
      REAL(KIND=dp), DIMENSION(3)              :: r0
@@ -1591,6 +1592,7 @@ CPSourceFileRef)
        colvar_out%xyz_diag_param%component    = colvar_in%xyz_diag_param%component
        colvar_out%xyz_diag_param%r0           = colvar_in%xyz_diag_param%r0
        colvar_out%xyz_diag_param%use_pbc      = colvar_in%xyz_diag_param%use_pbc
+       colvar_out%xyz_diag_param%use_absolute_position      = colvar_in%xyz_diag_param%use_absolute_position
      CASE(xyz_outerdiag_colvar_id)
        colvar_out%xyz_outerdiag_param%i_atoms    = colvar_in%xyz_outerdiag_param%i_atoms+ my_offset
        colvar_out%xyz_outerdiag_param%components = colvar_in%xyz_outerdiag_param%components

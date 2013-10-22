@@ -964,7 +964,9 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="XYZ_DIAG",&
             description="Section to define the distance of an atom from its starting "//&
-            "position (X-X(0)^2+Y-Y(0)^2+Z-Z(0)^2) or part of its components as a collective variable.",&
+            "position ((X-X(0))^2+(Y-Y(0))^2+(Z-Z(0))^2) or part of its components as a collective variable."//&
+            "If absolute_position is specified, instead the CV is represented by the "//&
+            "instantaneous position of the atom (only available for X, Y or Z components).",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword, subsection)
@@ -992,6 +994,13 @@ CONTAINS
             "atomic position before computing the colvar or not.",&
             usage="PBC",&
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ABSOLUTE_POSITION",&
+            description="If enabled, the absolute position of the atoms will be used. ",&
+            usage="ABSOLUTE_POSITION",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
