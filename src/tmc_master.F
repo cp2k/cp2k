@@ -42,7 +42,8 @@ MODULE tmc_master
                                              send_msg,&
                                              stop_whole_group,&
                                              tmc_message
-  USE tmc_move_handle,                 ONLY: print_move_types
+  USE tmc_move_handle,                 ONLY: check_moves,&
+                                             print_move_types
   USE tmc_stati,                       ONLY: &
        TMC_CANCELING_MESSAGE, TMC_CANCELING_RECEIPT, TMC_STATUS_FAILED, &
        TMC_STATUS_WAIT_FOR_NEW_TASK, TMC_STATUS_WORKER_INIT, &
@@ -333,6 +334,9 @@ CONTAINS
            error=error)
 
     CALL init_cell(cell=tmc_env%params%cell)
+
+    ! check the configuration consitency with selected moves
+    CALL check_moves(tmc_params=tmc_env%params, error=error)
 
     ! set initial configuration 
     ! set initial random number generator seed (rng seed)

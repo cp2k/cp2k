@@ -1,0 +1,44 @@
+# single potential calculations on one temperature
+# also testing the random number generator
+# moving all elements
+
+&GLOBAL
+  PROJECT H2O_TMC
+  PROGRAM TMC
+  RUN_TYPE TMC
+  PRINT_LEVEL LOW
+  WALLTIME 00:10:25 
+&END GLOBAL
+&MOTION
+  &TMC
+      GROUP_ENERGY_SIZE 1
+      GROUP_ENERGY_NR 1
+      GROUP_CC_SIZE 0
+      NUM_MC_ELEM 100
+      ENERGY_FILE_NAME H2O_NH4.inp
+      TEMPERATURE 330
+#      TASK_TYPE        IDEAL_GAS
+#      &MOVE_TYPE      ATOM_TRANS
+#        SIZE          0.1
+#        INIT_ACC_PROB 0.2
+#      &END
+#      &MOVE_TYPE      MOL_TRANS
+#        SIZE          0.7
+#      &END
+#      &MOVE_TYPE      MOL_ROT
+#        SIZE          24
+#      &END
+      &MOVE_TYPE ATOM_SWAP
+        ATOMS O H
+        ATOMS O N 
+        PROB  20
+      &END
+      NUM_MV_ELEM_IN_CELL 0
+      RND_DETERMINISTIC 42
+      ESIMATE_ACC_PROB .TRUE.
+      INFO_OUT_STEP_SIZE 1000
+      RESTART_OUT 0
+      PRINT_ONLY_ACC .TRUE.
+      PRINT_TEST_OUTPUT
+  &END TMC
+&END MOTION

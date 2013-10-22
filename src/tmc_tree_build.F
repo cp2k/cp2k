@@ -48,7 +48,7 @@ MODULE tmc_tree_build
                                              write_result_list_element
   USE tmc_move_handle,                 ONLY: select_random_move_type
   USE tmc_move_types,                  ONLY: &
-       mv_type_MD, mv_type_NMC_moves, mv_type_atom_trans, &
+       mv_type_MD, mv_type_NMC_moves, mv_type_atom_swap, mv_type_atom_trans, &
        mv_type_gausian_adapt, mv_type_mol_rot, mv_type_mol_trans, &
        mv_type_none, mv_type_proton_reorder, mv_type_swap_conf, &
        mv_type_volume_move
@@ -1028,8 +1028,9 @@ CONTAINS
         new_elem%stat = status_calculate_MD
         ! set the temperature for creating MD 
         new_elem%temp_created = act_gt_el%mv_conf
-      CASE(mv_type_atom_trans, mv_type_mol_trans, mv_type_mol_rot, &
-           mv_type_proton_reorder, mv_type_gausian_adapt)
+      CASE(mv_type_atom_trans, mv_type_atom_swap, mv_type_mol_trans, &
+           mv_type_mol_rot, mv_type_proton_reorder, &
+           mv_type_gausian_adapt)
         IF(tmc_env%params%task_type .EQ. task_type_gaussian_adaptation) THEN
           CALL change_pos(tmc_params=tmc_env%params, &
                  rng_stream=tmc_env%rng_stream, elem=new_elem, &

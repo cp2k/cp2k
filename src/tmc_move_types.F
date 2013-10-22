@@ -11,7 +11,8 @@
 ! *****************************************************************************
 
 MODULE tmc_move_types
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -26,13 +27,14 @@ MODULE tmc_move_types
   INTEGER, PARAMETER, PUBLIC :: mv_type_mol_trans      = 2 ! molecule translation (done in every posible direction)
   INTEGER, PARAMETER, PUBLIC :: mv_type_mol_rot        = 3 ! molecule rotation
   INTEGER, PARAMETER, PUBLIC :: mv_type_proton_reorder = 4 ! reordering the protons within a chain of molecules
-  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 5 ! certain amount of MD steps
-  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 6 ! swapping of 2 configurations of different temperature
-  INTEGER, PARAMETER, PUBLIC :: mv_type_volume_move    = 7 ! volume move for NPT simulations
-  INTEGER, PARAMETER, PUBLIC :: mv_type_gausian_adapt  = 8 ! gaussian adaptation
-  INTEGER, PARAMETER, PUBLIC :: mv_type_NMC_moves      = 9 ! indentifies the Nested Monte Carlo move for master
-  INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 9 !-- allways update the number of possible types!!
-  INTEGER, PARAMETER, PUBLIC :: nr_nmc_mv_types        = 4 ! the first n move types are used in the NMC algorithm
+  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_swap      = 5 ! swaps two atoms of different type
+  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 6 ! certain amount of MD steps
+  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 7 ! swapping of 2 configurations of different temperature
+  INTEGER, PARAMETER, PUBLIC :: mv_type_volume_move    = 8 ! volume move for NPT simulations
+  INTEGER, PARAMETER, PUBLIC :: mv_type_gausian_adapt  = 9 ! gaussian adaptation
+  INTEGER, PARAMETER, PUBLIC :: mv_type_NMC_moves      = 10! indentifies the Nested Monte Carlo move for master
+  INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 10!-- allways update the number of possible types!!
+  INTEGER, PARAMETER, PUBLIC :: nr_nmc_mv_types        = 5 ! the first n move types are used in the NMC algorithm
 
   PUBLIC :: tmc_move_type, move_types_create, move_types_release
 
@@ -57,6 +59,7 @@ MODULE tmc_move_types
      !   1st dimension are the different move types
      INTEGER, DIMENSION(:,:), ALLOCATABLE :: subbox_acc_count
      INTEGER, DIMENSION(:,:), ALLOCATABLE :: subbox_count
+     TYPE(list_atoms), DIMENSION(:), POINTER :: atom_lists
 
      !-- nmc_acc_prob, probability of acceptance of a certain move type,
      !   done in Nested Monte Carlo routine, for different potential
@@ -65,6 +68,10 @@ MODULE tmc_move_types
 !     INTEGER, DIMENSION(:), ALLOCATABLE :: nmc_count
   END TYPE tmc_move_type
 
+  TYPE list_atoms
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atoms
+  END TYPE list_atoms
 CONTAINS
 
 ! *****************************************************************************
@@ -100,6 +107,7 @@ CONTAINS
     move_types%subbox_acc_count(:,:) = 0
     ALLOCATE(move_types%subbox_count(nr_mv_types,nr_temp))
     move_types%subbox_count(:,:) = 0
+    move_types%atom_lists => NULL()
   END SUBROUTINE move_types_create
 
 ! *****************************************************************************
@@ -118,6 +126,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP,error)
+
+    IF(ASSOCIATED(move_types%atom_lists)) DEALLOCATE(move_types%atom_lists)
     DEALLOCATE(move_types%mv_weight)
     DEALLOCATE(move_types%mv_size)
     DEALLOCATE(move_types%acc_prob)
@@ -125,7 +135,7 @@ CONTAINS
     DEALLOCATE(move_types%acc_count)
     DEALLOCATE(move_types%subbox_acc_count)
     DEALLOCATE(move_types%subbox_count)
-    DEALLOCATE(move_types)
+    DEALLOCATE(move_types)    
   END SUBROUTINE move_types_release
 
 END MODULE tmc_move_types

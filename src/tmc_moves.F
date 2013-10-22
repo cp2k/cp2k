@@ -31,6 +31,7 @@ MODULE tmc_moves
                                              get_scaled_cell,&
                                              nearest_distance
   USE tmc_move_types,                  ONLY: mv_type_MD,&
+                                             mv_type_atom_swap,&
                                              mv_type_atom_trans,&
                                              mv_type_gausian_adapt,&
                                              mv_type_mol_rot,&
@@ -348,6 +349,12 @@ CONTAINS
     ! the box is increased or decreased and with it the coordinates
     CASE(mv_type_volume_move)
       CALL change_volume(conf=elem, T_ind=mv_conf, rng_stream=rng_stream, &
+                         tmc_params=tmc_params, error=error)
+
+    !-- atom swap
+    ! two atoms of different types are swapped
+    CASE(mv_type_atom_swap)
+      CALL swap_atoms(conf=elem, rng_stream=rng_stream, &
                          tmc_params=tmc_params, error=error)
 
     CASE DEFAULT
@@ -1294,5 +1301,75 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
     ! end the timing
     CALL timestop(handle)
   END SUBROUTINE change_volume
+
+! *****************************************************************************
+!> \brief volume move, two atoms of different types are swapped, both selected 
+!>        randomly
+!> \param conf configuration to change with positions
+!> \param rng_stream random number generator stream
+!> \param tmc_params TMC parameters with e.g. dimensions of atoms and molecules
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 11.2012
+! *****************************************************************************
+  SUBROUTINE swap_atoms(conf, rng_stream, tmc_params, error)
+    TYPE(tree_type), POINTER                 :: conf
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_atoms', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a_1, a_2, ind_1, ind_2
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error,failure)
+
+    ! loop until two different atoms are found
+    atom_search_loop: DO 
+      ! select one atom randomly
+      a_1 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem,KIND=dp)* &
+                next_random_number(rng_stream, error=error))+1
+      ! select the second atom randomly
+      a_2 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem,KIND=dp)* &
+                next_random_number(rng_stream, error=error))+1
+      ! check if they have different kinds
+      IF(tmc_params%atoms(a_1)%name .NE. tmc_params%atoms(a_2)%name) THEN
+        ! if present, check if atoms have different type related to the specified table
+        IF(ASSOCIATED(tmc_params%move_types%atom_lists)) THEN
+          DO ind_1=1, SIZE(tmc_params%move_types%atom_lists)
+            IF(ANY(tmc_params%move_types%atom_lists(ind_1)%atoms(:) .EQ. &
+                   tmc_params%atoms(a_1)%name) .AND. &
+               ANY(tmc_params%move_types%atom_lists(ind_1)%atoms(:) .EQ. &  
+                   tmc_params%atoms(a_2)%name)) THEN
+              found = .TRUE.
+              EXIT atom_search_loop
+            END IF
+          END DO
+        ELSE
+          found = .TRUE.
+          EXIT atom_search_loop
+        END IF
+      END IF
+    END DO atom_search_loop
+    IF(found) THEN
+      ! perform coordinate exchange
+      ALLOCATE(pos_tmp(tmc_params%dim_per_elem))
+      ind_1 = (a_1-1)*tmc_params%dim_per_elem+1
+      pos_tmp(:) = conf%pos(ind_1:ind_1+tmc_params%dim_per_elem-1)
+      ind_2 = (a_2-1)*tmc_params%dim_per_elem+1
+      conf%pos(ind_1:ind_1+tmc_params%dim_per_elem-1) = &
+        conf%pos(ind_2:ind_2+tmc_params%dim_per_elem-1)
+      conf%pos(ind_2:ind_2+tmc_params%dim_per_elem-1) = pos_tmp(:)
+      DEALLOCATE(pos_tmp)
+    END IF
+  END SUBROUTINE swap_atoms
 
 END MODULE tmc_moves

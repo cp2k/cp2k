@@ -26,9 +26,9 @@ MODULE tmc_move_handle
                                              timestop
   USE tmc_move_types,                  ONLY: &
        move_types_create, move_types_release, mv_type_MD, mv_type_NMC_moves, &
-       mv_type_atom_trans, mv_type_gausian_adapt, mv_type_mol_rot, &
-       mv_type_mol_trans, mv_type_proton_reorder, mv_type_swap_conf, &
-       mv_type_volume_move, nr_nmc_mv_types, tmc_move_type
+       mv_type_atom_swap, mv_type_atom_trans, mv_type_gausian_adapt, &
+       mv_type_mol_rot, mv_type_mol_trans, mv_type_proton_reorder, &
+       mv_type_swap_conf, mv_type_volume_move, nr_nmc_mv_types, tmc_move_type
   USE tmc_stati,                       ONLY: task_type_MC,&
                                              task_type_gaussian_adaptation,&
                                              task_type_ideal_gas
@@ -46,6 +46,7 @@ MODULE tmc_move_handle
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_handle'
 
   PUBLIC :: finalize_mv_types, print_move_types, read_init_move_types
+  PUBLIC :: check_moves
   PUBLIC :: select_random_move_type
   PUBLIC :: prob_update, add_mv_prob
   PUBLIC :: clear_move_probs
@@ -69,7 +70,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: inp_kind_name
-    INTEGER                                  :: i_rep, ind, n_items
+    INTEGER                                  :: i, i_rep, i_rep_val, ind, &
+                                                n_items, n_rep_val
     LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: delta_x, init_acc_prob, &
                                                 mv_prob, mv_prob_sum
@@ -93,6 +95,10 @@ CONTAINS
                                   r_val=mv_prob,error=error)
         mv_prob_sum = mv_prob_sum + mv_prob
       END DO
+      CALL cp_assert(mv_prob_sum.GT.0.0,&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "The probabilities to perform the moves are "//&
+                     "in total less equal 0", error)
 
       ! get the sizes, probs, etc. for each move type and convert units
       DO i_rep = 1, n_items
@@ -197,7 +203,27 @@ CONTAINS
                  error)
             mv_prob = 0.0_dp
           END IF
-
+        ! parallel tempering swap move
+        CASE("ATOM_SWAP")
+          ind = mv_type_atom_swap
+          ! the move size is not necessary
+          delta_x = 0.0_dp
+          ! select the types of atoms swapped
+          CALL section_vals_val_get(move_type_section,"ATOMS",i_rep_section=i_rep,&
+                 n_rep_val=n_rep_val, error=error)
+          IF(n_rep_val.GT.0) THEN
+            ALLOCATE(tmc_params%move_types%atom_lists(n_rep_val))
+            DO i= 1, n_rep_val
+              CALL section_vals_val_get(move_type_section,"ATOMS",&
+                     i_rep_section=i_rep, i_rep_val=i, &
+                     c_vals=tmc_params%move_types%atom_lists(i)%atoms, &
+                     error=error)
+              CALL cp_assert(SIZE(tmc_params%move_types%atom_lists(i)%atoms).GT.1,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "ATOM_SWAP requires minimum two atom kinds selected. ",&
+                      error)
+            END DO
+          END IF
         ! gaussian adaptation
         CASE("GAUSS_ADAPT")
           ind = mv_type_gausian_adapt
@@ -226,11 +252,77 @@ CONTAINS
       IF(tmc_params%NMC_inp_file.NE."") THEN
         tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = 0.5_dp
       END IF
+    ELSE
+      CALL cp_assert(mv_prob_sum.GT.0.0,&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "No move type selected, please select at least one.", &
+                     error)
     END IF
-    CALL cp_assert(SUM(tmc_params%move_types%mv_weight(:)).GT.0.0,&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "NO move type is selected.", error)
   END SUBROUTINE read_init_move_types
+
+! *****************************************************************************
+!> \brief checks if the moves are possible
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 10.2013
+! *****************************************************************************
+  SUBROUTINE check_moves(tmc_params, error)
+    TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_moves', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_j, list_i, ref_k
+    LOGICAL                                  :: found
+
+    CPPreconditionNoFail(ASSOCIATED(tmc_params),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,error)
+
+    ! check if the selected atom swaps are possible
+    IF(ASSOCIATED(tmc_params%move_types%atom_lists)) THEN
+      DO list_i=1, SIZE(tmc_params%move_types%atom_lists(:))
+        DO atom_j=1, SIZE(tmc_params%move_types%atom_lists(list_i)%atoms(:))
+          ! check if atoms exists
+          found = .FALSE.
+          ref_loop: DO ref_k=1, SIZE(tmc_params%atoms(:))
+            IF(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
+               tmc_params%atoms(ref_k)%name) THEN
+              found = .TRUE.
+              EXIT ref_loop
+            END IF
+          END DO ref_loop
+          CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
+                         routineP, "ATOM_SWAP: The selected atom type ("//&
+                         TRIM(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j))//&
+                         ") is not contained in the system. ",&
+                         error)
+          ! check if not be swapped with the same atom type
+          IF(ANY(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
+                 tmc_params%move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
+            CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
+                   routineP, "ATOM_SWAP can not swap two atoms of same kind ("//&
+                   TRIM(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j))//&
+                   ")", error)
+          END IF
+        END DO
+      END DO
+    ELSE
+      ! check if there exisit different atoms
+      found = .FALSE.
+      IF(SIZE(tmc_params%atoms(:)).GT.1) THEN
+        ref_lop: DO ref_k=2, SIZE(tmc_params%atoms(:))
+          IF(tmc_params%atoms(1)%name.NE. tmc_params%atoms(ref_k)%name) THEN
+            found = .TRUE.
+            EXIT ref_lop
+          END IF
+        END DO ref_lop
+      END IF
+      CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
+             routineP, "The system contains only a single atom type,"//&
+                       " atom_swap is not possible.", error)
+    END IF
+  END SUBROUTINE check_moves
 
 ! *****************************************************************************
 !> \brief deallocating the module variables
@@ -407,16 +499,18 @@ error)
                 CASE(mv_type_NMC_moves)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "NMC"
                    IF(init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), tmc_params%nr_NMC_steps
-                   
                 CASE(mv_type_volume_move)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "volume"
                    IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)*au2a
+                CASE(mv_type_atom_swap)
+                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "atom swap"
+                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX"
                 CASE(mv_type_gausian_adapt)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "gauss adap"
                    IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)
                 CASE DEFAULT
                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                                  "unknown move type "//cp_to_string(typ)//"with weight"//&
+                                  "unknown move type "//cp_to_string(typ)//" with weight"//&
                                   cp_to_string(tmc_params%move_types%mv_weight(typ)),&
                                   error)
                 END SELECT

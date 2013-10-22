@@ -386,7 +386,8 @@ CONTAINS
                         "MOL_ROT molecule rotation, "//&
                         "PROT_REORDER proton reordering, "//&
                         "PT_SWAP Parallel Tempering swap, "//&
-                        "VOL_MOVE volume change. ",&
+                        "VOL_MOVE volume change, "//&
+                        "ATOM_SWAP swaps two atoms of different type.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -418,8 +419,8 @@ CONTAINS
                         "MOL_TRANS [A], "//&
                         "MOL_ROT [degree], "//&
                         "PROT_REORDER [], "//&
-                        "PROT_REORDER [], "//&
-                        "VOL_MOVE [A]",&
+                        "VOL_MOVE [A], "//&
+                        "ATOM_SWAP",&
             usage="SIZE {real}", required=.FALSE., type_of_var=real_t,&
             default_r_val=-1.0_dp, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -437,6 +438,14 @@ CONTAINS
             description="Defines the initial probability of accepting the move. ",&
             usage="INIT_ACC_PROB {real}", required=.FALSE., type_of_var=real_t,&
             default_r_val=0.23_dp, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kinds involved in the move. "//&
+                        "Up to now only used for the atom swap.",&
+            usage="ATOMS {KIND1} {KIND2}", required=.FALSE., type_of_var=char_t,&
+            n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
