@@ -807,6 +807,10 @@ CONTAINS
            END IF
            pab(1,1) = -ccore_charge
 
+           IF (ASSOCIATED(force)) THEN
+              force(ikind)%rho_core=0.0_dp
+           ENDIF
+
            IF (alpha_core_charge == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
 
            CALL reallocate ( cores, 1, natom_of_kind )
@@ -849,14 +853,16 @@ CONTAINS
                  force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
                  my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
-            force(ikind)%rho_core(:,iatom) =&
-              force(ikind)%rho_core(:,iatom) + force_a(:)
+            IF (ASSOCIATED(force)) THEN
+               force(ikind)%rho_core(:,iatom) =&
+                 force(ikind)%rho_core(:,iatom) + force_a(:)
+            ENDIF
 
             IF (use_virial) THEN
               virial%pv_virial = virial%pv_virial + my_virial_a
             END IF
             IF (atenergy) THEN
-               qs_env%atprop%ateb(iatom) = qs_env%atprop%ateb(iatom) + 0.5_dp*hab(1,1)*pab(1,1)
+               qs_env%atprop%ateb(atom_a) = qs_env%atprop%ateb(atom_a) + 0.5_dp*hab(1,1)*pab(1,1)
             END IF
 
          END DO
