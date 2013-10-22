@@ -518,16 +518,16 @@ MODULE dbcsr_mm_sched
 
     DO i=1, SIZE(sort_idx)
      j = sort_idx(i)+1
-     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(j,4:5))))
+     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(j,4:5))))
      WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,1X,I20,T76,F5.1)") &
        " matmuls",stats_num_mnk_stacks(j,:), percent
     END DO
 
-    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(:,4:5))))
+    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(:,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
        SUM(stats_num_mnk_stacks(:,4)), SUM(stats_num_mnk_stacks(:,5)), percent
 
-    percent = 100*REAL(report%gpu_flop)/REAL(MAX(INT(1,KIND=4),report%cpu_flop+report%gpu_flop))
+    percent = 100*REAL(report%gpu_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%gpu_flop))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
        report%cpu_flop, report%gpu_flop, percent
 
