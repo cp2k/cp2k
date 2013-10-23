@@ -68,8 +68,9 @@ MODULE tmc_worker
                                              tmc_message
   USE tmc_move_handle,                 ONLY: clear_move_probs,&
                                              prob_update,&
-                                             select_random_NMC_move_type
-  USE tmc_move_types,                  ONLY: mv_type_MD
+                                             select_random_move_type
+  USE tmc_move_types,                  ONLY: mv_type_MD,&
+                                             mv_type_NMC_moves
   USE tmc_moves,                       ONLY: change_pos
   USE tmc_stati,                       ONLY: &
        TMC_CANCELING_MESSAGE, TMC_CANCELING_RECEIPT, TMC_STATUS_CALCULATING, &
@@ -265,7 +266,7 @@ CONTAINS
                              error=error)
           ! -- Nested Monte Carlo routines
           CASE(TMC_STAT_MD_REQUEST, TMC_STAT_NMC_REQUEST)
-            CALL clear_move_probs(tmc_env%params%move_types, error)
+            CALL clear_move_probs(tmc_env%params%nmc_move_types, error)
             itmp = bcast_group
             CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
                              dest=itmp, &
@@ -667,7 +668,7 @@ CONTAINS
            env_id=tmc_env%w_env%env_id_approx,exact_approx_pot=.FALSE.,&
            tmc_env=tmc_env, error=error)
 
-    NMC_steps: DO substeps=1, tmc_env%params%nr_NMC_steps
+    NMC_steps: DO substeps=1, INT(tmc_env%params%move_types%mv_size(mv_type_NMC_moves,1))
       ! check for canceling message
       IF(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w))THEN
         flag = .FALSE.
@@ -700,8 +701,8 @@ CONTAINS
       CALL set_rng_stream(rng_stream=tmc_env%rng_stream,&
              bg=conf%rng_seed(:,:,1), cg=conf%rng_seed(:,:,2),&
              ig=conf%rng_seed(:,:,3), error=error)
-      conf%move_type = select_random_NMC_move_type(&
-                         move_types=tmc_env%params%move_types, &
+      conf%move_type = select_random_move_type(&
+                         move_types=tmc_env%params%nmc_move_types, &
                          rnd=next_random_number(tmc_env%rng_stream, &
                                                 error=error), &
                          error=error)
@@ -710,7 +711,9 @@ CONTAINS
              ig=conf%rng_seed(:,:,3), error=error)
 
       ! do move
-      CALL change_pos(tmc_params=tmc_env%params,rng_stream=tmc_env%rng_stream,&
+      CALL change_pos(tmc_params=tmc_env%params, &
+                      move_types=tmc_env%params%nmc_move_types, &
+                      rng_stream=tmc_env%rng_stream,&
                       elem=conf, mv_conf=1, new_subbox=.FALSE., &
                       move_rejected=change_rejected, error=error)
       ! for Hybrid MC the change_pos is only velocity change, 
@@ -726,7 +729,7 @@ CONTAINS
       END IF
 
       ! update the subbox acceptance probabilities
-      CALL prob_update(move_types=tmc_env%params%move_types, elem=conf, &
+      CALL prob_update(move_types=tmc_env%params%nmc_move_types, elem=conf, &
                        acc=.NOT.change_rejected, subbox=.TRUE., &
                        prob_opt=tmc_env%params%esimate_acc_prob, error=error)
 
@@ -754,12 +757,11 @@ CONTAINS
                temperature=tmc_env%params%Temp(conf%temp_created), &
                diff_pot_check=.FALSE.,&
                accept=accept, approx_ener=.TRUE., rnd_nr=rnd_nr, error=error)
-
-        ! update the NMC accpetance per move
-        CALL prob_update(move_types=tmc_env%params%move_types, elem=conf, &
-               acc=accept, prob_opt=tmc_env%params%esimate_acc_prob, &
-               error=error)
       END IF
+      ! update the NMC accpetance per move
+      CALL prob_update(move_types=tmc_env%params%nmc_move_types, elem=conf, &
+             acc=accept, prob_opt=tmc_env%params%esimate_acc_prob, &
+             error=error)
 
       ! update last accepted configuration or actual configuration
       IF(accept.AND.(.NOT.change_rejected))THEN

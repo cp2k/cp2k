@@ -336,7 +336,11 @@ CONTAINS
     CALL init_cell(cell=tmc_env%params%cell)
 
     ! check the configuration consitency with selected moves
-    CALL check_moves(tmc_params=tmc_env%params, error=error)
+    CALL check_moves(tmc_params=tmc_env%params, &
+           move_types=tmc_env%params%move_types, error=error)
+    IF(ASSOCIATED(tmc_env%params%nmc_move_types)) &
+      CALL check_moves(tmc_params=tmc_env%params, &
+             move_types=tmc_env%params%nmc_move_types, error=error)
 
     ! set initial configuration 
     ! set initial random number generator seed (rng seed)

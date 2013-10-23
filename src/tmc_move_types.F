@@ -23,18 +23,17 @@ MODULE tmc_move_types
 
   !-- list of available move types
   INTEGER, PARAMETER, PUBLIC :: mv_type_none           = 0
-  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_trans     = 1 ! atom translation (done in every posible direction)
-  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_trans      = 2 ! molecule translation (done in every posible direction)
-  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_rot        = 3 ! molecule rotation
-  INTEGER, PARAMETER, PUBLIC :: mv_type_proton_reorder = 4 ! reordering the protons within a chain of molecules
-  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_swap      = 5 ! swaps two atoms of different type
-  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 6 ! certain amount of MD steps
-  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 7 ! swapping of 2 configurations of different temperature
+  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 1 ! swapping of 2 configurations of different temperature
+  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_trans     = 2 ! atom translation (done in every posible direction)
+  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_trans      = 3 ! molecule translation (done in every posible direction)
+  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_rot        = 4 ! molecule rotation
+  INTEGER, PARAMETER, PUBLIC :: mv_type_proton_reorder = 5 ! reordering the protons within a chain of molecules
+  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_swap      = 6 ! swaps two atoms of different type
+  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 7 ! certain amount of MD steps
   INTEGER, PARAMETER, PUBLIC :: mv_type_volume_move    = 8 ! volume move for NPT simulations
   INTEGER, PARAMETER, PUBLIC :: mv_type_gausian_adapt  = 9 ! gaussian adaptation
   INTEGER, PARAMETER, PUBLIC :: mv_type_NMC_moves      = 10! indentifies the Nested Monte Carlo move for master
   INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 10!-- allways update the number of possible types!!
-  INTEGER, PARAMETER, PUBLIC :: nr_nmc_mv_types        = 5 ! the first n move types are used in the NMC algorithm
 
   PUBLIC :: tmc_move_type, move_types_create, move_types_release
 
@@ -107,7 +106,7 @@ CONTAINS
     move_types%subbox_acc_count(:,:) = 0
     ALLOCATE(move_types%subbox_count(nr_mv_types,nr_temp))
     move_types%subbox_count(:,:) = 0
-    move_types%atom_lists => NULL()
+    NULLIFY(move_types%atom_lists)
   END SUBROUTINE move_types_create
 
 ! *****************************************************************************

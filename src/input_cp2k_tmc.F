@@ -158,17 +158,22 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword=keyword,&
-            name="NR_NMC_STEPS",&
-            description="the number of Nested Mont Carlo moves with in one MC move "//&
-                        "should be huge enough to reach euilibrium state", &
-            usage="NR_NMC_STEPS {INTEGER}",&
-            default_i_val=-1, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword=keyword,&
+!            name="NR_NMC_STEPS",&
+!            description="the number of Nested Mont Carlo moves with in one MC move "//&
+!                        "should be huge enough to reach euilibrium state", &
+!            usage="NR_NMC_STEPS {INTEGER}",&
+!            default_i_val=-1, error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
-       ! the moves MOVE_TYPE
+       ! the moves MOVE_TYPE on exact potential
        CALL create_TMC_move_type_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! the moves MOVE_TYPE on approx potential
+       CALL create_TMC_NMC_move_type_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -266,13 +271,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="NMC_FILE_NAME",&
-            description="input file name for the approximate potential for Nested Monte Carlo.",&
-            usage="NMC_FILE_NAME {filename}",&
-            default_c_val="",lone_keyword_c_val=tmc_default_unspecified_name,&
-            required=.FALSE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword, name="NMC_FILE_NAME",&
+!            description="input file name for the approximate potential for Nested Monte Carlo.",&
+!            usage="NMC_FILE_NAME {filename}",&
+!            default_c_val="",lone_keyword_c_val=tmc_default_unspecified_name,&
+!            required=.FALSE., error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
             name="PRINT_ONLY_ACC",&
@@ -357,7 +362,82 @@ CONTAINS
   END SUBROUTINE create_TMC_section
 
 ! *****************************************************************************
-!> \brief creates the TreeMonteCarlo subsection
+!> \brief creates the TMC section to select the move types performed within the
+!>        NMC (on approximate potential)
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes
+! *****************************************************************************
+  SUBROUTINE create_TMC_NMC_move_type_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_TMC_NMC_move_type_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    NULLIFY(subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CALL section_create(section,name="NMC_MOVES",&
+            description="This section specifies the TMC move types, "//&
+                        "which are performed within the nested Monte Carlo (NMC). "//&
+                        "thus using the approximate potential.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+      NULLIFY(keyword)
+
+      CALL keyword_create(keyword=keyword,&
+           name="NR_NMC_STEPS",&
+           description="the number of Nested Mont Carlo moves with in one MC move "//&
+                       "should be huge enough to reach euilibrium state", &
+           usage="NR_NMC_STEPS {INTEGER}",&
+           default_i_val=-1, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NMC_FILE_NAME",&
+           description="input file name for the approximate potential for Nested Monte Carlo.",&
+           usage="NMC_FILE_NAME {filename}",&
+           default_c_val="",lone_keyword_c_val=tmc_default_unspecified_name,&
+           required=.FALSE., error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="PROB",&
+           description="Defines the probability of the NMC move "//&
+                       "(considering the ration between the selected other moves)"//&
+                       "the probabilities of the move types in the NMC section "//&
+                       "defines only the weight within the NMC steps",&
+           usage="PROB {real}", required=.FALSE., type_of_var=real_t,&
+           default_r_val=1.0_dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="INIT_ACC_PROB",&
+           description="Defines the initial probability of accepting the move. ",&
+           usage="INIT_ACC_PROB {real}", required=.FALSE., type_of_var=real_t,&
+           default_r_val=0.5_dp, n_var=1, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      ! the moves types
+      CALL create_TMC_move_type_section(subsection, error)
+      CALL section_add_subsection(section, subsection, error=error)
+      CALL section_release(subsection,error=error)
+    END IF
+  END SUBROUTINE create_TMC_NMC_move_type_section
+
+! *****************************************************************************
+!> \brief creates the TMC section to select the move types
 !> \param section the section to be created
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -388,7 +468,7 @@ CONTAINS
                         "PT_SWAP Parallel Tempering swap, "//&
                         "VOL_MOVE volume change, "//&
                         "ATOM_SWAP swaps two atoms of different type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -398,20 +478,6 @@ CONTAINS
             usage="ATOM_TRANS", default_c_val="DEFAULT", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-!       CALL keyword_create(keyword, name="TYPE",&
-!            description="Defines the type of selected move. "//&
-!                        "Selectable types are: "//&
-!                        "ATOM_TRANS atom translation, "//&
-!                        "MOL_TRANS molecule translation, "//&
-!                        "MOL_ROT molecule rotation, "//&
-!                        "PROT_REORDER proton reordering, "//&
-!                        "PT_SWAP Parallel Tempering swap, "//&
-!                        "VOL_MOVE volume change, ",&
-!            usage="TYPE {selected type}", required=.TRUE., type_of_var=char_t,&
-!            n_var=1, error=error)
-!       CALL section_add_keyword(section,keyword,error=error)
-!       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SIZE",&
             description="Defines the size of the move:"//&
@@ -444,7 +510,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the move. "//&
                         "Up to now only used for the atom swap.",&
-            usage="ATOMS {KIND1} {KIND2}", required=.FALSE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2} ... ", required=.FALSE., type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -91,7 +91,6 @@ MODULE tmc_types
   TYPE tmc_param_type
     INTEGER                                       :: task_type
     INTEGER                                       :: dim_per_elem
-    INTEGER                                       :: nr_NMC_steps
     INTEGER                                       :: nr_temp
     REAL(KIND=dp), DIMENSION(:), POINTER          :: Temp
     TYPE(cell_type), POINTER                      :: cell
@@ -100,6 +99,7 @@ MODULE tmc_types
     
     INTEGER                                       :: nr_elem_mv
     TYPE(tmc_move_type), POINTER                  :: move_types
+    TYPE(tmc_move_type), POINTER                  :: nmc_move_types
     REAL(KIND=dp)                                 :: pressure
     LOGICAL                                       :: v_isotropic
     LOGICAL                                       :: esimate_acc_prob
@@ -223,7 +223,6 @@ CONTAINS
     !  I used it originally for the n dimension oscillator, 
     !  where each dimension is a single position
     tmc_env%params%dim_per_elem = 3 
-    tmc_env%params%nr_NMC_steps = -1
     tmc_env%params%nr_elem_mv = -1
     tmc_env%params%nr_temp = -1 
     ALLOCATE(tmc_env%params%sub_box_size(tmc_env%params%dim_per_elem))
@@ -237,7 +236,8 @@ CONTAINS
     tmc_env%params%print_dipole = .FALSE.
     tmc_env%params%print_forces = .FALSE.
     tmc_env%params%print_cell = .FALSE.
-    NULLIFY(tmc_env%params%Temp, tmc_env%params%move_types, &
+    NULLIFY(tmc_env%params%Temp, tmc_env%params%nmc_move_types, &
+            tmc_env%params%move_types, &
             tmc_env%params%prior_NMC_acc, tmc_env%params%atoms, &
             tmc_env%params%cell)
 

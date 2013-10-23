@@ -15,19 +15,21 @@
       GROUP_CC_SIZE 0
       NUM_MC_ELEM 20
       ENERGY_FILE_NAME H2O_ice.inp
-      NMC_FILE_NAME H2O_ice_2.inp
-      NR_NMC_STEPS 2
       NR_TEMPERATURE 3
       TEMPERATURE 270 330
-      &MOVE_TYPE      ATOM_TRANS
-        SIZE          0.1
-        PROB          1
-        INIT_ACC_PROB 0.2
-      &END
-      &MOVE_TYPE      VOL_MOVE
-        SIZE          0.01
-        PROB          8
-      &END
+      &NMC_MOVES
+        NMC_FILE_NAME H2O_ice_2.inp
+        NR_NMC_STEPS 2
+        &MOVE_TYPE      ATOM_TRANS
+          SIZE          0.1
+          PROB          1
+          INIT_ACC_PROB 0.2
+        &END
+        &MOVE_TYPE      VOL_MOVE
+          SIZE          0.01
+          PROB          8
+        &END
+      &END NMC_MOVES
       &MOVE_TYPE      PT_SWAP
         PROB          5
       &END

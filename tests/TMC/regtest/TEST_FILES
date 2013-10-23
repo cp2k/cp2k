@@ -25,6 +25,8 @@ TMC_PT.inp 1
 TMC_NPT.inp 1
 # testing the NPT routines (volume move and volume acceptance check with 2 potential
 TMC_NPT_2pot.inp 1
+# test the move handling (sorting to NMC moves...)
+TMC_NPT_2pot_2.inp 1
 # testing the NPT with NMC AND Parallel Tempering
 TMC_NPT_2pot_PT.inp 1
 # testing the sub box creation and element selection

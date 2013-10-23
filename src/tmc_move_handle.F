@@ -4,9 +4,19 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief acceptance retio handling of the different Monte Carlo Moves types 
+!> \brief acceptance ratio handling of the different Monte Carlo Moves types 
 !>        For each move type and each temperature average acceptence is 
 !>        determined. 
+!>        For each move is a weight (mv_weight) defined, which defines the 
+!>        probability to perform the move.
+!>        We distinguish between moves performed on the exact potential 
+!>        (move on the master, energy on the energy worker) and
+!>        NMC moves, which are performed on the worker using the approximate 
+!>        potential. The energies are calculated as usual on the energy worker 
+!>        with the exact potential.
+!>        The move probabilities to perform a NMC is stored in the NMC move.
+!>        The probilities of the single move types (performed with the 
+!>        approximate potential) are only compared within the NMC move
 !> \par History
 !>      11.2012 created [Mandes Schönherr]
 !> \author Mandes
@@ -28,7 +38,7 @@ MODULE tmc_move_handle
        move_types_create, move_types_release, mv_type_MD, mv_type_NMC_moves, &
        mv_type_atom_swap, mv_type_atom_trans, mv_type_gausian_adapt, &
        mv_type_mol_rot, mv_type_mol_trans, mv_type_proton_reorder, &
-       mv_type_swap_conf, mv_type_volume_move, nr_nmc_mv_types, tmc_move_type
+       mv_type_swap_conf, mv_type_volume_move, tmc_move_type
   USE tmc_stati,                       ONLY: task_type_MC,&
                                              task_type_gaussian_adaptation,&
                                              task_type_ideal_gas
@@ -50,7 +60,6 @@ MODULE tmc_move_handle
   PUBLIC :: select_random_move_type
   PUBLIC :: prob_update, add_mv_prob
   PUBLIC :: clear_move_probs
-  PUBLIC :: select_random_NMC_move_type
 
 CONTAINS
 
@@ -70,38 +79,119 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: inp_kind_name
-    INTEGER                                  :: i, i_rep, i_rep_val, ind, &
-                                                n_items, n_rep_val
-    LOGICAL                                  :: explicit
-    REAL(KIND=dp)                            :: delta_x, init_acc_prob, &
-                                                mv_prob, mv_prob_sum
-    TYPE(section_vals_type), POINTER         :: move_type_section
+    INTEGER                                  :: i, i_rep, i_rep_val, i_tmp, &
+                                                ind, n_items, n_NMC_items, &
+                                                n_rep_val, nmc_steps
+    LOGICAL                                  :: explicit, flag
+    REAL(KIND=dp) :: delta_x, init_acc_prob, mv_prob, mv_prob_sum, &
+      nmc_init_acc_prob, nmc_prob, nmc_prob_sum, prob_ex
+    TYPE(section_vals_type), POINTER         :: move_type_section, nmc_section
+    TYPE(tmc_move_type), POINTER             :: move_types
 
-    delta_x       = 0.0_dp
-    mv_prob       = 0.0_dp
-    init_acc_prob = 0.0_dp
+    NULLIFY(move_types, move_type_section, nmc_section)
 
+    n_items         = 0
+    n_NMC_items     = 0
+    delta_x         = 0.0_dp
+    nmc_prob        = 0.0_dp
+    mv_prob         = 0.0_dp
+    nmc_prob         = 0.0_dp
+    mv_prob_sum     = 0.0_dp
+    nmc_prob_sum    = 0.0_dp
+    prob_ex         = 0.0_dp
+    init_acc_prob   = 0.0_dp
+
+    ! the move types on exact potential
     move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE",error=error)
     CALL section_vals_get(move_type_section, explicit=explicit, error=error)
     IF(explicit) THEN
-      ! initilaize the move array with related sizes, probs, etc.
-      CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp, error)
-
       CALL section_vals_get(move_type_section,n_repetition=n_items,error=error)
-      ! get the total weight/amount of move probabilities
       mv_prob_sum = 0.0_dp
       DO i_rep = 1, n_items
         CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
                                   r_val=mv_prob,error=error)
         mv_prob_sum = mv_prob_sum + mv_prob
       END DO
+    END IF
+
+    ! get the NMC prameters
+    nmc_section => section_vals_get_subs_vals(tmc_section,"NMC_MOVES",error=error)
+    CALL section_vals_get(nmc_section, explicit=explicit, error=error)
+    IF(explicit) THEN
+      ! check the approx potential file, already read
+      CALL cp_assert(tmc_params%NMC_inp_file.NE."",&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "Please specify a valid approximate potential.",&
+                     error, failure=flag, only_ionode=.TRUE.)
+
+      CALL section_vals_val_get(nmc_section,"NR_NMC_STEPS",&
+                                i_val=nmc_steps,error=error)
+      CALL cp_assert(nmc_steps.GT.0,&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
+                     error, failure=flag, only_ionode=.TRUE.)
+
+      CALL section_vals_val_get(nmc_section,"PROB", r_val=nmc_prob,error=error)
+
+      CALL section_vals_val_get(move_type_section,"INIT_ACC_PROB",&
+                                r_val=nmc_init_acc_prob,error=error)
+      CALL cp_assert(nmc_init_acc_prob.GT.0.0_dp,&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "Please select a valid initial acceptance probability (>0.0) "//&
+                     "for the move type "//inp_kind_name,&
+                     error)
+
+      move_type_section => section_vals_get_subs_vals(nmc_section,"MOVE_TYPE",error=error)
+      CALL section_vals_get(move_type_section,n_repetition=n_NMC_items,error=error)
+
+      ! get the NMC move probability sum
+      nmc_prob_sum = 0.0_dp
+      DO i_rep = 1, n_NMC_items
+        CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
+                                  r_val=mv_prob,error=error)
+        nmc_prob_sum = nmc_prob_sum + mv_prob
+      END DO
+    END IF
+
+
+    ! get the total weight/amount of move probabilities
+    mv_prob_sum = mv_prob_sum + nmc_prob
+
+    IF(n_items+n_NMC_items.GT.0) THEN
+      ! initilaize the move array with related sizes, probs, etc.
+      CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp, error)
+
       CALL cp_assert(mv_prob_sum.GT.0.0,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "The probabilities to perform the moves are "//&
                      "in total less equal 0", error)
 
+      
       ! get the sizes, probs, etc. for each move type and convert units
-      DO i_rep = 1, n_items
+      DO i_tmp = 1, n_items+n_NMC_items
+        ! select the corect section
+        IF(i_tmp .GT. n_items) THEN
+          i_rep = i_tmp - n_items
+          IF(i_rep .EQ. 1) THEN
+            ! set the NMC stuff (approx potential)
+            tmc_params%move_types%mv_weight(mv_type_NMC_moves) = &
+              nmc_prob/REAL(mv_prob_sum, KIND=dp)
+            tmc_params%move_types%mv_size(mv_type_NMC_moves,:) = nmc_steps
+            tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = nmc_init_acc_prob
+          
+            move_type_section => section_vals_get_subs_vals(tmc_section,"NMC_MOVES%MOVE_TYPE",error=error)
+            mv_prob_sum = nmc_prob_sum
+            ! allocate the NMC move types
+            CALL move_types_create(tmc_params%nmc_move_types, tmc_params%nr_temp, error)
+            move_types => tmc_params%nmc_move_types
+          END IF
+        ELSE
+          ! the moves on exact potential
+          move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE",error=error)
+          i_rep = i_tmp
+          move_types => tmc_params%move_types
+        END IF
+
         CALL section_vals_val_get(move_type_section, "_SECTION_PARAMETERS_",&
                                   c_val=inp_kind_name, i_rep_section=i_rep, &
                                   error=error)
@@ -123,7 +213,6 @@ CONTAINS
                       "Please select a valid initial acceptance probability (>0.0) "//&
                       "for the move type "//inp_kind_name,&
                       error)
-
         ! set the related index and perform unit conversion of move sizes
         SELECT CASE(inp_kind_name)
         ! atom / molecule translation
@@ -212,13 +301,13 @@ CONTAINS
           CALL section_vals_val_get(move_type_section,"ATOMS",i_rep_section=i_rep,&
                  n_rep_val=n_rep_val, error=error)
           IF(n_rep_val.GT.0) THEN
-            ALLOCATE(tmc_params%move_types%atom_lists(n_rep_val))
+            ALLOCATE(move_types%atom_lists(n_rep_val))
             DO i= 1, n_rep_val
               CALL section_vals_val_get(move_type_section,"ATOMS",&
                      i_rep_section=i_rep, i_rep_val=i, &
-                     c_vals=tmc_params%move_types%atom_lists(i)%atoms, &
+                     c_vals=move_types%atom_lists(i)%atoms, &
                      error=error)
-              CALL cp_assert(SIZE(tmc_params%move_types%atom_lists(i)%atoms).GT.1,&
+              CALL cp_assert(SIZE(move_types%atom_lists(i)%atoms).GT.1,&
                       cp_failure_level,cp_assertion_failed,routineP,&
                       "ATOM_SWAP requires minimum two atom kinds selected. ",&
                       error)
@@ -240,23 +329,33 @@ CONTAINS
                       "Please select a valid move size (>0.0) "//&
                       "for the move type "//inp_kind_name,&
                       error)
+        ! check if not already set
+        IF(move_types%mv_weight(ind).GT.0.0) THEN
+          CALL cp_assert(.FALSE.,&
+                         cp_failure_level,cp_assertion_failed,routineP,&
+                         "TMC: Each move type can be set only once. ",&
+                         error)
+        END IF
 
         ! set the move size
-        tmc_params%move_types%mv_size(ind,:) = delta_x
+        move_types%mv_size(ind,:) = delta_x
         ! set the probability to perform move
-        tmc_params%move_types%mv_weight(ind) = mv_prob/mv_prob_sum
+        move_types%mv_weight(ind) = mv_prob/mv_prob_sum
         ! set the initial acceptance probability
-        tmc_params%move_types%acc_prob(ind,:) = init_acc_prob
+        move_types%acc_prob(ind,:) = init_acc_prob
       END DO
-      ! set NMC start acceptance probability if necessary
-      IF(tmc_params%NMC_inp_file.NE."") THEN
-        tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = 0.5_dp
-      END IF
     ELSE
-      CALL cp_assert(mv_prob_sum.GT.0.0,&
+      CALL cp_assert(.FALSE.,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "No move type selected, please select at least one.", &
                      error)
+    END IF
+    mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
+    flag = .TRUE.
+    CPPostcondition(ABS(mv_prob_sum-1.0_dp).LT.0.01,cp_failure_level,routineP,error,failure=flag)
+    IF(ASSOCIATED(tmc_params%nmc_move_types)) THEN
+      mv_prob_sum = SUM(tmc_params%nmc_move_types%mv_weight(:))
+      CPPostcondition(mv_prob_sum.EQ.1.0,cp_failure_level,routineP,error,failure=flag)
     END IF
   END SUBROUTINE read_init_move_types
 
@@ -266,8 +365,9 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE check_moves(tmc_params, error)
+  SUBROUTINE check_moves(tmc_params, move_types, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_moves', &
@@ -277,50 +377,53 @@ CONTAINS
     LOGICAL                                  :: found
 
     CPPreconditionNoFail(ASSOCIATED(tmc_params),cp_failure_level,routineP,error)
-    CPPreconditionNoFail(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP,error)
 
-    ! check if the selected atom swaps are possible
-    IF(ASSOCIATED(tmc_params%move_types%atom_lists)) THEN
-      DO list_i=1, SIZE(tmc_params%move_types%atom_lists(:))
-        DO atom_j=1, SIZE(tmc_params%move_types%atom_lists(list_i)%atoms(:))
-          ! check if atoms exists
-          found = .FALSE.
-          ref_loop: DO ref_k=1, SIZE(tmc_params%atoms(:))
-            IF(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
-               tmc_params%atoms(ref_k)%name) THEN
-              found = .TRUE.
-              EXIT ref_loop
+    ! for the atom swap move
+    IF(move_types%mv_weight(mv_type_atom_swap).GT.0.0_dp) THEN
+      ! check if the selected atom swaps are possible
+      IF(ASSOCIATED(move_types%atom_lists)) THEN
+        DO list_i=1, SIZE(move_types%atom_lists(:))
+          DO atom_j=1, SIZE(move_types%atom_lists(list_i)%atoms(:))
+            ! check if atoms exists
+            found = .FALSE.
+            ref_loop: DO ref_k=1, SIZE(tmc_params%atoms(:))
+              IF(move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
+                 tmc_params%atoms(ref_k)%name) THEN
+                found = .TRUE.
+                EXIT ref_loop
+              END IF
+            END DO ref_loop
+            CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
+                           routineP, "ATOM_SWAP: The selected atom type ("//&
+                           TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
+                           ") is not contained in the system. ",&
+                           error)
+            ! check if not be swapped with the same atom type
+            IF(ANY(move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
+                   move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
+              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
+                     routineP, "ATOM_SWAP can not swap two atoms of same kind ("//&
+                     TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
+                     ")", error)
             END IF
-          END DO ref_loop
-          CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
-                         routineP, "ATOM_SWAP: The selected atom type ("//&
-                         TRIM(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j))//&
-                         ") is not contained in the system. ",&
-                         error)
-          ! check if not be swapped with the same atom type
-          IF(ANY(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
-                 tmc_params%move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
-            CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                   routineP, "ATOM_SWAP can not swap two atoms of same kind ("//&
-                   TRIM(tmc_params%move_types%atom_lists(list_i)%atoms(atom_j))//&
-                   ")", error)
-          END IF
+          END DO
         END DO
-      END DO
-    ELSE
-      ! check if there exisit different atoms
-      found = .FALSE.
-      IF(SIZE(tmc_params%atoms(:)).GT.1) THEN
-        ref_lop: DO ref_k=2, SIZE(tmc_params%atoms(:))
-          IF(tmc_params%atoms(1)%name.NE. tmc_params%atoms(ref_k)%name) THEN
-            found = .TRUE.
-            EXIT ref_lop
-          END IF
-        END DO ref_lop
+      ELSE
+        ! check if there exisit different atoms
+        found = .FALSE.
+        IF(SIZE(tmc_params%atoms(:)).GT.1) THEN
+          ref_lop: DO ref_k=2, SIZE(tmc_params%atoms(:))
+            IF(tmc_params%atoms(1)%name.NE. tmc_params%atoms(ref_k)%name) THEN
+              found = .TRUE.
+              EXIT ref_lop
+            END IF
+          END DO ref_lop
+        END IF
+        CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
+               routineP, "The system contains only a single atom type,"//&
+                         " atom_swap is not possible.", error)
       END IF
-      CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
-             routineP, "The system contains only a single atom type,"//&
-                       " atom_swap is not possible.", error)
     END IF
   END SUBROUTINE check_moves
 
@@ -332,8 +435,8 @@ CONTAINS
 !> \author Mandes 11.2012
 ! *****************************************************************************
   ! deallocating the module variables
-  SUBROUTINE finalize_mv_types(move_types, error)
-    TYPE(tmc_move_type), POINTER             :: move_types
+  SUBROUTINE finalize_mv_types(tmc_params, error)
+    TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_mv_types', &
@@ -342,8 +445,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CALL move_types_release(move_types, error)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CALL move_types_release(tmc_params%move_types, error)
+    IF(ASSOCIATED(tmc_params%nmc_move_types)) &
+      CALL move_types_release(tmc_params%nmc_move_types, error)
   END SUBROUTINE finalize_mv_types
 
 ! *****************************************************************************
@@ -369,9 +474,14 @@ CONTAINS
     CHARACTER(LEN=10)                        :: c_t
     CHARACTER(LEN=50)                        :: FMT_c, FMT_i, FMT_r
     CHARACTER(LEN=500)                       :: c_a, c_b, c_c, c_d, c_e, c_tit
-    INTEGER                                  :: column_size, temper, typ
+    INTEGER                                  :: column_size, move, &
+                                                nr_nmc_moves, temper, typ
     LOGICAL                                  :: failure, subbox_out, &
                                                 type_title
+    TYPE(tmc_move_type), POINTER             :: move_types
+
+    NULLIFY(move_types)
+    
 
     c_a=""; c_b=""; c_c=""
     c_d=""; c_e=""; c_tit=""
@@ -395,11 +505,24 @@ CONTAINS
     !IF(init) &
     type_title=.TRUE.
 
+    nr_nmc_moves = 0
+    IF(ASSOCIATED(tmc_params%nmc_move_types)) THEN
+      nr_nmc_moves = SIZE(tmc_params%nmc_move_types%mv_weight(1:))
+    END IF
+
     temp_loop: DO temper=1, tmc_params%nr_temp
        c_tit=""; c_a=""; c_b=""; c_c=""
        IF(init .AND. temper.GT.1) EXIT temp_loop
        WRITE(c_t, "(F10.2)") tmc_params%Temp(temper)
-       typ_loop: DO typ=0,SIZE(tmc_params%move_types%mv_weight)
+       typ_loop: DO move=0,SIZE(tmc_params%move_types%mv_weight)+nr_nmc_moves
+         ! the NMC moves
+         IF(move .LE. SIZE(tmc_params%move_types%mv_weight)) THEN
+           typ = move
+           move_types => tmc_params%move_types
+         ELSE
+           typ = move - SIZE(tmc_params%move_types%mv_weight)
+           move_types => tmc_params%nmc_move_types
+         END IF
           ! total average
           IF(typ.EQ.0) THEN
              ! line start
@@ -419,47 +542,36 @@ CONTAINS
              IF(init) WRITE(c_b,TRIM(FMT_c))TRIM(c_b), "  weight->"
              IF(init) WRITE(c_c,TRIM(FMT_c))TRIM(c_c), "  size  ->"
              IF(.NOT.init) WRITE(c_a,TRIM(FMT_r)) TRIM(c_a), &
-                             tmc_params%move_types%acc_prob(typ,temper)
+                             move_types%acc_prob(typ,temper)
              IF(.NOT.init) WRITE(c_b,TRIM(FMT_i)) TRIM(c_b), &
-                             tmc_params%move_types%mv_count(typ,temper)
+                             move_types%mv_count(typ,temper)
              IF(.NOT.init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), &
-                             tmc_params%move_types%acc_count(typ,temper)
+                             move_types%acc_count(typ,temper)
              IF(subbox_out) THEN
                            WRITE(c_d,TRIM(FMT_c)) TRIM(c_d),  "."
                            WRITE(c_e,TRIM(FMT_c)) TRIM(c_e),  "."
              END IF
           ELSE
           ! certain move types
-             IF(tmc_params%move_types%mv_weight(typ).GT.0 .OR. &
-                ! NMC 
-                (typ.EQ.mv_type_NMC_moves .AND. tmc_params%NMC_inp_file.NE.""&
-                  .AND. tmc_params%nr_NMC_steps.GE.1) .OR. &
-                ! swap
-                (typ.EQ.mv_type_swap_conf .AND. &
-                  ANY(tmc_params%move_types%mv_size(typ,:).GT.0.0_dp)) .OR. &
-                ! volume move
-                (typ.EQ.mv_type_volume_move .AND. &
-                  tmc_params%pressure.GT.0.0_dp) ) THEN
-
+             IF(move_types%mv_weight(typ).GT.0.0_dp)THEN 
                 ! INIT: the weights in the initialisation output
-                IF(init) WRITE(c_b,TRIM(FMT_r)) TRIM(c_b), tmc_params%move_types%mv_weight(typ)
+                IF(init) WRITE(c_b,TRIM(FMT_r)) TRIM(c_b), move_types%mv_weight(typ)
 
                 ! acc probabilities
                 IF(typ.EQ.mv_type_swap_conf.AND.&
                          temper.EQ.tmc_params%nr_temp)THEN
                   IF(.NOT.init) WRITE(c_a,TRIM(FMT_c)) TRIM(c_a), "---"
                 ELSE
-                  IF(.NOT.init) WRITE(c_a,TRIM(FMT_r)) TRIM(c_a), tmc_params%move_types%acc_prob(typ,temper)
+                  IF(.NOT.init) WRITE(c_a,TRIM(FMT_r)) TRIM(c_a), move_types%acc_prob(typ,temper)
                 END IF
-                IF(.NOT.init) WRITE(c_b,TRIM(FMT_i)) TRIM(c_b), tmc_params%move_types%mv_count(typ,temper)
-                IF(.NOT.init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), tmc_params%move_types%acc_count(typ,temper)
+                IF(.NOT.init) WRITE(c_b,TRIM(FMT_i)) TRIM(c_b), move_types%mv_count(typ,temper)
+                IF(.NOT.init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), move_types%acc_count(typ,temper)
                 ! sub box
                 IF(subbox_out)THEN
-                   !IF(tmc_params%move_types%mv_weight(typ).GT.0) THEN
-                   IF(typ.LE.nr_nmc_mv_types) THEN
-                      WRITE(c_d,TRIM(FMT_r))TRIM(c_d),tmc_params%move_types%subbox_acc_count(typ,temper)/&
-                                                      REAL(tmc_params%move_types%subbox_count(typ,temper),KIND=dp)
-                      WRITE(c_e,TRIM(FMT_i))TRIM(c_e),tmc_params%move_types%subbox_count(typ,temper)
+                   IF(move.GT.SIZE(tmc_params%move_types%mv_weight)) THEN
+                      WRITE(c_d,TRIM(FMT_r))TRIM(c_d),move_types%subbox_acc_count(typ,temper)/&
+                                                      REAL(move_types%subbox_count(typ,temper),KIND=dp)
+                      WRITE(c_e,TRIM(FMT_i))TRIM(c_e),move_types%subbox_count(typ,temper)
                    ELSE
                       WRITE(c_d,TRIM(FMT_c))TRIM(c_d),"-"
                       WRITE(c_e,TRIM(FMT_c))TRIM(c_e),"-"
@@ -469,13 +581,13 @@ CONTAINS
                 SELECT CASE(typ)
                 CASE(mv_type_atom_trans)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "atom trans."
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)*au2a
+                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)*au2a
                 CASE(mv_type_mol_trans)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "mol trans"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)*au2a
+                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)*au2a
                 CASE(mv_type_mol_rot)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "mol rot"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)/(PI/180.0_dp)
+                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)/(PI/180.0_dp)
                 CASE(mv_type_MD)
 CALL cp_assert(.TRUE.,&
 cp_warning_level,cp_assertion_failed,routineP,&
@@ -488,30 +600,30 @@ error)
 !                      WRITE(file_io,*)"                                 with time step [fs] ",md_time_step*au2fs
 !                      WRITE(file_io,*)"                                 with number of steps ",md_steps
 !                      WRITE(file_io,*)"                                 with velocity changes consists of old vel and ",&
-!                         sin(tmc_params%move_types%mv_size(typ,1))*100.0_dp,"% random Gaussian with variance to temperature,"
+!                         sin(move_types%mv_size(typ,1))*100.0_dp,"% random Gaussian with variance to temperature,"
 !                   END IF
                 CASE(mv_type_proton_reorder)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "H-Reorder"
                    IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX"
                 CASE(mv_type_swap_conf)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "PT(swap)"
-                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX" !tmc_params%move_types%mv_size(mv_type_swap_conf,1)
+                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX" !move_types%mv_size(mv_type_swap_conf,1)
                 CASE(mv_type_NMC_moves)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "NMC"
-                   IF(init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), tmc_params%nr_NMC_steps
+                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "NMC:"
+                   IF(init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), INT(move_types%mv_size(typ,temper))
                 CASE(mv_type_volume_move)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "volume"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)*au2a
+                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)*au2a
                 CASE(mv_type_atom_swap)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "atom swap"
                    IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX"
                 CASE(mv_type_gausian_adapt)
                    IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "gauss adap"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), tmc_params%move_types%mv_size(typ,temper)
+                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)
                 CASE DEFAULT
                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                                   "unknown move type "//cp_to_string(typ)//" with weight"//&
-                                  cp_to_string(tmc_params%move_types%mv_weight(typ)),&
+                                  cp_to_string(move_types%mv_weight(typ)),&
                                   error)
                 END SELECT
              END IF
@@ -729,7 +841,8 @@ error)
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  ! function returns a possible move type
+  ! function returns a possible move type without the PT swap moves 
+  !   (are selected in global tree, this routine is for sub tree elements)
   FUNCTION select_random_move_type(move_types, rnd, error) RESULT(mv_type)
     TYPE(tmc_move_type), POINTER             :: move_types
     REAL(KIND=dp)                            :: rnd
@@ -749,49 +862,17 @@ error)
 
     CALL timeset(routineN,handle)
 
-    total_moves = SUM(move_types%mv_weight(1:nr_nmc_mv_types))
+    total_moves = SUM(move_types%mv_weight(2:))
     rnd_mv = total_moves*rnd
-    search_loop: DO i=1, SIZE(move_types%mv_weight(1:nr_nmc_mv_types))
-       IF(SUM(move_types%mv_weight(1:i)).GE.rnd_mv) THEN
-          mv_type = i
-          EXIT search_loop
-       END IF
-    END DO search_loop
-    CALL timestop(handle)
-  END FUNCTION select_random_move_type
-
-! *****************************************************************************
-!> \brief function returns a possible move type
-!> \param move_types weights for each move type
-!> \param rnd random number for selecting the move type
-!> \param mv_type result: the move type
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Mandes 02.2013
-! *****************************************************************************
-  FUNCTION select_random_NMC_move_type(move_types, rnd, error) RESULT(mv_type)
-    TYPE(tmc_move_type), POINTER             :: move_types
-    REAL(KIND=dp)                            :: rnd
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER                                  :: mv_type
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'select_random_NMC_move_type', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: rnd_mv, total_moves
-
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
- 
-    total_moves = SUM(move_types%mv_weight(1:nr_nmc_mv_types))
-    rnd_mv = total_moves*rnd
-    search_loop: DO i=1, SIZE(move_types%mv_weight(1:nr_nmc_mv_types))
-      IF(SUM(move_types%mv_weight(1:i)).GE.rnd_mv) THEN
+    mv_type = 0
+    search_loop: DO i=2, SIZE(move_types%mv_weight(:))
+      IF(SUM(move_types%mv_weight(2:i)).GE.rnd_mv) THEN
         mv_type = i
         EXIT search_loop
       END IF
     END DO search_loop
-  END FUNCTION select_random_NMC_move_type
+
+    CALL timestop(handle)
+  END FUNCTION select_random_move_type
    
 END MODULE tmc_move_handle

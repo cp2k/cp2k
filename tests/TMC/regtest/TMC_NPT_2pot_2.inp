@@ -16,9 +16,17 @@
       NUM_MC_ELEM       20
       ENERGY_FILE_NAME  H2O_ice.inp
       TEMPERATURE       270
+      &MOVE_TYPE      ATOM_TRANS
+          SIZE          0.1
+          PROB          1
+          INIT_ACC_PROB 0.2
+      &END
+      &MOVE_TYPE      ATOM_SWAP
+      &END
       &NMC_MOVES
         NMC_FILE_NAME H2O_ice_2.inp
-        NR_NMC_STEPS  2
+        NR_NMC_STEPS    2
+        PROB            3
         &MOVE_TYPE      ATOM_TRANS
           SIZE          0.1
           PROB          1

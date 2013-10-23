@@ -17,25 +17,27 @@
       GROUP_CC_SIZE 0
       NUM_MC_ELEM 10
       ENERGY_FILE_NAME H2O_ice.inp
-      NMC_FILE_NAME H2O_ice_2.inp
-      NR_NMC_STEPS 3
       TEMPERATURE 330
-      &MOVE_TYPE      ATOM_TRANS
-        SIZE          0.1
-        PROB          1
-        INIT_ACC_PROB 0.2
-      &END
-      &MOVE_TYPE      MOL_TRANS
-        SIZE          0.05
-        PROB          1
-      &END
-      &MOVE_TYPE      MOL_ROT
-        SIZE          9
-        PROB          1
-      &END
-      &MOVE_TYPE      PROT_REORDER
-        PROB          2
-      &END
+      &NMC_MOVES
+        NMC_FILE_NAME H2O_ice_2.inp
+        NR_NMC_STEPS 3
+        &MOVE_TYPE      ATOM_TRANS
+          SIZE          0.1
+          PROB          1
+          INIT_ACC_PROB 0.2
+        &END
+        &MOVE_TYPE      MOL_TRANS
+          SIZE          0.05
+          PROB          1
+        &END
+        &MOVE_TYPE      MOL_ROT
+          SIZE          9
+          PROB          1
+        &END
+        &MOVE_TYPE      PROT_REORDER
+          PROB          2
+        &END
+      &END NMC_MOVES
       NUM_MV_ELEM_IN_CELL 1
       RND_DETERMINISTIC 42
       ESIMATE_ACC_PROB .TRUE.

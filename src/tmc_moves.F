@@ -30,14 +30,10 @@ MODULE tmc_moves
                                              geometrical_center,&
                                              get_scaled_cell,&
                                              nearest_distance
-  USE tmc_move_types,                  ONLY: mv_type_MD,&
-                                             mv_type_atom_swap,&
-                                             mv_type_atom_trans,&
-                                             mv_type_gausian_adapt,&
-                                             mv_type_mol_rot,&
-                                             mv_type_mol_trans,&
-                                             mv_type_proton_reorder,&
-                                             mv_type_volume_move
+  USE tmc_move_types,                  ONLY: &
+       mv_type_MD, mv_type_atom_swap, mv_type_atom_trans, &
+       mv_type_gausian_adapt, mv_type_mol_rot, mv_type_mol_trans, &
+       mv_type_proton_reorder, mv_type_volume_move, tmc_move_type
   USE tmc_tree_types,                  ONLY: status_frozen,&
                                              status_ok,&
                                              tree_type
@@ -74,9 +70,10 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE change_pos(tmc_params, rng_stream, elem, mv_conf, &
+  SUBROUTINE change_pos(tmc_params, move_types, rng_stream, elem, mv_conf, &
                         new_subbox, move_rejected, last_acc_elem, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
+    TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: mv_conf
@@ -99,7 +96,7 @@ CONTAINS
     NULLIFY(direction, elem_center, mol_in_sb)
 
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
 
@@ -165,7 +162,7 @@ CONTAINS
           DO d=0, tmc_params%dim_per_elem-1
             rnd = next_random_number(rng_stream, error=error) ! next random number
             elem%pos(ind+d) = elem%pos(ind+d) + (rnd-0.5)*2.0*&
-              tmc_params%move_types%mv_size(mv_type_atom_trans,mv_conf)
+              move_types%mv_size(mv_type_atom_trans,mv_conf)
           END DO
           ! check if new position is in subbox
           elem_center = elem%pos(ind:ind+tmc_params%dim_per_elem-1)
@@ -226,7 +223,7 @@ CONTAINS
             ! calculate displacement
             DO d=1, tmc_params%dim_per_elem
               rnd = next_random_number(rng_stream, error=error) ! next random number
-              direction(d) = (rnd-0.5)* 2.0_dp*tmc_params%move_types%mv_size(&
+              direction(d) = (rnd-0.5)* 2.0_dp*move_types%mv_size(&
                                          mv_type_mol_trans,mv_conf)
             END DO
             ! check if displaced position is still in subbox
@@ -294,9 +291,9 @@ CONTAINS
           ! apply move
           IF(mol_in_sb(m).EQ.status_ok)THEN
             CALL do_mol_rot(pos=elem%pos, ind_start=ind, ind_end=ind_e, &
-                   max_angle=tmc_params%move_types%mv_size(&
+                   max_angle=move_types%mv_size(&
                                mv_type_mol_rot,mv_conf), &
-                   rng_stream=rng_stream, &
+                   move_types=move_types, rng_stream=rng_stream, &
                    dim_per_elem=tmc_params%dim_per_elem, error=error)
             ! update sub box status of single atom
             DO i=ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
@@ -330,7 +327,7 @@ CONTAINS
         IF(elem%elem_stat(i).NE.status_frozen) THEN
           CALL vel_change(vel=elem%vel(i), &
                           atom_kind=tmc_params%atoms(INT(i/REAL(tmc_params%dim_per_elem,KIND=dp))+1),&
-                          phi=tmc_params%move_types%mv_size(mv_type_MD,1),& ! TODO parallel tempering move sizes for vel_change
+                          phi=move_types%mv_size(mv_type_MD,1),& ! TODO parallel tempering move sizes for vel_change
                           temp=tmc_params%Temp(mv_conf), &
                           rnd_sign_change=.TRUE., &! MD_vel_invert, &
                           rng_stream=rng_stream, error=error)
@@ -348,13 +345,14 @@ CONTAINS
     !-- volume move
     ! the box is increased or decreased and with it the coordinates
     CASE(mv_type_volume_move)
-      CALL change_volume(conf=elem, T_ind=mv_conf, rng_stream=rng_stream, &
-                         tmc_params=tmc_params, error=error)
+      CALL change_volume(conf=elem, T_ind=mv_conf, move_types=move_types, &
+                         rng_stream=rng_stream, tmc_params=tmc_params, &
+                         error=error)
 
     !-- atom swap
     ! two atoms of different types are swapped
     CASE(mv_type_atom_swap)
-      CALL swap_atoms(conf=elem, rng_stream=rng_stream, &
+      CALL swap_atoms(conf=elem, move_types=move_types, rng_stream=rng_stream,&
                          tmc_params=tmc_params, error=error)
 
     CASE DEFAULT
@@ -574,11 +572,12 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE do_mol_rot(pos, ind_start, ind_end, max_angle, rng_stream, &
-                        dim_per_elem, error)
+  SUBROUTINE do_mol_rot(pos, ind_start, ind_end, max_angle, move_types, &
+                        rng_stream, dim_per_elem, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
     INTEGER                                  :: ind_start, ind_end
     REAL(KIND=dp)                            :: max_angle
+    TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER                                  :: dim_per_elem
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -600,6 +599,7 @@ CONTAINS
     CPPrecondition(dim_per_elem.EQ.3,cp_failure_level,routineP,error,failure)
     CPPrecondition(ind_start.GT.0.AND.ind_start.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
     CPPrecondition(ind_end.GT.0.AND.ind_end.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
 
     ! calculate rotation matrix (using quanternions)
     rnd = next_random_number(rng_stream, error=error) ! next random number
@@ -869,7 +869,10 @@ CONTAINS
              mol=mol_tmp, start_ind=ind_n, end_ind=ind_e, error=error)
       ! check if selected molecule is water respectively consists of 3 atoms
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
-WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
+        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                 routineP,"selected a molecule with more than 3 atoms, "//&
+                 "the proton reordering does not support, skip molecule",&
+                 error,failure)
         CYCLE list_distances
       END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN
@@ -1178,9 +1181,11 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE change_volume(conf, T_ind, rng_stream, tmc_params, error)
+  SUBROUTINE change_volume(conf, T_ind, move_types, rng_stream, tmc_params, &
+                           error)
     TYPE(tree_type), POINTER                 :: conf
     INTEGER                                  :: T_ind
+    TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1200,6 +1205,7 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
     NULLIFY(scaling, disp)
 
     CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
     CPPrecondition(T_ind.GT.0.AND.T_ind.LE.tmc_params%nr_temp,cp_failure_level,routineP,error,failure)
@@ -1223,13 +1229,13 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
         CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
         abc=box_length_new, vol=vol, error=error)
         rnd = next_random_number(rng_stream, error=error)
-        vol=vol+(rnd-0.5_dp)*2.0_dp*tmc_params%move_types%mv_size(mv_type_volume_move, T_ind)
+        vol=vol+(rnd-0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
         box_length_new(:) = vol**(1/REAL(3,KIND=dp))
       ELSE
         CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
         abc=box_length_new, vol=vol, error=error)
         rnd = next_random_number(rng_stream, error=error)
-        vol=vol+(rnd-0.5_dp)*2.0_dp*tmc_params%move_types%mv_size(mv_type_volume_move, T_ind)
+        vol=vol+(rnd-0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
         rnd = next_random_number(rng_stream, error=error)
         dir = 1+INT(rnd*3)
         box_length_new(dir) = 1.0_dp
@@ -1243,7 +1249,7 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
         rnd = next_random_number(rng_stream, error=error)
         box_length_new(:) = box_length_new(:) + &
           (rnd-0.5_dp)*2.0_dp*&
-          tmc_params%move_types%mv_size(mv_type_volume_move, T_ind)
+          move_types%mv_size(mv_type_volume_move, T_ind)
       ELSE
         ! select a random direction
         rnd = next_random_number(rng_stream, error=error)
@@ -1251,7 +1257,7 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
         rnd = next_random_number(rng_stream, error=error)
         box_length_new(dir) = box_length_new(dir) + &
           (rnd-0.5_dp)*2.0_dp*&
-          tmc_params%move_types%mv_size(mv_type_volume_move, T_ind)
+          move_types%mv_size(mv_type_volume_move, T_ind)
       END IF
     END IF
 
@@ -1266,7 +1272,7 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
     scaling(:) = conf%box_scale(:)/box_scale_old(:)
 
 
-    IF(tmc_params%move_types%mv_weight(mv_type_atom_trans).GT.0) THEN
+    IF(move_types%mv_weight(mv_type_atom_trans).GT.0) THEN
        ! homogene scaling of atomic coordinates
        DO atom=1, SIZE(conf%pos), tmc_params%dim_per_elem
           conf%pos(atom:atom+tmc_params%dim_per_elem-1) = &
@@ -1312,8 +1318,9 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE swap_atoms(conf, rng_stream, tmc_params, error)
+  SUBROUTINE swap_atoms(conf, move_types, rng_stream, tmc_params, error)
     TYPE(tree_type), POINTER                 :: conf
+    TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1328,6 +1335,7 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error,failure)
@@ -1343,11 +1351,11 @@ WRITE(6,*)"### test a not water molecule for proton reordering, skip it"
       ! check if they have different kinds
       IF(tmc_params%atoms(a_1)%name .NE. tmc_params%atoms(a_2)%name) THEN
         ! if present, check if atoms have different type related to the specified table
-        IF(ASSOCIATED(tmc_params%move_types%atom_lists)) THEN
-          DO ind_1=1, SIZE(tmc_params%move_types%atom_lists)
-            IF(ANY(tmc_params%move_types%atom_lists(ind_1)%atoms(:) .EQ. &
+        IF(ASSOCIATED(move_types%atom_lists)) THEN
+          DO ind_1=1, SIZE(move_types%atom_lists)
+            IF(ANY(move_types%atom_lists(ind_1)%atoms(:) .EQ. &
                    tmc_params%atoms(a_1)%name) .AND. &
-               ANY(tmc_params%move_types%atom_lists(ind_1)%atoms(:) .EQ. &  
+               ANY(move_types%atom_lists(ind_1)%atoms(:) .EQ. &  
                    tmc_params%atoms(a_2)%name)) THEN
               found = .TRUE.
               EXIT atom_search_loop

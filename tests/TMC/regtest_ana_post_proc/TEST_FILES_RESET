@@ -4,3 +4,9 @@
 # the analysis file open was corrected, hence the analysis results change
 TMC_ana_density.inp
 TMC_ana_G_R.inp
+TMC_ana_density.inp # due to new move type handling the rnd nr handling changed
+TMC_ana_G_R.inp 
+TMC_ana_dip_cl.inp 
+TMC_ana_deviation.inp
+TMC_ana_all.inp
+TMC_ana_restart.inp

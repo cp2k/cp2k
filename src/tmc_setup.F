@@ -52,9 +52,9 @@ MODULE tmc_setup
                                              tmc_ana_list_type
   USE tmc_file_io,                     ONLY: expand_file_name_int
   USE tmc_master,                      ONLY: do_tmc_master
-  USE tmc_move_handle,                 ONLY: print_move_types,&
+  USE tmc_move_handle,                 ONLY: finalize_mv_types,&
+                                             print_move_types,&
                                              read_init_move_types
-  USE tmc_move_types,                  ONLY: move_types_release
   USE tmc_stati,                       ONLY: &
        task_type_MC, task_type_ideal_gas, tmc_NMC_worker_out_file_name, &
        tmc_ana_out_file_name, tmc_default_restart_in_file_name, &
@@ -298,7 +298,7 @@ CONTAINS
       CALL delete_rng_stream(tmc_env%rng_stream,error=error)
 
       ! deallocate the move types
-      CALL move_types_release(tmc_env%params%move_types, error)
+      CALL finalize_mv_types(tmc_env%params, error)
  
       ! finalize master and worker environment
       IF(tmc_env%tmc_comp_set%group_nr.EQ.0) THEN
@@ -634,7 +634,7 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"NR_TEMPERATURE",i_val=tmc_env%params%nr_temp,error=error)
 
     ! stuff everyone needs to know
-    CALL section_vals_val_get(tmc_section,"NMC_FILE_NAME",c_val=tmc_env%params%NMC_inp_file,error=error)
+    CALL section_vals_val_get(tmc_section,"NMC_MOVES%NMC_FILE_NAME",c_val=tmc_env%params%NMC_inp_file,error=error)
     IF(tmc_env%params%NMC_inp_file.EQ.tmc_default_unspecified_name)THEN
     ! file name keyword without file name
       CALL cp_assert(.FALSE.,&
@@ -657,6 +657,7 @@ CONTAINS
                      "a valid NMC input file has to be specified ",&
                      error, failure=flag, only_ionode=.TRUE.)
     END IF
+
     CALL section_vals_val_get(tmc_section,"TEMPERATURE",r_vals=inp_Temp,error=error)
     CALL cp_assert(.NOT.((tmc_env%params%nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2)),&
                      cp_failure_level,cp_assertion_failed,routineP,&
@@ -785,11 +786,6 @@ CONTAINS
                    error, failure=flag, only_ionode=.TRUE.)
 
     CALL section_vals_val_get(tmc_section,"NUM_MV_ELEM_IN_CELL",i_val=tmc_env%params%nr_elem_mv,error=error)    
-    CALL section_vals_val_get(tmc_section,"NR_NMC_STEPS",i_val=tmc_env%params%nr_NMC_steps,error=error)
-    CALL cp_assert(.NOT.(tmc_env%params%NMC_inp_file.NE."".AND.tmc_env%params%nr_NMC_steps.LE.0),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     error, failure=flag, only_ionode=.TRUE.)
 
     CALL section_vals_val_get(tmc_section,"VOLUME_ISOTROPIC",l_val=tmc_env%params%v_isotropic,error=error)
     CALL section_vals_val_get(tmc_section,"PRESSURE",r_val=tmc_env%params%pressure,error=error)
