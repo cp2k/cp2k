@@ -24,7 +24,7 @@ MODULE string_utilities
   CHARACTER(LEN=1), PARAMETER :: backslash = '\\'
   CHARACTER(LEN=1), PARAMETER :: star      = '*'
   CHARACTER(LEN=1), PARAMETER :: question  = '?'
-  CHARACTER(LEN=1), PARAMETER :: newline  = NEW_LINE('A')
+  CHARACTER(LEN=1), PARAMETER :: newline   = ACHAR(10)
 
   INTEGER, PARAMETER :: maxlen_entity_name = 10
   CHARACTER(LEN=maxlen_entity_name), DIMENSION(252), PARAMETER :: html_entity_table =&
