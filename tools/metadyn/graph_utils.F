@@ -180,9 +180,16 @@ CONTAINS
 
     IF (PRESENT(keyword)) THEN
        CALL search(unit,TRIM(keyword),line,stat)
-       my_ind=INDEX(line,TRIM(keyword))+LEN_TRIM(keyword)+1
-       IF (PRESENT(i_val)) READ(line(my_ind:),*)i_val
-       IF (PRESENT(r_val)) READ(line(my_ind:),*)r_val
+       IF (stat/=0) THEN
+         ! if the keyword is not found, let's give back values that will trigger a problem..
+         IF (PRESENT(i_val)) i_val=-HUGE(1)
+         IF (PRESENT(r_val)) r_val=-HUGE(0.0_dp)
+       ELSE
+         ! Otherwise read the value
+         my_ind=INDEX(line,TRIM(keyword))+LEN_TRIM(keyword)+1
+         IF (PRESENT(i_val)) READ(line(my_ind:),*)i_val
+         IF (PRESENT(r_val)) READ(line(my_ind:),*)r_val
+       END IF
     END IF
 
     IF (PRESENT(subsection)) THEN

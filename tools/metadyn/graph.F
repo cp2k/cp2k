@@ -32,27 +32,28 @@ PROGRAM graph
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=80)                        :: file, out, out2, wq_char
-  CHARACTER(LEN=default_string_length)     :: per_label, active_label
+  CHARACTER(LEN=80)                        :: file, out1, out2, out3, wq_char
+  CHARACTER(LEN=default_string_length)     :: active_label, per_label
   INTEGER                                  :: argcount, coor, i, id, ip, &
-                                              it, iw, ix, ncount, ndim, &
+                                              it, iw, ix, j, ncount, ndim, &
                                               ndw, nf, nfes, ngauss, nh, &
-                                              nprd, nt, nt_p, nwr, p_exp, q_exp, stat, j
+                                              nprd, nt, nt_p, nwr, p, q, &
+                                              stat
   INTEGER, POINTER                         :: i_map(:), idw(:), ind(:), &
                                               inds(:), iperd(:), iprd(:), &
                                               ngrid(:), nn(:,:), nn_max(:), &
                                               tmp(:)
-  LOGICAL                                  :: fix, l_cp2k, l_dp, l_fmin, &
+  LOGICAL                                  :: failure, fix, l_cp2k, l_cpmd, &
+                                              l_dp, l_fes_int, l_fmin, &
                                               l_grid, l_math, l_orac, &
-                                              l_pmin, lstride, l_cpmd, failure
-  REAL(KIND=dp)                            :: diff, dp2, dum, eps_cut, ss, &
-                                              x0w(3), xfw(3), delta_s_glob, tail_cutoff
+                                              l_pmin, lstride
+  REAL(KIND=dp)                            :: delta_s_glob, diff, dp2, dum, &
+                                              eps_cut, sc, ss, x0w(3), &
+                                              xfw(3)
   REAL(KIND=dp), POINTER :: delta_s(:,:), dp_cut(:), dp_grid(:), fes(:), &
     gauss(:,:), ss0(:,:), tmpr(:), ww(:), x0(:), xf(:)
-! to be changed
-  REAL(KIND=dp) :: sc
-  INTEGER :: p, q
   TYPE(mep_input_data_type)                :: mep_input_data
+
 
   failure=.FALSE.
   ! Initialize variables
@@ -62,9 +63,10 @@ PROGRAM graph
   nt_p    = 9999999
   eps_cut = 1e-6
   file    = 'HILLS'
-  out     = 'fes.dat'
-  out2     = 'fes_int.dat'
+  out1    = 'fes.dat'
+  out2    = 'fes_int.dat'
   fix     = .FALSE.
+  l_fes_int = .FALSE.
   lstride = .FALSE.
   l_grid  = .FALSE.
   l_dp    = .FALSE.
@@ -91,6 +93,8 @@ PROGRAM graph
      WRITE(iw,*)'[-cutoff 2.      ]   (The hills are cutoffed at 2)'
      WRITE(iw,*)'[-file   filename]'
      WRITE(iw,*)'[-out    filename]'
+     WRITE(iw,*)'[-integrated_fes]    (When projecting the FES print the integrated value, '
+     WRITE(iw,*)'                      rather then the minimum value (minimum value is default))'
      WRITE(iw,*)'[-orac]              (If energies are written in orac intern units)'
      WRITE(iw,*)'[-cp2k]              (Specify if a CP2K restart file is provided)'
      WRITE(iw,*)'[-cpmd]              (Specify if CPMD colvar_mtd and parvar_mtd are provided)'
@@ -120,7 +124,10 @@ PROGRAM graph
 
      IF (INDEX(wq_char,'-out').NE.0)THEN
         CALL M_GETARG(i+1,wq_char)
-        READ(wq_char,*)out
+        READ(wq_char,*)out1
+        ! we read only 1 filename. If none is specified we differentiate between fes.dat and fes_int.dat
+        ! otherwise we use the one provided by the user
+        out2=out1
      ENDIF
 
      IF (INDEX(wq_char,'-ndim').NE.0)THEN
@@ -137,6 +144,10 @@ PROGRAM graph
      IF (INDEX(wq_char,'-cutoff').NE.0)THEN
         CALL M_GETARG(i+1,wq_char)
         READ(wq_char,*)eps_cut
+     ENDIF
+
+     IF (INDEX(wq_char,'-integrated_fes').NE.0)THEN
+        l_fes_int=.TRUE.
      ENDIF
 
      IF (INDEX(wq_char,'-orac').NE.0)THEN
@@ -356,15 +367,13 @@ PROGRAM graph
   WRITE(iw,'(/,70("*"))')
   WRITE(iw,'("FES|",T7,A,/)')"Parsing file:   <"//TRIM(file)//">"
 
-  tail_cutoff = -1.0_dp
-  p_exp = 8
-  q_exp = 20
   OPEN(10,file=file,status='old')
   IF      (l_cp2k)            THEN
      CALL get_val_res(unit=10,section="&METADYN",keyword="NHILLS_START_VAL", i_val=nt)
-     CALL get_val_res(unit=10,section="&METADYN",keyword="HILL_TAIL_CUTOFF", r_val=tail_cutoff)
-     CALL get_val_res(unit=10,section="&METADYN",keyword="P_EXPONENT", i_val=p_exp)
-     CALL get_val_res(unit=10,section="&METADYN",keyword="Q_EXPONENT", i_val=q_exp)
+     ! These sections may not necessarily be present.. if not the values will be HUGE and negative..
+     CALL get_val_res(unit=10,section="&METADYN",keyword="HILL_TAIL_CUTOFF", r_val=sc)
+     CALL get_val_res(unit=10,section="&METADYN",keyword="P_EXPONENT", i_val=p)
+     CALL get_val_res(unit=10,section="&METADYN",keyword="Q_EXPONENT", i_val=q)
   ELSE IF (l_orac.OR.l_cpmd)  THEN
      nt=0
      DO WHILE (.TRUE.)
@@ -517,10 +526,6 @@ PROGRAM graph
      nwr=INT(nt/10)+1
   END IF
 
-  sc = tail_cutoff
-  p = p_exp
-  q = q_exp
-
   ncount = 0
   WRITE(iw,'(/,"FES|",T7,A)') "Computing Free Energy Surface"
   Stride : DO WHILE (nh <= nt)
@@ -541,7 +546,7 @@ PROGRAM graph
               diff = ss-ss0(i,it)
               dp2=(diff/delta_s(i,it))**2
               gauss(ip,i)=ww(it)*EXP(-0.5_dp*dp2)
-              IF(tail_cutoff > 0.0_dp) THEN
+              IF(sc > 0.0_dp) THEN
                  gauss(ip,i)= gauss(ip,i) * (1-(diff/sc*delta_s(i,it))**p)/(1-(diff/sc*delta_s(i,it))**q)
               END IF
            END DO
@@ -559,27 +564,23 @@ PROGRAM graph
      IF (lstride) THEN
         ncount = ncount+1
         WRITE(iw,'("FES|",T7,a13,i5," |-| Gaussians from ",i6," to",i6)') "Done frame ::",ncount,nh,nf
-        IF(ncount<10) THEN
-           WRITE(file,'("fes.dat.",i1)')ncount
-        ELSEIF(ncount<100) THEN
-           WRITE(file,'("fes.dat.",i2)')ncount
+        IF (l_fes_int) THEN
+           out3=out2//"."
         ELSE
-           WRITE(file,'("fes.dat.",i3)')ncount
+           out3=out1//"."
+        END IF
+
+        IF(ncount<10) THEN
+           WRITE(file,'(A,i1)')TRIM(out3),ncount
+        ELSEIF(ncount<100) THEN
+           WRITE(file,'(A,i2)')TRIM(out3),ncount
+        ELSE
+           WRITE(file,'(A,i3)')TRIM(out3),ncount
         END IF
         OPEN(123,file=file)
-        IF(ncount<10) THEN
-           WRITE(file,'("fes_int.dat.",i1)')ncount
-        ELSEIF(ncount<100) THEN
-           WRITE(file,'("fes_int.dat.",i2)')ncount
-        ELSE
-           WRITE(file,'("fes_int.dat.",i3)')ncount
-        END IF
-        OPEN(124,file=file)
         ind   = 1
-!        CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, x0, ndw)
-        CALL fes_write     (ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw)
+        CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, dp_grid, ndw, l_fes_int)
         CLOSE(123)
-        CLOSE(124)
      END IF
 
      nh=nh+nt_p
@@ -587,15 +588,18 @@ PROGRAM graph
   END DO Stride
   DEALLOCATE(gauss)
 
-  WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out)//" >"
-  OPEN(123,file=out)
-  OPEN(124,file=out2)
+  IF (l_fes_int) THEN
+     out3=out2
+  ELSE
+     out3=out1
+  END IF
+  WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out3)//" >"
+  OPEN(123,file=out3)
   ix=0
   IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
   ind   = 1   
-  CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw)
+  CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
   CLOSE(123)
-  CLOSE(124)
  
   ! If requested find minima
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)

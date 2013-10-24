@@ -88,7 +88,7 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
+  RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
     INTEGER, INTENT(IN)                      :: idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
@@ -96,37 +96,34 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ngrid
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
     INTEGER, INTENT(IN)                      :: ndw
+    LOGICAL, INTENT(IN)                      :: l_fes_int
 
-    INTEGER                                  :: dimval, i, id, pnt
+    INTEGER                                  :: dimval, i, id, is, pnt
+    REAL(KIND=dp)                            :: dvol, sum_fes
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xx
-    REAL(KIND=dp) :: sum_fes, dvol
-    INTEGER :: is
-
 
     ALLOCATE(xx(ndim))
     xx = x0
     DO i = 1,ngrid(idim)
        pos(idim)=i
        IF(idim/=ndim-ndw+1) THEN
-          CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
+          CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
        ELSE        
           pnt=point_no_pbc(pos,ngrid,ndim)
           xx = x0 + dp_grid * ( pos - 1 )
           dimval = PRODUCT(ngrid(1:ndim-ndw)) 
-!
-          sum_fes =0.0_dp
-          dvol = PRODUCT(dp_grid(1:ndim-ndw))
-          do is = pnt,pnt+dimval-1
-             sum_fes = sum_fes + fes(is)*dvol
-          end do
-          WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
-          WRITE(124,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
+          IF (l_fes_int) THEN
+             WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
+          ELSE
+             sum_fes =0.0_dp
+             dvol = PRODUCT(dp_grid(1:ndim-ndw))
+             DO is = pnt,pnt+dimval-1
+                sum_fes = sum_fes + fes(is)*dvol
+             END DO
+             WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
+          END IF
        END IF
     END DO
-    IF(idim==ndim-ndw+1) THEN
-       WRITE(123,*)
-       WRITE(124,*)
-    END IF
     DEALLOCATE(xx)
 
   END SUBROUTINE fes_write
@@ -138,25 +135,36 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
+  RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, dp_grid, ndw, l_fes_int)
     INTEGER, INTENT(IN)                      :: idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
     INTEGER, INTENT(IN)                      :: ndim
     INTEGER, DIMENSION(:), POINTER           :: ngrid
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid
     INTEGER, INTENT(IN)                      :: ndw
+    LOGICAL, INTENT(IN)                      :: l_fes_int
 
-    INTEGER                                  :: dimval, i, id, pnt
-
+    INTEGER                                  :: dimval, i, is, pnt
+    REAL(KIND=dp)                            :: dvol, sum_fes
 
     DO i = 1,ngrid(idim)
        pos(idim)=i
        IF(idim/=ndim-ndw+1) THEN
-          CALL fes_only_write(idim-1, fes,  pos,  ndim, ngrid, ndw)
+          CALL fes_only_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, ndw, l_fes_int)
        ELSE        
           pnt=point_no_pbc(pos,ngrid,ndim)
           dimval = PRODUCT(ngrid(1:ndim-ndw))
-          WRITE(123,'(1f12.5)')  MINVAL(-fes(pnt:pnt+dimval-1))
+          IF (l_fes_int) THEN
+             WRITE(123,'(1f12.5)')MINVAL(-fes(pnt:pnt+dimval-1))
+          ELSE
+             sum_fes =0.0_dp
+             dvol = PRODUCT(dp_grid(1:ndim-ndw))
+             DO is = pnt,pnt+dimval-1
+                sum_fes = sum_fes + fes(is)*dvol
+             END DO
+             WRITE(123,'(1f12.5)')-sum_fes
+          END IF
        END IF
     END DO
 
