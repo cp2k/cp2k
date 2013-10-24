@@ -274,6 +274,11 @@ CONTAINS
              ! Symmetrize analytical stress tensor
              CALL sym_virial(virial, error)
           END IF
+       ELSE IF (virial%pv_availability.AND. .NOT. calculate_forces) THEN
+       ! Warning
+          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                  'The calculation of stress tensor requires the calculation of forces',&
+                  error=error,only_ionode=.TRUE.)
        END IF
        ! Some additional tasks..
        IF (.NOT.my_skip) THEN
@@ -369,6 +374,16 @@ CONTAINS
        ELSE
           CALL zero_virial(virial,reset=.FALSE.)
        END IF
+    ELSE
+       output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
+                                             extension=".stress_tensor",error=error)
+       IF(output_unit > 0) THEN
+         CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                'To print STRESS_TENSOR switch on the virial evaluation with the keyword: STRESS_TENSOR.', &
+                error=error,only_ionode=.TRUE.)
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+                                            "PRINT%STRESS_TENSOR",error=error)
     END IF
 
     ! Atomic properties

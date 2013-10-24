@@ -100,7 +100,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="stress_tensor",&
+    CALL keyword_create(keyword, name="STRESS_TENSOR",&
          description="Controls the calculation of the stress tensor. The combinations defined below"//&
          " are not implemented for all methods.",&
          usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
