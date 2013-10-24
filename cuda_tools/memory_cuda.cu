@@ -30,12 +30,7 @@ extern void cuda_device_streams_alloc_cu_ (cudaStream_t **streams) {
   cudaStream_t *cuda_streams_ptr;
   cuda_streams_ptr = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
   for (int i = 0; i < nstreams; i++) {
-#if defined ( __HAS_NO_CUDA_SM30 )
-    cErr = cudaStreamCreate(&cuda_streams_ptr[i]);
-#else
     cErr = cudaStreamCreateWithFlags(&cuda_streams_ptr[i], cudaStreamNonBlocking);
-    //cErr = cudaStreamCreateWithFlags(&(cuda_streams_ptr[i]), cudaStreamDefault);
-#endif
     if (CHECK) cuda_error_check2 (cErr, __LINE__);
   }
   *streams = cuda_streams_ptr;
