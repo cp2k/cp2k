@@ -12,7 +12,8 @@
 MODULE input_enumeration_types
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: a2s,&
+                                             uppercase
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -22,7 +23,6 @@ MODULE input_enumeration_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_enumeration_types'
   INTEGER, SAVE, PRIVATE :: last_enumeration_id=0
 
-  INTEGER, PARAMETER, PRIVATE :: keyword_desc_length=5*default_string_length
   PUBLIC :: enumeration_type
   PUBLIC :: enum_create, enum_retain, enum_release, enum_i2c, enum_c2i
 
@@ -35,10 +35,14 @@ MODULE input_enumeration_types
 !> \param strict if integer values not in the list should be accepted
 !> \author fawzi
 ! *****************************************************************************
+  TYPE char_array
+     CHARACTER, DIMENSION(:), POINTER :: chars => Null()
+  END TYPE char_array
+
   TYPE enumeration_type
      INTEGER :: id_nr, ref_count
      CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: c_vals
-     CHARACTER(len=keyword_desc_length), DIMENSION(:), POINTER :: desc
+     TYPE(char_array), DIMENSION(:), POINTER :: desc => Null()
      INTEGER, DIMENSION(:), POINTER :: i_vals
      LOGICAL :: strict
   END TYPE enumeration_type
@@ -69,7 +73,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, j, n, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -100,12 +104,16 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
      IF (PRESENT(desc)) THEN
         CPPrecondition(SIZE(enum%desc)==SIZE(desc),cp_failure_level,routineP,error,failure)
         DO i=1,SIZE(enum%desc)
-           CPPrecondition(LEN_TRIM(desc(i))<=LEN(enum%desc(i)),cp_failure_level,routineP,error,failure)
-           enum%desc(i)=desc(i)
-        END DO
+           n = LEN_TRIM(desc(i))
+           ALLOCATE(enum%desc(i)%chars(n))
+           DO j=1, n
+             enum%desc(i)%chars(j) = desc(i)(j:j)
+           END DO
+       END DO
      ELSE
         DO i=1,SIZE(enum%desc)
-           enum%desc(i)=' '
+           ALLOCATE(enum%desc(i)%chars(1))
+           enum%desc(i)%chars(1:1) = ' '
         END DO
      END IF
   END IF
@@ -149,7 +157,7 @@ SUBROUTINE enum_release(enum,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -161,6 +169,9 @@ SUBROUTINE enum_release(enum,error)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           DEALLOCATE(enum%i_vals,stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          DO i=1, SIZE(enum%desc)
+             DEALLOCATE(enum%desc(i)%chars)
+          END DO
           DEALLOCATE(enum%desc,stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           DEALLOCATE(enum,stat=stat)
@@ -207,7 +218,7 @@ FUNCTION enum_i2c(enum,i,error) RESULT(res)
      IF (.NOT.found) THEN
         IF (enum%strict) THEN
          DO j=1,SIZE(enum%desc)
-          PRINT *, TRIM(enum%desc(j))
+          PRINT *, TRIM(a2s(enum%desc(j)%chars))
           PRINT *, TRIM(enum%c_vals(j))
          ENDDO
           PRINT *, enum%i_vals

@@ -29,7 +29,8 @@ MODULE input_keyword_types
   USE reference_manager,               ONLY: get_citation_key,&
                                              print_format_journal,&
                                              print_reference
-  USE string_utilities,                ONLY: compress,&
+  USE string_utilities,                ONLY: a2s,&
+                                             compress,&
                                              substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
@@ -42,8 +43,7 @@ MODULE input_keyword_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
 
-  INTEGER, PARAMETER, PUBLIC :: description_string_length=15*default_string_length,&
-       usage_string_length=default_string_length*2
+  INTEGER, PARAMETER, PUBLIC :: usage_string_length=default_string_length*2
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
 
   PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain,&
@@ -92,7 +92,7 @@ MODULE input_keyword_types
      INTEGER :: ref_count,id_nr
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
      CHARACTER(LEN=usage_string_length) :: usage
-     CHARACTER(LEN=description_string_length) :: description
+     CHARACTER,DIMENSION(:),POINTER :: description => Null()
      INTEGER, POINTER, DIMENSION(:) :: citations
      INTEGER :: type_of_var,n_var
      LOGICAL :: repeats, required, supported_feature
@@ -172,7 +172,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, n, stat
     LOGICAL                                  :: check, failure
 
     failure=.FALSE.
@@ -210,8 +210,12 @@ CONTAINS
        ELSE
           keyword%usage=""
        END IF
-       CPPrecondition(LEN_TRIM(description)<=LEN(keyword%description),cp_failure_level,routineP,error,failure)
-       keyword%description=description
+
+       n = LEN_TRIM(description)
+       ALLOCATE(keyword%description(n))
+       DO i=1, n
+          keyword%description(i) = description(i:i)
+       END DO
 
        IF (PRESENT(citations)) THEN
           ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
@@ -446,6 +450,7 @@ CONTAINS
        IF (keyword%ref_count==0) THEN
           DEALLOCATE(keyword%names,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(keyword%description)
           CALL val_release(keyword%default_value,error=error)
           CALL val_release(keyword%lone_keyword_value,error=error)
           CALL enum_release(keyword%enum,error=error)
@@ -493,7 +498,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(names)) names => keyword%names
        IF (PRESENT(usage)) usage=keyword%usage
-       IF (PRESENT(description)) description=keyword%description
+       IF (PRESENT(description)) description=a2s(keyword%description)
        IF (PRESENT(type_of_var)) type_of_var=keyword%type_of_var
        IF (PRESENT(n_var)) n_var=keyword%n_var
        IF (PRESENT(repeats)) repeats=keyword%repeats
@@ -540,7 +545,7 @@ CONTAINS
        END IF
        IF (level>2) THEN
           WRITE(unit_nr,"(a)")"description   : "
-          CALL print_message(TRIM(keyword%description),unit_nr,0,0,0)
+          CALL print_message(TRIM(a2s(keyword%description)),unit_nr,0,0,0)
           IF (level>3) THEN
              SELECT CASE(keyword%type_of_var)
              CASE (logical_t)
@@ -603,9 +608,9 @@ CONTAINS
                 WRITE(unit_nr,"('  valid keywords:')")
                 DO i=1,SIZE(keyword%enum%c_vals)
                    c_string=keyword%enum%c_vals(i)
-                   IF (LEN_TRIM(keyword%enum%desc(i))>0) THEN
+                   IF (LEN_TRIM(a2s(keyword%enum%desc(i)%chars))>0) THEN
                       WRITE (unit_nr,"('  - ',a,' : ',a,'.')") &
-                           TRIM(c_string),TRIM(keyword%enum%desc(i))
+                           TRIM(c_string),TRIM(a2s(keyword%enum%desc(i)%chars))
                    ELSE
                       WRITE (unit_nr,"('  - ',a)") TRIM(c_string)
                    END IF
@@ -674,7 +679,7 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: c_string, color_tag, my_unit
     INTEGER                                  :: i, iref
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: any_description, failure
 
     failure=.FALSE.
 
@@ -689,7 +694,7 @@ CONTAINS
             '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(color_tag)//TRIM(keyword%names(1))//'</font></u></A>'// &
             '<TD WIDTH="80%">'
        WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%">'//TRIM(keyword%usage)
-       WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%"><i>'//TRIM(keyword%description)//'</i>'
+       WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%"><i>'//TRIM(a2s(keyword%description))//'</i>'
        IF (keyword%required) THEN
           WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD> This required keyword '
        ELSE
@@ -770,12 +775,16 @@ CONTAINS
        ENDIF
 
        IF (keyword%type_of_var==enum_t) THEN
-          IF (ANY(keyword%enum%desc.NE."")) THEN
+          any_description = .FALSE.
+          DO i=1,SIZE(keyword%enum%c_vals)
+             any_description = any_description .OR. SIZE(keyword%enum%desc(i)%chars)>1
+          ENDDO
+          IF (any_description) THEN
              WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
              DO i=1,SIZE(keyword%enum%c_vals)
                 c_string=keyword%enum%c_vals(i)
                 WRITE (unit_nr,'(a,a,a,a,a)') "<li><code>",&
-                     TRIM(c_string), "</code>: ",TRIM(keyword%enum%desc(i)),"</li>"
+                     TRIM(c_string), "</code>: ",TRIM(a2s(keyword%enum%desc(i)%chars)),"</li>"
              END DO
              WRITE (unit_nr,'(a)',advance='NO') '</ul>'
           ELSE
@@ -920,15 +929,13 @@ CONTAINS
                   REPEAT(" ",l2)//"<ENUMERATION strict=""no"">"
           END IF
           DO i=1,SIZE(keyword%enum%c_vals)
-             CALL substitute_special_xml_tokens(keyword%enum%desc(i),string,&
-                  ltu=.FALSE.)
              WRITE (UNIT=unit_number,FMT="(A)")&
                   REPEAT(" ",l3)//"<ITEM>",&
                   REPEAT(" ",l4)//"<NAME>"//&
                   TRIM(ADJUSTL(keyword%enum%c_vals(i)))//"</NAME>",&
                   REPEAT(" ",l4)//"<DESCRIPTION>"//&
-                  TRIM(ADJUSTL(string))//"</DESCRIPTION>",&
-                  REPEAT(" ",l3)//"</ITEM>"
+                  TRIM(ADJUSTL(substitute_special_xml_tokens(a2s(keyword%enum%desc(i)%chars))))&
+                  //"</DESCRIPTION>",REPEAT(" ",l3)//"</ITEM>"
           END DO
           WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"</ENUMERATION>"
        CASE (no_t)
@@ -944,13 +951,13 @@ CONTAINS
             REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(short_string))//"</N_VAR>",&
             REPEAT(" ",l1)//"</DATA_TYPE>"
 
-       CALL substitute_special_xml_tokens(keyword%usage,string,ltu=.TRUE.)
-       WRITE (UNIT=unit_number,FMT="(A)")&
-            REPEAT(" ",l1)//"<USAGE>"//TRIM(string)//"</USAGE>"
+       WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<USAGE>"//&
+            TRIM(substitute_special_xml_tokens(keyword%usage,ltu=.TRUE.))&
+            //"</USAGE>"
 
-       CALL substitute_special_xml_tokens(keyword%description,string,ltu=.FALSE.)
-       WRITE (UNIT=unit_number,FMT="(A)")&
-            REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(string)//"</DESCRIPTION>"
+       WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<DESCRIPTION>"//&
+            TRIM(substitute_special_xml_tokens(a2s(keyword%description)))&
+            //"</DESCRIPTION>"
 
        IF (ASSOCIATED(keyword%default_value).AND.&
             (keyword%type_of_var /= no_t)) THEN
@@ -1084,3 +1091,5 @@ CONTAINS
   END SUBROUTINE keyword_typo_match
 
 END MODULE input_keyword_types
+
+

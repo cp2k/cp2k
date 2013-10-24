@@ -76,7 +76,7 @@ MODULE string_utilities
             make_tuple,&
             pattern_match,&
             remove_word,&
-            s2a,&
+            s2a,a2s,&
             str_comp,&
             str_search,&
             string_to_ascii,&
@@ -148,6 +148,24 @@ CONTAINS
     ENDDO
 
   END FUNCTION typo_match
+
+
+! *****************************************************************************
+!> \brief Converts a character-array into a string
+!> \par History
+!>      10.2013 created [Ole Schuett]
+! *****************************************************************************
+  PURE FUNCTION a2s(array) RESULT(string)
+    CHARACTER, DIMENSION(:), INTENT(IN)      :: array
+    CHARACTER(LEN=SIZE(array))               :: string
+
+    INTEGER                                  :: i
+
+    DO i=1,SIZE(array)
+      string(i:i) = array(i)
+    ENDDO
+  END FUNCTION a2s
+
 
 ! *****************************************************************************
 !> \brief converts a bunch of strings of different length to an array of
@@ -768,11 +786,11 @@ CONTAINS
 !> \par History
 !>      - Enable the use of HTML entity names (06.03.13,MK)
 ! *****************************************************************************
-  SUBROUTINE substitute_special_xml_tokens(inp_string,out_string,ltu)
+  FUNCTION substitute_special_xml_tokens(inp_string,ltu) RESULT(out_string)
 
     CHARACTER(LEN=*), INTENT(IN)             :: inp_string
-    CHARACTER(LEN=*), INTENT(OUT)            :: out_string
     LOGICAL, INTENT(IN), OPTIONAL            :: ltu
+    CHARACTER(LEN=2*LEN(inp_string))         :: out_string
 
     CHARACTER(LEN=LEN(inp_string))           :: string
     CHARACTER(LEN=maxlen_entity_name)        :: entity_name
@@ -855,7 +873,7 @@ CONTAINS
        END IF
     END DO string_loop
 
-  END SUBROUTINE substitute_special_xml_tokens
+  END  FUNCTION substitute_special_xml_tokens
 
 ! *****************************************************************************
 !> \brief   Write the HTML entity and HTML tag table to unit output_unit

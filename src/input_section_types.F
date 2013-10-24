@@ -18,10 +18,14 @@ MODULE input_section_types
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
   USE f77_blas
-  USE input_keyword_types,             ONLY: &
-       description_string_length, keyword_describe, keyword_describe_html, &
-       keyword_p_type, keyword_release, keyword_retain, keyword_type, &
-       keyword_typo_match, write_keyword_xml
+  USE input_keyword_types,             ONLY: keyword_describe,&
+                                             keyword_describe_html,&
+                                             keyword_p_type,&
+                                             keyword_release,&
+                                             keyword_retain,&
+                                             keyword_type,&
+                                             keyword_typo_match,&
+                                             write_keyword_xml
   USE input_val_types,                 ONLY: lchar_t,&
                                              no_t,&
                                              val_create,&
@@ -32,12 +36,12 @@ MODULE input_section_types
                                              val_write
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp,&
-                                             max_line_length
+                                             dp
   USE reference_manager,               ONLY: get_citation_key,&
                                              print_format_journal,&
                                              print_reference
-  USE string_utilities,                ONLY: compress,&
+  USE string_utilities,                ONLY: a2s,&
+                                             compress,&
                                              substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
@@ -107,7 +111,7 @@ MODULE input_section_types
      LOGICAL :: frozen, required, repeats, supported_feature
      INTEGER :: id_nr,ref_count, n_keywords, n_subsections
      CHARACTER(len=default_string_length)        :: name
-     CHARACTER(len=description_string_length)    :: description
+     CHARACTER,DIMENSION(:),POINTER              :: description=>Null()
      INTEGER, POINTER, DIMENSION(:)              :: citations
      TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
      TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections
@@ -164,7 +168,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_n_keywords, &
-                                                my_n_subsections, stat
+                                                my_n_subsections, n, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -186,8 +190,13 @@ CONTAINS
        section%n_subsections=0
        section%name=name
        CALL uppercase(section%name)
-       CPPrecondition(LEN_TRIM(description)<=LEN(section%description),cp_warning_level,routineP,error,failure)
-       section%description=description
+
+       n = LEN_TRIM(description)
+       ALLOCATE(section%description(n))
+       DO i=1, n
+          section%description(i) = description(i:i)
+       END DO
+
        section%frozen=.FALSE.
        section%required=.FALSE.
        section%supported_feature=.FALSE.
@@ -288,6 +297,7 @@ CONTAINS
              DEALLOCATE(section%subsections,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          DEALLOCATE(section%description)
           DEALLOCATE(section,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -310,9 +320,9 @@ CONTAINS
     INTEGER                                  :: length
 
     message = " "
-    length  = LEN_TRIM(section%description)
+    length  = LEN_TRIM(a2s(section%description))
     IF (length>0) THEN
-       IF (section%description(length:length)/=".") THEN
+       IF (section%description(length)/=".") THEN
           message = "."
        ENDIF
     ENDIF
@@ -368,7 +378,7 @@ CONTAINS
                WRITE(unit_nr,"('*** section &',a,' ***')")TRIM(section%name)
           IF (level>1) THEN
              message = get_section_info(section, error)
-             CALL print_message(TRIM(section%description)//TRIM(message),unit_nr,0,0,0)
+             CALL print_message(TRIM(a2s(section%description))//TRIM(message),unit_nr,0,0,0)
           END IF
           IF (level>0) THEN
              IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
@@ -446,7 +456,7 @@ CONTAINS
        WRITE(179,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
 
        message = get_section_info(section, error)
-       WRITE(179,FMT='(A)') '<BR><BR>'//TRIM(section%description)//TRIM(message)
+       WRITE(179,FMT='(A)') '<BR><BR>'//TRIM(a2s(section%description))//TRIM(message)
 
        IF (ASSOCIATED(section%citations)) THEN
           IF (SIZE(section%citations,1)>1) THEN
@@ -750,8 +760,8 @@ CONTAINS
        IF (PRESENT(id_nr)) id_nr=section%id_nr
        IF (PRESENT(ref_count)) ref_count=section%ref_count
        IF (PRESENT(name)) name=section%name
-       IF (PRESENT(description)) description=section%description
-       IF (PRESENT(description)) citations=>section%citations
+       IF (PRESENT(description)) description=a2s(section%description)
+       IF (PRESENT(citations)) citations=>section%citations
     END IF
   END SUBROUTINE section_get
 
@@ -2141,9 +2151,6 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: repeats, required
     CHARACTER(LEN=8)                         :: short_string
-    CHARACTER(LEN=MAX(&
-      description_string_length, &
-      max_line_length))                      :: string
     INTEGER                                  :: i, l0, l1, l2
     LOGICAL                                  :: failure
 
@@ -2171,13 +2178,13 @@ CONTAINS
           repeats = "no "
        END IF
 
-       CALL substitute_special_xml_tokens(section%description,string,ltu=.FALSE.)
-
        WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l0)//"<SECTION required="""//TRIM(required)//&
             """ repeats="""//TRIM(repeats)//""">",&
             REPEAT(" ",l1)//"<NAME>"//TRIM(section%name)//"</NAME>",&
-            REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(string)//"</DESCRIPTION>"
+            REPEAT(" ",l1)//"<DESCRIPTION>"//&
+            TRIM(substitute_special_xml_tokens(a2s(section%description)))&
+            //"</DESCRIPTION>"
 
        IF (ASSOCIATED(section%citations)) THEN
           DO i=1,SIZE(section%citations,1)
