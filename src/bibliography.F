@@ -60,7 +60,7 @@ MODULE bibliography
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009
+             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Tran2013
 
 CONTAINS
 
@@ -2291,7 +2291,27 @@ CONTAINS
          "ER"),&
          DOI="10.1002/qua.22017")
 
+    CALL add_reference(key=Tran2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Tran, F",&
+         "   Hutter, J",&
+         "AF Tran, Fabien",&
+         "   Hutter, Juerg",&
+         "TI Nonlocal van der Waals functionals: The case of rare-gas dimers and",&
+         "   solids",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "TC 2",&
+         "Z9 2",&
+         "SN 0021-9606",&
+         "PD MAY 28",&
+         "PY 2013",&
+         "VL 138",&
+         "IS 20",&
+         "AR 204103",&
+         "DI 10.1063/1.4807332",&
+         "UT WOS:000320131100005",&
+         "ER"),&
+         DOI="10.1063/1.4807332")
 
-  END SUBROUTINE add_all_references
-
+END SUBROUTINE add_all_references
 END MODULE bibliography
