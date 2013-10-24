@@ -37,7 +37,8 @@ MODULE input_cp2k_subsys
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE physcon,                         ONLY: bohr
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -892,8 +893,30 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
-            type_of_var=lchar_t, error=error)
+        repeats=.TRUE., type_of_var=lchar_t, error=error,&
+         description="<u>CP2K Basis Set Standard Format</u>"//newline//&
+        "<pre>"//newline//&
+        "Element symbol  Name of the basis set  Alias names"//newline//&
+        "nset (repeat the following block of lines nset times)"//newline//&
+        "n lmin lmax nexp nshell(lmin) nshell(lmin+1) ... nshell(lmax-1) nshell(lmax)"//newline//&
+        "a(1)      c(1,l,1)      c(1,l,2) ...      c(1,l,nshell(l)-1)      c(1,l,nshell(l)), l=lmin,lmax"//newline//&
+        "a(2)      c(2,l,1)      c(2,l,2) ...      c(2,l,nshell(l)-1)      c(2,l,nshell(l)), l=lmin,lmax"//newline//&
+        " .         .             .                 .                       ."//newline//&
+        " .         .             .                 .                       ."//newline//&
+        " .         .             .                 .                       ."//newline//&
+        "a(nexp-1) c(nexp-1,l,1) c(nexp-1,l,2) ... c(nexp-1,l,nshell(l)-1) c(nexp-1,l,nshell(l)), l=lmin,lmax"//newline//&
+        "a(nexp)   c(nexp,l,1)   c(nexp,l,2)   ... c(nexp,l,nshell(l)-1)   c(nexp,l,nshell(l)), l=lmin,lmax"//newline//&
+        newline//&
+        newline//&
+        "nset     : Number of exponent sets"//newline//&
+        "n        : Principle quantum number (only for orbital label printing)"//newline//&
+        "lmax     : Maximum angular momentum quantum number l"//newline//&
+        "lmin     : Minimum angular momentum quantum number l"//newline//&
+        "nshell(l): Number of shells for angular momentum quantum number l"//newline//&
+        "a        : Exponent"//newline//&
+        "c        : Contraction coefficient"//newline//&
+        "</pre>"//newline//&
+        "Source: ftp://ftp.aip.org/epaps/journ_chem_phys/E-JCPSA6-127-308733/BASIS_MOLOPT_JCP.txt")
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
