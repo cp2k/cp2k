@@ -60,7 +60,7 @@ MODULE bibliography
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013
+             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009
 
 CONTAINS
 
@@ -2266,6 +2266,31 @@ CONTAINS
          "UT WOS:000320484500014",&
          "ER"),&
          DOI="10.1021/ct4002202")
+
+    CALL add_reference(key=Kikuchi2009, ISI_record=s2a(&
+         "PT J",&
+         "AU Kikuchi, Y",&
+         "   Imamura, Y",&
+         "   Nakai, H",&
+         "AF Kikuchi, Yasuaki",&
+         "   Imamura, Yutaka",&
+         "   Nakai, Hiromi",&
+         "TI One-Body Energy Decomposition Schemes Revisited: Assessment of",&
+         "   Mulliken-, Grid-, and Conventional Energy Density Analyses",&
+         "SO INTERNATIONAL JOURNAL OF QUANTUM CHEMISTRY",&
+         "TC 3",&
+         "Z9 3",&
+         "SN 0020-7608",&
+         "PD SEP",&
+         "PY 2009",&
+         "VL 109",&
+         "IS 11",&
+         "BP 2464",&
+         "EP 2473",&
+         "DI 10.1002/qua.22017",&
+         "ER"),&
+         DOI="10.1002/qua.22017")
+
 
   END SUBROUTINE add_all_references
 
