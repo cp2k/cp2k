@@ -10,6 +10,7 @@
 !> \author JHU
 ! *****************************************************************************
 MODULE input_cp2k_atprop
+  USE bibliography,                    ONLY: Kikuchi2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -58,6 +59,7 @@ CONTAINS
        CALL section_create(section,name="ATOMIC",&
             description="Controls the calculation and printing of atomic properties ",&
             repeats=.FALSE., required=.FALSE.,&
+            citations=(/Kikuchi2009/),&
             error=error)
 
        NULLIFY(keyword)
