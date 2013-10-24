@@ -1002,7 +1002,7 @@ CONTAINS
          REAL(ana_env%density_3d%conf_counter, KIND=dp))**2)
     WRITE(ana_env%io_unit,FMT="(/,T2,A)") REPEAT("-",79)
     IF(ana_env%print_test_output) &
-      WRITE(*,*)"TMC|ANALYSIS_CELL_DENSITY_X= ", &
+      WRITE(ana_env%io_unit,*)"TMC|ANALYSIS_CELL_DENSITY_X= ", &
         SUM(ana_env%density_3d%sum_density(:,:,:))/&
         SIZE(ana_env%density_3d%sum_density(:,:,:))/&
         REAL(ana_env%density_3d%conf_counter, KIND=dp)

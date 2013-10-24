@@ -130,6 +130,14 @@ CONTAINS
     ENDIF
     ! ugly, we need to know the output unit on source, everywhere, in particular
     ! the tmc master
+    IF (output_unit .NE. default_output_unit .AND. output_unit .GT.0) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "The TMC output files are:"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_master.out           the TMC master"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_E_worker_*.out       the worker outputs (energy calculations etc.)"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_ana.out              the analysis output"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
+    END IF
     bcast_output_unit=output_unit
     CALL mp_bcast(bcast_output_unit,para_env%source,para_env%group)
 
@@ -193,6 +201,7 @@ CONTAINS
           CALL open_file(file_name=tmc_master_out_file_name,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=tmc_env%m_env%io_unit)
+          CALL tmc_header(tmc_env%m_env%io_unit)
         ENDIF
         ! print the intresting parameters and starting values
         CALL tmc_print_params(tmc_env, error_sub)
@@ -274,6 +283,7 @@ CONTAINS
           CALL open_file(file_name=tmc_ana_out_file_name,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=output_unit)
+          CALL tmc_ana_header(output_unit)
         ENDIF
 
         ALLOCATE(tmc_ana_env_list(tmc_env%params%nr_temp))

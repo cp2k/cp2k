@@ -405,7 +405,7 @@ CONTAINS
               ana_list(itmp)%temp%temperature = tmc_env%params%Temp(itmp)
               ana_list(itmp)%temp%atoms       => tmc_env%params%atoms 
               ana_list(itmp)%temp%cell        => tmc_env%params%cell
-              ana_list(itmp)%temp%io_unit     = tmc_env%w_env%io_unit
+!              ana_list(itmp)%temp%io_unit     = tmc_env%w_env%io_unit
               
               CALL analysis_init(ana_env=ana_list(itmp)%temp, nr_dim=num_dim,& 
                                  error=error)
