@@ -24,6 +24,7 @@ MODULE string_utilities
   CHARACTER(LEN=1), PARAMETER :: backslash = '\\'
   CHARACTER(LEN=1), PARAMETER :: star      = '*'
   CHARACTER(LEN=1), PARAMETER :: question  = '?'
+  CHARACTER(LEN=1), PARAMETER :: newline  = NEW_LINE('A')
 
   INTEGER, PARAMETER :: maxlen_entity_name = 10
   CHARACTER(LEN=maxlen_entity_name), DIMENSION(252), PARAMETER :: html_entity_table =&
@@ -61,12 +62,12 @@ MODULE string_utilities
      "&lang;    ","&#9001;   ","&rang;    ","&#9002;   "/)
 
   INTEGER, PARAMETER :: maxlen_tag_name = 10
-  CHARACTER(LEN=maxlen_tag_name), DIMENSION(37), PARAMETER :: html_tag_table =&
+  CHARACTER(LEN=maxlen_tag_name), DIMENSION(38), PARAMETER :: html_tag_table =&
    (/"a         ","b         ","big       ","blockquote","br/       ","code      ","dd        ","del       ",&
      "div       ","dl        ","dt        ","em        ","h1        ","h2        ","h3        ","h4        ",&
      "h5        ","h6        ","hr        ","i         ","ins       ","li        ","ol        ","p         ",&
      "span      ","sub       ","sup       ","table     ","tbody     ","td        ","tfoot     ","th        ",&
-     "thead     ","tr        ","tt        ","u         ","ul        "/)
+     "thead     ","tr        ","tt        ","u         ","ul        ","pre       "/)
 
   PUBLIC :: ascii_to_string,&
             compress,&
@@ -89,7 +90,8 @@ MODULE string_utilities
   PUBLIC :: backslash,&
             html_entity_table,&
             star,&
-            question
+            question,&
+            newline
 
   INTERFACE s2a
      MODULE PROCEDURE s2a_1,s2a_2,s2a_3, s2a_4,  s2a_5,  s2a_6,  s2a_7,  s2a_8,  s2a_9, &
