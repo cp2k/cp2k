@@ -694,6 +694,13 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="PREFIX_ANA_FILES",&
+            description="specifies a prefix for all analysis files.",&
+            usage="ANA_FILES_PREFIX {prefix}",&
+            default_c_val="", required=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
       CALL keyword_create(keyword=keyword,&
            name="DENSITY",&
            description="Mass density in the simulation cell, or if specified in sub cubes",&

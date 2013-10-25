@@ -53,6 +53,7 @@ MODULE tmc_analysis_types
     INTEGER                                       :: io_unit
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                       :: dirs
+    CHARACTER(LEN= default_path_length )          :: out_file_prefix
     INTEGER                                       :: conf_offset
     TYPE(cell_type), POINTER                      :: cell
     TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
@@ -171,6 +172,7 @@ CONTAINS
     tmc_ana%lc_dip  = 0
     tmc_ana%lc_ener = 0
     ! file names
+    tmc_ana%out_file_prefix       = ""
     tmc_ana%costum_pos_file_name  = ""
     tmc_ana%costum_dip_file_name  = ""
     tmc_ana%costum_cell_file_name = ""

@@ -115,6 +115,11 @@ CONTAINS
       CALL tmc_ana_env_create(tmc_ana=tmc_ana, error=error)
       ! restarting
       CALL section_vals_val_get(tmc_ana_section,"RESTART",l_val=tmc_ana%restart,error=error)
+      ! file name prefix
+      CALL section_vals_val_get(tmc_ana_section,"PREFIX_ANA_FILES",&
+             c_val=tmc_ana%out_file_prefix, error=error)
+      tmc_ana%out_file_prefix = TRIM(tmc_ana%out_file_prefix)//"_"
+
       ! density calculation
       CALL section_vals_val_get(tmc_ana_section,"DENSITY" ,explicit=explicit_key,error=error)
       IF(explicit_key)THEN
@@ -310,6 +315,7 @@ CONTAINS
 
     WRITE(file_name, FMT='(I9.9)') ana_env%last_elem%nr
     file_name_tmp = TRIM(expand_file_name_temp(expand_file_name_char(&
+                             TRIM(ana_env%out_file_prefix)//&
                              tmc_default_restart_out_file_name,&
                              "ana",error), ana_env%temperature, error))
     restart_file_name = expand_file_name_char(file_name_tmp, &
@@ -360,8 +366,8 @@ CONTAINS
     END IF
     CALL close_file(unit_number=file_ptr)
 
-    file_name_tmp = expand_file_name_char(tmc_default_restart_in_file_name,&
-                                          "ana",error)
+    file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
+                      tmc_default_restart_in_file_name, "ana",error)
     file_name = expand_file_name_temp(file_name_tmp, &
                       ana_env%temperature, error)
     CALL open_file(file_name=file_name, &
@@ -396,8 +402,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)   
     IF(.NOT.ana_env%restart) RETURN
  
-    file_name_tmp = expand_file_name_char(tmc_default_restart_in_file_name,&
-                                          "ana",error)
+    file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
+                      tmc_default_restart_in_file_name, "ana",error)
     file_name = expand_file_name_temp(file_name_tmp, &
                       ana_env%temperature, error)
     INQUIRE(FILE=file_name, EXIST=l_tmp)
@@ -857,8 +863,9 @@ CONTAINS
 
     ! print out the actual and average density in file
     IF(ana_env%density_3d%print_dens) THEN
-      file_name_tmp = expand_file_name_temp(tmc_default_trajectory_file_name, &
-                    ana_env%temperature, error)
+      file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                        tmc_default_trajectory_file_name, &
+                        ana_env%temperature, error)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
                        "dens",error))
       INQUIRE(FILE=file_name, EXIST=flag)
@@ -944,7 +951,8 @@ CONTAINS
     interval_size(3) = cell_size(3)/REAL(bin_z,KIND=dp)*au2a 
     
 
-    file_name = expand_file_name_temp(tmc_ana_density_file_name, &
+    file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                  tmc_ana_density_file_name, &
                   ana_env%temperature, error)
     CALL open_file(file_name=file_name, file_status="REPLACE", &
                    file_action="WRITE", file_position="APPEND", &
@@ -955,7 +963,8 @@ CONTAINS
     WRITE(file_ptr_dens,FMT='(A,3A10,A20)')"#"," x [A] "," y [A] "," z [A] "," density [g/cm^3] "
 
     file_name_vari = expand_file_name_temp(expand_file_name_char(&
-                         tmc_ana_density_file_name,"vari",error),&
+                       TRIM(ana_env%out_file_prefix)//&
+                       tmc_ana_density_file_name,"vari",error),&
                        ana_env%temperature, error)
     CALL open_file(file_name=file_name_vari, file_status="REPLACE", &
                    file_action="WRITE", file_position="APPEND", &
@@ -1188,7 +1197,8 @@ CONTAINS
     vol = cell_size(1)*cell_size(2)*cell_size(3)
 
     DO pair=1, SIZE(ana_env%pair_correl%pairs)
-      file_name = expand_file_name_temp(tmc_ana_pair_correl_file_name, &
+      file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                    tmc_ana_pair_correl_file_name, &
                     ana_env%temperature, error)
       CALL open_file(file_name=expand_file_name_char(&
                                 expand_file_name_char(file_name,&
@@ -1458,14 +1468,16 @@ CONTAINS
     e0 = 0.07957747154594767_dp !e^2*a0*me*hbar^-2
     diel_const_norm = 1/(3.0_dp*e0*kB*ana_env%temperature)
 
-    file_name = expand_file_name_temp(tmc_default_trajectory_file_name, &
+    file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                    tmc_default_trajectory_file_name, &
                     ana_env%temperature, error)
     CALL write_dipoles_in_file(file_name=file_name, &
            conf_nr=INT(ana_env%dip_ana%conf_counter)+1, dip=elem%dipole, &
            file_ext="dip_folded", error=error)
 
     ! set ouput file name
-    file_name_tmp = expand_file_name_temp(tmc_default_trajectory_file_name, &
+    file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                        tmc_default_trajectory_file_name, &
                         ana_env%temperature, error)
 
     SELECT CASE (ana_env%dip_ana%ana_type)
@@ -1670,7 +1682,8 @@ CONTAINS
     ana_env%displace%conf_counter = ana_env%displace%conf_counter +1
 
    IF(ana_env%displace%print_disp) THEN
-      file_name_tmp = expand_file_name_temp(tmc_default_trajectory_file_name, &
+      file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                        tmc_default_trajectory_file_name, &
                         ana_env%temperature, error)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
                           "devi",error))
