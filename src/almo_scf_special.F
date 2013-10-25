@@ -19,7 +19,6 @@ MODULE almo_scf_special
                                              almo_mat_dim_virt,&
                                              almo_mat_dim_virt_disc,&
                                              almo_mat_dim_virt_full,&
-                                             almo_max_av_neighbors,&
                                              almo_objectM1_type
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
@@ -635,14 +634,16 @@ CONTAINS
       global_list_length, grid1, GroupID, handle, hold, iatom, iatom2, &
       iblock_col, iblock_row, idomain, idomain2, ientry, igrid, ineig, &
       ineighbor, iNode, inode2, ipair, ispin, jatom, jatom2, jdomain2, &
-      local_list_length, max_neig, mynode, nblkcols_tot, nblkrows_tot, nblks, &
-      ndomains, neig_temp, nnode2, nNodes, row, unit_nr
+      local_list_length, max_domain_neighbors, max_neig, mynode, &
+      nblkcols_tot, nblkrows_tot, nblks, ndomains, neig_temp, nnode2, nNodes, &
+      row, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:) :: current_number_neighbors, &
       domain_entries_cpu, domain_map_global, domain_map_local, &
       first_atom_of_molecule, global_list, last_atom_of_molecule, &
       list_length_cpu, list_offset_cpu, local_list, offset_for_cpu
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: domain_grid, &
-                                                domain_neighbor_list
+                                                domain_neighbor_list, &
+                                                domain_neighbor_list_excessive
     LOGICAL                                  :: already_listed, block_active, &
                                                 failure, found, &
                                                 max_neig_fails, tr
@@ -708,10 +709,6 @@ CONTAINS
 
     ALLOCATE(main_objectM1%quench_t(main_objectM1%nspins))
     ALLOCATE(main_objectM1%domain_map(main_objectM1%nspins))
-    DO ispin=1,main_objectM1%nspins
-       ALLOCATE(main_objectM1%domain_map(ispin)%index1(ndomains))
-       ALLOCATE(main_objectM1%domain_map(ispin)%pairs(almo_max_av_neighbors*ndomains,2))
-    ENDDO
 
     ispin=1
 
@@ -731,10 +728,6 @@ CONTAINS
        nblkrows_tot = cp_dbcsr_nblkrows_total(main_objectM1%quench_t(ispin))
        nblkcols_tot = cp_dbcsr_nblkcols_total(main_objectM1%quench_t(ispin))
 
-       main_objectM1%domain_map(ispin)%pairs(:,:)=0
-       main_objectM1%domain_map(ispin)%index1(:)=0
-       domain_map_local_entries=0
-   
        mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(&
           cp_dbcsr_distribution(main_objectM1%quench_t(ispin))))
        nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(&
@@ -775,19 +768,33 @@ CONTAINS
              list_length_cpu(iNode-1)
        ENDDO
        global_list_length=list_offset_cpu(nNodes)+list_length_cpu(nNodes)
+       global_list_length=global_list_length/2
  
-       ALLOCATE(global_list(global_list_length))
+       ALLOCATE(global_list(2*global_list_length))
        CALL mp_allgather(local_list,global_list,&
                list_length_cpu,list_offset_cpu,GroupID)
        DEALLOCATE(list_length_cpu,list_offset_cpu)
        DEALLOCATE(local_list)
        
-       ALLOCATE(domain_neighbor_list(ndomains,&
-          almo_max_av_neighbors))
        ALLOCATE(current_number_neighbors(main_objectM1%ndomains))
-       domain_neighbor_list(:,:)=0
        current_number_neighbors(:)=0
-       global_list_length=global_list_length/2
+       DO ipair=1, global_list_length
+          iatom2=global_list(2*(ipair-1)+1)
+          jatom2=global_list(2*(ipair-1)+2)
+          idomain2=main_objectM1%domain_index_of_atom(iatom2)
+          jdomain2=main_objectM1%domain_index_of_atom(jatom2)
+          current_number_neighbors(idomain2)=current_number_neighbors(idomain2)+1
+          IF (idomain2.ne.jdomain2) THEN
+             current_number_neighbors(jdomain2)=current_number_neighbors(jdomain2)+1
+          ENDIF
+       ENDDO 
+ 
+       max_domain_neighbors=MAXVAL(current_number_neighbors)
+       ALLOCATE(domain_neighbor_list_excessive(ndomains,max_domain_neighbors))
+       current_number_neighbors(:)=1
+       DO ipair=1, ndomains
+          domain_neighbor_list_excessive(ipair,1)=ipair
+       ENDDO
        DO ipair=1, global_list_length
           iatom2=global_list(2*(ipair-1)+1)
           jatom2=global_list(2*(ipair-1)+2)
@@ -795,30 +802,34 @@ CONTAINS
           jdomain2=main_objectM1%domain_index_of_atom(jatom2)
           already_listed=.FALSE.
           DO ineighbor=1,current_number_neighbors(idomain2)
-             IF (domain_neighbor_list(idomain2,ineighbor).eq.jdomain2) THEN
+             IF (domain_neighbor_list_excessive(idomain2,ineighbor).eq.jdomain2) THEN
                 already_listed=.TRUE.
                 EXIT
              ENDIF
           ENDDO
           IF (.NOT.already_listed) THEN
              current_number_neighbors(idomain2)=current_number_neighbors(idomain2)+1
-             IF ( current_number_neighbors(idomain2).gt.almo_max_av_neighbors ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"increase almo_max_av_neighbors",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             ENDIF
-             domain_neighbor_list(idomain2,current_number_neighbors(idomain2))=jdomain2
+             domain_neighbor_list_excessive(idomain2,current_number_neighbors(idomain2))=jdomain2
              IF (idomain2.ne.jdomain2) THEN
                 current_number_neighbors(jdomain2)=current_number_neighbors(jdomain2)+1
-                IF ( current_number_neighbors(jdomain2).gt.almo_max_av_neighbors ) THEN
-                   CPErrorMessage(cp_failure_level,routineP,"increase almo_max_av_neighbors",error)
-                   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                ENDIF
-                domain_neighbor_list(jdomain2,current_number_neighbors(jdomain2))=idomain2
+                domain_neighbor_list_excessive(jdomain2,current_number_neighbors(jdomain2))=idomain2
              ENDIF
           ENDIF
-       ENDDO 
+       ENDDO
        DEALLOCATE(global_list)
+ 
+       max_domain_neighbors=MAXVAL(current_number_neighbors)
+       ALLOCATE(domain_neighbor_list(ndomains,max_domain_neighbors))
+       domain_neighbor_list(:,:)=0
+       domain_neighbor_list(:,:)=domain_neighbor_list_excessive(:,1:max_domain_neighbors)
+       DEALLOCATE(domain_neighbor_list_excessive)
 
+       ALLOCATE(main_objectM1%domain_map(ispin)%index1(ndomains))
+       ALLOCATE(main_objectM1%domain_map(ispin)%pairs(max_domain_neighbors*ndomains,2))
+       main_objectM1%domain_map(ispin)%pairs(:,:)=0
+       main_objectM1%domain_map(ispin)%index1(:)=0
+       domain_map_local_entries=0
+       
        
        DO row = 1, nblkrows_tot
           DO col = 1, current_number_neighbors(row)
@@ -877,8 +888,8 @@ CONTAINS
                       CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
                       p_new_block(:,:) = 1.0_dp
                       
-                      IF (domain_map_local_entries.ge.almo_max_av_neighbors*main_objectM1%ndomains) THEN
-                         CPErrorMessage(cp_failure_level,routineP,"increase almo_max_av_neighbors",error)
+                      IF (domain_map_local_entries.ge.max_domain_neighbors*main_objectM1%ndomains) THEN
+                         CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded",error)
                          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       ENDIF
                       main_objectM1%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
@@ -961,8 +972,8 @@ CONTAINS
                       ENDIF
                       
                       IF (ABS(p_new_block(1,1)).gt.ABS(main_objectM1%eps_filter)) THEN
-                         IF (domain_map_local_entries.ge.almo_max_av_neighbors*main_objectM1%ndomains) THEN
-                            CPErrorMessage(cp_failure_level,routineP,"increase almo_max_av_neighbors",error)
+                         IF (domain_map_local_entries.ge.max_domain_neighbors*main_objectM1%ndomains) THEN
+                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded",error)
                             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                          ENDIF
                          main_objectM1%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
@@ -1072,8 +1083,8 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       ENDIF
                       
                       IF (ABS(p_new_block(1,1)).gt.ABS(main_objectM1%eps_filter)) THEN
-                         IF (domain_map_local_entries.ge.almo_max_av_neighbors*main_objectM1%ndomains) THEN
-                            CPErrorMessage(cp_failure_level,routineP,"increase almo_max_av_neighbors",error)
+                         IF (domain_map_local_entries.ge.max_domain_neighbors*main_objectM1%ndomains) THEN
+                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded",error)
                             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                          ENDIF
                          main_objectM1%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
@@ -1116,11 +1127,6 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        ENDDO
        global_entries=offset_for_cpu(nNodes)+domain_entries_cpu(nNodes)
        
-       IF ((global_entries/2).gt.almo_max_av_neighbors*main_objectM1%ndomains) THEN
-          CPErrorMessage(cp_failure_level,routineP,"increase almo_max_av_neighbors",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       ENDIF
-   
        ALLOCATE(domain_map_global(global_entries))
        ALLOCATE(domain_map_local(2*domain_map_local_entries))
        DO ientry=1,domain_map_local_entries
@@ -1132,7 +1138,14 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        DEALLOCATE(domain_entries_cpu,offset_for_cpu)
        DEALLOCATE(domain_map_local)
        
-       max_neig=almo_max_av_neighbors
+       DEALLOCATE(main_objectM1%domain_map(ispin)%index1)
+       DEALLOCATE(main_objectM1%domain_map(ispin)%pairs)
+       ALLOCATE(main_objectM1%domain_map(ispin)%index1(ndomains))
+       ALLOCATE(main_objectM1%domain_map(ispin)%pairs(global_entries/2,2))
+       main_objectM1%domain_map(ispin)%pairs(:,:)=0
+       main_objectM1%domain_map(ispin)%index1(:)=0
+   
+       max_neig=max_domain_neighbors
        max_neig_fails=.TRUE.
        max_neig_loop: DO WHILE (max_neig_fails)
           ALLOCATE(domain_grid(main_objectM1%ndomains,0:max_neig))
@@ -1163,6 +1176,7 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           max_neig_fails=.FALSE.
        ENDDO max_neig_loop
        DEALLOCATE(domain_map_global)
+       
        ientry=1
        DO idomain=1,main_objectM1%ndomains
           DO ineig=1,domain_grid(idomain,0)-1

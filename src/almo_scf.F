@@ -40,6 +40,7 @@ MODULE almo_scf
                                              almo_mat_dim_virt,&
                                              almo_mat_dim_virt_disc,&
                                              almo_mat_dim_virt_full,&
+                                             almo_max_cutoff_multiplier,&
                                              almo_objectM1_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
@@ -342,7 +343,6 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: almo_max_cutoff_multiplier
     TYPE(section_vals_type), POINTER         :: almo_scf_section
 
     CALL timeset(routineN,handle)
@@ -482,9 +482,9 @@ CONTAINS
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    almo_max_cutoff_multiplier=2.5_dp
     IF (main_objectM1%quencher_r1_factor.gt.almo_max_cutoff_multiplier) THEN
-       CPErrorMessage(cp_failure_level,routineP,"increase almo_max_cutoff_multiplier EVERYWHERE!",error)
+       CPErrorMessage(cp_failure_level,routineP,"DELOCALIZE_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier",error)
+       CPErrorMessage(cp_failure_level,routineP,"increase hard-coded almo_max_cutoff_multiplier",error)
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
 

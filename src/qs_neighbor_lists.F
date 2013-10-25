@@ -16,6 +16,7 @@
 ! *****************************************************************************
 MODULE qs_neighbor_lists
 
+  USE almo_scf_types,                  ONLY: almo_max_cutoff_multiplier
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -343,8 +344,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
-    REAL(dp)                                 :: almo_max_cutoff_multiplier, &
-                                                almo_rcov, almo_rvdw, alpha, &
+    REAL(dp)                                 :: almo_rcov, almo_rvdw, alpha, &
                                                 subcells
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, calpha, core_radius, oce_radius, orb_radius, ppl_radius, &
@@ -846,13 +846,10 @@ CONTAINS
 
     ! Build the neighbor lists for the ALMO delocalization
     IF ( almo ) THEN
-       almo_max_cutoff_multiplier=2.5_dp
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,rcov=almo_rcov,rvdw=almo_rvdw)
           ! multiply the radius by some hard-coded number
-          ! make sure that this number is larger than the 
-          ! the largest cutoff multiplier in the ALMO code
           c_radius(ikind) = MAX(almo_rcov,almo_rvdw)*bohr*&
                             almo_max_cutoff_multiplier
        END DO

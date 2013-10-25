@@ -29,8 +29,8 @@ MODULE almo_scf_types
                                   almo_mat_dim_virt=3, &
                                   almo_mat_dim_virt_full=4, &
                                   almo_mat_dim_domains=5, &
-                                  almo_mat_dim_virt_disc=6, &
-                                  almo_max_av_neighbors=50
+                                  almo_mat_dim_virt_disc=6
+  REAL(KIND=dp), PARAMETER, PUBLIC :: almo_max_cutoff_multiplier=2.2_dp
 
   PUBLIC :: almo_objectM1_type
 
@@ -215,5 +215,4 @@ INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
   END TYPE almo_objectM1_type
 
 END MODULE almo_scf_types
-
 
