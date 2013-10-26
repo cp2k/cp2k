@@ -144,7 +144,7 @@ CONTAINS
     IF (dft_control%qs_control%do_ls_scf) THEN
       CALL ls_scf(qs_env=qs_env, error=error)
     ELSE IF (qs_env%dft_control%qs_control%do_almo_scf) THEN
-      CALL almo_entry_scf(qs_env=qs_env, error=error)
+      CALL almo_entry_scf(qs_env=qs_env, calc_forces=calc_forces, error=error)
     ELSE
       CALL scf(qs_env=qs_env, error=error)
 

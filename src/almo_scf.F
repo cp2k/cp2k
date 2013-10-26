@@ -114,8 +114,9 @@ CONTAINS
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_entry_scf(qs_env,error)
+  SUBROUTINE almo_entry_scf(qs_env, calc_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL                                  :: calc_forces
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_entry_scf', &
@@ -125,6 +126,11 @@ CONTAINS
     TYPE(almo_objectM1_type)                 :: main_objectM1
 
     CALL timeset(routineN,handle)
+
+    ! no forces so far 
+    CALL cp_assert(.NOT.calc_forces,cp_failure_level,cp_assertion_failed,routineP,&
+           " No forces/gradients with almo.... yet(?!) "//&
+                CPSourceFileRef, only_ionode=.TRUE.)
 
     CALL almo_level1_exp1_0(qs_env,main_objectM1,error)
     CALL almo_level1_exp2_1(qs_env,main_objectM1,error)
