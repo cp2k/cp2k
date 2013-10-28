@@ -892,7 +892,6 @@ CONTAINS
 
     IF (.NOT.converged)  THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "BLOCK-DIAGONAL ALMO SCF not converged! "
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
 
     DO ispin=1,nspin
@@ -1157,7 +1156,6 @@ CONTAINS
 
     IF (.NOT.converged)  THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "ALMO SCF quenched eigensolver not converged! "
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
 
     DO ispin=1,nspin
