@@ -118,7 +118,9 @@ CONTAINS
       ! file name prefix
       CALL section_vals_val_get(tmc_ana_section,"PREFIX_ANA_FILES",&
              c_val=tmc_ana%out_file_prefix, error=error)
-      tmc_ana%out_file_prefix = TRIM(tmc_ana%out_file_prefix)//"_"
+      IF(tmc_ana%out_file_prefix .NE. "")THEN
+        tmc_ana%out_file_prefix = TRIM(tmc_ana%out_file_prefix)//"_"
+      END IF
 
       ! density calculation
       CALL section_vals_val_get(tmc_ana_section,"DENSITY" ,explicit=explicit_key,error=error)
