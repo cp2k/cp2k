@@ -473,7 +473,7 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: c_t
     CHARACTER(LEN=50)                        :: FMT_c, FMT_i, FMT_r
-    CHARACTER(LEN=500)                       :: c_a, c_b, c_c, c_d, c_e, c_tit
+    CHARACTER(LEN=500)                       :: c_a, c_b, c_c, c_d, c_e, c_tit, c_tmp
     INTEGER                                  :: column_size, move, &
                                                 nr_nmc_moves, temper, typ
     LOGICAL                                  :: failure, subbox_out, &
@@ -537,57 +537,117 @@ CONTAINS
                            WRITE(c_e,TRIM(FMT_c))   "sb_cou T="//c_t//" |"
              END IF
              ! overall column
-             IF(type_title) &
-                WRITE(c_tit,TRIM(FMT_c))TRIM(c_tit),   " trajec"
-             IF(init) WRITE(c_b,TRIM(FMT_c))TRIM(c_b), "  weight->"
-             IF(init) WRITE(c_c,TRIM(FMT_c))TRIM(c_c), "  size  ->"
-             IF(.NOT.init) WRITE(c_a,TRIM(FMT_r)) TRIM(c_a), &
-                             move_types%acc_prob(typ,temper)
-             IF(.NOT.init) WRITE(c_b,TRIM(FMT_i)) TRIM(c_b), &
-                             move_types%mv_count(typ,temper)
-             IF(.NOT.init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), &
-                             move_types%acc_count(typ,temper)
+             IF(type_title) THEN
+               c_tmp = TRIM(c_tit)
+               WRITE(c_tit,TRIM(FMT_c))TRIM(c_tmp),   " trajec"
+             END IF
+             IF(init)THEN
+               c_tmp = TRIM(c_b)
+               WRITE(c_b,TRIM(FMT_c))TRIM(c_tmp), "  weight->"
+             END IF
+             IF(init) THEN
+               c_tmp = TRIM(c_c)
+               WRITE(c_c,TRIM(FMT_c))TRIM(c_tmp), "  size  ->"
+             END IF
+             IF(.NOT.init) THEN
+               c_tmp = TRIM(c_a)
+               WRITE(c_a,TRIM(FMT_r)) TRIM(c_tmp), &
+                 move_types%acc_prob(typ,temper)
+             END IF
+             IF(.NOT.init) THEN
+               c_tmp = TRIM(c_b)
+               WRITE(c_b,TRIM(FMT_i)) TRIM(c_tmp), &
+                 move_types%mv_count(typ,temper)
+             END IF
+             IF(.NOT.init) THEN
+               c_tmp = TRIM(c_c)
+               WRITE(c_c,TRIM(FMT_i)) TRIM(c_tmp), &
+                 move_types%acc_count(typ,temper)
+             END IF
              IF(subbox_out) THEN
-                           WRITE(c_d,TRIM(FMT_c)) TRIM(c_d),  "."
-                           WRITE(c_e,TRIM(FMT_c)) TRIM(c_e),  "."
+               c_tmp = TRIM(c_d)
+               WRITE(c_d,TRIM(FMT_c)) TRIM(c_tmp),  "."
+               c_tmp = TRIM(c_e)
+               WRITE(c_e,TRIM(FMT_c)) TRIM(c_tmp),  "."
              END IF
           ELSE
           ! certain move types
              IF(move_types%mv_weight(typ).GT.0.0_dp)THEN 
                 ! INIT: the weights in the initialisation output
-                IF(init) WRITE(c_b,TRIM(FMT_r)) TRIM(c_b), move_types%mv_weight(typ)
-
+                IF(init) THEN
+                  c_tmp = TRIM(c_b)
+                  WRITE(c_b,TRIM(FMT_r)) TRIM(c_tmp), move_types%mv_weight(typ)
+                END IF
                 ! acc probabilities
                 IF(typ.EQ.mv_type_swap_conf.AND.&
-                         temper.EQ.tmc_params%nr_temp)THEN
-                  IF(.NOT.init) WRITE(c_a,TRIM(FMT_c)) TRIM(c_a), "---"
+                   temper.EQ.tmc_params%nr_temp)THEN
+                  IF(.NOT.init) THEN
+                    c_tmp = TRIM(c_a)
+                    WRITE(c_a,TRIM(FMT_c)) TRIM(c_tmp), "---"
+                  END IF
                 ELSE
-                  IF(.NOT.init) WRITE(c_a,TRIM(FMT_r)) TRIM(c_a), move_types%acc_prob(typ,temper)
+                  IF(.NOT.init) THEN
+                    c_tmp = TRIM(c_a)
+                    WRITE(c_a,TRIM(FMT_r)) TRIM(c_tmp), move_types%acc_prob(typ,temper)
+                  END IF
                 END IF
-                IF(.NOT.init) WRITE(c_b,TRIM(FMT_i)) TRIM(c_b), move_types%mv_count(typ,temper)
-                IF(.NOT.init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), move_types%acc_count(typ,temper)
+                IF(.NOT.init) THEN
+                  c_tmp = TRIM(c_b)
+                  WRITE(c_b,TRIM(FMT_i)) TRIM(c_tmp), move_types%mv_count(typ,temper)
+                END IF
+                IF(.NOT.init) THEN
+                  c_tmp = TRIM(c_c)
+                  WRITE(c_c,TRIM(FMT_i)) TRIM(c_tmp), move_types%acc_count(typ,temper)
+                END IF
                 ! sub box
                 IF(subbox_out)THEN
                    IF(move.GT.SIZE(tmc_params%move_types%mv_weight)) THEN
-                      WRITE(c_d,TRIM(FMT_r))TRIM(c_d),move_types%subbox_acc_count(typ,temper)/&
-                                                      REAL(move_types%subbox_count(typ,temper),KIND=dp)
-                      WRITE(c_e,TRIM(FMT_i))TRIM(c_e),move_types%subbox_count(typ,temper)
+                      c_tmp = TRIM(c_d)
+                      WRITE(c_d,TRIM(FMT_r))TRIM(c_tmp),&
+                        move_types%subbox_acc_count(typ,temper)/&
+                        REAL(move_types%subbox_count(typ,temper),KIND=dp)
+                      c_tmp = TRIM(c_e)
+                      WRITE(c_e,TRIM(FMT_i))TRIM(c_tmp),&
+                        move_types%subbox_count(typ,temper)
                    ELSE
-                      WRITE(c_d,TRIM(FMT_c))TRIM(c_d),"-"
-                      WRITE(c_e,TRIM(FMT_c))TRIM(c_e),"-"
+                      c_tmp = TRIM(c_d)
+                      WRITE(c_d,TRIM(FMT_c))TRIM(c_tmp),"-"
+                      c_tmp = TRIM(c_e)
+                      WRITE(c_e,TRIM(FMT_c))TRIM(c_tmp),"-"
                    END IF
                 END IF
                 
                 SELECT CASE(typ)
                 CASE(mv_type_atom_trans)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "atom trans."
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)*au2a
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "atom trans."
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_r)) TRIM(c_tmp), &
+                       move_types%mv_size(typ,temper)*au2a
+                   END IF
                 CASE(mv_type_mol_trans)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "mol trans"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)*au2a
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "mol trans"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_r)) TRIM(c_tmp), &
+                       move_types%mv_size(typ,temper)*au2a
+                   END IF
                 CASE(mv_type_mol_rot)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "mol rot"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)/(PI/180.0_dp)
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "mol rot"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_r)) TRIM(c_tmp), &
+                       move_types%mv_size(typ,temper)/(PI/180.0_dp)
+                   END IF
                 CASE(mv_type_MD)
 CALL cp_assert(.TRUE.,&
 cp_warning_level,cp_assertion_failed,routineP,&
@@ -603,23 +663,62 @@ error)
 !                         sin(move_types%mv_size(typ,1))*100.0_dp,"% random Gaussian with variance to temperature,"
 !                   END IF
                 CASE(mv_type_proton_reorder)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "H-Reorder"
-                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX"
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "H-Reorder"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_c)) TRIM(c_tmp), "XXX"
+                   END IF
                 CASE(mv_type_swap_conf)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "PT(swap)"
-                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX" !move_types%mv_size(mv_type_swap_conf,1)
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "PT(swap)"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_c)) TRIM(c_tmp), "XXX" !move_types%mv_size(mv_type_swap_conf,1)
+                   END IF
                 CASE(mv_type_NMC_moves)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "NMC:"
-                   IF(init) WRITE(c_c,TRIM(FMT_i)) TRIM(c_c), INT(move_types%mv_size(typ,temper))
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "NMC:"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_i)) TRIM(c_tmp), &
+                       INT(move_types%mv_size(typ,temper))
+                   END IF
                 CASE(mv_type_volume_move)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "volume"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)*au2a
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "volume"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_r)) TRIM(c_tmp), &
+                       move_types%mv_size(typ,temper)*au2a
+                   END IF
                 CASE(mv_type_atom_swap)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "atom swap"
-                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "XXX"
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "atom swap"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_c)) TRIM(c_tmp), "XXX"
+                   END IF
                 CASE(mv_type_gausian_adapt)
-                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "gauss adap"
-                   IF(init) WRITE(c_c,TRIM(FMT_r)) TRIM(c_c), move_types%mv_size(typ,temper)
+                   IF(type_title) THEN
+                     c_tmp = TRIM(c_tit)
+                     WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tmp), "gauss adap"
+                   END IF
+                   IF(init) THEN
+                     c_tmp = TRIM(c_c)
+                     WRITE(c_c,TRIM(FMT_r)) TRIM(c_tmp), &
+                       move_types%mv_size(typ,temper)
+                   END IF
                 CASE DEFAULT
                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                                   "unknown move type "//cp_to_string(typ)//" with weight"//&
