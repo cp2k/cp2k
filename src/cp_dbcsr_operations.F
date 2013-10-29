@@ -529,11 +529,18 @@ CONTAINS
     CALL cp_dbcsr_iterator_start(iter, matrix_a, read_only=.TRUE., dynamic = .TRUE., dynamic_byrows=.TRUE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
-       CALL dgemm('N','N',&
-                  SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
-                  my_alpha, data_d(1,1),          SIZE(data_d,1),&
-                            vec_b(coloff,1), SIZE(vec_b,1), &
-                  1.0_dp,   vec_c(rowoff,1), SIZE(vec_c,1))
+       IF (my_ncol.ne.1) THEN
+          CALL dgemm('N','N',&
+               SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
+               my_alpha, data_d(1,1),          SIZE(data_d,1),&
+               vec_b(coloff,1), SIZE(vec_b,1), &
+               1.0_dp,   vec_c(rowoff,1), SIZE(vec_c,1))
+       ELSE
+          CALL dgemv('N',SIZE(data_d,1),SIZE(data_d,2),&
+               my_alpha, data_d(1,1),          SIZE(data_d,1),&
+               vec_b(coloff,1),1,&
+               1.0_dp,   vec_c(rowoff,1),1)
+       ENDIF
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
     !$OMP END PARALLEL
@@ -545,11 +552,18 @@ CONTAINS
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
           CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
           IF(row.NE.col) THEN
-             CALL dgemm('T','N', &
-                        SIZE(data_d,2), my_ncol, SIZE(data_d,1),&
-                        my_alpha2, data_d(1,1),          SIZE(data_d,1), &
-                                   vec_b(rowoff,1), SIZE(vec_b,1),  &
-                        1.0_dp,    vec_c(coloff,1), SIZE(vec_c,1))
+             IF (my_ncol.ne.1) THEN
+                CALL dgemm('T','N', &
+                     SIZE(data_d,2), my_ncol, SIZE(data_d,1),&
+                     my_alpha2, data_d(1,1),          SIZE(data_d,1), &
+                     vec_b(rowoff,1), SIZE(vec_b,1),  &
+                     1.0_dp,    vec_c(coloff,1), SIZE(vec_c,1))
+             ELSE
+                CALL dgemv('T',SIZE(data_d,1),SIZE(data_d,2),&
+                     my_alpha2, data_d(1,1),          SIZE(data_d,1), &
+                     vec_b(rowoff,1),1,  &
+                     1.0_dp,    vec_c(coloff,1), 1)
+             ENDIF
           ENDIF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
