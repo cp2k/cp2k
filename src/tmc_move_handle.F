@@ -473,7 +473,8 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: c_t
     CHARACTER(LEN=50)                        :: FMT_c, FMT_i, FMT_r
-    CHARACTER(LEN=500)                       :: c_a, c_b, c_c, c_d, c_e, c_tit, c_tmp
+    CHARACTER(LEN=500)                       :: c_a, c_b, c_c, c_d, c_e, &
+                                                c_tit, c_tmp
     INTEGER                                  :: column_size, move, &
                                                 nr_nmc_moves, temper, typ
     LOGICAL                                  :: failure, subbox_out, &

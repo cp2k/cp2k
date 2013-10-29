@@ -922,8 +922,8 @@ CONTAINS
 
     INTEGER                                  :: handle, iscf, ispin, nspin, &
                                                 unit_nr
-    LOGICAL                                  :: converged, failure, &
-                                                prepare_to_exit, should_stop
+    LOGICAL                                  :: converged, prepare_to_exit, &
+                                                should_stop
     REAL(KIND=dp) :: denergy_tot, energy_diff, energy_new, energy_old, &
       error_norm, error_norm_0, spin_factor, t1, t2
     REAL(KIND=dp), DIMENSION(2)              :: denergy_spin
