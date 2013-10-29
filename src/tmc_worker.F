@@ -33,8 +33,7 @@ MODULE tmc_worker
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_interface,                   ONLY: f_env_add_defaults,&
-                                             f_env_rm_defaults,&
+  USE f77_interface,                   ONLY: f_env_get_from_id,&
                                              f_env_type,&
                                              get_natom,&
                                              get_pos,&
@@ -835,7 +834,7 @@ CONTAINS
                  ierr=ierr)
 
     ! get the molecule info 
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    CALL f_env_get_from_id(env_id,f_env,error)
     IF (.NOT.failure) THEN
       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
 
@@ -846,7 +845,6 @@ CONTAINS
                       molecule_new%els(mol)%last_atom) = mol
       END DO loop_mol
     END IF
-    CALL f_env_rm_defaults(f_env,error,ierr)
 
     ! end the timing
     CALL timestop(handle)
@@ -887,7 +885,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(atoms),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
 
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    CALL f_env_get_from_id(env_id,f_env,error)
     IF (.NOT.failure) THEN
       nr_atoms = force_env_get_natom(f_env%force_env,error=error)
       CALL force_env_get(f_env%force_env,subsys=subsys,cell=cell_tmp,error=error)
@@ -905,7 +903,6 @@ CONTAINS
          END DO
          CPPostcondition(iparticle-1.EQ.nr_atoms,cp_failure_level,routineP,error,failure)
       ENDIF
-    CALL f_env_rm_defaults(f_env,error,ierr)
     END IF
   END SUBROUTINE get_atom_kinds_and_cell
 
@@ -932,7 +929,7 @@ CONTAINS
 !    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
 !    CPPrecondition(.NOT.ASSOCIATED(rlist_lowsq),cp_failure_level,routineP,error,failure)
 !
-!    CALL f_env_add_defaults(env_id,f_env,error,failure)
+!    CALL f_env_get_from_id(env_id,f_env,error)
 !    IF (.NOT.failure) THEN
 !      IF(ASSOCIATED(f_env%force_env)) THEN
 !        IF(ASSOCIATED(f_env%force_env%fist_env)) THEN

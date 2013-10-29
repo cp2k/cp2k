@@ -260,8 +260,6 @@ CONTAINS
           CALL destroy_force_env(tmc_env%w_env%env_id_approx, ierr)
   
         CALL cp_error_dealloc_ref(error_sub,error=error)
-        !MK TODO: The following line is just a workaround to fix memory leaks
-        logger_sub%ref_count = logger_sub%ref_count - 1
         CALL cp_logger_release(logger_sub)
 
       ! the analysis group
