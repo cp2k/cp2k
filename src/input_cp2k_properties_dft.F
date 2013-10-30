@@ -11,6 +11,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_properties_dft
 
+  USE bibliography,                    ONLY: Putrino2000, Putrino2002,&
+                                             Sebastiani2001, Weber2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -139,6 +141,7 @@ CONTAINS
             description="The linear response is used to calculate one of the "//&
             " following properties: nmr, epr, raman, ... ",&
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Putrino2000/),&
             error=error)
 
        CALL keyword_create(keyword, name="EPS",&
@@ -232,6 +235,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_polarizability_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_create(subsection,"PRINT","printing of information during the linear response calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
@@ -260,6 +267,14 @@ CONTAINS
   END SUBROUTINE create_linres_section
 
 ! *****************************************************************************
+!> \brief creates the input structure used to activate
+!>      calculation of induced current  DFPT
+!>      Available properties : none
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author  MI/VW
+! *****************************************************************************
   SUBROUTINE create_current_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -279,6 +294,7 @@ CONTAINS
        CALL section_create(section,name="current",&
             description="The induced current density is calculated by DFPT.",&
             n_keywords=4, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Sebastiani2001,Weber2009/),&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -456,6 +472,15 @@ CONTAINS
   END SUBROUTINE create_current_section
 
 ! *****************************************************************************
+!> \brief creates the input structure used to activate
+!>         calculation of NMR chemical shift using 
+!>         the induced current obtained from DFPT
+!>      Available properties : none
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author  MI/VW
+! *****************************************************************************
   SUBROUTINE create_nmr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -475,6 +500,7 @@ CONTAINS
        CALL section_create(section,name="nmr",&
             description="The chemical shift is calculated by DFPT.",&
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Weber2009/),&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -609,6 +635,14 @@ CONTAINS
   END SUBROUTINE create_nmr_section
 
 ! *****************************************************************************
+!> \brief creates the input structure used to activate
+!>      calculation of NMR spin-spin coupling (implementation not operating)
+!>      Available properties : none
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author  VW
+! *****************************************************************************
   SUBROUTINE create_spin_spin_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -714,6 +748,15 @@ CONTAINS
   END SUBROUTINE create_spin_spin_section
 
 ! *****************************************************************************
+!> \brief creates the input structure used to activate
+!>         calculation of EPR using
+!>         the induced current obtained from DFPT
+!>      Available properties : none
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author  VW
+! *****************************************************************************
   SUBROUTINE create_epr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
@@ -732,9 +775,10 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="epr",&
+       CALL section_create(section,name="EPR",&
             description="The g tensor is calculated by DFPT ",&
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Weber2009/),&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -852,6 +896,80 @@ CONTAINS
      END IF
 
   END SUBROUTINE create_epr_section
+
+! *****************************************************************************
+!> \brief creates the input structure used to activate
+!>      calculation of polarizability tensor DFPT
+!>      Available properties : none
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author SL
+! *****************************************************************************
+  SUBROUTINE create_polarizability_section(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_polarizability_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    NULLIFY(keyword,print_key,subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="POLAR",&
+            description="Compute polarizabilities.",&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Putrino2002/),&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the polarizability calculation",&
+            usage="&POLAR T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="DO_RAMAN",&
+            description="Compute the electric-dipole--electric-dipole polarizability",&
+            usage="DO_RAMAN F",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="PRINT",&
+            description="print results of the polarizability calculation",&
+            error=error,repeats=.FALSE.,required=.FALSE.)
+
+       CALL cp_print_key_section_create(print_key,"POLAR_MATRIX",&
+            description="Controls the printing of the polarizabilities",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="",&
+            error=error)
+
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
+       CALL create_interp_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_polarizability_section
 
 ! *****************************************************************************
 !> \brief creates the section for electron transfer coupling

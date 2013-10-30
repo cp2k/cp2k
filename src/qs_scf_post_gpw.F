@@ -120,6 +120,7 @@ MODULE qs_scf_post_gpw
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_linres_module,                ONLY: linres_calculation_low
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_molecules,                ONLY: wfc_to_molecule
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
@@ -314,6 +315,11 @@ CONTAINS
 
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error=error)
+
+       ! Compute Linear Response properties as post-scf
+!       IF(.NOT. qs_env%linres_run) THEN
+!       CALL linres_calculation_low(qs_env, error=error)
+!       END IF
 
        ! Determine if we need to computer properties using the localized centers
        localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)

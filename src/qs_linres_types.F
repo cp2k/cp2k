@@ -119,6 +119,17 @@ MODULE qs_linres_types
      TYPE(cp_fm_p_type)  , DIMENSION(:), POINTER :: psi0_order
   END TYPE current_env_type
 
+!*********************************************************************************************************
+! \param type for polarizability calculation using Berry operator
+
+  TYPE polar_env_type
+     INTEGER                             :: ref_count
+     LOGICAL                             :: do_raman
+     REAL(dp), DIMENSION(:,:), POINTER :: polar
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_dBerry,dBerry_psi0,mo_derivs
+  END TYPE polar_env_type
+! ************************************************************************************
+
   TYPE issc_env_type
      INTEGER                             :: ref_count
      INTEGER                             :: issc_natms
@@ -133,6 +144,7 @@ MODULE qs_linres_types
      TYPE(cp_dbcsr_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_dso,matrix_fc
   END TYPE issc_env_type
 
+! ************************************************************************************
   TYPE nmr_env_type
      INTEGER                             :: ref_count, n_nics
      INTEGER, DIMENSION(:), POINTER      :: cs_atom_list
@@ -201,19 +213,23 @@ MODULE qs_linres_types
 
 ! *** Public data types ***
 
-  PUBLIC ::  allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
-             get_current_env, allocate_jrho_coeff, deallocate_jrho_coeff, &
-             init_jrho_atom_set, linres_control_type, init_nablavks_atom_set, &
-             nmr_env_type, issc_env_type, jrho_atom_type, set_nmr_env, &
-             set2zero_jrho_atom_rad, get_epr_env, epr_env_type, set_epr_env, &
-             nablavks_atom_type, deallocate_nablavks_atom_set, current_env_type, &
-             set_current_env, realspaces_grid_p_type, get_issc_env, set_issc_env, &
-             issc_env_create
+  PUBLIC ::  linres_control_type,  &
+             nmr_env_type, issc_env_type, jrho_atom_type, &
+             epr_env_type, &
+             nablavks_atom_type, current_env_type, &
+             realspaces_grid_p_type, polar_env_type 
 
 ! *** Public subroutines ***
 
-  PUBLIC :: linres_control_create, linres_control_retain, linres_control_release,&
-            nmr_env_create, epr_env_create, current_env_create
+  PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
+             get_current_env, allocate_jrho_coeff, deallocate_jrho_coeff, &
+             init_jrho_atom_set, init_nablavks_atom_set, linres_control_create, &
+             linres_control_retain, linres_control_release,&
+             set_nmr_env,set_epr_env,  deallocate_nablavks_atom_set, &
+             set2zero_jrho_atom_rad, get_epr_env, &
+             nmr_env_create, epr_env_create, current_env_create, get_issc_env, set_issc_env, &
+             set_current_env, issc_env_create, get_polar_env, set_polar_env, &
+             polar_env_create
 
 CONTAINS
 
@@ -1441,6 +1457,81 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE init_nablavks_atom_set
+! *****************************************************************************
+  SUBROUTINE polar_env_create(polar_env,error)
+
+    TYPE(polar_env_type)                      :: polar_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'polar_env_create', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+     failure =.FALSE.
+
+     CPPrecondition(polar_env%ref_count==0, cp_failure_level,routineP,error,failure)
+     IF(.NOT. failure) THEN
+        polar_env%ref_count = 1
+!        polar_env%do_raman=.FALSE.
+        NULLIFY(polar_env%polar)
+        NULLIFY(polar_env%psi1_dBerry)
+        NULLIFY(polar_env%dBerry_psi0)
+        NULLIFY(polar_env%mo_derivs)
+     ENDIF
+
+   END SUBROUTINE polar_env_create
+
+! *****************************************************************************
+! *****************************************************************************
+  SUBROUTINE get_polar_env(polar_env,do_raman,dBerry_psi0, polar, &
+       psi1_dBerry,mo_derivs,error)
+
+    TYPE(polar_env_type)                      :: polar_env
+    LOGICAL, OPTIONAL                        :: do_raman
+    REAL(dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: polar
+    TYPE(cp_fm_p_type), DIMENSION(:,:), &
+      OPTIONAL, POINTER                      :: psi1_dBerry,mo_derivs,dBerry_psi0
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_polar_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(polar_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF(PRESENT(polar))             polar => polar_env%polar
+    IF(PRESENT(psi1_dBerry )) psi1_dBerry => polar_env%psi1_dBerry
+    IF(PRESENT(dBerry_psi0)) dBerry_psi0          => polar_env%dBerry_psi0
+    IF(PRESENT(mo_derivs            )) mo_derivs             => polar_env%mo_derivs
+    IF(PRESENT(do_raman           )) do_raman            =  polar_env%do_raman
+  END SUBROUTINE get_polar_env
+
+! *****************************************************************************
+
+! *****************************************************************************
+  SUBROUTINE set_polar_env(polar_env,error)
+
+    TYPE(polar_env_type)                      :: polar_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_polar_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(polar_env%ref_count>0, cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE set_polar_env
+! *****************************************************************************
+
+
 
 END MODULE qs_linres_types
 

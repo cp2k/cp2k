@@ -24,6 +24,12 @@ MODULE qs_linres_op
                                              pbc
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve, &
+                                             cp_cfm_gemm
+  USE cp_cfm_types,                    ONLY: cp_cfm_get_info, &
+                                             cp_cfm_set_all, &
+                                             cp_cfm_release, &
+                                             cp_cfm_create, cp_cfm_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
@@ -32,10 +38,13 @@ MODULE qs_linres_op
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type, cp_dbcsr_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
+                                             cp_fm_gemm, &
+                                             cp_fm_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -54,6 +63,7 @@ MODULE qs_linres_op
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: twopi
   USE orbital_pointers,                ONLY: coset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -64,14 +74,18 @@ MODULE qs_linres_op
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              get_current_env,&
                                              get_issc_env,&
+                                             get_polar_env, &
                                              issc_env_type,&
-                                             linres_control_type
+                                             linres_control_type, &
+                                             polar_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_moments,                      ONLY: build_berry_moment_matrix, &
+                                             build_local_moment_matrix
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_ang_mom_matrix,&
                                              build_lin_mom_matrix,&
-                                             rRc_xyz_ao
+                                             rRc_xyz_ao,p_xyz_ao
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -80,7 +94,8 @@ MODULE qs_linres_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: current_operators,issc_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev,fm_scale_by_pbc_AC
+  PUBLIC :: current_operators,issc_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev,&
+            fm_scale_by_pbc_AC, polar_operators
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_op'
 
@@ -659,6 +674,254 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE issc_operators
+
+
+!------------------------------------------------------------------------------------
+!> \brief Calculate the Berry phase operator in the AO basis and 
+!         then the derivative of the Berry phase operator with respect to 
+!         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs 
+!>      and then multiply with the ground state MO coefficients to get Hamiltonian|psi0>
+! 
+!> \par History
+!>      01.2013 created [SL]
+!> \author SL
+!------------------------------------------------------------------------- 
+
+  SUBROUTINE polar_operators(polar_env,qs_env,error)
+
+    TYPE(polar_env_type)                      :: polar_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_operators', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
+                                                zero = (0.0_dp,0.0_dp)
+    COMPLEX(DP)                              :: zdet,zdeta
+
+    INTEGER                                  :: handle,  ispin, nmo,  &
+                                                nspins, output_unit, reference, nao, &
+                                                istat, z, i, idim, tmp_dim,idir,natom
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    LOGICAL                                  :: do_raman,failure
+!  INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+!  INTEGER, DIMENSION(:), POINTER           :: list_cubes, rbs
+
+    REAL(dp), DIMENSION(:), POINTER          :: ref_point
+
+    REAL(dp)                                 :: kvec(3),maxocc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b,cosmat,sinmat
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: eigrmat
+    TYPE(cp_cfm_p_type), DIMENSION(:,:), &
+      POINTER                                :: inv_mat
+    TYPE(cp_fm_p_type), DIMENSION(:, :,:), &
+      POINTER                                :: inv_work
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: dBerry_psi0,op_fm_set,  mo_derivs,opvec
+    type(cp_fm_type), pointer                :: mo_coeff
+    type(cp_fm_struct_type), pointer         :: tmp_fm_struct
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(section_vals_type), POINTER         :: lr_section
+
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+
+    NULLIFY(dBerry_psi0,inv_work,mo_derivs,&
+          op_fm_set,opvec,sinmat,cosmat)
+
+    logger => cp_error_get_logger(error)
+    lr_section => section_vals_get_subs_vals(qs_env%input,&
+                  "PROPERTIES%LINRES",error=error)
+
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+                  extension=".linresLog",error=error)
+    NULLIFY ( cell, dft_control,  mos,  matrix_s)
+    CALL get_qs_env(qs_env=qs_env, &
+                    cell=cell, &
+                    dft_control=dft_control, &
+                    para_env=para_env, &
+                    mos=mos,&
+                    matrix_s=matrix_s, &
+                    error=error)
+
+    nspins = dft_control%nspins
+
+
+    CALL get_polar_env(polar_env=polar_env, &
+                      do_raman=do_raman, &
+                      dBerry_psi0=dBerry_psi0, &
+                      mo_derivs=mo_derivs, &
+                      error=error)
+!SL calculate dipole berry phase
+    IF(do_raman) THEN
+
+      DO i= 1,3
+          DO ispin = 1,nspins
+             CALL cp_fm_set_all(dBerry_psi0(i,ispin)%matrix,0.0_dp,error=error)
+             CALL cp_fm_set_all(mo_derivs(i,ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+      END DO
+
+    !
+    !
+
+    ! initialize all work matrices needed
+    ALLOCATE ( opvec(2, dft_control%nspins ), STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( inv_mat(3, dft_control%nspins ), STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( inv_work(2,3, dft_control%nspins ), STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! A bit to allocate for the wavefunction
+    DO ispin = 1, dft_control%nspins
+       NULLIFY(tmp_fm_struct,mo_coeff)
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
+            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
+            error=error)
+       DO i = 1, SIZE ( op_fm_set, 1 )
+         CALL cp_fm_create (opvec(i,ispin)%matrix , mo_coeff%matrix_struct ,error=error)
+          NULLIFY(op_fm_set(i,ispin)%matrix)
+          CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct ,error=error)
+       END DO
+       CALL cp_cfm_create ( eigrmat(ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
+            error=error)
+       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       DO i=1,3
+         CALL cp_cfm_create ( inv_mat(i,ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
+            error=error)
+         CALL cp_fm_create ( inv_work(2,i,ispin)%matrix, op_fm_set(2,ispin)%matrix%matrix_struct ,&
+             error=error)
+         CALL cp_fm_create ( inv_work(1,i,ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
+             error=error)
+
+       END DO
+    END DO
+
+    !
+    NULLIFY (cosmat, sinmat)
+    ALLOCATE(cosmat, sinmat)
+    CALL cp_dbcsr_init(cosmat, error=error)
+    CALL cp_dbcsr_init(sinmat, error=error)
+    CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
+    CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
+    CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
+    CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
+
+    DO i=1,3
+      kvec(:) = twopi*cell%h_inv(i,:)
+      CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
+      CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
+      CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+
+      DO ispin=1, dft_control%nspins   ! spin
+        CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
+
+        CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(1,ispin)%matrix, ncol=nmo, error=error)
+        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(1,ispin)%matrix,0.0_dp,&
+           op_fm_set(1,ispin)%matrix,error=error)
+        CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(2,ispin)%matrix, ncol=nmo, error=error)
+        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(2,ispin)%matrix,0.0_dp,&
+               op_fm_set(2,ispin)%matrix,error=error)
+
+      ENDDO
+
+        !second step invert C^T S_berry C
+        zdet=one
+        DO ispin = 1, dft_control%nspins
+          CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+          DO idim=1,tmp_dim
+             eigrmat(ispin)%matrix%local_data(:,idim) = &
+                  CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
+                  -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
+          END DO
+          CALL cp_cfm_set_all (inv_mat(i,ispin)%matrix,zero,one,error)
+          CALL cp_cfm_solve ( eigrmat(ispin)%matrix,inv_mat(i,ispin)%matrix, zdeta,error )
+        END DO
+ !
+ !       
+ !compute the derivative and add the result to mo_derivatives
+        DO ispin=1,dft_control%nspins
+          CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo,maxocc=maxocc)
+          DO z=1,tmp_dim
+             inv_work(1,i,ispin)%matrix%local_data(:,z)=REAL(inv_mat(i,ispin)%matrix%local_data(:,z),dp)
+             inv_work(2,i,ispin)%matrix%local_data(:,z)=AIMAG(inv_mat(i,ispin)%matrix%local_data(:,z))
+          END DO
+          CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,opvec(1,ispin)%matrix,inv_work(2,i,ispin)%matrix,&
+              0.0_dp,mo_derivs(i,ispin)%matrix,error)
+          CALL cp_fm_gemm("N","N",nao,nmo,nmo,-1.0_dp,opvec(2,ispin)%matrix,inv_work(1,i,ispin)%matrix,&
+              1.0_dp,mo_derivs(i,ispin)%matrix,error)
+
+          CALL cp_fm_gemm("N","N",nao,nmo,nmo,-1.0_dp,opvec(1,ispin)%matrix,inv_work(2,i,ispin)%matrix,&
+               0.0_dp,dBerry_psi0(i,ispin)%matrix,error)
+          CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,opvec(2,ispin)%matrix,inv_work(1,i,ispin)%matrix,&
+               1.0_dp,dBerry_psi0(i,ispin)%matrix,error)
+
+
+        END DO
+    END DO !x/y/z-direction
+!SL we omit here the multiplication with hmat (this scaling back done at the end of the response calc)
+
+     DO ispin=1,dft_control%nspins
+          CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
+        DO i=1,3
+          CALL cp_cfm_release(inv_mat(i,ispin)%matrix,error=error)
+          CALL cp_fm_release(inv_work(1,i,ispin)%matrix,error=error)
+          CALL cp_fm_release(inv_work(2,i,ispin)%matrix,error=error)
+        END DO
+          CALL cp_fm_release(opvec(1,ispin)%matrix,error=error)
+          CALL cp_fm_release(opvec(2,ispin)%matrix,error=error)
+          CALL cp_fm_release(op_fm_set(2,ispin)%matrix,error=error)
+          CALL cp_fm_release(op_fm_set(1,ispin)%matrix,error=error)
+    END DO
+
+    CALL cp_dbcsr_deallocate_matrix ( cosmat, error=error )
+    CALL cp_dbcsr_deallocate_matrix ( sinmat, error=error )
+
+
+
+
+    DEALLOCATE ( inv_work, STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( opvec, STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( op_fm_set, STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( eigrmat, STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( inv_mat, STAT = istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+
+    ENDIF  ! raman
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE polar_operators
+
+! *****************************************************************************
+
+
+
 
 ! *****************************************************************************
   FUNCTION fac_vecp(a,b,c) RESULT(factor)

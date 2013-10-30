@@ -329,6 +329,7 @@ MODULE qs_environment_types
     LOGICAL :: has_unit_metric
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
+    LOGICAL :: linres_run
     LOGICAL :: calc_image_preconditioner
     INTEGER :: nelectron_total
     INTEGER :: nelectron_spin(2)
@@ -931,6 +932,7 @@ CONTAINS
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
     qs_env%run_rtp=.FALSE.
+    qs_env%linres_run=.FALSE.
     qs_env%use_ref_cell=.FALSE.
     qs_env%qmmm=.FALSE.
     qs_env%qmmm_periodic=.FALSE.

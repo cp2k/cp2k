@@ -61,14 +61,20 @@ MODULE qs_linres_module
   USE qs_linres_nmr_utils,             ONLY: nmr_env_cleanup,&
                                              nmr_env_init
   USE qs_linres_op,                    ONLY: current_operators,&
-                                             issc_operators
+                                             issc_operators, polar_operators
+  USE qs_linres_polar_utils,           ONLY: polar_env_cleanup,&
+                                             polar_env_init,&
+                                             polar_polar,&
+                                             polar_print,&
+                                             polar_response
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              epr_env_type,&
                                              issc_env_type,&
                                              linres_control_create,&
                                              linres_control_release,&
                                              linres_control_type,&
-                                             nmr_env_type
+                                             nmr_env_type,&
+                                             polar_env_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_p_env_methods,                ONLY: p_env_create,&
@@ -85,7 +91,7 @@ MODULE qs_linres_module
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: linres_calculation
+  PUBLIC :: linres_calculation, linres_calculation_low
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
 
@@ -93,9 +99,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Driver for the linear response calculatios
-!>      Initialize the perturbation environment
-!>      Define which properties is to be calculated
-!>      Start up the optimization of the response density and wfn
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI
@@ -108,30 +111,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, iB, output_unit
-    LOGICAL                                  :: do_qmmm, epr_present, &
-                                                failure, issc_present, &
-                                                lr_calculation, nmr_present
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(current_env_type)                   :: current_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(epr_env_type)                       :: epr_env
-    TYPE(issc_env_type)                      :: issc_env
-    TYPE(linres_control_type), POINTER       :: linres_control
-    TYPE(nmr_env_type)                       :: nmr_env
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure, lr_calculation
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(section_vals_type), POINTER         :: lr_section, prop_section
+    TYPE(section_vals_type), POINTER         :: lr_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
-    lr_calculation = .FALSE.
-    nmr_present = .FALSE.
-    epr_present = .FALSE.
-    issc_present = .FALSE.
-    do_qmmm = .FALSE.
 
-    NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section,qs_env)
+    NULLIFY(qs_env)
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -141,20 +128,65 @@ CONTAINS
        CALL force_env_get(force_env,&
                           qs_env=qs_env,error=error)
     CASE(use_qmmm)
-       do_qmmm = .TRUE.
        CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
                           qs_env=qs_env,error=error)
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"Doesnt recognize this force_env.")
     END SELECT
 
+    qs_env%linres_run = .TRUE.
+
+    CALL linres_calculation_low(qs_env,  error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE linres_calculation
+
+! *****************************************************************************
+!> \brief Linear response can be called as run type or as post scf calculation
+!>      Initialize the perturbation environment
+!>      Define which properties is to be calculated
+!>      Start up the optimization of the response density and wfn
+!> \par History
+!>      06.2005 created [MI]
+!>      02.2013 added polarizability section [SL]
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE linres_calculation_low(qs_env,  error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, iB, output_unit
+    LOGICAL                                  :: epr_present, &
+                                                failure, issc_present, &
+                                                lr_calculation, nmr_present, polar_present
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(section_vals_type), POINTER         :: prop_section
+    TYPE(section_vals_type), POINTER         :: lr_section
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    lr_calculation = .FALSE.
+    nmr_present = .FALSE.
+    epr_present = .FALSE.
+    issc_present = .FALSE.
+    polar_present = .FALSE.
+
+    NULLIFY(dft_control,p_env,linres_control,logger,prop_section,lr_section)
     logger => cp_error_get_logger(error)
 
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
-    CALL linres_init(lr_section,p_env,qs_env,error=error)
 
     IF(lr_calculation) THEN
+       CALL linres_init(lr_section,p_env,qs_env,error=error)
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".linresLog",error=error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
@@ -170,86 +202,8 @@ CONTAINS
        CALL section_vals_get(prop_section,explicit=epr_present,error=error)
 
        IF(nmr_present.OR.epr_present) THEN
-          linres_control%property = lr_current
-          IF(.NOT.linres_control%localized_psi0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "Are you sure that you want to calculate the chemical "//&
-                  "shift without localized psi0?")
-             CALL linres_localize(qs_env, linres_control,&
-                  dft_control%nspins,centers_only=.TRUE.,error=error)
-          ENDIF
-          IF(dft_control%nspins/=2.AND.epr_present) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD is needed to perform a g tensor calculation!")
-          ENDIF
-          !
-          !Initialize the current environment
-          current_env%ref_count=0
-          current_env%do_qmmm = do_qmmm
-          !current_env%prop='nmr'
-          CALL current_env_init(current_env,qs_env,error=error)
-          CALL current_operators(current_env,qs_env,error=error)
-          CALL current_response(current_env,p_env,qs_env,error)
-          !
-          IF(current_env%all_pert_op_done) THEN
-             !Initialize the nmr environment
-             IF(nmr_present) THEN
-                nmr_env%ref_count=0
-                CALL nmr_env_init(nmr_env,qs_env,error=error)
-             ENDIF
-             !
-             !Initialize the epr environment
-             IF(epr_present) THEN
-                epr_env%ref_count=0
-                CALL epr_env_init(epr_env,qs_env,error=error)
-                CALL epr_g_zke(epr_env,qs_env,error=error)
-                CALL epr_nablavks(epr_env,qs_env,error=error)
-             ENDIF
-             !
-             ! Build the rs_gauge if needed
-             !CALL current_set_gauge(current_env,qs_env,error=error)
-             !
-             ! Loop over field direction
-             DO iB = 1,3
-                !
-                ! Build current response and succeptibility
-                CALL current_build_current(current_env,qs_env,iB,error=error)
-                CALL current_build_chi(current_env,qs_env,iB,error=error)
-                !
-                ! Compute NMR shift
-                IF(nmr_present) THEN
-                   CALL nmr_shift(nmr_env,current_env,qs_env,iB,error=error)
-                ENDIF
-                !
-                ! Compute EPR
-                IF(epr_present) THEN
-                   CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error=error)
-                   CALL epr_g_so(epr_env,current_env,qs_env,iB,error=error)
-                   CALL epr_g_soo(epr_env,current_env,qs_env,iB,error=error)
-                ENDIF
-             ENDDO
-             !
-             ! Finalized the nmr environment
-             IF(nmr_present) THEN
-                CALL nmr_shift_print(nmr_env,current_env,qs_env,error=error)
-                CALL nmr_env_cleanup(nmr_env,error=error)
-             ENDIF
-             !
-             ! Finalized the epr environment
-             IF(epr_present) THEN
-                CALL epr_g_print(epr_env,qs_env,error=error)
-                CALL epr_env_cleanup(epr_env,error=error)
-             ENDIF
-             !
-          ELSE
-            IF(output_unit>0) THEN
-               WRITE(output_unit,"(T10,A,/T20,A,/)")&
-                 "CURRENT: Not all responses to perturbation operators could be calculated.",&
-                 " Hence: NO nmr and NO epr possible."
-            END IF
-          END IF
-          ! Finalized the current environment
-          CALL current_env_cleanup(current_env,qs_env,error=error)
+          CALL  nmr_epr_linres(linres_control,qs_env,p_env,dft_control, &
+                nmr_present,epr_present,output_unit, error=error)
        ENDIF
        !
        ! We do the indirect spin-spin coupling calculation
@@ -257,37 +211,17 @@ CONTAINS
        CALL section_vals_get(prop_section,explicit=issc_present,error=error)
 
        IF(issc_present) THEN
-          linres_control%property = lr_current
-          IF(.NOT.linres_control%localized_psi0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "Are you sure that you want to calculate the chemical "//&
-                  "shift without localized psi0?")
-             CALL linres_localize(qs_env,linres_control,&
-                  dft_control%nspins,centers_only=.TRUE.,error=error)
-          ENDIF
-          !
-          !Initialize the current environment
-          current_env%ref_count=0
-          current_env%do_qmmm = do_qmmm
-          !current_env%prop='issc'
-          !CALL current_env_init(current_env,qs_env,error=error)
-          !CALL current_response(current_env,p_env,qs_env,error)
-          !
-          !Initialize the issc environment
-          issc_env%ref_count=0
-          CALL issc_env_init(issc_env,qs_env,error=error)
-          !
-          ! Loop over atoms
-          DO iatom = 1,issc_env%issc_natms
-             CALL issc_operators(issc_env,qs_env,iatom,error)
-             CALL issc_response(issc_env,p_env,qs_env,error)
-             CALL issc_issc(issc_env,qs_env,iatom,error=error)
-          ENDDO
-          !
-          ! Finalized the issc environment
-          CALL issc_print(issc_env,qs_env,error)
-          CALL issc_env_cleanup(issc_env,error)
+         CALL issc_linres(linres_control,qs_env, p_env, dft_control, error=error)
        ENDIF
+
+       !
+       ! We do the polarizability calculation
+       prop_section => section_vals_get_subs_vals(lr_section,"POLAR",error=error)
+       CALL section_vals_get(prop_section,explicit=polar_present,error=error)
+
+       IF(polar_present) THEN
+         CALL polar_linres(qs_env,p_env,error=error)
+       END IF
 
        ! Other possible LR calculations can be introduced here
 
@@ -301,21 +235,21 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
             "PRINT%PROGRAM_RUN_INFO",error=error)
-    ELSE
-       output_unit = cp_logger_get_default_io_unit(logger)
-       IF(output_unit>0) THEN
-          WRITE (output_unit, "(2X,A)") "",&
-               "-----------------------------------------------------------------------------",&
-               "-              No LR calculation has been specified in the input            -",&
-               "                        cp2k is going to stop, bye bye                       ",&
-               "-----------------------------------------------------------------------------",&
-               ""
-       END IF
+!!    ELSE
+!       output_unit = cp_logger_get_default_io_unit(logger)
+!       IF(output_unit>0) THEN
+!          WRITE (output_unit, "(2X,A)") "",&
+!               "-----------------------------------------------------------------------------",&
+!               "-              No LR calculation has been specified in the input            -",&
+!               "                        cp2k is going to stop, bye bye                       ",&
+!               "-----------------------------------------------------------------------------",&
+!               ""
+!       END IF
     END IF
 
     CALL timestop(handle)
 
-  END SUBROUTINE linres_calculation
+  END SUBROUTINE linres_calculation_low
 
 ! *****************************************************************************
 !> \brief Initialize some general settings like the p_env
@@ -465,6 +399,188 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE linres_init
+
+  SUBROUTINE nmr_epr_linres(linres_control,qs_env,p_env,dft_control,nmr_present,epr_present,output_unit, error)
+
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    LOGICAL                                  :: nmr_present, epr_present
+    INTEGER                                  :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_epr_linres', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: do_qmmm
+    INTEGER                                  :: iB
+    TYPE(current_env_type)                   :: current_env
+    TYPE(epr_env_type)                       :: epr_env
+    TYPE(nmr_env_type)                       :: nmr_env
+
+    linres_control%property = lr_current
+    IF(.NOT.linres_control%localized_psi0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "Are you sure that you want to calculate the chemical "//&
+            "shift without localized psi0?")
+       CALL linres_localize(qs_env, linres_control,&
+            dft_control%nspins,centers_only=.TRUE.,error=error)
+    ENDIF
+    IF(dft_control%nspins/=2.AND.epr_present) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "LSD is needed to perform a g tensor calculation!")
+    ENDIF
+    !
+    !Initialize the current environment
+    do_qmmm = .FALSE.
+    current_env%ref_count=0
+    IF(qs_env%qmmm) do_qmmm = .TRUE.
+    current_env%do_qmmm = do_qmmm
+    !current_env%prop='nmr'
+    CALL current_env_init(current_env,qs_env,error=error)
+    CALL current_operators(current_env,qs_env,error=error)
+    CALL current_response(current_env,p_env,qs_env,error)
+    !
+    IF(current_env%all_pert_op_done) THEN
+       !Initialize the nmr environment
+       IF(nmr_present) THEN
+          nmr_env%ref_count=0
+          CALL nmr_env_init(nmr_env,qs_env,error=error)
+       ENDIF
+       !
+       !Initialize the epr environment
+       IF(epr_present) THEN
+          epr_env%ref_count=0
+          CALL epr_env_init(epr_env,qs_env,error=error)
+          CALL epr_g_zke(epr_env,qs_env,error=error)
+          CALL epr_nablavks(epr_env,qs_env,error=error)
+       ENDIF
+       !
+       ! Build the rs_gauge if needed
+       !CALL current_set_gauge(current_env,qs_env,error=error)
+       !
+       ! Loop over field direction
+       DO iB = 1,3
+          !
+          ! Build current response and succeptibility
+          CALL current_build_current(current_env,qs_env,iB,error=error)
+          CALL current_build_chi(current_env,qs_env,iB,error=error)
+          !
+          ! Compute NMR shift
+          IF(nmr_present) THEN
+             CALL nmr_shift(nmr_env,current_env,qs_env,iB,error=error)
+          ENDIF
+          !
+          ! Compute EPR
+          IF(epr_present) THEN
+             CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error=error)
+             CALL epr_g_so(epr_env,current_env,qs_env,iB,error=error)
+             CALL epr_g_soo(epr_env,current_env,qs_env,iB,error=error)
+          ENDIF
+       ENDDO
+       !
+       ! Finalized the nmr environment
+       IF(nmr_present) THEN
+          CALL nmr_shift_print(nmr_env,current_env,qs_env,error=error)
+          CALL nmr_env_cleanup(nmr_env,error=error)
+       ENDIF
+       !
+       ! Finalized the epr environment
+       IF(epr_present) THEN
+          CALL epr_g_print(epr_env,qs_env,error=error)
+          CALL epr_env_cleanup(epr_env,error=error)
+       ENDIF
+       !
+    ELSE
+      IF(output_unit>0) THEN
+         WRITE(output_unit,"(T10,A,/T20,A,/)")&
+           "CURRENT: Not all responses to perturbation operators could be calculated.",&
+           " Hence: NO nmr and NO epr possible."
+      END IF
+    END IF
+    ! Finalized the current environment
+    CALL current_env_cleanup(current_env,qs_env,error=error)
+
+
+  END SUBROUTINE  nmr_epr_linres
+
+  SUBROUTINE issc_linres(linres_control,qs_env, p_env, dft_control, error)
+
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_linres', &
+      routineP = moduleN//':'//routineN
+
+
+    INTEGER                                  :: iatom
+    LOGICAL                                  :: do_qmmm
+    TYPE(current_env_type)                   :: current_env
+    TYPE(issc_env_type)                      :: issc_env
+
+    linres_control%property = lr_current
+    IF(.NOT.linres_control%localized_psi0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "Are you sure that you want to calculate the chemical "//&
+            "shift without localized psi0?")
+       CALL linres_localize(qs_env,linres_control,&
+            dft_control%nspins,centers_only=.TRUE.,error=error)
+    ENDIF
+    !
+    !Initialize the current environment
+    do_qmmm = .FALSE.
+    current_env%ref_count=0
+    IF(qs_env%qmmm) do_qmmm = .TRUE.
+    current_env%do_qmmm = do_qmmm
+    !current_env%prop='issc'
+    !CALL current_env_init(current_env,qs_env,error=error)
+    !CALL current_response(current_env,p_env,qs_env,error)
+    !
+    !Initialize the issc environment
+    issc_env%ref_count=0
+    CALL issc_env_init(issc_env,qs_env,error=error)
+    !
+    ! Loop over atoms
+    DO iatom = 1,issc_env%issc_natms
+       CALL issc_operators(issc_env,qs_env,iatom,error)
+       CALL issc_response(issc_env,p_env,qs_env,error)
+       CALL issc_issc(issc_env,qs_env,iatom,error=error)
+    ENDDO
+    !
+    ! Finalized the issc environment
+    CALL issc_print(issc_env,qs_env,error)
+    CALL issc_env_cleanup(issc_env,error)
+
+  END SUBROUTINE issc_linres
+
+
+  SUBROUTINE polar_linres(qs_env,p_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_linres', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(polar_env_type)                     :: polar_env
+
+    polar_env%ref_count=0
+    CALL polar_env_init(polar_env,qs_env,error=error)
+    CALL polar_operators(polar_env,qs_env,error=error)
+    CALL polar_response(polar_env,p_env,qs_env,error=error)
+    CALL polar_polar(polar_env,qs_env,error=error)
+    !
+    CALL polar_print(polar_env,qs_env,error)
+    CALL polar_env_cleanup(polar_env,error)
+
+  END SUBROUTINE polar_linres
+
 
 END MODULE qs_linres_module
 

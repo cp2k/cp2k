@@ -567,6 +567,7 @@ OBJECTS_GENERIC =\
  qs_linres_nmr_shift.o\
  qs_linres_nmr_utils.o\
  qs_linres_op.o\
+qs_linres_polar_utils.o\
  qs_linres_types.o\
  qs_localization_methods.o\
  qs_local_rho_types.o\
