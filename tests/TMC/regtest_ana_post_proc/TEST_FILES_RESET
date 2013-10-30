@@ -11,3 +11,5 @@ TMC_ana_dip_cl.inp
 TMC_ana_deviation.inp
 TMC_ana_all.inp
 TMC_ana_restart.inp
+# due to the completition of the restart file writing and reading
+TMC_ana_restart.inp
