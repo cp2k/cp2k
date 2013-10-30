@@ -335,6 +335,10 @@ CONTAINS
     IF(l_tmp)THEN
       WRITE(file_ptr)ana_env%density_3d%conf_counter, &
                ana_env%density_3d%nr_bins, &
+               ana_env%density_3d%sum_vol, &
+               ana_env%density_3d%sum_vol2, &
+               ana_env%density_3d%sum_box_length, &
+               ana_env%density_3d%sum_box_length2, &
                ana_env%density_3d%sum_density, &
                ana_env%density_3d%sum_dens2
     END IF
@@ -361,11 +365,21 @@ CONTAINS
     WRITE(file_ptr) l_tmp
     IF(l_tmp)THEN
       WRITE(file_ptr)ana_env%dip_ana%conf_counter, &
+               ana_env%dip_ana%ana_type,&
                ana_env%dip_ana%mu2_pv_s, &
                ana_env%dip_ana%mu_psv, &
                ana_env%dip_ana%mu_pv, &
+               ana_env%dip_ana%mu2_pv_mat, &
                ana_env%dip_ana%mu2_pv_mat
     END IF
+
+    l_tmp = ASSOCIATED(ana_env%displace)
+    WRITE(file_ptr) l_tmp
+    IF(l_tmp)THEN
+      WRITE(file_ptr)ana_env%displace%conf_counter, &
+               ana_env%displace%disp
+    END IF
+
     CALL close_file(unit_number=file_ptr)
 
     file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
@@ -428,9 +442,13 @@ CONTAINS
       CPPrecondition(ASSOCIATED(ana_env%density_3d).EQV.l_tmp,cp_failure_level,routineP,error,failure)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%density_3d%conf_counter, &
-                 ana_env%density_3d%nr_bins, &
-                 ana_env%density_3d%sum_density, &
-                 ana_env%density_3d%sum_dens2
+               ana_env%density_3d%nr_bins, &
+               ana_env%density_3d%sum_vol, &
+               ana_env%density_3d%sum_vol2, &
+               ana_env%density_3d%sum_box_length, &
+               ana_env%density_3d%sum_box_length2, &
+               ana_env%density_3d%sum_density, &
+               ana_env%density_3d%sum_dens2
       END IF
   
       READ(file_ptr) l_tmp
@@ -455,11 +473,21 @@ CONTAINS
       CPPrecondition(ASSOCIATED(ana_env%dip_ana).EQV.l_tmp,cp_failure_level,routineP,error,failure)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%dip_ana%conf_counter, &
+                 ana_env%dip_ana%ana_type,&
                  ana_env%dip_ana%mu2_pv_s, &
                  ana_env%dip_ana%mu_psv, &
                  ana_env%dip_ana%mu_pv, &
+                 ana_env%dip_ana%mu2_pv_mat, &
                  ana_env%dip_ana%mu2_pv_mat
       END IF
+
+      READ(file_ptr) l_tmp
+      CPPrecondition(ASSOCIATED(ana_env%displace).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      IF(l_tmp)THEN
+        READ(file_ptr)ana_env%displace%conf_counter, &
+                ana_env%displace%disp
+      END IF
+
       CALL close_file(unit_number=file_ptr)
       elem => NULL()
     END IF
