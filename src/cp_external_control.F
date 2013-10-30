@@ -34,7 +34,7 @@ MODULE cp_external_control
   INTEGER :: error_unit
 
   PUBLIC :: external_control
-  PUBLIC :: get_external_comm, set_external_comm
+  PUBLIC :: set_external_comm
 
   INTEGER, SAVE :: external_comm = -1
   INTEGER, SAVE :: external_master_id = -1
@@ -74,29 +74,6 @@ CONTAINS
       exit_tag = in_exit_tag
     END IF
   END SUBROUTINE set_external_comm
-
-! *****************************************************************************
-!> \brief gets the external communicator and the different defined tags 
-!>        to send messages (e.g. intermediate energies during scf) or
-!>        reveive commands (e.g. aborting the calculation)
-!> \author Mandes 02.2013
-! *****************************************************************************
-  SUBROUTINE get_external_comm(comm, out_external_master_id, &
-                               out_scf_energy_message_tag, error)
-    INTEGER, INTENT(OUT)                     :: comm, out_external_master_id
-    INTEGER, INTENT(OUT), OPTIONAL           :: out_scf_energy_message_tag
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_external_comm', &
-      routineP = moduleN//':'//routineN
-
-    comm = external_comm
-    out_external_master_id = external_master_id
-
-    IF(PRESENT(out_scf_energy_message_tag)) &
-      out_scf_energy_message_tag = scf_energy_message_tag
-  END SUBROUTINE get_external_comm
-
 
 ! *****************************************************************************
 !> \brief External manipulations during a run : when the <PROJECT_NAME>.EXIT_$runtype

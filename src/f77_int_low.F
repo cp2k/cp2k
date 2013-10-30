@@ -100,7 +100,7 @@ SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr)
   CHARACTER(LEN=default_string_length) :: description_low
 
   description_low=description
-  CALL get_result_r1(env_id,description_low, N, RESULT, ierr)
+  CALL get_result_r1(env_id,description_low, N, RESULT, ierr=ierr)
 
 END SUBROUTINE cp_get_result_r1
 

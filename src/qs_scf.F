@@ -35,6 +35,8 @@
 !>      - 10.2004 removed pao [fawzi]
 !>      - 03.2006 large cleaning action [Joost VandeVondele]
 !>      - High-spin ROKS added (05.04.06,MK)
+!>      - Mandes (10.2013)
+!>        internediate energy communication with external communicator added
 !> \author Matthias Krack (30.04.2001)
 ! *****************************************************************************
 MODULE qs_scf
@@ -46,7 +48,6 @@ MODULE qs_scf
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_external_control,             ONLY: get_external_comm
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -56,6 +57,8 @@ MODULE qs_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_methods,               ONLY: get_results,&
+                                             test_for_result
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_postprocessing
@@ -68,7 +71,8 @@ MODULE qs_scf
                                              ot_precond_sparse_diag
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_send
@@ -239,13 +243,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ext_master_id, external_comm, handle, handle2, ispin, &
+    CHARACTER(LEN=default_string_length)     :: description
+    INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ispin, &
       iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, exit_outer_loop, &
       failure, gapw, gapw_xc, harris_flag, has_unit_metric, &
       inner_loop_converged, just_energy, outer_loop_converged, scp_nddo, &
       use_jacobi
     REAL(KIND=dp)                            :: t1, t2
+    REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -330,10 +336,22 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"QS_SCF",error=error)
 
     ! check for external communicator and if the inermediate energy should be sended
-    CALL get_external_comm(comm=external_comm, &
-           out_external_master_id=ext_master_id, &
-           out_scf_energy_message_tag=scf_energy_message_tag, &
-           error=error)
+    res_val_3(:) = -1.0_dp
+    description  = "[EXT_SCF_ENER_COMM]"
+    IF(test_for_result(results=qs_env%results,description=description, &
+                       error=error)) THEN
+      CALL get_results(results=qs_env%results, description=description,&
+                       values=res_val_3, n_entries=i_tmp, error=error)
+      CPPostcondition(i_tmp.EQ.3,cp_failure_level,routineP,error,failure)
+      CALL cp_assert(ANY(res_val_3(:).GT.0.0),cp_failure_level,&
+             cp_assertion_failed,routineP,&
+             " Trying to access result ("//TRIM(description)//&
+             ") which is not correctly stored. ",&
+             error, only_ionode=.TRUE.)
+    END IF
+    external_comm          = NINT(res_val_3(1))
+    ext_master_id          = NINT(res_val_3(2))
+    scf_energy_message_tag = NINT(res_val_3(3))
 
     ! *** outer loop of the scf, can treat other variables,
     ! *** such as lagrangian multipliers

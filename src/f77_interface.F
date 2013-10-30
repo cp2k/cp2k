@@ -37,7 +37,8 @@ MODULE f77_interface
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_methods,               ONLY: get_results
+  USE cp_result_methods,               ONLY: get_results,&
+                                             test_for_result
   USE cp_subsys_types,                 ONLY: cp_subsys_type,&
                                              unpack_subsys_particles
   USE cuda_device,                     ONLY: cuda_device_init,&
@@ -1114,18 +1115,20 @@ CPSourceFileRef,&
 !> \param description, the tag of the result
 !> \param env_id id of the force_env
 !> \param result will contain the result
+!> \param res_exist
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE get_result_r1(env_id, description, N, RESULT, ierr)
+  SUBROUTINE get_result_r1(env_id, description, N, RESULT, res_exist, ierr)
     INTEGER                                  :: env_id
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: N
     REAL(KIND=dp), DIMENSION(1:N)            :: RESULT
+    LOGICAL, OPTIONAL                        :: res_exist
     INTEGER                                  :: ierr
 
     INTEGER                                  :: nres
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: exist_res, failure
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
 
@@ -1134,13 +1137,24 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
 
     IF (.NOT. failure) THEN
-       CALL get_results(results=f_env%force_env%results,&
-            description=description,&
-            n_rep=nres,error=error)
-       CALL get_results(results=f_env%force_env%results,&
-            description=description,&
-            values=RESULT,&
-            nval=nres,error=error)
+      ! first test for the result
+      IF(PRESENT(res_exist)) THEN
+        res_exist = test_for_result(results=f_env%force_env%results,&
+                      description=description, error=error)
+        exist_res = res_exist
+      ELSE
+        exist_res = .TRUE.
+      END IF
+      ! if existing (or assuming the existance) read the results
+      IF(res_exist) THEN
+        CALL get_results(results=f_env%force_env%results,&
+             description=description,&
+             n_rep=nres,error=error)
+        CALL get_results(results=f_env%force_env%results,&
+             description=description,&
+             values=RESULT,&
+             nval=nres,error=error)
+      END IF
     ENDIF
 
     CALL f_env_rm_defaults(f_env,error,ierr)

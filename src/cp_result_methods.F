@@ -34,6 +34,7 @@ MODULE cp_result_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_result_methods'
 
   PUBLIC :: put_results,&
+            test_for_result,&
             get_results,&
             cp_results_erase,&
             cp_results_mp_bcast
@@ -119,6 +120,37 @@ CONTAINS
     results%result_value(isize+1)%value%real_type = RESHAPE(values,(/jsize/))
 
   END SUBROUTINE put_result_r2
+
+! *****************************************************************************
+!> \brief test for a certain result in the result_list
+!> \par History
+!>      10.2013
+!> \author Mandes
+! *****************************************************************************
+  FUNCTION test_for_result(results,description, error) RESULT(res_exist)
+    TYPE(cp_result_type), POINTER            :: results
+    CHARACTER(LEN=default_string_length)     :: description
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: res_exist
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'test_for_result', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, nlist
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,error,failure)
+    nlist=SIZE(results%result_value)
+    res_exist = .FALSE.
+    DO i = 1, nlist
+       IF(TRIM(results%result_label(i))==TRIM(description)) THEN
+         res_exist = .TRUE.
+         EXIT
+       END IF
+    END DO
+
+  END FUNCTION test_for_result
 
 ! *****************************************************************************
 !> \brief gets the required part out of the result_list
