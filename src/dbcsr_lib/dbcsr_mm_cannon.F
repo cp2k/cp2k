@@ -161,6 +161,7 @@ MODULE dbcsr_mm_cannon
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
   TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_abbuffer
+  INTEGER(KIND=int_8), PRIVATE, SAVE      :: marketing_flops = 0
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
   PUBLIC :: dbcsr_mm_cannon_multiply
@@ -175,6 +176,7 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_mm_multrec_lib_init(error)
+    marketing_flops = 0
   END SUBROUTINE
 
 
@@ -189,6 +191,8 @@ MODULE dbcsr_mm_cannon
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
      !$omp master
+     IF(output_unit>0) &
+       WRITE (output_unit,'(A,T30,I20)') " marketing flops", marketing_flops
      IF (ASSOCIATED(memtype_abbuffer%pool)) &
         CALL dbcsr_mempool_destruct(memtype_abbuffer%pool, error)
      !$omp end master
@@ -440,8 +444,8 @@ MODULE dbcsr_mm_cannon
     l_row = dbcsr_nfullrows_total(matrix_c)
     f_col = 1
     l_col = dbcsr_nfullcols_total(matrix_c)
-    f_k = 0
-    l_k = 0
+    f_k = 1
+    l_k = dbcsr_nfullcols_total(matrix_left)
     IF (PRESENT (first_row)) THEN
        CALL dbcsr_assert(first_row .GE. 1&
             .AND. first_row .LE. dbcsr_nfullrows_total(matrix_c),&
@@ -492,6 +496,12 @@ MODULE dbcsr_mm_cannon
             "Invalid last k specified (A)", __LINE__, error)
        l_k = last_k
     ENDIF
+
+    ! update statistics
+    marketing_flops = marketing_flops + 2_int_8*INT(l_row-f_row+1, int_8) &
+                                               *INT(l_col-f_col+1, int_8) &
+                                               *INT(l_k-f_k+1,     int_8)
+
     !
     ! Now optimize the default submatrix selection values away
     IF (f_row .EQ. 1) f_row = 0
