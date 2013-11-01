@@ -122,6 +122,7 @@ SUBROUTINE dbcsr_cuda_stream_destroy(this, error)
     CALL mp_abort("__DBCSR_CUDA not compiled in.")
 #else
     INTEGER                                  :: istat
+    IF(.NOT. C_ASSOCIATED(this%cptr)) CALL mp_abort("dbcsr_cuda_stream_destroy: stream not allocated")
     istat = cuda_stream_destroy(this%cptr)
     IF(istat /= 0) CALL mp_abort("dbcsr_cuda_stream_destroy failed")
     this%cptr = C_NULL_PTR
@@ -142,6 +143,7 @@ SUBROUTINE dbcsr_cuda_stream_synchronize(this, error)
     CALL mp_abort("__DBCSR_CUDA not compiled in.")
 #else
     INTEGER                                  :: istat
+    IF(.NOT. C_ASSOCIATED(this%cptr)) CALL mp_abort("dbcsr_cuda_stream_synchronize: stream not allocated")
     istat = cuda_stream_sync(this%cptr)
     IF(istat /= 0) CALL mp_abort("dbcsr_cuda_stream_synchronize failed")
 #endif
