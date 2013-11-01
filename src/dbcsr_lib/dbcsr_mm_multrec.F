@@ -20,6 +20,7 @@ MODULE dbcsr_mm_multrec
 
   USE array_types,                     ONLY: array_data,&
                                              array_equality
+  USE dbcsr_config,                    ONLY: multrec_limit
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_8,&
                                              real_8,&
@@ -40,7 +41,7 @@ MODULE dbcsr_mm_multrec
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
-  USE dbcsr_config,                    ONLY: multrec_limit
+
   !$ USE OMP_LIB
 
   IMPLICIT NONE
@@ -533,7 +534,6 @@ MODULE dbcsr_mm_multrec
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sparse_multrec', &
       routineP = moduleN//':'//routineN
-
     LOGICAL, PARAMETER                       :: careful = careful_mod, &
                                                 dbg = .FALSE.
 

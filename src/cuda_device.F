@@ -65,7 +65,7 @@ MODULE cuda_device
      SUBROUTINE cuda_nvtx_name_osthread_cu(name)&
           BIND(C, name="cuda_nvtx_name_osthread_cu")
        USE ISO_C_BINDING
-       CHARACTER(KIND=C_CHAR), dimension(*)     :: name
+    CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: name
 
      END SUBROUTINE cuda_nvtx_name_osthread_cu
   END INTERFACE
