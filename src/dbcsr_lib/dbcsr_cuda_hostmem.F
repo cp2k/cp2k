@@ -43,33 +43,33 @@ MODULE dbcsr_cuda_hostmem
 
 
   INTERFACE dbcsr_cuda_hostmem_allocate
-     MODULE PROCEDURE host_mem_alloc_i, host_mem_alloc_l
-     MODULE PROCEDURE host_mem_alloc_r, host_mem_alloc_d
-     MODULE PROCEDURE host_mem_alloc_c, host_mem_alloc_z
-     MODULE PROCEDURE host_mem_alloc_i_2D, host_mem_alloc_l_2D
-     MODULE PROCEDURE host_mem_alloc_r_2D, host_mem_alloc_d_2D
-     MODULE PROCEDURE host_mem_alloc_c_2D, host_mem_alloc_z_2D
-     MODULE PROCEDURE host_mem_alloc_i_3D, host_mem_alloc_l_3D
-     MODULE PROCEDURE host_mem_alloc_r_3D, host_mem_alloc_d_3D
-     MODULE PROCEDURE host_mem_alloc_c_3D, host_mem_alloc_z_3D
-     MODULE PROCEDURE host_mem_alloc_i_4D, host_mem_alloc_l_4D
-     MODULE PROCEDURE host_mem_alloc_r_4D, host_mem_alloc_d_4D
-     MODULE PROCEDURE host_mem_alloc_c_4D, host_mem_alloc_z_4D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_i,    dbcsr_cuda_hostmem_alloc_l
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_r,    dbcsr_cuda_hostmem_alloc_d
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_c,    dbcsr_cuda_hostmem_alloc_z
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_i_2D, dbcsr_cuda_hostmem_alloc_l_2D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_r_2D, dbcsr_cuda_hostmem_alloc_d_2D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_c_2D, dbcsr_cuda_hostmem_alloc_z_2D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_i_3D, dbcsr_cuda_hostmem_alloc_l_3D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_r_3D, dbcsr_cuda_hostmem_alloc_d_3D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_c_3D, dbcsr_cuda_hostmem_alloc_z_3D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_i_4D, dbcsr_cuda_hostmem_alloc_l_4D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_r_4D, dbcsr_cuda_hostmem_alloc_d_4D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_alloc_c_4D, dbcsr_cuda_hostmem_alloc_z_4D
   END INTERFACE
 
   INTERFACE dbcsr_cuda_hostmem_deallocate
-     MODULE PROCEDURE host_mem_dealloc_i, host_mem_dealloc_l
-     MODULE PROCEDURE host_mem_dealloc_r, host_mem_dealloc_d
-     MODULE PROCEDURE host_mem_dealloc_c, host_mem_dealloc_z
-     MODULE PROCEDURE host_mem_dealloc_i_2D, host_mem_dealloc_l_2D
-     MODULE PROCEDURE host_mem_dealloc_r_2D, host_mem_dealloc_d_2D
-     MODULE PROCEDURE host_mem_dealloc_c_2D, host_mem_dealloc_z_2D
-     MODULE PROCEDURE host_mem_dealloc_i_3D, host_mem_dealloc_l_3D
-     MODULE PROCEDURE host_mem_dealloc_r_3D, host_mem_dealloc_d_3D
-     MODULE PROCEDURE host_mem_dealloc_c_3D, host_mem_dealloc_z_3D
-     MODULE PROCEDURE host_mem_dealloc_i_4D, host_mem_dealloc_l_4D
-     MODULE PROCEDURE host_mem_dealloc_r_4D, host_mem_dealloc_d_4D
-     MODULE PROCEDURE host_mem_dealloc_c_4D, host_mem_dealloc_z_4D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_i,    dbcsr_cuda_hostmem_dealloc_l
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_r,    dbcsr_cuda_hostmem_dealloc_d
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_c,    dbcsr_cuda_hostmem_dealloc_z
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_i_2D, dbcsr_cuda_hostmem_dealloc_l_2D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_r_2D, dbcsr_cuda_hostmem_dealloc_d_2D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_c_2D, dbcsr_cuda_hostmem_dealloc_z_2D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_i_3D, dbcsr_cuda_hostmem_dealloc_l_3D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_r_3D, dbcsr_cuda_hostmem_dealloc_d_3D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_c_3D, dbcsr_cuda_hostmem_dealloc_z_3D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_i_4D, dbcsr_cuda_hostmem_dealloc_l_4D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_r_4D, dbcsr_cuda_hostmem_dealloc_d_4D
+     MODULE PROCEDURE dbcsr_cuda_hostmem_dealloc_c_4D, dbcsr_cuda_hostmem_dealloc_z_4D
   END INTERFACE
 
 
@@ -113,13 +113,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Helper-routine performing allocation of host-pinned cuda memory.
 ! *****************************************************************************
- SUBROUTINE host_mem_alloc_raw (host_mem_c_ptr, n_bytes, error)
+ SUBROUTINE dbcsr_cuda_hostmem_alloc_raw (host_mem_c_ptr, n_bytes, error)
     TYPE(C_PTR), INTENT(OUT)                 :: host_mem_c_ptr
     INTEGER, INTENT(IN)                      :: n_bytes
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_alloc_raw', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_hostmem_alloc_raw', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
@@ -128,12 +128,12 @@ CONTAINS
 #if defined (__DBCSR_CUDA)
     istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &
                INT(n_bytes, KIND=C_SIZE_T), 0_c_int, 0_c_int)
-    IF (istat /= 0) CALL mp_abort("host_mem_alloc_raw: Could not allocate host pinned memory")
+    IF (istat /= 0) CALL mp_abort("dbcsr_cuda_hostmem_alloc_raw: Could not allocate host pinned memory")
 #else
-    CALL mp_abort("host_mem_alloc_raw: DBCSR_CUDA not compiled in.")
+    CALL mp_abort("dbcsr_cuda_hostmem_alloc_raw: DBCSR_CUDA not compiled in.")
 #endif
     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE host_mem_alloc_raw
+  END SUBROUTINE dbcsr_cuda_hostmem_alloc_raw
 
 
 END MODULE dbcsr_cuda_hostmem

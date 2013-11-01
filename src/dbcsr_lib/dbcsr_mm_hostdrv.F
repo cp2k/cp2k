@@ -13,7 +13,9 @@
 !  - 2011-09-26 Split dbcsr_internal_operations
 ! *****************************************************************************
 MODULE dbcsr_mm_hostdrv
-  USE dbcsr_config,                    ONLY: mm_driver_blas,&
+  USE dbcsr_config,                    ONLY: mm_driver,&
+                                             mm_driver_blas,&
+                                             mm_driver_cuda,&
                                              mm_driver_matmul,&
                                              mm_driver_plasma,&
                                              mm_driver_smm,&
@@ -136,8 +138,11 @@ CONTAINS
     LOGICAL, PARAMETER                       :: careful = careful_mod, &
                                                 dbg = .FALSE.
 
-    INTEGER                                  :: sp
+    INTEGER                                  :: error_handle, sp
     REAL(KIND=dp)                            :: rnd
+
+    IF(mm_driver==mm_driver_cuda) & !for cpu-only runs this is called too often
+       CALL dbcsr_error_set (routineN, error_handle, error)
 
     success = .TRUE. !host driver never failes...hopefully
 
@@ -279,6 +284,10 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Invalid multiplication driver",__LINE__,error)
     END SELECT
+
+
+    IF(mm_driver==mm_driver_cuda) & !for cpu-only runs this is called too often
+       CALL dbcsr_error_stop(error_handle, error)
 
 
   END SUBROUTINE dbcsr_mm_hostdrv_process

@@ -376,7 +376,7 @@ MODULE dbcsr_mm_cudadrv
     !===========================================================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or GPU gain is very large
-    IF (careful_mod) CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
+    CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
     flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
     IF(flop_per_entry > cudadrv_min_flop_sort) THEN
@@ -385,7 +385,7 @@ MODULE dbcsr_mm_cudadrv
        CALL stack_binning(params, stackbuf%hostmem, stack_size)
     ENDIF
 
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle2, error)
+    CALL dbcsr_error_stop (error_handle2, error)
 
 
     CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf%hostmem, stream=stackbuf%stream, error=error)

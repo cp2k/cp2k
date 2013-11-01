@@ -9,19 +9,19 @@
 !> \param n size given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_alloc_l (host_mem, n, error)
+  SUBROUTINE dbcsr_cuda_hostmem_alloc_l (host_mem, n, error)
     INTEGER(KIND=int_8), DIMENSION(:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
-    CALL host_mem_alloc_raw(host_mem_c_ptr, MAX(1,n)*int_8_size, error)
+    CALL dbcsr_cuda_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*int_8_size, error)
 #if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
 #else
-    STOP "host_mem_alloc_l_4D: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_alloc_l_4D: DBCSR_CUDA not compiled in."
 #endif
-  END SUBROUTINE host_mem_alloc_l
+  END SUBROUTINE dbcsr_cuda_hostmem_alloc_l
 
 
 
@@ -30,20 +30,20 @@
 !> \param n1,n2 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-SUBROUTINE host_mem_alloc_l_2D (host_mem, n1, n2, error)
+SUBROUTINE dbcsr_cuda_hostmem_alloc_l_2D (host_mem, n1, n2, error)
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*int_8_size
-    CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+    CALL dbcsr_cuda_hostmem_alloc_raw(host_mem_c_ptr,n_bytes , error)
 #if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
 #else
-    STOP "host_mem_alloc_l_4D: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_alloc_l_4D: DBCSR_CUDA not compiled in."
 #endif
-  END SUBROUTINE host_mem_alloc_l_2D
+  END SUBROUTINE dbcsr_cuda_hostmem_alloc_l_2D
 
 
 ! *****************************************************************************
@@ -51,21 +51,21 @@ SUBROUTINE host_mem_alloc_l_2D (host_mem, n1, n2, error)
 !> \param n1,n2,n3 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_alloc_l_3D (host_mem, n1, n2, n3, error)
+  SUBROUTINE dbcsr_cuda_hostmem_alloc_l_3D (host_mem, n1, n2, n3, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*int_8_size
-    CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+    CALL dbcsr_cuda_hostmem_alloc_raw(host_mem_c_ptr,n_bytes , error)
 #if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3) /))
 #else
-    STOP "host_mem_alloc_l_3D: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_alloc_l_3D: DBCSR_CUDA not compiled in."
 #endif
-  END SUBROUTINE host_mem_alloc_l_3D
+  END SUBROUTINE dbcsr_cuda_hostmem_alloc_l_3D
 
 
 ! *****************************************************************************
@@ -73,21 +73,21 @@ SUBROUTINE host_mem_alloc_l_2D (host_mem, n1, n2, error)
 !> \param n1,..,n4 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
+SUBROUTINE dbcsr_cuda_hostmem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*MAX(1,n4)*int_8_size
-    CALL host_mem_alloc_raw(host_mem_c_ptr,n_bytes , error)
+    CALL dbcsr_cuda_hostmem_alloc_raw(host_mem_c_ptr,n_bytes , error)
 #if defined (__DBCSR_CUDA)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
 #else
-    STOP "host_mem_alloc_l_4D: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_alloc_l_4D: DBCSR_CUDA not compiled in."
 #endif
-  END SUBROUTINE host_mem_alloc_l_4D
+  END SUBROUTINE dbcsr_cuda_hostmem_alloc_l_4D
 
 
 
@@ -95,11 +95,11 @@ SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
 !> \brief Deallocates a 1D fortan-array, which is cuda host-pinned memory.
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_dealloc_l (host_mem, error)
+  SUBROUTINE dbcsr_cuda_hostmem_dealloc_l (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: host_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_hostmem_dealloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: error_handle, istat
 
@@ -108,23 +108,23 @@ SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
 #if defined (__DBCSR_CUDA)
     istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1)))
     IF (istat /= 0 ) &
-       STOP "host_mem_dealloc_l: Error deallocating host pinned memory"
+       STOP "dbcsr_cuda_hostmem_dealloc_l: Error deallocating host pinned memory"
 #else
-    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_dealloc_l: DBCSR_CUDA not compiled in."
 #endif
      IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE host_mem_dealloc_l
+  END SUBROUTINE dbcsr_cuda_hostmem_dealloc_l
 
 
 ! *****************************************************************************
 !> \brief Deallocates a 2D fortan-array, which is cuda host-pinned memory.
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_dealloc_l_2D (host_mem, error)
+  SUBROUTINE dbcsr_cuda_hostmem_dealloc_l_2D (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:,:), &
       POINTER                                :: host_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l_2D', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_hostmem_dealloc_l_2D', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: error_handle, istat
 
@@ -133,23 +133,23 @@ SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
 #if defined (__DBCSR_CUDA)
     istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1)))
     IF (istat /= 0 ) &
-       STOP "host_mem_dealloc_l_2D: Error deallocating host pinned memory"
+       STOP "dbcsr_cuda_hostmem_dealloc_l_2D: Error deallocating host pinned memory"
 #else
-    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_dealloc_l: DBCSR_CUDA not compiled in."
 #endif
      IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE host_mem_dealloc_l_2D
+  END SUBROUTINE dbcsr_cuda_hostmem_dealloc_l_2D
 
 
 ! *****************************************************************************
 !> \brief Deallocates a 3D fortan-array, which is cuda host-pinned memory.
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_dealloc_l_3D (host_mem, error)
+  SUBROUTINE dbcsr_cuda_hostmem_dealloc_l_3D (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:), &
       POINTER                                :: host_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l_4D', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_hostmem_dealloc_l_3D', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: error_handle, istat
 
@@ -158,23 +158,23 @@ SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
 #if defined (__DBCSR_CUDA)
     istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1)))
     IF (istat /= 0 ) &
-       STOP "host_mem_dealloc_l_3D: Error deallocating host pinned memory"
+       STOP "dbcsr_cuda_hostmem_dealloc_l_3D: Error deallocating host pinned memory"
 #else
-    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_dealloc_l: DBCSR_CUDA not compiled in."
 #endif
      IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE host_mem_dealloc_l_3D
+  END SUBROUTINE dbcsr_cuda_hostmem_dealloc_l_3D
 
 
 ! *****************************************************************************
 !> \brief Deallocates a 4D fortan-array, which is cuda host-pinned memory.
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE host_mem_dealloc_l_4D (host_mem, error)
+  SUBROUTINE dbcsr_cuda_hostmem_dealloc_l_4D (host_mem, error)
     INTEGER(KIND=int_8), DIMENSION(:,:,:,:), &
       POINTER                                :: host_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'host_mem_dealloc_l_4D', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_hostmem_dealloc_l_4D', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: error_handle, istat
 
@@ -183,10 +183,10 @@ SUBROUTINE host_mem_alloc_l_4D (host_mem, n1, n2, n3, n4, error)
 #if defined (__DBCSR_CUDA)
     istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1,1)))
     IF (istat /= 0 ) &
-       STOP "host_mem_dealloc_l_4D: Error deallocating host pinned memory"
+       STOP "dbcsr_cuda_hostmem_dealloc_l_4D: Error deallocating host pinned memory"
 #else
-    STOP "host_mem_dealloc_l: DBCSR_CUDA not compiled in."
+    STOP "dbcsr_cuda_hostmem_dealloc_l: DBCSR_CUDA not compiled in."
 #endif
      IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE host_mem_dealloc_l_4D
+  END SUBROUTINE dbcsr_cuda_hostmem_dealloc_l_4D
 
