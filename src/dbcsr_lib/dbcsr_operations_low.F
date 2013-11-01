@@ -111,8 +111,6 @@ MODULE dbcsr_operations_low
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations_low'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
   ! prettify protection
   CHARACTER, PARAMETER :: xa=dbcsr_type_hermitian, xb=dbcsr_type_antihermitian,&
                           xc=dbcsr_type_no_symmetry

@@ -40,8 +40,6 @@ MODULE dbcsr_block_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_operations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
   PUBLIC :: dbcsr_block_transpose, dbcsr_data_set
   PUBLIC :: dbcsr_block_copy, dbcsr_block_partial_copy
   PUBLIC :: set_block_diagonal, dbcsr_data_clear

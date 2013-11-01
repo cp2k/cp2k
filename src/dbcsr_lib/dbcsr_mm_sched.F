@@ -23,6 +23,7 @@ MODULE dbcsr_mm_sched
   USE dbcsr_config,                    ONLY: cudadrv_avoid_after_busy,&
                                              cudadrv_do_inhomogenous,&
                                              cudadrv_min_flop_process,&
+                                             default_resize_factor,&
                                              mm_driver,&
                                              mm_driver_cuda
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
@@ -273,8 +274,6 @@ MODULE dbcsr_mm_sched
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    REAL, PARAMETER                          :: resize_factor = 1.618034
-
     INTEGER                                  :: sp, stacked_datasize
     INTEGER(kind=int_8)                      :: flop_per_entry, total_flop
     LOGICAL                                  :: success
@@ -285,7 +284,7 @@ MODULE dbcsr_mm_sched
 
     stacked_datasize   = this%product_wm%datasize
     CALL dbcsr_data_ensure_size(this%product_wm%data_area, stacked_datasize, &
-                    factor=resize_factor, zero_pad=.TRUE., error=error)
+                    factor=default_resize_factor, zero_pad=.TRUE., error=error)
 
      !!From here on there is no boundary checking due to assumed-SIZE-arguments.
      !!This is usefull to check stack parameters, BUT it works only for kind=dp

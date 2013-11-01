@@ -537,7 +537,7 @@ CONTAINS
             size_sum - current_sum)
        sizes(nblocks) = block_size
        current_sum = current_sum + block_size
-       CALL ensure_array_size (sizes, ub=nblocks+1, factor=2.0, error=error)
+       CALL ensure_array_size (sizes, ub=nblocks+1, factor=2.0_dp, error=error)
        mixer(3, selector) = mixer(3, selector) + 1
        IF (mixer(3, selector) .GT. mixer(1, selector)) THEN
           mixer(3, selector) = 1

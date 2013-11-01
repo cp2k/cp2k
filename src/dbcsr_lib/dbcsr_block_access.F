@@ -36,6 +36,7 @@ MODULE dbcsr_block_access
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
+  USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_ensure_size,&
                                              dbcsr_data_get_type,&
@@ -53,7 +54,8 @@ MODULE dbcsr_block_access
                                              dbcsr_make_dbcsr_index,&
                                              dbcsr_sort_indices,&
                                              merge_index_arrays
-  USE dbcsr_kinds,                     ONLY: real_4,&
+  USE dbcsr_kinds,                     ONLY: dp,&
+                                             real_4,&
                                              real_8
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, &
@@ -83,9 +85,6 @@ MODULE dbcsr_block_access
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_access'
-
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
 
   PUBLIC :: dbcsr_access_start, dbcsr_access_stop, dbcsr_access_flush
 

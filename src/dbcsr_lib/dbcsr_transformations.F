@@ -109,8 +109,6 @@ MODULE dbcsr_transformations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_transformations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
   LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 
   PUBLIC :: dbcsr_desymmetrize_deep,&

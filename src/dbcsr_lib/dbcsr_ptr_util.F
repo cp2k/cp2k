@@ -21,8 +21,7 @@ MODULE dbcsr_ptr_util
   USE dbcsr_cuda_hostmem,              ONLY: dbcsr_cuda_hostmem_allocate,&
                                              dbcsr_cuda_hostmem_deallocate
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8, int_4, int_8
+  USE dbcsr_kinds,                     ONLY: real_4,int_4, int_8, real_8, dp
   USE dbcsr_message_passing,           ONLY: mp_allocate,&
                                              mp_deallocate
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
@@ -32,6 +31,7 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
+  USE dbcsr_config,                    ONLY: default_resize_factor
 
   !$ USE OMP_LIB
 
@@ -40,8 +40,6 @@ MODULE dbcsr_ptr_util
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_ptr_util'
-
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
@@ -60,7 +58,7 @@ MODULE dbcsr_ptr_util
 #endif
 
 
-  PUBLIC :: ensure_array_size, default_resize_factor
+  PUBLIC :: ensure_array_size
   PUBLIC :: memory_allocate, memory_deallocate
   PUBLIC :: memory_copy, memory_zero
   PUBLIC :: pointer_replace, pointer_view

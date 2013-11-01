@@ -235,10 +235,10 @@ CONTAINS
                "Must specify 2 sizes for 2-D data", __LINE__, error=error)
     ENDIF
 
-    total_size = PRODUCT(sizes(1:d))
-
-    IF(ASSOCIATED(my_memory_type%pool)) &
+    IF(ASSOCIATED(my_memory_type%pool)) THEN
+        total_size = PRODUCT(sizes(1:d))
         area = dbcsr_mempool_get(my_memory_type, data_type, total_size, error)
+    ENDIF
 
     IF(.NOT. ASSOCIATED(area%d)) THEN
        ALLOCATE(area%d)
@@ -247,6 +247,8 @@ CONTAINS
        !$OMP FLUSH (id)
        area%d%id = id
        area%d%refcount = 1
+       sizes = sizes * my_memory_type%oversize_factor
+       total_size = PRODUCT(sizes(1:d))
        area%d%ref_size = total_size
        area%d%memory_type = my_memory_type
        area%d%data_type = data_type

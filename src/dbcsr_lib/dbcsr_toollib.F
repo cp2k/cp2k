@@ -28,9 +28,6 @@ MODULE dbcsr_toollib
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_toollib'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
-
   ! Block sizes and arrays
   PUBLIC :: dbcsr_unpack_i8_2i4, make_coordinate_tuple
   PUBLIC :: swap

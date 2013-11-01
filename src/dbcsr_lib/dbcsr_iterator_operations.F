@@ -55,8 +55,6 @@ MODULE dbcsr_iterator_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_iterator_operations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
   INTEGER, PRIVATE, POINTER, SAVE      :: common_int_pointer
 
 

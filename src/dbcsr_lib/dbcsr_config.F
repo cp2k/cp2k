@@ -18,6 +18,7 @@ MODULE dbcsr_config
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
        external_timeset, external_timestop, timeset_interface, &
        timestop_interface
+  USE dbcsr_kinds,                     ONLY: dp
 
 !$ USE OMP_LIB
 
@@ -80,9 +81,12 @@ MODULE dbcsr_config
             cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
             cudadrv_binning_nbins, cudadrv_binning_binsize
 
+
   PUBLIC :: multrec_limit
+  PUBLIC :: default_resize_factor
 
   ! First the constants are declared.
+  REAL(KIND=dp), PARAMETER             :: default_resize_factor = 1.2_dp
 
   ! Possible drivers to use for matrix multiplications
   INTEGER, PARAMETER :: mm_driver_matmul     = 1

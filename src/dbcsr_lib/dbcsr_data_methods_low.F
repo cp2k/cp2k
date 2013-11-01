@@ -28,7 +28,8 @@ MODULE dbcsr_data_methods_low
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
        dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: real_4,&
+  USE dbcsr_kinds,                     ONLY: dp,&
+                                             real_4,&
                                              real_4_size,&
                                              real_8,&
                                              real_8_size
@@ -51,9 +52,6 @@ MODULE dbcsr_data_methods_low
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods_low'
-
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
 
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
@@ -754,7 +752,7 @@ MODULE dbcsr_data_methods_low
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN)                      :: data_size
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
-    REAL, INTENT(IN), OPTIONAL               :: factor
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: factor
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &

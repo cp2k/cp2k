@@ -27,7 +27,8 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
                                              dbcsr_block_transpose
-  USE dbcsr_config,                    ONLY: mm_async,&
+  USE dbcsr_config,                    ONLY: default_resize_factor,&
+                                             mm_async,&
                                              mm_driver,&
                                              mm_driver_blas,&
                                              mm_driver_cuda,&
@@ -320,8 +321,10 @@ MODULE dbcsr_mm_cannon
 
     ! the ab_buffers are shared by all threads
     IF (mm_driver==mm_driver_cuda) THEN
-       CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
-            mpi=.TRUE., pool_capacity=6, pool_name="cannon_ab_buffers", error=error)
+       CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., &
+            cuda_devalloc=.TRUE., mpi=.TRUE., pool_capacity=6, &
+            oversize_factor=default_resize_factor,&
+            pool_name="cannon_ab_buffers", error=error)
        CALL dbcsr_memtype_setup(memtype_trsbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
             pool_capacity=2, pool_name="cannon_trs_buffers", error=error)
     ELSE

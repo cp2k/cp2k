@@ -15,6 +15,7 @@ MODULE dbcsr_mem_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
+  USE dbcsr_kinds,                     ONLY: dp
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_mempool_entry_type,&
                                              dbcsr_mempool_type,&
@@ -232,10 +233,12 @@ MODULE dbcsr_mem_methods
 ! \brief Ensures that given memtype has requested settings.
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_memtype_setup(memtype, cuda_hostalloc, cuda_devalloc, mpi, pool_capacity, pool_name, error)
+  SUBROUTINE dbcsr_memtype_setup(memtype, cuda_hostalloc, cuda_devalloc, mpi, &
+             oversize_factor, pool_capacity, pool_name, error)
     TYPE(dbcsr_memtype_type), INTENT(INOUT)  :: memtype
     LOGICAL, INTENT(IN), OPTIONAL            :: cuda_hostalloc, &
                                                 cuda_devalloc, mpi
+    REAL(KIND=dp), OPTIONAL                  :: oversize_factor
     INTEGER, INTENT(IN), OPTIONAL            :: pool_capacity
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: pool_name
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -251,14 +254,16 @@ MODULE dbcsr_mem_methods
        capacity = pool_capacity
        IF(.NOT. PRESENT(pool_name)) STOP "dbcsr_memtype_setup: pool_name missing"
     ENDIF
-    IF(PRESENT(cuda_hostalloc)) aim%cuda_hostalloc = cuda_hostalloc
-    IF(PRESENT(cuda_devalloc))  aim%cuda_devalloc  = cuda_devalloc
-    IF(PRESENT(mpi))            aim%mpi            = mpi
+    IF(PRESENT(cuda_hostalloc))  aim%cuda_hostalloc  = cuda_hostalloc
+    IF(PRESENT(cuda_devalloc))   aim%cuda_devalloc   = cuda_devalloc
+    IF(PRESENT(mpi))             aim%mpi             = mpi
+    IF(PRESENT(oversize_factor)) aim%oversize_factor = oversize_factor
 
     is_ok = .TRUE.
     is_ok = is_ok .AND. (memtype%cuda_hostalloc.EQV.aim%cuda_hostalloc)
     is_ok = is_ok .AND. (memtype%cuda_devalloc.EQV.aim%cuda_devalloc)
     is_ok = is_ok .AND. (memtype%mpi.EQV.aim%mpi)
+    is_ok = is_ok .AND. (memtype%oversize_factor==aim%oversize_factor)
 
     is_ok = is_ok .AND. (ASSOCIATED(memtype%pool).EQV.(capacity>0))
     IF(ASSOCIATED(memtype%pool)) THEN
@@ -273,6 +278,7 @@ MODULE dbcsr_mem_methods
         memtype%cuda_hostalloc = aim%cuda_hostalloc
         memtype%cuda_devalloc = aim%cuda_devalloc
         memtype%mpi = aim%mpi
+        memtype%oversize_factor = aim%oversize_factor
         IF(capacity>0) &
            CALL dbcsr_mempool_create(memtype%pool, capacity=capacity, name=pool_name)
     ENDIF

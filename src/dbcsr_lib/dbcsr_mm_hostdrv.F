@@ -52,8 +52,6 @@ MODULE dbcsr_mm_hostdrv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
   INTEGER :: multrec_calls = 0
 
   LOGICAL, PARAMETER, PUBLIC :: show_levels = .FALSE.
@@ -137,7 +135,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: careful = careful_mod, &
                                                 dbg = .FALSE.
-    REAL, PARAMETER                          :: resize_factor = 1.618034
 
     INTEGER                                  :: sp
     REAL(KIND=dp)                            :: rnd

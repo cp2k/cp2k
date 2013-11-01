@@ -61,8 +61,6 @@ MODULE dbcsr_dist_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_operations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
   INTEGER :: idid = 0
 
 

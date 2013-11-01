@@ -54,9 +54,6 @@ MODULE dbcsr_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_util'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
-
   ! Main
   PUBLIC :: dbcsr_checksum, dbcsr_verify_matrix,&
             dbcsr_pack_meta, dbcsr_unpack_meta, meta_from_dist

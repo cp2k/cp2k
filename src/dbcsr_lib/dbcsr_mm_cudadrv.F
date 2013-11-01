@@ -25,6 +25,7 @@ MODULE dbcsr_mm_cudadrv
                                              cudadrv_binning_nbins,&
                                              cudadrv_min_flop_sort,&
                                              cudadrv_nbuffers,&
+                                             default_resize_factor,&
                                              mm_stack_size
   USE dbcsr_cuda_device,               ONLY: cudaSharedMemBankSizeEightByte,&
                                              dbcsr_cuda_set_shared_mem_config
@@ -349,7 +350,6 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_process', &
       routineP = moduleN//':'//routineN
-    REAL, PARAMETER                          :: resize_factor = 1.618034
 
     INTEGER :: error_handle, error_handle2, flop_per_entry, &
       next_stack_buffer_idx, stacked_datasize
@@ -371,7 +371,7 @@ MODULE dbcsr_mm_cudadrv
     CALL dbcsr_error_set (routineN, error_handle, error)
     stacked_datasize   = this%product_wm%datasize
     CALL dbcsr_data_ensure_size(this%c_buffer, stacked_datasize, &
-                     factor=resize_factor, zero_pad=.TRUE., error=error)
+                     factor=default_resize_factor, zero_pad=.TRUE., error=error)
 
     !===========================================================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs

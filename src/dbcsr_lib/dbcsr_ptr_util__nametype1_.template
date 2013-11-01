@@ -34,7 +34,7 @@
     [type1], DIMENSION(:), POINTER                 :: array
     INTEGER, INTENT(IN), OPTIONAL                  :: lb
     INTEGER, INTENT(IN)                            :: ub
-    REAL, INTENT(IN), OPTIONAL                     :: factor
+    REAL(KIND=dp), INTENT(IN), OPTIONAL            :: factor
     LOGICAL, INTENT(IN), OPTIONAL                  :: nocopy, zero_pad
     TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL :: memory_type
     TYPE(dbcsr_error_type), intent(inout)          :: error
@@ -93,8 +93,8 @@
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
           size_increase = lb_orig - lb_new
-          size_increase = MAX (NINT(REAL(size_increase)*factor),&
-                               NINT(REAL(old_size)*factor))
+          size_increase = MAX (NINT(size_increase*factor),&
+                               NINT(old_size*factor))
           lb_new = MIN (lb_orig, lb_new - size_increase)
        ELSE
           lb_new = lb_orig
@@ -103,8 +103,8 @@
     IF (ub_orig.LT.ub) THEN
        IF (PRESENT(factor)) THEN
           size_increase = ub - ub_orig
-          size_increase = MAX (NINT(REAL(size_increase)*factor),&
-                               NINT(REAL(old_size)*factor))
+          size_increase = MAX (NINT(size_increase*factor),&
+                               NINT(old_size*factor))
           ub_new = MAX (ub_orig, ub + size_increase)
        ELSE
           ub_new = ub

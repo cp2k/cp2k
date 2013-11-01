@@ -16,6 +16,7 @@ MODULE dbcsr_index_operations
 
   USE array_types,                     ONLY: array_data,&
                                              array_size
+  USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
@@ -27,8 +28,7 @@ MODULE dbcsr_index_operations
        dbcsr_distribution_nrows, dbcsr_distribution_thread_dist, &
        dbcsr_get_index_memory_type, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_wm_use_mutable
-  USE dbcsr_ptr_util,                  ONLY: default_resize_factor,&
-                                             ensure_array_size,&
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              memory_allocate,&
                                              memory_deallocate
   USE dbcsr_toollib,                   ONLY: joaat_hash,&

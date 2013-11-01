@@ -36,6 +36,7 @@ MODULE dbcsr_work_operations
                                              block_copy_z,&
                                              dbcsr_data_copy,&
                                              dbcsr_data_set
+  USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
        dbcsr_data_get_memory_type, dbcsr_data_get_size, &
@@ -109,7 +110,6 @@ MODULE dbcsr_work_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_work_operations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 

@@ -62,9 +62,6 @@ MODULE dbcsr_io
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_io'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
-
 
   INTERFACE dbcsr_printmat
      MODULE PROCEDURE printmat_s, printmat_d, printmat_c, printmat_z

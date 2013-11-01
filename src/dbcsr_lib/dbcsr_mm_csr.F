@@ -23,6 +23,7 @@ MODULE dbcsr_mm_csr
 
   USE array_types,                     ONLY: array_data
   USE dbcsr_config,                    ONLY: dbcsr_get_conf_nstacks,&
+                                             default_resize_factor,&
                                              mm_stack_size
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_1,&
@@ -56,7 +57,6 @@ MODULE dbcsr_mm_csr
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_csr'
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
   !> \var max_stack_block_size  The maximal block size to be specially
   !>                            treated.

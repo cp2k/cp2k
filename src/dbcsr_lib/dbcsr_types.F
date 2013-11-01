@@ -268,6 +268,7 @@ MODULE dbcsr_types
      LOGICAL                           :: cuda_hostalloc = .FALSE.
      LOGICAL                           :: cuda_devalloc = .FALSE.
      TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
+     REAL(KIND=dp)                     :: oversize_factor = 1.0
   END TYPE dbcsr_memtype_type
 
   !providing pool=Null() explicitly to circumvent bug in ifort 12.1
