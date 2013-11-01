@@ -57,6 +57,7 @@ MODULE qs_energy_utils
                                              qs_ks_allocate_basics,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_linres_module,                ONLY: linres_calculation_low
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -433,6 +434,12 @@ CONTAINS
     IF(dft_control%do_xas_calculation) THEN
       CALL xas(qs_env, dft_control, error=error)
     END IF
+
+    ! Compute Linear Response properties as post-scf
+    IF(.NOT. qs_env%linres_run) THEN
+       CALL linres_calculation_low(qs_env, error=error)
+    END IF
+
 
     CALL timestop(handle)
 

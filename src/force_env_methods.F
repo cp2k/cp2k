@@ -170,12 +170,12 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
        consistent_energies, skip_external_control, eval_energy_forces, &
-       require_consistent_energy_force, error)
+       require_consistent_energy_force, linres, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL :: calc_force, consistent_energies, &
       skip_external_control, eval_energy_forces, &
-      require_consistent_energy_force
+      require_consistent_energy_force, linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
@@ -185,7 +185,7 @@ CONTAINS
     INTEGER                                  :: i, j, nat, ndigits, &
                                                 output_unit, print_forces, &
                                                 stat
-    LOGICAL                                  :: calculate_forces, &
+    LOGICAL                                  :: calculate_forces, linres_run,&
                                                 energy_consistency, eval_ef, &
                                                 failure, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
@@ -211,10 +211,12 @@ CONTAINS
     my_skip = .FALSE.
     calculate_forces = .TRUE.
     energy_consistency = .FALSE.
+    linres_run = .FALSE.
     IF (PRESENT(eval_energy_forces)) eval_ef = eval_energy_forces
     IF (PRESENT(skip_external_control)) my_skip = skip_external_control
     IF (PRESENT(calc_force)) calculate_forces = calc_force
     IF (PRESENT(consistent_energies)) energy_consistency = consistent_energies
+    IF (PRESENT(linres)) linres_run = linres
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -241,6 +243,7 @@ CONTAINS
              CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
           CASE ( use_qs_force )
              CALL set_qs_env(qs_env=force_env%qs_env,atprop=atprop_env,error=error)
+             force_env%qs_env%linres_run = linres_run
              IF (.NOT.calculate_forces) THEN
                 CALL qs_energies(qs_env=force_env%qs_env, consistent_energies=energy_consistency, &
                      calc_forces=calculate_forces, error=error)
@@ -258,7 +261,7 @@ CONTAINS
              END IF
           CASE ( use_qmmm )
              CALL qmmm_energy_and_forces(force_env,calculate_forces,require_consistent_energy_force,&
-                  error=error)
+                  linres=linres_run,error=error)
           CASE ( use_mixed_force )
              CALL mixed_energy_forces(force_env,calculate_forces,error=error)
           CASE default
@@ -924,10 +927,11 @@ CONTAINS
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,require_consistent_energy_force,error)
+  RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,&
+         require_consistent_energy_force,linres,error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL :: calc_force, &
-      require_consistent_energy_force
+      require_consistent_energy_force, linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
@@ -987,7 +991,7 @@ CPSourceFileRef,&
         ENDIF
 
         CALL qmmm_energy_and_forces_low(force_env%sub_force_env(isubf)%force_env,&
-             calc_force,error)
+             calc_force,linres,error)
 
         IF (SIZE(force_env%sub_force_env) > 1) THEN ! undo rewrite of restart file name
            CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME", &
@@ -1099,10 +1103,11 @@ CPSourceFileRef,&
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(force_env,calc_force,error)
+  RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(force_env,calc_force,linres,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    LOGICAL, INTENT(IN), OPTIONAL            :: linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces_low', &
@@ -1111,7 +1116,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: description, iter
     INTEGER                                  :: ip, j, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: calculate_forces, check, &
+    LOGICAL                                  :: calculate_forces, check, linres_run,&
                                                 failure, qmmm_added_chrg, &
                                                 qmmm_link, qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
@@ -1131,11 +1136,13 @@ CPSourceFileRef,&
     max_coord        = -HUGE(0.0_dp)
     failure          = .FALSE.
     calculate_forces = .TRUE.
+    linres_run = .FALSE.
     qmmm_link        = .FALSE.
     qmmm_link_imomm  = .FALSE.
     qmmm_added_chrg  = .FALSE.
     logger => cp_error_get_logger(error)
     IF (PRESENT(calc_force)) calculate_forces = calc_force
+    IF (PRESENT(linres)) linres_run = linres
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
     NULLIFY(force_env_section, print_key, results_qmmm, results_qm, results_mm)
     force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
@@ -1203,7 +1210,7 @@ CPSourceFileRef,&
                        error=error)
     ! QS
     CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
-         calc_force=calculate_forces,skip_external_control=.TRUE.,error=error)
+         calc_force=calculate_forces,skip_external_control=.TRUE.,linres=linres_run,error=error)
 
     ! QM/MM Interaction Potential forces
     CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&

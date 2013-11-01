@@ -416,7 +416,7 @@ CONTAINS
                      CPSourceFileRef,&
                      suberror,failure)
              ! The Ground State is needed, it can be read from Restart
-             CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+             CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,linres=.TRUE.,&
                                               error=suberror)
              CALL linres_calculation(force_env, error=suberror)
           CASE (debug_run)
