@@ -32,7 +32,7 @@ extern "C" int cuda_nvtx_range_push_cu(const char* message) {
     // colors are picked based on a (very simple) hash value of the message
     int hash=0;
     for (int i=0; i < strlen(message); i++)
-        hash += i*message[i];
+        hash += i*message[i]*message[i];
     eventAttrib.colorType = NVTX_COLOR_ARGB;
     eventAttrib.color = colormap[hash%14];
 
