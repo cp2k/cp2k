@@ -30,7 +30,7 @@ MODULE input_cp2k
        dbcsr_get_conf_use_comm_thread, has_blas, has_cuda, has_plasma, &
        has_smm_gemm, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm
+       mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -946,6 +946,12 @@ CONTAINS
          // "addition to communication tasks",&
          usage="comm_thread_load 50",&
          default_i_val=dbcsr_get_conf_comm_thread_load(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="multrec_limit",&
+         description="Recursion limit of cache oblivious multrec algorithm.",&
+         default_i_val=multrec_limit,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

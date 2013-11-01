@@ -78,6 +78,8 @@ MODULE dbcsr_config
             cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
             cudadrv_binning_nbins, cudadrv_binning_binsize
 
+  PUBLIC :: multrec_limit
+
   ! First the constants are declared.
 
   ! Possible drivers to use for matrix multiplications
@@ -180,6 +182,9 @@ MODULE dbcsr_config
 
   INTEGER, SAVE :: cudadrv_binning_nbins = 4096
   INTEGER, SAVE :: cudadrv_binning_binsize = 16
+
+  INTEGER, SAVE :: multrec_limit = 512
+
 CONTAINS
 
   SUBROUTINE dbcsr_set_conf_mm_driver (driver, error)

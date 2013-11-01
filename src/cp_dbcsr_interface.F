@@ -46,7 +46,7 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_cuda, &
        has_mpi, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm
+       mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -475,6 +475,8 @@ CONTAINS
          "use_comm_thread", l_val=use_comm_thread, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "comm_thread_load", i_val=comm_thread_load, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "multrec_limit", i_val=multrec_limit, error=error)
 
     CALL section_vals_val_get(dbcsr_section,&
          "CUDA%min_flop_process", i_val=cudadrv_min_flop_process, error=error)
@@ -592,13 +594,16 @@ CONTAINS
                plabel, "Multiplication size k stacks",&
                use_k_stacks(1:info_len)
        ENDIF
-       IF (has_mpi) &
+       IF (has_mpi) THEN
             WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Use subcommunicators",      use_subcomms_str(1:info_len),&
             plabel, "Use MPI combined types" ,   use_combtypes_str(1:info_len),&
             plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len),&
             plabel, "Use Communication thread",  use_comm_thread_str(1:info_len),&
             plabel, "Communication thread load", comm_thread_load_str(1:info_len)
+            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+             "DBCSR| Multrec recursion limit", multrec_limit
+       ENDIF
 
        IF (has_cuda) THEN
             WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&
