@@ -35,14 +35,14 @@ extern "C" int cuda_event_record(cudaEvent_t* event, cudaStream_t* stream){
     if(verbose_print) printf("cuda_event_record called\n");
     cudaError_t cErr = cudaEventRecord (*event, *stream);
     if (cuda_error_check (cErr)) return 1;
-    if (cuda_error_check(cudaGetLastError ()))return 1;
+    //if (cuda_error_check(cudaGetLastError ()))return 1;
     return 0;
 }
 
 extern "C" int cuda_event_query(cudaEvent_t* event){
     if(verbose_print) printf("cuda_event_query called\n");
     cudaError_t cErr = cudaEventQuery(*event);
-    if(cuda_error_check(cudaGetLastError ())) return -1;
+    //if(cuda_error_check(cudaGetLastError ())) return -1;
     if(cErr==cudaSuccess) return 0;
     if(cErr==cudaErrorNotReady) return 1;
     return -2;
@@ -53,7 +53,7 @@ extern "C" int cuda_stream_wait_event(cudaStream_t* stream, cudaEvent_t* event){
     // flags: Parameters for the operation (must be 0)
     cudaError_t cErr = cudaStreamWaitEvent(*stream, *event, 0);
     if (cuda_error_check (cErr)) return 1;
-    if (cuda_error_check(cudaGetLastError ()))return 1;
+    //if (cuda_error_check(cudaGetLastError ()))return 1;
     return 0;
 }
 
