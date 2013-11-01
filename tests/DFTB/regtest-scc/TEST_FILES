@@ -7,8 +7,8 @@ ch2o-1.inp          1
 ch2o-2.inp          1
 ch2o-3.inp          1
 H+.inp              1 
-ch2o-4.inp          1
-ch2o-5.inp          1
+ch2o-4.inp                        1     3e-14
+ch2o-5.inp                        1     2e-14
 ch2o.inp            1
 ch2o-r.inp          1
 ch2o-p.inp          1
@@ -28,7 +28,7 @@ ch2o-ot6.inp        1
 # bug fix for neighborlists
 h2o-5.inp           1
 # first check for LSD
-test-lsd.inp        1
+test-lsd.inp                      1     4e-14
 # atomic properties
 fa_atprop.inp       1
 fa2_atprop.inp      1

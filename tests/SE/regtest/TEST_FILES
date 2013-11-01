@@ -24,7 +24,7 @@ O2-ROKS.inp        3
 NO2-ROKS.inp       3
 #RM1 Model
 c2h4_rm1.inp       3
-h2op_2.inp         3
+h2op_2.inp                        3     8e-11
 h2po4.inp                         3     1e-11
 geom.inp           3
 b2h6_pm6.inp       3
@@ -47,7 +47,7 @@ dimer3.inp                        3     3e-13
 dimer4.inp                        3     1e-12
 # GKS INTEGRALS
 h2o_gks.inp        3
-h2o_gks_p.inp      3
+h2o_gks_p.inp                     3     2e-14
 # GKS INTEGRALS + EWALD
 h2o_gks_e.inp      3
 # SCP ice

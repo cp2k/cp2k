@@ -4,6 +4,6 @@
 CH3-HSE06.inp                  1
 CH3-PBE0.inp                   1
 CH3-PBE0_TC.inp                1
-CH4-HSE06.inp                  1
-CH4-PBE0.inp                   1
-CH4-PBE0_TC.inp                1
+CH4-HSE06.inp                     1     6e-14
+CH4-PBE0.inp                      1     6e-14
+CH4-PBE0_TC.inp                   1     3e-14

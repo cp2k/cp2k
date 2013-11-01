@@ -10,7 +10,7 @@ crys_per_qmmm_spln.inp  1
 # none calculation + periodic -> switch off periodic
 crys_per_qmmm_none.inp  1
 # check zero of the potential for charged QM systems
-acn-qmmm-re.inp                   1     6e-14
+acn-qmmm-re.inp                   1     2e-13
 # check a qm/mm nasty topology 
 acn-conn-1.inp          1 1E-12
 wat_nacl.inp           11
