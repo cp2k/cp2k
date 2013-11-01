@@ -2214,9 +2214,7 @@ MODULE dbcsr_mm_cannon
           WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
                left_fill, right_fill
        ENDIF
-       ! Old guess: fill_guess = 7 * MAX(left_fill,right_fill)
-       fill_guess = 7 * MAX(left_fill,right_fill)
-       ! New guess: fill_guess = 2.4_real_8 * MAX(left_fill,right_fill)
+       fill_guess = 2.0_real_8 * MAX(left_fill,right_fill)
        fill_guess = MIN (1.0_real_8, MAX (0.0_real_8, fill_guess))
        IF (nthreads .GT. 1) THEN
           fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
@@ -2701,6 +2699,13 @@ MODULE dbcsr_mm_cannon
                 CALL dbcsr_reset_vlocals (left_buffer_calc%mats(1, v_ki+1),&
                      left_set%image_dist, error=error)
              ENDIF
+
+             IF (mm_driver==mm_driver_cuda) THEN
+               CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
+               CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
+               CALL cuda_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
+             END IF
+
              ! Sets the local right-matrix columns
              IF (otf_filtering) THEN
                 left_norms(:) = HUGE(left_norms(1))
@@ -2714,11 +2719,6 @@ MODULE dbcsr_mm_cannon
              flop_single = 0
              threads_finished = 0
 
-             IF (mm_driver==mm_driver_cuda) THEN
-               CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
-               CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
-               CALL cuda_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
-             END IF
 
 !$omp parallel if( .NOT. my_use_plasma ) &
 !$omp default (none) &
