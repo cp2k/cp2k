@@ -24,13 +24,13 @@ MODULE input_cp2k
        cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
        cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
        cudadrv_min_flop_process, cudadrv_min_flop_sort, cudadrv_nbuffers, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, has_blas, has_cuda, has_plasma, &
-       has_smm_gemm, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, has_blas, &
+       has_cuda, has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
+       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
+       mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm, &
+       multrec_limit
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -935,9 +935,10 @@ CONTAINS
     CALL keyword_create(keyword, name="comm_thread_load",&
          description="If a communications thread is used, specify how much " &
          // "multiplication workload (%) the thread should perform in " &
-         // "addition to communication tasks",&
+         // "addition to communication tasks. "&
+         // "A negative value leaves the decision up to DBCSR.",&
          usage="comm_thread_load 50",&
-         default_i_val=dbcsr_get_conf_comm_thread_load(),error=error)
+         default_i_val=-1, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

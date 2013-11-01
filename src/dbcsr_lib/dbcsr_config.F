@@ -19,6 +19,8 @@ MODULE dbcsr_config
        external_timeset, external_timestop, timeset_interface, &
        timestop_interface
 
+!$ USE OMP_LIB
+
   IMPLICIT NONE
 
   PRIVATE
@@ -445,10 +447,14 @@ CONTAINS
       routineN = 'dbcsr_set_conf_comm_thread_load', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle
+    INTEGER                                  :: error_handle, nthreads
 
     CALL dbcsr_error_set(routineN, error_handle, error)
-    comm_thread_load = load
+    nthreads = 1
+    !$ nthreads = OMP_GET_MAX_THREADS()
+    comm_thread_load = MAX(0,90-(30*nthreads)/8)
+    IF(load >= 0)&
+       comm_thread_load = load
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_comm_thread_load
 
