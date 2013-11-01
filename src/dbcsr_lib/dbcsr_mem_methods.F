@@ -9,7 +9,8 @@
 ! *****************************************************************************
 MODULE dbcsr_mem_methods
 
-  USE dbcsr_data_methods_low,          ONLY: dbcsr_data_get_size,&
+  USE dbcsr_data_methods_low,          ONLY: dbcsr_data_exists,&
+                                             dbcsr_data_get_size,&
                                              internal_data_deallocate
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -135,6 +136,7 @@ MODULE dbcsr_mem_methods
 
     pool => area%d%memory_type%pool
     IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_add: pool not allocated"
+    IF(.NOT.dbcsr_data_exists(area, error)) STOP "dbcsr_mempool_add: area not allocated"
 
     IF(debug) WRITE (*,*) "mempool_add: name=",TRIM(pool%name),&
           " area_id=",area%d%id, " size=",dbcsr_data_get_size(area)

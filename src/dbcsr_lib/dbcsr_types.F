@@ -23,6 +23,8 @@ MODULE dbcsr_types
   USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_type
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              dp,&
+                                             int_4,&
+                                             int_8,&
                                              real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_window_type
@@ -284,6 +286,8 @@ MODULE dbcsr_types
 !> \var data_type   which of the data types is actually used
 ! *****************************************************************************
   TYPE dbcsr_data_area_type
+     INTEGER(KIND=int_4), DIMENSION(:), POINTER    :: i4    => Null()
+     INTEGER(KIND=int_8), DIMENSION(:), POINTER    :: i8    => Null()
      REAL(KIND=real_4), DIMENSION(:), POINTER      :: r_sp  => Null()
      REAL(KIND=real_8), DIMENSION(:), POINTER      :: r_dp  => Null()
      COMPLEX(KIND=real_4), DIMENSION(:), POINTER   :: c_sp  => Null()

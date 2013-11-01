@@ -45,17 +45,16 @@ MODULE dbcsr_data_methods
                                              dbcsr_fatal_level,&
                                              dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: real_4,&
+  USE dbcsr_kinds,                     ONLY: int_4,&
+                                             int_8,&
+                                             real_4,&
                                              real_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                             dbcsr_memtype_default,&
-                                             dbcsr_memtype_type,&
-                                             dbcsr_type_complex_4,&
-                                             dbcsr_type_complex_8,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_8
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_data_obj, dbcsr_memtype_default, dbcsr_memtype_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_int_4, &
+       dbcsr_type_int_8, dbcsr_type_real_4, dbcsr_type_real_8
 
   IMPLICIT NONE
 
@@ -110,6 +109,10 @@ CONTAINS
       POINTER                                :: c_sp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      POINTER                                :: i4
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: i8
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
 
@@ -117,6 +120,12 @@ CONTAINS
     IF(area%d%ref_size==0) RETURN !nothing to do
 
     SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_int_4)
+         i4 => area%d%i4(:area%d%ref_size)
+         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=i4, stream=area%d%cuda_stream, error=error)
+       CASE (dbcsr_type_int_8)
+         i8 => area%d%i8(:area%d%ref_size)
+         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=i8, stream=area%d%cuda_stream, error=error)
        CASE (dbcsr_type_real_4)
          r_sp => area%d%r_sp(:area%d%ref_size)
          CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=r_sp, stream=area%d%cuda_stream, error=error)
@@ -278,12 +287,13 @@ CONTAINS
        area%d%refcount = area%d%refcount - 1
        ! If we're releasing the last reference, then free the memory.
        IF (area%d%refcount .EQ. 0) THEN
-          IF(ASSOCIATED(area%d%memory_type%pool)) THEN
+          IF(.NOT.dbcsr_data_exists(area,error))THEN
+              DEALLOCATE (area%d)
+          ELSE IF(ASSOCIATED(area%d%memory_type%pool)) THEN
               area%d%ref_size = 0
               CALL dbcsr_mempool_add(area, error)
           ELSE
-              IF (dbcsr_data_exists (area, error)) &
-                 CALL internal_data_deallocate(area%d, error)
+              CALL internal_data_deallocate(area%d, error)
               DEALLOCATE (area%d)
           ENDIF
           NULLIFY (area%d)

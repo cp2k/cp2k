@@ -13,7 +13,7 @@
 // optimized for 13x13x13 products
 template < int m,  int n,  int k, int M, int N, int grouping>
 __global__ void
-cusmm_kernel_small(const int* __restrict__ param_stack, int  careful,  int nruns,
+cusmm_dnt_small(const int* __restrict__ param_stack, int  careful,  int nruns,
      double* a_data, double* b_data, double* c_data){
 
   const int mn = m * n;
@@ -107,7 +107,8 @@ cusmm_kernel_small(const int* __restrict__ param_stack, int  careful,  int nruns
       for (int l = 0; l < k; l++) {
         for (int i = 0; i < N; i++)
           for (int j = 0; j < M; j++){
-              myc[M*i+j] += buff_l[l * m + M*r+j] * buff_r[(N*c+i) * k + l];
+              //myc[M*i+j] += buff_l[l * m + M*r+j] * buff_r[(N*c+i) * k + l];
+              myc[M*i+j] += buff_l[l * m + M*r+j] * buff_r[l*n + N*c + i];
           } 
       }
     

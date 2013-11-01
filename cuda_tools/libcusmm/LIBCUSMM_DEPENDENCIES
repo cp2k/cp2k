@@ -1,0 +1,1 @@
+libcusmm.o : libcusmm.cu ./kernels/cusmm_dnt_tiny.h ./kernels/cusmm_dnt_medium.h ./kernels/cusmm_dnt_largeDB.h ./kernels/cusmm_dnt_small.h ./kernels/cusmm_common.h ./kernels/cusmm_transpose.h

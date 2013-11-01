@@ -9,11 +9,11 @@
 !> \param[in] lb, ub     lower and upper bound for the new pointer view
 !> \param[out] view      new pointer
 ! *****************************************************************************
-  FUNCTION pointer_view_i (original, lb, ub) RESULT (view)
-    INTEGER(kind=int_4), DIMENSION(:), POINTER :: original, view
+  FUNCTION pointer_view_l (original, lb, ub) RESULT (view)
+    INTEGER(kind=int_8), DIMENSION(:), POINTER :: original, view
     INTEGER, INTENT(IN)                  :: lb, ub
     view => original(lb:ub)
-  END FUNCTION pointer_view_i
+  END FUNCTION pointer_view_l
 
 
 ! *****************************************************************************
@@ -29,9 +29,9 @@
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
 ! *****************************************************************************
-  SUBROUTINE ensure_array_size_i(array, lb, ub, factor,&
+  SUBROUTINE ensure_array_size_l(array, lb, ub, factor,&
        nocopy, memory_type, zero_pad, error)
-    INTEGER(kind=int_4), DIMENSION(:), POINTER                 :: array
+    INTEGER(kind=int_8), DIMENSION(:), POINTER                 :: array
     INTEGER, INTENT(IN), OPTIONAL                  :: lb
     INTEGER, INTENT(IN)                            :: ub
     REAL, INTENT(IN), OPTIONAL                     :: factor
@@ -39,7 +39,7 @@
     TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL :: memory_type
     TYPE(dbcsr_error_type), INTENT(inout)          :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_i', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_l', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb_new, lb_orig, stat, &
@@ -48,7 +48,7 @@
     TYPE(dbcsr_memtype_type)                 :: mem_type
     LOGICAL                                  :: dbg, docopy, &
                                                 pad
-    INTEGER(kind=int_4), DIMENSION(:), POINTER           :: newarray
+    INTEGER(kind=int_8), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
     !CALL dbcsr_error_set(routineN, error_handler, error)
@@ -73,8 +73,8 @@
        CALL dbcsr_assert (lb_new, "EQ", 1, &
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
             "Arrays must start at 1", __LINE__, error=error)
-       CALL mem_alloc_i (array, ub, mem_type=mem_type, error=error)
-       IF (pad .AND. ub .GT. 0) CALL mem_zero_i (array, ub)
+       CALL mem_alloc_l (array, ub, mem_type=mem_type, error=error)
+       IF (pad .AND. ub .GT. 0) CALL mem_zero_l (array, ub)
        !CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
@@ -116,14 +116,14 @@
     !
     ! Deallocates the old array if it's not needed to copy the old data.
     IF(.NOT.docopy) THEN
-       CALL mem_dealloc_i (array, mem_type=mem_type, error=error)
+       CALL mem_dealloc_l (array, mem_type=mem_type, error=error)
     ENDIF
     !
     ! Allocates the new array
     CALL dbcsr_assert (lb_new, "EQ", 1, &
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Arrays must start at 1", __LINE__, error=error)
-    CALL mem_alloc_i (newarray, ub_new-lb_new+1, mem_type, error=error)
+    CALL mem_alloc_l (newarray, ub_new-lb_new+1, mem_type, error=error)
     !
     ! Now copy and/or zero pad.
     IF(docopy) THEN
@@ -132,24 +132,24 @@
             "Old extent exceeds the new one.",__LINE__,error)
        IF (ub_orig-lb_orig+1 .GT. 0) THEN
           !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
-          CALL mem_copy_i (newarray(lb_orig:ub_orig),&
+          CALL mem_copy_l (newarray(lb_orig:ub_orig),&
                array(lb_orig:ub_orig), ub_orig-lb_orig+1)
        ENDIF
        IF (pad) THEN
           !newarray(lb_new:lb_orig-1) = 0
-          CALL mem_zero_i (newarray(lb_new:lb_orig-1), (lb_orig-1)-lb_new+1)
+          CALL mem_zero_l (newarray(lb_new:lb_orig-1), (lb_orig-1)-lb_new+1)
           !newarray(ub_orig+1:ub_new) = 0
-          CALL mem_zero_i (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
+          CALL mem_zero_l (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
-       CALL mem_dealloc_i (array, mem_type=mem_type, error=error)
+       CALL mem_dealloc_l (array, mem_type=mem_type, error=error)
     ELSEIF (pad) THEN
        !newarray(:) = 0
-       CALL mem_zero_i (newarray, SIZE(newarray))
+       CALL mem_zero_l (newarray, SIZE(newarray))
     ENDIF
     array => newarray
     IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
     !CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE ensure_array_size_i
+  END SUBROUTINE ensure_array_size_l
 
 ! *****************************************************************************
 !> \brief Copies memory area
@@ -157,23 +157,23 @@
 !> \param[in] src    source memory
 !> \param[in] n      length of copy
 ! *****************************************************************************
-  SUBROUTINE mem_copy_i (dst, src, n)
+  SUBROUTINE mem_copy_l (dst, src, n)
     INTEGER, INTENT(IN) :: n
-    INTEGER(kind=int_4), DIMENSION(1:n), INTENT(OUT) :: dst
-    INTEGER(kind=int_4), DIMENSION(1:n), INTENT(IN) :: src
+    INTEGER(kind=int_8), DIMENSION(1:n), INTENT(OUT) :: dst
+    INTEGER(kind=int_8), DIMENSION(1:n), INTENT(IN) :: src
     dst(:) = src(:)
-  END SUBROUTINE mem_copy_i
+  END SUBROUTINE mem_copy_l
 
 ! *****************************************************************************
 !> \brief Zeros memory area
 !> \param[out] dst   destination memory
 !> \param[in] n      length of elements to zero
 ! *****************************************************************************
-  SUBROUTINE mem_zero_i (dst, n)
+  SUBROUTINE mem_zero_l (dst, n)
     INTEGER, INTENT(IN) :: n
-    INTEGER(kind=int_4), DIMENSION(1:n), INTENT(OUT) :: dst
+    INTEGER(kind=int_8), DIMENSION(1:n), INTENT(OUT) :: dst
     dst(:) = 0
-  END SUBROUTINE mem_zero_i
+  END SUBROUTINE mem_zero_l
 
 
 ! *****************************************************************************
@@ -183,12 +183,12 @@
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_alloc_i (mem, n, mem_type, error)
-    INTEGER(kind=int_4), DIMENSION(:), POINTER        :: mem
+  SUBROUTINE mem_alloc_l (mem, n, mem_type, error)
+    INTEGER(kind=int_8), DIMENSION(:), POINTER        :: mem
     INTEGER, INTENT(IN)                   :: n
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_i', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@
 
     IF (careful_mod) &
        CALL dbcsr_error_stop (error_handle, error=error)
-  END SUBROUTINE mem_alloc_i
+  END SUBROUTINE mem_alloc_l
 
 
 ! *****************************************************************************
@@ -216,12 +216,12 @@
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_alloc_i_2d (mem, sizes, mem_type, error)
-    INTEGER(kind=int_4), DIMENSION(:,:), POINTER      :: mem
+  SUBROUTINE mem_alloc_l_2d (mem, sizes, mem_type, error)
+    INTEGER(kind=int_8), DIMENSION(:,:), POINTER      :: mem
     INTEGER, DIMENSION(2), INTENT(IN)     :: sizes
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_i_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_l_2d', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
@@ -243,7 +243,7 @@
 
     IF (careful_mod) &
        CALL dbcsr_error_stop (error_handle, error=error)
-  END SUBROUTINE mem_alloc_i_2d
+  END SUBROUTINE mem_alloc_l_2d
 
 
 ! *****************************************************************************
@@ -253,11 +253,11 @@
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_dealloc_i (mem, mem_type, error)
-    INTEGER(kind=int_4), DIMENSION(:), POINTER        :: mem
+  SUBROUTINE mem_dealloc_l (mem, mem_type, error)
+    INTEGER(kind=int_8), DIMENSION(:), POINTER        :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_i', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
@@ -275,7 +275,7 @@
 
     IF (careful_mod) &
        CALL dbcsr_error_stop (error_handle, error=error)
-  END SUBROUTINE mem_dealloc_i
+  END SUBROUTINE mem_dealloc_l
 
 
 ! *****************************************************************************
@@ -285,11 +285,11 @@
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_dealloc_i_2d (mem, mem_type, error)
-    INTEGER(kind=int_4), DIMENSION(:,:), POINTER      :: mem
+  SUBROUTINE mem_dealloc_l_2d (mem, mem_type, error)
+    INTEGER(kind=int_8), DIMENSION(:,:), POINTER      :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_i', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
@@ -311,7 +311,7 @@
 
     IF (careful_mod) &
        CALL dbcsr_error_stop (error_handle, error=error)
-  END SUBROUTINE mem_dealloc_i_2d
+  END SUBROUTINE mem_dealloc_l_2d
 
 
 #if defined(__PTR_RANK_REMAP)
@@ -319,25 +319,25 @@
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        rank remapping.
 ! *****************************************************************************
-  SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
+  SUBROUTINE pointer_l_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER(kind=int_4), DIMENSION(:, :), &
+    INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER(kind=int_4), DIMENSION(:), &
+    INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: r1p
 
     r2p(1:d1,1:d2) => r1p(1:d1*d2)
-  END SUBROUTINE pointer_i_rank_remap2
+  END SUBROUTINE pointer_l_rank_remap2
 #elif !defined(__HAS_NO_ISO_C_BINDING)
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        ISO_C_BINDING.
 ! *****************************************************************************
-  SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
+  SUBROUTINE pointer_l_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER(kind=int_4), DIMENSION(:, :), &
+    INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER(kind=int_4), DIMENSION(:), &
+    INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: r1p
     TYPE(C_PTR)                              :: fe_loc
 
@@ -347,33 +347,33 @@
        fe_loc = C_LOC (r1p(1))
     ENDIF
     CALL C_F_POINTER (fe_loc, r2p, (/ d1, d2 /))
-  END SUBROUTINE pointer_i_rank_remap2
+  END SUBROUTINE pointer_l_rank_remap2
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
 ! *****************************************************************************
-  SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER(kind=int_4), DIMENSION(:, :), &
+  SUBROUTINE pointer_l_rank_remap2 (r2p, d1, d2, r1p)
+    INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: r2p
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER(kind=int_4), DIMENSION(d1, *), &
+    INTEGER(kind=int_8), DIMENSION(d1, *), &
       TARGET                                 :: r1p
 
     r2p => r1p(1:d1, 1:d2)
-  END SUBROUTINE pointer_i_rank_remap2
+  END SUBROUTINE pointer_l_rank_remap2
 #else
 ! *****************************************************************************
 !> \brief Not supported
 ! *****************************************************************************
-  SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
+  SUBROUTINE pointer_l_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER(kind=int_4), DIMENSION(:, :), &
+    INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER(kind=int_4), DIMENSION(d1*d2), &
+    INTEGER(kind=int_8), DIMENSION(d1*d2), &
       TARGET                                 :: r1p
 
 !    r2p(1:d1,1:d2) => r1p(1:d1*d2)
     STOP "Pointer rank remapping needed but not supported directly or with hacks."
     NULLIFY (r2p)
-  END SUBROUTINE pointer_i_rank_remap2
+  END SUBROUTINE pointer_l_rank_remap2
 #endif

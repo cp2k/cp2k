@@ -22,7 +22,7 @@ MODULE dbcsr_ptr_util
                                              dbcsr_cuda_hostmem_deallocate
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
+                                             real_8, int_4, int_8
   USE dbcsr_message_passing,           ONLY: mp_allocate,&
                                              mp_deallocate
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
@@ -70,7 +70,7 @@ MODULE dbcsr_ptr_util
 
 
   INTERFACE ensure_array_size
-     MODULE PROCEDURE ensure_array_size_i
+     MODULE PROCEDURE ensure_array_size_i, ensure_array_size_l
      MODULE PROCEDURE ensure_array_size_s, ensure_array_size_d,&
                       ensure_array_size_c, ensure_array_size_z
   END INTERFACE
@@ -79,7 +79,7 @@ MODULE dbcsr_ptr_util
   INTERFACE pointer_view
      MODULE PROCEDURE pointer_view_s, pointer_view_d,&
                       pointer_view_c, pointer_view_z
-     MODULE PROCEDURE pointer_view_i
+     MODULE PROCEDURE pointer_view_i, pointer_view_l
      MODULE PROCEDURE pointer_view_a
   END INTERFACE
 
@@ -93,22 +93,22 @@ MODULE dbcsr_ptr_util
   END INTERFACE
 
   INTERFACE memory_copy
-     MODULE PROCEDURE mem_copy_i
+     MODULE PROCEDURE mem_copy_i, mem_copy_l
      MODULE PROCEDURE mem_copy_s, mem_copy_d, mem_copy_c, mem_copy_z
   END INTERFACE
 
   INTERFACE memory_zero
-     MODULE PROCEDURE mem_zero_i
+     MODULE PROCEDURE mem_zero_i, mem_zero_l
      MODULE PROCEDURE mem_zero_s, mem_zero_d, mem_zero_c, mem_zero_z
   END INTERFACE
 
   INTERFACE memory_allocate
-     MODULE PROCEDURE mem_alloc_i,    mem_alloc_s,    mem_alloc_d,    mem_alloc_c,    mem_alloc_z
+     MODULE PROCEDURE mem_alloc_i,mem_alloc_l, mem_alloc_s,    mem_alloc_d,    mem_alloc_c,    mem_alloc_z
      MODULE PROCEDURE mem_alloc_i_2d, mem_alloc_s_2d, mem_alloc_d_2d, mem_alloc_c_2d, mem_alloc_z_2d
   END INTERFACE
 
   INTERFACE memory_deallocate
-     MODULE PROCEDURE mem_dealloc_i, mem_dealloc_s, mem_dealloc_d, mem_dealloc_c, mem_dealloc_z
+     MODULE PROCEDURE mem_dealloc_i, mem_dealloc_l, mem_dealloc_s, mem_dealloc_d, mem_dealloc_c, mem_dealloc_z
      MODULE PROCEDURE mem_dealloc_i_2d, mem_dealloc_s_2d, mem_dealloc_d_2d, mem_dealloc_c_2d, mem_dealloc_z_2d
   END INTERFACE
 
@@ -186,6 +186,7 @@ MODULE dbcsr_ptr_util
   END FUNCTION pointer_view_a
 
 #include "dbcsr_ptr_util_i.F"
+#include "dbcsr_ptr_util_l.F"
 #include "dbcsr_ptr_util_d.F"
 #include "dbcsr_ptr_util_z.F"
 #include "dbcsr_ptr_util_s.F"

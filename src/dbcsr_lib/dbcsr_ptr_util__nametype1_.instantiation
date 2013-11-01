@@ -1,8 +1,13 @@
 [
 {
         'nametype1': 'i',
-        'type1':     'integer',
-        'zero1':     '1'
+        'type1':     'integer(kind=int_4)',
+        'zero1':     '0'
+},
+{
+        'nametype1': 'l',
+        'type1':     'integer(kind=int_8)',
+        'zero1':     '0'
 },
 {
         'nametype1': 'd',

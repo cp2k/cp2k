@@ -39,8 +39,9 @@ MODULE dbcsr_data_methods_low
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memtype_type, dbcsr_obj, &
        dbcsr_scalar_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
-       dbcsr_type_complex_8, dbcsr_type_complex_8_2d, dbcsr_type_real_4, &
-       dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d
+       dbcsr_type_complex_8, dbcsr_type_complex_8_2d, dbcsr_type_int_4, &
+       dbcsr_type_int_8, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
+       dbcsr_type_real_8, dbcsr_type_real_8_2d
 
   !$ USE OMP_LIB
 
@@ -274,6 +275,10 @@ MODULE dbcsr_data_methods_low
     ENDIF
 
     SELECT CASE (area%data_type)
+       CASE (dbcsr_type_int_4)
+          CALL memory_allocate(area%i4, n=sizes(1), mem_type=area%memory_type, error=error)
+       CASE (dbcsr_type_int_8)
+          CALL memory_allocate(area%i8, n=sizes(1), mem_type=area%memory_type, error=error)
        CASE (dbcsr_type_real_4)
           CALL memory_allocate(area%r_sp, n=sizes(1), mem_type=area%memory_type, error=error)
        CASE (dbcsr_type_real_8)
@@ -333,6 +338,12 @@ MODULE dbcsr_data_methods_low
     CALL dbcsr_error_set (routineN, error_handler, error)
 
     SELECT CASE (area%data_type)
+       CASE (dbcsr_type_int_4)
+          CALL memory_deallocate(area%i4, mem_type=area%memory_type, error=error)
+          NULLIFY (area%i4)
+       CASE (dbcsr_type_int_8)
+          CALL memory_deallocate(area%i8, mem_type=area%memory_type, error=error)
+          NULLIFY (area%i8)
        CASE (dbcsr_type_real_4)
           CALL memory_deallocate(area%r_sp, mem_type=area%memory_type, error=error)
           NULLIFY (area%r_sp)
@@ -399,6 +410,10 @@ MODULE dbcsr_data_methods_low
     CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Data seems to be unreferenced.",__LINE__,error)
     SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_int_4)
+       NULLIFY (area%d%i4)
+    CASE (dbcsr_type_int_8)
+       NULLIFY (area%d%i8)
     CASE (dbcsr_type_real_4)
        NULLIFY (area%d%r_sp)
     CASE (dbcsr_type_real_8)
@@ -489,6 +504,10 @@ MODULE dbcsr_data_methods_low
          routineN, "Data area is invalid.", __LINE__, error)
 
     SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_int_4)
+          valid = ASSOCIATED (area%d%i4)
+       CASE (dbcsr_type_int_8)
+          valid = ASSOCIATED (area%d%i8)
        CASE (dbcsr_type_real_4)
           valid = ASSOCIATED (area%d%r_sp)
        CASE (dbcsr_type_real_8)
@@ -678,6 +697,12 @@ MODULE dbcsr_data_methods_low
     data_size = 0
     IF (ASSOCIATED (area%d)) THEN
        SELECT CASE (area%d%data_type)
+          CASE (dbcsr_type_int_4)
+             IF (ASSOCIATED (area%d%i4))&
+                  data_size = SIZE (area%d%i4)
+          CASE (dbcsr_type_int_8)
+             IF (ASSOCIATED (area%d%i8))&
+                  data_size = SIZE (area%d%i8)
           CASE (dbcsr_type_real_8)
              IF (ASSOCIATED (area%d%r_dp))&
                   data_size = SIZE (area%d%r_dp)
@@ -774,6 +799,16 @@ MODULE dbcsr_data_methods_low
        IF (pad) CALL dbcsr_data_zero (area, (/ 1 /), (/ wanted_size /), error=error)
     ELSE
        SELECT CASE (area%d%data_type)
+          CASE (dbcsr_type_int_8)
+             CALL ensure_array_size(area%d%i8, ub=wanted_size,&
+                  memory_type=area%d%memory_type,&
+                  nocopy=nocp, zero_pad=zero_pad,&
+                  factor=factor,error=error)
+          CASE (dbcsr_type_int_4)
+             CALL ensure_array_size(area%d%i4, ub=wanted_size,&
+                  memory_type=area%d%memory_type,&
+                  nocopy=nocp, zero_pad=zero_pad,&
+                  factor=factor,error=error)
           CASE (dbcsr_type_real_8)
              CALL ensure_array_size(area%d%r_dp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&

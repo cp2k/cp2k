@@ -35,7 +35,7 @@ MODULE dbcsr_cuda_operations
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
-  PUBLIC :: dbcsr_cuda_do_mm_stack
+  PUBLIC :: dbcsr_cuda_do_mm_stack, dbcsr_cuda_transpose
 
 
 #if defined (__DBCSR_CUDA)
@@ -55,6 +55,21 @@ MODULE dbcsr_cuda_operations
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION dc_do_stack_cu
+  END INTERFACE
+  
+  INTERFACE
+     FUNCTION dc_do_transpose_stack_cu(trs_stack, offset, nblks, buffer, data_type, m, n, stream_ptr)&
+          RESULT (istat) &
+          BIND(C, name="dc_do_transpose_stack_cu")
+       USE ISO_C_BINDING
+    TYPE(C_PTR), INTENT(IN), VALUE           :: trs_stack
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: offset, nblks
+    TYPE(C_PTR), INTENT(IN), VALUE           :: buffer
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: data_type, m, n
+    TYPE(C_PTR), VALUE                       :: stream_ptr
+    INTEGER(KIND=C_INT)                      :: istat
+
+     END FUNCTION dc_do_transpose_stack_cu
   END INTERFACE
 #endif
 
@@ -118,5 +133,45 @@ CONTAINS
 #endif
   END SUBROUTINE dbcsr_cuda_do_mm_stack
 
+
+! *****************************************************************************
+!> \brief Launch a cuda transpose kernel
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_cuda_transpose(trs_stack, offset, nblks, buffer, m, n, stream, error)
+    TYPE(dbcsr_cuda_devmem_type), INTENT(IN) :: trs_stack
+    INTEGER, INTENT(IN)                      :: offset
+    INTEGER, INTENT(IN)                      :: nblks
+    TYPE(dbcsr_cuda_devmem_type), INTENT(IN) :: buffer
+    INTEGER, INTENT(IN)                      :: m, n
+    TYPE(dbcsr_cuda_stream_type), INTENT(IN) :: stream
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+#if ! defined (__DBCSR_CUDA)
+    CALL mp_abort("__DBCSR_CUDA not compiled in.")
+#else
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_transpose', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: datatype, error_handle, istat
+
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
+
+    datatype = dbcsr_cuda_devmem_datatype(buffer)
+
+    istat = dc_do_transpose_stack_cu(dbcsr_cuda_devmem_cptr(trs_stack),&
+                             INT(offset, KIND=C_INT),&
+                             INT(nblks, KIND=C_INT),&
+                             dbcsr_cuda_devmem_cptr(buffer),&
+                             INT(datatype, KIND=C_INT),&
+                             INT(m,KIND=C_INT),&
+                             INT(n,KIND=C_INT),&
+                             dbcsr_cuda_stream_cptr(stream))
+
+    IF (istat /= 0) STOP "dbcsr_cuda_transpose: something went wrong."
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
+#endif
+  END SUBROUTINE dbcsr_cuda_transpose
 
 END MODULE dbcsr_cuda_operations

@@ -13,7 +13,7 @@
 // optimized for  that fit into shared memory
 template < int m,  int n,  int k, int splitThread, int grouping>
 __global__ void
-cusmm_kernel_tiny(const int* __restrict__ param_stack, int  careful,  int nruns,
+cusmm_dnt_tiny(const int* __restrict__ param_stack, int  careful,  int nruns,
      double* a_data, double* b_data, double* c_data){
 
   const int mn = m * n;
@@ -101,7 +101,8 @@ cusmm_kernel_tiny(const int* __restrict__ param_stack, int  careful,  int nruns,
 
       /* Do actual multiplication. */
       for (int l = 0; l < k; l++) {
-          myc += buff_l1[l * m + r] * buff_r1[c * k + l];
+          //myc += buff_l1[l * m + r] * buff_r1[c * k + l];
+          myc += buff_l1[l * m + r] * buff_r1[l*n + c];
       } 
 
       //if ( run== nrun-1  || flushMap & (1 << run)) {
@@ -144,7 +145,8 @@ cusmm_kernel_tiny(const int* __restrict__ param_stack, int  careful,  int nruns,
 
       /* Do actual multiplication. */
       for (int l = 0; l < k; l++) {
-          myc += buff_l2[l * m + r] * buff_r2[c * k + l];
+          //myc += buff_l2[l * m + r] * buff_r2[c * k + l];
+          myc += buff_l2[l * m + r] * buff_r2[l*n+c];
       }
 
       if ( flushMap & (1 << run)) {

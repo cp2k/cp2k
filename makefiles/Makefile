@@ -25,48 +25,49 @@ export WHAT   =_progr
 
 ### Dependent variables ###
 
-ARCHDIR              = $(CP2KHOME)/arch
-DOCDIR               = $(CP2KHOME)/doc
-MAINEXEDIR           = $(CP2KHOME)/exe
-MAINLIBDIR           = $(CP2KHOME)/lib
-MAINOBJDIR           = $(CP2KHOME)/obj
-PRETTYOBJDIR         = $(CP2KHOME)/obj/prettified
-TOOLDIR              = $(OBJDIR)/tools
-TOOLSRC              = $(CP2KHOME)/tools
-SRCDIR               = $(CP2KHOME)/src
-SRCDIRS              = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
-MAKEFILE             = $(CP2KHOME)/makefiles/Makefile
-MACHINEDEFS          = $(ARCHDIR)/$(ARCH).$(VERSION)
-PROG                 = $(EXEDIR)/cp2k.$(VERSION)
-CP2KSHELL            = $(EXEDIR)/cp2k_shell.$(VERSION)
-FES                  = $(EXEDIR)/fes.$(VERSION)
-EXEDIR               = $(MAINEXEDIR)/$(ARCH)
-LIBDIR               = $(MAINLIBDIR)/$(ARCH)
-OBJDIR               = $(MAINOBJDIR)/$(ARCH)
-OBJECTDEFS           = $(SRCDIR)/OBJECTDEFS
-LIB1_OBJECTDEFS      = $(SRCDIR)/lib/OBJECTDEFS
-LIB2_OBJECTDEFS      = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
-LIB3_OBJECTDEFS      = $(SRCDIR)/fft_lib/OBJECTDEFS
-LIB4_OBJECTDEFS      = $(SRCDIR)/arch_lib/OBJECTDEFS
-LIB5_OBJECTDEFS      = $(SRCDIR)/elpa_lib/OBJECTDEFS
-LIBNVOBJECTDEFS      = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
-LIBMA_OBJECTDEFS     = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
-LIBCUDA_DEPENDENCIES = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
-LIBMA_DEPENDENCIES   = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
-LIB1_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
-LIB2_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
-LIB3_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
-LIB4_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
-LIB5_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB5).a
-LIB_CP2K_ARCHIVE     = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
-SRCENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
-FESOBJECTDEFS        = $(TOOLSRC)/metadyn/OBJECTDEFS
-DOXYGENDIR           = $(DOCDIR)/doxygen
-DBCSR_TEST_PROG      = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
-DBCSR_PERF_PROG      = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
+ARCHDIR               = $(CP2KHOME)/arch
+DOCDIR                = $(CP2KHOME)/doc
+MAINEXEDIR            = $(CP2KHOME)/exe
+MAINLIBDIR            = $(CP2KHOME)/lib
+MAINOBJDIR            = $(CP2KHOME)/obj
+PRETTYOBJDIR          = $(CP2KHOME)/obj/prettified
+TOOLDIR               = $(OBJDIR)/tools
+TOOLSRC               = $(CP2KHOME)/tools
+SRCDIR                = $(CP2KHOME)/src
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/cuda_tools/libcusmm:$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
+MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
+MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
+PROG                  = $(EXEDIR)/cp2k.$(VERSION)
+CP2KSHELL             = $(EXEDIR)/cp2k_shell.$(VERSION)
+FES                   = $(EXEDIR)/fes.$(VERSION)
+EXEDIR                = $(MAINEXEDIR)/$(ARCH)
+LIBDIR                = $(MAINLIBDIR)/$(ARCH)
+OBJDIR                = $(MAINOBJDIR)/$(ARCH)
+OBJECTDEFS            = $(SRCDIR)/OBJECTDEFS
+LIB1_OBJECTDEFS       = $(SRCDIR)/lib/OBJECTDEFS
+LIB2_OBJECTDEFS       = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
+LIB3_OBJECTDEFS       = $(SRCDIR)/fft_lib/OBJECTDEFS
+LIB4_OBJECTDEFS       = $(SRCDIR)/arch_lib/OBJECTDEFS
+LIB5_OBJECTDEFS       = $(SRCDIR)/elpa_lib/OBJECTDEFS
+LIBNVOBJECTDEFS       = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
+LIBMA_OBJECTDEFS      = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
+LIBCUDA_DEPENDENCIES  = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
+LIBCUSMM_DEPENDENCIES = $(CP2KHOME)/cuda_tools/libcusmm/LIBCUSMM_DEPENDENCIES
+LIBMA_DEPENDENCIES    = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
+LIB1_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+LIB2_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
+LIB3_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
+LIB4_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
+LIB5_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB5).a
+LIB_CP2K_ARCHIVE      = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
+SRCENTRY              = $(wildcard $(SRCDIR)/.svn/entries*)
+FESOBJECTDEFS         = $(TOOLSRC)/metadyn/OBJECTDEFS
+DOXYGENDIR            = $(DOCDIR)/doxygen
+DBCSR_TEST_PROG       = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
+DBCSR_PERF_PROG       = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
 #PLUMED
-PLUMEDDIR            = $(SRCDIR)/src-plumed
-PLUMEDINC            = $(PLUMEDDIR)/plumed.inc 
+PLUMEDDIR             = $(SRCDIR)/src-plumed
+PLUMEDINC             = $(PLUMEDDIR)/plumed.inc 
 
 REVISION := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
 
@@ -97,12 +98,13 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool\
-         dbcsr_test dbcsr_perf mrproper plumed libcusmm
+         dbcsr_test dbcsr_perf mrproper plumed
 
 ### Master rules ###
-build: dirs deptool libcusmm
+build: dirs deptool
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
+	+cp $(LIBCUSMM_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cusmm.dep
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
@@ -364,14 +366,8 @@ endif
 ifneq ($(NVCC),)
   $(LIBNV_ARCHIVE): $(LIBNV_OBJECTS)
 	$(AR) $(LIBNV_ARCHIVE) $?
-endif
-
-# libcusmm stuff
-ifneq ($(NVCC),)
-  libcusmm:
-	cd  $(CP2KHOME)/cuda_tools/libcusmm; ./generate.py $(LIBCUSMM_FLAGS)
-	$(MAKE) -C $(CP2KHOME)/cuda_tools/libcusmm/build/ AR="$(AR)" NVCC="$(NVCC)" NVFLAGS="$(NVFLAGS)"
-	cp -p $(CP2KHOME)/cuda_tools/libcusmm/build/libcusmm.a $(LIBCUSMM_ARCHIVE)
+ $(LIBCUSMM_ARCHIVE): libcusmm.o
+	$(AR) $(LIBCUSMM_ARCHIVE) $?
 endif
 
 ifneq ($(HWTOPO),)
@@ -510,7 +506,6 @@ realclean: clean
 	-rm -f $(LIB4_ARCHIVE)
 	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
-	-rm -rf $(CP2KHOME)/cuda_tools/libcusmm/build
 
 #
 # remove plumed objectfiles
