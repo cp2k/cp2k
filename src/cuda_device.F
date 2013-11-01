@@ -4,7 +4,13 @@ MODULE cuda_device
   USE dbcsr_message_passing,           ONLY: mp_environ
   USE ma_affinity,                     ONLY: ma_set_gpu_affinity
   USE machine_architecture_types,      ONLY: has_ma
+  USE kinds,                           ONLY: default_string_length
 
+#if defined( __CUDA_PROFILING)
+  USE ISO_C_BINDING
+#endif
+
+ !$ USE OMP_LIB
   IMPLICIT NONE
 
   PUBLIC :: cuda_device_init
@@ -53,6 +59,18 @@ MODULE cuda_device
 
      END FUNCTION cuda_device_reset_cu
   END INTERFACE
+
+#if defined( __CUDA_PROFILING)
+  INTERFACE
+     SUBROUTINE cuda_nvtx_name_osthread_cu(name)&
+          BIND(C, name="cuda_nvtx_name_osthread_cu")
+       USE ISO_C_BINDING
+       CHARACTER(KIND=C_CHAR), dimension(*)     :: name
+
+     END SUBROUTINE cuda_nvtx_name_osthread_cu
+  END INTERFACE
+#endif
+
 #endif
 
 CONTAINS
@@ -68,8 +86,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_device_init', &
       routineP = moduleN//':'//routineN
-
-    INTEGER :: mynode, ngpus, numnode, card_num, cerror
+    CHARACTER(len=default_string_length)     :: threadname
+    INTEGER :: mynode, ngpus, numnode, card_num, cerror, ithread
 
 !   ---------------------------------------------------------------------------
 
@@ -81,13 +99,21 @@ CONTAINS
     IF (cerror /= 0) STOP 'Error(1) in cuda_device_init'
 
     !$OMP PARALLEL default (none), &
-    !$OMP          private (cerror), &
+    !$OMP          private (cerror,ithread,threadname), &
     !$OMP          shared (mynode, ngpus, card_num)
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+
     card_num=MOD(mynode, ngpus)
     IF (has_ma) card_num=ma_set_gpu_affinity(mynode)
 
     cerror = cuda_set_device_cu (card_num)
     IF (cerror /= 0) STOP 'Error(2) in cuda_device_init'
+
+#if defined( __CUDA_PROFILING)
+    WRITE(threadname, "(I3,A,I2,A)") ithread
+    CALL cuda_nvtx_name_osthread_cu(TRIM(threadname)//c_null_char)
+#endif
     !$OMP END PARALLEL
 
     is_configured = .TRUE.

@@ -2,6 +2,7 @@
 
 #include <nvToolsExt.h>
 #include <stdio.h>
+#include <pthread.h>
 
 const uint32_t colormap[] = { 0xFFFFFF00,  // Yellow
                               0xFFFF00FF,  // Fuchsia
@@ -50,5 +51,9 @@ extern "C" int cuda_nvtx_range_pop_cu() {
     return(level);
 }
 
+//==============================================================================
+extern "C" void cuda_nvtx_name_osthread_cu(char* name){
+    nvtxNameOsThread(pthread_self(), name);
+}
 
 #endif
