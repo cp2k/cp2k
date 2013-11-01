@@ -525,10 +525,12 @@ CONTAINS
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, error)
+  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, memory_type, error)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
     INTEGER, INTENT(IN)                      :: data_type
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: memory_type
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_wm', &
@@ -571,9 +573,9 @@ CONTAINS
             dbcsr_wrong_args_error, routineN,&
             "Can not have negative data size.", __LINE__, error=error)
        CALL dbcsr_data_new (wm%data_area, data_type,&
-            data_size=sizedata_guess)
+            data_size=sizedata_guess, memory_type=memory_type)
     ELSE
-       CALL dbcsr_data_new (wm%data_area, data_type)
+       CALL dbcsr_data_new (wm%data_area, data_type, memory_type=memory_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
     IF(careful_mod) CALL dbcsr_error_stop(error_handler, error)
@@ -592,10 +594,12 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
-       work_mutable, error)
+       work_mutable, memory_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
     LOGICAL, INTENT(in), OPTIONAL            :: work_mutable
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: memory_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
@@ -642,7 +646,8 @@ CONTAINS
        matrix%m%wms => wms
        DO iw = ow+1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, error=error)
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess,&
+               memory_type=memory_type, error=error)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -652,7 +657,8 @@ CONTAINS
        ALLOCATE (matrix%m%wms(nw))
        DO iw = 1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, error=error)
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess,&
+               memory_type=memory_type, error=error)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))

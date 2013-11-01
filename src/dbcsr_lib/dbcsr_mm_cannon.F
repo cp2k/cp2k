@@ -69,14 +69,9 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_4_size,&
-                                             real_8,&
-                                             real_8_size,&
-                                             sp
+  USE dbcsr_kinds,                     ONLY: &
+       default_string_length, dp, int_4, int_8, real_4, real_4_size, real_8, &
+       real_8_size, sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
@@ -165,6 +160,9 @@ MODULE dbcsr_mm_cannon
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
   TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_abbuffer, memtype_trsbuffer
+  TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_product_wm
+  !$OMP THREADPRIVATE(memtype_product_wm)
+
   INTEGER(KIND=int_8), PRIVATE, SAVE      :: marketing_flops = 0
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
@@ -193,6 +191,9 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
+
+     IF (ASSOCIATED(memtype_product_wm%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_product_wm%pool, error)
 
      !$omp master
      IF(output_unit>0) &
@@ -285,8 +286,9 @@ MODULE dbcsr_mm_cannon
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
+    CHARACTER(len=default_string_length)     :: poolname
     INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, i, &
-      l_col, l_k, l_row, numnodes, output_unit
+      ithread, l_col, l_k, l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
       new_right, plasma_is_set, product_reindex, release_tdist, &
@@ -308,6 +310,15 @@ MODULE dbcsr_mm_cannon
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+
+    ! setup memory-types and their memory-pools --------------------------------
+    ! Each thread has its own working-matrix and its own mempool
+    WRITE (poolname, "(A,I4,A)") "cannon_product_wm (thread=", ithread,")"
+    CALL dbcsr_memtype_setup(memtype_product_wm, pool_capacity=1, pool_name=poolname, error=error)
+
+    ! the ab_buffers are shared by all threads
     IF (mm_driver==mm_driver_cuda) THEN
        CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
             mpi=.TRUE., pool_capacity=6, pool_name="cannon_ab_buffers", error=error)
@@ -317,7 +328,8 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_memtype_setup(memtype_abbuffer, mpi=.TRUE., error=error)
     ENDIF
 
-    ! check parameters
+
+    ! check parameters ---------------------------------------------------------
     transa_l = transa
     transb_l = transb
     CALL uppercase(transa_l)
@@ -694,7 +706,8 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel
     ELSE
        !$omp parallel if (.NOT. use_plasma)
-       CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., error=error)
+       CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., &
+               memory_type=memtype_product_wm, error=error)
        !$omp end parallel
     ENDIF
     product_matrix%m%nze = 0

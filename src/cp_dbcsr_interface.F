@@ -2314,7 +2314,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL dbcsr_work_create(matrix%matrix, nblks_guess, sizedata_guess, n,&
-         work_mutable, dbcsr_error)
+         work_mutable, error=dbcsr_error)
     CALL timestop(handle)
   END SUBROUTINE cp_dbcsr_work_create
 
