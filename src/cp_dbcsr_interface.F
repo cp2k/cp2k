@@ -114,8 +114,7 @@ MODULE cp_dbcsr_interface
                                              int_8,&
                                              real_4,&
                                              real_8
-  USE string_utilities,                ONLY: integer_to_string,&
-                                             uppercase
+  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -513,124 +512,80 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: o_fmt = '(T2,A,"| ",A,T41,A40)', &
-      plabel = "DBCSR", routineN = 'cp_dbcsr_print_config', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_config', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: info_len = 40
 
-    CHARACTER(len=default_string_length) :: comm_thread_load_str, mm_name, &
-      mm_ss_str, use_combtypes_str, use_comm_thread_str, use_k_stacks, &
-      use_m_stacks, use_mpi_mem_str, use_n_stacks, use_subcomms_str
-    INTEGER                                  :: comm_thread_load, mm_driver, &
-                                                mm_ss, unit_num
+    CHARACTER(len=default_string_length)     :: mm_name
+    INTEGER                                  :: unit_num
     INTEGER, DIMENSION(3)                    :: n_mnk_stacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
-                                                use_subcomms
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    mm_driver = dbcsr_get_conf_mm_driver ()
-    use_subcomms = dbcsr_get_conf_subcomm ()
-    use_combtypes = dbcsr_get_conf_combtypes ()
-    use_mpi_mem = dbcsr_get_conf_mpi_mem ()
-    mm_ss = dbcsr_get_conf_mm_stacksize ()
-    use_comm_thread = dbcsr_get_conf_use_comm_thread()
-    comm_thread_load = dbcsr_get_conf_comm_thread_load()
-
-    SELECT CASE (mm_driver)
-    CASE(mm_driver_blas)   ; mm_name = mm_name_blas
-    CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
-    CASE(mm_driver_smm)    ; mm_name = mm_name_smm
-    CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
-    CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
-    END SELECT
-
-    mm_name = ADJUSTR(mm_name(1:info_len))
-
-    mm_ss_str = int2str_r(mm_ss,info_len)
-    use_subcomms_str = l2str_r(use_subcomms,info_len)
-    use_combtypes_str = l2str_r(use_combtypes,info_len)
-    use_mpi_mem_str = l2str_r(use_mpi_mem,info_len)
-    use_comm_thread_str = l2str_r(use_comm_thread,info_len)
-    comm_thread_load_str = int2str_r(comm_thread_load,info_len)
-    CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
-    use_m_stacks = int2str_r (n_mnk_stacks(1), info_len)
-    use_n_stacks = int2str_r (n_mnk_stacks(2), info_len)
-    use_k_stacks = int2str_r (n_mnk_stacks(3), info_len)
-
     logger => cp_error_get_logger(error)
-    IF (PRESENT (unit_nr)) THEN
-       unit_num = unit_nr
-    ELSE
-       unit_num=cp_logger_get_default_io_unit(logger)
-    ENDIF
+    unit_num = cp_logger_get_default_io_unit(logger)
+    IF (PRESENT (unit_nr)) unit_num=unit_nr
+
     IF (unit_num>0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-       WRITE(UNIT=unit_num, FMT=o_fmt) &
-            plabel, "Multiplication driver",     mm_name(1:info_len),&
-            plabel, "Multiplication stack size", mm_ss_str(1:info_len)
+       SELECT CASE (dbcsr_get_conf_mm_driver())
+       CASE(mm_driver_blas)   ; mm_name = mm_name_blas
+       CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
+       CASE(mm_driver_smm)    ; mm_name = mm_name_smm
+       CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
+       CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
+       END SELECT
+       WRITE(UNIT=unit_num, FMT='(1X,A,T41,A40)')&
+        "DBCSR| Multiplication driver", ADJUSTR(mm_name(1:40))
+
+       WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+        "DBCSR| Multrec recursion limit", multrec_limit
+       WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+        "DBCSR| Multiplication stack size", dbcsr_get_conf_mm_stacksize()
+
+       CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
        IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
-          WRITE(UNIT=unit_num, FMT=o_fmt) &
-               plabel, "Multiplication size stacks",&
-               use_m_stacks(1:info_len)
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| Multiplication size stacks", n_mnk_stacks(1)
        ELSE
-          WRITE(UNIT=unit_num, FMT=o_fmt) &
-               plabel, "Multiplication size m stacks",&
-               use_m_stacks(1:info_len)
-          WRITE(UNIT=unit_num, FMT=o_fmt) &
-               plabel, "Multiplication size n stacks",&
-               use_n_stacks(1:info_len)
-          WRITE(UNIT=unit_num, FMT=o_fmt) &
-               plabel, "Multiplication size k stacks",&
-               use_k_stacks(1:info_len)
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| Multiplication size m stacks", n_mnk_stacks(1)
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| Multiplication size n stacks", n_mnk_stacks(2)
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| Multiplication size l stacks", n_mnk_stacks(3)
        ENDIF
+
        IF (has_mpi) THEN
-            WRITE(UNIT=unit_num, FMT=o_fmt) &
-            plabel, "Use subcommunicators",      use_subcomms_str(1:info_len),&
-            plabel, "Use MPI combined types" ,   use_combtypes_str(1:info_len),&
-            plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len),&
-            plabel, "Use Communication thread",  use_comm_thread_str(1:info_len),&
-            plabel, "Communication thread load", comm_thread_load_str(1:info_len)
-            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| Multrec recursion limit", multrec_limit
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+            "DBCSR| Use subcommunicators",  dbcsr_get_conf_subcomm ()
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+            "DBCSR| Use MPI combined types" ,  dbcsr_get_conf_combtypes ()
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+            "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem ()
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+            "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
        ENDIF
 
        IF (has_cuda) THEN
-            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| CUDA: Number of stack transfer-buffers", cudadrv_nbuffers
-            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&
-             "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
-            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&
-             "DBCSR| CUDA: Process inhomogenous stacks", cudadrv_do_inhomogenous
-            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
-            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
-            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| CUDA: Number of binning bins", cudadrv_binning_nbins
-            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| CUDA: Size of binning bins", cudadrv_binning_binsize
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Number of stack transfer-buffers", cudadrv_nbuffers
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+            "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+            "DBCSR| CUDA: Process inhomogenous stacks", cudadrv_do_inhomogenous
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Number of binning bins", cudadrv_binning_nbins
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Size of binning bins", cudadrv_binning_binsize
        END IF
     ENDIF
 
   END SUBROUTINE cp_dbcsr_print_config
-
-  FUNCTION int2str_r(number, str_len) RESULT (string)
-    INTEGER, INTENT(IN)                      :: number, str_len
-    CHARACTER(LEN=str_len)                   :: string
-
-    CALL integer_to_string(number, string)
-    string = ADJUSTR (string)
-  END FUNCTION int2str_r
-
-  FUNCTION l2str_r(lval, str_len) RESULT (string)
-    LOGICAL, INTENT(IN)                      :: lval
-    INTEGER, INTENT(IN)                      :: str_len
-    CHARACTER(LEN=str_len)                   :: string
-
-    WRITE(UNIT=string, FMT='(L1)') lval
-    string = ADJUSTR (string)
-  END FUNCTION l2str_r
 
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.
