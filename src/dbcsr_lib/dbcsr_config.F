@@ -67,14 +67,14 @@ MODULE dbcsr_config
             mm_name_smm,&
             mm_name_plasma,&
             mm_name_cuda
-  PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers
+  PUBLIC :: nm_stacks, nn_stacks, nk_stacks
   PUBLIC :: use_comm_thread, comm_thread_load
-  PUBLIC :: dbcsr_set_conf_nbuffers, dbcsr_get_conf_nbuffers
   PUBLIC :: max_elements_per_block
   !
   PUBLIC :: is_initialized
 
-  PUBLIC :: cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
+  PUBLIC :: cudadrv_nbuffers,&
+            cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
             cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
             cudadrv_binning_nbins, cudadrv_binning_binsize
 
@@ -167,7 +167,6 @@ MODULE dbcsr_config
   INTEGER, SAVE :: nm_stacks = 3
   INTEGER, SAVE :: nn_stacks = 3
   INTEGER, SAVE :: nk_stacks = 3
-  INTEGER, SAVE :: nstackbuffers = 1
 
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
@@ -175,6 +174,7 @@ MODULE dbcsr_config
 
   LOGICAL, SAVE :: is_initialized = .FALSE.
 
+  INTEGER, SAVE :: cudadrv_nbuffers = 8
   LOGICAL, SAVE :: cudadrv_avoid_after_busy = .FALSE.
   INTEGER, SAVE :: cudadrv_min_flop_process = 0
   INTEGER, SAVE :: cudadrv_min_flop_sort = 4000
@@ -203,14 +203,12 @@ CONTAINS
     nm_stacks = 3
     nn_stacks = 3
     nk_stacks = 3
-    nstackbuffers = 0
 
     IF(has_smm_vec) THEN
       mm_stack_size = 30000
       nm_stacks = 3
       nn_stacks = 3
       nk_stacks = 3
-      nstackbuffers = 0
     ENDIF
 
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -238,7 +236,6 @@ CONTAINS
        nm_stacks = 3
        nn_stacks = 3
        nk_stacks = 3
-       nstackbuffers = 8
     END SELECT
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
@@ -413,20 +410,6 @@ CONTAINS
     nstacks(3) = nk_stacks
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
-
-  SUBROUTINE dbcsr_set_conf_nbuffers(nbuffers, error)
-    INTEGER, INTENT(IN)                      :: nbuffers
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    nstackbuffers    = nbuffers
-  END SUBROUTINE dbcsr_set_conf_nbuffers
-
-  SUBROUTINE dbcsr_get_conf_nbuffers(nbuffers, error)
-    INTEGER, INTENT(OUT)                     :: nbuffers
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    nbuffers   = nstackbuffers
-  END SUBROUTINE dbcsr_get_conf_nbuffers
 
   SUBROUTINE dbcsr_set_conf_use_comm_thread (comm_thread, error)
     LOGICAL, INTENT(IN)                      :: comm_thread

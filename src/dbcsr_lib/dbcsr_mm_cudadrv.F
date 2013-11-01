@@ -24,7 +24,7 @@ MODULE dbcsr_mm_cudadrv
   USE dbcsr_config,                    ONLY: cudadrv_binning_binsize,&
                                              cudadrv_binning_nbins,&
                                              cudadrv_min_flop_sort,&
-                                             dbcsr_get_conf_nbuffers,&
+                                             cudadrv_nbuffers,&
                                              mm_stack_size
   USE dbcsr_cuda_device,               ONLY: cudaSharedMemBankSizeEightByte,&
                                              dbcsr_cuda_set_shared_mem_config
@@ -165,7 +165,7 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=default_string_length)     :: poolname
     INTEGER                                  :: error_handler, i, ithread, &
-                                                n_stack_buffers, nthreads
+                                                nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -181,15 +181,14 @@ MODULE dbcsr_mm_cudadrv
           cuda_devalloc=.TRUE., pool_capacity=1, pool_name=poolname, error=error)
 
     ! Allocate the buffers for transfering the stack_data
-    CALL dbcsr_get_conf_nbuffers(n_stack_buffers, error)
     IF(ALLOCATED(stack_buffers)) THEN
-       IF(SIZE(stack_buffers)/=n_stack_buffers) &
+       IF(SIZE(stack_buffers)/=cudadrv_nbuffers) &
           CALL deallocate_stackbuffers(error)
     ENDIF
 
     IF(.NOT.ALLOCATED(stack_buffers)) THEN
-       ALLOCATE(stack_buffers(n_stack_buffers))
-       DO i=1, n_stack_buffers
+       ALLOCATE(stack_buffers(cudadrv_nbuffers))
+       DO i=1, cudadrv_nbuffers
           CALL dbcsr_cuda_devmem_allocate(stack_buffers(i)%devmem,&
                    dbcsr_type_int_4, dbcsr_ps_width*mm_stack_size, error)
           CALL dbcsr_cuda_hostmem_allocate(stack_buffers(i)%hostmem, &

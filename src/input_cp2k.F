@@ -23,7 +23,7 @@ MODULE input_cp2k
   USE dbcsr_config,                    ONLY: &
        cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
        cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
+       cudadrv_min_flop_process, cudadrv_min_flop_sort, cudadrv_nbuffers, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, &
@@ -915,14 +915,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
-    CALL keyword_create(keyword, name="n_stack_buffers",&
-         description="Number of transfer buffers used per thread to copy stacks over to the GPU."&
-         //" A negative value leaves the decision up to DBCSR.",&
-         usage="n_stack_buffers 4",&
-         default_i_val=-1,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
     CALL keyword_create(keyword, name="use_comm_thread",&
          description="During multiplication, use a thread to periodically poll" &
          // " MPI to progress outstanding message completions.  This is" &
@@ -961,6 +953,12 @@ CONTAINS
          description="Configuration options for the CUDA-Driver.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
+
+    CALL keyword_create(keyword, name="n_buffers",&
+         description="Number of transfer-buffers used per thread to copy stacks over to the GPU.",&
+         default_i_val=cudadrv_nbuffers,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="avoid_after_busy",&
          description="If enabled, stacks are not processed by the cuda-driver "&

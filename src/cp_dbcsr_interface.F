@@ -33,16 +33,15 @@ MODULE cp_dbcsr_interface
   USE dbcsr_config,                    ONLY: &
        cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
        cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
+       cudadrv_min_flop_process, cudadrv_min_flop_sort, cudadrv_nbuffers, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nbuffers, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nbuffers, dbcsr_set_conf_nstacks, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_cuda, &
        has_mpi, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
@@ -437,8 +436,7 @@ CONTAINS
 
     INTEGER                                  :: comm_thread_load, &
                                                 error_handle, max_ele_block, &
-                                                mm_driver, mm_ss, &
-                                                n_stack_buffers
+                                                mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_combtypes, &
                                                 use_comm_thread, use_mpi_mem, &
@@ -470,14 +468,14 @@ CONTAINS
          "n_size_mnk_stacks", i_val=nstacks(1), error=error)
     nstacks(2:3) = nstacks(1)
     CALL section_vals_val_get(dbcsr_section,&
-         "n_stack_buffers", i_val=n_stack_buffers, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
          "use_comm_thread", l_val=use_comm_thread, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "comm_thread_load", i_val=comm_thread_load, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "multrec_limit", i_val=multrec_limit, error=error)
 
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%n_buffers", i_val=cudadrv_nbuffers, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "CUDA%min_flop_process", i_val=cudadrv_min_flop_process, error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -500,8 +498,7 @@ CONTAINS
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
     IF(nstacks(1) > 0) &
     CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
-    IF(n_stack_buffers > 0) &
-    CALL dbcsr_set_conf_nbuffers(n_stack_buffers, error=dbcsr_error)
+
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
 
@@ -523,10 +520,9 @@ CONTAINS
 
     CHARACTER(len=default_string_length) :: comm_thread_load_str, mm_name, &
       mm_ss_str, use_combtypes_str, use_comm_thread_str, use_k_stacks, &
-      use_m_stacks, use_mpi_mem_str, use_n_stacks, use_stack_buffers, &
-      use_subcomms_str
+      use_m_stacks, use_mpi_mem_str, use_n_stacks, use_subcomms_str
     INTEGER                                  :: comm_thread_load, mm_driver, &
-                                                mm_ss, nbuffers, unit_num
+                                                mm_ss, unit_num
     INTEGER, DIMENSION(3)                    :: n_mnk_stacks
     LOGICAL                                  :: use_combtypes, &
                                                 use_comm_thread, use_mpi_mem, &
@@ -559,8 +555,6 @@ CONTAINS
     use_comm_thread_str = l2str_r(use_comm_thread,info_len)
     comm_thread_load_str = int2str_r(comm_thread_load,info_len)
     CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
-    CALL dbcsr_get_conf_nbuffers (nbuffers, error=dbcsr_error)
-    use_stack_buffers = int2str_r (nbuffers, info_len)
     use_m_stacks = int2str_r (n_mnk_stacks(1), info_len)
     use_n_stacks = int2str_r (n_mnk_stacks(2), info_len)
     use_k_stacks = int2str_r (n_mnk_stacks(3), info_len)
@@ -575,10 +569,6 @@ CONTAINS
        WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Multiplication driver",     mm_name(1:info_len),&
             plabel, "Multiplication stack size", mm_ss_str(1:info_len)
-       IF (nbuffers .NE. 1) &
-            WRITE(UNIT=unit_num, FMT=o_fmt) &
-            plabel, "Multiplication stack buffers",&
-            use_stack_buffers(1:info_len)
        IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
           WRITE(UNIT=unit_num, FMT=o_fmt) &
                plabel, "Multiplication size stacks",&
@@ -606,6 +596,8 @@ CONTAINS
        ENDIF
 
        IF (has_cuda) THEN
+            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+             "DBCSR| CUDA: Number of stack transfer-buffers", cudadrv_nbuffers
             WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&
              "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
             WRITE(UNIT=unit_num, FMT='(1X,A,T80,L2)')&

@@ -7,7 +7,9 @@
   &END
   &DBCSR
     n_size_mnk_stacks 2
-    n_stack_buffers 4
+    &CUDA
+      n_buffers 4
+    &END CUDA
   &END DBCSR
 &END GLOBAL
 &TEST
