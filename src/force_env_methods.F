@@ -185,9 +185,9 @@ CONTAINS
     INTEGER                                  :: i, j, nat, ndigits, &
                                                 output_unit, print_forces, &
                                                 stat
-    LOGICAL                                  :: calculate_forces, linres_run,&
+    LOGICAL                                  :: calculate_forces, &
                                                 energy_consistency, eval_ef, &
-                                                failure, my_skip
+                                                failure, linres_run, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
                                                 sum_pv_virial, &
                                                 sum_stress_tensor
@@ -1106,8 +1106,7 @@ CPSourceFileRef,&
   RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(force_env,calc_force,linres,error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
-    LOGICAL, INTENT(IN), OPTIONAL            :: linres
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces_low', &
@@ -1116,9 +1115,8 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: description, iter
     INTEGER                                  :: ip, j, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: calculate_forces, check, linres_run,&
-                                                failure, qmmm_added_chrg, &
-                                                qmmm_link, qmmm_link_imomm
+    LOGICAL :: calculate_forces, check, failure, linres_run, qmmm_added_chrg, &
+      qmmm_link, qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
     REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
                                                 max_coord, min_coord

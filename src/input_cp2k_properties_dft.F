@@ -11,8 +11,10 @@
 ! *****************************************************************************
 MODULE input_cp2k_properties_dft
 
-  USE bibliography,                    ONLY: Putrino2000, Putrino2002,&
-                                             Sebastiani2001, Weber2009
+  USE bibliography,                    ONLY: Putrino2000,&
+                                             Putrino2002,&
+                                             Sebastiani2001,&
+                                             Weber2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -911,7 +913,8 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_polarizability_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_polarizability_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

@@ -13,32 +13,11 @@
 !> \note
 ! *****************************************************************************
 MODULE qs_linres_polar_utils
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type, &
-                                             cp_dbcsr_type
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                             cp_fm_transpose, & 
-                                             cp_fm_gemm, &
-                                             cp_fm_trace, & 
-                                             cp_fm_scale_and_add
+                                             cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -56,29 +35,20 @@ MODULE qs_linres_polar_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric,&
-                                             dbcsr_type_symmetric,&
-                                             dbcsr_type_no_symmetry
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
-  USE mathlib,                         ONLY: diamat_all
-  USE memory_utilities,                ONLY: reallocate
   USE physcon,                         ONLY: angstrom
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_solver
   USE qs_linres_types,                 ONLY: get_polar_env,&
+                                             linres_control_type,&
                                              polar_env_create,&
-                                             polar_env_type,&
-                                             linres_control_type
- USE qs_loc_methods,                  ONLY: qs_print_cubes
+                                             polar_env_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -101,8 +71,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE polar_response(polar_env,p_env,qs_env,error)
    
-    INTEGER, DIMENSION(:), POINTER           :: list_cubes
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -110,34 +79,30 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_response', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, idir, ijdir, ispin, &
-                                                istat, jdir, nao, nmo, &
-                                                nspins, output_unit,ncubes,i
+    INTEGER                                  :: handle, idir, ispin, istat, &
+                                                nao, nmo, nspins, output_unit
     LOGICAL                                  :: do_raman, failure, should_stop
     REAL(dp)                                 :: chk, fro
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: h1_psi0, psi0_order, psi1
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: psi1_dBerry, dBerry_psi0
+      POINTER                                :: dBerry_psi0, psi1_dBerry
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: h1_psi0, psi0_order, &
-                                                psi1
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(section_vals_type), POINTER         :: polar_section, lr_section,print_key
-    REAL(dp), DIMENSION(:, :), POINTER       :: centers
-
+    TYPE(section_vals_type), POINTER         :: lr_section, polar_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control, linres_control, lr_section, polar_section)
-    NULLIFY(logger, mpools, psi1,h1_psi0, mo_coeff,para_env,list_cubes)
+    NULLIFY(logger, mpools, psi1, h1_psi0, mo_coeff, para_env)
     NULLIFY(tmp_fm_struct, psi1_dBerry,dBerry_psi0)
 
     logger => cp_error_get_logger(error)
@@ -256,38 +221,31 @@ CONTAINS
 
   SUBROUTINE polar_polar(polar_env,qs_env,error)
 
-    TYPE(polar_env_type)                      :: polar_env
-    INTEGER                                  :: unit_p, output_unit
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_polar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nao, j,m, &
-                                                istat, natom, nmo, nspins, x,y,z,i,idir
+    INTEGER                                  :: handle, i, ispin, istat, &
+                                                nspins, output_unit, z
     LOGICAL                                  :: do_raman, failure
-    REAL(dp)                                 :: buf, maxocc
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    REAL(dp), DIMENSION(:, :), &
-      POINTER                                :: polar,polar_tmp
+    REAL(dp), DIMENSION(:, :), POINTER       :: polar, polar_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: psi1_dBerry, dBerry_psi0,mo_derivs
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+      POINTER                                :: dBerry_psi0, mo_derivs, &
+                                                psi1_dBerry
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(section_vals_type), POINTER         :: polar_section
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(cell,dft_control,polar,psi1_dBerry,logger)
-    NULLIFY( mos, mo_coeff, dBerry_psi0,mo_derivs)
+    NULLIFY(mos, dBerry_psi0, mo_derivs)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -334,7 +292,7 @@ CONTAINS
    
      polar(:,:) = MATMUL (MATMUL (cell%hmat,polar_tmp),TRANSPOSE(cell%hmat)) 
 !SL evtl maxocc instead?
-      IF (dft_control%nspins .eq. 1) THEN
+      IF (dft_control%nspins .EQ. 1) THEN
         polar(:,:) = 2.0_dp * polar(:,:)
       END IF
 
@@ -352,7 +310,7 @@ CONTAINS
   END SUBROUTINE polar_polar
 
   SUBROUTINE polar_print(polar_env,qs_env,error)
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -360,15 +318,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    INTEGER                                  :: unit_p, output_unit
+    INTEGER                                  :: output_unit, unit_p
     LOGICAL                                  :: do_raman, failure
-    REAL(dp), DIMENSION(:, : ), &
-      POINTER                                :: polar
+    REAL(dp), DIMENSION(:, :), POINTER       :: polar
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: polar_section,input
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: i
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: polar_section
 
     failure = .FALSE.
 
@@ -400,35 +356,35 @@ CONTAINS
                   extension=".data",middle_name="raman",log_filename=.FALSE.,&
                   error=error)
       IF(unit_p>1) THEN 
-         write(unit_p,*)
-         write (unit_p,*) 'POLARIZABILITY TENSOR (atomic units):'
-         write (unit_p,'(A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
-         write (unit_p,'(A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
-         write (unit_p,'(A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
-         write (unit_p,*) 'POLARIZABILITY TENSOR (Angstrom^3):'
-         write (unit_p,'(A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3,polar(2,2)*angstrom**3,&
+         WRITE(unit_p,*)
+         WRITE (unit_p,*) 'POLARIZABILITY TENSOR (atomic units):'
+         WRITE (unit_p,'(A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
+         WRITE (unit_p,'(A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
+         WRITE (unit_p,'(A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
+         WRITE (unit_p,*) 'POLARIZABILITY TENSOR (Angstrom^3):'
+         WRITE (unit_p,'(A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3,polar(2,2)*angstrom**3,&
                         polar(3,3)*angstrom**3
-         write (unit_p,'(A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3,polar(1,3)*angstrom**3,&
+         WRITE (unit_p,'(A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3,polar(1,3)*angstrom**3,&
                         polar(2,3)*angstrom**3
-         write (unit_p,'(A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3,polar(3,1)*angstrom**3,&
+         WRITE (unit_p,'(A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3,polar(3,1)*angstrom**3,&
                         polar(3,2)*angstrom**3
        CALL cp_print_key_finished_output(unit_p,logger,qs_env%input,"DFT%PRINT%LINRES",error=error)
       ENDIF
     ENDIF
     IF(do_raman)  THEN
-         write (*,*)
-         write (*,*) 'POLARIZABILITY TENSOR (atomic units):'
-         write (*,*)"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
-         write (*,*)"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
-         write (*,'(A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
-         write (*,'(A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
-         write (*,'(A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
-         write (*,*) 'POLARIZABILITY TENSOR (Angstrom^3):'
-         write (*,'(A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3 ,&
+         WRITE (*,*)
+         WRITE (*,*) 'POLARIZABILITY TENSOR (atomic units):'
+         WRITE (*,*)"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
+         WRITE (*,*)"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
+         WRITE (*,'(A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
+         WRITE (*,'(A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
+         WRITE (*,'(A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
+         WRITE (*,*) 'POLARIZABILITY TENSOR (Angstrom^3):'
+         WRITE (*,'(A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3 ,&
                  polar(2,2)*angstrom**3 ,polar(3,3)*angstrom**3 
-         write (*,'(A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3 ,&
+         WRITE (*,'(A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3 ,&
                  polar(1,3)*angstrom**3 ,polar(2,3 )*angstrom**3
-         write (*,'(A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3 ,&
+         WRITE (*,'(A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3 ,&
                  polar(3,1)*angstrom**3 ,polar(3,2 )*angstrom**3
      END IF
     !
@@ -441,29 +397,27 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE polar_env_init(polar_env,qs_env,error)
     !
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_polar', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, idir, ini, ir, &
-                                                ispin, istat, m, n, n_rep, &
-                                                nao, natom, nspins, &
-                                                output_unit,max_states,nmo
+    INTEGER                                  :: handle, idir, ispin, istat, &
+                                                m, nao, nmo, nspins, &
+                                                output_unit
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(section_vals_type), POINTER         :: polar_section, lr_section
+    TYPE(section_vals_type), POINTER         :: lr_section, polar_section
 
 !
 
@@ -551,13 +505,13 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE polar_env_cleanup(polar_env,error)
 
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ispin, istat,i,j
+    INTEGER                                  :: idir, ispin, istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -589,7 +543,7 @@ CONTAINS
        IF(ASSOCIATED(polar_env%psi1_dBerry)) THEN
           DO idir = 1,SIZE(polar_env%psi1_dBerry,1)
              DO ispin = 1,SIZE(polar_env%psi1_dBerry,2)
-            write(*,*)'release it'
+            WRITE(*,*)'release it'
                 CALL cp_fm_release(polar_env%psi1_dBerry(idir,ispin)%matrix,error=error)
              ENDDO
           ENDDO

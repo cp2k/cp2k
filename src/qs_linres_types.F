@@ -1460,7 +1460,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE polar_env_create(polar_env,error)
 
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'polar_env_create', &
@@ -1487,12 +1487,14 @@ CONTAINS
   SUBROUTINE get_polar_env(polar_env,do_raman,dBerry_psi0, polar, &
        psi1_dBerry,mo_derivs,error)
 
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     LOGICAL, OPTIONAL                        :: do_raman
-    REAL(dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: polar
-    TYPE(cp_fm_p_type), DIMENSION(:,:), &
-      OPTIONAL, POINTER                      :: psi1_dBerry,mo_derivs,dBerry_psi0
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: dBerry_psi0
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: polar
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: psi1_dBerry, mo_derivs
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_polar_env', &
@@ -1516,7 +1518,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_polar_env(polar_env,error)
 
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_polar_env', &

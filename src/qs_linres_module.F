@@ -61,7 +61,8 @@ MODULE qs_linres_module
   USE qs_linres_nmr_utils,             ONLY: nmr_env_cleanup,&
                                              nmr_env_init
   USE qs_linres_op,                    ONLY: current_operators,&
-                                             issc_operators, polar_operators
+                                             issc_operators,&
+                                             polar_operators
   USE qs_linres_polar_utils,           ONLY: polar_env_cleanup,&
                                              polar_env_init,&
                                              polar_polar,&
@@ -112,9 +113,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, lr_calculation
+    LOGICAL                                  :: failure
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: lr_section
 
     CALL timeset(routineN,handle)
 
@@ -160,16 +160,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, iB, output_unit
-    LOGICAL                                  :: epr_present, &
-                                                failure, issc_present, &
-                                                lr_calculation, nmr_present, polar_present
+    INTEGER                                  :: handle, output_unit
+    LOGICAL                                  :: epr_present, failure, &
+                                                issc_present, lr_calculation, &
+                                                nmr_present, polar_present
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(section_vals_type), POINTER         :: prop_section
-    TYPE(section_vals_type), POINTER         :: lr_section
+    TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -413,8 +412,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_epr_linres', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_qmmm
     INTEGER                                  :: iB
+    LOGICAL                                  :: do_qmmm
     TYPE(current_env_type)                   :: current_env
     TYPE(epr_env_type)                       :: epr_env
     TYPE(nmr_env_type)                       :: nmr_env
@@ -511,12 +510,10 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(dft_control_type), POINTER          :: dft_control
-
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_linres', &
       routineP = moduleN//':'//routineN
-
 
     INTEGER                                  :: iatom
     LOGICAL                                  :: do_qmmm

@@ -24,12 +24,12 @@ MODULE qs_linres_op
                                              pbc
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve, &
-                                             cp_cfm_gemm
-  USE cp_cfm_types,                    ONLY: cp_cfm_get_info, &
-                                             cp_cfm_set_all, &
-                                             cp_cfm_release, &
-                                             cp_cfm_create, cp_cfm_p_type
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_get_info,&
+                                             cp_cfm_p_type,&
+                                             cp_cfm_release,&
+                                             cp_cfm_set_all
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
@@ -41,10 +41,10 @@ MODULE qs_linres_op
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type, cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
-                                             cp_fm_gemm, &
-                                             cp_fm_scale
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -74,18 +74,17 @@ MODULE qs_linres_op
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              get_current_env,&
                                              get_issc_env,&
-                                             get_polar_env, &
+                                             get_polar_env,&
                                              issc_env_type,&
-                                             linres_control_type, &
+                                             linres_control_type,&
                                              polar_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_moments,                      ONLY: build_berry_moment_matrix, &
-                                             build_local_moment_matrix
+  USE qs_moments,                      ONLY: build_berry_moment_matrix
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_ang_mom_matrix,&
                                              build_lin_mom_matrix,&
-                                             rRc_xyz_ao,p_xyz_ao
+                                             rRc_xyz_ao
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -689,49 +688,45 @@ CONTAINS
 
   SUBROUTINE polar_operators(polar_env,qs_env,error)
 
-    TYPE(polar_env_type)                      :: polar_env
+    TYPE(polar_env_type)                     :: polar_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_operators', &
       routineP = moduleN//':'//routineN
-
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
-    COMPLEX(DP)                              :: zdet,zdeta
 
-    INTEGER                                  :: handle,  ispin, nmo,  &
-                                                nspins, output_unit, reference, nao, &
-                                                istat, z, i, idim, tmp_dim,idir,natom
-    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
-    LOGICAL                                  :: do_raman,failure
-!  INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-!  INTEGER, DIMENSION(:), POINTER           :: list_cubes, rbs
-
-    REAL(dp), DIMENSION(:), POINTER          :: ref_point
-
-    REAL(dp)                                 :: kvec(3),maxocc
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    COMPLEX(DP)                              :: zdet, zdeta
+    INTEGER                                  :: handle, i, idim, ispin, &
+                                                istat, nao, nmo, nspins, &
+                                                output_unit, tmp_dim, z
+    LOGICAL                                  :: do_raman, failure
+    REAL(dp)                                 :: kvec(3), maxocc
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b,cosmat,sinmat
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat
-    TYPE(cp_cfm_p_type), DIMENSION(:,:), &
+    TYPE(cp_cfm_p_type), DIMENSION(:, :), &
       POINTER                                :: inv_mat
-    TYPE(cp_fm_p_type), DIMENSION(:, :,:), &
-      POINTER                                :: inv_work
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: dBerry_psi0,op_fm_set,  mo_derivs,opvec
-    type(cp_fm_type), pointer                :: mo_coeff
-    type(cp_fm_struct_type), pointer         :: tmp_fm_struct
+      POINTER                                :: dBerry_psi0, mo_derivs, &
+                                                op_fm_set, opvec
+    TYPE(cp_fm_p_type), DIMENSION(:, :, :), &
+      POINTER                                :: inv_work
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: lr_section
 
+!  INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+!  INTEGER, DIMENSION(:), POINTER           :: list_cubes, rbs
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
