@@ -1,0 +1,66 @@
+&GLOBAL
+  PROJECT H2O-NMR-1-postene
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &LINRES
+##       RESTART
+       &LOCALIZE
+          MAX_ITER 20
+           &PRINT
+              &LOC_RESTART
+              &END
+           &END
+##           RESTART
+       &END
+       MAX_ITER 10
+       RESTART_EVERY 5
+       PRECONDITIONER FULL_ALL
+       &CURRENT
+          GAUGE R_AND_STEP_FUNCTION
+       &END CURRENT
+       &NMR
+       &END
+       &PRINT
+         &RESTART
+         &END
+       &END
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+  H       .000689482500      -.765854689700      1.551514984100
+  H       .000592940100       .767987328300      1.553204324000
+  O       .046239583400       .001896697900      0.9564530746
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

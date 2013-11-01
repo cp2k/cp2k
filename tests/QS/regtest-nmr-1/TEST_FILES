@@ -16,3 +16,6 @@ H2O-NMR-9.inp 14
 H2O-NMR-10.inp 14
 H2O-NMR-11.inp 14
 H2O-NMR-12.inp 14
+# linres as post sc
+H2O-NMR-1-postene.inp 14
+H2O-NMR-1-postgeo.inp 14
