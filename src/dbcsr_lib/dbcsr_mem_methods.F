@@ -178,6 +178,7 @@ MODULE dbcsr_mem_methods
          IF(debug) WRITE (*,*) "mempool_collect_garbage: deallocating, ",&
            "name=", TRIM(pool%name), " size: ", dbcsr_data_get_size(cur%area)
          CALL internal_data_deallocate(cur%area%d, error)
+         DEALLOCATE(cur%area%d)
          prev%next => cur%next
          DEALLOCATE(cur)
          cur => prev%next
@@ -214,6 +215,7 @@ MODULE dbcsr_mem_methods
     cur => pool%root%next
     DO WHILE(ASSOCIATED(cur))
        CALL internal_data_deallocate(cur%area%d, error)
+       DEALLOCATE(cur%area%d)
        prev => cur
        cur => cur%next
        DEALLOCATE(prev)
