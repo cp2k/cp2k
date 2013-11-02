@@ -1961,8 +1961,9 @@ CONTAINS
                                                 N_loop, n_rep
     INTEGER, DIMENSION(:), POINTER           :: bs_k, bs_m, bs_n, nproc
     LOGICAL                                  :: always_checksum, &
-                                                deterministic, keep_sparsity, &
-                                                transa_p, transb_p
+                                                deterministic, &
+                                                retain_sparsity, transa_p, &
+                                                transb_p
     REAL(KIND=dp)                            :: alpha, beta, filter_eps, s_a, &
                                                 s_b, s_c
 
@@ -1987,7 +1988,7 @@ CONTAINS
             i_vals=bs_n, error=error)
        CALL section_vals_val_get(input_section,"bs_k",i_rep_section=i_rep,&
             i_vals=bs_k, error=error)
-       CALL section_vals_val_get(input_section,"keepsparse",i_rep_section=i_rep,l_val=keep_sparsity,error=error )
+       CALL section_vals_val_get(input_section,"keepsparse",i_rep_section=i_rep,l_val=retain_sparsity,error=error )
        CALL section_vals_val_get(input_section,"asparsity",i_rep_section=i_rep,r_val=s_a,error=error )
        CALL section_vals_val_get(input_section,"bsparsity",i_rep_section=i_rep,r_val=s_b,error=error )
        CALL section_vals_val_get(input_section,"csparsity",i_rep_section=i_rep,r_val=s_c,error=error )
@@ -2014,7 +2015,7 @@ CONTAINS
             (/ s_a, s_b, s_c /),&
             alpha, beta,&
             data_type=data_type,&
-            n_loops=n_loop, eps=filter_eps, deterministic=deterministic,&
+            n_loops=n_loop, eps=filter_eps, retain_sparsity=retain_sparsity, deterministic=deterministic,&
             always_checksum=always_checksum,error=error)
     END DO
   END SUBROUTINE cp_dbcsr_tests

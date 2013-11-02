@@ -81,7 +81,7 @@ CONTAINS
   SUBROUTINE cp_test_multiplies (mp_group, io_unit, nproc,&
        matrix_sizes, matrix_types, trs, &
        bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, &
-       n_loops, eps, deterministic, always_checksum, &
+       n_loops, eps, retain_sparsity, deterministic, always_checksum, &
        error)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
@@ -93,7 +93,8 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: alpha, beta
     INTEGER, INTENT(IN)                      :: data_type, n_loops
     REAL(kind=dp), INTENT(in)                :: eps
-    LOGICAL, INTENT(in)                      :: deterministic, always_checksum
+    LOGICAL, INTENT(in)                      :: retain_sparsity, &
+                                                deterministic, always_checksum
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -236,7 +237,8 @@ CONTAINS
          matrix_a, matrix_b, matrix_c, t_a, t_b,&
          dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
          n_loops=n_loops, eps=eps,&
-         io_unit = io_unit, always_checksum=always_checksum, error=error)
+         io_unit = io_unit, always_checksum=always_checksum,&
+         retain_sparsity=retain_sparsity, error=error)
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
