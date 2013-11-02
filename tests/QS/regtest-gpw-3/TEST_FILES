@@ -12,7 +12,7 @@ H+-bloechl.inp       1
 He2H-bloechl-md.inp  1
 He2H-bloechl.inp     1
 H2O-bloechl.inp                   1     2e-14
-H2O-bloechl-Spl.inp  1
+H2O-bloechl-Spl.inp               1     2e-14
 H2O-bloechl-restraint.inp         1     3e-12
 # S**2
 CN.inp             4

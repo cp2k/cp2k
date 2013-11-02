@@ -1132,8 +1132,10 @@ CONTAINS
     !$OMP BARRIER
     !$OMP MASTER
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
-            work_mutable=.FALSE., error=error)
+       CALL dbcsr_work_create (matrix, &
+              INT(matrix%m%nblks * default_resize_factor / nwms), &
+              INT(matrix%m%nze * default_resize_factor / nwms), &
+              n=nwms, work_mutable=.FALSE., error=error)
     ENDIF
     !$OMP END MASTER
     !$OMP BARRIER
