@@ -94,7 +94,7 @@
        IF (PRESENT(factor)) THEN
           size_increase = lb_orig - lb_new
           size_increase = MAX (NINT(size_increase*factor),&
-                               NINT(old_size*factor))
+                               NINT(old_size*(factor-1)),0)
           lb_new = MIN (lb_orig, lb_new - size_increase)
        ELSE
           lb_new = lb_orig
@@ -104,7 +104,7 @@
        IF (PRESENT(factor)) THEN
           size_increase = ub - ub_orig
           size_increase = MAX (NINT(size_increase*factor),&
-                               NINT(old_size*factor))
+                               NINT(old_size*(factor-1)),0)
           ub_new = MAX (ub_orig, ub + size_increase)
        ELSE
           ub_new = ub
