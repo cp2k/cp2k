@@ -207,12 +207,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, total_size
+    INTEGER                                  :: d, error_handler, total_size
     INTEGER, DIMENSION(2)                    :: sizes
     TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_memtype_type)                 :: my_memory_type
 
 !   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert(.NOT.ASSOCIATED(area%d), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
@@ -255,6 +257,8 @@ CONTAINS
        IF (PRESENT (data_size)) &
          CALL internal_data_allocate (area%d, sizes(1:d), error=error)
      ENDIF
+
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_new
 
 
@@ -274,7 +278,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED (area%d), &
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -302,7 +306,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_data_release
 
