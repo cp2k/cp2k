@@ -13,7 +13,7 @@ H2O-gapwxc-gth.inp 1
 # test with presence of soft S
 H2S-gapw.inp       1
 # tests GAPW  6-311++G(3df,3pd)
-HF_gapw_all_LB.inp 1
+HF_gapw_all_LB.inp                1     8e-14
 # tests GAPW  6-311++G(3df,3pd) and LSD
 OF_gapw_all_lsd_LB.inp 1
 # keep special case alive
@@ -28,9 +28,9 @@ H2O-gapw-all_noortho.inp  1
 H2O-gapw-all_localize_noortho.inp  23
 H2O-gapw-all_localize_crazy_noortho.inp  23
 # TPSS functional
-Be_GAPW.inp        1
+Be_GAPW.inp                       1     7e-14
 # Single atom isolated function
-Na_atom.inp        1
+Na_atom.inp                       1     2e-13
 #
 h2o_dist.inp       1
 H2S-gapw-gop.inp                  1     3e-14

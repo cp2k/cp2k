@@ -8,13 +8,13 @@ Ag.inp  35
 Al.inp  35
 Am.inp  35
 Ar.inp  35
-As.inp  35
+As.inp                           35     2e-14
 At.inp  35
 Au.inp  35
 Ba.inp  35
 Be.inp  35
 Bi.inp  35
-B.inp  35
+B.inp                            35     6e-13
 Bk.inp  35
 Br.inp  35
 Ca.inp  35
