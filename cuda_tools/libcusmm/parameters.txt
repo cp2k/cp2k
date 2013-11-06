@@ -6,18 +6,34 @@
 # *****************************************************************************
 
 [
- Kernel_dnt_largeDB(m=54, n=54, k=54, tile_m=2, tile_n=6, w=10, v=27, blockdim=256, grouping=16),
+ Kernel_dnt_largeDB(m=54, n=54, k=54, tile_m=5, tile_n=5, w=6, v=24, blockdim=128, grouping=16),   # 620
+ Kernel_dnt_largeDB(m=54, n=13, k=54, tile_m=3, tile_n=1, w=4,  v=13, blockdim=256, grouping=16),  # 275
+ Kernel_dnt_largeDB(m=54, n=54, k=13, tile_m=2, tile_n=6, w=13, v=24, blockdim=128, grouping=16),  # 413
+ Kernel_dnt_largeDB(m=54, n=13, k=13, tile_m=3, tile_n=2, w=13, v=12, blockdim=256, grouping=16),  # 247
+
+ Kernel_dnt_largeDB(m=13, n=54, k=54, tile_m=2, tile_n=3, w=4, v=24, blockdim=128, grouping=16),   # 271 
+ Kernel_dnt_largeDB(m=13, n=54, k=13, tile_m=2, tile_n=3, w=6,  v=8, blockdim=128, grouping=16),   # 210 
+ Kernel_dnt_largeDB(m=13, n=13, k=54, tile_m=2, tile_n=2, w=8, v=13, blockdim=128, grouping=16),   # 209 
+
+ Kernel_dnt_largeDB(m=13, n=24, k=24, tile_m=1, tile_n=3, w=4, v=8, blockdim=128, grouping=16),    # 211 
+ Kernel_dnt_largeDB(m=24, n=24, k=24, tile_m=2, tile_n=3, w=8, v=13, blockdim=128, grouping=16),   # 386
 
  Kernel_dnt_largeDB(m=13, n=26, k=26, tile_m=1, tile_n=3, w=4, v=26, blockdim=128, grouping=16),
  Kernel_dnt_largeDB(m=26, n=13, k=26, tile_m=2, tile_n=2, w=3, v=13, blockdim=96,  grouping=16),
  Kernel_dnt_largeDB(m=26, n=26, k=26, tile_m=2, tile_n=3, w=4, v=10, blockdim=128, grouping=16),
  Kernel_dnt_largeDB(m=23, n=23, k=23, tile_m=2, tile_n=3, w=4, v=13, blockdim=96,  grouping=16),
 
- Kernel_dnt_medium(m=13, n=13, k=13, panel_in=96, panel_out=16, tile_m=2, tile_n=2, threads=96, grouping=16),     # 171
+ Kernel_dnt_medium(m=13, n=13, k=24, panel_in=128, panel_out=0, tile_m=2, tile_n=2, threads=128, grouping=16),    # 185 
+ Kernel_dnt_medium(m=13, n=24, k=13, panel_in=128, panel_out=0, tile_m=2, tile_n=2, threads=128, grouping=16),    # 187
+ Kernel_dnt_medium(m=24, n=13, k=13, panel_in=96,  panel_out=0, tile_m=2, tile_n=2, threads=96,  grouping=16),    # 182
+ Kernel_dnt_medium(m=24, n=13, k=24, panel_in=160, panel_out=0, tile_m=2, tile_n=2, threads=160, grouping=16),    # 224
+ Kernel_dnt_medium(m=24, n=24, k=13, panel_in=128, panel_out=0, tile_m=2, tile_n=3, threads=128, grouping=16),    # 317
+
+ Kernel_dnt_medium(m=13, n=13, k=13, panel_in=96,  panel_out=0, tile_m=2, tile_n=2, threads=96,  grouping=16),    # 171
  Kernel_dnt_medium(m=13, n=13, k=26, panel_in=128, panel_out=0, tile_m=2, tile_n=2, threads=128, grouping=16),    # 204
- Kernel_dnt_medium(m=13, n=26, k=13, panel_in=96, panel_out=0, tile_m=2, tile_n=2, threads=96, grouping=16),      # 241
+ Kernel_dnt_medium(m=13, n=26, k=13, panel_in=96,  panel_out=0, tile_m=2, tile_n=2, threads=96,  grouping=16),    # 241
  Kernel_dnt_medium(m=26, n=13, k=13, panel_in=128, panel_out=0, tile_m=2, tile_n=2, threads=128, grouping=16),    # 229
- Kernel_dnt_medium(m=26, n=26, k=13, panel_in=128, panel_out=0, tile_m=2, tile_n=3, threads=128, grouping=16),     # 333
+ Kernel_dnt_medium(m=26, n=26, k=13, panel_in=128, panel_out=0, tile_m=2, tile_n=3, threads=128, grouping=16),    # 333
 
  Kernel_dnt_small(m=13, n=13, k=5,  tile_m=1, tile_n=2, threads=96, grouping=16),  # 112.8
  Kernel_dnt_small(m=13, n=5,  k=13, tile_m=1, tile_n=1, threads=96, grouping=16),  # 76
