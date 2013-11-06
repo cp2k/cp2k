@@ -889,7 +889,7 @@ CONTAINS
             "For MORSE potentials 2 numbers are expected. "//&
             "For QUARTIC potentials 3 numbers are expected.",&
             usage="K {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=-1, unit_str="hartree*bohr^-2",error=error)
+            n_var=-1, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

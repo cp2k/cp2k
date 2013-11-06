@@ -5,7 +5,7 @@
       &BOND
         ATOMS O H
         KIND MORSE
-        K         0.1616657105     1.2580547909
+        K   [hartree]     0.1616657105  [bohr^-1]   1.2580547909
         R0        1.8178259806
       &END BOND
       &BEND
