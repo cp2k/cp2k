@@ -1241,7 +1241,7 @@ CONTAINS
           IF (.not.mutable) THEN
              CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
              CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-                  ABS(wblk_p)+nze-1, error=error)
+                  ABS(wblk_p)+nze-1,factor=default_resize_factor, error=error)
              CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area,&
                   ABS(wblk_p) + nze - 1)
              CALL dbcsr_data_set (wm(which_wm)%data_area,&
