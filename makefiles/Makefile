@@ -60,7 +60,8 @@ LIB3_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
 LIB4_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
 LIB5_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB5).a
 LIB_CP2K_ARCHIVE      = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
-SRCENTRY              = $(wildcard $(SRCDIR)/.svn/entries*)
+SVN_ENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
+GIT_HEAD              = $(wildcard $(CP2KHOME)/../.git/HEAD*)
 FESOBJECTDEFS         = $(TOOLSRC)/metadyn/OBJECTDEFS
 DOXYGENDIR            = $(DOCDIR)/doxygen
 DBCSR_TEST_PROG       = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
@@ -551,12 +552,17 @@ doxygen: doxygen/clean
 	{ cd $(DOCDIR) ; sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/" Doxyfile.template >Doxyfile ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
-# an additional dependency of the SVN entry in the source directory
-# to recpp cp2k_info.F whenever the .svn/entries file is updated (and exists)
+# Add additional dependency of cp2k_info.F to SVN-entry or git-HEAD.
+# Ensuring that cp2k prints the correct source code revision number in its banner.
 #
-ifneq ($(strip $(SRCENTRY)),)
-cp2k_info.o: $(SRCENTRY)
+ifneq ($(strip $(SVN_ENTRY)),)
+cp2k_info.o: $(SVN_ENTRY)
 endif
+
+ifneq ($(strip $(GIT_HEAD)),)
+cp2k_info.o: $(GIT_HEAD)
+endif
+
 #
 # Load the automatically generated rules of makedepf90 
 #
