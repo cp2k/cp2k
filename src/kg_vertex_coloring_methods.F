@@ -43,6 +43,7 @@ MODULE kg_vertex_coloring_methods
     INTEGER :: color
     INTEGER :: degree ! degree (number of neighbors)
     INTEGER :: dsat   ! degree of saturation
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present ! the colors present on neighbors
     TYPE (vertex_p_type), DIMENSION(:), POINTER :: neighbors => NULL()
   END TYPE vertex
  
@@ -136,6 +137,13 @@ CONTAINS
       ineighbor=ineighbor+1
       kmol = pairs(2,i)
       graph(imol)%vertex%neighbors(ineighbor)%vertex => graph(kmol)%vertex
+    END DO
+    
+    DO i=1,SIZE(graph)
+      IF(graph(i)%vertex%degree>0) THEN
+        ALLOCATE(graph(i)%vertex%color_present(100))
+        graph(i)%vertex%color_present(:)=.FALSE.
+      END IF
     END DO
 
     CALL timestop(handle)
@@ -284,7 +292,7 @@ CONTAINS
     ALLOCATE (values(nnodes))
 
     DO i=1,nnodes
-      values(i) = kg_get_value(0, HUGE(int_4)-graph(i)%vertex%degree)
+      values(i) = kg_get_value(0,graph(i)%vertex%degree)
     END DO
 
     ! fill the heap
@@ -349,39 +357,6 @@ CONTAINS
 
   END SUBROUTINE 
 
-  ! calculates the dsat of the given node
-  SUBROUTINE calculate_dsat(node, maxdegree, dsat) 
-    TYPE(vertex), POINTER                    :: node
-    INTEGER, INTENT(in)                      :: maxdegree
-    INTEGER, INTENT(out)                     :: dsat
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dsat', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: color, i, nneighbors
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
-
-    nneighbors = SIZE(node%neighbors)
- 
-    ALLOCATE(color_present(maxdegree+1))
- 
-    color_present(:)=.FALSE.
-
-    DO i=1,nneighbors
-      color = node%neighbors(i)%vertex%color
-      IF (color.NE.0) color_present(color) = .TRUE.
-    END DO
-
-    dsat=0
-
-    DO i=1,maxdegree+1
-      IF (color_present(i)) dsat=dsat+1
-    END DO
-
-    DEALLOCATE(color_present)
-
-  END SUBROUTINE
-
   SUBROUTINE kg_update_node(heap, node, error)
     TYPE(heap_t)                             :: heap
     TYPE(vertex), INTENT(IN), POINTER        :: node
@@ -409,6 +384,7 @@ CONTAINS
 
   END SUBROUTINE
 
+  ! Subroutine revised by Samuel Andermatt (2013.11)
   SUBROUTINE kg_dsatur(kg_env, graph, ncolors, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(vertex_p_type), DIMENSION(:), &
@@ -419,9 +395,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_dsatur', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, dsat, handle, i, key, &
-                                                maxdegree, newcolor, &
-                                                nneighbors, nnodes
+    INTEGER                                  :: color_limit, handle, i, j, &
+                                                key, maxdegree, nneighbors, &
+                                                nnodes
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
     TYPE(heap_t)                             :: heap
@@ -433,7 +409,8 @@ CONTAINS
 
     CALL cite_reference(Brelaz1979)
 
-    ncolors=0
+    ncolors = 0
+    color_limit = 100
     maxdegree=kg_env%maxdegree
     nnodes=SIZE(graph)
 
@@ -453,58 +430,62 @@ CONTAINS
       CALL kg_heap_new(heap, nnodes, error)
 
       CALL kg_heap_fill(heap, graph, error) 
-
-      ALLOCATE(color_present(nnodes))
-      color_present(:)=.FALSE.
   
       DO WHILE (heap%n>0)  
 
         CALL kg_heap_pop(heap, key, error)
 
         this => graph(key)%vertex  
-
-        color_present(1:ncolors)=.FALSE.
  
-        newcolor=0
         nneighbors=0
 
         IF (ASSOCIATED(this%neighbors)) THEN
           nneighbors=SIZE(this%neighbors)
-          DO i=1,nneighbors
-            color = this%neighbors(i)%vertex%color
-            IF (color.NE.0) color_present(color)=.TRUE.
-          END DO
-        END IF 
-        DO i=1,kg_env%maxdegree+1
-          IF (color_present(i).EQV..FALSE.) THEN
-            newcolor=i
+        ELSE !node is isolated
+          this%color=1
+          CYCLE
+        END IF
+        DO i=1,this%degree+1
+          IF (this%color_present(i).EQV..FALSE.) THEN
+            this%color=i ! smallest possible
             EXIT
           END IF
         END DO
-
-        this%color = newcolor ! smallest possible
-        IF (newcolor.GT.ncolors) ncolors=newcolor
+ 
+        IF (this%color.GT.ncolors) ncolors=this%color
 
         ! update all neighboring nodes
         DO i=1,nneighbors
   
           neighbor => this%neighbors(i)%vertex
-  
-          CALL calculate_dsat(neighbor, maxdegree, dsat)
-          IF (neighbor%dsat.NE.dsat) THEN
-  
-            ! update dsat
-            neighbor%dsat = dsat
+            IF(neighbor%color_present(this%color)) CYCLE
+          neighbor%color_present(this%color)=.TRUE.
+          neighbor%dsat = neighbor%dsat + 1
+          IF(neighbor%color/=0) CYCLE
+          CALL kg_update_node(heap, neighbor, error) 
 
-            ! change value of node and resort heap
-            CALL kg_update_node(heap, neighbor, error) 
-  
-          END IF
         END DO
-      END DO
-  
-      DEALLOCATE(color_present)   
 
+        IF (this%color==color_limit) THEN !resize all color_present arrays
+          ALLOCATE(color_present(color_limit))
+          DO i=1,nnodes
+            IF(graph(i)%vertex%degree==0) CYCLE
+            color_present=graph(i)%vertex%color_present
+            DEALLOCATE(graph(i)%vertex%color_present)
+            ALLOCATE(graph(i)%vertex%color_present(color_limit*2))
+            DO j=1,color_limit
+              graph(i)%vertex%color_present(j)=color_present(j)
+            END DO
+            DO j=color_limit+1,2*color_limit
+              graph(i)%vertex%color_present(j)=.FALSE.
+            END DO
+          END DO
+          DEALLOCATE(color_present) 
+          color_limit=color_limit*2
+        END IF
+
+      END DO
+ 
       ! release the heap
       CALL kg_heap_release(heap, error)      
 
