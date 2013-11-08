@@ -36,7 +36,7 @@ MODULE dbcsr_cuda_event
   TYPE dbcsr_cuda_event_type
     PRIVATE
     !nothing, except for g95
-    INTEGER :: dummy
+    INTEGER :: dummy = 0
   END TYPE dbcsr_cuda_event_type
 
 #else

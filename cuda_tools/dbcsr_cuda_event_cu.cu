@@ -14,9 +14,9 @@
 
 
 extern "C" int cuda_event_create(cudaEvent_t** event_p){
-  if(verbose_print) printf("cuda_event_create called\n");
   *event_p = (cudaEvent_t*) malloc(sizeof(cudaEvent_t));
   cudaError_t cErr = cudaEventCreate(*event_p);
+  if(verbose_print) printf("cuda_event_created:  %p -> %d\n", *event_p, **event_p);
   if (cuda_error_check(cErr)) return 1;
   if (cuda_error_check(cudaGetLastError())) return 1;
   return 0;
@@ -32,7 +32,7 @@ extern "C" int cuda_event_destroy(cudaEvent_t* event){
 }
 
 extern "C" int cuda_event_record(cudaEvent_t* event, cudaStream_t* stream){
-    if(verbose_print) printf("cuda_event_record called\n");
+    if(verbose_print) printf("cuda_event_record: %p -> %d,  %p -> %d\n", event, * event,  stream, *stream);
     cudaError_t cErr = cudaEventRecord (*event, *stream);
     if (cuda_error_check (cErr)) return 1;
     //if (cuda_error_check(cudaGetLastError ()))return 1;

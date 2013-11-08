@@ -36,14 +36,18 @@ MODULE dbcsr_mm_sched
                                              mp_environ,&
                                              mp_min,&
                                              mp_sum
-  USE dbcsr_mm_cudadrv,                ONLY: dbcsr_mm_cudadrv_finalize,&
+  USE dbcsr_mm_cudadrv,                ONLY: dbcsr_mm_cudadrv_barrier,&
+                                             dbcsr_mm_cudadrv_finalize,&
                                              dbcsr_mm_cudadrv_init,&
                                              dbcsr_mm_cudadrv_lib_finalize,&
                                              dbcsr_mm_cudadrv_lib_init,&
+                                             dbcsr_mm_cudadrv_phaseout,&
                                              dbcsr_mm_cudadrv_process,&
                                              dbcsr_mm_cudadrv_type
-  USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_finalize,&
+  USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_barrier,&
+                                             dbcsr_mm_hostdrv_finalize,&
                                              dbcsr_mm_hostdrv_init,&
+                                             dbcsr_mm_hostdrv_phaseout,&
                                              dbcsr_mm_hostdrv_process,&
                                              dbcsr_mm_hostdrv_type
   USE dbcsr_mm_types,                  ONLY: p_a_first,&
@@ -67,9 +71,11 @@ MODULE dbcsr_mm_sched
 
   PUBLIC :: dbcsr_mm_sched_type
   PUBLIC :: dbcsr_mm_sched_lib_init, dbcsr_mm_sched_lib_finalize
+  PUBLIC :: dbcsr_mm_sched_phaseout
   PUBLIC :: dbcsr_mm_sched_init, dbcsr_mm_sched_finalize
   PUBLIC :: dbcsr_mm_sched_process
   PUBLIC :: dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_end_burst
+  PUBLIC :: dbcsr_mm_sched_barrier
 
   ! *****************************************************************************
   TYPE dbcsr_mm_sched_type
@@ -124,8 +130,6 @@ MODULE dbcsr_mm_sched
 
 
   END SUBROUTINE dbcsr_mm_sched_lib_init
-
-
 
 
 ! *****************************************************************************
@@ -211,6 +215,19 @@ MODULE dbcsr_mm_sched
 
   END SUBROUTINE dbcsr_mm_sched_init
 
+! *****************************************************************************
+! \brief Signal approaching end of multiplication
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_sched_phaseout(this, error)
+    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CALL dbcsr_mm_hostdrv_phaseout(this%hostdrv, error)
+    IF (mm_driver == mm_driver_cuda) &
+       CALL dbcsr_mm_cudadrv_phaseout(this%cudadrv, error)
+  END SUBROUTINE dbcsr_mm_sched_phaseout
+
 
 ! *****************************************************************************
 !> \brief Finalizes a multiplication cycle for a set of C-blocks.
@@ -260,6 +277,20 @@ MODULE dbcsr_mm_sched
 !nothing to do here
 
   END SUBROUTINE dbcsr_mm_sched_end_burst
+
+! *****************************************************************************
+! \brief Signal that previous stacks should be processed first
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_sched_barrier(this, error)
+    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CALL dbcsr_mm_hostdrv_barrier(this%hostdrv, error)
+    IF (mm_driver==mm_driver_cuda) &
+       CALL dbcsr_mm_cudadrv_barrier(this%cudadrv, error)
+
+  END SUBROUTINE dbcsr_mm_sched_barrier
 
 ! *****************************************************************************
 ! \brief Processes a given stack.

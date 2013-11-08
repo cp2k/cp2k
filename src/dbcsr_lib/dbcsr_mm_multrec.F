@@ -36,6 +36,7 @@ MODULE dbcsr_mm_multrec
                                              dbcsr_mm_csr_lib_finalize,&
                                              dbcsr_mm_csr_lib_init,&
                                              dbcsr_mm_csr_multiply,&
+                                             dbcsr_mm_csr_phaseout,&
                                              dbcsr_mm_csr_purge_stacks,&
                                              dbcsr_mm_csr_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
@@ -130,6 +131,7 @@ MODULE dbcsr_mm_multrec
  ! *****************************************************************************
   PUBLIC :: dbcsr_mm_multrec_type
   PUBLIC :: dbcsr_mm_multrec_lib_init, dbcsr_mm_multrec_lib_finalize
+  PUBLIC :: dbcsr_mm_multrec_phaseout
   PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
   PUBLIC :: dbcsr_mm_multrec_multiply
 
@@ -453,6 +455,19 @@ MODULE dbcsr_mm_multrec
          DEALLOCATE (this%k_sizes)
 
   END SUBROUTINE dbcsr_mm_multrec_multiply
+
+
+! *****************************************************************************
+! \brief Signal approaching end of multiplication
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_multrec_phaseout(this, error)
+    TYPE(dbcsr_mm_multrec_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CALL dbcsr_mm_csr_phaseout(this%csr, error)
+  END SUBROUTINE dbcsr_mm_multrec_phaseout
 
 
 ! *****************************************************************************

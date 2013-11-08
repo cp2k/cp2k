@@ -196,7 +196,7 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc) THEN
+    IF(mem_type%cuda_hostalloc .AND. n>1) THEN
        CALL dbcsr_cuda_hostmem_allocate(mem, n, error=error)
     ELSE IF(mem_type%mpi) THEN
        CALL mp_allocate(mem, n)
@@ -265,7 +265,7 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc) THEN
+    IF(mem_type%cuda_hostalloc .AND. SIZE(mem)>1) THEN
        CALL dbcsr_cuda_hostmem_deallocate(mem, error=error)
     ELSE IF(mem_type%mpi) THEN
        CALL mp_deallocate(mem)

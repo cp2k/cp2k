@@ -253,9 +253,8 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_mempool_type
     TYPE(dbcsr_mempool_entry_type), POINTER :: root => Null()
-    INTEGER                                 :: capacity = 0
+    INTEGER                                 :: capacity = 1
     !$ INTEGER(KIND=omp_lock_kind)          :: lock
-    CHARACTER(len=default_string_length)    :: name
   END TYPE dbcsr_mempool_type
 
   TYPE dbcsr_mempool_entry_type
@@ -267,6 +266,7 @@ MODULE dbcsr_types
      LOGICAL                           :: mpi = .FALSE.
      LOGICAL                           :: cuda_hostalloc = .FALSE.
      LOGICAL                           :: cuda_devalloc = .FALSE.
+     TYPE(dbcsr_cuda_stream_type)      :: cuda_stream = dbcsr_cuda_stream_type()
      TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
      REAL(KIND=dp)                     :: oversize_factor = 1.0
   END TYPE dbcsr_memtype_type
@@ -304,7 +304,6 @@ MODULE dbcsr_types
      INTEGER                                  :: data_type  = -1
      TYPE(dbcsr_cuda_devmem_type)             :: cuda_devmem
      TYPE(dbcsr_cuda_event_type)              :: cuda_ready
-     TYPE(dbcsr_cuda_stream_type)             :: cuda_stream
   END TYPE dbcsr_data_area_type
 
 !> Type definitions:

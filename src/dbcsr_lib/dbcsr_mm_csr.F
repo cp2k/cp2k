@@ -31,14 +31,12 @@ MODULE dbcsr_mm_csr
                                              int_8,&
                                              real_8,&
                                              sp
-  USE dbcsr_mm_sched,                  ONLY: dbcsr_mm_sched_begin_burst,&
-                                             dbcsr_mm_sched_end_burst,&
-                                             dbcsr_mm_sched_finalize,&
-                                             dbcsr_mm_sched_init,&
-                                             dbcsr_mm_sched_lib_finalize,&
-                                             dbcsr_mm_sched_lib_init,&
-                                             dbcsr_mm_sched_process,&
-                                             dbcsr_mm_sched_type
+  USE dbcsr_mm_sched,                  ONLY: &
+       dbcsr_mm_sched_barrier, dbcsr_mm_sched_begin_burst, &
+       dbcsr_mm_sched_end_burst, dbcsr_mm_sched_finalize, &
+       dbcsr_mm_sched_init, dbcsr_mm_sched_lib_finalize, &
+       dbcsr_mm_sched_lib_init, dbcsr_mm_sched_phaseout, &
+       dbcsr_mm_sched_process, dbcsr_mm_sched_type
   USE dbcsr_mm_types,                  ONLY: &
        dbcsr_ps_width, p_a_first, p_b_first, p_c_blk, p_c_first, p_k, p_m, &
        p_n, stack_descriptor_type
@@ -102,6 +100,7 @@ MODULE dbcsr_mm_csr
  ! *****************************************************************************
   PUBLIC :: dbcsr_mm_csr_type
   PUBLIC :: dbcsr_mm_csr_lib_init,   dbcsr_mm_csr_lib_finalize
+  PUBLIC :: dbcsr_mm_csr_phaseout
   PUBLIC :: dbcsr_mm_csr_init, dbcsr_mm_csr_finalize
   PUBLIC :: dbcsr_mm_csr_multiply, dbcsr_mm_csr_purge_stacks
 
@@ -663,6 +662,18 @@ MODULE dbcsr_mm_csr
 
 
 ! *****************************************************************************
+! \brief Signal approaching end of multiplication
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_csr_phaseout(this, error)
+    TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CALL dbcsr_mm_sched_phaseout(this%sched, error)
+  END SUBROUTINE dbcsr_mm_csr_phaseout
+
+
+! *****************************************************************************
 !> \brief Finalizes a multiplication cycle for a set of C-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
@@ -702,6 +713,7 @@ SUBROUTINE dbcsr_mm_csr_purge_stacks(this, left, right, error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL flush_stacks(this, left, right, purge=.TRUE., error=error)
+    CALL dbcsr_mm_sched_barrier(this%sched, error)
 END SUBROUTINE dbcsr_mm_csr_purge_stacks
 
 ! *****************************************************************************

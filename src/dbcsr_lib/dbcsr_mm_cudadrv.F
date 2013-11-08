@@ -21,12 +21,11 @@
 MODULE dbcsr_mm_cudadrv
   USE ISO_C_BINDING
   USE dbcsr_block_operations,          ONLY: block_add
-  USE dbcsr_config,                    ONLY: cudadrv_binning_binsize,&
-                                             cudadrv_binning_nbins,&
-                                             cudadrv_min_flop_sort,&
-                                             cudadrv_nbuffers,&
-                                             default_resize_factor,&
-                                             mm_stack_size
+  USE dbcsr_config,                    ONLY: &
+       cudadrv_binning_binsize, cudadrv_binning_nbins, cudadrv_min_flop_sort, &
+       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
+       cudadrv_priority_buffers, cudadrv_priority_streams, &
+       default_resize_factor, mm_stack_size
   USE dbcsr_cuda_device,               ONLY: cudaSharedMemBankSizeEightByte,&
                                              dbcsr_cuda_set_shared_mem_config
   USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
@@ -44,8 +43,11 @@ MODULE dbcsr_mm_cudadrv
   USE dbcsr_cuda_hostmem,              ONLY: dbcsr_cuda_hostmem_allocate,&
                                              dbcsr_cuda_hostmem_deallocate
   USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_do_mm_stack
-  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_create,&
+  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_associated,&
+                                             dbcsr_cuda_stream_create,&
                                              dbcsr_cuda_stream_destroy,&
+                                             dbcsr_cuda_stream_priority_range,&
+                                             dbcsr_cuda_stream_set_name,&
                                              dbcsr_cuda_stream_synchronize,&
                                              dbcsr_cuda_stream_type
   USE dbcsr_data_methods,              ONLY: dbcsr_data_dev2host,&
@@ -56,8 +58,10 @@ MODULE dbcsr_mm_cudadrv
                                              dbcsr_data_release
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             int_4,&
                                              int_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
+                                             dbcsr_mempool_ensure_capacity,&
                                              dbcsr_memtype_setup
   USE dbcsr_message_passing,           ONLY: mp_abort
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
@@ -86,12 +90,15 @@ MODULE dbcsr_mm_cudadrv
      PRIVATE
      TYPE(dbcsr_work_type), POINTER           :: product_wm => Null()
      TYPE(dbcsr_data_obj)                     :: c_buffer
+     LOGICAL                                  :: phase_out = .FALSE.
+     INTEGER                                  :: nbuffers_phaseout
   END TYPE dbcsr_mm_cudadrv_type
 
 ! *****************************************************************************
 
   PUBLIC :: dbcsr_mm_cudadrv_type
   PUBLIC :: dbcsr_mm_cudadrv_lib_init,   dbcsr_mm_cudadrv_lib_finalize
+  PUBLIC :: dbcsr_mm_cudadrv_phaseout, dbcsr_mm_cudadrv_barrier
   PUBLIC :: dbcsr_mm_cudadrv_init, dbcsr_mm_cudadrv_finalize
   PUBLIC :: dbcsr_mm_cudadrv_process
 
@@ -107,12 +114,17 @@ MODULE dbcsr_mm_cudadrv
      TYPE(dbcsr_cuda_stream_type)           :: stream
   END TYPE stack_buffer_type
 
-  TYPE(stack_buffer_type), DIMENSION(:), ALLOCATABLE, TARGET  :: stack_buffers
-  INTEGER :: curr_stack_buffer_idx = 0
-  !$OMP THREADPRIVATE(stack_buffers, curr_stack_buffer_idx)
+  TYPE(stack_buffer_type), DIMENSION(:), POINTER               :: stack_buffers => Null()
+  !$OMP THREADPRIVATE(stack_buffers)
 
   TYPE(dbcsr_memtype_type), SAVE, PRIVATE :: memtype_cbuffer
   !$OMP THREADPRIVATE(memtype_cbuffer)
+
+  TYPE(dbcsr_cuda_stream_type), SAVE                            :: upload_stream
+  TYPE(dbcsr_cuda_stream_type), SAVE, DIMENSION(:), POINTER     :: posterior_streams => Null()
+  TYPE(dbcsr_cuda_stream_type), SAVE, DIMENSION(:), POINTER     :: priority_streams  => Null()
+  TYPE(dbcsr_cuda_event_type),  SAVE, DIMENSION(:), POINTER     :: barrier_events    => Null()
+  INTEGER, SAVE                                                 :: barrier_counter   = 0
 
   CONTAINS
 
@@ -124,7 +136,7 @@ MODULE dbcsr_mm_cudadrv
   SUBROUTINE dbcsr_mm_cudadrv_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-! nothing to do here
+!nothing todo
 
   END SUBROUTINE dbcsr_mm_cudadrv_lib_init
 
@@ -137,7 +149,9 @@ MODULE dbcsr_mm_cudadrv
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-   IF(ALLOCATED(stack_buffers)) &
+   CALL deallocate_streams(error)
+
+   IF(ASSOCIATED(stack_buffers)) &
      CALL deallocate_stackbuffers(error)
 
    IF(ASSOCIATED(memtype_cbuffer%pool))&
@@ -164,7 +178,6 @@ MODULE dbcsr_mm_cudadrv
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_init', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: poolname
     INTEGER                                  :: error_handler, i, ithread, &
                                                 nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
@@ -176,30 +189,14 @@ MODULE dbcsr_mm_cudadrv
 
     ! Setup global data which is reused in between multiplications
     !------------------------------------------------------------------------
+     CALL setup_streams(error)
+     CALL setup_stackbuffers(this, error)
+
     !Each thread has its own memtype with its own mempool
-     WRITE (poolname, "(A,I4,A)") "cudadrv_cbuffer (thread=", ithread,")"
-     CALL dbcsr_memtype_setup(memtype_cbuffer, cuda_hostalloc=.TRUE.,&
-          cuda_devalloc=.TRUE., pool_capacity=1, pool_name=poolname, error=error)
-
-    ! Allocate the buffers for transfering the stack_data
-    IF(ALLOCATED(stack_buffers)) THEN
-       IF(SIZE(stack_buffers)/=cudadrv_nbuffers) &
-          CALL deallocate_stackbuffers(error)
-    ENDIF
-
-    IF(.NOT.ALLOCATED(stack_buffers)) THEN
-       ALLOCATE(stack_buffers(cudadrv_nbuffers))
-       DO i=1, cudadrv_nbuffers
-          CALL dbcsr_cuda_devmem_allocate(stack_buffers(i)%devmem,&
-                   dbcsr_type_int_4, dbcsr_ps_width*mm_stack_size, error)
-          CALL dbcsr_cuda_hostmem_allocate(stack_buffers(i)%hostmem, &
-                   dbcsr_ps_width, mm_stack_size, error=error)
-          CALL dbcsr_cuda_event_create(stack_buffers(i)%ready, error)
-          CALL dbcsr_cuda_event_create(stack_buffers(i)%calculated, error)
-          CALL dbcsr_cuda_stream_create(stack_buffers(i)%stream, error)
-       END DO
-    END IF
-
+    i = MOD(ithread, SIZE(priority_streams)) + 1
+    CALL dbcsr_memtype_setup(memtype_cbuffer,has_pool=.TRUE., cuda_hostalloc=.TRUE.,&
+          cuda_devalloc=.TRUE., cuda_stream=priority_streams(i), error=error)
+    CALL dbcsr_mempool_ensure_capacity(memtype_cbuffer%pool, capacity=1)
     CALL dbcsr_cuda_set_shared_mem_config(cudaSharedMemBankSizeEightByte)
 
     ! Setup things for this particular multipcation
@@ -211,17 +208,160 @@ MODULE dbcsr_mm_cudadrv
           data_size=dbcsr_data_get_size(c_area), memory_type=memtype_cbuffer)
 
     CALL dbcsr_cuda_devmem_setzero(this%c_buffer%d%cuda_devmem,&
-                             stream=this%c_buffer%d%cuda_stream, error=error)
+                stream=this%c_buffer%d%memory_type%cuda_stream, error=error)
 
     CALL dbcsr_cuda_event_record(this%c_buffer%d%cuda_ready,&
-                             stream=this%c_buffer%d%cuda_stream, error=error)
+                 stream=this%c_buffer%d%memory_type%cuda_stream, error=error)
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mm_cudadrv_init
 
 
+
 ! *****************************************************************************
-! \brief Helper routine used by dbcsr_mm_cudadrv_init() and dbcsr_mm_cudadrv_lib_finalize()
+! \brief Helper routine used by dbcsr_mm_cudadrv_init()
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE setup_streams(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: greatest_priority, &
+                                                least_priority
+
+!$OMP MASTER
+    CALL dbcsr_cuda_stream_priority_range(least_priority, greatest_priority, error)
+    CALL stream_array_force_size(priority_streams, "Calc (priority)", &
+        n=cudadrv_priority_streams, priority=greatest_priority, error=error)
+    CALL stream_array_force_size(posterior_streams, "Calc (posterior)", &
+        n=cudadrv_posterior_streams, events=barrier_events, error=error)
+
+    !create upload stream
+    IF(.NOT. dbcsr_cuda_stream_associated(upload_stream)) THEN
+      CALL dbcsr_cuda_stream_create(upload_stream, error=error)
+      CALL dbcsr_cuda_stream_set_name(upload_stream, "Stackbuf h2d", error)
+    END IF
+!$OMP END MASTER
+! Other threads have to wait until streams are created
+!$OMP BARRIER
+
+  END SUBROUTINE setup_streams
+
+
+! *****************************************************************************
+! \brief Helper routine used by setup_streams() and dbcsr_mm_cudadrv_lib_finalize()
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE deallocate_streams(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+!$OMP MASTER
+    IF(dbcsr_cuda_stream_associated(upload_stream)) &
+       CALL dbcsr_cuda_stream_destroy(upload_stream, error)
+
+    CALL stream_array_force_size(priority_streams, "Calc (priority)", n=0, error=error)
+    CALL stream_array_force_size(posterior_streams, "Calc (posterior)", n=0, events=barrier_events, error=error)
+!$OMP END MASTER
+
+  END SUBROUTINE deallocate_streams
+
+! *****************************************************************************
+! \brief Helper routine
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stream_array_force_size(streams, basename, n, events, priority, error)
+    TYPE(dbcsr_cuda_stream_type), &
+      DIMENSION(:), POINTER                  :: streams
+    CHARACTER(len=*), INTENT(IN)             :: basename
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(dbcsr_cuda_event_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: events
+    INTEGER, INTENT(IN), OPTIONAL            :: priority
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=default_string_length)     :: name
+    INTEGER                                  :: i
+
+    IF(ASSOCIATED(streams)) THEN
+       IF(SIZE(streams) /= n) THEN
+         DO i=1, SIZE(streams)
+            CALL dbcsr_cuda_stream_destroy(streams(i), error)
+            IF(PRESENT(events)) CALL dbcsr_cuda_event_destroy(events(i), error)
+         END DO
+         DEALLOCATE(streams)
+         IF(PRESENT(events)) DEALLOCATE(events)
+      END IF
+    END IF
+
+    IF(.NOT. ASSOCIATED(streams) .AND. n>0) THEN
+       ALLOCATE(streams(n))
+       IF(PRESENT(events)) ALLOCATE(events(n))
+       DO i=1, SIZE(streams)
+          CALL dbcsr_cuda_stream_create(streams(i), priority=priority, error=error)
+          WRITE(name, "(A,I3)") TRIM(basename), i
+          CALL dbcsr_cuda_stream_set_name(streams(i), TRIM(name), error)
+          IF(PRESENT(events)) CALL dbcsr_cuda_event_create(events(i), error)
+       END DO
+    END IF
+  END SUBROUTINE stream_array_force_size
+
+! *****************************************************************************
+! \brief Helper routine used by dbcsr_mm_cudadrv_init()
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE setup_stackbuffers(this, error)
+    TYPE(dbcsr_mm_cudadrv_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, ithread, &
+                                                my_posterior_buffers, &
+                                                my_priority_buffers, &
+                                                my_total_buffers, nthreads
+    INTEGER, SAVE                            :: curr_posterior_stream = 0, &
+                                                curr_priority_stream = 0
+
+    nthreads = 1; ithread = 0
+    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+
+    ! distribute total number of buffers approx. evenly among threads
+    ! my_* variables hold number of buffers for current thread.
+    my_priority_buffers  = CEILING(REAL(cudadrv_priority_buffers)  / REAL(nthreads), int_4)
+    my_posterior_buffers = CEILING(REAL(cudadrv_posterior_buffers) / REAL(nthreads), int_4)
+
+    this%nbuffers_phaseout = my_priority_buffers
+    my_total_buffers = my_posterior_buffers + my_priority_buffers
+
+    IF(ASSOCIATED(stack_buffers)) THEN
+       IF(SIZE(stack_buffers)/=my_total_buffers) &
+          CALL deallocate_stackbuffers(error)
+    ENDIF
+
+    IF(.NOT.ASSOCIATED(stack_buffers)) THEN
+       ALLOCATE(stack_buffers(my_total_buffers))
+       !Done with OMP CRITICAL because curr_*_stream are shared.
+       !$omp critical(crit_setup_stackbuffers)
+       DO i=1, my_total_buffers
+          CALL dbcsr_cuda_devmem_allocate(stack_buffers(i)%devmem,&
+                   dbcsr_type_int_4, dbcsr_ps_width*mm_stack_size, error)
+          CALL dbcsr_cuda_hostmem_allocate(stack_buffers(i)%hostmem, &
+                   dbcsr_ps_width, mm_stack_size, error=error)
+          CALL dbcsr_cuda_event_create(stack_buffers(i)%ready, error)
+          CALL dbcsr_cuda_event_create(stack_buffers(i)%calculated, error)
+          IF(i <= my_priority_buffers) THEN
+             curr_priority_stream = MOD(curr_priority_stream, SIZE(priority_streams)) + 1
+             stack_buffers(i)%stream = priority_streams(curr_priority_stream)
+          ELSE
+             curr_posterior_stream = MOD(curr_posterior_stream, SIZE(posterior_streams)) + 1
+             stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
+          ENDIF
+       END DO
+      !$omp end critical(crit_setup_stackbuffers)
+    END IF
+ END SUBROUTINE setup_stackbuffers
+
+
+! *****************************************************************************
+! \brief Helper routine used by setup_stackbuffers() and dbcsr_mm_cudadrv_lib_finalize()
 ! \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE deallocate_stackbuffers(error)
@@ -234,7 +374,6 @@ MODULE dbcsr_mm_cudadrv
       CALL dbcsr_cuda_hostmem_deallocate(stack_buffers(i)%hostmem, error)
       CALL dbcsr_cuda_event_destroy(stack_buffers(i)%ready, error)
       CALL dbcsr_cuda_event_destroy(stack_buffers(i)%calculated, error)
-      CALL dbcsr_cuda_stream_destroy(stack_buffers(i)%stream, error)
    END DO
    DEALLOCATE(stack_buffers)
  END SUBROUTINE deallocate_stackbuffers
@@ -256,7 +395,7 @@ MODULE dbcsr_mm_cudadrv
 
     CALL dbcsr_data_dev2host(this%c_buffer, error)
     !TODO: not async, yet
-    CALL dbcsr_cuda_stream_synchronize(this%c_buffer%d%cuda_stream, error)
+    CALL dbcsr_cuda_stream_synchronize(this%c_buffer%d%memory_type%cuda_stream, error)
 
     c_area = this%product_wm%data_area
     CALL block_add(c_area, this%c_buffer, error=error)
@@ -333,6 +472,47 @@ MODULE dbcsr_mm_cudadrv
   END SUBROUTINE  stack_binning
 
 ! *****************************************************************************
+! \brief Signal approaching end of multiplication
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_cudadrv_phaseout(this, error)
+    TYPE(dbcsr_mm_cudadrv_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    this%phase_out = .TRUE.
+  END SUBROUTINE dbcsr_mm_cudadrv_phaseout
+
+
+! *****************************************************************************
+! \brief After beeing called by ALL threads, it installs a special barrier that
+!        forces the priority-streams to wait for the normal-streams.
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_cudadrv_barrier(this, error)
+    TYPE(dbcsr_mm_cudadrv_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, j, nthreads
+
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+
+    !$OMP CRITICAL
+    barrier_counter = MOD(barrier_counter + 1, nthreads)
+    IF(barrier_counter==0) THEN
+        DO i=1, SIZE(posterior_streams)
+           CALL dbcsr_cuda_event_record(barrier_events(i), stream=posterior_streams(i), error=error)
+           DO j=1, SIZE(priority_streams)
+              CALL dbcsr_cuda_stream_wait_event(priority_streams(j), barrier_events(i), error)
+           ENDDO
+        ENDDO
+    ENDIF
+    !$OMP END CRITICAL
+  END SUBROUTINE dbcsr_mm_cudadrv_barrier
+
+! *****************************************************************************
 ! \brief Processes a given stack using CUDA
 ! \author Ole Schuett
 ! *****************************************************************************
@@ -351,22 +531,25 @@ MODULE dbcsr_mm_cudadrv
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_process', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: error_handle, error_handle2, flop_per_entry, &
-      next_stack_buffer_idx, stacked_datasize
+    INTEGER                                  :: error_handle, error_handle2, &
+                                                flop_per_entry, i, &
+                                                stacked_datasize
     TYPE(dbcsr_data_area_type), POINTER      :: a_area, b_area, c_area
     TYPE(stack_buffer_type), POINTER         :: stackbuf
 
-    next_stack_buffer_idx = MOD(curr_stack_buffer_idx, SIZE(stack_buffers))+1
-    stackbuf => stack_buffers(next_stack_buffer_idx)
+    NULLIFY(stackbuf)
+    DO i=1, SIZE(stack_buffers)
+       IF(this%phase_out .AND. i > this%nbuffers_phaseout) EXIT
+       IF(dbcsr_cuda_event_query(stack_buffers(i)%calculated, error)) THEN
+          stackbuf => stack_buffers(i)
+          EXIT
+       ENDIF
+    ENDDO
 
-    IF(.NOT. dbcsr_cuda_event_query(stackbuf%ready, error)) THEN
-       !WRITE (*,*) "dbcsr_mm_cudadrv_process: next buffer not ready"
+    IF(.NOT. ASSOCIATED(stackbuf)) THEN
        success = .FALSE.
        RETURN
     END IF
-
-    curr_stack_buffer_idx = next_stack_buffer_idx
-    !WRITE (*,*) "dbcsr_mm_cudadrv_process: using buffer: ", curr_stack_buffer_idx
 
     CALL dbcsr_error_set (routineN, error_handle, error)
     stacked_datasize   = this%product_wm%datasize
@@ -387,10 +570,6 @@ MODULE dbcsr_mm_cudadrv
 
     CALL dbcsr_error_stop (error_handle2, error)
 
-
-    CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf%hostmem, stream=stackbuf%stream, error=error)
-    CALL dbcsr_cuda_event_record(stackbuf%ready, stream=stackbuf%stream, error=error)
-
     a_area => left%data_area%d
     b_area => right%data_area%d
     c_area => this%c_buffer%d
@@ -406,9 +585,14 @@ MODULE dbcsr_mm_cudadrv
     IF(.NOT. dbcsr_cuda_devmem_allocated(c_area%cuda_devmem)) &
        CALL mp_abort("dbcsr_mm_cudadrv_process: c_area%cuda_devmem not allocated")
 
-    CALL dbcsr_cuda_stream_wait_event(stackbuf%stream, a_area%cuda_ready, error)
-    CALL dbcsr_cuda_stream_wait_event(stackbuf%stream, b_area%cuda_ready, error)
-    CALL dbcsr_cuda_stream_wait_event(stackbuf%stream, c_area%cuda_ready, error)
+    ! start uploading stacks only after a, b, and c are ready
+    CALL dbcsr_cuda_stream_wait_event(upload_stream, a_area%cuda_ready, error)
+    CALL dbcsr_cuda_stream_wait_event(upload_stream, b_area%cuda_ready, error)
+    CALL dbcsr_cuda_stream_wait_event(upload_stream, c_area%cuda_ready, error)
+    CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf%hostmem, stream=upload_stream, error=error)
+    CALL dbcsr_cuda_event_record(stackbuf%ready, stream=upload_stream, error=error)
+
+    CALL dbcsr_cuda_stream_wait_event(stackbuf%stream, stackbuf%ready, error)
 
     CALL dbcsr_cuda_do_mm_stack(stackbuf%devmem, stack_size,&
          a_data=a_area%cuda_devmem,&
@@ -423,9 +607,9 @@ MODULE dbcsr_mm_cudadrv
 
     IF(success) THEN
       CALL dbcsr_cuda_event_record(stackbuf%calculated, stream=stackbuf%stream, error=error)
-      CALL dbcsr_cuda_stream_wait_event(a_area%cuda_stream, stackbuf%calculated, error)
-      CALL dbcsr_cuda_stream_wait_event(b_area%cuda_stream, stackbuf%calculated, error)
-      CALL dbcsr_cuda_stream_wait_event(c_area%cuda_stream, stackbuf%calculated, error)
+      CALL dbcsr_cuda_stream_wait_event(a_area%memory_type%cuda_stream, stackbuf%calculated, error)
+      CALL dbcsr_cuda_stream_wait_event(b_area%memory_type%cuda_stream, stackbuf%calculated, error)
+      CALL dbcsr_cuda_stream_wait_event(c_area%memory_type%cuda_stream, stackbuf%calculated, error)
     ENDIF
 
     CALL dbcsr_error_stop (error_handle, error)

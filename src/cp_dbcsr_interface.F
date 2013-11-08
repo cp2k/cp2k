@@ -33,7 +33,9 @@ MODULE cp_dbcsr_interface
   USE dbcsr_config,                    ONLY: &
        cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
        cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, cudadrv_nbuffers, &
+       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
+       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
+       cudadrv_priority_buffers, cudadrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
@@ -474,7 +476,14 @@ CONTAINS
          "multrec_limit", i_val=multrec_limit, error=error)
 
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%n_buffers", i_val=cudadrv_nbuffers, error=error)
+         "CUDA%priority_streams", i_val=cudadrv_priority_streams, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%priority_buffers", i_val=cudadrv_priority_buffers, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%posterior_streams", i_val=cudadrv_posterior_streams, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "CUDA%posterior_buffers", i_val=cudadrv_posterior_buffers, error=error)
+
     CALL section_vals_val_get(dbcsr_section,&
          "CUDA%min_flop_process", i_val=cudadrv_min_flop_process, error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -569,7 +578,13 @@ CONTAINS
 
        IF (has_cuda) THEN
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of stack transfer-buffers", cudadrv_nbuffers
+            "DBCSR| CUDA: Number of priority stack-buffers", cudadrv_priority_buffers
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Number of posterior stack-buffers", cudadrv_posterior_buffers
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Number of priority streams", cudadrv_priority_streams
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+            "DBCSR| CUDA: Number of posterior streams", cudadrv_posterior_streams
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&

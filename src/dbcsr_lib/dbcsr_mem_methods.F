@@ -9,6 +9,9 @@
 ! *****************************************************************************
 MODULE dbcsr_mem_methods
 
+  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_associated,&
+                                             dbcsr_cuda_stream_equal,&
+                                             dbcsr_cuda_stream_type
   USE dbcsr_data_methods_low,          ONLY: dbcsr_data_exists,&
                                              dbcsr_data_get_size,&
                                              internal_data_deallocate
@@ -36,7 +39,6 @@ MODULE dbcsr_mem_methods
 
   LOGICAL, PARAMETER :: debug = .FALSE.
 
-
   CONTAINS
 
 ! *****************************************************************************
@@ -45,20 +47,13 @@ MODULE dbcsr_mem_methods
 ! \param name for debug purpose
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mempool_create(pool, capacity, name)
+  SUBROUTINE dbcsr_mempool_create(pool)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
-    INTEGER, INTENT(IN)                      :: capacity
-    CHARACTER(len=*)                         :: name
 
     IF(ASSOCIATED(pool)) STOP "dbcsr_mempool_create: pool already allocated"
     ALLOCATE(pool)
     !$ CALL OMP_INIT_LOCK(pool%lock)
-    pool%capacity = capacity
-    pool%name = name
     ALLOCATE(pool%root) !root allways allocated, but unsused. Simplifies looping.
-    NULLIFY(pool%root%next)
-
-    IF(debug) WRITE (*,*) "mempool_create: name=",TRIM(name), " capacity=",capacity
   END SUBROUTINE dbcsr_mempool_create
 
 
@@ -75,8 +70,6 @@ MODULE dbcsr_mem_methods
     pool%capacity = MAX(pool%capacity, capacity)
     !$ CALL OMP_UNSET_LOCK(pool%lock)
 
-    IF(debug) WRITE (*,*) "mempool_ensure_capacity: name=",TRIM(pool%name), " capacity=",capacity
-
   END SUBROUTINE dbcsr_mempool_ensure_capacity
 
 ! *****************************************************************************
@@ -89,38 +82,46 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     TYPE(dbcsr_data_obj)                     :: res
 
-    TYPE(dbcsr_mempool_entry_type), POINTER  :: cur, prev
+    INTEGER                                  :: best_size, s
+    TYPE(dbcsr_mempool_entry_type), POINTER  :: best_cur, best_prev, cur, prev
     TYPE(dbcsr_mempool_type), POINTER        :: pool
 
     pool => memtype%pool
     IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_get: pool not allocated"
 
-    res%d => Null()
-
     !$ CALL OMP_SET_LOCK(pool%lock)
+    res%d => Null()
+    best_cur => Null()
+    best_prev => Null()
+    best_size = HUGE(1)
     prev => Null()
     cur => pool%root
     DO WHILE(ASSOCIATED(cur%next))
        prev => cur
        cur => cur%next
-       IF(dbcsr_data_get_size(cur%area) < datasize) CYCLE
+       s = dbcsr_data_get_size(cur%area)
+       IF(s < datasize) CYCLE
        IF(.NOT. dbcsr_memtype_equal(cur%area%d%memory_type, memtype)) CYCLE
        IF(cur%area%d%data_type /= datatype) CYCLE
        !we found a match
-       IF(debug) WRITE (*,*) "mempool_get: name=",TRIM(pool%name)," found area_id=",cur%area%d%id
-       IF(cur%area%d%refcount /= 0) STOP "mempool_get: refcount /= 0"
-       cur%area%d%refcount =  1
-       prev%next => cur%next
-       res = cur%area
-       DEALLOCATE(cur)
-       EXIT
+       IF(s < best_size) THEN
+          best_cur  => cur
+          best_prev => prev
+          best_size = s
+       ENDIF
     ENDDO
+
+    IF(ASSOCIATED(best_cur)) THEN
+       IF(best_cur%area%d%refcount /= 0) STOP "mempool_get: refcount /= 0"
+       best_cur%area%d%refcount =  1
+       best_prev%next => best_cur%next
+       res = best_cur%area
+       DEALLOCATE(best_cur)
+    END IF
     !$ CALL OMP_UNSET_LOCK(pool%lock)
 
     IF(.NOT.ASSOCIATED(res%d)) &
        CALL mempool_collect_garbage(pool, error)
-
-    !IF(.NOT.ASSOCIATED(res%d)) WRITE (*,*) "mempool_get missed"
   END FUNCTION dbcsr_mempool_get
 
 
@@ -138,10 +139,6 @@ MODULE dbcsr_mem_methods
     pool => area%d%memory_type%pool
     IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_add: pool not allocated"
     IF(.NOT.dbcsr_data_exists(area, error)) STOP "dbcsr_mempool_add: area not allocated"
-
-    IF(debug) WRITE (*,*) "mempool_add: name=",TRIM(pool%name),&
-          " area_id=",area%d%id, " size=",dbcsr_data_get_size(area)
-
     IF(area%d%refcount /= 0) STOP "mempool_add: refcount /= 0"
 
     CALL mempool_collect_garbage(pool, error)
@@ -153,6 +150,30 @@ MODULE dbcsr_mem_methods
     pool%root%next => new_entry
     !$ CALL OMP_UNSET_LOCK(pool%lock)
  END SUBROUTINE dbcsr_mempool_add
+
+! *****************************************************************************
+! \brief Returns the number of data_areas currently stored in the given mempool.
+! \author Ole Schuett
+! *****************************************************************************
+ FUNCTION mempool_size(pool, error) RESULT(n)
+    TYPE(dbcsr_mempool_type), POINTER        :: pool
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+    INTEGER                                  :: n
+
+    TYPE(dbcsr_mempool_entry_type), POINTER  :: cur
+
+    IF(.NOT.ASSOCIATED(pool)) STOP "mempool_size: pool not allocated"
+
+    !$ CALL OMP_SET_LOCK(pool%lock)
+    cur => pool%root
+    n = 0
+    DO WHILE(ASSOCIATED(cur%next))
+       n = n + 1
+       cur => cur%next
+    ENDDO
+    !$ CALL OMP_UNSET_LOCK(pool%lock)
+ END FUNCTION mempool_size
+
 
 
 ! *****************************************************************************
@@ -173,10 +194,8 @@ MODULE dbcsr_mem_methods
     cur => pool%root%next
     n = 0
     DO WHILE(ASSOCIATED(cur))
-       n = n + 1
+       n = n + 1  
        IF(n >= pool%capacity) THEN
-         IF(debug) WRITE (*,*) "mempool_collect_garbage: deallocating, ",&
-           "name=", TRIM(pool%name), " size: ", dbcsr_data_get_size(cur%area)
          CALL internal_data_deallocate(cur%area%d, error)
          DEALLOCATE(cur%area%d)
          prev%next => cur%next
@@ -209,8 +228,6 @@ MODULE dbcsr_mem_methods
 
     CALL dbcsr_error_set (routineN, error_handler, error)
 
-    IF(debug) WRITE(*,*) "mempool_destruct name=", TRIM(pool%name)
-
     !$ CALL OMP_SET_LOCK(pool%lock)
     cur => pool%root%next
     DO WHILE(ASSOCIATED(cur))
@@ -235,43 +252,39 @@ MODULE dbcsr_mem_methods
 ! \brief Ensures that given memtype has requested settings.
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_memtype_setup(memtype, cuda_hostalloc, cuda_devalloc, mpi, &
-             oversize_factor, pool_capacity, pool_name, error)
+  SUBROUTINE dbcsr_memtype_setup(memtype, cuda_hostalloc, cuda_devalloc, mpi,&
+              cuda_stream, oversize_factor, has_pool, error)
     TYPE(dbcsr_memtype_type), INTENT(INOUT)  :: memtype
     LOGICAL, INTENT(IN), OPTIONAL            :: cuda_hostalloc, &
                                                 cuda_devalloc, mpi
+    TYPE(dbcsr_cuda_stream_type), OPTIONAL   :: cuda_stream
     REAL(KIND=dp), OPTIONAL                  :: oversize_factor
-    INTEGER, INTENT(IN), OPTIONAL            :: pool_capacity
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: pool_name
+    LOGICAL, INTENT(IN), OPTIONAL            :: has_pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: capacity
-    LOGICAL                                  :: is_ok
+    LOGICAL                                  :: is_ok, my_has_pool
     TYPE(dbcsr_memtype_type)                 :: aim
 
 ! variable aim is initialized with default values from type definition
 
-    capacity = 0
-    IF(PRESENT(pool_capacity)) THEN
-       capacity = pool_capacity
-       IF(.NOT. PRESENT(pool_name)) STOP "dbcsr_memtype_setup: pool_name missing"
-    ENDIF
+    my_has_pool = .FALSE.
+    IF(PRESENT(has_pool)) my_has_pool = has_pool
     IF(PRESENT(cuda_hostalloc))  aim%cuda_hostalloc  = cuda_hostalloc
     IF(PRESENT(cuda_devalloc))   aim%cuda_devalloc   = cuda_devalloc
     IF(PRESENT(mpi))             aim%mpi             = mpi
+    IF(PRESENT(cuda_stream))     aim%cuda_stream     = cuda_stream
     IF(PRESENT(oversize_factor)) aim%oversize_factor = oversize_factor
+
+    IF(.NOT. aim%cuda_devalloc.EQV.dbcsr_cuda_stream_associated(aim%cuda_stream))&
+       STOP "dbcsr_memtype_setup: cuda_stream missing"
 
     is_ok = .TRUE.
     is_ok = is_ok .AND. (memtype%cuda_hostalloc.EQV.aim%cuda_hostalloc)
     is_ok = is_ok .AND. (memtype%cuda_devalloc.EQV.aim%cuda_devalloc)
     is_ok = is_ok .AND. (memtype%mpi.EQV.aim%mpi)
+    is_ok = is_ok .AND. dbcsr_cuda_stream_equal(memtype%cuda_stream,aim%cuda_stream)
     is_ok = is_ok .AND. (memtype%oversize_factor==aim%oversize_factor)
-
-    is_ok = is_ok .AND. (ASSOCIATED(memtype%pool).EQV.(capacity>0))
-    IF(ASSOCIATED(memtype%pool)) THEN
-      is_ok = is_ok .AND. (memtype%pool%capacity==capacity)
-      is_ok = is_ok .AND. (TRIM(memtype%pool%name)==TRIM(pool_name))
-    ENDIF
+    is_ok = is_ok .AND. (ASSOCIATED(memtype%pool).EQV.my_has_pool)
 
     IF(.NOT.is_ok) THEN
         IF(ASSOCIATED(memtype%pool)) &
@@ -280,9 +293,10 @@ MODULE dbcsr_mem_methods
         memtype%cuda_hostalloc = aim%cuda_hostalloc
         memtype%cuda_devalloc = aim%cuda_devalloc
         memtype%mpi = aim%mpi
+        memtype%cuda_stream = aim%cuda_stream
         memtype%oversize_factor = aim%oversize_factor
-        IF(capacity>0) &
-           CALL dbcsr_mempool_create(memtype%pool, capacity=capacity, name=pool_name)
+        IF(my_has_pool) &
+           CALL dbcsr_mempool_create(memtype%pool)
     ENDIF
   END SUBROUTINE dbcsr_memtype_setup
 

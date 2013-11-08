@@ -245,6 +245,7 @@ How to compile CP2K code
                              compile.  Runtime performance will be poorer on
                              low numbers of processors
      -D__CRAY_POINTERS     - compiler supports CRAY pointers
+     -D__HAS_NO_CUDA_STREAM_PRIORITIES - Needed for CUDA sdk version < 5.5
 
  3d) Additional esoteric, development, and debugging options.  This
      section can be safely skipped over.  Listed here just for

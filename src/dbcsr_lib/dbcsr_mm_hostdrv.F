@@ -62,6 +62,7 @@ MODULE dbcsr_mm_hostdrv
   PUBLIC :: dbcsr_mm_hostdrv_process
   PUBLIC :: dbcsr_mm_hostdrv_type
   PUBLIC :: dbcsr_mm_hostdrv_init, dbcsr_mm_hostdrv_finalize
+  PUBLIC :: dbcsr_mm_hostdrv_phaseout, dbcsr_mm_hostdrv_barrier
 
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
@@ -94,6 +95,34 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
+
+
+! *****************************************************************************
+! \brief Signal approaching end of multiplication
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_hostdrv_phaseout(this, error)
+    TYPE(dbcsr_mm_hostdrv_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+! nothing to do
+
+  END SUBROUTINE dbcsr_mm_hostdrv_phaseout
+
+
+! *****************************************************************************
+! \brief Signal that previous stacks should be processed first
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_hostdrv_barrier(this, error)
+    TYPE(dbcsr_mm_hostdrv_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+! nothing to do here
+
+  END SUBROUTINE dbcsr_mm_hostdrv_barrier
 
 
 ! *****************************************************************************

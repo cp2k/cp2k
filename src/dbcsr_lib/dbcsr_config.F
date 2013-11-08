@@ -76,11 +76,11 @@ MODULE dbcsr_config
   !
   PUBLIC :: is_initialized
 
-  PUBLIC :: cudadrv_nbuffers,&
-            cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
+  PUBLIC :: cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
             cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
-            cudadrv_binning_nbins, cudadrv_binning_binsize
-
+            cudadrv_binning_nbins, cudadrv_binning_binsize, &
+            cudadrv_posterior_streams, cudadrv_posterior_buffers,&
+            cudadrv_priority_streams, cudadrv_priority_buffers
 
   PUBLIC :: multrec_limit
   PUBLIC :: default_resize_factor
@@ -180,16 +180,19 @@ MODULE dbcsr_config
 
   LOGICAL, SAVE :: is_initialized = .FALSE.
 
-  INTEGER, SAVE :: cudadrv_nbuffers = 8
+
+  INTEGER, SAVE :: multrec_limit = 512
+
+  INTEGER, SAVE :: cudadrv_priority_streams = 4
+  INTEGER, SAVE :: cudadrv_priority_buffers = 40
+  INTEGER, SAVE :: cudadrv_posterior_streams  = 4
+  INTEGER, SAVE :: cudadrv_posterior_buffers  = 80
   LOGICAL, SAVE :: cudadrv_avoid_after_busy = .FALSE.
   INTEGER, SAVE :: cudadrv_min_flop_process = 0
   INTEGER, SAVE :: cudadrv_min_flop_sort = 4000
   LOGICAL, SAVE :: cudadrv_do_inhomogenous = .TRUE.
-
   INTEGER, SAVE :: cudadrv_binning_nbins = 4096
   INTEGER, SAVE :: cudadrv_binning_binsize = 16
-
-  INTEGER, SAVE :: multrec_limit = 512
 
 CONTAINS
 

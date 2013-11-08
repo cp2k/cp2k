@@ -14,7 +14,8 @@ MODULE dbcsr_cuda_devmem
 #endif
 
   USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_type,&
-                                             dbcsr_cuda_stream_synchronize
+                                             dbcsr_cuda_stream_synchronize,&
+                                             dbcsr_cuda_stream_associated
   USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_device_sync
   USE dbcsr_datatype,                  ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -207,6 +208,8 @@ CONTAINS
     INTEGER                                  :: old_size, istat
 
     IF(this%datatype <= 0) CALL mp_abort("dbcsr_cuda_devmem_ensure_size: not allocated")
+    IF(.NOT. dbcsr_cuda_stream_associated(stream)) &
+         CALL mp_abort("dbcsr_cuda_devmem_ensure_size: stream not associated")
 
     IF(this%size < data_size) THEN
        !WRITE (*,*) "dbcsr_cuda_devmem_ensure_size: growing dev_mem to: ", data_size

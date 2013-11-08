@@ -15,28 +15,27 @@
 MODULE dbcsr_data_methods_low
 
   USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
-                                             dbcsr_cuda_devmem_deallocate,&
-                                             dbcsr_cuda_devmem_ensure_size,&
-                                             dbcsr_cuda_devmem_size
+                                             dbcsr_cuda_devmem_allocated,&
+                                             dbcsr_cuda_devmem_deallocate
   USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_create,&
-                                             dbcsr_cuda_event_destroy,&
-                                             dbcsr_cuda_event_record
-  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_create,&
-                                             dbcsr_cuda_stream_destroy
+                                             dbcsr_cuda_event_destroy
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: dp,&
                                              real_4,&
                                              real_4_size,&
                                              real_8,&
                                              real_8_size
-  USE dbcsr_ptr_util,                  ONLY: &
-       dbcsr_ptr_remapping, ensure_array_size, memory_allocate, &
-       memory_deallocate, memory_zero, pointer_c_rank_remap2, &
-       pointer_d_rank_remap2, pointer_s_rank_remap2, pointer_z_rank_remap2
+  USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
+                                             memory_allocate,&
+                                             memory_deallocate,&
+                                             memory_zero,&
+                                             pointer_c_rank_remap2,&
+                                             pointer_d_rank_remap2,&
+                                             pointer_s_rank_remap2,&
+                                             pointer_z_rank_remap2
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memtype_type, dbcsr_obj, &
        dbcsr_scalar_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
@@ -68,7 +67,7 @@ MODULE dbcsr_data_methods_low
   PUBLIC :: dbcsr_get_data, &
             dbcsr_data_set_pointer,&
             dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
-            dbcsr_data_clear_2d_pointer, dbcsr_data_ensure_size,&
+            dbcsr_data_clear_2d_pointer, &
             dbcsr_data_get_sizes, dbcsr_data_verify_bounds,&
             dbcsr_data_exists, dbcsr_data_valid, dbcsr_data_get_memory_type
   PUBLIC :: dbcsr_data_zero
@@ -303,9 +302,9 @@ MODULE dbcsr_data_methods_low
 
 
     IF(area%memory_type%cuda_devalloc) THEN
-       CALL dbcsr_cuda_devmem_allocate(area%cuda_devmem, datatype=area%data_type, n=sizes(1), error=error)
+       IF(sizes(1) > 1) &
+          CALL dbcsr_cuda_devmem_allocate(area%cuda_devmem, datatype=area%data_type, n=sizes(1), error=error)
        CALL dbcsr_cuda_event_create(area%cuda_ready, error)
-       CALL dbcsr_cuda_stream_create(area%cuda_stream, error)
     ENDIF
 
     CALL dbcsr_error_stop(error_handle, error)
@@ -329,7 +328,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, error_handler2
+    INTEGER                                  :: error_handler
 
 !   ---------------------------------------------------------------------------
 
@@ -374,11 +373,9 @@ MODULE dbcsr_data_methods_low
     END SELECT
 
     IF(area%memory_type%cuda_devalloc) THEN
-       CALL dbcsr_error_set (routineN//"_cuda", error_handler2, error)
-       CALL dbcsr_cuda_devmem_deallocate(area%cuda_devmem, error)
+       IF(dbcsr_cuda_devmem_allocated(area%cuda_devmem)) &
+          CALL dbcsr_cuda_devmem_deallocate(area%cuda_devmem, error)
        CALL dbcsr_cuda_event_destroy(area%cuda_ready, error)
-       CALL dbcsr_cuda_stream_destroy(area%cuda_stream, error)
-       CALL dbcsr_error_stop(error_handler2, error)
     ENDIF
 
     CALL dbcsr_error_stop(error_handler, error)
@@ -735,118 +732,6 @@ MODULE dbcsr_data_methods_low
        data_size = 0
     ENDIF
   END FUNCTION dbcsr_data_get_size
-
-
-! *****************************************************************************
-!> \brief Ensures a minimum size of a previously-setup data area.
-!>
-!> The data area must have been previously setup with dbcsr_data_new.
-!> \param[inout] area         data area
-!> \param[in] data_size       allocate this much data
-!> \param[in] nocopy          (optional) do not keep potentially existing data,
-!>                            default is to keep it
-!> \param[in] zero_pad        (optional) pad new data with zeros
-!> \param[in] factor          (optional) increase size by this factor
-! *****************************************************************************
-  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    INTEGER, INTENT(IN)                      :: data_size
-    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: factor
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: current_size, error_handler, &
-                                                wanted_size
-    LOGICAL                                  :: nocp, pad
-
-!   ---------------------------------------------------------------------------
-
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data area must be setup.",__LINE__,error)
-    current_size = dbcsr_data_get_size (area)
-
-    ! allocate some more as padding for libsmm kernels which read over the end.
-    wanted_size = data_size + 10
-
-    !IF(area%d%memory_type%cuda_devalloc) THEN
-    !    IF(current_size==dbcsr_cuda_devmem_size(area%d%cuda_devmem)) &
-    !      WRITE (*,*) "dbcsr_data_ensure_size: Host and device buffer differ in size."
-    !END IF
-    !   CALL dbcsr_assert(current_size==dbcsr_cuda_devmem_size(area%d%cuda_devmem),&
-    !          dbcsr_fatal_level, dbcsr_caller_error,&
-    !          routineN, "Host and device buffer differ in size.",__LINE__,error)
-
-    CALL dbcsr_data_set_size_referenced (area, data_size)
-    IF (current_size .GT. 1 .AND. current_size .GE. wanted_size) THEN
-       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
-       RETURN
-    ENDIF
-    !
-    nocp = .FALSE.
-    IF (PRESENT (nocopy)) nocp = nocopy
-    pad = .FALSE.
-    IF (PRESENT (zero_pad)) pad = zero_pad
-
-    IF (.NOT. &
-         dbcsr_data_exists (area, error=error)) THEN
-       CALL internal_data_allocate (area%d, (/ wanted_size /), error=error)
-       IF (pad) CALL dbcsr_data_zero (area, (/ 1 /), (/ wanted_size /), error=error)
-    ELSE
-       SELECT CASE (area%d%data_type)
-          CASE (dbcsr_type_int_8)
-             CALL ensure_array_size(area%d%i8, ub=wanted_size,&
-                  memory_type=area%d%memory_type,&
-                  nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
-          CASE (dbcsr_type_int_4)
-             CALL ensure_array_size(area%d%i4, ub=wanted_size,&
-                  memory_type=area%d%memory_type,&
-                  nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
-          CASE (dbcsr_type_real_8)
-             CALL ensure_array_size(area%d%r_dp, ub=wanted_size,&
-                  memory_type=area%d%memory_type,&
-                  nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
-          CASE (dbcsr_type_real_4)
-             CALL ensure_array_size (area%d%r_sp, ub=wanted_size,&
-                  memory_type=area%d%memory_type,&
-                  nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
-          CASE (dbcsr_type_complex_8)
-             CALL ensure_array_size (area%d%c_dp, ub=wanted_size,&
-                  memory_type=area%d%memory_type,&
-                  nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
-          CASE (dbcsr_type_complex_4)
-             CALL ensure_array_size (area%d%c_sp, ub=wanted_size,&
-                  memory_type=area%d%memory_type,&
-                  nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
-          CASE default
-             CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-                  dbcsr_unimplemented_error_nr, routineN,&
-                  "Invalid data type are supported",__LINE__,error)
-       END SELECT
-
-
-       IF(area%d%memory_type%cuda_devalloc) THEN
-          CALL dbcsr_cuda_devmem_ensure_size(area%d%cuda_devmem, &
-                   area%d%cuda_stream, dbcsr_data_get_size(area), &
-                   nocopy, zero_pad, error)
-          CALL dbcsr_cuda_event_record(area%d%cuda_ready, area%d%cuda_stream, error=error)
-          CALL dbcsr_assert(dbcsr_data_get_size(area)==dbcsr_cuda_devmem_size(area%d%cuda_devmem),&
-                 dbcsr_fatal_level, dbcsr_caller_error,&
-                 routineN, "Host and device buffer differ in size.",__LINE__,error)
-       ENDIF
-
-    ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_data_ensure_size
 
 
 ! *****************************************************************************

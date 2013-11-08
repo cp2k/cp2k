@@ -23,7 +23,9 @@ MODULE input_cp2k
   USE dbcsr_config,                    ONLY: &
        cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
        cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, cudadrv_nbuffers, &
+       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
+       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
+       cudadrv_priority_buffers, cudadrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, has_blas, &
@@ -955,9 +957,27 @@ CONTAINS
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
-    CALL keyword_create(keyword, name="n_buffers",&
-         description="Number of transfer-buffers used per thread to copy stacks over to the GPU.",&
-         default_i_val=cudadrv_nbuffers,error=error)
+    CALL keyword_create(keyword, name="priority_buffers",&
+         description="Number of transfer-buffers associated with high priority streams.",&
+         default_i_val=cudadrv_priority_buffers,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="posterior_buffers",&
+         description="Number of transfer-buffers associated with low priority streams.",&
+         default_i_val=cudadrv_posterior_buffers,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="priority_streams",&
+         description="Number of cuda streams created with high priority.",&
+         default_i_val=cudadrv_priority_streams,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="posterior_streams",&
+         description="Number of cuda streams created with low priority.",&
+         default_i_val=cudadrv_posterior_streams,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

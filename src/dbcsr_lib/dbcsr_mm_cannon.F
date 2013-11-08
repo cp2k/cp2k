@@ -39,6 +39,11 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_cuda_event_synchronize,&
                                              dbcsr_cuda_stream_wait_event
   USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_transpose
+  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_associated,&
+                                             dbcsr_cuda_stream_create,&
+                                             dbcsr_cuda_stream_destroy,&
+                                             dbcsr_cuda_stream_set_name,&
+                                             dbcsr_cuda_stream_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, &
@@ -70,9 +75,14 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: &
-       default_string_length, dp, int_4, int_8, real_4, real_4_size, real_8, &
-       real_8_size, sp
+  USE dbcsr_kinds,                     ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size,&
+                                             sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
@@ -106,6 +116,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_mm_multrec_lib_finalize,&
                                              dbcsr_mm_multrec_lib_init,&
                                              dbcsr_mm_multrec_multiply,&
+                                             dbcsr_mm_multrec_phaseout,&
                                              dbcsr_mm_multrec_type
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
@@ -160,11 +171,13 @@ MODULE dbcsr_mm_cannon
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_abbuffer, memtype_trsbuffer
+  INTEGER(KIND=int_8),          PRIVATE, SAVE  :: marketing_flops = 0
   TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_product_wm
   !$OMP THREADPRIVATE(memtype_product_wm)
-
-  INTEGER(KIND=int_8), PRIVATE, SAVE      :: marketing_flops = 0
+  TYPE(dbcsr_memtype_type),     PRIVATE, SAVE  :: memtype_abpanel_1, memtype_abpanel_2,&
+                                                  memtype_trsbuffer_1, memtype_trsbuffer_2
+  TYPE(dbcsr_cuda_stream_type), PRIVATE, SAVE  :: stream_1, stream_2
+  ! ab-panels and streams are shared between all threads
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
   PUBLIC :: dbcsr_mm_cannon_multiply
@@ -180,6 +193,10 @@ MODULE dbcsr_mm_cannon
 
     CALL dbcsr_mm_multrec_lib_init(error)
     marketing_flops = 0
+
+    ! Each thread has its own working-matrix and its own mempool
+    CALL dbcsr_memtype_setup(memtype_product_wm, has_pool=.TRUE., error=error)
+    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm%pool, capacity=1)
   END SUBROUTINE
 
 
@@ -193,16 +210,25 @@ MODULE dbcsr_mm_cannon
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
+     ! Each thread has its own working-matrix and its own mempool
      IF (ASSOCIATED(memtype_product_wm%pool)) &
         CALL dbcsr_mempool_destruct(memtype_product_wm%pool, error)
 
      !$omp master
      IF(output_unit>0) &
        WRITE (output_unit,'(A,T30,I20)') " marketing flops", marketing_flops
-     IF (ASSOCIATED(memtype_abbuffer%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_abbuffer%pool, error)
-     IF (ASSOCIATED(memtype_trsbuffer%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_trsbuffer%pool, error)
+     IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_trsbuffer_1%pool, error)
+     IF (ASSOCIATED(memtype_trsbuffer_2%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_trsbuffer_2%pool, error)
+     IF (ASSOCIATED(memtype_abpanel_1%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_abpanel_1%pool, error)
+     IF (ASSOCIATED(memtype_abpanel_2%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_abpanel_2%pool, error)
+     IF(dbcsr_cuda_stream_associated(stream_1)) &
+        CALL dbcsr_cuda_stream_destroy(stream_1, error)
+     IF(dbcsr_cuda_stream_associated(stream_2)) &
+        CALL dbcsr_cuda_stream_destroy(stream_2, error)
      !$omp end master
   END SUBROUTINE
 
@@ -287,7 +313,6 @@ MODULE dbcsr_mm_cannon
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
-    CHARACTER(len=default_string_length)     :: poolname
     INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, i, &
       ithread, l_col, l_k, l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
@@ -314,21 +339,36 @@ MODULE dbcsr_mm_cannon
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
 
-    ! setup memory-types and their memory-pools --------------------------------
-    ! Each thread has its own working-matrix and its own mempool
-    WRITE (poolname, "(A,I4,A)") "cannon_product_wm (thread=", ithread,")"
-    CALL dbcsr_memtype_setup(memtype_product_wm, pool_capacity=1, pool_name=poolname, error=error)
+    ! setup driver-dependent memory-types and their memory-pools ---------------
 
     ! the ab_buffers are shared by all threads
     IF (mm_driver==mm_driver_cuda) THEN
-       CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., &
-            cuda_devalloc=.TRUE., mpi=.TRUE., pool_capacity=6, &
-            oversize_factor=default_resize_factor,&
-            pool_name="cannon_ab_buffers", error=error)
-       CALL dbcsr_memtype_setup(memtype_trsbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
-            pool_capacity=2, pool_name="cannon_trs_buffers", error=error)
+       IF(.NOT. dbcsr_cuda_stream_associated(stream_1)) THEN
+          CALL dbcsr_cuda_stream_create(stream_1, error=error)
+          CALL dbcsr_cuda_stream_set_name(stream_1, "MemCpy (odd ticks)", error)
+          CALL dbcsr_cuda_stream_create(stream_2, error=error)
+          CALL dbcsr_cuda_stream_set_name(stream_2, "MemCpy (even ticks)", error)
+       ENDIF
+
+       CALL dbcsr_memtype_setup(memtype_abpanel_1, has_pool=.TRUE.,&
+            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE., cuda_stream=stream_1,&
+            mpi=.TRUE., oversize_factor=default_resize_factor, error=error)
+
+       CALL dbcsr_memtype_setup(memtype_abpanel_2, has_pool=.TRUE.,&
+            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE., cuda_stream=stream_2,&
+            mpi=.TRUE., oversize_factor=default_resize_factor, error=error)
+
+       !TODO: ensure capacity 2/3?
+       CALL dbcsr_memtype_setup(memtype_trsbuffer_1,has_pool=.TRUE.,&
+            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE., cuda_stream=stream_1,error=error)
+       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1)
+
+       CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE.,&
+            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,cuda_stream=stream_2, error=error)
+       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1)
     ELSE
-       CALL dbcsr_memtype_setup(memtype_abbuffer, mpi=.TRUE., error=error)
+       CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE., error=error)
+       CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE., error=error)
     ENDIF
 
 
@@ -728,13 +768,13 @@ MODULE dbcsr_mm_cannon
        ! Copy and scale matrix B if alpha is not 1.
        CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
             predistribute="R", &
-            data_memory_type = memtype_abbuffer,&
+            data_memory_type = memtype_abpanel_1,&
             index_memory_type = dbcsr_memtype_default,&
             no_copy_data=use_dense_mult, scale_value=alpha, error=error)
     ELSE
        CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
             predistribute="R", &
-            data_memory_type = memtype_abbuffer,&
+            data_memory_type = memtype_abpanel_1,&
             index_memory_type = dbcsr_memtype_default,&
             no_copy_data=use_dense_mult, error=error)
     ENDIF
@@ -793,7 +833,7 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (m2s_left)
     CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
          predistribute="L", &
-         data_memory_type = memtype_abbuffer,&
+         data_memory_type = memtype_abpanel_1,&
          index_memory_type = dbcsr_memtype_default,&
          no_copy_data=use_dense_mult, error=error)
     ! Post-processing of images.
@@ -1310,7 +1350,14 @@ MODULE dbcsr_mm_cannon
     ENDDO
     ! Allocate data structures needed for data exchange.
     CALL dbcsr_data_init (recv_data_area)
-    CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)), memory_type=data_memory_type)
+    IF(nrow_images.EQ.1 .AND. ncol_images.eq.1 .OR. nocopy) THEN
+        ! For some cases the faster dbcsr_special_finalize(reshuffle=.FALSE.) can be used.
+        ! This basically makes this working matrix the actual data-area.
+        ! Hence, for those cases we have to use data_memory_type already here.
+        CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)), memory_type=data_memory_type)
+    ELSE
+        CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)))
+    END IF
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :, :))))
     CALL dbcsr_data_init (send_data_area)
     CALL dbcsr_data_new (send_data_area, data_type, SUM(send_count(2, :, :, :)))
@@ -1618,11 +1665,13 @@ MODULE dbcsr_mm_cannon
           CALL dbcsr_data_set_size_referenced (&
                ums%mats(row_img,col_img)%m%wms(1)%data_area,&
                ums%mats(row_img,col_img)%m%wms(1)%datasize)
+
           IF (nrow_images.EQ.1 .AND. ncol_images.eq.1 .OR. nocopy) THEN
              CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.,error=dbcsr_error)
           ELSE
              CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.,error=dbcsr_error)
           ENDIF
+
           ! Save the home process and image row and column
           CALL image_calculator (target_imgdist,&
                ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
@@ -2244,6 +2293,15 @@ MODULE dbcsr_mm_cannon
     CALL ensure_array_size(product_matrix%m%wms(i)%col_i, ub=1, error=error)
     CALL ensure_array_size(product_matrix%m%wms(i)%blk_p, ub=1, error=error)
 !$omp end parallel
+
+    ! update capacity of memory-pools
+    IF (mm_driver == mm_driver_cuda) THEN
+      CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
+      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
+      CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
+      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
+    ENDIF
+
     !
     IF (debug_mod .AND. mynode .EQ. 0) THEN
        WRITE(*,*)routineN//" All sizes"
@@ -2257,13 +2315,9 @@ MODULE dbcsr_mm_cannon
        WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
     ENDIF
 
-    IF (mm_driver == mm_driver_cuda) &
-      CALL dbcsr_mempool_ensure_capacity(memtype_abbuffer%pool, &
-      capacity=2*left_row_mult*left_col_nimages + 2*right_row_nimages*right_col_mult)
-
     CALL buffer_matrices_ensure_size(left_set, index_size=left_max_nblks,&
          data_size=left_max_nze, error=error)
-    
+
     CALL setup_buffer_matrices (left_buffer_2, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=left_max_nblks,&
          data_size=left_max_nze, error=error)
@@ -2348,12 +2402,17 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_new(right_data_sp, data_type)
     CALL dbcsr_data_new(right_data_rp, data_type)
 
+    !
+    ! Here is the main loop.
+    !
+
+
     ! Setup transpose stackbuffers
     IF (mm_driver==mm_driver_cuda) THEN
        CALL dbcsr_data_init(trs_stackbuf_1)
        CALL dbcsr_data_init(trs_stackbuf_2)
-       CALL dbcsr_data_new(trs_stackbuf_1, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer)
-       CALL dbcsr_data_new(trs_stackbuf_2, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer)
+       CALL dbcsr_data_new(trs_stackbuf_1, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer_1)
+       CALL dbcsr_data_new(trs_stackbuf_2, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer_2)
        trs_stackbuf_calc => trs_stackbuf_1
        trs_stackbuf_comm => trs_stackbuf_2
     ENDIF
@@ -2743,6 +2802,10 @@ MODULE dbcsr_mm_cannon
              CALL dbcsr_error_set(routineN//"_multrec", error_handler2, t_error)
              IF(ithread==0)&
                CALL dbcsr_error_set(routineN//"_multrec_master", error_handler4, t_error)
+
+             IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
+                CALL dbcsr_mm_multrec_phaseout(multrec, t_error)
+
              CALL dbcsr_mm_multrec_multiply(multrec,&
                   left=left_buffer_calc%mats(1, v_ki+1)%m,&
                   right=right_buffer_calc%mats(v_ki+1, 1)%m,&
@@ -2911,7 +2974,7 @@ MODULE dbcsr_mm_cannon
                template = source_matrix,&
                name = TRIM("Buffer of "//TRIM(source_matrix%m%name)),&
                nblks = index_size, nze = data_size, &
-               data_memory_type = memtype_abbuffer,&
+               data_memory_type = memtype_abpanel_2,&
                index_memory_type = dbcsr_memtype_default,&
                error = error)
           ! Dummy allocation only needed for NAG (at least for 5.1(327))
@@ -3567,7 +3630,7 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_host2dev(trs_stackbuf, error)
 
     ! make sure block-buffer is uploaded befor running the kernels
-    CALL dbcsr_cuda_stream_wait_event(trs_stackbuf%d%cuda_stream, matrix%m%data_area%d%cuda_ready, error)
+    CALL dbcsr_cuda_stream_wait_event(trs_stackbuf%d%memory_type%cuda_stream, matrix%m%data_area%d%cuda_ready, error)
 
     ! launch kernels
     DO mi=1, mi_max
@@ -3580,15 +3643,15 @@ MODULE dbcsr_mm_cannon
             offset=offsets(mi, ni), nblks=counters(mi, ni),&
             buffer=matrix%m%data_area%d%cuda_devmem,&
             m=m, n=n,&
-            stream=trs_stackbuf%d%cuda_stream, error=error)
+            stream=trs_stackbuf%d%memory_type%cuda_stream, error=error)
         END IF
       ENDDO
     ENDDO
 
     ! make sure block-buffer are not used until transpose kernels finnished
-    CALL dbcsr_cuda_event_record(trs_stackbuf%d%cuda_ready, trs_stackbuf%d%cuda_stream, error)
-    CALL dbcsr_cuda_stream_wait_event(matrix%m%data_area%d%cuda_stream, trs_stackbuf%d%cuda_ready,  error)
-    CALL dbcsr_cuda_event_record(matrix%m%data_area%d%cuda_ready, matrix%m%data_area%d%cuda_stream, error)
+    CALL dbcsr_cuda_event_record(trs_stackbuf%d%cuda_ready, trs_stackbuf%d%memory_type%cuda_stream, error)
+    CALL dbcsr_cuda_stream_wait_event(matrix%m%data_area%d%memory_type%cuda_stream, trs_stackbuf%d%cuda_ready,  error)
+    CALL dbcsr_cuda_event_record(matrix%m%data_area%d%cuda_ready, matrix%m%data_area%d%memory_type%cuda_stream, error)
 
     DEALLOCATE(row_blk_sizes2enum, enum2row_blk_sizes)
     DEALLOCATE(col_blk_sizes2enum, enum2col_blk_sizes)

@@ -1126,7 +1126,7 @@ CONTAINS
 
     IF(dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) THEN
       IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for cuda_devmem"
-      CALL dbcsr_cuda_devmem_setzero(area%d%cuda_devmem, lb, ub, area%d%cuda_stream, error)
+      CALL dbcsr_cuda_devmem_setzero(area%d%cuda_devmem, lb, ub, area%d%memory_type%cuda_stream, error)
     END IF
 
     SELECT CASE (area%d%data_type)
