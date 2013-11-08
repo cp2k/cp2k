@@ -67,7 +67,7 @@
     </dd>
     <dt><b>@IF / @ENDIF</b></dt>
     <dd>
-     Conditional block. The text from the @IF line up to the next line with a valid "
+     Conditional block. The text from the @IF line up to the next line with a valid
      @ENDIF is skipped, if the expression following @IF resolves to <i>false</i>.
      Available expressions are lexical comparisons for equality '==' or inequality '/='.
      If none of the two operators are found, a '0' or whitespace resolves to <i>false</i>
@@ -81,6 +81,16 @@
     section links. The links in the detailed descriptions switch back to the corresponding index
     entries. In this way a toggling between the index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
+   <ul class="circle"> 
+     <li>
+       <font color="red">Double click</font> 
+       on [-]/[+] to shrink or expand all subtrees contained in a section
+     </li>
+     <li>
+       <font color="red">Single click</font>
+       on [-]/[+] to shrink or expand the top level subtree contained in a section
+     </li>
+   </ul>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
    <ul class="disc">
     <li>
@@ -91,9 +101,6 @@
      <xsl:with-param name="root" select="'../'"/>
     </xsl:call-template>
    </ul>
-   <p>
-    <a href="index_javascript.html">Collapsible section tree</a> (CAUTION: very long loading time, ignore browser warnings, just continue)
-   </p>
    <xsl:call-template name="footer">
     <xsl:with-param name="root" select="''"/>
    </xsl:call-template>
@@ -186,6 +193,7 @@
   ul.disc {list-style-type: disc}
   ul.none {list-style-type: none}
   ul.square {list-style-type: square}
+  .button {font-family: Monaco; font-size: 80%; cursor: pointer}
   #html_table
   {
    border: 1px solid #000000;
@@ -196,7 +204,7 @@
    vertical-align: middle;
   }
  </style>
- <script src="collapsibleList.js" type="text/javascript" language="javascript1.2"/>
+ <script language="javascript" type="text/javascript" src="./toggle_folding.js"></script>
 </xsl:template>
 
 <xsl:template name="header">
