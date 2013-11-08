@@ -81,18 +81,16 @@
     section links. The links in the detailed descriptions switch back to the corresponding index
     entries. In this way a toggling between the index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
-   <ul class="circle"> 
-     <li>
-       <font color="red">Double click</font> 
-       on [-]/[+] to shrink or expand all subtrees contained in a section
-     </li>
-     <li>
-       <font color="red">Single click</font>
-       on [-]/[+] to shrink or expand the top level subtree contained in a section
-     </li>
+   <ul class="noscript"> 
+    <li>
+     <font color="red">Double click</font> on [-] / [+] to shrink or expand all subtrees contained in a section
+    </li>
+    <li>
+     <font color="red">Single click</font> on [-] / [+] to shrink or expand the top level subtree contained in a section
+    </li>
    </ul>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
-   <ul class="disc">
+   <ul class="index">
     <li>
      <a href="CP2K_INPUT.html" id="CP2K_INPUT.html">CP2K_INPUT</a>
     </li>
@@ -191,9 +189,11 @@
   td.r {width: 75%}
   ul.circle {list-style-type: circle}
   ul.disc {list-style-type: disc}
+  ul.index {list-style-type: none; margin-left: 0px; padding-left: 2em; text-indent: 0px}
   ul.none {list-style-type: none}
+  ul.noscript {list-style-type: disc}
   ul.square {list-style-type: square}
-  .button {font-family: Monaco; font-size: 80%; cursor: pointer}
+  .button {font-family: Monaco; font-size: 100%; cursor: pointer}
   #html_table
   {
    border: 1px solid #000000;
@@ -204,6 +204,12 @@
    vertical-align: middle;
   }
  </style>
+ <noscript>
+  <style>
+   ul.index {list-style-type: disc; margin-left: 0px; padding-left: 2em; text-indent: 0px}
+   ul.noscript {display: none}
+  </style>
+ </noscript>
  <script language="javascript" type="text/javascript" src="./toggle_folding.js"></script>
 </xsl:template>
 
@@ -254,7 +260,7 @@
 <xsl:template name="describe_sections">
  <xsl:param name="path"/>
  <xsl:param name="root"/>
- <ul class="disc">
+ <ul class="index">
   <xsl:for-each select="SECTION">
    <xsl:sort select="NAME"/>
    <xsl:variable name="section" select="string(NAME)"/>

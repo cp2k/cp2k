@@ -81,7 +81,7 @@ function add_button_recursively(section) {
         }
         // otherwise add a blank
         else {
-            button = make_button("---", "blank");
+            button = make_button(" ", "blank");
             section.insertBefore(button, title_element);
         }
     }
