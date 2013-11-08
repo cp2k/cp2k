@@ -83,10 +83,10 @@
    <h2>Index of all input sections</h2>
    <ul class="noscript"> 
     <li>
-     <font color="red">Double click</font> on [-] / [+] to shrink or expand all subtrees contained in a section
+     Double click on [-] / [+] to shrink or expand all subtrees contained in a section
     </li>
     <li>
-     <font color="red">Single click</font> on [-] / [+] to shrink or expand the top level subtree contained in a section
+     Single click on [-] / [+] to shrink or expand the top level subtree contained in a section
     </li>
    </ul>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
