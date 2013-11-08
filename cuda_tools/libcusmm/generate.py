@@ -15,10 +15,10 @@ from kernels.cusmm_dnt_tiny    import Kernel_dnt_tiny
 
 #===============================================================================
 def main():
-    triples  = combinations(5,13)  # amorph spiro-MeOTAD
-    triples += combinations(13,26) # TiO2
-    triples += combinations(23)    # blocked H2O
-    triples += combinations(54)    # blocked acetonitrile
+    triples  = combinations(5,13)     # amorph spiro-MeOTAD
+    triples += combinations(13,26)    # TiO2
+    triples += combinations(23)       # blocked H2O
+    triples += combinations(13,24,54) # blocked acetonitrile
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
