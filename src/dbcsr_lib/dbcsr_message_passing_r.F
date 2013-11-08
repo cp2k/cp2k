@@ -2015,7 +2015,7 @@
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_rv @ "//routineN)
     DEALLOCATE(status)
 #else
-    WRITE(UNIT=fh, POS=offset+1) msg(1:msglen)
+    WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
   END SUBROUTINE mp_file_write_at_rv
 
@@ -2157,7 +2157,7 @@
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_rv @ "//routineN)
     DEALLOCATE(status)
 #else
-    READ(UNIT=fh, POS=offset+1) msg(1:msglen)
+    READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
   END SUBROUTINE mp_file_read_at_all_rv
 
