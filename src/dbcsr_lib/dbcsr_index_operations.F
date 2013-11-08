@@ -229,16 +229,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Collapses a row_p index
 ! *****************************************************************************
-  PURE SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
+  SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
     INTEGER, INTENT(in)                      :: nrows, nblks
     INTEGER, DIMENSION(1:nrows+1), &
       INTENT(out)                            :: row_p
     INTEGER, DIMENSION(1:nblks), INTENT(in)  :: row_i
 
-    INTEGER                                  :: blk, row
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dbcsr_index', &
+      routineP = moduleN//':'//routineN
 
-!
-!
+    INTEGER                                  :: blk, error_handle, row
+    TYPE(dbcsr_error_type)                   :: error
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
 
     row_p(1) = 0
     row_p(nrows+1) = nblks
@@ -257,6 +260,9 @@ CONTAINS
        row_p(row+1) = blk-1
        row = row+1
     ENDDO
+
+    CALL dbcsr_error_stop(error_handle, error)
+
   END SUBROUTINE dbcsr_make_dbcsr_index
 
 ! *****************************************************************************

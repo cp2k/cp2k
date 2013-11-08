@@ -387,9 +387,9 @@ CONTAINS
     !$OMP DO
     DO row = 1, nrows
        row_size = rbs(row)
-       FORALL (blk = row_p(row)+1 : row_p(row+1))
+       DO blk = row_p(row)+1, row_p(row+1)
           sizes(blk) = row_size * cbs(col_i(blk))
-       END FORALL
+       END DO
     ENDDO
     !$OMP END DO
   END SUBROUTINE dbcsr_calc_block_sizes
