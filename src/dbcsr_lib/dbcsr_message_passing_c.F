@@ -2007,15 +2007,15 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_cv', &
                                    routineP = moduleN//':'//routineN
 
-#if defined(__parallel)
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
+#if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_COMPLEX, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_cv @ "//routineN)
     DEALLOCATE(status)
 #else
-    WRITE(UNIT=fh, POS=offset+1) msg
+    WRITE(UNIT=fh, POS=offset+1) msg(1:msglen)
 #endif
   END SUBROUTINE mp_file_write_at_cv
 
@@ -2053,15 +2053,15 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_cv', &
                                    routineP = moduleN//':'//routineN
 
-#if defined(__parallel)
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
+#if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_COMPLEX, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_cv @ "//routineN)
     DEALLOCATE(status)
 #else
-    WRITE(UNIT=fh, POS=offset+1) msg
+    WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
   END SUBROUTINE mp_file_write_at_all_cv
 
@@ -2103,15 +2103,15 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_cv', &
                                    routineP = moduleN//':'//routineN
 
-#if defined(__parallel)
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
+#if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_COMPLEX, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_cv @ "//routineN)
     DEALLOCATE(status)
 #else
-    READ(UNIT=fh, POS=offset+1) msg
+    READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
   END SUBROUTINE mp_file_read_at_cv
 
@@ -2149,15 +2149,15 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_cv', &
                                    routineP = moduleN//':'//routineN
 
-#if defined(__parallel)
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
+#if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_COMPLEX, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_cv @ "//routineN)
     DEALLOCATE(status)
 #else
-    READ(UNIT=fh, POS=offset+1) msg
+    READ(UNIT=fh, POS=offset+1) msg(1:msglen)
 #endif
   END SUBROUTINE mp_file_read_at_all_cv
 
