@@ -34,7 +34,8 @@ PRETTYOBJDIR          = $(CP2KHOME)/obj/prettified
 TOOLDIR               = $(OBJDIR)/tools
 TOOLSRC               = $(CP2KHOME)/tools
 SRCDIR                = $(CP2KHOME)/src
-SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/cuda_tools/libcusmm:$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
+LIBCUSMM_DIR          = $(CP2KHOME)/cuda_tools/libcusmm
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(LIBCUSMM_DIR):$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
 MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                  = $(EXEDIR)/cp2k.$(VERSION)
@@ -52,7 +53,7 @@ LIB5_OBJECTDEFS       = $(SRCDIR)/elpa_lib/OBJECTDEFS
 LIBNVOBJECTDEFS       = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
 LIBMA_OBJECTDEFS      = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES  = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
-LIBCUSMM_DEPENDENCIES = $(CP2KHOME)/cuda_tools/libcusmm/LIBCUSMM_DEPENDENCIES
+LIBCUSMM_DEPENDENCIES = $(LIBCUSMM_DIR)/LIBCUSMM_DEPENDENCIES
 LIBMA_DEPENDENCIES    = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
 LIB1_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
@@ -69,6 +70,7 @@ DBCSR_PERF_PROG       = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
 #PLUMED
 PLUMEDDIR             = $(SRCDIR)/src-plumed
 PLUMEDINC             = $(PLUMEDDIR)/plumed.inc 
+LIBCUSMM_FILES        = $(LIBCUSMM_DEPENDENCIES) $(LIBCUSMM_DIR)/libcusmm.cu $(wildcard $(LIBCUSMM_DIR)/kernels/*.pyc)
 
 REVISION := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
 
@@ -99,10 +101,10 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool\
-         dbcsr_test dbcsr_perf mrproper plumed
+         dbcsr_test dbcsr_perf mrproper plumed libcusmm
 
 ### Master rules ###
-build: dirs deptool
+build: dirs deptool libcusmm
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
 	+cp $(LIBCUSMM_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cusmm.dep
@@ -188,6 +190,14 @@ ifneq ($(NVCC),)
   LIBNV_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_cuda.a
   LIBCUSMM_ARCHIVE = $(LIBDIR)/$(VERSION)/libcusmm.a
 endif
+
+
+# libcusmm stuff
+ifneq ($(NVCC),)
+  libcusmm:
+	cd $(LIBCUSMM_DIR); ./generate.py $(LIBCUSMM_FLAGS)
+endif
+
 
 # HWTOPO
 ifneq ($(HWTOPO),)
@@ -507,6 +517,7 @@ realclean: clean
 	-rm -f $(LIB4_ARCHIVE)
 	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
+	-rm -f $(LIBCUSMM_FILES)
 
 #
 # remove plumed objectfiles
@@ -517,7 +528,7 @@ plumedclean:
 # Remove all files from previous builds
 #
 distclean:
-	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
+	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR) $(LIBCUSMM_FILES)
 #
 # Remove ALL files not in SVN
 # NOTE: This removes really everything not committed to SVN
