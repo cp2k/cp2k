@@ -7,6 +7,7 @@ if [[ -n $1 ]]; then
   # saxon -o index.html cp2k_input.xml cp2k_input_javascript.xsl
 
   # Java version from http://sourceforge.net/projects/saxon
+  # For Saxon 9 HE syntax has changed, use -o:index.html
   java -jar $SAXON -o index.html cp2k_input.xml cp2k_input_$1.xsl add_edit_links=no
 
 else
@@ -15,6 +16,7 @@ else
   # saxon -o index.html cp2k_input.xml cp2k_input.xsl
 
   # Java version from http://sourceforge.net/projects/saxon
+  # For Saxon 9 HE syntax has changed, use -o:index.html
   java -jar $SAXON -o index.html cp2k_input.xml cp2k_input.xsl add_edit_links=no
 
 fi
