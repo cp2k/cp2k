@@ -31,8 +31,8 @@ MODULE dbcsr_cuda_stream
 
 #if !defined (__DBCSR_CUDA)
   TYPE dbcsr_cuda_stream_type
-    PRIVATE
-    INTEGER     :: dummy = 0!needed to make g95 happy
+!MK PRIVATE                  ! workaround for g95
+    INTEGER     :: dummy = 0 ! needed to make g95 happy
   END TYPE dbcsr_cuda_stream_type
 
 #else
