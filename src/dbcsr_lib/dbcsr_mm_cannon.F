@@ -76,7 +76,6 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
                                              int_8,&
                                              real_4,&
                                              real_4_size,&
@@ -108,9 +107,8 @@ MODULE dbcsr_mm_cannon
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_locals, &
-       dbcsr_row_block_offsets, dbcsr_valid_index
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_release_locals, dbcsr_row_block_offsets, dbcsr_valid_index
   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                              dbcsr_mm_multrec_init,&
                                              dbcsr_mm_multrec_lib_finalize,&
@@ -1884,8 +1882,7 @@ MODULE dbcsr_mm_cannon
     LOGICAL                                  :: keep_sparsity, list_indexing, &
                                                 my_use_plasma, otf_filtering
     REAL(KIND=dp)                            :: checksum
-    REAL(KIND=real_8)                        :: fill_guess, &
-                                                left_fill, &
+    REAL(KIND=real_8)                        :: left_fill, &
                                                 right_fill
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
                                                 row_max_epss
@@ -2235,7 +2232,7 @@ MODULE dbcsr_mm_cannon
     !!
     ithread = 0
 !$omp parallel default(none) &
-!$omp          private (i, size_guess, size8, fill_guess, &
+!$omp          private (i, size_guess, size8, &
 !$omp                   left_fill, right_fill, ithread) &
 !$omp          shared (product_matrix, left_max_nze, right_max_nze) &
 !$omp          shared (left_set, right_set, &
@@ -2243,43 +2240,9 @@ MODULE dbcsr_mm_cannon
 !$omp          shared (error, nthreads, keep_sparsity, mynode)
     !
     !$ ithread = OMP_GET_THREAD_NUM()
-    ! The work arrays have to be setup.
+    ! The work arrays have to be setup (actually, not quite sure).
     i = ithread + 1
-    IF (keep_sparsity) THEN
-       size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
-    ELSE
-       ! First we calculate the sparsities
-       size8 = INT(dbcsr_nfullrows_local (left_set%mats(1,1)), KIND=int_8)&
-            * INT(dbcsr_nfullcols_local (left_set%mats(1,1)), KIND=int_8)
-       size8 = MAX(1_int_8,size8)
-       left_fill = REAL(left_max_nze, KIND=real_8)*REAL(left_col_nimages, KIND=real_8) &
-            / REAL(size8, KIND=real_8)
-       size8 = INT(dbcsr_nfullrows_local (right_set%mats(1,1)), KIND=int_8)&
-            * INT(dbcsr_nfullcols_local (right_set%mats(1,1)), KIND=int_8)
-       size8 = MAX(1_int_8,size8)
-       right_fill = REAL(right_max_nze,KIND=real_8)*REAL(right_row_nimages, KIND=real_8) &
-            / REAL(size8, KIND=real_8)
-       size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
-            * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
-       size8 = MAX(1_int_8,size8)
-       IF (debug_mod .AND. mynode .EQ. 0) THEN
-          WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
-               left_fill, right_fill
-       ENDIF
-       fill_guess = 2.0_real_8 * MAX(left_fill,right_fill)
-       fill_guess = MIN (1.0_real_8, MAX (0.0_real_8, fill_guess))
-       IF (nthreads .GT. 1) THEN
-          fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
-       ENDIF
-       IF (debug_mod .AND. mynode .EQ. 0) THEN
-          WRITE(*,*)routineN//" fill guess=", fill_guess
-       ENDIF
-       size_guess = MAX(product_matrix%m%wms(i)%datasize,&
-            INT(REAL(size8, KIND=real_8) * fill_guess, KIND=int_4))
-    ENDIF
-    IF (debug_mod) &
-         WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" Using size guess",&
-         LOG(REAL(size_guess))/LOG(10.0), LOG(REAL(size8))/LOG(10.0)
+    size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
     CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
          size_guess,error=error)
     CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(i)%data_area,&
