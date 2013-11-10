@@ -44,7 +44,8 @@ MODULE dbcsr_tests
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              real_8
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
@@ -451,6 +452,7 @@ CONTAINS
              IF (io_unit .GT. 0) THEN
                 WRITE(io_unit,'(A,I5,A,I5,A,F12.3,A,I9,A)')&
                      " loop ", loop_iter, " with ", numnodes," MPI ranks: using ", t1, "s ", INT(flops_all), " Mflops/rank"
+                CALL m_flush(io_unit)
              ENDIF
              IF (loop_iter .EQ. n_loops .OR. always_checksum) THEN
                 cs = dbcsr_checksum (m_c, error=dbcsr_error)
