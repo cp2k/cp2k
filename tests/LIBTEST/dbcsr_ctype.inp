@@ -11,12 +11,12 @@
 &END GLOBAL
 &TEST
   &CP_DBCSR
-     K 512
-     M 5120
-     N 512
+     K 500
+     M 200
+     N 500
      TRANSA FALSE
      TRANSB TRUE
-     N_LOOP 10
+     N_LOOP 3
      ASPARSITY 0.05
      BSPARSITY 0.05
      CSPARSITY 0.05

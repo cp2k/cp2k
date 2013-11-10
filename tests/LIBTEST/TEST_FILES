@@ -15,3 +15,8 @@ dbcsr_mm_blas.inp      0
 dbcsr_subcomm.inp      0
 dbcsr_multistack.inp   0
 dbcsr_types.inp        0
+dbcsr_blocks_01.inp    58
+dbcsr_blocks_02.inp    58
+dbcsr_blocks_03.inp    58
+dbcsr_blocks_04.inp    58
+dbcsr_blocks_05.inp    58
