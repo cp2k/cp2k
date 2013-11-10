@@ -425,12 +425,11 @@ MODULE dbcsr_mm_csr
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_init(this, left, right, product, fill_guess,&
+  SUBROUTINE dbcsr_mm_csr_init(this, left, right, product, &
     m_sizes, n_sizes, k_sizes, error)
     TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    REAL(KIND=real_8)                        :: fill_guess
     INTEGER, DIMENSION(:), POINTER           :: m_sizes, n_sizes, k_sizes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 

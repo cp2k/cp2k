@@ -171,14 +171,13 @@ MODULE dbcsr_mm_multrec
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
-       keep_sparsity, eps, row_max_epss, fill_guess, error)
+       keep_sparsity, eps, row_max_epss, error)
     TYPE(dbcsr_mm_multrec_type), INTENT(out) :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
     REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
-    REAL(KIND=real_8)                        :: fill_guess
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_init', &
@@ -349,7 +348,7 @@ MODULE dbcsr_mm_multrec
 
     !TODO: should we move this up?
     CALL dbcsr_mm_csr_init(this%csr, &
-       left=left, right=right, product=product, fill_guess=fill_guess,&
+       left=left, right=right, product=product, &
        m_sizes=this%m_sizes, n_sizes=this%n_sizes,& 
        k_sizes=this%k_sizes, error=error)
 

@@ -1885,7 +1885,7 @@ MODULE dbcsr_mm_cannon
                                                 my_use_plasma, otf_filtering
     REAL(KIND=dp)                            :: checksum
     REAL(KIND=real_8)                        :: fill_guess, &
-                                                fill_guess_global, left_fill, &
+                                                left_fill, &
                                                 right_fill
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
                                                 row_max_epss
@@ -2238,7 +2238,7 @@ MODULE dbcsr_mm_cannon
 !$omp          private (i, size_guess, size8, fill_guess, &
 !$omp                   left_fill, right_fill, ithread) &
 !$omp          shared (product_matrix, left_max_nze, right_max_nze) &
-!$omp          shared (left_set, right_set,fill_guess_global, &
+!$omp          shared (left_set, right_set, &
 !$omp                 left_col_nimages, right_row_nimages) &
 !$omp          shared (error, nthreads, keep_sparsity, mynode)
     !
@@ -2271,9 +2271,6 @@ MODULE dbcsr_mm_cannon
        IF (nthreads .GT. 1) THEN
           fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
        ENDIF
-       !$OMP MASTER
-       fill_guess_global = fill_guess
-       !$OMP END MASTER
        IF (debug_mod .AND. mynode .EQ. 0) THEN
           WRITE(*,*)routineN//" fill guess=", fill_guess
        ENDIF
@@ -2372,7 +2369,6 @@ MODULE dbcsr_mm_cannon
     !
 !$omp parallel &
 !$omp default (none) &
-!$omp firstprivate (fill_guess_global) &
 !$omp shared (left_buffer_comm, right_buffer_comm, product_matrix,&
 !$omp         keep_sparsity, filter_eps, row_max_epss, &
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
@@ -2385,7 +2381,7 @@ MODULE dbcsr_mm_cannon
          keep_sparsity=keep_sparsity,&
          eps=filter_eps,&
          row_max_epss = row_max_epss,&
-         fill_guess=fill_guess_global,error=error)
+         error=error)
 !$omp end parallel
     !
     ! Setup indexing
