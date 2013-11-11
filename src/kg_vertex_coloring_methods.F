@@ -11,6 +11,7 @@
 !>        the neighborlist sab_orb for the current value of EPS_DEFAULT)
 !> \par History
 !>       2012.07 created [Martin Haeufel]
+!>	 2013.11 Added pair switching and revised Dsatur [Samuel Andermatt]
 !> \author Martin Haeufel
 ! *****************************************************************************
 MODULE kg_vertex_coloring_methods
@@ -458,7 +459,7 @@ CONTAINS
         DO i=1,nneighbors
   
           neighbor => this%neighbors(i)%vertex
-            IF(neighbor%color_present(this%color)) CYCLE
+  	  IF(neighbor%color_present(this%color)) CYCLE
           neighbor%color_present(this%color)=.TRUE.
           neighbor%dsat = neighbor%dsat + 1
           IF(neighbor%color/=0) CYCLE
@@ -494,6 +495,122 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief Checks if the color of two nodes can be exchanged legally
+!> \par History
+!>       2013.11 created [Samuel Andermatt]
+!> \author Samuel Andermatt
+! *****************************************************************************
+  SUBROUTINE kg_check_switch(graph, this, neighbor, low_col, switchable, ncolors, color_present)
+
+    TYPE(vertex_p_type), DIMENSION(:), &
+    POINTER					:: graph
+    INTEGER					:: i, ncolors
+    INTEGER, INTENT(OUT)			:: low_col
+    LOGICAL					:: switchable
+    TYPE(vertex), POINTER                   	:: this, neighbor
+    LOGICAL, ALLOCATABLE, DIMENSION(:)		:: color_present
+    
+    switchable = .TRUE.
+    low_col = ncolors + 1
+
+    DO i = 1, this%degree
+      IF(this%neighbors(i)%vertex%id==neighbor%id) CYCLE
+      IF (this%neighbors(i)%vertex%color==neighbor%color) THEN
+	switchable=.FALSE.
+	EXIT
+      END IF
+    END DO
+    IF(.NOT.switchable) RETURN
+
+    color_present(:) = .FALSE.
+    color_present(neighbor%color) = .TRUE.
+    DO i=1,neighbor%degree
+      IF (neighbor%neighbors(i)%vertex%id==this%id) CYCLE
+      color_present(neighbor%neighbors(i)%vertex%color)=.TRUE.	
+    END DO
+    DO i=1,this%color
+      IF(.NOT.color_present(i)) THEN
+	low_col=i
+	EXIT
+      END IF
+    END DO
+
+  END SUBROUTINE
+  
+! *****************************************************************************
+!> \brief An algorithm that works on an already colored graph and tries to
+!	  reduce the amount of colors by switching the colors of
+!	  neighboring vertices
+!> \par History
+!>       2013.11 created [Samuel Andermatt]
+!> \author Samuel Andermatt
+! *****************************************************************************
+  SUBROUTINE kg_pair_switching(graph, ncolors)
+    INTEGER					:: ncolors, nnodes, i, j, partner, &
+						   low_col, low_col_neigh, maxdepth, &
+						   depth, maxiterations, iter, handle
+    TYPE(vertex_p_type), DIMENSION(:), &
+    POINTER					:: graph
+    LOGICAL					:: switchable
+    TYPE(vertex), POINTER			:: neighbor, this
+    LOGICAL, ALLOCATABLE, DIMENSION(:)		:: color_present
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_color_pair_switching', &
+      routineP = moduleN//':'//routineN
+ 
+    CALL timeset(routineN, handle)
+    nnodes=SIZE(graph)
+    ALLOCATE(color_present(ncolors))
+
+    !Some default values that should work well
+    maxdepth = 4
+    maxiterations = 20
+
+    DO iter = 1, maxiterations
+      DO depth = 1, maxdepth !First the nodes with larges colors are attempted to be switched and reduced
+
+	!Go trough all nodes and try if you can reduce their color by switching with a neighbour
+	DO i = 1, nnodes
+
+	  this => graph(i)%vertex
+	  IF (.NOT.ASSOCIATED(this%neighbors)) CYCLE
+	  IF(graph(i)%vertex%color<ncolors-depth+1) CYCLE !Node already has a low color
+
+	  partner=0
+	  low_col=this%color+1
+
+	  DO j=1,this%degree
+	    neighbor => this%neighbors(j)%vertex
+	    IF(neighbor%color>this%color) CYCLE
+	    CALL kg_check_switch(graph, this, neighbor, low_col_neigh, switchable, ncolors, color_present)
+	    IF(switchable .AND. low_col_neigh<low_col) THEN
+	      partner=j
+	      low_col=low_col_neigh
+	    END IF
+	  END DO
+	  IF(partner==0) CYCLE !Cannot switch favourably with anybody
+	  !Switch the nodes
+	  this%color=this%neighbors(partner)%vertex%color
+	  this%neighbors(partner)%vertex%color = low_col
+	END DO
+
+	ncolors=0
+	DO j=1,nnodes
+	  IF (graph(j)%vertex%color>ncolors) THEN
+	    ncolors=graph(j)%vertex%color
+	  END IF
+    	END DO
+
+      END DO
+
+    END DO
+
+    DEALLOCATE(color_present)
+    CALL timestop(handle)
+
+  END SUBROUTINE
+
 
   SUBROUTINE check_coloring(graph, valid)
     TYPE(vertex_p_type), DIMENSION(:), &
@@ -591,6 +708,8 @@ CONTAINS
        CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
             routineP, "Coloring method not known.", error=error)
     END SELECT
+
+    CALL kg_pair_switching(graph,ncolors)
 
     valid=.FALSE.
     CALL check_coloring(graph, valid)
