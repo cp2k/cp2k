@@ -42,7 +42,8 @@ then
 ${cp2kdir}/cp2k/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog 
 fi
 
-svn update &> out
+# Skip updating arch as there may be local changes
+svn update `ls | grep -v arch` &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -20 out >> ${error_description_file}
@@ -84,9 +85,8 @@ rm out
 if [[ ${emptycheck} == "YES" ]] 
 then
   isempty_1=`nl ${changelog_diff} | awk '{print $1}'`
-  isempty_2=`nl ${changelog_diff_tests} | awk '{print $1}'`
 
-  if [[ ${isempty_1} == "1" && ${isempty_2} == "1" ]]; then
+  if [[ ${isempty_1} == "1" ]]; then
     echo "No changes since last run -- clean exit without testing"
     exit 2
   else
