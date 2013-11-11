@@ -1882,8 +1882,7 @@ MODULE dbcsr_mm_cannon
     LOGICAL                                  :: keep_sparsity, list_indexing, &
                                                 my_use_plasma, otf_filtering
     REAL(KIND=dp)                            :: checksum
-    REAL(KIND=real_8)                        :: left_fill, &
-                                                right_fill
+    REAL(KIND=real_8)                        :: left_fill, right_fill
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
                                                 row_max_epss
     TYPE(dbcsr_2d_array_type), POINTER :: left_buffer_2, left_buffer_calc, &
