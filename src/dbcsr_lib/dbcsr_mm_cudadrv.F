@@ -534,10 +534,11 @@ MODULE dbcsr_mm_cudadrv
     INTEGER                                  :: error_handle, error_handle2, &
                                                 flop_per_entry, i, &
                                                 stacked_datasize
+    INTEGER, DIMENSION(:, :), POINTER        :: stackbuf_hostmem_cropped
     TYPE(dbcsr_data_area_type), POINTER      :: a_area, b_area, c_area
     TYPE(stack_buffer_type), POINTER         :: stackbuf
 
-    NULLIFY(stackbuf)
+    NULLIFY(stackbuf, stackbuf_hostmem_cropped)
     DO i=1, SIZE(stack_buffers)
        IF(this%phase_out .AND. i > this%nbuffers_phaseout) EXIT
        IF(dbcsr_cuda_event_query(stack_buffers(i)%calculated, error)) THEN
@@ -589,7 +590,9 @@ MODULE dbcsr_mm_cudadrv
     CALL dbcsr_cuda_stream_wait_event(upload_stream, a_area%cuda_ready, error)
     CALL dbcsr_cuda_stream_wait_event(upload_stream, b_area%cuda_ready, error)
     CALL dbcsr_cuda_stream_wait_event(upload_stream, c_area%cuda_ready, error)
-    CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf%hostmem, stream=upload_stream, error=error)
+
+    stackbuf_hostmem_cropped => stackbuf%hostmem(:, 1:stack_size)
+    CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf_hostmem_cropped, stream=upload_stream, error=error)
     CALL dbcsr_cuda_event_record(stackbuf%ready, stream=upload_stream, error=error)
 
     CALL dbcsr_cuda_stream_wait_event(stackbuf%stream, stackbuf%ready, error)
