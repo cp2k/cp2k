@@ -64,6 +64,14 @@ MODULE dbcsr_cuda_stream
 
     END FUNCTION cuda_stream_create_with_priority
   END INTERFACE
+
+  INTERFACE
+     FUNCTION cuda_stream_priority_range(least, greatest) RESULT (istat) BIND(C, name="cuda_stream_priority_range")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT)                      :: least, greatest, istat
+
+    END FUNCTION cuda_stream_priority_range
+  END INTERFACE
 #endif
 
   INTERFACE
@@ -82,14 +90,6 @@ MODULE dbcsr_cuda_stream
     INTEGER(KIND=C_INT)                      :: istat
 
     END FUNCTION cuda_stream_sync
-  END INTERFACE
-
-  INTERFACE
-     FUNCTION cuda_stream_priority_range(least, greatest) RESULT (istat) BIND(C, name="cuda_stream_priority_range")
-       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: least, greatest, istat
-
-    END FUNCTION cuda_stream_priority_range
   END INTERFACE
 
 #if defined( __CUDA_PROFILING)
@@ -221,6 +221,11 @@ SUBROUTINE dbcsr_cuda_stream_priority_range(least, greatest, error)
 
 #if ! defined (__DBCSR_CUDA)
     CALL mp_abort("__DBCSR_CUDA not compiled in.")
+
+#elif defined (__HAS_NO_CUDA_STREAM_PRIORITIES)
+    least = -1
+    greatest = -1
+
 #else
     INTEGER                                  :: istat
     istat = cuda_stream_priority_range(least, greatest)
