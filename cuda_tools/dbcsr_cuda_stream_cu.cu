@@ -34,6 +34,13 @@ extern "C" int cuda_stream_create_with_priority(cudaStream_t** stream_p, int pri
   if (cuda_error_check(cudaGetLastError())) return 1;
   return 0;
 }
+
+extern "C" int cuda_stream_priority_range(int* least, int* greatest){
+  cudaError_t cErr = cudaDeviceGetStreamPriorityRange(least, greatest);
+  if (cuda_error_check(cErr)) return 1;
+  if (cuda_error_check(cudaGetLastError())) return 1;
+  return 0;
+}
 #endif
 
 extern "C" int cuda_stream_destroy(cudaStream_t* stream){
@@ -51,13 +58,6 @@ extern "C" int cuda_stream_sync(cudaStream_t* stream)
   cErr = cudaStreamSynchronize(*stream);
   if (cuda_error_check (cErr))
     return 1;
-  return 0;
-}
-
-extern "C" int cuda_stream_priority_range(int* least, int* greatest){
-  cudaError_t cErr = cudaDeviceGetStreamPriorityRange(least, greatest);
-  if (cuda_error_check(cErr)) return 1;
-  if (cuda_error_check(cudaGetLastError())) return 1;
   return 0;
 }
 
