@@ -26,7 +26,6 @@ dir_last=${cp2kdir}/LAST-${dir_triplet}-${cp2k_version}
 
 # Products of the script
 changelog_diff=${wwwtestdir}/ChangeLog.diff
-changelog_diff_tests=${wwwtestdir}/ChangeLog-tests.diff
 error_description_file=${wwwtestdir}/svn_error_summary
 
 # *******************************************************************
@@ -42,8 +41,7 @@ then
 ${cp2kdir}/cp2k/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog 
 fi
 
-# Skip updating arch as there may be local changes
-svn update `ls | grep -v arch` &> out
+svn update &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -20 out >> ${error_description_file}
