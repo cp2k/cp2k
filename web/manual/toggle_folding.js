@@ -76,12 +76,12 @@ function add_button_recursively(section) {
     if (title_element) {
         // add button if the subsections are not empty
         if (subsection) {
-            button = make_button("[-]", "toggle");
+            button = make_button("[\u2212]", "toggle");
             section.insertBefore(button, title_element);
         }
         // otherwise add a blank
         else {
-            button = make_button(" ", "blank");
+            button = make_button("\u00a0\u00a0\u00a0\u00a0\u00a0", "blank");
             section.insertBefore(button, title_element);
         }
     }
@@ -168,11 +168,11 @@ function toggle_button(button, openOrClose) {
         return;
     if (openOrClose === "open") {
         button.setAttribute("data-folding", "open");
-        button.innerHTML = button.innerHTML.replace('[+]', '[-]');
+        button.innerHTML = button.innerHTML.replace('[+]', '[\u2212]');
     }
     else if (openOrClose === "close") {
         button.setAttribute("data-folding", "close");
-        button.innerHTML = button.innerHTML.replace('[-]', '[+]');
+        button.innerHTML = button.innerHTML.replace('[\u2212]', '[+]');
     }
     return;
 }
