@@ -364,7 +364,7 @@ CONTAINS
 
     istat  = 0
 
-!$omp critical
+!$omp critical(neighbour_list_iterate_critical)
     last = iterator_set(0)%last
     IF(last /= me) THEN
       iterator_set(me)%neighbor_list_iterator = iterator_set(last)%neighbor_list_iterator
@@ -410,8 +410,10 @@ CONTAINS
            NULLIFY(iterator%neighbor_list)
          END IF
       END DO kindloop
-      iterator%inode = 1
-      IF (istat==0) iterator%neighbor_node => first_node(iterator%neighbor_list)
+      IF (istat==0) THEN
+        iterator%inode = 1
+        iterator%neighbor_node => first_node(iterator%neighbor_list)
+      END IF
     END IF
     IF (istat==0) THEN
       CALL get_neighbor_node(neighbor_node=iterator%neighbor_node,neighbor=iterator%jatom)
@@ -419,14 +421,13 @@ CONTAINS
 
     ! mark the last iterator updated
     iterator_set(:)%last = me
-!$omp end critical
+!$omp end critical(neighbour_list_iterate_critical)
 
   END FUNCTION neighbor_list_iterate
 
-  FUNCTION nl_sub_iterate(iterator_set,mepos) RESULT(istat)
+  FUNCTION nl_sub_iterate(iterator_set) RESULT(istat)
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: iterator_set
-    INTEGER, OPTIONAL                        :: mepos
     INTEGER                                  :: istat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nl_sub_iterate', &
@@ -436,15 +437,11 @@ CONTAINS
     TYPE(neighbor_list_iterator_type), &
       POINTER                                :: iterator
 
-    IF(PRESENT(mepos)) THEN
-      me=mepos
-    ELSE
-      me=0
-    END IF
+! Sub-iterator single-threaded, or with private sub-iterators only
 
-    istat  = 0
+    me = 0
+    istat = 0
 
-!$omp critical
     last = iterator_set(0)%last
     IF(last /= me) THEN
       iterator_set(me)%neighbor_list_iterator = iterator_set(last)%neighbor_list_iterator
@@ -475,7 +472,6 @@ CONTAINS
 
     ! mark the last iterator updated
     iterator_set(:)%last = me
-!$omp end critical
 
   END FUNCTION nl_sub_iterate
 
