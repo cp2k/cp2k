@@ -567,7 +567,7 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index(matrix),&
-         dbcsr_warning_level, dbcsr_caller_error,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Invalid matrix.",__LINE__,error)
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
@@ -742,7 +742,7 @@ CONTAINS
        n_full_blocks_total = m%m%nblkrows_total * m%m%nblkcols_total
     ELSE
        CALL dbcsr_assert(m%m%nblkrows_total, "EQ", m%m%nblkcols_total,&
-            dbcsr_warning_level, dbcsr_internal_error, r,&
+            dbcsr_fatal_level, dbcsr_internal_error, r,&
             'Symmetric matrix is not square',__LINE__,error)
        n_full_blocks_total = m%m%nblkrows_total * (m%m%nblkrows_total+1)/2
     ENDIF
@@ -754,15 +754,15 @@ CONTAINS
        WRITE(*,2045)m%m%index(:dbcsr_num_slots)
     ENDIF
     CALL dbcsr_assert(m%m%index(1), "GT", 0,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Index size 0',__LINE__,error)
     DO i = dbcsr_slot_row_p, dbcsr_num_slots
        !CALL dbcsr_assert(m%m%index(i), "GT", 0,&
-       !     dbcsr_warning_level, dbcsr_internal_error, r,&
+       !     dbcsr_fatal_level, dbcsr_internal_error, r,&
        !     'Index member is 0',__LINE__,error)
        IF (.NOT. (i.EQ.dbcsr_slot_col_i.OR.i.EQ.dbcsr_slot_blk_p)) THEN
             CALL dbcsr_assert(m%m%index(i), "LE", m%m%index(1),&
-                 dbcsr_warning_level, dbcsr_internal_error, r,&
+                 dbcsr_fatal_level, dbcsr_internal_error, r,&
                  'Index member is greater than size',__LINE__,error)
          ENDIF
     ENDDO
@@ -771,37 +771,37 @@ CONTAINS
          m%m%index(dbcsr_slot_row_p), SIZE(m%m%row_p)
     CALL dbcsr_assert(m%m%index(dbcsr_slot_row_p+1)-m%m%index(dbcsr_slot_row_p)+1,&
          "EQ", m%m%nblkrows_total+1,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Size of row_p index inconsistent with number of rows',__LINE__,error)
     CALL dbcsr_assert(SIZE(m%m%row_p), "EQ", m%m%nblkrows_total+1,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Size of row_p inconsistent with number of rows',__LINE__,error)
     !
     IF(dbg.GE.4) WRITE(*,*)r//' col_i extents',m%m%index(dbcsr_slot_col_i+1),&
          m%m%index(dbcsr_slot_col_i), SIZE(m%m%col_i)
     CALL dbcsr_assert(m%m%index(dbcsr_slot_col_i+1)-m%m%index(dbcsr_slot_col_i)+1,&
          "EQ", m%m%nblks,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Size of col_i index inconsistent with number of blocks',__LINE__,error)
     CALL dbcsr_assert(SIZE(m%m%col_i), "EQ", m%m%nblks,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Size of col inconsistent with number of blocks',__LINE__,error)
     !
     IF(dbg.GE.4) WRITE(*,*)r//' blk_p extents',m%m%index(dbcsr_slot_blk_p+1),&
          m%m%index(dbcsr_slot_blk_p), SIZE(m%m%blk_p)
     CALL dbcsr_assert(m%m%index(dbcsr_slot_blk_p+1)-m%m%index(dbcsr_slot_blk_p)+1,&
          "EQ", m%m%nblks,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Size of blk_p index inconsistent with number of blocks',__LINE__,error)
     CALL dbcsr_assert(SIZE(m%m%col_i), "EQ", m%m%nblks,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Size of blk_p inconsistent with number of blocks',__LINE__,error)
     !
     CALL dbcsr_assert(SIZE(row_blk_size), "EQ", m%m%nblkrows_total,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Row block size array inconsistent with number of blocked rows',__LINE__,error)
     CALL dbcsr_assert(SIZE(col_blk_size), "EQ", m%m%nblkcols_total,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
+         dbcsr_fatal_level, dbcsr_internal_error, r,&
          'Column block size array inconsistent with number of blocked columns',__LINE__,error)
     !
     IF(dbg.GE.4) THEN
@@ -812,7 +812,7 @@ CONTAINS
     !This tends to be too verbose and usually untrue for symmetric
     !matrices.
     !CALL dbcsr_assert(dbcsr_get_data_size(m%m%data_area), "GE", m%m%nze,&
-    !     dbcsr_warning_level, dbcsr_internal_error, r,&
+    !     dbcsr_fatal_level, dbcsr_internal_error, r,&
     !     'Data storage may be too small.',__LINE__,error)
     IF (dbg.GE.5) THEN
        WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%m%row_p),' row_p='
@@ -825,53 +825,53 @@ CONTAINS
     prev_br = 0
     DO br = 1, m%m%nblkrows_total
        CALL dbcsr_assert(m%m%row_p(br), "GE", 0,&
-            dbcsr_warning_level, dbcsr_internal_error, r,&
+            dbcsr_fatal_level, dbcsr_internal_error, r,&
             'row_p less than zero',__LINE__,error)
        IF(br.GT.1) CALL dbcsr_assert(m%m%row_p(br), "GE", m%m%row_p(prev_br),&
-            dbcsr_warning_level, dbcsr_internal_error, r,&
+            dbcsr_fatal_level, dbcsr_internal_error, r,&
             'row_p decreases',__LINE__,error)
        mb = row_blk_size(br)
        CALL dbcsr_assert(mb, "GE", 0,&
-            dbcsr_warning_level, dbcsr_internal_error, r,&
+            dbcsr_fatal_level, dbcsr_internal_error, r,&
             'Row blocked size is negative',__LINE__,error)
        DO blk = m%m%row_p(br)+1, m%m%row_p(br+1)
           CALL dbcsr_assert(blk, "GT", 0,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
+               dbcsr_fatal_level, dbcsr_internal_error, r,&
                'Block number is zero',__LINE__,error)
           CALL dbcsr_assert(blk, "LE", m%m%nblks,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
+               dbcsr_fatal_level, dbcsr_internal_error, r,&
                'Block number too high',__LINE__,error)
           bc = m%m%col_i(blk)
           IF (dbg.GE.5) THEN
              WRITE(*,'(1X,A,I7,"(",I5,",",I5,")")')r//' block',blk,br,bc
           ENDIF
           CALL dbcsr_assert(bc, "GT", 0,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
+               dbcsr_fatal_level, dbcsr_internal_error, r,&
                'col_i is zero',__LINE__,error)
           CALL dbcsr_assert(bc, "LE", m%m%nblkcols_total,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
+               dbcsr_fatal_level, dbcsr_internal_error, r,&
                'col_i too high',__LINE__,error)
           n = col_blk_size(bc)
           CALL dbcsr_assert(n, "GE", 0,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
+               dbcsr_fatal_level, dbcsr_internal_error, r,&
                'Column blocked size is negative',__LINE__,error)
           blk_p = m%m%blk_p(blk)
           mn = mb*n
           !CALL dbcsr_assert(dbg,blk_p.GT.0, r, 'Block pointer is negative')
           !CALL dbcsr_assert(blk_p, "LE", m%m%nze,&
-          !     dbcsr_warning_level, dbcsr_internal_error, r,&
+          !     dbcsr_fatal_level, dbcsr_internal_error, r,&
           !     'Block pointer too large',__LINE__,error)
           !CALL dbcsr_assert(blk_p+mn-1, "LE", m%m%nze,&
-          !     dbcsr_warning_level, dbcsr_internal_error, r,&
+          !     dbcsr_fatal_level, dbcsr_internal_error, r,&
           !     'Block extends too far',__LINE__,error)
           IF (mn .GT. 0) THEN
              CALL dbcsr_assert (ABS(blk_p), "LE", data_size_referenced,&
-                  dbcsr_warning_level, dbcsr_internal_error, r,&
+                  dbcsr_fatal_level, dbcsr_internal_error, r,&
                   "Block pointer pointso outside of declared referenced area",&
                   __LINE__, error)
           ENDIF
           CALL dbcsr_assert (ABS(blk_p)+mn-1, "LE", data_size_referenced,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
+               dbcsr_fatal_level, dbcsr_internal_error, r,&
                "Block extends outside of declared referenced area",&
                __LINE__, error)
        ENDDO
