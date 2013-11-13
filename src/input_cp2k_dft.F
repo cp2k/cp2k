@@ -5415,7 +5415,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="POLARISATION",&
             description="Polarisation vector of electric field",&
-            usage="POLARISIATION  0.0 0.0 1.0",&
+            usage="POLARISATION  0.0 0.0 1.0",&
             repeats=.FALSE.,required=.FALSE.,n_var=3,&
             type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
             error=error)
