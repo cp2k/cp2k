@@ -81,7 +81,7 @@ function add_button_recursively(section) {
         }
         // otherwise add a blank
         else {
-            button = make_button("\u00a0\u00a0\u00a0\u00a0\u00a0", "blank");
+            button = make_button("\u00a0\u00a0\u00a0", "blank");
             section.insertBefore(button, title_element);
         }
     }
@@ -208,7 +208,7 @@ function toggle_button(button, openOrClose) {
  * SOURCE
  */
 function toggle(event) {
-    var delay = 200; // in milliseconds
+    var delay = 300; // in milliseconds
     var el = event.target;
     var section = el.parentNode;
     if (el.getAttribute("data-dblclick") === "nil") {

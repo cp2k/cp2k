@@ -83,10 +83,10 @@
    <h2>Index of all input sections</h2>
    <ul class="noscript"> 
     <li>
-     Double click on [-] / [+] to shrink or expand all subtrees contained in a section
+     Double click on [&#8722;] / [+] to shrink or expand all subtrees contained in a section
     </li>
     <li>
-     Single click on [-] / [+] to shrink or expand the top level subtree contained in a section
+     Single click on [&#8722;] / [+] to shrink or expand the top level subtree contained in a section
     </li>
    </ul>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
@@ -180,20 +180,22 @@
  <meta name="keywords" content="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel,molecular dynamics,MD,density functional theory,DFT,electronic structure,linear scaling,force field,Quickstep,GPW,GAPW,FIST,QM,MM"/>
  <link rel="shortcut icon" href="{$root}favicon.png" type="image/png"/>
  <style type="text/css">
-  body {background-color: #ffffff}
-  big.tt {font-family: monospace; font-size: 100%}
-  big.uctt {font-family: monospace; font-size: 100%; text-transform: uppercase}
-  p.uctt {font-family: monospace; text-transform: uppercase}
-  table.default {table-layout: fixed; width: 100%}
-  td.l {width: 25%}
-  td.r {width: 75%}
-  ul.circle {list-style-type: circle}
-  ul.disc {list-style-type: disc}
-  ul.index {list-style-type: none; margin-left: 0px; padding-left: 2em; text-indent: 0px}
-  ul.none {list-style-type: none}
-  ul.noscript {list-style-type: disc}
-  ul.square {list-style-type: square}
-  .button {font-family: Monaco; font-size: 100%; cursor: pointer}
+  a {text-decoration: none;}
+  body {background-color: #ffffff;}
+  big.tt {font-family: monospace; font-size: 100%;}
+  big.uctt {font-family: monospace; font-size: 100%; text-transform: uppercase;}
+  li {margin-left: 0em; padding-left: 0em; text-indent: 0em;}
+  p.uctt {font-family: monospace; text-transform: uppercase;}
+  table.default {table-layout: fixed; width: 100%;}
+  td.l {width: 25%;}
+  td.r {width: 75%;}
+  ul.circle {list-style-type: circle;}
+  ul.disc {list-style-type: disc;}
+  ul.index {list-style-type: none; margin-left: 0em; padding-left: 1.8em; text-indent: 0em;}
+  ul.none {list-style-type: none;}
+  ul.noscript {list-style-type: disc;}
+  ul.square {list-style-type: square;}
+  .button {font-family: monospace; font-size: 100%; cursor: pointer;}
   #html_table
   {
    border: 1px solid #000000;
@@ -206,7 +208,7 @@
  </style>
  <noscript>
   <style>
-   ul.index {list-style-type: disc; margin-left: 0px; padding-left: 2em; text-indent: 0px}
+   ul.index {list-style-type: disc; margin-left: 0px; padding-left: 1.8em; text-indent: 0px}
    ul.noscript {display: none}
   </style>
  </noscript>
