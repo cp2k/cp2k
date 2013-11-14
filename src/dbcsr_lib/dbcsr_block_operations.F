@@ -1113,7 +1113,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    ! CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -1327,7 +1327,7 @@ CONTAINS
             routineN, "Invalid or unsupported data type.",__LINE__,error)
     END SELECT
 
-    CALL dbcsr_error_stop(error_handler, error)
+    ! CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_data_clear0
 
