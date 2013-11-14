@@ -61,7 +61,7 @@ MODULE bibliography
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
-             Putrino2002, Sebastiani2001, Weber2009, Tran2013 
+             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013 
 
 CONTAINS
 
@@ -2399,6 +2399,31 @@ CONTAINS
          "ER"),&
          DOI="10.1063/1.3156803")
 
+    CALL add_reference(key=Golze2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Golze, D",&
+         "   Iannuzzi, M",&
+         "   Nguyen, M-T",&
+         "   Passerone, D",&
+         "   Hutter, J",&
+         "AF Golze, Dorothea",&
+         "   Iannuzzi, Marcella",&
+         "   Nguyen, Manh-Thuong",&
+         "   Passerone, Daniele",&
+         "   Hutter, Juerg",&
+         "TI Simulation of Adsorption Processes at Metallic Interfaces:",&
+         "   An Image Charge Augmented QM/MM Approach",&
+         "SO Journal of Chemical Theory and Computation",&
+         "SN 1549-9618^",&
+         "PD NOV 12",&
+         "PY 2013",&
+         "VL 9",&
+         "IS 11",&
+         "BP 5086",&
+         "EP 5097",&
+         "DI 10.1021/ct400698y",&
+         "ER"),&
+         DOI="10.1021/ct400698y")
 
   END SUBROUTINE add_all_references
 

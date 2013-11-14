@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE qmmm_main
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE bibliography,                    ONLY: Laino2005,&
+  USE bibliography,                    ONLY: Golze2013,&
+                                             Laino2005,&
                                              Laino2006,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_clone,&
@@ -498,6 +499,7 @@ CPSourceFileRef,&
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
        IF(qmmm_env_qm%image_charge) THEN
          qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list)
+         CALL cite_reference(Golze2013) 
        END IF
 
        ! Duplicate structure for link atoms

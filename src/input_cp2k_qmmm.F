@@ -14,6 +14,7 @@
 MODULE input_cp2k_qmmm
   USE bibliography,                    ONLY: Bernstein2009,&
                                              Bernstein2012,&
+                                             Golze2013,&
                                              Laino2005,&
                                              Laino2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -674,6 +675,7 @@ CONTAINS
                         "approach for systems where QM molecules are physisorbed on e.g. metal "//&
                         "surfaces described by MM. QM box size has to be equal to MM box size.",&
             n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Golze2013/),&
             error=error)
 
        CALL keyword_create(keyword, name="MM_ATOM_LIST",&
