@@ -213,7 +213,7 @@ CONTAINS
        CALL keyword_create(keyword,name="FREQUENCY",&
             description="value close to the expected value of the frequency for to look for. "//&
             "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ",&
-            usage="FREQUENCY <REAL>", default_r_val=-1._dp,&
+            usage="FREQUENCY {REAL}", default_r_val=-1._dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -221,7 +221,7 @@ CONTAINS
        CALL keyword_create(keyword,name="RANGE",&
             description="Track modes in a given range of frequencies. "//&
             "No warranty that the set of frequencies is complete.",&
-            usage="FREQUENCY <REAL> <REAL>",&
+            usage="RANGE {REAL} {REAL}",&
             n_var=-1,type_of_var=real_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -237,7 +237,7 @@ CONTAINS
        CALL keyword_create(keyword,name="EPS_MAX_VAL",&
             description="Convergence criterium for the davidson algorithm. Specifies the maximal value in the "//&
             "residuum vectors ",&
-            usage="EPS_MAX_VAL <REAL>", default_r_val=5.0E-7_dp,&
+            usage="EPS_MAX_VAL {REAL}", default_r_val=5.0E-7_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -245,7 +245,7 @@ CONTAINS
        CALL keyword_create(keyword,name="EPS_NORM",&
             description="Convergence criterium for the davidson algorithm. Specifies the maximal value of the norm "//&
             "of the residuum vectors ",&
-            usage="EPS_MAX_VAL <REAL>", default_r_val=2.0E-6_dp,&
+            usage="EPS_NORM {REAL}", default_r_val=2.0E-6_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -326,7 +326,7 @@ CONTAINS
        CALL keyword_create(keyword,name="RANGE",&
             description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked. "//&
             " If not specified frequencies >400cm-1 will be used to avoid tracking of translational or rotational modes",&
-            usage="RANGE <REAL> <REAL>",&
+            usage="RANGE {REAL} {REAL}",&
             n_var=-1,type_of_var=real_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -344,4 +344,5 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_involved_atoms_section
+
 END MODULE input_cp2k_vib
