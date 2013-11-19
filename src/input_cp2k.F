@@ -282,6 +282,18 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="PREFERRED_DIAG_LIBRARY",&
+         description="Specifies the DIAGONALIZATION library. If not availabe ....",&
+         usage="PREFERRED_DIAG_LIBRARY ELPA",&
+         default_i_val=do_diag_sl, &
+         enum_i_vals=(/do_diag_sl,do_diag_sl2,do_diag_elpa/),&
+         enum_c_vals=s2a("SL","SL2","ELPA"),&
+         enum_desc=s2a("Standard scalapack: syevd","Scalapack 2.0: syevr","ELPA"),&
+         supported_feature=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+
     CALL keyword_create(keyword, name="PREFERRED_FFT_LIBRARY",&
          description="Specifies the FFT library which should be preferred. "//&
                      "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "//&

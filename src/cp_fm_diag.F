@@ -31,11 +31,7 @@ MODULE cp_fm_diag
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-#if defined (__ELPA)
-  USE ELPA2
-  USE ELPA1
-#endif
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length, dp,&
                                              dp_size,&
                                              int_size
   USE message_passing,                 ONLY: mp_bcast,&
@@ -46,6 +42,11 @@ MODULE cp_fm_diag
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#if defined (__ELPA)
+  USE ELPA1
+  USE ELPA2
+#endif
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -53,6 +54,9 @@ MODULE cp_fm_diag
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_diag'
+
+  ! these saved variables are DIAGONALIZATION global
+   INTEGER, SAVE :: diag_type = 0
 
   ! Public subroutines
 
@@ -62,9 +66,66 @@ MODULE cp_fm_diag
             cp_fm_syevd,&
             cp_fm_syevr,&
             cp_fm_syevx,&
-            cp_fm_elpa
+            cp_fm_elpa,&
+            diag_init
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Setup the diagonalization library to be used
+!         Check of availability not yet fully implemented
+!         It should change library to Skalapack if others are not available
+!  \par   diag_library flag from GLOBAL section in input
+!  \authot  MI 11.2013       
+! *****************************************************************************
+  SUBROUTINE diag_init(diag_lib,switched,error)
+    CHARACTER(LEN=*), INTENT(IN)             :: diag_lib
+    LOGICAL, INTENT(INOUT)                   :: switched
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'diag_fft', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL :: try_library
+
+    ! skalapack is the default and always linked
+    IF(diag_lib.EQ."SL") THEN
+      try_library = .FALSE.
+      diag_type = 1
+    ELSE
+      try_library =.TRUE.
+    END IF
+
+    IF(try_library) THEN
+        IF(diag_lib.EQ."ELPA") THEN
+
+#if defined (__ELPA)
+            diag_type = 3
+#else
+          ! ELPA library not linked, switch to SL
+             diag_type = 1
+             switched = .TRUE.
+#endif
+         ELSE IF(diag_lib.EQ."SL2") THEN
+
+#if defined (__SCALAPACK2)
+            diag_type = 2
+#else
+          ! SL2 library not linked, switch to SL
+             diag_type = 1
+             switched = .TRUE.
+#endif
+         END IF
+    END IF
+
+    ! Check that one of the diagonalization type is set
+    IF(diag_type<1) THEN
+      ! something wrong
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Unknown DIAG type")
+    END IF
+
+  END SUBROUTINE diag_init
 
 
 ! *****************************************************************************
@@ -90,14 +151,13 @@ CONTAINS
 
     nmo = SIZE(eigenvalues,1)
 
-#if defined (__ELPA)
+    IF(diag_type==3) THEN
     CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
-#elif defined (__SCALAPACK2)
+    ELSE IF(diag_type==2) THEN
     CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
-#else
+    ELSE IF(diag_type==1) THEN
     CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=info,error=error)
-#endif
-
+    END IF
   END SUBROUTINE choose_eigv_solver
 
 ! *****************************************************************************

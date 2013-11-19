@@ -844,6 +844,11 @@ MODULE input_constants
                                               broy_mix_new=5,&
                                               multisec_mix=6
 
+  ! DIAGONALIZATION library 
+  INTEGER, PARAMETER, PUBLIC               :: do_diag_sl=1,&
+                                              do_diag_sl2=2,&
+                                              do_diag_elpa=3
+
   ! FFT library
   ! these might need sync with fft_lib.F
   INTEGER, PARAMETER, PUBLIC               :: do_fft_sg=1,&

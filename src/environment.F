@@ -20,6 +20,7 @@ MODULE environment
        r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_fm_diag,                      ONLY: diag_init
   USE cp_ma_interface,                 ONLY: &
        cp_ma_config, cp_ma_current_thread_run, cp_ma_mempol, cp_ma_mpi_sched, &
        cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
@@ -37,7 +38,8 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       callgraph_all, callgraph_none, debug_print_level, do_cp2k, do_eip, &
+       callgraph_all, callgraph_none, debug_print_level, do_cp2k, &
+       do_diag_sl, do_diag_sl2, do_diag_elpa, do_eip, &
        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, &
        energy_run, high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
@@ -495,7 +497,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: env_num, project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
-    INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
+    INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
       nid, num_threads, output_unit, print_level, trace_max, unit_nr
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
@@ -522,6 +524,7 @@ CONTAINS
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
     CALL section_vals_val_get(global_section,"BLACS_REPEATABLE",l_val=globenv%blacs_repeatable,error=error)
+    CALL section_vals_val_get(global_section,"PREFERRED_DIAG_LIBRARY",i_val=i_diag,error=error)
     CALL section_vals_val_get(global_section,"PREFERRED_FFT_LIBRARY",i_val=i_fft,error=error)
 
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
@@ -561,6 +564,18 @@ CONTAINS
           CALL timings_setup_tracing(trace_max, unit_nr, tracing_string)
        END IF
     ENDIF 
+
+    SELECT CASE(i_diag)
+    CASE(do_diag_sl)
+       globenv%diag_library="SL" 
+    CASE(do_diag_sl2)
+       globenv%diag_library="SL2" 
+    CASE(do_diag_elpa)
+       globenv%diag_library="ELPA" 
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Unknown DIAG type",para_env)
+    END SELECT
 
     SELECT CASE(i_fft)
     CASE(do_fft_sg)
@@ -739,6 +754,8 @@ CONTAINS
             ADJUSTR(project_name(:40)),&
             start_section_label//"| Preferred FFT library",&
             ADJUSTR(globenv%default_fft_library(:40)),&
+            start_section_label//"| Preferred diagonalization lib.",&
+            ADJUSTR(globenv%diag_library(:40)),&
             start_section_label//"| Run type",&
             ADJUSTR(TRIM(enum_i2c(enum2,globenv%run_type_id,error=error)))
 
@@ -840,10 +857,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cp2k_section', &
       routineP = moduleN//':'//routineN, start_section_label = "CP2K"
 
-    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
-    INTEGER                                  :: output_unit, stat
-    INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: try_fftw
+    INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
@@ -852,6 +866,40 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
+
+    CALL fft_setup_library(globenv, para_env, global_section, output_unit,error=error)
+    CALL diag_setup_library(globenv, output_unit,error=error)
+
+    CALL cp_print_key_finished_output(output_unit,logger,global_section,&
+         "PROGRAM_RUN_INFO", error=error)
+
+  END SUBROUTINE read_cp2k_section
+
+! *****************************************************************************
+!> \brief check FFT preferred library availability, if not switch
+!> \par History
+!>      2-Dec-2000 (JGH) added default fft library
+!>      Nov-2013 (MI) refactoring
+!> \author JGH,MK
+! *****************************************************************************
+
+
+  SUBROUTINE fft_setup_library(globenv, para_env,global_section, output_unit,error)
+
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: global_section
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_setup_library', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
+    INTEGER                                  :: stat
+    INTEGER, DIMENSION(3)                    :: n
+    LOGICAL                                  :: try_fftw
+
 
     n(:) = 4
     zz(:,:,:) = 0.0_dp
@@ -926,11 +974,38 @@ CONTAINS
 
     END IF
 
-    CALL cp_print_key_finished_output(output_unit,logger,global_section,&
-         "PROGRAM_RUN_INFO", error=error)
+  END SUBROUTINE fft_setup_library
 
-  END SUBROUTINE read_cp2k_section
-
+! *****************************************************************************
+!> \brief availability diagonalizatioon library
+!>
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE diag_setup_library(globenv, output_unit,error)
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+  
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_setup_library', &
+      routineP = moduleN//':'//routineN
+  
+    LOGICAL :: switched
+  
+    switched = .FALSE.
+  
+    CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched,error=error)
+  
+    IF(switched) THEN
+  
+          IF (output_unit > 0) THEN
+             WRITE(output_unit,'(A,A,T55,A)') &
+                  " WARNING : DIAGONALIZATION library "//TRIM(globenv%diag_library)//&
+                  " is not available "," Trying SCALAPACK"
+          ENDIF
+  
+    END IF
+  
+  END SUBROUTINE diag_setup_library
 ! *****************************************************************************
 !> \brief reads the Walltime also in format HH:MM:SS
 !> \par History
