@@ -200,6 +200,7 @@ while [ $# -ge 1 ]; do
  # specify the full string "-D 2005-02-01" to get a check-out of a specific date
  -svndate)
   svndate=$2
+  datum_short=${svndate}
   shift;;
  # do not check if code has changed
  -noemptycheck)
@@ -249,20 +250,16 @@ changelog_tests=${changelog}-tests
 changelog_tests_diff=${changelog_tests}.diff
 changelog_tests_new=${changelog_tests}.new
 changelog_tests_old=${changelog_tests}.old
-error_description_file=${dir_out}/error_summary
-make_out=${dir_out}/make.out
-svn_out=${dir_out}/svn.out
 mkdir -p ${dir_out}
 mkdir -p ${dir_last}
-rm -fR ${error_description_file}
-touch  ${error_description_file}
-if [[ ${leakcheck} == "YES" ]]; then
-   memory_description_file=${dir_out}/memory_summary
-   rm -fR ${memory_description_file}
-   touch  ${memory_description_file}
-   memory_summary=${dir_out}/memory_leaks.txt
-   echo "" > ${memory_summary}
-fi
+svn_out=${dir_out}/svn.out
+make_out=${dir_out}/make.out
+error_description_file=${dir_out}/error_summary
+>${error_description_file}
+memory_description_file=${dir_out}/memory_summary
+>${memory_description_file}
+summary=${dir_out}/summary.txt
+printf "Summary of the regression tester run from ${datum_short} using ${FORT_C_NAME}\n" >${summary}
 
 ###################################################################################
 #
@@ -305,11 +302,11 @@ function do_test_grep(){
   return 0 ;;
  *)
   # nope too large
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_file}
   echo "${output_new} : " >> ${error_file}
   echo " ${grep_string} : old = ${e1} new = ${e2}  " >> ${error_file}
-  echo " relative error : ${big} >  numerical tolerance = ${error_tolerance}  " >> ${error_file}
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+  echo " relative error : ${big} >  numerical tolerance = ${error_tolerance}  " >>${error_file}
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_file}
   return 1 ;;
  esac
 }
@@ -366,32 +363,34 @@ if [[ ${nosvn} != "nosvn" ]]; then
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog}
   fi
 
-  svn update -r {${svndate}} &> ${svn_out}
+  svn update -r {${svndate}} &>${svn_out}
   if (( $? )); then
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-     tail -20 ${svn_out} >> ${error_description_file}
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-     echo "error happened : no svn update ... bailing out"
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+     cat ${svn_out} >>${error_description_file}
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+     echo "ERROR: svn update of cp2k/src failed ... bailing out" >>${error_description_file}
+     cat "${error_description_file}"
      end_test 1 ${lockfile}
   fi
 
   echo "--- svn update src ---"
   cat ${svn_out}
   echo "svn update src went fine"
-  cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
-  echo "cp2k is now ${cp2k_lines} lines .F"
+
+  #  cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
+  #  echo "cp2k is now ${cp2k_lines} lines .F"
 
   # Using svn2cl.pl to generate GNU like ChangeLog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} &> ${svn_out}
+  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} &>>${error_description_file}
 
   line1="$(head -n 1 ${changelog})"
   nline=$(grep -n "${line1}" ${changelog_new} | head -n 1 | cut -f 1 -d:)
   mv ${changelog} ${changelog_old}
-  head -n $((nline - 1)) ${changelog_new} > ${changelog}
-  cat ${changelog_old} >> ${changelog}
+  head -n $((nline - 1)) ${changelog_new} >${changelog}
+  cat ${changelog_old} >>${changelog}
 
-  diff ${changelog} ${changelog_old} > ${changelog_diff}
-  echo "------- differences --------" >> ${changelog_diff}
+  diff ${changelog} ${changelog_old} >${changelog_diff}
+  echo "------- differences --------" >>${changelog_diff}
 
   rm ${changelog_new} ${changelog_old}
 
@@ -407,12 +406,13 @@ if [[ ${nosvn} != "nosvn" ]]; then
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog_tests}
   fi
 
-  svn update -r {${svndate}} &> ${svn_out}
+  svn update -r {${svndate}} &>${svn_out}
   if (( $? )); then
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-     tail -20 ${svn_out} >> ${error_description_file}
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-     echo "error happened : no svn update ... bailing out"
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+     cat ${svn_out} >>${error_description_file}
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+     echo "ERROR: svn update of cp2k/tests failed ... bailing out" >>${error_description_file}
+     cat "${error_description_file}"
      end_test 1 ${lockfile}
   fi
 
@@ -421,16 +421,16 @@ if [[ ${nosvn} != "nosvn" ]]; then
   echo "svn update tests went fine"
 
   # Using svn2cl.pl to generate GNU like ChangeLog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_tests_new} &> ${svn_out}
+  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_tests_new} &>>${error_description_file}
 
   line1="$(head -n 1 ${changelog_tests})"
   nline=$(grep -n "${line1}" ${changelog_tests_new} | head -n 1 | cut -f 1 -d:)
   mv ${changelog_tests} ${changelog_tests_old}
-  head -n $((nline - 1)) ${changelog_tests_new} > ${changelog_tests}
+  head -n $((nline - 1)) ${changelog_tests_new} >${changelog_tests}
   cat ${changelog_tests_old} >> ${changelog_tests}
 
   diff ${changelog_tests} ${changelog_tests_old} > ${changelog_tests_diff}
-  echo "------- differences --------" >> ${changelog_tests_diff}
+  echo "------- differences --------" >>${changelog_tests_diff}
 
   rm ${changelog_tests_new} ${changelog_tests_old}
 
@@ -451,45 +451,46 @@ if [[ ${emptycheck} == "YES" ]]; then
    isempty_2=`nl ${changelog_tests_diff} | awk '{print $1}'`
 
    if [[ ${isempty_1} == "1" && ${isempty_2} == "1" ]]; then
-      echo "No changes since last run -- clean exit without testing "
+      echo "No changes since last run -- clean exit without testing"
 
       # cleanup of empty directories
       rm -rf ${dir_out}
       end_test 100 ${lockfile}
    else
-      echo "Code has changed since last run -- continue regtest "
+      echo "Code has changed since last run -- continue regtest"
    fi
 fi
 
 # make realclean
 if [[ ${quick} != "quick" ]]; then
    cd ${dir_base}/${cp2k_dir}/makefiles
-   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} &> ${make_out}
+   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} &>>${make_out}
    if (( $? )); then
-      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-      tail -20 ${make_out} >> ${error_description_file}
-      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-      echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+      cat ${make_out} >>${error_description_file}
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+      echo "ERROR: ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} failed ... bailing out" >>${error_description_file}
+      cat "${error_description_file}"
       end_test 3 ${lockfile}
    else
-      echo "make realclean VERSION=${cp2k_version} went fine"
+      echo "${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} went fine"
    fi
 else
    echo "Quick testing, no realclean"
 fi
 
-# *** from here failures are likely to be bugs in cp2k
+# from here failures are likely to be bugs in cp2k
 if [[ ${nobuild} != "nobuild" ]]; then
    echo "-------------------------compiling cp2k-----------------------------------"
    echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
    cd ${dir_base}/${cp2k_dir}/makefiles
-   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} &> ${make_out}
+   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} &>>${make_out}
    if (( $? )); then
-      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-      tail -40 ${make_out} >> ${error_description_file}
-      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-      echo "error happened : make VERSION=${cp2k_version} "
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+      cat ${make_out} >>${error_description_file}
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+      echo "ERROR: ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} failed" >>${error_description_file}
       cat "${error_description_file}"
       end_test 4 ${lockfile}
    else
@@ -497,7 +498,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
       echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
    fi
 else
-   echo "no build, continue regression testing"
+   echo "No build, continue regression testing"
 fi
 
 echo "-------------------------regtesting cp2k----------------------------------"
@@ -543,7 +544,7 @@ n_correct=0
 n_tests=0
 n_new=0
 
-echo "Copying tests into working directory..."
+printf "Copying tests into working directory ... "
 
 # Copy the tests into the working regtest directory.
   cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
@@ -554,7 +555,7 @@ echo "Copying tests into working directory..."
       cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
   )
 
-echo "Done!"
+printf "done!\n"
 
 #
 # preprocess the restrict directories if the retest is enabled
@@ -692,10 +693,10 @@ for dir in ${dirs}; do
      ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
      # CP2K failed obviously
      if (( $? )); then
-        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-        echo ${output_file} >> ${error_description_file}
-        tail -40 ${output_file} >> ${error_description_file}
-        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+        echo ${output_file} >>${error_description_file}
+        tail -40 ${output_file} >>${error_description_file}
+        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
         this_test="RUNTIME FAIL"
         n_runtime_error=$((n_runtime_error+1))
         failed_tests="${failed_tests} ${output_file}"
@@ -703,10 +704,10 @@ for dir in ${dirs}; do
         # but didn't end !?
         grep -a "ENDED" ${output_file} &> /dev/null
         if (( $? )); then
-           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-           echo ${output_file} >> ${error_description_file}
-           tail -40 ${output_file} >> ${error_description_file}
-           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+           echo ${output_file} >>${error_description_file}
+           tail -40 ${output_file} >>${error_description_file}
+           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
            this_test="RUNTIME FAIL"
            n_runtime_error=$((n_runtime_error+1))
            failed_tests="${failed_tests} ${output_file}"
@@ -752,13 +753,16 @@ for dir in ${dirs}; do
            dum=""
            (( nerror > 0 )) && dum=${nerror}
         else
-           leak_error_string="Remaining memory"
+           case ${FORT_C_NAME} in
+              "g95"     ) leak_error_string="Remaining memory";;
+              "gfortran") leak_error_string="SUMMARY: LeakSanitizer:";;
+           esac
            dum=`grep -l "${leak_error_string}" ${output_file}`
         fi
         if [[ ${dum} != "" ]]; then
            this_test="${this_test} !"
-           echo "XXXXXXXX  ${output_file} XXXXXXX" >> ${memory_description_file}
-           grep -i "${leak_error_string}" ${output_file} >> ${memory_description_file}
+           echo "XXXXXXXX  ${output_file} XXXXXXX" >>${memory_description_file}
+           grep -i "${leak_error_string}" ${output_file} >>${memory_description_file}
         fi
      fi
      printf "    %-50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
@@ -808,31 +812,30 @@ done
 
 echo "--------------------------------------------------------------------------"
 cat "${error_description_file}"
-echo "--------------------------------- summary --------------------------------"
-printf "number of FAILED  tests %d\n" ${n_runtime_error}
-printf "number of WRONG   tests %d\n" ${n_wrong_results}
-printf "number of CORRECT tests %d\n" ${n_correct}
-printf "number of NEW     tests %d\n" ${n_new}
-printf "number of         tests %d\n" ${n_tests}
+echo "--------------------------------- Summary --------------------------------"
+printf "Number of FAILED  tests %d\n" ${n_runtime_error} | tee -a ${summary}
+printf "Number of WRONG   tests %d\n" ${n_wrong_results} | tee -a ${summary}
+printf "Number of CORRECT tests %d\n" ${n_correct}       | tee -a ${summary}
+printf "Number of NEW     tests %d\n" ${n_new}           | tee -a ${summary}
+printf "Total number of   tests %d\n" ${n_tests}         | tee -a ${summary}
 
 if [[ ${leakcheck} == "YES" ]]; then
-   echo "--------------------------------------------------------------------------"
-   n_leaks=`grep -v "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
-   printf "number of memory  leaks %d\n" ${n_leaks}
-   echo "Memory leaks summary" >  ${memory_summary}
-   echo "--------------------" >>  ${memory_summary}
-   echo "This is the build of $datum_full using g95 (www.g95.org)" >>  ${memory_summary}
-   echo "At most 25 leaks are reported per run" >>  ${memory_summary}
-   echo "-------------------------------------------------------" >>  ${memory_summary}
-   echo "There are ${n_leaks} leaks today " >> ${memory_summary}
-   echo "-------------------------------------------------------" >>  ${memory_summary}
-   cat  ${memory_description_file} >>  ${memory_summary}
-   if [[ -f ${changelog_diff} ]]; then
-      echo "----- changelog diff file ------" >>  ${memory_summary}
-      cat ${changelog_diff} >> ${memory_summary}
-   fi
+   echo "--------------------------------------------------------------------------" | tee -a ${summary}
+   case ${FORT_C_NAME} in
+      "g95"     )
+       n_leaks=`grep -v "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
+       ;;
+      "gfortran")
+       n_leaking_tests=`grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
+       n_leaks=`grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}'`
+       printf "Number of LEAKING tests %d\n" ${n_leaking_tests} | tee -a ${summary}
+       ;;
+   esac
+   (( n_leaks == 0 )) && echo "No memory leaks detected" >>${memory_description_file}
+   printf "Number of memory  leaks %d\n" ${n_leaks} | tee -a ${summary}
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
 else
+   echo "No memory leak check was performed" >>${memory_description_file}
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
 fi
 
