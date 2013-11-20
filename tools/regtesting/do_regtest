@@ -543,6 +543,8 @@ n_correct=0
 n_tests=0
 n_new=0
 
+echo "Copying tests into working directory..."
+
 # Copy the tests into the working regtest directory.
   cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
   cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
@@ -551,6 +553,8 @@ n_new=0
       sleep 10
       cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
   )
+
+echo "Done!"
 
 #
 # preprocess the restrict directories if the retest is enabled
