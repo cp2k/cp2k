@@ -1657,34 +1657,51 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    CALL section_create(section,name="debug",&
+    CALL section_create(section,name="DEBUG",&
          description="Section to setup parameters for debug runs.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
-    NULLIFY(keyword, print_key)
+    NULLIFY (keyword,print_key)
+
     CALL keyword_create(keyword, name="DEBUG_FORCES",&
-         description="Enables  the debug of the forces.",&
-         usage="DEBUG_FORCES <LOGICAL>",default_l_val=.TRUE.,&
+         description="Activates the debugging of the atomic forces",&
+         usage="DEBUG_FORCES {LOGICAL}",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="DEBUG_STRESS_TENSOR",&
-         description="Enables the debug of the stress tensor",&
-         usage="DEBUG_STRESS_TENSOR <LOGICAL>",default_l_val=.TRUE.,&
+         description="Activates the debugging of the stress tensor",&
+         usage="DEBUG_STRESS_TENSOR {LOGICAL}",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="DX",&
-         description=" Setup the DX parameter to evaluate numerical derivatives",&
-         usage="DX <REAL>",default_r_val=0.001_dp,error=error)
+         description="Increment for the calculation of the numerical derivatives",&
+         usage="DX {REAL}",default_r_val=0.001_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="EPS_NO_ERROR_CHECK",&
+         description="The mismatch between the numerical and the "//&
+                     "analytical value is not checked for numerical "//&
+                     "values smaller than this threshold value",&
+         usage="EPS_NO_ERROR_CHECK {REAL}",default_r_val=1.0E-6_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="STOP_ON_MISMATCH",&
+         description="Stop the debug run when a mismatch between the numerical and "//&
+                     "the analytical value is detected",&
+         usage="STOP_ON_MISMATCH {LOGICAL}",default_l_val=.TRUE.,&
+         lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-         description="controls the printing of DEBUG specific output",&
+         description="Controls the printing of the DEBUG specific output",&
          print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)

@@ -202,3 +202,5 @@ nacl_wat.inp
 H2O-ST_debug.inp
 # Numerics: OpenMP parallelisation of Fist nonbonded interactions 
 H2O-ST_debug.inp
+# Revision of cp2k_debug
+H2O-ST_debug.inp
