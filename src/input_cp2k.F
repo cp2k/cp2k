@@ -570,7 +570,7 @@ CONTAINS
          supported_feature=.TRUE.,error=error)
     CALL keyword_create(keyword,name="THRESHOLD",&
          description="Specify % of CPUTIME above which the contribution will be inserted in the"//&
-         " final timing report",&
+         " final timing report (e.g. 0.02 = 2%)",&
          usage="THRESHOLD <real>",&
          default_r_val=0.02_dp, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
