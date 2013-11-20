@@ -83,12 +83,13 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: switched
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'diag_fft', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: try_library
+    LOGICAL                                  :: try_library
 
-    ! skalapack is the default and always linked
+! skalapack is the default and always linked
+
     IF(diag_lib.EQ."SL") THEN
       try_library = .FALSE.
       diag_type = 1

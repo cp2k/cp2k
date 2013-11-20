@@ -39,9 +39,9 @@ MODULE environment
                                              cp2k_header
   USE input_constants,                 ONLY: &
        callgraph_all, callgraph_none, debug_print_level, do_cp2k, &
-       do_diag_sl, do_diag_sl2, do_diag_elpa, do_eip, &
-       do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, &
-       energy_run, high_print_level, id_development_version, low_print_level, &
+       do_diag_elpa, do_diag_sl, do_diag_sl2, do_eip, do_farming, &
+       do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
+       high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
   USE input_cp2k,                      ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -497,8 +497,9 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: env_num, project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
-    INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
-      nid, num_threads, output_unit, print_level, trace_max, unit_nr
+    INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
+      nforce_eval, nid, num_threads, output_unit, print_level, trace_max, &
+      unit_nr
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
@@ -900,7 +901,6 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: try_fftw
 
-
     n(:) = 4
     zz(:,:,:) = 0.0_dp
 
@@ -985,12 +985,12 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
-  
-    CHARACTER(len=*), PARAMETER :: routineN = 'fft_setup_library', &
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'diag_setup_library', &
       routineP = moduleN//':'//routineN
-  
-    LOGICAL :: switched
-  
+
+    LOGICAL                                  :: switched
+
     switched = .FALSE.
   
     CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched,error=error)

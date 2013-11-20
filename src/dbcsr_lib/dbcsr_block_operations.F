@@ -1108,12 +1108,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, l, l2, u, u2
+    INTEGER                                  :: l, l2, u, u2
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
-
-    ! CALL dbcsr_error_set(routineN, error_handler, error)
+! CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
