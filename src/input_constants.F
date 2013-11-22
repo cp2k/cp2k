@@ -902,6 +902,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
                                               ls_scf_line_search_3point_2d=6
+  ! some ZMP paramenters
+  INTEGER, PARAMETER, PUBLIC               :: use_coulomb = 1,&
+                                              use_diff  = 2,&
+                                              use_no  = 3
 
   ! parameters for ALMO methods
   INTEGER, PARAMETER, PUBLIC   :: almo_domain_layout_orbital=1, &

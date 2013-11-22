@@ -16,8 +16,12 @@ MODULE atom_utils
                                              atom_basis_type,&
                                              atom_gthpot_type,&
                                              atom_state,&
+                                             atom_type,&
                                              eri
   USE basis_set_types,                 ONLY: srules
+  USE cp_files,                        ONLY: close_file,&
+                                             get_unit_number,&
+                                             open_file
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE input_constants
@@ -50,6 +54,11 @@ MODULE atom_utils
   PUBLIC :: slater_density, wigner_slater_functional, atom_local_potential
   PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
   PUBLIC :: atom_orbital_max, atom_wfnr0
+! ZMP added public subroutines
+  PUBLIC :: atom_read_external_density
+  PUBLIC :: atom_read_external_vxc
+  PUBLIC :: atom_read_zmp_restart
+  PUBLIC :: atom_write_zmp_restart
 
 !-----------------------------------------------------------------------------!
 
@@ -355,6 +364,241 @@ CONTAINS
     density=density/fourpi
 
   END SUBROUTINE atom_density
+! *****************************************************************************
+!> \brief   ZMP subroutine to write external restart file 
+!>          
+!> \author  D. Varsano [daniele.varsano@nano.cnr.it]
+!> \date    07.10.2013
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE atom_write_zmp_restart(atom)
+    TYPE(atom_type), INTENT(IN)              :: atom
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_zmp_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extunit, n, i, l, k
+
+    extunit=get_unit_number()
+    CALL open_file(file_name=atom%zmp_restart_file,file_status="UNKNOWN",&
+                   file_form="FORMATTED", file_action="WRITE",&
+                   unit_number=extunit)
+
+    n = SIZE(atom%orbitals%wfn,2)
+    WRITE(extunit,*) atom%basis%nbas
+    DO l=0,atom%state%maxl_occ
+      DO i=1,MIN(n,atom%state%maxn_occ(l))
+        DO k=1,atom%basis%nbas(l)
+          WRITE(extunit,*) atom%orbitals%wfn(k,i,l)
+        END DO
+      END DO
+    END DO
+
+    CALL close_file(unit_number=extunit)
+
+  END SUBROUTINE atom_write_zmp_restart
+
+! *****************************************************************************
+!> \brief   ZMP subroutine to read external restart file 
+!>          
+!> \author  D. Varsano [daniele.varsano@nano.cnr.it]
+!> \date    07.10.2013
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE atom_read_zmp_restart(atom,doguess,iw)
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    LOGICAL, INTENT(INOUT)                   :: doguess
+    INTEGER, INTENT(IN)                      :: iw
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_zmp_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extunit, maxl, n, i, l, k
+    INTEGER                                  :: er
+    INTEGER, DIMENSION(0:3)                  :: maxn, nbas
+ 
+    INQUIRE(file=atom%zmp_restart_file,exist=atom%doread)
+
+    IF (atom%doread) THEN
+      WRITE(iw,fmt="(' ZMP       | Restart file found')")
+      extunit=get_unit_number()
+      CALL open_file(file_name=atom%zmp_restart_file,file_status="OLD",&
+                     file_form="FORMATTED", file_action="READ",&
+                     unit_number=extunit)
+
+      READ(extunit,*,IOSTAT=er) nbas
+
+      IF ( er .NE. 0 ) THEN
+        WRITE(iw,fmt="(' ZMP       | ERROR! Restart file unreadable')")
+        WRITE(iw,fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')") 
+        doguess=.true.
+        atom%doread =.false.
+      ELSE IF ( nbas(1).NE.atom%basis%nbas(1) ) THEN
+        WRITE(iw,fmt="(' ZMP       | ERROR! Restart file contains a different basis set')")
+        WRITE(iw,fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')")
+        doguess=.true.
+        atom%doread =.false.
+      ELSE
+        nbas=atom%basis%nbas
+        maxl=atom%state%maxl_occ
+        maxn=atom%state%maxn_occ
+        n = SIZE(atom%orbitals%wfn,2)
+        DO l=0,atom%state%maxl_occ
+          DO i=1,MIN(n,atom%state%maxn_occ(l))
+            DO k=1,atom%basis%nbas(l)
+              read(extunit,*) atom%orbitals%wfn(k,i,l)
+            END DO
+          END DO
+        END DO
+        doguess=.false.
+      END IF
+      CALL close_file(unit_number=extunit)
+    ELSE
+      WRITE(iw,fmt="(' ZMP       | WARNING! Restart file not found')")
+      WRITE(iw,fmt="(' ZMP       | WARNING! Starting ZMP calculation form initial atomic guess')")
+    ENDIF
+  END SUBROUTINE atom_read_zmp_restart
+! *****************************************************************************
+!> \brief   ZMP subroutine to read external density from linear grid of 
+!>          density matrix. 
+!> \author  D. Varsano [daniele.varsano@nano.cnr.it]
+!> \date    07.10.2013
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE atom_read_external_density(density,atom,iw)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    INTEGER, INTENT(IN)                      :: iw
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_density', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: filename
+    TYPE(cp_error_type)                      :: error
+    INTEGER                                  :: extunit, ir, j, k, l, &
+                                                maxl_occ, maxnbas, nbas, nr
+    LOGICAL                                  :: ldm
+    REAL(KIND=dp)                            :: rr
+    REAL(KIND=dp), ALLOCATABLE               :: pmatread(:,:,:)
+
+    filename=atom%ext_file
+    ldm=atom%dm
+    extunit=get_unit_number()
+
+    CALL open_file(file_name=filename,file_status="OLD",&
+                   file_form="FORMATTED", file_action="READ",&
+                   unit_number=extunit)
+
+    IF (.not.ldm) THEN
+      READ(extunit,*) nr
+
+      IF (nr.ne.atom%basis%grid%nr) THEN
+        IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)")&
+                                                                                    nr, atom%basis%grid%nr
+        IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
+        STOP
+      ENDIF
+
+      DO ir=1,nr
+        READ(extunit,*) rr,density(ir)
+        IF (abs(rr-atom%basis%grid%rad(ir)).gt. atom%zmpgrid_tol) THEN
+          IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
+          IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
+          IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
+                     rr, atom%basis%grid%rad(ir), abs(rr-atom%basis%grid%rad(ir))
+          STOP
+        ENDIF
+      ENDDO
+      CALL close_file(unit_number=extunit)
+    ELSE
+      READ(extunit,*) maxl_occ
+      maxnbas=maxval(atom%basis%nbas)
+      ALLOCATE(pmatread(maxnbas,maxnbas,0:maxl_occ))
+      pmatread=0.0
+      DO l=0,maxl_occ
+        nbas=atom%basis%nbas(l)
+        READ(extunit,*) ! Read empty line 
+        DO k=1,nbas
+          READ(extunit,*) (pmatread(j,k,l),j=1,k)
+          DO j=1,k
+            pmatread(k,j,l)=pmatread(j,k,l)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      CALL close_file(unit_number=extunit)
+  
+      CALL atom_density(density,pmatread,atom%basis,maxl_occ,typ="RHO",error=error)
+
+      extunit=get_unit_number()
+      CALL open_file(file_name="rho_target.dat",file_status="UNKNOWN",&
+                     file_form="FORMATTED", file_action="WRITE", unit_number=extunit)
+
+      IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | Writing target density from density matrix')")
+
+      WRITE(extunit,fmt='("# Target density built from density matrix : ",A20)') filename
+      WRITE(extunit,fmt='("#",T10,"R[bohr]",T36,"Rho[au]")')
+
+      nr=atom%basis%grid%nr
+
+      DO ir=1,nr
+        WRITE(extunit,fmt='(T1,E24.15,T26,E24.15)') &
+                            atom%basis%grid%rad(ir), density(ir) 
+      ENDDO
+      DEALLOCATE(pmatread)
+
+      CALL close_file(unit_number=extunit) 
+
+    ENDIF
+
+  END SUBROUTINE atom_read_external_density
+
+! *****************************************************************************
+!> \brief ZMP subroutine to read external v_xc in the atomic code
+!>
+!> \author D. Varsano [daniele.varsano@nano.cnr.it]
+! *****************************************************************************
+  SUBROUTINE atom_read_external_vxc(vxc,atom,iw)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vxc
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    INTEGER, INTENT(IN)                      :: iw
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_vxc', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: adum, filename
+    INTEGER                                  :: extunit, ir, nr
+    REAL(KIND=dp)                            :: rr
+
+    filename=atom%ext_vxc_file
+    extunit=get_unit_number()
+
+    CALL open_file(file_name=filename,file_status="OLD",&
+                   file_form="FORMATTED", file_action="READ",&
+                   unit_number=extunit)
+
+    READ(extunit,*)
+    READ(extunit,*) adum, nr
+
+    IF (nr.ne.atom%basis%grid%nr) THEN
+      IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)")&
+                                                                                  nr, atom%basis%grid%nr
+      IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
+      STOP
+    ENDIF
+    DO ir=1,nr
+      READ(extunit,*) rr,vxc(ir)
+      IF (abs(rr-atom%basis%grid%rad(ir)).gt. atom%zmpvxcgrid_tol) THEN
+        IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
+        IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
+        IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)')  &
+                      rr, atom%basis%grid%rad(ir), abs(rr-atom%basis%grid%rad(ir))
+        STOP
+      ENDIF
+    ENDDO
+
+  END SUBROUTINE atom_read_external_vxc
+
 ! *****************************************************************************
   SUBROUTINE atom_orbital_charge(charge,wfn,rcov,l,basis,error)
     REAL(KIND=dp), INTENT(OUT)               :: charge

@@ -26,13 +26,14 @@ MODULE atom_energy
        create_atom_type, init_atom_basis, init_atom_potential, &
        read_atom_opt_section, release_atom_basis, release_atom_potential, &
        release_atom_type, set_atom
-  USE atom_utils,                      ONLY: atom_consistent_method,&
-                                             atom_core_density,&
-                                             atom_density,&
-                                             atom_local_potential,&
-                                             atom_set_occupation,&
-                                             get_maxl_occ,&
-                                             get_maxn_occ
+! ZMP added atom_read_external_density atom_read_external_vxc to atom_utiles
+  USE atom_utils,                      ONLY: &
+       atom_consistent_method, atom_core_density, atom_density, &
+       atom_local_potential, atom_read_external_density, atom_write_zmp_restart, &
+       atom_read_external_vxc, atom_set_occupation, get_maxl_occ, get_maxn_occ
+! ZMP added atom_xc module
+  USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
+                                             calculate_atom_zmp
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -76,13 +77,16 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
+    CHARACTER(LEN=default_string_length)     :: filename
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, maxl, mb, &
       method, mo, n, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
-    LOGICAL                                  :: eri_c, eri_e, failure, &
-                                                had_ae, had_pp, pp_calc
-    REAL(KIND=dp)                            :: delta
+    LOGICAL                                  :: dm, do_zmp, doread, eri_c, &
+                                                eri_e, failure, had_ae, &
+                                                had_pp, pp_calc, read_vxc
+    REAL(KIND=dp)                            :: delta, lambda
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
@@ -93,8 +97,10 @@ CONTAINS
     TYPE(atom_potential_type), POINTER       :: ae_pot, p_pot
     TYPE(atom_state), POINTER                :: state
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER :: basis_section, method_section, &
-      opt_section, potential_section, powell_section, xc_section
+    TYPE(section_vals_type), POINTER :: basis_section, external_vxc_section, &
+      method_section, opt_section, potential_section, powell_section, &
+      xc_section, zmp_section,zmp_restart_section
+
 
     failure = .FALSE.
 
@@ -194,6 +200,38 @@ CONTAINS
         xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=im,error=error)
         atom_info(in,im)%atom%xc_section => xc_section
 
+        ! ZMP Reading input sections if they are found initialize everything
+        do_zmp=.false.
+        doread=.false.
+        read_vxc=.false.
+
+        zmp_section => section_vals_get_subs_vals(method_section,"ZMP",error=error)
+        CALL section_vals_get(zmp_section,explicit=do_zmp,error=error)
+        atom_info(in,im)%atom%do_zmp=do_zmp
+        CALL section_vals_val_get(zmp_section,"FILE_DENSITY",c_val=filename,error=error)
+        atom_info(in,im)%atom%ext_file=filename
+        CALL section_vals_val_get(zmp_section,"GRID_TOL",&
+             r_val= atom_info(in,im)%atom%zmpgrid_tol,error=error)
+        CALL section_vals_val_get(zmp_section,"LAMBDA",r_val=lambda,error=error)
+        atom_info(in,im)%atom%lambda=lambda
+        CALL section_vals_val_get(zmp_section,"DM",l_val=dm,error=error)
+        atom_info(in,im)%atom%dm=dm
+
+        zmp_restart_section => section_vals_get_subs_vals(zmp_section,"RESTART",error=error)
+        CALL section_vals_get(zmp_restart_section,explicit=doread,error=error)
+        atom_info(in,im)%atom%doread=doread
+        CALL section_vals_val_get(zmp_restart_section,"FILE_RESTART",c_val=filename,error=error)
+        atom_info(in,im)%atom%zmp_restart_file=filename
+
+        ! ZMP Reading external vxc section, if found initialize
+        external_vxc_section => section_vals_get_subs_vals(method_section,"EXTERNAL_VXC",error=error)
+        CALL section_vals_get(external_vxc_section,explicit=read_vxc,error=error)
+        atom_info(in,im)%atom%read_vxc=read_vxc
+        CALL section_vals_val_get(external_vxc_section,"FILE_VXC",c_val=filename,error=error)
+        atom_info(in,im)%atom%ext_vxc_file=filename
+        CALL section_vals_val_get(external_vxc_section,"GRID_TOL",&
+             r_val= atom_info(in,im)%atom%zmpvxcgrid_tol,error=error)
+
         ALLOCATE(state,STAT=ierr)
         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
@@ -290,6 +328,29 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
           CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+
+          ! ZMP If we have the external density do zmp
+          IF (atom_info(in,im)%atom%do_zmp) THEN
+            CALL atom_write_zmp_restart(atom_info(in,im)%atom) 
+
+            ALLOCATE(ext_density(atom_info(in,im)%atom%basis%grid%nr))
+            ext_density=0._dp
+            CALL atom_read_external_density(ext_density, atom_info(in,im)%atom,iw)
+            CALL calculate_atom_zmp(ext_density=ext_density, &
+                                    atom=atom_info(in,im)%atom, &
+                                    lprint=.true.,error=error)
+            DEALLOCATE(ext_density)
+          ENDIF
+          ! ZMP If we have the external v_xc calculate KS quantities
+          IF (atom_info(in,im)%atom%read_vxc) THEN
+            ALLOCATE(ext_vxc(atom_info(in,im)%atom%basis%grid%nr))
+            ext_vxc=0._dp
+            CALL atom_read_external_vxc(ext_vxc, atom_info(in,im)%atom,iw)
+            CALL calculate_atom_ext_vxc(vxc=ext_vxc, &
+                                        atom=atom_info(in,im)%atom, &
+                                        lprint=.true.,error=error)
+            DEALLOCATE(ext_vxc)
+          ENDIF
 
           ! rk: Print out the energies needed for the scptb parametrization
           ! (Orbital energies minus Kinetic, etc)

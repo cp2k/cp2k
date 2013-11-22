@@ -41,7 +41,8 @@ MODULE atom_output
 
   PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration, &
             atom_print_basis, atom_print_method, atom_print_info, atom_print_potential, &
-            atom_print_basis_file, atom_write_pseudo_param, atom_print_orbitals
+            atom_print_basis_file, atom_write_pseudo_param, atom_print_orbitals, &
+            atom_print_zmp_iteration
 
 ! *****************************************************************************
 
@@ -213,6 +214,31 @@ CONTAINS
     END IF
 
   END SUBROUTINE atom_print_energies
+
+! *****************************************************************************
+!> \brief Printing of the atomic iterations when ZMP is active 
+!>
+!> \author D. Varsano [daniele.varsano@nano.cnr.it]
+! *****************************************************************************
+  SUBROUTINE atom_print_zmp_iteration(iter,deps,atom,iw,error)
+    TYPE(atom_type), INTENT(IN)              :: atom
+    INTEGER, INTENT(IN)                      :: iter
+    REAL(dp), INTENT(IN)                     :: deps
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_zmp_iteration', &
+      routineP = moduleN//':'//routineN
+
+    IF (iter==1) THEN
+      WRITE(iw,'(/," ",79("*"),/,T33,"Integral",T48,"Integral",/,T3,A,T16,A,T33,A,T46,A,T69,A/," ",79("*"))') &
+            "Iteration","Convergence","rho diff.","rho*v_xc[au]","Energy[au]"
+    END IF
+    WRITE(iw,'(T3,I9,T15,G13.6,T30,G13.6,T46,G13.6,T61,F20.12)') iter, deps, atom%rho_diff_integral, &
+                                                                  atom%energy%exc, atom%energy%etot
+
+  END SUBROUTINE atom_print_zmp_iteration
+
 ! *****************************************************************************
   SUBROUTINE atom_print_iteration(iter,deps,etot,iw,error)
     INTEGER, INTENT(IN)                      :: iter
@@ -436,6 +462,24 @@ CONTAINS
       CASE (do_rohf_atom)
         IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Open-Shell Kohn-Sham Calculation')")
     END SELECT
+
+    ! zmp
+    IF (atom%do_zmp) THEN
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Method on atomic radial density')")
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Lambda : ',F5.1)"), atom%lambda
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Reading external density : ',A20)"), atom%ext_file
+      IF (atom%dm) THEN
+        IF (iw > 0) WRITE (iw, fmt="(' ZMP       | The file is in the form of a density matrix')")
+      ELSE
+        IF (iw > 0) WRITE (iw, fmt="(' ZMP       | The file is in the form of a linear density')")
+      END IF
+      IF (atom%doread) THEN
+        IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Restarting calculation from ',A20,' file if present')"), atom%zmp_restart_file
+      END IF
+    ELSE IF (atom%read_vxc) THEN
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Calculating density from external V_xc')")
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Reading external v_xc file : ',A20)"), atom%ext_vxc_file
+    END IF
 
     IF (atom%pp_calc) THEN
       IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")

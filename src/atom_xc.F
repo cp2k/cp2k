@@ -11,10 +11,15 @@ MODULE atom_xc
   USE atom_types,                      ONLY: GTH_PSEUDO,&
                                              atom_type,&
                                              opmat_type
+! ZMP added coulomb_potential_numeric
   USE atom_utils,                      ONLY: atom_core_density,&
                                              atom_density,&
+                                             coulomb_potential_numeric,&
                                              integrate_grid,&
                                              numpot_matrix
+  USE cp_files,                        ONLY: close_file,&
+                                             get_unit_number,&
+                                             open_file
   USE input_constants,                 ONLY: xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -45,12 +50,143 @@ MODULE atom_xc
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_xc'
 
-  PUBLIC :: calculate_atom_vxc_lda, calculate_atom_vxc_lsd
+! ZMP added public subroutines calculate_atom_zmp, calculate_atom_ext_vxc 
+  PUBLIC :: calculate_atom_vxc_lda, calculate_atom_vxc_lsd, &
+            calculate_atom_zmp, calculate_atom_ext_vxc
 
 ! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ZMP subroutine for the calculation of the effective constraint 
+!>        potential in the atomic code.
+!> 
+!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
+!>
+! *****************************************************************************
+  SUBROUTINE calculate_atom_zmp(ext_density,atom,lprint,xcmat,error)
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: ext_density
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    LOGICAL                                  :: lprint
+    TYPE(opmat_type), OPTIONAL, POINTER      :: xcmat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_zmp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extunit, handle, ierr, ir, nr, z
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: int1, int2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: deltarho, rho_dum, vxc, vxc1, &
+                                                vxc2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
+
+    CALL timeset(routineN,handle)
+
+
+    nr = atom%basis%grid%nr
+    z  = atom%z
+    ALLOCATE(rho(nr,1),vxc(nr),vxc1(nr),vxc2(nr),rho_dum(nr),deltarho(nr),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
+    !Vxc1 
+    int1=integrate_grid(ext_density,atom%basis%grid)
+    int1=fourpi*int1
+    CALL coulomb_potential_numeric(vxc1,rho(:,1),atom%basis%grid,error)
+
+    vxc1 = -vxc1/z
+
+    !Vxc2
+    rho_dum=rho(:,1)*int1/z
+    deltarho=rho_dum-ext_density
+    int2=integrate_grid(deltarho,atom%basis%grid)
+    CALL coulomb_potential_numeric(vxc2,deltarho,atom%basis%grid,error)
+
+    vxc2=vxc2*atom%lambda
+
+    !Vxc
+    vxc=vxc1+vxc2
+
+    atom%energy%exc = fourpi*integrate_grid(vxc,rho(:,1),atom%basis%grid)
+    atom%rho_diff_integral = fourpi*int2
+
+    IF (lprint) THEN
+      extunit=get_unit_number()
+      CALL open_file(file_name="linear_potentials.dat",file_status="UNKNOWN",&
+                     file_form="FORMATTED", file_action="WRITE",&
+                     unit_number=extunit)
+
+      WRITE(extunit,fmt='("#",T10,"R[bohr]",T36,"Rho[au]",T61,"DRho[au]",T86,"V_XC[au]",T111,"V_XC1[au]",T136,"V_XC2[au]")')
+      DO ir=1,nr
+        WRITE(extunit,fmt='(T1,E24.15,T26,E24.15,T51,E24.15,T76,E24.15,T101,E24.15,T126,E24.15)') &
+                            atom%basis%grid%rad(ir), rho(ir,1), deltarho(ir), vxc(ir), vxc1(ir), vxc2(ir)
+      ENDDO
+      CALL close_file(unit_number=extunit)
+    ENDIF
+
+    IF(PRESENT(xcmat)) CALL numpot_matrix(xcmat%op,vxc,atom%basis,0,error)
+
+    DEALLOCATE(rho,vxc,vxc1,vxc2,rho_dum,deltarho,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_atom_zmp
+! *****************************************************************************
+!> \brief ZMP subroutine for the scf external density from the external v_xc 
+!> 
+!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
+!>
+! *****************************************************************************
+  SUBROUTINE calculate_atom_ext_vxc(vxc,atom,lprint,xcmat,error)
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vxc
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    LOGICAL, INTENT(in)                      :: lprint
+    TYPE(opmat_type), INTENT(inout), &
+      OPTIONAL, POINTER                      :: xcmat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_ext_vxc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extunit, handle, ierr, ir, nr
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
+
+    CALL timeset(routineN,handle)
+
+    nr = atom%basis%grid%nr
+
+    ALLOCATE(rho(nr,1),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
+
+    IF (lprint) THEN
+      extunit=get_unit_number()
+      CALL open_file(file_name="linear_potentials.dat",file_status="UNKNOWN",&
+                     file_form="FORMATTED", file_action="WRITE",&
+                     unit_number=extunit)
+
+      WRITE(extunit,fmt='("#",T10,"R[bohr]",T36,"Rho[au]",T61,"V_XC[au]")')
+      DO ir=1,nr
+        WRITE(extunit,fmt='(T1,E24.15,T26,E24.15,T51,E24.15)') &
+                            atom%basis%grid%rad(ir), rho(ir,1), vxc(ir)
+      ENDDO
+      CALL close_file(unit_number=extunit)
+    ENDIF
+
+    atom%energy%exc = fourpi*integrate_grid(vxc,rho(:,1),atom%basis%grid)
+    IF(PRESENT(xcmat)) CALL numpot_matrix(xcmat%op,vxc,atom%basis,0,error)
+
+    DEALLOCATE(rho,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_atom_ext_vxc
 ! *****************************************************************************
   SUBROUTINE calculate_atom_vxc_lda(xcmat,atom,xc_section,error)
     TYPE(opmat_type), POINTER                :: xcmat

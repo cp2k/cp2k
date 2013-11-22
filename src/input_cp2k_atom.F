@@ -23,6 +23,7 @@ MODULE input_cp2k_atom
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
                                              lchar_t,&
+                                             logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -558,7 +559,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="METHOD",&
             description="Section of information on method to use.",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="METHOD_TYPE",&
@@ -601,8 +602,156 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+! ZMP creating zubsection for the zmp calculations
+       CALL create_zmp_section(subsection,error) 
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+                          
+       CALL create_external_vxc(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_atom_method_section
+
+! *****************************************************************************
+!> \brief Create the ZMP subsection for Atom calculations
+!>  
+!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
+! *****************************************************************************
+  SUBROUTINE create_zmp_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    NULLIFY(subsection,keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="ZMP",&
+             description="Section used to specify ZMP Potentials.",&
+             n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+             error=error)
+
+       CALL keyword_create(keyword, name="FILE_DENSITY",&
+            description="Specifies the filename containing the target density ",&
+            usage="FILE_DENSITY <FILENAME>",&
+            type_of_var=char_t,default_c_val="RHO_O.dat", n_var=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GRID_TOL",&
+            description="Tolerance in the equivalence of read-grid in ZMP method",&
+            usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LAMBDA",&
+            description="Parameter used for the constraint in ZMP method",&
+            usage="LAMBDA <REAL>", default_r_val=10.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DM",&
+            description="read external density from density matrix",&
+            usage="DM <LOGICAL>", type_of_var=logical_t,default_l_val=.false.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_zmp_restart_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_zmp_section
+
+! *****************************************************************************
+!> \brief Create the ZMP restart subsection for Atom calculations
+!>  
+!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
+! *****************************************************************************
+  SUBROUTINE create_zmp_restart_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_restart_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="RESTART",&
+             description="Section used to specify the restart option in the ZMP"//&
+                         "procedure, and the file that must be read.",&
+             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+             error=error)
+
+       CALL keyword_create(keyword, name="FILE_RESTART",&
+            description="Specifies the filename containing the restart file density ",&
+            usage="FILE_RESTART <FILENAME>",&
+            type_of_var=char_t,default_c_val="RESTART.wfn", n_var=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_zmp_restart_section
+
+! *****************************************************************************
+!> \brief Subroutine to create the external v_xc potential 
+!>  
+!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
+! *****************************************************************************
+  SUBROUTINE create_external_vxc(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_external_vxc', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CALL section_create(section,name="EXTERNAL_VXC",&
+            description="Section used to specify exernal VXC Potentials.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+      CALL keyword_create(keyword, name="FILE_VXC",&
+            description="Specifies the filename containing the external vxc ",&
+            usage="FILE_VXC <FILENAME>",&
+            type_of_var=char_t,default_c_val="VXC.dat", n_var=-1, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="GRID_TOL",&
+            description="Tolerance in the equivalence of read-grid in ZMP method",&
+            usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_external_vxc
 
 ! *****************************************************************************
 !> \brief Create the optimization section for Atom calculations

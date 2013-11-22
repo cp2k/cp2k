@@ -222,11 +222,18 @@ MODULE atom_types
     INTEGER                                       :: z
     INTEGER                                       :: zcore
     LOGICAL                                       :: pp_calc
+! ZMP adding in type some variables
+    LOGICAL                                       :: do_zmp, doread, read_vxc, dm
+    CHARACTER(LEN=default_string_length)          :: ext_file, ext_vxc_file, &
+                                                     zmp_restart_file
     INTEGER                                       :: method_type
     INTEGER                                       :: relativistic
     INTEGER                                       :: coulomb_integral_type
     INTEGER                                       :: exchange_integral_type
-    REAL(KIND=dp)                                 :: weight
+! ZMP
+    REAL(KIND=dp)                                 :: lambda
+    REAL(KIND=dp)                                 :: rho_diff_integral
+    REAL(KIND=dp)                                 :: weight, zmpgrid_tol, zmpvxcgrid_tol
     TYPE(atom_basis_type), POINTER                :: basis
     TYPE(atom_potential_type), POINTER            :: potential
     TYPE(atom_state), POINTER                     :: state
@@ -234,7 +241,7 @@ MODULE atom_types
     TYPE(atom_orbitals), POINTER                  :: orbitals
     TYPE(atom_energy_type)                        :: energy
     TYPE(atom_optimization_type)                  :: optimization
-    TYPE(section_vals_type), POINTER              :: xc_section
+    TYPE(section_vals_type), POINTER              :: xc_section, zmp_section
   END TYPE atom_type
 ! *****************************************************************************
   TYPE atom_p_type
@@ -704,7 +711,12 @@ CONTAINS
     ALLOCATE(atom,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
+    NULLIFY(atom%zmp_section)
     NULLIFY(atom%xc_section)
+    atom%do_zmp = .FALSE.  
+    atom%doread = .FALSE. 
+    atom%read_vxc = .FALSE.
+    atom%dm = .FALSE. 
 
   END SUBROUTINE create_atom_type
 
@@ -739,8 +751,9 @@ CONTAINS
 
   END SUBROUTINE release_atom_type
 
-  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,&
-    method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
+! ZMP adding input variables in subroutine do_zmp,doread,read_vxc,method_type
+  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,do_zmp,doread,&
+    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
     TYPE(atom_state), OPTIONAL, POINTER      :: state
@@ -749,7 +762,8 @@ CONTAINS
     TYPE(atom_potential_type), OPTIONAL, &
       POINTER                                :: potential
     INTEGER, INTENT(IN), OPTIONAL            :: zcore
-    LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc
+    LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc, do_zmp, doread, &
+                                                read_vxc
     INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
                                                 coulomb_integral_type, &
                                                 exchange_integral_type
@@ -772,6 +786,11 @@ CONTAINS
       IF(PRESENT(potential)) atom%potential => potential
       IF(PRESENT(zcore)) atom%zcore = zcore
       IF(PRESENT(pp_calc)) atom%pp_calc = pp_calc
+! ZMP assigning variable values if present
+      IF(PRESENT(do_zmp)) atom%do_zmp = do_zmp
+      IF(PRESENT(doread)) atom%doread = doread
+      IF(PRESENT(read_vxc)) atom%read_vxc = read_vxc
+ 
       IF(PRESENT(method_type)) atom%method_type = method_type
       IF(PRESENT(relativistic)) atom%relativistic = relativistic
       IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type

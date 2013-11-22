@@ -61,7 +61,7 @@ MODULE bibliography
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
-             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992
+             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996 
 
 CONTAINS
 
@@ -152,6 +152,42 @@ CONTAINS
          "UT ISI:000247573600013",&
          "ER"),&
          DOI="10.1021/jp070308d")
+
+    CALL add_reference(key=Zhao1994, ISI_record=s2a(&
+         "AU ZHAO, QS",&
+         "   MORRISON, RC",&
+         "   PARR, RG",&
+         "TI FOR ELECTRON DENSITIES TO KHON-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
+         "   EXCHANGE-CORRELATION POTENTIALS, AND EXCHANGE-CORRELATION ENERGIES",&
+         "SO PHYSICAL REVIEW A",&
+         "SN 1050-2947",&
+         "PD SEP 1",&
+         "PY 1994",&
+         "VL 50",&
+         "IS 3",&
+         "BP 2138",&
+         "EP 2142",&
+         "UT WOS:A1994PG80900023",&
+         "ER"),&
+         DOI="10.1103/PhysRevA.50.2138")
+
+    CALL add_reference(key=Tozer1996, ISI_record=s2a(&
+         "AU TOZER, DJ",&
+         "   INGAMELLS, VE",&
+         "   HANDY, NC",&
+         "TI EXCHANGE-CORRELATION POTENTIALS",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD NOV 22",&
+         "PY 1996",&
+         "VL 105",&
+         "IS 20",&
+         "BP 9200",&
+         "EP 9213",&
+         "UT WOS:A1996VV04900024",&
+         "ER"),&
+         DOI="10.1063/1.472753")
+
 
     CALL add_reference(key=Blochl1995, ISI_record=s2a(&
          "AU BLOCHL, PE",&

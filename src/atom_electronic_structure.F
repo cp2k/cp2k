@@ -12,17 +12,22 @@ MODULE atom_electronic_structure
                                              atom_opt
   USE atom_output,                     ONLY: atom_print_energies,&
                                              atom_print_iteration,&
+                                             atom_print_zmp_iteration,&
                                              atom_print_state
   USE atom_types,                      ONLY: &
        GTH_PSEUDO, NO_PSEUDO, atom_type, create_opgrid, create_opmat, &
        opgrid_type, opmat_type, release_opgrid, release_opmat
   USE atom_utils,                      ONLY: &
-       atom_denmat, atom_density, atom_solve, atom_trace, ceri_contract, &
+       atom_denmat, atom_density, atom_read_external_density, &
+       atom_read_external_vxc, atom_solve, atom_trace, ceri_contract, &
        coulomb_potential_analytic, coulomb_potential_numeric, eeri_contract, &
        err_matrix, exchange_numeric, exchange_semi_analytic, numpot_matrix, &
-       slater_density, wigner_slater_functional
-  USE atom_xc,                         ONLY: calculate_atom_vxc_lda,&
-                                             calculate_atom_vxc_lsd
+       slater_density, wigner_slater_functional, atom_read_zmp_restart
+! ZMP added calculate_atom_zmp, calculate_atom_ext_vxc
+  USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
+                                             calculate_atom_vxc_lda,&
+                                             calculate_atom_vxc_lsd,&
+                                             calculate_atom_zmp
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
@@ -96,11 +101,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iter, l, max_iter, &
-                                                method, reltyp
-    LOGICAL                                  :: do_hfx, doguess, failure, &
-                                                need_x, need_xc
+
+
+    INTEGER                                  :: handle, i, iter, k, l, &
+                                                max_iter, method, &
+                                                reltyp
+    LOGICAL                                  :: do_hfx, doguess, &
+                                                failure, need_vxc, need_x, &
+                                                need_xc, need_zmp
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
@@ -154,6 +164,28 @@ CONTAINS
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
     END SELECT
 
+! ZMP starting to read external density for the zmp calculation
+    need_zmp=atom%do_zmp
+    IF (need_zmp) THEN
+       need_x = .FALSE.
+       need_xc = .FALSE.
+       ALLOCATE(ext_density(atom%basis%grid%nr))
+       ext_density=0._dp
+       CALL atom_read_external_density(ext_density,atom,iw)
+    ENDIF
+
+! ZMP starting to read external vxc for the zmp calculation
+    need_vxc=atom%read_vxc
+
+    IF (need_vxc) THEN
+       need_x = .FALSE.
+       need_xc = .FALSE.
+       need_zmp = .FALSE.
+       ALLOCATE(ext_vxc(atom%basis%grid%nr))
+       ext_vxc=0._dp
+       CALL atom_read_external_vxc(ext_vxc,atom,iw)
+    ENDIF
+
     ! check for relativistic method
     reltyp = atom%relativistic
 
@@ -193,6 +225,9 @@ CONTAINS
     NULLIFY(density,cpot)
     CALL create_opgrid(density,atom%basis%grid,error)
     CALL create_opgrid(cpot,atom%basis%grid,error)
+
+    ! ZMP reading the file to restart
+    IF (atom%doread) CALL atom_read_zmp_restart(atom,doguess,iw)
 
     IF (doguess) THEN
       ! initial guess
@@ -291,6 +326,13 @@ CONTAINS
       IF (need_xc) THEN
         xcmat%op = 0._dp
         CALL calculate_atom_vxc_lda(xcmat,atom,xc_section,error)
+      ! ZMP added options for the zmp calculations, building external density and vxc potential
+      ELSEIF (need_zmp) THEN
+        xcmat%op = 0._dp
+        CALL calculate_atom_zmp(ext_density=ext_density,atom=atom,lprint=.false.,xcmat=xcmat,error=error)
+      ELSEIF (need_vxc) THEN
+        xcmat%op = 0._dp
+        CALL  calculate_atom_ext_vxc(vxc=ext_vxc,atom=atom,lprint=.false.,xcmat=xcmat,error=error)
       ELSE
         xcmat%op = 0._dp
         atom%energy%exc = 0._dp
@@ -315,7 +357,11 @@ CONTAINS
       iter = iter + 1
 
       IF ( iw > 0 ) THEN
-        CALL atom_print_iteration(iter,deps,atom%energy%etot,iw,error)
+        IF (need_zmp ) THEN
+          CALL atom_print_zmp_iteration(iter,deps,atom,iw,error)
+        ELSE
+          CALL atom_print_iteration(iter,deps,atom%energy%etot,iw,error)
+        ENDIF
       END IF
 
       IF ( deps < eps_scf ) EXIT
@@ -352,6 +398,10 @@ CONTAINS
 
     CALL release_opgrid(density,error)
     CALL release_opgrid(cpot,error)
+
+    ! ZMP deallocating ext_density ext_vxc
+    IF (need_zmp) DEALLOCATE(ext_density)
+    IF (need_vxc) DEALLOCATE(ext_vxc)
 
     CALL timestop(handle)
 
