@@ -10,9 +10,9 @@
 ! *****************************************************************************
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: &
-       Byrd1995, Elber1987, Evans1983, Henkelman1999, Jonsson1998, &
-       Jonsson2000_1, Jonsson2000_2, Kolafa2004, Kuhne2007, Minary2003, &
-       Ricci2003, VandeVondele2002, Wales2004
+       Byrd1995, Elber1987, Evans1983, Guidon2008, Henkelman1999, &
+       Jonsson1998, Jonsson2000_1, Jonsson2000_2, Kolafa2004, Kuhne2007, &
+       Minary2003, Ricci2003, Tuckerman1992, VandeVondele2002, Wales2004
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -2452,8 +2452,10 @@ CONTAINS
             " In this case the order of the force_eval maps "//&
             " the order of the respa shells from the slowest to the fastest force evaluation."//&
             " If force_evals share the same subsys, it's enough then to specify the "//&
-            " subsys in the force_eval corresponding at the first index in the multiple_force_eval list",&
+            " subsys in the force_eval corresponding at the first index in the multiple_force_eval list."//&
+            " Can be used to speedup classical and ab initio MD simulations.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Tuckerman1992,Guidon2008/),&
             error=error)
 
        NULLIFY(keyword)

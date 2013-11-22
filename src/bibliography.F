@@ -61,7 +61,7 @@ MODULE bibliography
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
-             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013 
+             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992
 
 CONTAINS
 
@@ -2424,6 +2424,29 @@ CONTAINS
          "DI 10.1021/ct400698y",&
          "ER"),&
          DOI="10.1021/ct400698y")
+
+    CALL add_reference(key=Tuckerman1992, ISI_record=s2a(&
+         "PT J",&
+         "AU TUCKERMAN, M",&
+         "   BERNE, BJ",&
+         "   MARTYNA, GJ",&
+         "AF TUCKERMAN, M",&
+         "   BERNE, BJ",&
+         "   MARTYNA, GJ",&
+         "TI REVERSIBLE MULTIPLE TIME SCALE MOLECULAR-DYNAMICS",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD AUG 1",&
+         "PY 1992",&
+         "VL 97",&
+         "IS 3",&
+         "BP 1990",&
+         "EP 2001",&
+         "DI 10.1063/1.463137",&
+         "UT WOS:A1992JE89100044",&
+         "ER"),&
+         DOI="10.1063/1.463137")
+
 
   END SUBROUTINE add_all_references
 
