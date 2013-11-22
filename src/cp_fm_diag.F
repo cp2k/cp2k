@@ -146,19 +146,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nmo
+    INTEGER                                  :: myinfo, nmo
 
-    IF (PRESENT(info)) info = 0
+    myinfo = 0
 
     nmo = SIZE(eigenvalues,1)
 
     IF(diag_type==3) THEN
-    CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
+      CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
     ELSE IF(diag_type==2) THEN
-    CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
+      CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
     ELSE IF(diag_type==1) THEN
-    CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=info,error=error)
+      CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=myinfo,error=error)
     END IF
+
+    IF (PRESENT(info)) info = myinfo 
   END SUBROUTINE choose_eigv_solver
 
 ! *****************************************************************************
@@ -199,7 +201,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    IF(PRESENT(info)) info = 0
+    myinfo = 0
 
     n = matrix%matrix_struct%nrow_global
     ALLOCATE(eig(n), STAT=istat)
@@ -255,7 +257,7 @@ CONTAINS
                         matrix%matrix_struct%context%group)
 
           ! call scalapack
-          CALL cp_fm_syevd_base(matrix_new,eigenvectors_new,eig,info,error)
+          CALL cp_fm_syevd_base(matrix_new,eigenvectors_new,eig,myinfo,error)
 
           ! redistribute results
           CALL pdgemr2d(n,n,eigenvectors_new%local_data(1,1),1,1,eigenvectors_new%matrix_struct%descriptor, &
@@ -294,7 +296,7 @@ CONTAINS
 
     ELSE
 
-        CALL cp_fm_syevd_base(matrix,eigenvectors,eig,info,error)
+        CALL cp_fm_syevd_base(matrix,eigenvectors,eig,myinfo,error)
 
     ENDIF
 
@@ -350,6 +352,8 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 #endif
 
+    IF(PRESENT(info)) myinfo = 0
+
     nmo = SIZE(eigenvalues,1)
     IF (nmo > n) THEN
       eigenvalues(1:n) = eig(1:n)
@@ -367,14 +371,14 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:)              :: eig
-    INTEGER, INTENT(OUT), OPTIONAL           :: info
+    INTEGER, INTENT(OUT)                     :: info
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, liwork, lwork, &
-                                                myinfo, mypcol, myprow, n
+                                                mypcol, myprow, n
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
@@ -410,7 +414,7 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
-                 work(1),lwork,iwork(1),liwork,myinfo)
+                 work(1),lwork,iwork(1),liwork,info)
 
     ! look here for a PDORMTR warning :-)
     ! this routine seems to need more workspace than reported
@@ -426,9 +430,9 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
-                 work(1),lwork,iwork(1),liwork,myinfo)
+                 work(1),lwork,iwork(1),liwork,info)
 
-    IF(.NOT. PRESENT(info) .AND. myinfo /= 0) CALL stop_program &
+    IF(info /= 0) CALL stop_program &
        (routineN,moduleN,__LINE__, "Matrix diagonalization failed")
 
     DEALLOCATE (work,STAT=istat)
@@ -439,7 +443,6 @@ CONTAINS
 
 #endif
 
-    IF(PRESENT(info)) info = myinfo
 
     CALL timestop(handle)
 
