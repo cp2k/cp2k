@@ -8,7 +8,7 @@ CPP      =
 FC       = gfortran -flto=jobserver -use-linker-plugin
 LD       = gfortran -flto=jobserver -use-linker-plugin
 
-AR       = ar -r
+AR       = gcc-ar -r
 
 CPPFLAGS = 
 DFLAGS   = -D__GFORTRAN -D__FFTSG
