@@ -12,17 +12,17 @@ MODULE atom_electronic_structure
                                              atom_opt
   USE atom_output,                     ONLY: atom_print_energies,&
                                              atom_print_iteration,&
-                                             atom_print_zmp_iteration,&
-                                             atom_print_state
+                                             atom_print_state,&
+                                             atom_print_zmp_iteration
   USE atom_types,                      ONLY: &
        GTH_PSEUDO, NO_PSEUDO, atom_type, create_opgrid, create_opmat, &
        opgrid_type, opmat_type, release_opgrid, release_opmat
   USE atom_utils,                      ONLY: &
        atom_denmat, atom_density, atom_read_external_density, &
-       atom_read_external_vxc, atom_solve, atom_trace, ceri_contract, &
-       coulomb_potential_analytic, coulomb_potential_numeric, eeri_contract, &
-       err_matrix, exchange_numeric, exchange_semi_analytic, numpot_matrix, &
-       slater_density, wigner_slater_functional, atom_read_zmp_restart
+       atom_read_external_vxc, atom_read_zmp_restart, atom_solve, atom_trace, &
+       ceri_contract, coulomb_potential_analytic, coulomb_potential_numeric, &
+       eeri_contract, err_matrix, exchange_numeric, exchange_semi_analytic, &
+       numpot_matrix, slater_density, wigner_slater_functional
 ! ZMP added calculate_atom_zmp, calculate_atom_ext_vxc
   USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
                                              calculate_atom_vxc_lda,&
@@ -101,14 +101,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted', &
       routineP = moduleN//':'//routineN
 
-
-
-    INTEGER                                  :: handle, i, iter, k, l, &
-                                                max_iter, method, &
-                                                reltyp
-    LOGICAL                                  :: do_hfx, doguess, &
-                                                failure, need_vxc, need_x, &
-                                                need_xc, need_zmp
+    INTEGER                                  :: handle, i, iter, l, max_iter, &
+                                                method, reltyp
+    LOGICAL                                  :: do_hfx, doguess, failure, &
+                                                need_vxc, need_x, need_xc, &
+                                                need_zmp
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc
     TYPE(atom_history_type)                  :: history
@@ -329,10 +326,10 @@ CONTAINS
       ! ZMP added options for the zmp calculations, building external density and vxc potential
       ELSEIF (need_zmp) THEN
         xcmat%op = 0._dp
-        CALL calculate_atom_zmp(ext_density=ext_density,atom=atom,lprint=.false.,xcmat=xcmat,error=error)
+        CALL calculate_atom_zmp(ext_density=ext_density,atom=atom,lprint=.FALSE.,xcmat=xcmat,error=error)
       ELSEIF (need_vxc) THEN
         xcmat%op = 0._dp
-        CALL  calculate_atom_ext_vxc(vxc=ext_vxc,atom=atom,lprint=.false.,xcmat=xcmat,error=error)
+        CALL  calculate_atom_ext_vxc(vxc=ext_vxc,atom=atom,lprint=.FALSE.,xcmat=xcmat,error=error)
       ELSE
         xcmat%op = 0._dp
         atom%energy%exc = 0._dp

@@ -662,7 +662,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="DM",&
             description="read external density from density matrix",&
-            usage="DM <LOGICAL>", type_of_var=logical_t,default_l_val=.false.,&
+            usage="DM <LOGICAL>", type_of_var=logical_t,default_l_val=.FALSE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -377,7 +377,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_zmp_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: extunit, n, i, l, k
+    INTEGER                                  :: extunit, i, k, l, n
 
     extunit=get_unit_number()
     CALL open_file(file_name=atom%zmp_restart_file,file_status="UNKNOWN",&
@@ -409,14 +409,13 @@ CONTAINS
     TYPE(atom_type), INTENT(INOUT)           :: atom
     LOGICAL, INTENT(INOUT)                   :: doguess
     INTEGER, INTENT(IN)                      :: iw
-    
+
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_zmp_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: extunit, maxl, n, i, l, k
-    INTEGER                                  :: er
+    INTEGER                                  :: er, extunit, i, k, l, maxl, n
     INTEGER, DIMENSION(0:3)                  :: maxn, nbas
- 
+
     INQUIRE(file=atom%zmp_restart_file,exist=atom%doread)
 
     IF (atom%doread) THEN
@@ -431,13 +430,13 @@ CONTAINS
       IF ( er .NE. 0 ) THEN
         WRITE(iw,fmt="(' ZMP       | ERROR! Restart file unreadable')")
         WRITE(iw,fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')") 
-        doguess=.true.
-        atom%doread =.false.
+        doguess=.TRUE.
+        atom%doread =.FALSE.
       ELSE IF ( nbas(1).NE.atom%basis%nbas(1) ) THEN
         WRITE(iw,fmt="(' ZMP       | ERROR! Restart file contains a different basis set')")
         WRITE(iw,fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')")
-        doguess=.true.
-        atom%doread =.false.
+        doguess=.TRUE.
+        atom%doread =.FALSE.
       ELSE
         nbas=atom%basis%nbas
         maxl=atom%state%maxl_occ
@@ -446,11 +445,11 @@ CONTAINS
         DO l=0,atom%state%maxl_occ
           DO i=1,MIN(n,atom%state%maxn_occ(l))
             DO k=1,atom%basis%nbas(l)
-              read(extunit,*) atom%orbitals%wfn(k,i,l)
+              READ(extunit,*) atom%orbitals%wfn(k,i,l)
             END DO
           END DO
         END DO
-        doguess=.false.
+        doguess=.FALSE.
       END IF
       CALL close_file(unit_number=extunit)
     ELSE
@@ -474,12 +473,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: filename
-    TYPE(cp_error_type)                      :: error
     INTEGER                                  :: extunit, ir, j, k, l, &
                                                 maxl_occ, maxnbas, nbas, nr
     LOGICAL                                  :: ldm
     REAL(KIND=dp)                            :: rr
     REAL(KIND=dp), ALLOCATABLE               :: pmatread(:,:,:)
+    TYPE(cp_error_type)                      :: error
 
     filename=atom%ext_file
     ldm=atom%dm
@@ -501,18 +500,18 @@ CONTAINS
 
       DO ir=1,nr
         READ(extunit,*) rr,density(ir)
-        IF (abs(rr-atom%basis%grid%rad(ir)).gt. atom%zmpgrid_tol) THEN
+        IF (ABS(rr-atom%basis%grid%rad(ir)).GT. atom%zmpgrid_tol) THEN
           IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
           IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
           IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
-                     rr, atom%basis%grid%rad(ir), abs(rr-atom%basis%grid%rad(ir))
+                     rr, atom%basis%grid%rad(ir), ABS(rr-atom%basis%grid%rad(ir))
           STOP
         ENDIF
       ENDDO
       CALL close_file(unit_number=extunit)
     ELSE
       READ(extunit,*) maxl_occ
-      maxnbas=maxval(atom%basis%nbas)
+      maxnbas=MAXVAL(atom%basis%nbas)
       ALLOCATE(pmatread(maxnbas,maxnbas,0:maxl_occ))
       pmatread=0.0
       DO l=0,maxl_occ
@@ -588,11 +587,11 @@ CONTAINS
     ENDIF
     DO ir=1,nr
       READ(extunit,*) rr,vxc(ir)
-      IF (abs(rr-atom%basis%grid%rad(ir)).gt. atom%zmpvxcgrid_tol) THEN
+      IF (ABS(rr-atom%basis%grid%rad(ir)).GT. atom%zmpvxcgrid_tol) THEN
         IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
         IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
         IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)')  &
-                      rr, atom%basis%grid%rad(ir), abs(rr-atom%basis%grid%rad(ir))
+                      rr, atom%basis%grid%rad(ir), ABS(rr-atom%basis%grid%rad(ir))
         STOP
       ENDIF
     ENDDO

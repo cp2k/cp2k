@@ -29,8 +29,9 @@ MODULE atom_energy
 ! ZMP added atom_read_external_density atom_read_external_vxc to atom_utiles
   USE atom_utils,                      ONLY: &
        atom_consistent_method, atom_core_density, atom_density, &
-       atom_local_potential, atom_read_external_density, atom_write_zmp_restart, &
-       atom_read_external_vxc, atom_set_occupation, get_maxl_occ, get_maxn_occ
+       atom_local_potential, atom_read_external_density, &
+       atom_read_external_vxc, atom_set_occupation, atom_write_zmp_restart, &
+       get_maxl_occ, get_maxn_occ
 ! ZMP added atom_xc module
   USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
                                              calculate_atom_zmp
@@ -75,9 +76,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: elem
+    CHARACTER(LEN=default_string_length)     :: filename
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    CHARACTER(LEN=default_string_length)     :: filename
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, maxl, mb, &
       method, mo, n, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
@@ -99,8 +100,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: basis_section, external_vxc_section, &
       method_section, opt_section, potential_section, powell_section, &
-      xc_section, zmp_section,zmp_restart_section
-
+      xc_section, zmp_restart_section, zmp_section
 
     failure = .FALSE.
 
@@ -201,9 +201,9 @@ CONTAINS
         atom_info(in,im)%atom%xc_section => xc_section
 
         ! ZMP Reading input sections if they are found initialize everything
-        do_zmp=.false.
-        doread=.false.
-        read_vxc=.false.
+        do_zmp=.FALSE.
+        doread=.FALSE.
+        read_vxc=.FALSE.
 
         zmp_section => section_vals_get_subs_vals(method_section,"ZMP",error=error)
         CALL section_vals_get(zmp_section,explicit=do_zmp,error=error)
@@ -338,7 +338,7 @@ CONTAINS
             CALL atom_read_external_density(ext_density, atom_info(in,im)%atom,iw)
             CALL calculate_atom_zmp(ext_density=ext_density, &
                                     atom=atom_info(in,im)%atom, &
-                                    lprint=.true.,error=error)
+                                    lprint=.TRUE.,error=error)
             DEALLOCATE(ext_density)
           ENDIF
           ! ZMP If we have the external v_xc calculate KS quantities
@@ -348,7 +348,7 @@ CONTAINS
             CALL atom_read_external_vxc(ext_vxc, atom_info(in,im)%atom,iw)
             CALL calculate_atom_ext_vxc(vxc=ext_vxc, &
                                         atom=atom_info(in,im)%atom, &
-                                        lprint=.true.,error=error)
+                                        lprint=.TRUE.,error=error)
             DEALLOCATE(ext_vxc)
           ENDIF
 

@@ -76,7 +76,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_zmp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: extunit, handle, ierr, ir, nr, z
+    INTEGER                                  :: extunit, handle, ierr, ir, &
+                                                nr, z
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: int1, int2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: deltarho, rho_dum, vxc, vxc1, &

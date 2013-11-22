@@ -221,9 +221,9 @@ CONTAINS
 !> \author D. Varsano [daniele.varsano@nano.cnr.it]
 ! *****************************************************************************
   SUBROUTINE atom_print_zmp_iteration(iter,deps,atom,iw,error)
-    TYPE(atom_type), INTENT(IN)              :: atom
     INTEGER, INTENT(IN)                      :: iter
     REAL(dp), INTENT(IN)                     :: deps
+    TYPE(atom_type), INTENT(IN)              :: atom
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
