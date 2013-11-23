@@ -138,6 +138,7 @@ MODULE force_env_methods
   USE restraint,                       ONLY: restraint_control
   USE se_ga_tools,                     ONLY: se_ga_release
   USE string_utilities,                ONLY: compress
+  USE termination,                     ONLY: print_warning
   USE virial_types,                    ONLY: &
        cp_virial, sym_virial, virial_create, virial_p_type, virial_release, &
        virial_retain, virial_set, virial_type, zero_virial
@@ -170,12 +171,12 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
        consistent_energies, skip_external_control, eval_energy_forces, &
-       require_consistent_energy_force, linres, error)
+       require_consistent_energy_force, linres, calc_stress_tensor, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL :: calc_force, consistent_energies, &
       skip_external_control, eval_energy_forces, &
-      require_consistent_energy_force, linres
+      require_consistent_energy_force, linres, calc_stress_tensor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
@@ -185,9 +186,8 @@ CONTAINS
     INTEGER                                  :: i, j, nat, ndigits, &
                                                 output_unit, print_forces, &
                                                 stat
-    LOGICAL                                  :: calculate_forces, &
-                                                energy_consistency, eval_ef, &
-                                                failure, linres_run, my_skip
+    LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, &
+      eval_ef, failure, linres_run, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
                                                 sum_pv_virial, &
                                                 sum_stress_tensor
@@ -215,6 +215,11 @@ CONTAINS
     IF (PRESENT(eval_energy_forces)) eval_ef = eval_energy_forces
     IF (PRESENT(skip_external_control)) my_skip = skip_external_control
     IF (PRESENT(calc_force)) calculate_forces = calc_force
+    IF (PRESENT(calc_stress_tensor)) THEN
+       calculate_stress_tensor = calc_stress_tensor
+    ELSE
+       calculate_stress_tensor = calculate_forces
+    END IF
     IF (PRESENT(consistent_energies)) energy_consistency = consistent_energies
     IF (PRESENT(linres)) linres_run = linres
 
@@ -269,19 +274,23 @@ CONTAINS
           END SELECT
        END IF
        ! In case it is requested, we evaluate the stress tensor numerically
-       IF (virial%pv_availability.AND.calculate_forces) THEN
-          IF (virial%pv_numer) THEN
+       IF (virial%pv_availability) THEN
+          IF (virial%pv_numer.AND.calculate_stress_tensor) THEN
              ! Compute the numerical stress tensor
-             CALL force_env_calc_num_pressure(force_env, error=error)
+             CALL force_env_calc_num_pressure(force_env,error=error)
           ELSE
-             ! Symmetrize analytical stress tensor
-             CALL sym_virial(virial, error)
+             IF (calculate_forces) THEN
+                ! Symmetrize analytical stress tensor
+                CALL sym_virial(virial,error)
+             ELSE
+                IF (calculate_stress_tensor) THEN
+                   CALL print_warning(routineN,moduleN,__LINE__,&
+                                      "The calculation of the stress tensor "//&
+                                      "requires the calculation of the forces",&
+                                      force_env%para_env)
+                END IF
+             END IF
           END IF
-       ELSE IF (virial%pv_availability.AND. .NOT. calculate_forces) THEN
-       ! Warning
-          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
-                  'The calculation of stress tensor requires the calculation of forces',&
-                  error=error,only_ionode=.TRUE.)
        END IF
        ! Some additional tasks..
        IF (.NOT.my_skip) THEN
@@ -325,7 +334,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%PROGRAM_RUN_INFO",error=error)
 
-       ! Print Forces, if requested
+       ! Print forces, if requested
        print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
                                            extension=".xyz",error=error)
        IF ((print_forces > 0).AND.calculate_forces) THEN
@@ -362,7 +371,7 @@ CONTAINS
     IF (virial%pv_availability) THEN
        ! If the virial is defined but we are not computing forces let's zero the
        ! virial for consistency
-       IF (calculate_forces) THEN
+       IF (calculate_forces.AND.calculate_stress_tensor) THEN
           output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
                                              extension=".stress_tensor",error=error)
           IF (output_unit > 0) THEN
@@ -379,14 +388,13 @@ CONTAINS
        END IF
     ELSE
        output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
-                                             extension=".stress_tensor",error=error)
-       IF(output_unit > 0) THEN
-         CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
-                'To print STRESS_TENSOR switch on the virial evaluation with the keyword: STRESS_TENSOR.', &
-                error=error,only_ionode=.TRUE.)
+                                          extension=".stress_tensor",error=error)
+       IF (output_unit > 0) THEN
+          CALL print_warning(routineN,moduleN,__LINE__,"To print the stress tensor switch on the "//&
+                             "virial evaluation with the keyword: STRESS_TENSOR",force_env%para_env)
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
-                                            "PRINT%STRESS_TENSOR",error=error)
+                                         "PRINT%STRESS_TENSOR",error=error)
     END IF
 
     ! Atomic properties
@@ -473,7 +481,7 @@ CONTAINS
 !>
 !> \author JCS
 ! *****************************************************************************
-  SUBROUTINE force_env_calc_num_pressure(force_env, dx, error)
+  SUBROUTINE force_env_calc_num_pressure(force_env,dx,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: dx
@@ -484,8 +492,8 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: default_dx = 0.001_dp
 
     INTEGER                                  :: i, ip, iq, istat, j, k, &
-                                                natom, ncore, nshell, &
-                                                output_unit
+                                                natom, ncore, ndigits, &
+                                                nshell, output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx_w
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
@@ -582,14 +590,25 @@ CONTAINS
                 ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
                 CALL force_env_set_cell(force_env,cell=cell,error=error)
                 ! Compute energies
-                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                                                 consistent_energies=.TRUE.,error=error)
+                CALL force_env_calc_energy_force(force_env,&
+                                                 calc_force=.FALSE.,&
+                                                 consistent_energies=.TRUE.,&
+                                                 calc_stress_tensor=.FALSE.,&
+                                                 error=error)
                 CALL force_env_get(force_env,potential_energy=numer_energy(k),error=error)
                 ! Reset cell
                 cell%hmat(ip,iq) = cell_local%hmat(ip,iq)
              END DO
              CALL init_cell(cell)
-             numer_stress(ip,iq) = (numer_energy(1) - numer_energy(2))/(2.0_dp*dx_w)
+             numer_stress(ip,iq) = 0.5_dp*(numer_energy(1) - numer_energy(2))/dx_w
+             IF (output_unit > 0) THEN
+                WRITE (UNIT=output_unit,FMT="(T7,A,F7.4,A,T27,A,F7.4,A,T49,A)")&
+                 "E("//ACHAR(119+ip)//ACHAR(119+iq)//" +",dx_w,")",&
+                 "E("//ACHAR(119+ip)//ACHAR(119+iq)//" -",dx_w,")",&
+                 "f(numerical)"
+                WRITE (UNIT=output_unit,FMT="(3(1X,F19.8))")&
+                 numer_energy(1:2),numer_stress(ip,iq)
+             END IF
           END DO
        END DO
 
@@ -604,8 +623,10 @@ CONTAINS
           shell_particles%els(i)%r = ref_pos_shell(i,:)
        END DO
        CALL force_env_set_cell(force_env,cell=cell,error=error)
-       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.,&
+       CALL force_env_calc_energy_force(force_env,&
+                                        calc_force=.FALSE.,&
                                         consistent_energies=.TRUE.,&
+                                        calc_stress_tensor=.FALSE.,&
                                         error=error)
 
        ! Computing pv_test
@@ -619,14 +640,14 @@ CONTAINS
              END DO
           END DO
        END DO
-       IF (globenv%run_type_id == debug_run) THEN
-          IF (output_unit > 0) THEN
-             WRITE (UNIT=output_unit,FMT="((T2,A))") "Numerical pv_virial"
-             WRITE (UNIT=output_unit,FMT="((T3,3F16.10))") (virial%pv_virial(i,1:3),i=1,3)
-          END IF
-       END IF
 
        IF (output_unit > 0) THEN
+          IF (globenv%run_type_id == debug_run) THEN
+             CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
+                                       i_val=ndigits,error=error)
+             CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,virial%pv_numer,&
+                                      error=error)
+          END IF
           WRITE (output_unit,'(/,A,/)') ' **************************** '//&
             'NUMERICAL STRESS END *****************************'
        END IF

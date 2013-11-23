@@ -47,6 +47,7 @@ MODULE cp2k_debug
   USE virial_types,                    ONLY: cp_virial,&
                                              virial_create,&
                                              virial_release,&
+                                             virial_set,&
                                              virial_type,&
                                              zero_virial
 #include "cp_common_uses.h"
@@ -54,20 +55,21 @@ MODULE cp2k_debug
   IMPLICIT NONE
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_debug'
-  REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 5.0_dp
+  REAL(KIND=dp), PRIVATE, PARAMETER :: maxerr = 5.0_dp
 
   PUBLIC :: cp2k_debug_energy_and_forces
 
 CONTAINS
 
   SUBROUTINE cp2k_debug_energy_and_forces(force_env, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_debug_energy_and_forces', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2*default_string_length)   :: message
+    CHARACTER(LEN=3*default_string_length)   :: message
     INTEGER                                  :: i, ip, iw, j, k, np, stat, &
                                                 stress_tensor
     LOGICAL :: check_failed, debug_forces, debug_stress_tensor, failure, &
@@ -75,7 +77,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dx, eps_no_error_check, &
                                                 std_value
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
-    REAL(KIND=dp), DIMENSION(3)              :: Err, my_maxerr
+    REAL(KIND=dp), DIMENSION(3)              :: err, my_maxerr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: analyt_forces, numer_forces
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -89,9 +91,14 @@ CONTAINS
                                                 virial_numerical
 
     failure = .FALSE.
-    NULLIFY(analyt_forces, numer_forces, subsys, particles)
-    root_section=>force_env%root_section
+
+    NULLIFY (analyt_forces, numer_forces, subsys, particles)
+    
+    root_section => force_env%root_section
+
     IF (.NOT.failure) THEN
+
+       CALL force_env_get(force_env,para_env=para_env,error=error)
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "DFT%QS%HARRIS",error=error)
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
@@ -118,40 +125,41 @@ CONTAINS
           ! To debug stress tensor the stress tensor calculation must be
           ! first enabled..
           CALL section_vals_val_get(force_env%force_env_section,"STRESS_TENSOR",&
-               i_val=stress_tensor,error=error)
+                                    i_val=stress_tensor,error=error)
           skip = .FALSE.
           SELECT CASE (stress_tensor)
           CASE (do_stress_analytical, do_stress_diagonal_anal)
              ! OK
           CASE (do_stress_numerical, do_stress_diagonal_numer)
              ! Nothing to check
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                  "Numerical Stress Tensor was requested in the FORCE_EVAL section. "//&
-                  "Nothing to debug!"//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
+             message = "Numerical stress tensor was requested in the FORCE_EVAL section. "//&
+                       "Nothing to debug!"
+             CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
              skip = .TRUE.
           CASE DEFAULT
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                  "Stress Tensor calculation was not enabled in the FORCE_EVAL section. "//&
-                  "Nothing to debug!"//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             message = "Stress tensor calculation was not enabled in the FORCE_EVAL section. "//&
+                       "Nothing to debug!"
+             CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
              skip = .TRUE.
           END SELECT
 
           IF (.NOT.skip) THEN
 
              ! Compute the analytical stress tensor
-             CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
+             CALL force_env_get(force_env,virial=virial,error=error)
+             CALL virial_set(virial,pv_numer=.FALSE.)
+             CALL force_env_calc_energy_force(force_env,&
+                                              calc_force=.TRUE.,&
+                                              calc_stress_tensor=.TRUE.,&
+                                              error=error)
 
              ! Retrieve the analytical virial
-             CALL force_env_get(force_env,virial=virial,error=error)
              CALL virial_create(virial_analytical,error=error)
              CALL zero_virial(virial_analytical)
              CALL cp_virial(virial,virial_analytical)
 
              ! Debug stress tensor (numerical vs analytical)
+             CALL virial_set(virial,pv_numer=.TRUE.)
              CALL force_env_calc_num_pressure(force_env,dx=dx,error=error)
 
              ! Retrieve the numerical virial
@@ -189,7 +197,7 @@ CPSourceFileRef,&
                                virial_analytical%pv_virial(i,k)*100.0_dp
                    END IF
                 END DO
-                IF (ANY(ABS(Err(1:3)) > MaxErr)) check_failed = .TRUE.
+                IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
              END DO
              CALL virial_release(virial_analytical,error=error)
              CALL virial_release(virial_numerical,error=error)
@@ -204,11 +212,14 @@ CPSourceFileRef,&
 
        IF (debug_forces) THEN
           ! Debug forces (numerical vs analytical)
-          CALL force_env_get(force_env,subsys=subsys,cell=cell,para_env=para_env,error=error)
+          CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
           particles => subsys%particles%els
           CALL write_qs_particle_coordinates(particles,subsys_section,"DEBUG",error)
           ! First evaluate energy and forces
-          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
+          CALL force_env_calc_energy_force(force_env,&
+                                           calc_force=.TRUE.,&
+                                           calc_stress_tensor=.FALSE.,&
+                                           error=error)
           ! Copy forces in array and start the numerical calculation
           IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
           np = subsys%particles%n_els
@@ -228,8 +239,10 @@ CPSourceFileRef,&
                 DO j=1,2
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
                    CALL write_qs_particle_coordinates(particles,subsys_section,"DEBUG",error)
-                   ! Compute forces
-                   CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                   ! Compute energy
+                   CALL force_env_calc_energy_force(force_env,&
+                                                    calc_force=.FALSE.,&
+                                                    calc_stress_tensor=.FALSE.,&
                                                     consistent_energies=(.NOT.harris_flag),&
                                                     error=error)
                    CALL force_env_get(force_env,potential_energy=numer_energy(j),error=error)
