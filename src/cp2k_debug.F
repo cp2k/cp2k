@@ -202,10 +202,14 @@ CONTAINS
              CALL virial_release(virial_analytical,error=error)
              CALL virial_release(virial_numerical,error=error)
              IF (check_failed) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "A mismatch between the analytical and the numerical "//&
-                                  "stress tensor has been detected. Check the implementation "//&
-                                  "of the stress tensor",para_env)
+                message = "A mismatch between the analytical and the numerical "//&
+                          "stress tensor has been detected. Check the implementation "//&
+                          "of the stress tensor"
+                IF (stop_on_mismatch) THEN
+                   CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                ELSE
+                   CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                END IF
              END IF
           END IF
        END IF
