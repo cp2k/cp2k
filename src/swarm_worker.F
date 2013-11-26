@@ -1,0 +1,138 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief performs global geometry optimization
+!> \par History
+!> \author Ole
+! *****************************************************************************
+MODULE swarm_worker
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE glbopt_worker,                   ONLY: glbopt_worker_execute,&
+                                             glbopt_worker_finalize,&
+                                             glbopt_worker_init,&
+                                             glbopt_worker_type
+  USE input_constants,                 ONLY: swarm_do_glbopt
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length
+  USE swarm_message,                   ONLY: swarm_message_add,&
+                                             swarm_message_get,&
+                                             swarm_message_haskey,&
+                                             swarm_message_type
+#include "cp_common_uses.h"
+
+ IMPLICIT NONE
+ PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_worker'
+
+ PUBLIC :: swarm_worker_init, swarm_worker_finalize
+ PUBLIC :: swarm_worker_execute
+ PUBLIC :: swarm_worker_type
+
+  TYPE swarm_worker_type
+   PRIVATE
+   INTEGER                                  :: id = -1
+   INTEGER                                  :: iw = -1
+   TYPE(cp_error_type)                      :: error
+   INTEGER                                  :: behavior = -1
+   TYPE(glbopt_worker_type), POINTER        :: glbopt => Null()
+   !possbily more behaviors...
+ END TYPE swarm_worker_type
+
+ CONTAINS
+
+
+
+
+! *****************************************************************************
+! *****************************************************************************
+   SUBROUTINE swarm_worker_init(worker, para_env, root_section,&
+                 input_path, worker_id, error)
+    TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    CHARACTER(LEN=*), INTENT(IN)             :: input_path
+    INTEGER, INTENT(in)                      :: worker_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    worker%error = error
+    worker%id = worker_id
+
+    ! getting an output unit for logging
+    logger => cp_error_get_logger(worker%error)
+    worker%iw = cp_print_key_unit_nr(logger,root_section,&
+          "SWARM%PRINT%WORKER_RUN_INFO",extension=".workerLog", error=worker%error)
+
+    CALL section_vals_val_get(root_section,"SWARM%BEHAVIOR", i_val=worker%behavior, error=error)
+
+    SELECT CASE(worker%behavior)
+      CASE(swarm_do_glbopt)
+         ALLOCATE(worker%glbopt)
+         CALL glbopt_worker_init(worker%glbopt, para_env, root_section,&
+                 input_path, worker_id, worker%iw, error)
+      CASE DEFAULT
+         STOP "swarm_worker_init: got unkown behavior"
+    END SELECT
+
+  END SUBROUTINE swarm_worker_init
+
+
+
+! *****************************************************************************
+! *****************************************************************************
+   SUBROUTINE swarm_worker_finalize(worker)
+    TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
+
+     SELECT CASE(worker%behavior)
+      CASE(swarm_do_glbopt)
+         CALL glbopt_worker_finalize(worker%glbopt)
+         DEALLOCATE(worker%glbopt)
+      CASE DEFAULT
+         STOP "swarm_worker_finalize: got unkown behavior"
+    END SELECT
+
+   END SUBROUTINE swarm_worker_finalize
+
+
+! *****************************************************************************
+! *****************************************************************************
+   SUBROUTINE swarm_worker_execute(worker, cmd, report, should_stop)
+    TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
+    TYPE(swarm_message_type), INTENT(IN)     :: cmd
+    TYPE(swarm_message_type), INTENT(OUT)    :: report
+    LOGICAL, INTENT(INOUT)                   :: should_stop
+
+    CHARACTER(LEN=default_string_length)     :: command
+
+     CALL swarm_message_get(cmd, "command", command)
+     CALL swarm_message_add(report, "worker_id", worker%id)
+
+     IF(TRIM(command) == "shutdown") THEN
+        IF(worker%iw>0) WRITE(worker%iw,*) "SWARM| Received shutdown command, quitting."
+        should_stop = .TRUE.
+     ELSE IF(TRIM(command) == "wait") THEN  !only needed for serial driver
+        CALL swarm_message_add(report, "status", "wait_done")
+     ELSE
+        SELECT CASE(worker%behavior)
+           CASE(swarm_do_glbopt)
+             CALL glbopt_worker_execute(worker%glbopt, cmd, report)
+           CASE DEFAULT
+              STOP "swarm_worker_execute: got unkown behavior"
+        END SELECT
+     ENDIF
+
+     IF(.NOT. swarm_message_haskey(report, "status")) &
+        CALL swarm_message_add(report, "status", "ok")
+
+   END SUBROUTINE swarm_worker_execute
+
+
+END MODULE swarm_worker
+

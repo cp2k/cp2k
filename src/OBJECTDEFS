@@ -261,6 +261,14 @@ OBJECTS_GENERIC =\
  gauss_colloc.o\
  gaussian_gridlevels.o\
  geo_opt.o\
+ glbopt_callback.o\
+ glbopt_history.o\
+ glbopt_input.o\
+ glbopt_master.o\
+ glbopt_mincrawl.o\
+ glbopt_minhop.o\
+ glbopt_types.o\
+ glbopt_worker.o\
  gle_system_dynamics.o\
  gle_system_types.o\
  global_types.o\
@@ -717,6 +725,12 @@ OBJECTS_GENERIC =\
  structure_factors.o\
  structure_factor_types.o\
  subcell_types.o\
+ swarm_input.o\
+ swarm_master.o\
+ swarm_message.o\
+ swarm_mpi.o\
+ swarm.o\
+ swarm_worker.o\
  tamc_run.o\
  taper_types.o\
  task_list_methods.o\

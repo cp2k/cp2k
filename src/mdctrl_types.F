@@ -10,13 +10,14 @@
 ! *****************************************************************************
 MODULE mdctrl_types
 
-
+  USE glbopt_types,                    ONLY: glbopt_mdctrl_data_type
 #include "cp_common_uses.h"
+
  IMPLICIT NONE
  PRIVATE
 
  TYPE mdctrl_type
-    ! Nothing here, yet.
+    TYPE(glbopt_mdctrl_data_type), POINTER                 :: glbopt => Null()
     !... and possible more in the future
  END TYPE mdctrl_type
 

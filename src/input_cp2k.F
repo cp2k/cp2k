@@ -62,6 +62,7 @@ MODULE input_cp2k
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
+  USE swarm_input,                     ONLY: create_swarm_section
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -179,6 +180,10 @@ CONTAINS
        CALL section_release(section,error=error)
 
        CALL create_optimize_basis_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
+       CALL create_swarm_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
@@ -398,7 +403,7 @@ CONTAINS
          variants=(/"PROGRAM"/),&
          description="Which program should be run",&
          usage="PROGRAM_NAME <STRING>",&
-         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT","OPTIMIZE_BASIS", "TMC","MC_ANALYSIS"),&
+         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT","OPTIMIZE_BASIS", "TMC","MC_ANALYSIS","SWARM"),&
          enum_desc=s2a("Runs single atom calculations",&
                        "Runs N independent jobs in a single run",&
                        "Do some benchmarking and testing",&
@@ -407,8 +412,10 @@ CONTAINS
                        "A tool to create a MOLOPT or ADMM basis for a given set"//&
                        " of training structures",&
                        "Runs Tree Monte Carlo algorithm using additional input file(s)", &
-                       "Runs (Tree) Monte Carlo trajectory file analysis"),&
-         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, do_opt_basis, do_tree_mc, do_tree_mc_ana/),&
+                       "Runs (Tree) Monte Carlo trajectory file analysis",&
+                       "Runs swarm based calculation"),&
+         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input,&
+                       do_opt_basis, do_tree_mc, do_tree_mc_ana, do_swarm/),&
          default_i_val=do_cp2k, supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

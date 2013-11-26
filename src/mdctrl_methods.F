@@ -13,8 +13,10 @@
 !> \author Ole
 ! *****************************************************************************
 MODULE mdctrl_methods
+  USE glbopt_callback,                 ONLY: glbopt_md_callback
   USE md_environment_types,            ONLY: md_environment_type
   USE mdctrl_types,                    ONLY: mdctrl_type
+  USE message_passing,                 ONLY: mp_abort
 #include "cp_common_uses.h"
 
  PUBLIC :: mdctrl_callback
@@ -45,7 +47,14 @@ CONTAINS
     CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mdctrl), cp_failure_level,routineP,error,failure)
 
-    ! Nothing todo, yet.
+    IF(ASSOCIATED(mdctrl%glbopt)) THEN
+      CALL glbopt_md_callback(mdctrl%glbopt, md_env, should_stop, error)
+
+    !ELSE IF(ASSOCIATED(mdctrl%your_own_hook)) THEN ...
+
+    ELSE
+      CALL mp_abort("mdctrl_callback: No hook found.")
+    ENDIF
 
   END SUBROUTINE mdctrl_callback
 

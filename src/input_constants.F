@@ -31,7 +31,8 @@ MODULE input_constants
                                               do_optimize_input=5,&
                                               do_opt_basis=6,&
                                               do_tree_mc=7,&
-                                              do_tree_mc_ana=8
+                                              do_tree_mc_ana=8,&
+                                              do_swarm=9
 
   INTEGER, PARAMETER, PUBLIC               :: opt_force_matching=1
 
@@ -977,7 +978,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
                                               callgraph_master=1,&
                                               callgraph_all=2 
-                                            
+
   ! Impose cell symmetry
   INTEGER, PARAMETER, PUBLIC               :: cell_sym_none=0,&
                                               cell_sym_triclinic=1,&
@@ -993,5 +994,12 @@ MODULE input_constants
   ! kg coloring parameters
   INTEGER, PARAMETER, PUBLIC               :: kg_color_dsatur=0,&
                                               kg_color_greedy=1
+
+  ! swarm parameters
+  INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt=1
+
+! global opt parameters
+  INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop  =1,&
+                                              glbopt_do_mincrawl=2
 
 END MODULE input_constants

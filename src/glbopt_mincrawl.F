@@ -1,0 +1,406 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief performs global geometry optimization
+!> \par History
+!> \author Ole
+! *****************************************************************************
+MODULE glbopt_mincrawl
+  USE glbopt_history,                  ONLY: history_add,&
+                                             history_finalize,&
+                                             history_fingerprint,&
+                                             history_fingerprint_type,&
+                                             history_init,&
+                                             history_lookup,&
+                                             history_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE parallel_rng_types,              ONLY: create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             rng_stream_type
+  USE physcon,                         ONLY: kelvin
+  USE swarm_message,                   ONLY: swarm_message_add,&
+                                             swarm_message_get,&
+                                             swarm_message_type
+#include "cp_common_uses.h"
+
+ IMPLICIT NONE
+ PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_mincrawl'
+
+
+ PUBLIC :: mincrawl_type
+ PUBLIC :: mincrawl_init, mincrawl_finalize
+ PUBLIC :: mincrawl_steer
+
+ TYPE minima_type
+   INTEGER                                             :: id = -1
+   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pos
+   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: escape_hist
+   REAL,          DIMENSION(:), ALLOCATABLE            :: tempdist
+   REAL(KIND=dp)                                       :: Epot = -1.0
+   TYPE(history_fingerprint_type)                      :: fp
+   LOGICAL                                             :: disabled = .FALSE.
+   INTEGER                                             :: n_active = 0
+   INTEGER                                             :: n_sampled = 0
+ END TYPE minima_type
+
+ TYPE minima_p_type
+   TYPE(minima_type), POINTER                          :: p => Null()
+ END TYPE minima_p_type
+
+ TYPE worker_state_type
+   TYPE(minima_type), POINTER                          :: start_minima => Null()
+   INTEGER                                             :: tempstep = 0
+   INTEGER                                             :: iframe = 1
+ END TYPE worker_state_type
+
+ TYPE mincrawl_type
+   PRIVATE
+   TYPE(history_type)                                  :: history
+   TYPE(worker_state_type), DIMENSION(:), ALLOCATABLE  :: workers
+   TYPE(minima_p_type), DIMENSION(:), ALLOCATABLE      :: minimas
+
+   REAL(KIND=dp)                                       :: tempstep_base = 0
+   INTEGER                                             :: tempstep_max = 0
+   REAL(KIND=dp)                                       :: tempdist_init_width = 0
+   REAL(KIND=dp)                                       :: tempdist_update_width = 0
+   REAL(KIND=dp)                                       :: tempdist_update_height = 0
+   INTEGER                                             :: esc_hist_len = 0
+
+   INTEGER                                             :: tempstep_init = 0
+   REAL, DIMENSION(:), ALLOCATABLE                     :: tempdist_init
+
+   INTEGER                                             :: n_minima = 0
+   INTEGER                                             :: n_workers = 0
+   INTEGER                                             :: worker_per_min = 0
+   INTEGER                                             :: iw = 0
+
+   TYPE(rng_stream_type),POINTER                       :: rng_stream => Null()
+   TYPE(cp_error_type)                                 :: error
+ END TYPE mincrawl_type
+
+ CONTAINS
+
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE mincrawl_init(this, glbopt_section, n_workers, iw, error)
+    TYPE(mincrawl_type)                      :: this
+    TYPE(section_vals_type), POINTER         :: glbopt_section
+    INTEGER, INTENT(IN)                      :: n_workers, iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i
+    REAL(kind=dp)                            :: temp_in_kelvin
+    TYPE(section_vals_type), POINTER         :: mincrawl_section
+
+! read input
+
+    mincrawl_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_CRAWLING", error=error)
+    CALL section_vals_val_get(mincrawl_section,"TEMPSTEP_BASE",         r_val=this%tempstep_base,error=error)
+    CALL section_vals_val_get(mincrawl_section,"TEMPSTEP_MAX",          i_val=this%tempstep_max,error=error)
+    CALL section_vals_val_get(mincrawl_section,"TEMPDIST_INIT_WIDTH",   r_val=this%tempdist_init_width,error=error)
+    CALL section_vals_val_get(mincrawl_section,"TEMPDIST_UPDATE_WIDTH", r_val=this%tempdist_update_width,error=error)
+    CALL section_vals_val_get(mincrawl_section,"TEMPDIST_UPDATE_HEIGHT",r_val=this%tempdist_update_height,error=error)
+    CALL section_vals_val_get(mincrawl_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin,error=error)
+    this%tempstep_init = temp2tempstep(this, temp_in_kelvin / kelvin)
+    CALL section_vals_val_get(mincrawl_section,"WORKER_PER_MINIMA", i_val=this%worker_per_min, error=error)
+    CALL section_vals_val_get(mincrawl_section,"ESCAPE_HISTORY_LENGTH", i_val=this%esc_hist_len, error=error)
+
+    CALL history_init(this%history, iw=iw)
+
+    ALLOCATE(this%minimas(1000)) !will be grown if needed
+
+    ALLOCATE(this%workers(n_workers))
+    this%n_workers = n_workers
+    this%iw = iw
+    this%error = error
+
+    ! fermi-like stepfunction
+    ALLOCATE(this%tempdist_init(this%tempstep_max))
+    this%tempdist_init = 0.0
+    DO i=1, this%tempstep_max
+        this%tempdist_init(i) = 1.0 / (1.0 + EXP((this%tempstep_init - i)/this%tempdist_init_width))
+    ENDDO
+
+    CALL create_rng_stream(this%rng_stream, name="mincrawl", error=this%error)
+ END SUBROUTINE mincrawl_init
+
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE mincrawl_steer(this, report, cmd)
+    TYPE(mincrawl_type)                      :: this
+    TYPE(swarm_message_type)                 :: report, cmd
+
+    CHARACTER(len=default_string_length)     :: status
+    INTEGER                                  :: wid
+    TYPE(minima_type), POINTER               :: best_minima
+
+    CALL swarm_message_get(report, "status", status)
+    CALL swarm_message_get(report, "worker_id", wid)
+
+    IF(TRIM(status) == "initial_hello") THEN
+       this%workers(wid)%tempstep = this%tempstep_init
+       CALL swarm_message_add(cmd, "command", "md_and_gopt")
+       CALL swarm_message_add(cmd, "iframe", 1)
+       CALL swarm_message_add(cmd, "temperature", tempstep2temp(this,this%workers(wid)%tempstep))
+       RETURN
+    ENDIF
+
+    IF(TRIM(status) == "ok") &
+      CALL mincrawl_register_minima(this, report)
+
+    !CALL print_tempdist(best_minima)
+
+    best_minima => choose_promising_minima(this)
+
+    IF(.NOT. ASSOCIATED(best_minima)) THEN ! no suitable minima found
+      CALL swarm_message_add(cmd, "command", "wait")
+      !WRITE(this%iw,*) " MINCRAWL| Waiting until new minima become available"
+      RETURN
+    ENDIF
+
+    best_minima%n_active = best_minima%n_active + 1
+    best_minima%n_sampled = best_minima%n_sampled + 1
+    this%workers(wid)%start_minima => best_minima
+    this%workers(wid)%tempstep = choose_tempstep(this, best_minima)
+
+    CALL swarm_message_add(cmd, "command", "md_and_gopt")
+    CALL swarm_message_add(cmd, "iframe",  this%workers(wid)%iframe)
+    CALL swarm_message_add(cmd, "temperature", tempstep2temp(this, this%workers(wid)%tempstep))
+    CALL swarm_message_add(cmd, "positions",  best_minima%pos)
+
+    IF(this%iw > 0) THEN
+      WRITE(this%iw,'(X,A,T71,I10)') &
+       "MINCRAWL| Total number of found minima", this%n_minima
+      WRITE(this%iw,'(X,A,T71,I10)') &
+       "MINCRAWL| Sampling minima with id",best_minima%id
+      WRITE(this%iw,'(X,A,I10,A,A,T71,F10.3)')&
+       "MINCRAWL| Temperature  (step ", this%workers(wid)%tempstep," ) ",&
+       "[Kelvin]", kelvin * tempstep2temp(this, this%workers(wid)%tempstep)
+    ENDIF
+
+ END SUBROUTINE mincrawl_steer
+
+! *****************************************************************************
+! *****************************************************************************
+ FUNCTION choose_promising_minima(this) RESULT(minima)
+    TYPE(mincrawl_type)                      :: this
+    TYPE(minima_type), POINTER               :: minima
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: score, score_best
+
+    score_best = HUGE(1.0)
+    NULLIFY(minima)
+
+    DO i=1, this%n_minima
+       IF(this%minimas(i)%p%disabled) CYCLE
+       IF(this%minimas(i)%p%n_active > this%worker_per_min) CYCLE
+       score = minima_score(this%minimas(i)%p)
+!       WRITE (*,*) "Minima: ", i, " active: ",this%minimas(i)%active, " E_expect: ", E_expect
+       IF(score < score_best) THEN
+          score_best = score
+          minima => this%minimas(i)%p
+       ENDIF
+    END DO
+ END FUNCTION choose_promising_minima
+
+! *****************************************************************************
+! *****************************************************************************
+ FUNCTION minima_score(minima) RESULT(res)
+    TYPE(minima_type), POINTER               :: minima
+    REAL(KIND=dp)                            :: res
+
+    res = SUM(minima%escape_hist) / SIZE(minima%escape_hist)
+ END FUNCTION minima_score
+
+! *****************************************************************************
+! *****************************************************************************
+ FUNCTION choose_tempstep(this, minima) RESULT(step)
+    TYPE(mincrawl_type)                      :: this
+    TYPE(minima_type), POINTER               :: minima
+    INTEGER                                  :: step
+
+    REAL(KIND=dp)                            :: a, r
+
+   DO
+      r = next_random_number(this%rng_stream, error=this%error)
+      step = r*SIZE(minima%tempdist) + 1
+      a = 1.0 -  2.0*ABS(minima%tempdist(step)-0.5)
+      r = next_random_number(this%rng_stream, error=this%error)
+      IF(r < a) EXIT
+   END DO
+
+ END FUNCTION choose_tempstep
+
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE print_tempdist(minima)
+    TYPE(minima_type), POINTER               :: minima
+
+    INTEGER                                  :: i
+
+!WRITE (*,*) "tempdist: ", SUM(minima%tempdist, DIM=1)
+
+   DO i=1, SIZE(minima%tempdist)
+      WRITE (*,*) "tempstep: ",i,  minima%tempdist(i)
+   ENDDO
+ END SUBROUTINE print_tempdist
+
+! *****************************************************************************
+! *****************************************************************************
+ FUNCTION tempstep2temp(this, step) RESULT(temp_in_au)
+    TYPE(mincrawl_type)                      :: this
+    INTEGER                                  :: step
+    REAL(KIND=dp)                            :: temp_in_au
+
+   temp_in_au = ( this%tempstep_base**step )/ kelvin
+ END FUNCTION tempstep2temp
+
+
+! *****************************************************************************
+! *****************************************************************************
+ FUNCTION temp2tempstep(this, temp_in_au) RESULT(step)
+    TYPE(mincrawl_type)                      :: this
+    REAL(KIND=dp)                            :: temp_in_au
+    INTEGER                                  :: step
+
+   step = LOG(temp_in_au*kelvin)/LOG(this%tempstep_base)
+   !WRITE(*,*) "temp: ", temp_in_au*kelvin, this%tempstep_base
+   !WRITE(*,*) "step: ", step
+   IF(step > this%tempstep_max) STOP "temp2tempstep: step > tempstep_max"
+ END FUNCTION temp2tempstep
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE update_tempdist(this, tempdist, center, direction)
+    TYPE(mincrawl_type)                      :: this
+    REAL, DIMENSION(:), INTENT(INOUT)        :: tempdist
+    INTEGER                                  :: center, direction
+
+    INTEGER                                  :: i
+
+   DO i=1, SIZE(tempdist)
+     tempdist(i) = tempdist(i) + this%tempdist_update_height &
+          * REAL(direction) * EXP(-((center-i)/this%tempdist_update_width)**2)
+     tempdist(i) = MAX(0.0, MIN(1.0, tempdist(i)))
+   ENDDO
+ END SUBROUTINE update_tempdist
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE mincrawl_register_minima(this, report)
+    TYPE(mincrawl_type)                      :: this
+    TYPE(swarm_message_type)                 :: report
+
+    INTEGER                                  :: new_mid, tempstep, wid
+    LOGICAL                                  :: minima_known
+    REAL(KIND=dp)                            :: report_Epot
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: report_positions
+    TYPE(history_fingerprint_type)           :: report_fp
+    TYPE(minima_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: minimas_tmp
+    TYPE(minima_type), POINTER               :: new_minima, start_minima
+
+    NULLIFY(start_minima, new_minima)
+
+    CALL swarm_message_get(report, "worker_id", wid)
+    CALL swarm_message_get(report, "Epot", report_Epot)
+    CALL swarm_message_get(report, "positions", report_positions)
+    CALL swarm_message_get(report, "iframe", this%workers(wid)%iframe)
+
+    start_minima => this%workers(wid)%start_minima
+    tempstep = this%workers(wid)%tempstep
+
+    report_fp = history_fingerprint(this%history, report_Epot, report_positions)
+    CALL history_lookup(this%history, report_fp, minima_known)
+
+    IF(ASSOCIATED(start_minima)) THEN
+      start_minima%n_active = start_minima%n_active - 1
+      IF(start_minima%n_active < 0) STOP "negative n_active"
+
+      ! update tempdist and escape_hist
+      IF(minima_known) THEN
+         CALL update_tempdist(this, start_minima%tempdist, tempstep, -1)
+      ELSE
+         CALL update_tempdist(this, start_minima%tempdist, tempstep, +1)
+         start_minima%escape_hist = EOSHIFT(start_minima%escape_hist, 1)
+         start_minima%escape_hist(1) = report_Epot
+      ENDIF
+
+    ENDIF
+
+    IF(.NOT. minima_known) THEN
+       this%n_minima = this%n_minima + 1
+       IF(this%n_minima > SIZE(this%minimas)) THEN
+          minimas_tmp = this%minimas
+          DEALLOCATE(this%minimas)
+          ALLOCATE(this%minimas(SIZE(minimas_tmp) + 1000))
+          this%minimas(:SIZE(minimas_tmp)) = minimas_tmp
+       ENDIF
+
+       new_mid = this%n_minima
+       ALLOCATE(this%minimas(new_mid)%p)
+       new_minima => this%minimas(new_mid)%p
+       new_minima%id = new_mid
+       ALLOCATE(new_minima%escape_hist(this%esc_hist_len))
+       ALLOCATE(new_minima%tempdist(this%tempstep_max))
+
+       new_minima%escape_hist(:) = report_Epot !init with Epot
+
+       IF(ASSOCIATED(start_minima)) THEN
+          new_minima%tempdist = start_minima%tempdist ! inherit tempdist
+       ELSE
+          new_minima%tempdist = this%tempdist_init
+       ENDIF
+
+       new_minima%Epot = report_Epot
+       new_minima%fp   = report_fp
+       new_minima%pos  = report_positions
+
+       IF(ASSOCIATED(start_minima))THEN
+         IF(report_Epot < start_minima%Epot) THEN
+           start_minima%disabled = .TRUE.
+           IF(this%iw > 0) WRITE(this%iw,'(X,A,T71,I10)') &
+             "MINCRAWL| Disabling minima with id", start_minima%id
+         ENDIF
+       ENDIF
+
+       IF(this%iw > 0) WRITE(this%iw,'(X,A,T71,I10)') &
+          "MINCRAWL| Adding new minima with id", new_mid
+
+       CALL history_add(this%history, report_fp, id=new_mid)
+     ENDIF
+ END SUBROUTINE mincrawl_register_minima
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE mincrawl_finalize(this)
+    TYPE(mincrawl_type)                      :: this
+
+    INTEGER                                  :: i
+
+    DO i=1, this%n_minima
+   !   WRITE (*,*) "Minima: ", i, " n_sampled: ",this%minimas(i)%n_sampled
+       DEALLOCATE(this%minimas(i)%p)
+    ENDDO
+
+    CALL history_finalize(this%history)
+    CALL delete_rng_stream(this%rng_stream, error=this%error)
+ END SUBROUTINE mincrawl_finalize
+
+
+END MODULE glbopt_mincrawl
+
