@@ -52,18 +52,18 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, error)
+  RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, rm_restart_info, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: eval_opt_geo
+    LOGICAL, INTENT(IN), OPTIONAL            :: eval_opt_geo, rm_restart_info
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat, step_start_val
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_rm_restart_info
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -93,8 +93,12 @@ CONTAINS
          force_env_section, geo_section, x0, error)
     CALL cp_rm_iter_level(logger%iter_info,"GEO_OPT",error=error)
 
-    ! Reset counter for next iteration
-    CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0,error=error)
+    ! Reset counter for next iteration, unless rm_restart_info==.FALSE.
+    my_rm_restart_info = .TRUE.
+    IF(PRESENT(rm_restart_info)) my_rm_restart_info = rm_restart_info
+    IF(my_rm_restart_info) &
+       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0,error=error)
+
     DEALLOCATE (x0,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL gopt_f_release(gopt_env, error=error)
