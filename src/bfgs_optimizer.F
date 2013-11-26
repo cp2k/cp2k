@@ -192,13 +192,20 @@ CONTAINS
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp,error=error)
        CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error=error)
-       DO its=1,SIZE(eigval)
-         IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
-       END DO
-       CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
-       CALL cp_fm_column_scale(eigvec_mat,eigval)
-       CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info, error=error)
+       ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
+       IF(info/=0) THEN
+          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
+          IF(output_unit>0) WRITE(output_unit,*) &
+             "BFGS: Matrix diagonalization failed, using unity as model Hessian."
+       ELSE
+          DO its=1,SIZE(eigval)
+            IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
+          END DO
+          CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
+          CALL cp_fm_column_scale(eigvec_mat,eigval)
+          CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
+       ENDIF
     ELSE
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
     END IF
