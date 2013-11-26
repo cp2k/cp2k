@@ -389,6 +389,8 @@ OBJECTS_GENERIC =\
  md_run.o\
  md_util.o\
  md_vel_utils.o\
+ mdctrl_methods.o\
+ mdctrl_types.o\
  memory_utilities.o\
  message_passing.o\
  metadynamics.o\

@@ -71,6 +71,8 @@ MODULE md_run
                                              comvel_control,&
                                              setup_velocities,&
                                              temperature_control
+  USE mdctrl_methods,                  ONLY: mdctrl_callback
+  USE mdctrl_types,                    ONLY: mdctrl_type
   USE metadynamics,                    ONLY: metadyn_forces,&
                                              metadyn_write_colvar
   USE metadynamics_types,              ONLY: set_meta_env
@@ -116,7 +118,7 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_ekin, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_ekin, mdctrl, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -124,6 +126,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: averages
     LOGICAL, INTENT(IN), OPTIONAL            :: rm_restart_info
     TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
+    TYPE(mdctrl_type), OPTIONAL, POINTER     :: mdctrl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
@@ -147,9 +150,9 @@ CONTAINS
     CALL set_md_env(md_env, averages=averages, error=error)
     IF(PRESENT(hmc_ekin))THEN
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, &
-            error, hmc_ekin=hmc_ekin)
+            hmc_ekin=hmc_ekin, error=error)
     ELSE
-       CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
+       CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl, error=error)
     ENDIF
     CALL md_env_release(md_env, error=error)
 
@@ -165,14 +168,15 @@ CONTAINS
 !>      Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error, hmc_ekin)
+  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_ekin, mdctrl, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
+    TYPE(mdctrl_type), OPTIONAL, POINTER     :: mdctrl
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
@@ -510,7 +514,7 @@ CONTAINS
 
        ! Free Energy calculation
        CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)
-       
+
        IF (should_stop) EXIT
 
        ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit
@@ -523,6 +527,11 @@ CONTAINS
        ! to compute energy and forces is not SCF based) activating the print_key
        ! MOTION%MD%PRINT%FORCE_LAST.
        CALL external_control(should_stop,"MD",globenv=globenv,error=error)
+
+       ! call external hook e.g. from global optimization
+       IF (PRESENT(mdctrl)) &
+          CALL mdctrl_callback(mdctrl, md_env, should_stop, error)
+
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
           CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)
