@@ -190,7 +190,10 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_mm_multrec_lib_init(error)
+
+    !$OMP MASTER
     marketing_flops = 0
+    !$OMP END MASTER
 
     ! Each thread has its own working-matrix and its own mempool
     CALL dbcsr_memtype_setup(memtype_product_wm, has_pool=.TRUE., error=error)
