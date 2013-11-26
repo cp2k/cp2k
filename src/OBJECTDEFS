@@ -22,17 +22,17 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_spin_orbit.o\
  ai_verfc.o\
+ almo_scf_aux2_methods.o\
+ almo_scf_aux2_types.o\
+ almo_scf_aux_types.o\
+ almo_scf_methods.o\
+ almo_scf.o\
+ almo_scf_special.o\
+ almo_scf_types.o\
  al_system_dynamics.o\
  al_system_init.o\
  al_system_mapping.o\
  al_system_types.o\
- almo_scf.o\
- almo_scf_aux_types.o\
- almo_scf_aux2_types.o\
- almo_scf_aux2_methods.o\
- almo_scf_methods.o\
- almo_scf_special.o\
- almo_scf_types.o\
  atom_basis.o\
  atom_electronic_structure.o\
  atom_energy.o\
@@ -383,14 +383,14 @@ OBJECTS_GENERIC =\
  mc_run.o\
  mc_types.o\
  md_conserved_quantities.o\
+ mdctrl_methods.o\
+ mdctrl_types.o\
  md_energies.o\
  md_ener_types.o\
  md_environment_types.o\
  md_run.o\
  md_util.o\
  md_vel_utils.o\
- mdctrl_methods.o\
- mdctrl_types.o\
  memory_utilities.o\
  message_passing.o\
  metadynamics.o\
@@ -419,8 +419,8 @@ OBJECTS_GENERIC =\
  mp2_gpw.o\
  mp2_laplace.o\
  mp2.o\
- mp2_ri_gpw.o\
  mp2_optimize_ri_basis.o\
+ mp2_ri_gpw.o\
  mp2_ri_libint.o\
  mp2_setup.o\
  mp2_types.o\
@@ -569,7 +569,7 @@ OBJECTS_GENERIC =\
  qs_linres_nmr_shift.o\
  qs_linres_nmr_utils.o\
  qs_linres_op.o\
-qs_linres_polar_utils.o\
+ qs_linres_polar_utils.o\
  qs_linres_types.o\
  qs_localization_methods.o\
  qs_local_rho_types.o\
@@ -612,15 +612,15 @@ qs_linres_polar_utils.o\
  qs_scf_diagonalization.o\
  qs_scf_initialization.o\
  qs_scf_lanczos.o\
+ qs_scf_loop_utils.o\
  qs_scf_methods.o\
  qs_scf.o\
+ qs_scf_output.o\
  qs_scf_post_dftb.o\
  qs_scf_post_gpw.o\
- qs_scf_post_se.o\
  qs_scf_post_scptb.o\
+ qs_scf_post_se.o\
  qs_scf_types.o\
- qs_scf_loop_utils.o\
- qs_scf_output.o\
  qs_spin_orbit.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\
