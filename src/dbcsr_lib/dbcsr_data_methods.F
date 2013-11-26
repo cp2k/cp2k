@@ -251,10 +251,10 @@ CONTAINS
 
     IF(.NOT. ASSOCIATED(area%d)) THEN
        ALLOCATE(area%d)
-       !$OMP ATOMIC
+       !$OMP CRITITCAL (crit_area_id)
        id = id + 1
-       !$OMP FLUSH (id)
        area%d%id = id
+       !$OMP END CRITITCAL (crit_area_id)
        area%d%refcount = 1
        area%d%memory_type = my_memory_type
        area%d%data_type = data_type
