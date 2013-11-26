@@ -183,7 +183,7 @@ MODULE timings_report
 
           j = indices(i)
 
-          IF (max_walltime(i) > mintime) THEN
+          IF (max_walltime(i) >= mintime) THEN
              r_stat => list_get(timer_env%routine_stats, j)
              ! average stack depth
              asd = REAL(r_stat%stackdepth_accu, KIND=dp)/ &
