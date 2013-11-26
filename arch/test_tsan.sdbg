@@ -1,0 +1,19 @@
+#
+# gfortran arch file, currently for testing tsan http://gcc.gnu.org/bugzilla/show_bug.cgi?id=59286
+#
+# needs tsan instrumented lib gomp (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=55561#c15)
+#
+CC       = cc
+CPP      = 
+FC       = gfortran
+LD       = gfortran
+
+AR       = ar -r
+
+CPPFLAGS = 
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT 
+FCFLAGS  = -gdwarf-3 -fPIE -pie -fsanitize=thread -fno-omit-frame-pointer  -fopenmp -O0 -march=native -ffast-math -ffree-form $(DFLAGS) 
+LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/sanitize/install/lib/ 
+LIBS     = -llapack -lblas -lderiv -lint -lstdc++
+
+OBJECTS_ARCHITECTURE = machine_gfortran.o
