@@ -61,7 +61,8 @@ MODULE bibliography
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
-             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996 
+             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996, &
+             Goedecker2004
 
 CONTAINS
 
@@ -2483,6 +2484,21 @@ CONTAINS
          "ER"),&
          DOI="10.1063/1.463137")
 
+    CALL add_reference(key=Goedecker2004, ISI_record=s2a(&
+         "PT J",&
+         "AU Goedecker, S",&
+         "AF Goedecker, Stefan",&
+         "TI Minima hopping: An efficient search method for the global minimum",&
+         "   of the potential energy surface of complex molecular systems",&
+         "SO Journal of Chemical Physics",&
+         "PY 2004",&
+         "VL 120",&
+         "IS 21",&
+         "BP 9911",&
+         "EP 9917",&
+         "DI 10.1063/1.1724816",&
+         "ER"),&
+         DOI="10.1063/1.1724816")
 
   END SUBROUTINE add_all_references
 

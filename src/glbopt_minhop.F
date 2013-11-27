@@ -9,6 +9,8 @@
 !> \author Ole
 ! *****************************************************************************
 MODULE glbopt_minhop
+  USE bibliography,                    ONLY: Goedecker2004,&
+                                             cite_reference
   USE glbopt_history,                  ONLY: history_add,&
                                              history_finalize,&
                                              history_fingerprint,&
@@ -100,8 +102,9 @@ MODULE glbopt_minhop
     TYPE(section_vals_type), POINTER         :: history_section, &
                                                 minhop_section
 
-! read input
+    CALL cite_reference(Goedecker2004)
 
+    ! read input
     minhop_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_HOPPING", error=error)
     CALL section_vals_val_get(minhop_section,"BETA_1",  r_val=this%beta1,error=error)
     CALL section_vals_val_get(minhop_section,"BETA_2",  r_val=this%beta2,error=error)
