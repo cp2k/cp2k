@@ -101,7 +101,8 @@ MODULE glbopt_mincrawl
 
     INTEGER                                  :: i
     REAL(kind=dp)                            :: temp_in_kelvin
-    TYPE(section_vals_type), POINTER         :: mincrawl_section
+    TYPE(section_vals_type), POINTER         :: history_section, &
+                                                mincrawl_section
 
 ! read input
 
@@ -116,7 +117,8 @@ MODULE glbopt_mincrawl
     CALL section_vals_val_get(mincrawl_section,"WORKER_PER_MINIMA", i_val=this%worker_per_min, error=error)
     CALL section_vals_val_get(mincrawl_section,"ESCAPE_HISTORY_LENGTH", i_val=this%esc_hist_len, error=error)
 
-    CALL history_init(this%history, iw=iw)
+    history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY", error=error)
+    CALL history_init(this%history, history_section, iw=iw, error=error)
 
     ALLOCATE(this%minimas(1000)) !will be grown if needed
 

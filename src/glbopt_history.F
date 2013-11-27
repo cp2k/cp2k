@@ -9,7 +9,10 @@
 !> \author Ole
 ! *****************************************************************************
 MODULE glbopt_history
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
 
  IMPLICIT NONE
  PRIVATE
@@ -33,9 +36,8 @@ MODULE glbopt_history
     TYPE(history_entry_type),DIMENSION(:), POINTER :: entries => Null()
     INTEGER                              :: length = 0
     INTEGER                              :: iw = -1
-    !.. TODO make config params
-    REAL(KIND=dp)                        :: E_precision =  1.0e-5
-    REAL(KIND=dp)                        :: FP_precision =  1.0e-2
+    REAL(KIND=dp)                        :: E_precision =  0.0
+    REAL(KIND=dp)                        :: FP_precision =  0.0
   END TYPE history_type
 
 
@@ -53,13 +55,25 @@ MODULE glbopt_history
 
 ! *****************************************************************************
 ! *****************************************************************************
- SUBROUTINE history_init(history, iw)
+ SUBROUTINE history_init(history, history_section, iw, error)
     TYPE(history_type), INTENT(INOUT)        :: history
+    TYPE(section_vals_type), POINTER         :: history_section
     INTEGER                                  :: iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     ALLOCATE(history%entries(history_grow_unit))
     history%iw = iw
+    CALL section_vals_val_get(history_section, "ENERGY_PRECISION",&
+                                  r_val=history%E_precision, error=error)
+    CALL section_vals_val_get(history_section, "FINGERPRINT_PRECISION",&
+                                  r_val=history%FP_precision,error=error)
 
+    IF(iw>0) THEN
+      WRITE (iw,'(A,T66,E15.3)')&
+             " GLBOPT| History energy precision", history%E_precision
+      WRITE (iw,'(A,T66,E15.3)')&
+             " GLBOPT| History fingerprint precision", history%FP_precision
+    END IF
  END SUBROUTINE history_init
 
 
@@ -93,6 +107,7 @@ MODULE glbopt_history
 ! *****************************************************************************
  SUBROUTINE history_finalize(history)
     TYPE(history_type)                       :: history
+
     INTEGER                                  :: i
 
     DO i=1, SIZE(history%entries)

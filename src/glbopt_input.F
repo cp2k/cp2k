@@ -98,12 +98,47 @@ MODULE glbopt_input
     !CALL section_add_keyword(glbopt_section, keyword, error=error)
     !CALL keyword_release(keyword, error=error)
 
+    CALL history_declare_input(glbopt_section, error=error)
     CALL minhop_declare_input(glbopt_section, error=error)
     CALL mincrawl_declare_input(glbopt_section, error=error)
 
     CALL section_add_subsection(swarm_section, glbopt_section,error=error)
     CALL section_release(glbopt_section,error=error)
   END SUBROUTINE glbopt_declare_input
+
+!! *****************************************************************************
+!! *****************************************************************************
+  SUBROUTINE history_declare_input(glbopt_section,error)
+    TYPE(section_type), POINTER              :: glbopt_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: history_section
+
+    NULLIFY(history_section, keyword)
+
+    CALL section_create(history_section,name="HISTORY",&
+         description="Section controling the history of visited minima and "//&
+         "how minima are recognized at a later point.",&
+         repeats=.FALSE., supported_feature=.TRUE.,error=error)
+
+    CALL keyword_create(keyword, name="ENERGY_PRECISION",&
+         description="If the difference of two energies is below this threshold "//&
+         "they are considert equal.", &
+         default_r_val=1.0e-5_dp, type_of_var=real_t,error=error)
+    CALL section_add_keyword(history_section, keyword, error=error)
+    CALL keyword_release(keyword, error=error)
+
+    CALL keyword_create(keyword, name="FINGERPRINT_PRECISION",&
+         description="If the euclidean distance of two fingerprints is below "//&
+         "this threshold, they are considert equal.", &
+         default_r_val=1.0e-2_dp, type_of_var=real_t,error=error)
+    CALL section_add_keyword(history_section, keyword, error=error)
+    CALL keyword_release(keyword, error=error)
+
+    CALL section_add_subsection(glbopt_section,history_section,error=error)
+    CALL section_release(history_section,error=error)
+  END SUBROUTINE history_declare_input
 
 
 !! *****************************************************************************

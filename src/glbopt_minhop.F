@@ -97,7 +97,8 @@ MODULE glbopt_minhop
 
     INTEGER                                  :: i, n_histories
     REAL(kind=dp)                            :: temp_in_kelvin
-    TYPE(section_vals_type), POINTER         :: minhop_section
+    TYPE(section_vals_type), POINTER         :: history_section, &
+                                                minhop_section
 
 ! read input
 
@@ -113,11 +114,15 @@ MODULE glbopt_minhop
     CALL section_vals_val_get(minhop_section,"SHARE_HISTORY", l_val=this%share_history,error=error)
 
     ! allocate history / histories
+    history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY", error=error)
     n_histories = n_workers
     IF(this%share_history) n_histories = 1
     ALLOCATE(this%history(n_histories))
-    DO i=1, n_histories
-      CALL history_init(this%history(i), iw=iw)
+
+    !only the first history shall write to iw
+    CALL history_init(this%history(1), history_section, iw=iw, error=error)
+    DO i=2, n_histories
+      CALL history_init(this%history(i), history_section, iw=-1, error=error)
     END DO
 
     ALLOCATE(this%worker_state(n_workers))
