@@ -52,6 +52,7 @@ MODULE glbopt_master
    INTEGER                                             :: method
    TYPE(minhop_type),POINTER                           :: minhop
    TYPE(mincrawl_type), POINTER                        :: mincrawl
+   INTEGER                                             :: i_iteration = 0
  END TYPE glbopt_master_type
 
  CONTAINS
@@ -100,6 +101,8 @@ MODULE glbopt_master
                                                 report_worker_id
     REAL(KIND=dp)                            :: report_Epot
 
+    this%i_iteration = this%i_iteration + 1
+
     CALL swarm_message_get(report, "worker_id", report_worker_id)
     CALL swarm_message_get(report, "status", status)
 
@@ -114,20 +117,21 @@ MODULE glbopt_master
 
        IF(this%iw>0) THEN
           WRITE (this%iw,'(A,46X,I8)')&
-                 " GLBOPT| Reporting worker ", report_worker_id
+             " GLBOPT| Reporting worker ", report_worker_id
           WRITE (this%iw,'(A,20X,E15.8)')&
-                 " GLBOPT| Reported potential Energy [Hartree] ", report_Epot
+             " GLBOPT| Reported potential energy [Hartree] ", report_Epot
           WRITE (this%iw,'(A,13X,E15.8)')&
-           " GLBOPT| Lowest reported potential Energy [Hartree] ", this%E_lowest
+             " GLBOPT| Lowest reported potential energy [Hartree] ", this%E_lowest
           WRITE (this%iw,'(A,T71,F10.1)')&
-           " GLBOPT| Average number of MD Steps", REAL(this%total_md_steps)/this%count_reports
+             " GLBOPT| Average number of MD steps", REAL(this%total_md_steps)/this%count_reports
           WRITE (this%iw,'(A,T71,F10.1)')&
-           " GLBOPT| Average number of Geo-Opt Steps", REAL(this%total_gopt_steps)/this%count_reports
+             " GLBOPT| Average number of Geo-Opt steps", REAL(this%total_gopt_steps)/this%count_reports
        END IF
     END IF
 
     IF(this%E_lowest<this%E_target) THEN
-       IF(this%iw>0)  WRITE (this%iw, *)  "GLBOPT| Reached E_target > E_pot. Quitting."
+       IF(this%iw>0)  WRITE (this%iw,"(A,I8,A)" )  &
+          " GLBOPT| Reached E_pot < E_target after ", this%i_iteration," iterations. Quitting."
        should_stop = .TRUE.
     ELSE
        SELECT CASE (this%method)
