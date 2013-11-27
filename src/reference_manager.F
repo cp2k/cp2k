@@ -20,14 +20,17 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE reference_manager
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
+  USE message_passing,                 ONLY: mp_max
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PUBLIC ::  print_reference, print_all_references, cite_reference
+  PUBLIC ::  collect_citations_from_ranks
 
   INTEGER, PUBLIC, PARAMETER :: print_format_isi=101, &
                                 print_format_journal=102, &
@@ -87,6 +90,25 @@ CONTAINS
     thebib(key)%ref%is_cited=.TRUE.
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief Checks for each reference if any mpi-rank has marked it for citation.
+!> \par History
+!>      12.2013 created [Ole Schuett]
+! *****************************************************************************
+  SUBROUTINE collect_citations_from_ranks(para_env)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    INTEGER                                  :: i, t
+
+    DO i=1, nbib
+       t = 0
+       IF(thebib(i)%ref%is_cited) t=1
+       CALL mp_max(t, para_env%group)
+       thebib(i)%ref%is_cited = (t==1)
+    ENDDO
+
+  END SUBROUTINE collect_citations_from_ranks
 
 ! *****************************************************************************
 !> \brief add a reference to the bibliography

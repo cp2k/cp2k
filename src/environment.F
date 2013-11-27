@@ -79,7 +79,8 @@ MODULE environment
                                              write_rng_matrices,&
                                              write_rng_stream
   USE physcon,                         ONLY: write_physcon
-  USE reference_manager,               ONLY: print_all_references,&
+  USE reference_manager,               ONLY: collect_citations_from_ranks,&
+                                             print_all_references,&
                                              print_format_journal
   USE string_utilities,                ONLY: ascii_to_string,&
                                              integer_to_string,&
@@ -1122,6 +1123,7 @@ CONTAINS
 #endif
 
     IF (.NOT. failure) THEN
+       CALL collect_citations_from_ranks(para_env)
        iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%REFERENCES",&
             extension=".Log",error=error)
        IF (iw>0) THEN
