@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2013  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -54,14 +54,14 @@ MODULE swarm_master
  PUBLIC :: swarm_master_steer
 
  TYPE swarm_message_p_type
-   TYPE(swarm_message_type), ALLOCATABLE               :: p
+   TYPE(swarm_message_type), POINTER                   :: p => Null()
  END TYPE swarm_message_p_type
 
 
  TYPE swarm_master_type
    PRIVATE
    INTEGER                                             :: behavior = -1
-   TYPE(glbopt_master_type), ALLOCATABLE               :: glbopt
+   TYPE(glbopt_master_type), POINTER                   :: glbopt => Null()
    !possibly more behaviors ...
    INTEGER                                             :: iw = 0
    INTEGER                                             :: i_iteration = 0
@@ -72,7 +72,7 @@ MODULE swarm_master
    TYPE(cp_error_type)                                 :: error
    TYPE(section_vals_type), POINTER                    :: swarm_section => Null()
    TYPE(cp_para_env_type), POINTER                     :: para_env => Null()
-   TYPE(swarm_message_p_type), DIMENSION(:), ALLOCATABLE :: queued_commands
+   TYPE(swarm_message_p_type), DIMENSION(:), POINTER   :: queued_commands => Null()
    TYPE(global_environment_type), POINTER              :: globenv => Null()
    LOGICAL                                             :: ignore_last_iteration = .FALSE.
    INTEGER                                             :: n_waiting = 0
@@ -190,12 +190,12 @@ MODULE swarm_master
 
     CALL swarm_message_free(report_log) !don't worry about double-frees
     CALL swarm_message_free(cmd_log)
-    !TODO: free queued commands
 
     IF(master%iw>0) WRITE(master%iw,'(A,A)') &
        " SWARM| Reached end of communication log. Queueing last commands."
 
     DO i=1, master%n_workers
+       ALLOCATE(master%queued_commands(i)%p)
        master%queued_commands(i)%p = last_commands(i)
     END DO
 
@@ -239,7 +239,7 @@ MODULE swarm_master
     ! First check if there are queued commands for this worker
     CALL swarm_message_get(report, "worker_id", worker_id)
 
-    IF(ALLOCATED(master%queued_commands(worker_id)%p)) THEN
+    IF(ASSOCIATED(master%queued_commands(worker_id)%p)) THEN
        cmd = master%queued_commands(worker_id)%p
        DEALLOCATE(master%queued_commands(worker_id)%p)
        IF(master%iw>0) WRITE (master%iw,'(A,A,A,I9,X,A)') ' SWARM| ',&
@@ -332,6 +332,8 @@ MODULE swarm_master
       CASE DEFAULT
          STOP "swarm_master_finalize: got unkown behavior"
     END SELECT
+
+    DEALLOCATE(master%queued_commands)
 
     logger => cp_error_get_logger(master%error)
     CALL cp_print_key_finished_output(master%iw, logger,&

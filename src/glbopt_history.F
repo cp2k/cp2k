@@ -14,7 +14,7 @@ MODULE glbopt_history
  IMPLICIT NONE
  PRIVATE
 
- 
+
  TYPE history_fingerprint_type
     PRIVATE
     REAL(KIND=dp)                            :: Epot = 0.0
@@ -93,6 +93,12 @@ MODULE glbopt_history
 ! *****************************************************************************
  SUBROUTINE history_finalize(history)
     TYPE(history_type)                       :: history
+    INTEGER                                  :: i
+
+    DO i=1, SIZE(history%entries)
+      IF(ASSOCIATED(history%entries(i)%p)) &
+          DEALLOCATE(history%entries(i)%p)
+    END DO
 
     DEALLOCATE(history%entries)
 
