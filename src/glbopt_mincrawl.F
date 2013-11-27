@@ -181,11 +181,11 @@ MODULE glbopt_mincrawl
     CALL swarm_message_add(cmd, "positions",  best_minima%pos)
 
     IF(this%iw > 0) THEN
-      WRITE(this%iw,'(X,A,T71,I10)') &
+      WRITE(this%iw,'(1X,A,T71,I10)') &
        "MINCRAWL| Total number of found minima", this%n_minima
-      WRITE(this%iw,'(X,A,T71,I10)') &
+      WRITE(this%iw,'(1X,A,T71,I10)') &
        "MINCRAWL| Sampling minima with id",best_minima%id
-      WRITE(this%iw,'(X,A,I10,A,A,T71,F10.3)')&
+      WRITE(this%iw,'(1X,A,I10,A,A,T71,F10.3)')&
        "MINCRAWL| Temperature  (step ", this%workers(wid)%tempstep," ) ",&
        "[Kelvin]", kelvin * tempstep2temp(this, this%workers(wid)%tempstep)
     ENDIF
@@ -373,12 +373,12 @@ MODULE glbopt_mincrawl
        IF(ASSOCIATED(start_minima))THEN
          IF(report_Epot < start_minima%Epot) THEN
            start_minima%disabled = .TRUE.
-           IF(this%iw > 0) WRITE(this%iw,'(X,A,T71,I10)') &
+           IF(this%iw > 0) WRITE(this%iw,'(1X,A,T71,I10)') &
              "MINCRAWL| Disabling minima with id", start_minima%id
          ENDIF
        ENDIF
 
-       IF(this%iw > 0) WRITE(this%iw,'(X,A,T71,I10)') &
+       IF(this%iw > 0) WRITE(this%iw,'(1X,A,T71,I10)') &
           "MINCRAWL| Adding new minima with id", new_mid
 
        CALL history_add(this%history, report_fp, id=new_mid)

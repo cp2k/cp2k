@@ -159,7 +159,7 @@ MODULE glbopt_minhop
        CALL swarm_message_add(cmd, "command", "md_and_gopt")
        CALL swarm_message_add(cmd, "iframe", 1)
        CALL swarm_message_add(cmd, "temperature", this%worker_state(wid)%temp)
-       IF(this%iw > 0) WRITE(this%iw,'(X,A,X,I10,X,A,7X,F10.3)') &
+       IF(this%iw > 0) WRITE(this%iw,'(1X,A,1X,I10,1X,A,7X,F10.3)') &
           "MINHOP| Sending worker", wid, &
           "initial temperature [Kelvin]",this%worker_state(wid)%temp * kelvin
        RETURN
