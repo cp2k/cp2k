@@ -9,6 +9,7 @@
 !> \author Ole
 ! *****************************************************************************
 MODULE glbopt_input
+  USE bibliography,                    ONLY: Goedecker2004
   USE input_constants,                 ONLY: glbopt_do_mincrawl,&
                                              glbopt_do_minhop
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -153,8 +154,8 @@ MODULE glbopt_input
     NULLIFY(minhop_section, keyword)
 
     CALL section_create(minhop_section,name="MINIMA_HOPPING",&
-         description="Section controling the Minima Hopping method. "//&
-         "See: Goedecker (2004) doi:10.1063/1.1724816",&
+         description="Section controlling the Minima Hopping method.",&
+         citations=(/Goedecker2004/),&
          repeats=.FALSE., supported_feature=.TRUE.,error=error)
 
     CALL keyword_create(keyword, name="BETA_1",&
