@@ -206,9 +206,9 @@ MODULE swarm_message
       DIMENSION(default_string_length)       :: value_str_arr
     INTEGER, DIMENSION(key_length)           :: key_arr
 
-    IF(src==mepos) key_arr = TRANSFER(entry%key, key_arr)
+    IF(src==mepos) key_arr = str2iarr(entry%key)
     CALL mp_bcast(key_arr, src, group)
-    IF(src/=mepos) entry%key = TRANSFER(key_arr, entry%key)
+    IF(src/=mepos) entry%key = iarr2str(key_arr)
 
     IF(src==mepos) THEN
        datasize = 1
@@ -267,11 +267,11 @@ MODULE swarm_message
        IF(src/=mepos) ALLOCATE(entry%value_r8_1d(datasize))
        CALL mp_bcast(entry%value_r8_1d, src, group)
     CASE(9)
-       IF(src==mepos) value_str_arr=TRANSFER(entry%value_str, value_str_arr)
+       IF(src==mepos) value_str_arr = str2iarr(entry%value_str)
        CALL mp_bcast(value_str_arr, src, group)
        IF(src/=mepos) THEN
           ALLOCATE(entry%value_str)
-          entry%value_str = TRANSFER(value_str_arr, entry%value_str)
+          entry%value_str = iarr2str(value_str_arr)
        END IF
     CASE DEFAULT
        STOP "swarm_message_entry_mpi_bcast: unkown datatype"
@@ -289,7 +289,7 @@ MODULE swarm_message
       DIMENSION(default_string_length)       :: value_str_arr
     INTEGER, DIMENSION(key_length)           :: key_arr
 
-    key_arr = TRANSFER(entry%key, key_arr)
+    key_arr = str2iarr(entry%key)
     CALL mp_send(key_arr, dest, tag, group)
 
     IF(ASSOCIATED(entry%value_i4)) THEN
@@ -330,7 +330,7 @@ MODULE swarm_message
 
     ELSE IF(ASSOCIATED(entry%value_str)) THEN
        CALL mp_send(9, dest, tag, group)
-       value_str_arr = TRANSFER(entry%value_str, value_str_arr)
+       value_str_arr = str2iarr(entry%value_str)
        CALL mp_send(value_str_arr, dest, tag, group)
     ELSE
        CALL abort()
@@ -352,7 +352,7 @@ MODULE swarm_message
     INTEGER, DIMENSION(key_length)           :: key_arr
 
     CALL mp_recv(key_arr, src, tag, group)
-    entry%key = TRANSFER(key_arr, entry%key)
+    entry%key = iarr2str(key_arr)
 
     CALL mp_recv(datatype, src, tag, group)
 
@@ -389,7 +389,7 @@ MODULE swarm_message
     CASE(9)
        ALLOCATE(entry%value_str)
        CALL mp_recv(value_str_arr, src, tag, group)
-       entry%value_str = TRANSFER(value_str_arr, entry%value_str)
+       entry%value_str = iarr2str(value_str_arr)
     CASE DEFAULT
        STOP "swarm_message_entry_mpi_recv: unkown datatype"
     END SELECT
@@ -726,6 +726,38 @@ MODULE swarm_message
 
 
   END SUBROUTINE swarm_message_entry_file_read
+
+
+! *****************************************************************************
+!> \brief Converts a string into an integer-array
+!> \par History
+!>      12.2013 created [Ole Schuett]
+! *****************************************************************************
+  PURE FUNCTION str2iarr(str) RESULT(arr)
+    CHARACTER(LEN=*), INTENT(IN)              :: str
+    INTEGER, DIMENSION(LEN(str))              :: arr
+    INTEGER                                   :: i
+
+    DO i=1,LEN(str)
+      arr(i) = ICHAR(str(i:i))
+    ENDDO
+  END FUNCTION str2iarr
+
+! *****************************************************************************
+!> \brief Converts an integer-array into a string
+!> \par History
+!>      12.2013 created [Ole Schuett]
+! *****************************************************************************
+  PURE FUNCTION iarr2str(arr) RESULT(str)
+    INTEGER, DIMENSION(:), INTENT(IN)         :: arr
+    CHARACTER(LEN=SIZE(arr))                  :: str
+    INTEGER                                   :: i
+
+    DO i=1,SIZE(arr)
+      str(i:i) = CHAR(arr(i))
+    ENDDO
+  END FUNCTION iarr2str
+
 
 ! *****************************************************************************
 ! *****************************************************************************
