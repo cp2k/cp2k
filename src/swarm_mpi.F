@@ -12,7 +12,8 @@ MODULE swarm_mpi
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_iter_types,                   ONLY: cp_iteration_info_create
-  USE cp_para_env,                     ONLY: cp_para_env_create
+  USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                             cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
@@ -21,7 +22,6 @@ MODULE swarm_mpi
   USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_any_source,&
                                              mp_bcast,&
-                                             mp_comm_free,&
                                              mp_comm_split,&
                                              mp_comm_split_direct,&
                                              mp_environ,&
@@ -287,8 +287,8 @@ MODULE swarm_mpi
     CALL mp_sync(swarm_mpi%world%group)
     CALL logger_finalize(swarm_mpi, root_section, error)
 
-    IF(ASSOCIATED(swarm_mpi%worker)) CALL mp_comm_free(swarm_mpi%worker%group)
-    IF(ASSOCIATED(swarm_mpi%master)) CALL mp_comm_free(swarm_mpi%master%group)
+    IF(ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker, error)
+    IF(ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master, error)
     NULLIFY(swarm_mpi%worker, swarm_mpi%master)
     DEALLOCATE(swarm_mpi%wid2group)
   END SUBROUTINE swarm_mpi_finalize

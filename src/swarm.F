@@ -188,6 +188,7 @@ MODULE swarm
         CALL swarm_message_free(cmd)
      END DO
 
+     CALL swarm_message_free(report)
      CALL swarm_worker_finalize(worker)
 
    END SUBROUTINE swarm_parallel_worker_driver
