@@ -176,10 +176,12 @@ MODULE glbopt_worker
     INTEGER                                  :: gopt_steps, iframe, md_steps, &
                                                 n_fragments, prev_iframe
     REAL(kind=dp)                            :: Epot, temperature
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: positions
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: positions
     TYPE(glbopt_mdctrl_data_type), TARGET    :: mdctrl_data
     TYPE(mdctrl_type), POINTER               :: mdctrl_p
     TYPE(mdctrl_type), TARGET                :: mdctrl
+
+    NULLIFY(positions)
 
     CALL swarm_message_get(cmd, "temperature", temperature)
     CALL swarm_message_get(cmd, "iframe", iframe)
@@ -228,7 +230,7 @@ MODULE glbopt_worker
     IF (worker%iw>0) WRITE (worker%iw,'(A,I4,A)') " GLBOPT| md ended after ", md_steps, " steps."
 
     ! fix fragmentation
-    IF(.NOT. ALLOCATED(positions))  ALLOCATE(positions(3*worker%n_atoms))
+    IF(.NOT. ASSOCIATED(positions))  ALLOCATE(positions(3*worker%n_atoms))
     CALL pack_subsys_particles(worker%subsys, r=positions, error=worker%error)
     DO n_fragments=0, HUGE(1)
       IF(fix_fragmentation(positions, worker%fragmentation_threshold)) EXIT
@@ -262,6 +264,8 @@ MODULE glbopt_worker
     CALL swarm_message_add(report, "gopt_steps", gopt_steps)
     CALL pack_subsys_particles(worker%subsys, r=positions, error=worker%error)
     CALL swarm_message_add(report, "positions", positions)
+
+    DEALLOCATE(positions)
    END SUBROUTINE run_mdgopt
 
 

@@ -33,7 +33,6 @@ MODULE swarm_master
                                              swarm_message_file_write,&
                                              swarm_message_free,&
                                              swarm_message_get,&
-                                             swarm_message_get_str,&
                                              swarm_message_type
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
@@ -144,6 +143,7 @@ MODULE swarm_master
     TYPE(swarm_master_type)                  :: master
 
     CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: command_log
     INTEGER                                  :: i, worker_id
     LOGICAL                                  :: at_end, explicit
     TYPE(cp_parser_type), POINTER            :: parser
@@ -176,7 +176,8 @@ MODULE swarm_master
       CALL swarm_master_steer(master, report_log, cmd_now)
 
       !TODO: maybe we should just exit the loop instead of stopping?
-      IF(TRIM(swarm_message_get_str(cmd_log, "command")) /= "shutdown") THEN
+      CALL swarm_message_get(cmd_log, "command", command_log)
+      IF(TRIM(command_log) /= "shutdown") THEN
         IF(.NOT. commands_equal(cmd_now, cmd_log, master%iw)) STOP "wrong behaviour"
       END IF
 

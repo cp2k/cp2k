@@ -310,13 +310,13 @@ MODULE glbopt_mincrawl
     INTEGER                                  :: new_mid, tempstep, wid
     LOGICAL                                  :: minima_known
     REAL(KIND=dp)                            :: report_Epot
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: report_positions
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: report_positions
     TYPE(history_fingerprint_type)           :: report_fp
     TYPE(minima_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: minimas_tmp
     TYPE(minima_type), POINTER               :: new_minima, start_minima
 
-    NULLIFY(start_minima, new_minima)
+    NULLIFY(start_minima, new_minima, report_positions)
 
     CALL swarm_message_get(report, "worker_id", wid)
     CALL swarm_message_get(report, "Epot", report_Epot)
@@ -384,7 +384,8 @@ MODULE glbopt_mincrawl
           "MINCRAWL| Adding new minima with id", new_mid
 
        CALL history_add(this%history, report_fp, id=new_mid)
-     ENDIF
+    ENDIF
+    DEALLOCATE(report_positions)
  END SUBROUTINE mincrawl_register_minima
 
 ! *****************************************************************************

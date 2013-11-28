@@ -155,9 +155,10 @@ MODULE glbopt_minhop
     INTEGER                                  :: hid, iframe, wid
     LOGICAL                                  :: minima_known
     REAL(KIND=dp)                            :: report_Epot
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: report_positions
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: report_positions
     TYPE(history_fingerprint_type)           :: report_fp
 
+    NULLIFY(report_positions)
     CALL swarm_message_get(report, "worker_id", wid)
     CALL swarm_message_get(report, "status", status)
 
@@ -249,6 +250,8 @@ MODULE glbopt_minhop
       WRITE(this%iw,'(A,30X,I10)')&
        " MINHOP| Total number of rejected minima",this%n_rejected
     ENDIF
+
+    DEALLOCATE(report_positions)
  END SUBROUTINE minhop_steer
 
 

@@ -59,18 +59,12 @@ MODULE swarm_message
  END INTERFACE swarm_message_add
 
  INTERFACE swarm_message_get
-    MODULE PROCEDURE swarm_message_get_str_subrt
-    MODULE PROCEDURE swarm_message_get_i4_subrt,    swarm_message_get_i8_subrt
-    MODULE PROCEDURE swarm_message_get_r4_subrt,    swarm_message_get_r8_subrt
-    MODULE PROCEDURE swarm_message_get_i4_1d_subrt, swarm_message_get_i8_1d_subrt
-    MODULE PROCEDURE swarm_message_get_r4_1d_subrt, swarm_message_get_r8_1d_subrt
+    MODULE PROCEDURE swarm_message_get_str
+    MODULE PROCEDURE swarm_message_get_i4,    swarm_message_get_i8
+    MODULE PROCEDURE swarm_message_get_r4,    swarm_message_get_r8
+    MODULE PROCEDURE swarm_message_get_i4_1d, swarm_message_get_i8_1d
+    MODULE PROCEDURE swarm_message_get_r4_1d, swarm_message_get_r8_1d
  END INTERFACE swarm_message_get
-
- PUBLIC :: swarm_message_get_str
- PUBLIC :: swarm_message_get_i4,    swarm_message_get_i8
- PUBLIC :: swarm_message_get_r4,    swarm_message_get_r8
- PUBLIC :: swarm_message_get_i4_1d, swarm_message_get_i8_1d
- PUBLIC :: swarm_message_get_r4_1d, swarm_message_get_r8_1d
 
  PUBLIC :: swarm_message_type, swarm_message_add, swarm_message_get
  PUBLIC :: swarm_message_mpi_send, swarm_message_mpi_recv, swarm_message_mpi_bcast
@@ -734,9 +728,10 @@ MODULE swarm_message
 !>      12.2013 created [Ole Schuett]
 ! *****************************************************************************
   PURE FUNCTION str2iarr(str) RESULT(arr)
-    CHARACTER(LEN=*), INTENT(IN)              :: str
-    INTEGER, DIMENSION(LEN(str))              :: arr
-    INTEGER                                   :: i
+    CHARACTER(LEN=*), INTENT(IN)             :: str
+    INTEGER, DIMENSION(LEN(str))             :: arr
+
+    INTEGER                                  :: i
 
     DO i=1,LEN(str)
       arr(i) = ICHAR(str(i:i))
@@ -749,9 +744,10 @@ MODULE swarm_message
 !>      12.2013 created [Ole Schuett]
 ! *****************************************************************************
   PURE FUNCTION iarr2str(arr) RESULT(str)
-    INTEGER, DIMENSION(:), INTENT(IN)         :: arr
-    CHARACTER(LEN=SIZE(arr))                  :: str
-    INTEGER                                   :: i
+    INTEGER, DIMENSION(:), INTENT(IN)        :: arr
+    CHARACTER(LEN=SIZE(arr))                 :: str
+
+    INTEGER                                  :: i
 
     DO i=1,SIZE(arr)
       str(i:i) = CHAR(arr(i))
