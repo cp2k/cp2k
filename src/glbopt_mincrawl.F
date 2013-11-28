@@ -370,6 +370,7 @@ MODULE glbopt_mincrawl
 
        new_minima%Epot = report_Epot
        new_minima%fp   = report_fp
+       ALLOCATE(new_minima%pos(SIZE(report_positions)))
        new_minima%pos  = report_positions
 
        IF(ASSOCIATED(start_minima))THEN

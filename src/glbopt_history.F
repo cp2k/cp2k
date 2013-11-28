@@ -12,6 +12,7 @@ MODULE glbopt_history
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_abort
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
@@ -85,9 +86,16 @@ MODULE glbopt_history
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pos
     TYPE(history_fingerprint_type)           :: fp
 
-    fp%Epot = Epot
-    fp%goedecker = goedecker_fingerprint(pos)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp
 
+    NULLIFY(tmp)
+    fp%Epot = Epot
+    CALL goedecker_fingerprint(pos, tmp)
+
+    !copy pointer to allocatable
+    ALLOCATE(fp%goedecker(SIZE(tmp)))
+    fp%goedecker = tmp
+    DEALLOCATE(tmp)
  END FUNCTION history_fingerprint
 
 ! *****************************************************************************
@@ -186,7 +194,7 @@ MODULE glbopt_history
           !WRITE(*,*) "history: ", k, "Epot",history%entries(k)%p%Epot
           IF(k>1)THEN
              IF(history%entries(k-1)%p%Epot > history%entries(k)%p%Epot) &
-               STOP "history in wrong order"
+               CALL mp_abort("history_add: history in wrong order")
            END IF
        END DO
     ENDIF
@@ -241,9 +249,9 @@ MODULE glbopt_history
 ! *****************************************************************************
 ! Credit: Stefan Goedecker
 ! ***************************************************************************** 
- FUNCTION goedecker_fingerprint(pos) RESULT(res)
+ SUBROUTINE goedecker_fingerprint(pos, res)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pos
-    REAL(KIND=dp), DIMENSION(SIZE(pos)/3)    :: res
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: res
 
     INTEGER                                  :: i, info, j, N
     REAL(KIND=dp)                            :: d2, t
@@ -251,25 +259,26 @@ MODULE glbopt_history
       DIMENSION(:, :)                        :: matrix, work
     REAL(KIND=dp), DIMENSION(3)              :: d
 
+    IF(ASSOCIATED(res)) CALL mp_abort("goedecker_fingerprint: res already allocated")
     N = SIZE(pos) / 3 ! number of atoms
+
     ALLOCATE(matrix(N,N), work(N,N))
-       DO i=1,N
-         matrix(i,i) = 1.0
-         DO j=i+1,N
-         d = pos(3*i-2:3*i) - pos(3*j-2:3*j)
-         d2 = SUM(d**2)
-         t=EXP(-0.5 * d2)
-         matrix(i,j) = t
-         matrix(j, i) = t
-         ENDDO
-       ENDDO
-       !TODO: call dsyv through cp2k wrappers
-       !TODO: do we need to store lower triangle of matrix?
-
-       CALL DSYEV('N','U',N,matrix,N, res, work, N**2, info)
-       IF (info.ne.0) STOP 'info'
-
- END FUNCTION goedecker_fingerprint
+    DO i=1,N
+      matrix(i,i) = 1.0
+      DO j=i+1,N
+        d = pos(3*i-2:3*i) - pos(3*j-2:3*j)
+        d2 = SUM(d**2)
+        t=EXP(-0.5 * d2)
+        matrix(i,j) = t
+        matrix(j, i) = t
+      ENDDO
+    ENDDO
+    !TODO: call dsyv through cp2k wrappers
+    !TODO: do we need to store lower triangle of matrix?
+    ALLOCATE(res(N))
+    CALL DSYEV('N','U',N,matrix,N, res, work, N**2, info)
+    IF(info /= 0) CALL mp_abort("goedecker_fingerprint: DSYEV failed")
+ END SUBROUTINE goedecker_fingerprint
 
 
 ! *****************************************************************************
