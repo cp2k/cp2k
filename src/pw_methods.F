@@ -26,7 +26,8 @@ MODULE pw_methods
                                              FWFFT,&
                                              fft3d
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE machine,                         ONLY: m_loc_c,&
                                              m_loc_r
   USE message_passing,                 ONLY: mp_sum
@@ -41,7 +42,8 @@ MODULE pw_methods
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
        REALSPACE, RECIPROCALSPACE, SQUARE, SQUAREROOT, pw_type
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -1425,7 +1427,8 @@ CONTAINS
        CASE ( "FW_C3DC1D" )
           c_in => pw1%cc3d
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "c_out",2*dp_size*PRODUCT(n(1:3)))
           ! transform
           CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug = test )
           ! gather results
@@ -1438,7 +1441,8 @@ CONTAINS
           CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale = norm, error = error)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "c_out",2*dp_size*PRODUCT(n(1:3)))
           nsize=SIZE(pw1%cr3d,1)*SIZE(pw1%cr3d,2)*SIZE(pw1%cr3d,3)
           CALL copy_rc(nsize,pw1%cr3d,c_out)
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
@@ -1453,7 +1457,8 @@ CONTAINS
        CASE ( "BW_C3DR3D" )
           c_in => pw1%cc3d
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "c_out",2*dp_size*PRODUCT(n(1:3)))
           CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug = test )
           ! use real part only
           IF ( test ) WRITE ( *,'(A)') "  REAL part "
@@ -1470,7 +1475,8 @@ CONTAINS
           CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale = norm, error = error)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "c_out",2*dp_size*PRODUCT(n(1:3)))
           IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
           CALL pw_scatter ( pw1, c_out, error = error)
           ! transform
@@ -1542,7 +1548,8 @@ CONTAINS
           !..prepare input
           nloc = pw1%pw_grid%npts_local
           ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "c_in",2*dp_size*PRODUCT(nloc(1:3)))
           nsize=nloc(1)*nloc(2)*nloc(3)
           CALL copy_rc(nsize,pw1%cr3d,c_in)
           CALL zero_c(SIZE(grays),grays)
@@ -1592,7 +1599,8 @@ CONTAINS
           CALL pw_scatter ( pw1, grays, error=error)
           nloc = pw2%pw_grid%npts_local
           ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "c_in",2*dp_size*PRODUCT(nloc(1:3)))
           nsize=nloc(1)*nloc(2)*nloc(3)
           !..transform
           IF ( pw1%pw_grid%para%ray_distribution ) THEN

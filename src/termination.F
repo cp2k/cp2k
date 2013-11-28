@@ -19,9 +19,11 @@ MODULE termination
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE kinds,                           ONLY: default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             int_8
   USE machine,                         ONLY: default_output_unit,&
-                                             m_flush_internal
+                                             m_flush_internal,&
+                                             m_memory
   USE message_passing,                 ONLY: mp_abort
   USE timings,                         ONLY: print_stack
 
@@ -278,14 +280,23 @@ CONTAINS
       POINTER                                :: para_env
 
     CHARACTER(LEN=default_path_length)       :: message
+    INTEGER(KIND=int_8)                      :: total_memory
+
+    total_memory = m_memory()/1024
 
     IF (memory == 0) THEN
       message = "The memory allocation for the data object <"//TRIM(object)//&
-                "> failed"
+                "> failed."
     ELSE
       WRITE (message,"(A,I0,A)")&
         "The memory allocation for the data object <"//TRIM(object)//&
-        "> failed. The requested memory size is ",memory/1024," KB"
+        "> failed. The requested memory size is ",memory/1024," KB."
+    END IF
+
+    IF (total_memory > 0) THEN
+      WRITE (message,"(A,I0,A)")&
+        TRIM(message)//" The current total memory allocated by CP2K is ",&
+        total_memory," KB."
     END IF
 
     IF (PRESENT(para_env)) THEN
