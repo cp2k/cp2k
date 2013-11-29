@@ -403,15 +403,16 @@ CONTAINS
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     IF (nblks .GT. 0) THEN
+       !$OMP BARRIER
        !$OMP MASTER
        blk_p(1) = SIGN(1, old_blk_p(1))
        DO i = 2, nblks
           blk_p(i) = SIGN(ABS(blk_p(i-1)) + sizes(i-1), old_blk_p(i))
        ENDDO
-       !$OMP END MASTER
-       !$OMP BARRIER
        CALL dbcsr_data_set_size_referenced (dsts,&
             ABS(blk_p(nblks)) + sizes(nblks)-1)
+       !$OMP END MASTER
+       !$OMP BARRIER
        !$OMP DO
        DO i = 1, nblks
           IF (old_blk_p(i) .NE. 0) THEN
