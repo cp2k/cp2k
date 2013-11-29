@@ -11,7 +11,9 @@
 MODULE swarm_mpi
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_iter_types,                   ONLY: cp_iteration_info_create
+  USE cp_iter_types,                   ONLY: cp_iteration_info_create,&
+                                             cp_iteration_info_release,&
+                                             cp_iteration_info_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -159,7 +161,7 @@ MODULE swarm_mpi
     CALL mp_bcast(swarm_mpi%master_output_path, swarm_mpi%world%source, swarm_mpi%world%group)
 
     IF(ASSOCIATED(swarm_mpi%master)) &
-       CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path, error)
+       CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path, error=error)
   END SUBROUTINE logger_init_master
 
 
@@ -186,8 +188,10 @@ MODULE swarm_mpi
     CHARACTER(LEN=default_path_length)       :: output_path
     CHARACTER(len=default_string_length)     :: new_project_name, &
                                                 project_name, worker_name
-    TYPE(cp_logger_type), POINTER            :: new_logger, old_logger
+    TYPE(cp_iteration_info_type), POINTER    :: new_iter_info
+    TYPE(cp_logger_type), POINTER            :: old_logger
 
+    NULLIFY(old_logger, new_iter_info)
     IF(ASSOCIATED(swarm_mpi%worker)) THEN
        old_logger => cp_error_get_logger(error)
        project_name = old_logger%iter_info%project_name
@@ -197,47 +201,45 @@ MODULE swarm_mpi
        IF(LEN_TRIM(project_name)+1+LEN_TRIM(worker_name)>default_string_length) &
           STOP "logger_init_worker: project name too long"
        output_path = TRIM(project_name) // "-"// TRIM(worker_name) // ".out"
-
-       CALL error_add_new_logger(swarm_mpi%worker, output_path, error)
-
-       new_logger => cp_error_get_logger(error)
        new_project_name = TRIM(project_name) // "-"// TRIM(worker_name)
-       CALL cp_iteration_info_create(new_logger%iter_info, new_project_name)
        CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=new_project_name,error=error)
-
+       CALL cp_iteration_info_create(new_iter_info, new_project_name)
+       CALL error_add_new_logger(swarm_mpi%worker, output_path, new_iter_info, error)
+       CALL cp_iteration_info_release(new_iter_info)
     ENDIF
   END SUBROUTINE logger_init_worker
 
 
   ! *****************************************************************************
   ! *****************************************************************************
-  SUBROUTINE error_add_new_logger(para_env, output_path, error)
+  SUBROUTINE error_add_new_logger(para_env, output_path, iter_info, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=default_path_length)       :: output_path
+    TYPE(cp_iteration_info_type), OPTIONAL, &
+      POINTER                                :: iter_info
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: new_logger, old_logger
 
-     output_unit = -1
-     IF(para_env%source == para_env%mepos) THEN
-       ! open output_unit according to output_path
-       output_unit = default_output_unit
-       IF (output_path /= "__STD_OUT__") &
-         CALL open_file(file_name=output_path,file_status="UNKNOWN",&
-            file_action="WRITE", file_position="APPEND", unit_number=output_unit)
-     ENDIF
+    NULLIFY(new_logger, old_logger)
+    output_unit = -1
+    IF(para_env%source == para_env%mepos) THEN
+      ! open output_unit according to output_path
+      output_unit = default_output_unit
+      IF (output_path /= "__STD_OUT__") &
+        CALL open_file(file_name=output_path,file_status="UNKNOWN",&
+           file_action="WRITE", file_position="APPEND", unit_number=output_unit)
+    ENDIF
 
-     NULLIFY(new_logger)
-     old_logger => cp_error_get_logger(error)
-     CALL cp_logger_create(new_logger, para_env=para_env,&
-        default_global_unit_nr=output_unit, close_global_unit_on_dealloc=.FALSE.,&
-        template_logger=old_logger)
+    old_logger => cp_error_get_logger(error)
+    CALL cp_logger_create(new_logger, para_env=para_env,&
+       default_global_unit_nr=output_unit, close_global_unit_on_dealloc=.FALSE.,&
+       template_logger=old_logger, iter_info=iter_info)
 
-     CALL cp_add_default_logger(new_logger)
-     CALL cp_logger_release(new_logger)
-     CALL cp_error_set(error, logger=new_logger)
-
+    CALL cp_add_default_logger(new_logger)
+    CALL cp_error_set(error, logger=new_logger)
+    CALL cp_logger_release(new_logger)
   END SUBROUTINE error_add_new_logger
 
 
@@ -252,6 +254,7 @@ MODULE swarm_mpi
     LOGICAL                                  :: I_am_rank0
     TYPE(cp_logger_type), POINTER            :: logger, old_logger
 
+    NULLIFY(logger, old_logger)
     logger => cp_error_get_logger(error)
     output_unit = logger%default_local_unit_nr
     IF(output_unit>0 .AND. output_unit/=default_output_unit)&
@@ -341,7 +344,7 @@ MODULE swarm_mpi
 
      CALL swarm_message_mpi_send(cmd, group=swarm_mpi%world%group, dest=dest, tag=tag)
 
-  END SUBROUTINE swarm_mpi_send_command
+  END SUBROUTINE swarm_mpi_send_command      
 
 ! *****************************************************************************
 ! *****************************************************************************
