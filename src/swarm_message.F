@@ -515,7 +515,7 @@ MODULE swarm_message
 
     CALL timeset("swarm_message_file_write", handle)
     WRITE(unit,"(A)") "BEGIN SWARM_MESSAGE"
-    WRITE(unit,"(AI10)") "msg_length: ", swarm_message_length(msg)
+    WRITE(unit,"(A,I10)") "msg_length: ", swarm_message_length(msg)
 
     curr_entry => msg%root
     DO WHILE(ASSOCIATED(curr_entry))
@@ -537,53 +537,53 @@ MODULE swarm_message
 
     INTEGER                                  :: i
 
-    WRITE(unit,"(AA)") "key: ",  entry%key
+    WRITE(unit,"(A,A)") "key: ",  entry%key
     IF(ASSOCIATED(entry%value_i4)) THEN
        WRITE(unit,"(A)") "datatype: i4"
-       WRITE(unit,"(AI10)") "value: ", entry%value_i4
+       WRITE(unit,"(A,I10)") "value: ", entry%value_i4
 
     ELSE IF(ASSOCIATED(entry%value_i8)) THEN
        WRITE(unit,"(A)") "datatype: i8"
-       WRITE(unit,"(AI20)") "value: ", entry%value_i8
+       WRITE(unit,"(A,I20)") "value: ", entry%value_i8
 
     ELSE IF(ASSOCIATED(entry%value_r4)) THEN
        WRITE(unit,"(A)") "datatype: r4"
-       WRITE(unit,"(AE30.20)") "value: ", entry%value_r4
+       WRITE(unit,"(A,E30.20)") "value: ", entry%value_r4
 
     ELSE IF(ASSOCIATED(entry%value_r8)) THEN
        WRITE(unit,"(A)") "datatype: r8"
-       WRITE(unit,"(AE30.20)") "value: ", entry%value_r8
+       WRITE(unit,"(A,E30.20)") "value: ", entry%value_r8
 
     ELSE IF(ASSOCIATED(entry%value_str)) THEN
        WRITE(unit,"(A)") "datatype: str"
-       WRITE(unit,"(AA)") "value: ", entry%value_str
+       WRITE(unit,"(A,A)") "value: ", entry%value_str
 
     ELSE IF(ASSOCIATED(entry%value_i4_1d)) THEN
        WRITE(unit,"(A)") "datatype: i4_1d"
-       WRITE(unit,"(AI10)") "size: ", SIZE(entry%value_i4_1d)
+       WRITE(unit,"(A,I10)") "size: ", SIZE(entry%value_i4_1d)
        DO i=1, SIZE(entry%value_i4_1d)
          WRITE(unit,*) entry%value_i4_1d(i)
        END DO
 
     ELSE IF(ASSOCIATED(entry%value_i8_1d)) THEN
        WRITE(unit,"(A)") "datatype: i8_1d"
-       WRITE(unit,"(AI20)") "size: ", SIZE(entry%value_i8_1d)
+       WRITE(unit,"(A,I20)") "size: ", SIZE(entry%value_i8_1d)
        DO i=1, SIZE(entry%value_i8_1d)
          WRITE(unit,*) entry%value_i8_1d(i)
        END DO
 
     ELSE IF(ASSOCIATED(entry%value_r4_1d)) THEN
        WRITE(unit,"(A)") "datatype: r4_1d"
-       WRITE(unit,"(AI8)") "size: ", SIZE(entry%value_r4_1d)
+       WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_r4_1d)
        DO i=1, SIZE(entry%value_r4_1d)
-         WRITE(unit,"(XE30.20)") entry%value_r4_1d(i)
+         WRITE(unit,"(X,E30.20)") entry%value_r4_1d(i)
        END DO
 
     ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
        WRITE(unit,"(A)") "datatype: r8_1d"
-       WRITE(unit,"(AI8)") "size: ", SIZE(entry%value_r8_1d)
+       WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_r8_1d)
        DO i=1, SIZE(entry%value_r8_1d)
-         WRITE(unit,"(XE30.20)") entry%value_r8_1d(i)
+         WRITE(unit,"(X,E30.20)") entry%value_r8_1d(i)
        END DO
 
     ELSE
