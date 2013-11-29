@@ -691,8 +691,9 @@ for dir in ${dirs}; do
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
      ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
-     # CP2K failed obviously
-     if (( $? )); then
+     (( cp2k_exit_status = $? ))
+     if (( cp2k_exit_status )); then
+        # CP2K failed obviously
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
         echo ${output_file} >>${error_description_file}
         tail -40 ${output_file} >>${error_description_file}
@@ -746,6 +747,7 @@ for dir in ${dirs}; do
         timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
+     leak_marker=""
      if [[ ${leakcheck} == "YES" ]]; then
         if [[ -n $(echo ${cp2k_prefix} | grep "valgrind") ]]; then
            leak_error_string="ERROR SUMMARY:"
@@ -754,18 +756,18 @@ for dir in ${dirs}; do
            (( nerror > 0 )) && dum=${nerror}
         else
            case ${FORT_C_NAME} in
-              "g95"     ) leak_error_string="Remaining memory";;
-              "gfortran") leak_error_string="SUMMARY: LeakSanitizer:";;
+              g95*     ) leak_error_string="Remaining memory";;
+              gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
            esac
            dum=`grep -l "${leak_error_string}" ${output_file}`
         fi
         if [[ ${dum} != "" ]]; then
-           this_test="${this_test} !"
+           leak_marker="!"
            echo "XXXXXXXX  ${output_file} XXXXXXX" >>${memory_description_file}
            grep -i "${leak_error_string}" ${output_file} >>${memory_description_file}
         fi
      fi
-     printf "    %-50s %20s\n" "${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+     printf "    %-50s %20s %s\n" "${input_file}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
   t2=`date +%s`
   timing_all=`echo "1+($t2)-($t1)" | bc -l`
@@ -822,10 +824,10 @@ printf "Total number of   tests %d\n" ${n_tests}         | tee -a ${summary}
 if [[ ${leakcheck} == "YES" ]]; then
    echo "--------------------------------------------------------------------------" | tee -a ${summary}
    case ${FORT_C_NAME} in
-      "g95"     )
+      g95*     )
        n_leaks=`grep -v "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
        ;;
-      "gfortran")
+      gfortran*)
        n_leaking_tests=`grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
        n_leaks=`grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}'`
        printf "Number of LEAKING tests %d\n" ${n_leaking_tests} | tee -a ${summary}
