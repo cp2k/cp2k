@@ -1772,9 +1772,12 @@ MODULE hfx_types
 
   END SUBROUTINE hfx_create_neighbor_cells
 
+  ! performs a fuzzy check of being in a quadrilateral
   FUNCTION point_is_in_quadrilateral(A,B,C,D,P)
     REAL(dp)                                 :: A(3), B(3), C(3), D(3), P(3)
     LOGICAL                                  :: point_is_in_quadrilateral
+
+    REAL(dp), PARAMETER :: fuzzy = 1000.0_dp*EPSILON(1.0_dp)
 
     REAL(dp)                                 :: dot00, dot01, dot02, dot11, &
                                                 dot12, invDenom, u, v, v0(3), &
@@ -1811,7 +1814,7 @@ MODULE hfx_types
     u = (dot11 * dot02 - dot01 * dot12) * invDenom
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
     ! ** Check if point is in triangle
-    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+    IF ( (u >= 0-fuzzy) .AND.  (v >= 0-fuzzy) .AND. (u + v <= 1+fuzzy) ) THEN
       point_is_in_quadrilateral = .TRUE.
       RETURN
     END IF
@@ -1832,7 +1835,7 @@ MODULE hfx_types
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
 
     ! ** Check if point is in triangle
-    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+    IF ( (u >= 0-fuzzy) .AND.  (v >= 0-fuzzy) .AND. (u + v <= 1+fuzzy) ) THEN
       point_is_in_quadrilateral = .TRUE.
       RETURN
     END IF
