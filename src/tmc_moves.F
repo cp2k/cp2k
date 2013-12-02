@@ -347,7 +347,7 @@ CONTAINS
     CASE(mv_type_volume_move)
       CALL change_volume(conf=elem, T_ind=mv_conf, move_types=move_types, &
                          rng_stream=rng_stream, tmc_params=tmc_params, &
-                         error=error)
+                         mv_cen_of_mass=tmc_params%mv_cen_of_mass, error=error)
 
     !-- atom swap
     ! two atoms of different types are swapped
@@ -1182,12 +1182,13 @@ CONTAINS
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE change_volume(conf, T_ind, move_types, rng_stream, tmc_params, &
-                           error)
+                           mv_cen_of_mass, error)
     TYPE(tree_type), POINTER                 :: conf
     INTEGER                                  :: T_ind
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
+    LOGICAL                                  :: mv_cen_of_mass
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_volume', &
@@ -1272,7 +1273,7 @@ CONTAINS
     scaling(:) = conf%box_scale(:)/box_scale_old(:)
 
 
-    IF(move_types%mv_weight(mv_type_atom_trans).GT.0) THEN
+    IF(mv_cen_of_mass .EQV. .FALSE.) THEN
        ! homogene scaling of atomic coordinates
        DO atom=1, SIZE(conf%pos), tmc_params%dim_per_elem
           conf%pos(atom:atom+tmc_params%dim_per_elem-1) = &

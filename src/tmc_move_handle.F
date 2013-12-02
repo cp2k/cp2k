@@ -95,7 +95,7 @@ CONTAINS
     delta_x         = 0.0_dp
     nmc_prob        = 0.0_dp
     mv_prob         = 0.0_dp
-    nmc_prob         = 0.0_dp
+    nmc_prob        = 0.0_dp
     mv_prob_sum     = 0.0_dp
     nmc_prob_sum    = 0.0_dp
     prob_ex         = 0.0_dp

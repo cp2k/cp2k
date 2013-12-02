@@ -102,6 +102,7 @@ MODULE tmc_types
     TYPE(tmc_move_type), POINTER                  :: nmc_move_types
     REAL(KIND=dp)                                 :: pressure
     LOGICAL                                       :: v_isotropic
+    LOGICAL                                       :: mv_cen_of_mass
     LOGICAL                                       :: esimate_acc_prob
     LOGICAL                                       :: SPECULATIVE_CANCELING
     LOGICAL                                       :: use_scf_energy_info

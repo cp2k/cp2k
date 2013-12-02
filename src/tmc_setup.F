@@ -798,6 +798,7 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"VOLUME_ISOTROPIC",l_val=tmc_env%params%v_isotropic,error=error)
     CALL section_vals_val_get(tmc_section,"PRESSURE",r_val=tmc_env%params%pressure,error=error)
     tmc_env%params%pressure = tmc_env%params%pressure/au2bar
+    CALL section_vals_val_get(tmc_section,"MOVE_CENTER_OF_MASS",l_val=tmc_env%params%mv_cen_of_mass,error=error)
 
     CALL section_vals_val_get(tmc_section,"SUB_BOX",r_vals=r_arr_tmp,error=error)
     IF(SIZE(r_arr_tmp).GT.1) THEN

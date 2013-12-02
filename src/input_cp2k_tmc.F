@@ -204,6 +204,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,&
+            name="MOVE_CENTER_OF_MASS",&
+            description="Moves the center of mass of defined molecules (in volume moves)", &
+            usage="MOVE_CENTER_OF_MASS {LOGICAL}",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, &
             name="ESIMATE_ACC_PROB",&
             description="set the estimation of the acceptance probability using run time information of the energy", &
@@ -514,6 +522,7 @@ CONTAINS
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
     END IF
     
 
