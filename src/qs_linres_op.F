@@ -678,8 +678,8 @@ CONTAINS
 !------------------------------------------------------------------------------------
 !> \brief Calculate the Berry phase operator in the AO basis and 
 !         then the derivative of the Berry phase operator with respect to 
-!         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs 
-!>      and then multiply with the ground state MO coefficients to get Hamiltonian|psi0>
+!         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs;  
+!>        afterwards multiply with the ground state MO coefficients 
 ! 
 !> \par History
 !>      01.2013 created [SL]
