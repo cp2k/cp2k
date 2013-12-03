@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 NEB-MIXED.inp 10
-2gly_IT-NEB-CV.inp               10     2e-10
-2gly_IT-NEB-CV-res.inp           10     1e-09
+2gly_IT-NEB-CV.inp               10     5e-10
+2gly_IT-NEB-CV-res.inp           10     2e-09
 UO2-2x2x2-CI-NEB-core-shell.inp   10     4e-12
 UO2-2x2x2-CI-NEB-core-shell-res.inp   10     2e-06
