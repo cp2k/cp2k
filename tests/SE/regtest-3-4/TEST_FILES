@@ -1,4 +1,4 @@
-SiO2_lr_quad.inp                 11     1e-13
+SiO2_lr_quad.inp                 11     3e-13
 #XTL file
 Al2O3.inp          11
 #angvel_tol
