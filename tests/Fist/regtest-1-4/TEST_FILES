@@ -1,9 +1,9 @@
-multipole_dip_qu.dbg_f.inp       11     4e-14
+multipole_dip_qu.dbg_f.inp       11     9e-14
 multipole_dip_qu.dbg_f_real.inp   11     9e-14
 multipole_dip_qu.dbg_f_rec.inp   11     2e-13
 multipole_dipole.dbg_f.inp           11
 multipole_dipole.dbg_f_real.inp      11
-multipole_dipole.dbg_f_rec.inp   11     4e-14
+multipole_dipole.dbg_f_rec.inp   11     1e-13
 multipole_quadrupole.dbg_f.inp       11
 multipole_quadrupole.dbg_f_real.inp  11
 multipole_quadrupole.dbg_f_rec.inp   11     2e-13
@@ -17,7 +17,7 @@ multipole_ch_qu.dbg_st.inp       42     4e-03
 multipole_charge.dbg_st.inp          42
 multipole_dip_qu.dbg_st.inp          42
 multipole_dipole.dbg_st.inp          42
-multipole_quadrupole.dbg_st.inp   42     3e-03
+multipole_quadrupole.dbg_st.inp   42     7e-03
 # charge array
 water_charge_no_array.inp             2
 water_charge_array.inp                2

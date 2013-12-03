@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # tests GAPW GTH and ALL
 #XAS
-CO.inp                            1     8e-14
+CO.inp                            1     2e-12
 CO_xastpxhh.inp                   1     1e-10
 CO_xastpval.inp                   1     3e-11
 CO_xastpxhh_loclist.inp           1     3e-10
