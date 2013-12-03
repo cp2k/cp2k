@@ -134,13 +134,13 @@ How to compile CP2K code
      * Add -D__LIBXC2 to DFLAGS and -L$(LIBXC_DIR)/lib -lxc to LIBS.
 
  2l) Library ELPA for the solution of the eigenvalue problem
-     * The present version is the development version downloded from the ELPA repository
-       in October 2012 (http://elpa.rzg.mpg.de/software)
-     * Add -D__ELPA to  DFLAGS 
+     * One version of ELPA need to be downloaded (http://elpa.rzg.mpg.de/software)
+       and installed. During the installation the libelpa.a (or libelpa_mt.a if omp active) is created. 
+       we tested the version of November 2013, with generic kernel and with/without omp
+     * Add -D__ELPA to  DFLAGS and -L$(ELPA_DIR) -lelpa to LIBS
      * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
-     * The related ELPA modules are in cp2k/src/elpa_lib By default the general elpa2_kernel's 
-       are compiled. For specific architectures it can be better to use specifically 
-       optimized kernels (see BG) and/or emply a higher optimization level to compile it.
+     * For specific architectures it can be better to install specifically 
+       optimized kernels (see BG) and/or employ a higher optimization level to compile it.
      
  3) To compile the code:
 
