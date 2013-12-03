@@ -37,7 +37,8 @@ MODULE qs_linres_polar_utils
                                              put_results
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
@@ -461,7 +462,7 @@ CONTAINS
    !
     nspins = dft_control%nspins
    !
-!    CALL section_vals_val_get(polar_section,"DO_RAMAN",l_val=polar_env%do_raman,error=error)
+    CALL section_vals_val_get(polar_section,"DO_RAMAN",l_val=polar_env%do_raman,error=error)
    !
    !
    !
