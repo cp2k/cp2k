@@ -1436,21 +1436,19 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'calculate_zmp_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, my_val, nelectron, nspins, &
-                                                stat
+    INTEGER                                  :: handle, my_val, nelectron, &
+                                                nspins, stat
     INTEGER, DIMENSION(2)                    :: nelectron_spin
     LOGICAL                                  :: do_zmp_read, failure, &
                                                 fermi_amaldi
     REAL(KIND=dp)                            :: factor, lambda, total_rho
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: rho_eff_gspace, v_xc_gspace
-    TYPE(pw_p_type)                          :: v_xc_rspace
+    TYPE(pw_p_type)                          :: rho_eff_gspace, v_xc_gspace, &
+                                                v_xc_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: ext_den_section, input
-
-
 
 !, v_h_gspace, &
 

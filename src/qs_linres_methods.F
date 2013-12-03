@@ -270,7 +270,7 @@ CONTAINS
     LOGICAL                                  :: failure, restart
     REAL(dp)                                 :: norm_res, t1, t2
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
-                                                tr_rz1
+                                                tr_rz00, tr_rz1
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_t
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -329,7 +329,7 @@ CONTAINS
     CALL check_p_env_init(p_env,linres_control,nspins,error=error)
     !
     ! allocate the vectors
-    ALLOCATE(alpha(nspins),beta(nspins),tr_pAp(nspins),tr_rz0(nspins),tr_rz1(nspins),&
+    ALLOCATE(alpha(nspins),beta(nspins),tr_pAp(nspins),tr_rz0(nspins),tr_rz00(nspins),tr_rz1(nspins),&
              r(nspins),p(nspins),z(nspins),Ap(nspins),mo_coeff_array(nspins),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
@@ -517,6 +517,23 @@ CONTAINS
           ! tr(Ap_j*p_j)
           CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin),error)
           IF (tr_pAp(ispin).LT.0.0_dp) THEN
+             
+             ! try to fix it by getting rid of the preconditioner
+             IF(iter>1) THEN
+               CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,-1.0_dp,z(ispin)%matrix,error=error)
+               CALL cp_fm_trace(r(ispin)%matrix,r(ispin)%matrix,tr_rz1(ispin),error)
+               beta(ispin) = tr_rz1(ispin)/tr_rz00(ispin)
+               CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,r(ispin)%matrix,error=error)
+               tr_rz0(ispin) = tr_rz1(ispin)
+             ELSE
+               CALL cp_fm_to_fm(r(ispin)%matrix,p(ispin)%matrix,error=error)
+               CALL cp_fm_trace(r(ispin)%matrix,r(ispin)%matrix,tr_rz0(ispin),error)
+             END IF
+             linres_control%flag="CG"
+
+             CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf,error)
+             CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
+             CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin),error)
              CALL stop_program(routineN,moduleN,__LINE__,&
                                "tr(Ap_j*p_j) < 0")
           END IF
@@ -603,6 +620,7 @@ CONTAINS
           !
           ! p_j+1 = z_j+1 + beta * p_j
           CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,z(ispin)%matrix,error=error)
+          tr_rz00(ispin) = tr_rz0(ispin)
           tr_rz0(ispin) = tr_rz1(ispin)
        ENDDO
 

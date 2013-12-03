@@ -541,6 +541,7 @@ OBJECTS_GENERIC =\
  qs_environment.o\
  qs_environment_types.o\
  qs_epr_hyp.o\
+ qs_external_density.o\
  qs_external_potential.o\
  qs_fermi_contact.o\
  qs_force.o\
