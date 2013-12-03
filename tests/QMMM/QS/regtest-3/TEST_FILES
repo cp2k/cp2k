@@ -19,7 +19,7 @@ C11H24-qmmm-gauss-0.inp 7
 sio2-qmmm-gauss-1.inp 1
 sio2-qmmm-gauss-2.inp 1
 sio2-qmmm-gauss-3.inp 1
-constr.inp 7
+constr.inp                        7     7e-12
 # different parallel scheme
 C4H10-qmmm-gauss-12.inp 1 1E-13
 # hbonds selective constraints on QM and MM subsystems

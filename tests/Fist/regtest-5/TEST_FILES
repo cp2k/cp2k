@@ -19,12 +19,12 @@ N3dye_vib_restart_vec.inp 18
 N3dye_vib_restart_vec4.inp 18
 #new linear scaling/fastest/more robust topology generator
 JAC_gen.inp               2
-arginine.inp              2
+arginine.inp                      2     4e-11
 arginine0.inp             2
 arginine_crossC.inp       2
 #new reordering algorithm
 water_reord.inp           2
-phenobenz.inp             2
+phenobenz.inp                     2     1e-10
 liquid.inp                2
 #PSF EXT CHARMM
 wat125.inp                2

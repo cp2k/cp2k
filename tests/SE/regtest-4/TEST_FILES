@@ -6,7 +6,7 @@
 #
 #Ring Puckering Colvars
 4ring1.inp                        3     6e-10
-4ring2.inp                        3     9e-11
+4ring2.inp                        3     5e-10
 5ring1.inp         3 1E-13
 5ring2.inp         3 1E-13
 5ring3.inp         3 1E-13

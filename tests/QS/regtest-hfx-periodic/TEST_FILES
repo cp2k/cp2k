@@ -6,7 +6,7 @@ H2O-trunc-auto.inp            1
 H2O-coul-0.inp                1
 H2O-trunc-auto-md.inp         2
 CH3-trunc-auto.inp            1
-CH3-trunc-1.inp                   1     2e-14
+CH3-trunc-1.inp                   1     9e-14
 CH3-trunc-auto-md.inp         2
-CH3-coul-0.inp                    1     2e-14
+CH3-coul-0.inp                    1     9e-14
 h2o-respa.inp                     1

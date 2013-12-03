@@ -38,7 +38,7 @@ H2O_wavelet_free.inp  1
 H2O_wavelet_free2.inp 1
 H2O_wavelet_XZ.inp    1
 #function to compute splined values - distributed grids
-NO2-EFG-1.inp        19 1E-12
+NO2-EFG-1.inp                    19     5e-12
 H2O-8.inp            1
 H2O-9.inp            1
 # a system with a very small (1x1) KS matrix
@@ -50,7 +50,7 @@ basis_none_2.inp                  1     2e-14
 cell-1.inp           7
 cell-2.inp           7
 #multiple ddapc restraints
-He3_multi_ddapc.inp  1 1E-10
+He3_multi_ddapc.inp               1     3e-09
 #many added MOS with LSD
 N.inp                1
 N_notfixedMM.inp     1

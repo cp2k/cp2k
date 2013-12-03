@@ -14,7 +14,7 @@ H2O-fixd-rest-2.inp       2
 H2O-restraint_1.inp       2
 H2O-restraint_2.inp       2
 # Constrained FIXED_ATOMS + other kinds of contraints
-ethene_colv3.inp          2
+ethene_colv3.inp                  2     8e-10
 nh3_4x6_fixd.inp          2
 water_3_g3x3_fxd.inp      2
 #bug fix for nonbonded14

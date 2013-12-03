@@ -6,11 +6,11 @@ nh3-meta-ref.inp          0
 nh3-meta-ref2.inp         0
 nh3-meta-2.inp            2
 #collective constraint both for nve and npt
-ethene_colv0.inp          2
-ethene_colv1.inp          2
-ethene_colv1_npt.inp      2
-ethene_colv2.inp          2
-ethene_colv2_npt.inp      2
+ethene_colv0.inp                  2     8e-10
+ethene_colv1.inp                  2     8e-10
+ethene_colv1_npt.inp              2     4e-09
+ethene_colv2.inp                  2     5e-11
+ethene_colv2_npt.inp              2     2e-11
 #
 # test restraints here
 # flexible partitioning
@@ -32,7 +32,7 @@ nh3-restraint-fixd.inp    2
 #
 # testing loops in topology
 loop.inp                  2
-pentadiene.inp            2
+pentadiene.inp                    2     6e-12
 cyhex.inp                 2
 cycbut.inp                2
 # testing cp_units
@@ -45,7 +45,7 @@ H2O-2-multi-pw.inp        2
 # AMBER tests comparing energies w.r.t. AMBER.. differences of the order of 10^-6-10^-7 Hartree
 # see the h2o2_amber.inp for comments
 h2o2_amber.inp            2
-gly_amber.inp             2
+gly_amber.inp                     2     3e-12
 mol_amber.inp             2
 #RESPA_TEST
 acn_respa.inp             2
@@ -58,15 +58,15 @@ nh3_wat-restraint-fixd-4.inp 7
 nh3_bfgs.inp              7
 nh3_bfgs_r.inp            7
 #Growth constraints
-ethene_colv1_growth.inp   2
-ethene_colv1_growth_lim.inp   2
+ethene_colv1_growth.inp           2     7e-10
+ethene_colv1_growth_lim.inp       2     8e-10
 #combo restraint/constraint
 H2O-restraint_2.inp       2
 H2O-restraint_2r.inp              2     9e-12
 #Multiple Walkers
 nh3-meta-walks_1.inp      2
 nh3-meta-walks_2.inp      2
-nh3-meta-walks_1r.inp     2
-nh3-meta-walks_2r.inp             2     2e-10
+nh3-meta-walks_1r.inp             2     4e-12
+nh3-meta-walks_2r.inp             2     7e-10
 #Combine_colvar
 H2O-meta-combine.inp      2

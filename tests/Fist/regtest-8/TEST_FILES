@@ -3,6 +3,6 @@ G87.inp            2
 G87_2.inp          2
 G96.inp            2
 G96_ei_scale.inp   2
-water.inp          2
-water_vel.inp      2
+water.inp                         2     9e-12
+water_vel.inp                     2     6e-12
 water_2.inp        2

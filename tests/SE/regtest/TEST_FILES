@@ -29,7 +29,7 @@ h2po4.inp                         3     1e-11
 geom.inp           3
 b2h6_pm6.inp       3
 ch2o_pm6.inp       3
-hcn_pm6.inp        3
+hcn_pm6.inp                       3     4e-14
 # MNDOd (non-d element)
 H2O-MNDOD.inp      3
 hcl.inp            3
@@ -47,9 +47,9 @@ dimer3.inp                        3     3e-13
 dimer4.inp                        3     1e-12
 # GKS INTEGRALS
 h2o_gks.inp        3
-h2o_gks_p.inp                     3     2e-14
+h2o_gks_p.inp                     3     4e-14
 # GKS INTEGRALS + EWALD
-h2o_gks_e.inp      3
+h2o_gks_e.inp                     3     3e-14
 # SCP ice
 ice-scp-ewald.inp                 3     2e-13
 ice-scp-ewald_gks.inp             3     2e-14
