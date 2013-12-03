@@ -382,7 +382,12 @@ MODULE cp_control_types
                                           eval_external_potential,&
                                           do_admm,&
                                           smear,&
-                                          low_spin_roks
+                                          low_spin_roks,&
+                                          apply_external_density,&
+                                          read_external_density,&
+                                          apply_external_vxc,&
+                                          read_external_vxc
+
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

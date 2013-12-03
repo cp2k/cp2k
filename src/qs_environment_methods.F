@@ -471,8 +471,9 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     LOGICAL                                  :: failure, nlcc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
-                                                rho_nlcc_g, vee, vppl
+    TYPE(pw_p_type), POINTER                 :: external_vxc, rho_core, &
+                                                rho_nlcc, rho_nlcc_g, vee, &
+                                                vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
@@ -611,6 +612,27 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
          dft_control%eval_external_potential=.TRUE.
       END IF
     END IF
+
+! ZMP Reallocate external_vxc: external vxc potential
+    IF (dft_control%apply_external_vxc) THEN
+      NULLIFY(external_vxc)
+      CALL get_qs_env(qs_env,pw_env=new_pw_env,external_vxc=external_vxc,error=error)
+      IF (ASSOCIATED(external_vxc)) THEN
+        CALL pw_release(external_vxc%pw,error=error)
+        DEALLOCATE(external_vxc,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(external_vxc,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+        CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+        CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D, error=error)
+        external_vxc%pw%in_space=REALSPACE
+        CALL set_qs_env(qs_env,external_vxc=external_vxc,error=error)
+        dft_control%read_external_vxc=.TRUE.
+      END IF
+    END IF
+
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_pw_env
@@ -694,6 +716,15 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
                           basis_set_id=use_aux_fit_basis_set, error=error)
     END IF
+! ZMP rebuilding external density
+    IF (dft_control%apply_external_density) THEN
+      CALL qs_rho_rebuild(qs_env%rho_external,qs_env=qs_env,&
+                           rebuild_grids=rebuild_grids, &
+                           error=error)
+      dft_control%read_external_density=.TRUE.
+    ENDIF
+
+
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_rho

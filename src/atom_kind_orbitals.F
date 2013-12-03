@@ -130,6 +130,9 @@ CONTAINS
     atom%z = z
     CALL set_atom(atom,&
                   pp_calc=ASSOCIATED(gth_potential),&
+                  do_zmp=.FALSE., &
+                  doread=.FALSE., &
+                  read_vxc=.FALSE., &
                   method_type=do_rks_atom,&
                   relativistic=do_nonrel_atom,&
                   coulomb_integral_type=do_numeric,&

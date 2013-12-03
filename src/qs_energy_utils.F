@@ -49,6 +49,7 @@ MODULE qs_energy_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+!  USE qs_external_density,             ONLY: external_read_density
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace
@@ -261,6 +262,9 @@ CONTAINS
        CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.FALSE.,error=error)
        CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
        CALL external_e_potential(qs_env,error=error)
+
+       ! ZMP addition to read external density
+!       CALL external_read_density(qs_env,error)
 
        ! Add possible pair potential dispersion energy - Evaluate first so we can print
        ! energy info at the end of the SCF

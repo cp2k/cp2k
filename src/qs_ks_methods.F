@@ -132,7 +132,8 @@ MODULE qs_ks_methods
                                              qs_ks_release
   USE qs_ks_utils,                     ONLY: low_spin_roks,&
        sic_explicit_orbitals, calc_v_sic_rspace, print_densities,&
-       print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, ep_v_core
+       print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, ep_v_core,&
+       calculate_zmp_potential
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -615,20 +616,25 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error) 
        END IF
 
-       CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
-            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-            just_energy=just_energy_xc, error=error)
+       ! zmp 
+       IF (qs_env%dft_control%apply_external_density .OR. qs_env%dft_control%apply_external_vxc) THEN
+         energy%exc = 0.
+         CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc,error=error)
+       ELSE
+         CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
+              vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+              just_energy=just_energy_xc, error=error)
+         
+         IF (qs_env%requires_matrix_vxc) THEN
+            CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
+         ENDIF
 
-       IF (qs_env%requires_matrix_vxc) THEN
-          CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
+         IF (gapw .OR. gapw_xc) THEN
+             CALL calculate_vxc_atom(qs_env,just_energy_xc,error)
+         ENDIF
        ENDIF
 
        NULLIFY(rho_struct)
-
-       IF (gapw .OR. gapw_xc) THEN
-           CALL calculate_vxc_atom(qs_env,just_energy_xc,error)
-       END IF
-
        IF (use_virial .AND. calculate_forces) THEN
           virial%pv_virial = virial%pv_virial - virial%pv_xc
        ENDIF

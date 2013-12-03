@@ -54,6 +54,8 @@ MODULE qs_ks_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
+                                             pw_grid_type
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -151,7 +153,8 @@ MODULE qs_ks_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_utils'
 
   PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, print_densities,&
-            print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, ep_v_core
+            print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, ep_v_core,&
+            calculate_zmp_potential
 
 CONTAINS
 
@@ -982,11 +985,33 @@ CONTAINS
            "Hartree energy:                                ",energy%hartree,&
            "Exchange-correlation energy:                   ",energy%exc + energy%exc_aux_fit
       ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
-           "Core Hamiltonian energy:                       ",energy%core,&
-           "Hartree energy:                                ",energy%hartree,&
-           "Exchange-correlation energy:                   ",energy%exc
+!ZMP to print some variables at each step
+        IF( qs_env%dft_control%apply_external_density ) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+             "DOING ZMP CALCULATION FROM EXTERNAL DENSITY    "
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+             "Core Hamiltonian energy:                       ",energy%core,&
+             "Hartree energy:                                ",energy%hartree
+        ELSE IF(  qs_env%dft_control%apply_external_vxc ) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+             "DOING ZMP READING EXTERNAL VXC                 "
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+             "Core Hamiltonian energy:                       ",energy%core,&
+             "Hartree energy:                                ",energy%hartree
+        ELSE
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+             "Core Hamiltonian energy:                       ",energy%core,&
+             "Hartree energy:                                ",energy%hartree,&
+             "Exchange-correlation energy:                   ",energy%exc
+          END IF
       END IF
+
+      IF( qs_env%dft_control%apply_external_density ) THEN
+        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+             "Integral of the (density * v_xc):              ",energy%exc
+      END IF
+
+
       IF (energy%e_hartree /= 0.0_dp)&
            WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
            "Coulomb (electron-electron) energy:            ",energy%e_hartree
@@ -1390,5 +1415,136 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ep_v_core
+
+!**************************************************************************
+!> \brief Calculate the ZMP potential and energy as in Zhao, Morrison Parr 
+!> PRA 50i, 2138 (1994)
+!> V_c^\lambda defined as int_rho-rho_0/r-r' or rho-rho_0 times a Lagrange 
+!> multiplier, plus Fermi-Amaldi potential that should give the V_xc in the
+!> limit \lambda --> \infty 
+!>
+!> \author D. Varsano  [daniele.varsano@nano.cnr.it]
+!**************************************************************************
+  SUBROUTINE calculate_zmp_potential(qs_env, v_rspace_new, rho, exc, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new
+    TYPE(qs_rho_type), POINTER               :: rho
+    REAL(KIND=dp)                            :: exc
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(*), PARAMETER :: routineN = 'calculate_zmp_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, my_val, nelectron, nspins, &
+                                                stat
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
+    LOGICAL                                  :: do_zmp_read, failure, &
+                                                fermi_amaldi
+    REAL(KIND=dp)                            :: factor, lambda, total_rho
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_eff_gspace, v_xc_gspace
+    TYPE(pw_p_type)                          :: v_xc_rspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(section_vals_type), POINTER         :: ext_den_section, input
+
+
+
+!, v_h_gspace, &
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    NULLIFY (auxbas_pw_pool)
+    NULLIFY (pw_env)
+    NULLIFY (poisson_env)
+    NULLIFY(v_rspace_new)
+    CALL get_qs_env(qs_env=qs_env,&
+                    pw_env=pw_env,&
+                    ks_env=ks_env,&
+                    rho=rho,&
+                    input=input,&
+                    nelectron_spin=nelectron_spin,&
+                    error=error)
+    CALL pw_env_get(pw_env=pw_env,&
+                    auxbas_pw_pool=auxbas_pw_pool,&
+                    poisson_env=poisson_env,error=error)
+    nspins = 1
+    ALLOCATE(v_rspace_new(nspins),stat=stat)
+    CALL pw_pool_create_pw(pool=auxbas_pw_pool,pw=v_rspace_new(1)%pw,&
+            use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_pool_create_pw(pool=auxbas_pw_pool,pw=v_xc_rspace%pw,&
+            use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL pw_zero(v_rspace_new(1)%pw, error=error)
+    do_zmp_read=qs_env%dft_control%apply_external_vxc
+    IF (do_zmp_read) THEN
+      CALL pw_copy(qs_env%external_vxc%pw,v_rspace_new(1)%pw, error=error)
+      exc = 0.0_dp
+      exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho%rho_r(1)%pw%cr3d)*&
+                         v_rspace_new(1)%pw%pw_grid%dvol
+    ELSE
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                             pw=rho_eff_gspace%pw,&
+                             use_data=COMPLEXDATA1D,&
+                             in_space=RECIPROCALSPACE,&
+                             error=error)
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                             pw=v_xc_gspace%pw, &
+                             use_data=COMPLEXDATA1D,&
+                             in_space=RECIPROCALSPACE,&
+                             error=error)
+      CALL pw_zero(rho_eff_gspace%pw, error=error)
+      CALL pw_zero(v_xc_gspace%pw, error=error)
+      CALL pw_zero(v_xc_rspace%pw,error=error)
+      factor=pw_integrate_function(rho%rho_g(1)%pw,error=error)
+      factor=qs_env%rho_external%tot_rho_r(1)/factor
+
+      CALL pw_axpy(rho%rho_g(1)%pw,rho_eff_gspace%pw,alpha=factor,error=error)
+      CALL pw_axpy(qs_env%rho_external%rho_g(1)%pw,rho_eff_gspace%pw,alpha=-1.0_dp,error=error)
+      total_rho = pw_integrate_function(rho_eff_gspace%pw,isign=1,error=error)
+      ext_den_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_DENSITY",error=error)
+      CALL section_vals_val_get(ext_den_section,"LAMBDA",r_val=lambda, error=error)
+      CALL section_vals_val_get(ext_den_section,"ZMP_CONSTRAINT",i_val=my_val,error=error)
+      CALL section_vals_val_get(ext_den_section,"FERMI_AMALDI",l_val=fermi_amaldi,error=error)
+
+      CALL pw_scale( rho_eff_gspace%pw, a=lambda , error=error)
+      nelectron=nelectron_spin(1)
+      factor = -1.0_dp/nelectron
+      CALL pw_axpy(rho%rho_g(1)%pw,rho_eff_gspace%pw, alpha=factor,error=error)
+
+      CALL pw_poisson_solve(poisson_env,rho_eff_gspace%pw,vhartree=v_xc_gspace%pw,&
+                            error=error)
+      CALL pw_transfer(v_xc_gspace%pw, v_rspace_new(1)%pw, error=error)
+      CALL pw_copy(v_rspace_new(1)%pw,v_xc_rspace%pw, error=error)
+
+      exc = 0.0_dp
+      exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho%rho_r(1)%pw%cr3d)*&
+                         v_rspace_new(1)%pw%pw_grid%dvol
+     IF ( v_rspace_new(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
+        CALL mp_sum ( exc, v_rspace_new(1)%pw%pw_grid%para%group )
+     END IF
+
+!     IF (v_rspace_new(1)%pw%pw_grid%para%my_pos==0)  WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
+!Note that this is not the xc energy but \int(\rho*v_xc)
+!Vxc---> v_rspace_new
+!Exc---> energy%exc
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+                               rho_eff_gspace%pw,&
+                               error=error)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+                               v_xc_gspace%pw, &
+                               error=error)
+    ENDIF
+
+    CALL pw_pool_give_back_pw(ks_env%auxbas_pw_pool,v_xc_rspace%pw,&
+                                 error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_zmp_potential
 
 END MODULE qs_ks_utils
