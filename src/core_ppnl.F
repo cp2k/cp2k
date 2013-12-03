@@ -83,17 +83,17 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, atom_c, first_col, handle, i, iab, iac, iatom, &
       ibc, icol, ikind, ilist, inode, irow, iset, j, jatom, jkind, jneighbor, &
-      kac, katom, kbc, kkind, l, last_jatom, lc_max, lc_min, ldai, ldsab, &
-      lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, na, &
-      natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnode, np, nppnl, &
-      nprjc, nseta, nsgfa, prjc, sgfa, stat
+      kac, katom, kbc, kkind, l, last_iatom, last_jatom, lc_max, lc_min, &
+      ldai, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, &
+      maxsgf, mepos, na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, &
+      nnode, np, nppnl, nprjc, nseta, nsgfa, nthread, prjc, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, &
                                                 nprj_ppnl, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, found, new_atom_b, &
-                                                ppnl_present
+    LOGICAL                                  :: failure, found, &
+                                                new_atom_pair, ppnl_present
     REAL(KIND=dp)                            :: dac, f0, ppnl_radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sab, work
@@ -119,6 +119,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: sap_int
+
+!$  INTEGER :: omp_get_thread_num, omp_get_max_threads
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -161,13 +163,8 @@ CONTAINS
 
       ldsab = MAX(maxco,ncoset(maxlppnl),maxsgf,maxppnl)
       ldai = ncoset(maxl+nder+1)
-      ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      sab=0.0_dp
-      ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ai_work=0.0_dp
 
+      !sap_int needs to be shared as multiple threads need to access this
       ALLOCATE(sap_int(nkind*nkind),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO i=1,nkind*nkind
@@ -194,10 +191,33 @@ CONTAINS
          END IF
       END DO
 
+      nthread=1
+!$    nthread=omp_get_max_threads()
+
       !calculate the overlap integrals <a|p>
-      CALL neighbor_list_iterator_create(nl_iterator,sap_ppnl)
-      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-         CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=kkind,iatom=iatom,&
+      CALL neighbor_list_iterator_create(nl_iterator,sap_ppnl,nthread=nthread)
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &                                                                                      
+!$OMP SHARED  (nl_iterator, basis_set, potential, maxder, ncoset, &
+!$OMP          sap_int, nkind, ldsab,  ldai, nder, nco ) &
+!$OMP PRIVATE (mepos, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
+!$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
+!$OMP          sphi_a, zeta, cprj, lppnl, nppnl, nprj_ppnl, & 
+!$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
+!$OMP          ncoc, rpgfa, first_col, vprj_ppnl, failure, i, l, &
+!$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, error, stat)
+      mepos=0
+!$    mepos=omp_get_thread_num()
+
+      ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      sab=0.0_dp
+      ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ai_work=0.0_dp
+
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
+         CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=kkind,iatom=iatom,&
               jatom=katom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,cell=cell_c,r=rac)
          iac = ikind + nkind*(kkind - 1)
          IF (.NOT.ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
@@ -222,6 +242,7 @@ CONTAINS
          nprj_ppnl => potential(kkind)%gth_potential%nprj_ppnl
          ppnl_radius = potential(kkind)%gth_potential%ppnl_radius
          vprj_ppnl => potential(kkind)%gth_potential%vprj_ppnl
+!$OMP CRITICAL(sap_int_critical)
          IF (.NOT.ASSOCIATED(sap_int(iac)%alist)) THEN
             sap_int(iac)%a_kind = ikind
             sap_int(iac)%p_kind = kkind
@@ -243,6 +264,7 @@ CONTAINS
                sap_int(iac)%alist(ilist)%clist(i)%catom = 0
             END DO
          END IF
+!$OMP END CRITICAL(sap_int_critical)
          dac = SQRT(SUM(rac*rac))
          clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
          clist%catom = katom
@@ -295,30 +317,48 @@ CONTAINS
          clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
          clist%maxach=MAXVAL(ABS(clist%achint(:,:,1)))
       END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
 
       DEALLOCATE(sab,ai_work,work,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!$OMP END PARALLEL
+      CALL neighbor_list_iterator_release(nl_iterator)
 
       ! *** Set up a sorting index
       CALL sap_sort(sap_int,error)
       ! *** All integrals needed have been calculated and stored in sap_int
       ! *** We now calculate the Hamiltonian matrix elements
-      CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-         CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
+      CALL neighbor_list_iterator_create(nl_iterator,sab_orb,nthread=nthread)
+
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &                                                                                      
+!$OMP SHARED  (nl_iterator, basis_set, atom_of_kind, matrix_h, &
+!$OMP          matrix_p, sap_int, nkind, eps_ppnl, force, virial, use_virial, calculate_forces) &
+!$OMP PRIVATE (mepos, ikind, jkind, iatom, jatom, nlist, ilist, nnode, inode, cell_b, rab, &
+!$OMP          iab, atom_a, atom_b, last_iatom, last_jatom, f0, irow, icol, h_block, &
+!$OMP          found, error, p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
+!$OMP          achint, bchint, na, np, nb, katom, atom_c, j, fa, fb, rbc, rac, new_atom_pair, &
+!$OMP          kkind, kac, kbc, i)
+
+      mepos=0
+!$    mepos=omp_get_thread_num()
+      last_iatom = 0
+      last_jatom = 0
+
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
+         CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=jkind,iatom=iatom,&
               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nnode,inode=inode,cell=cell_b,r=rab)
          IF (.NOT.ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
          IF (.NOT.ASSOCIATED(basis_set(jkind)%gto_basis_set)) CYCLE
          iab = ikind + nkind*(jkind - 1)
          atom_a = atom_of_kind(iatom)
          atom_b = atom_of_kind(jatom)
-         IF(inode==1) last_jatom = 0
-         IF (jatom /= last_jatom) THEN
-            new_atom_b = .TRUE.
-            last_jatom = jatom
+
+         IF (iatom == last_iatom .AND. jatom == last_jatom) THEN
+            new_atom_pair = .FALSE.
          ELSE
-            new_atom_b = .FALSE.
+            new_atom_pair = .TRUE.
+            last_jatom = jatom
+            last_iatom = iatom
          END IF
 
          ! *** Use the symmetry of the first derivatives ***
@@ -329,7 +369,7 @@ CONTAINS
          END IF
 
          ! *** Create matrix blocks for a new matrix block column ***
-         IF (new_atom_b) THEN
+         IF (new_atom_pair) THEN
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
@@ -369,6 +409,7 @@ CONTAINS
                         na = SIZE(acint,1)
                         np = SIZE(acint,2)
                         nb = SIZE(bcint,1)
+!$OMP CRITICAL(h_block_critical)
                         IF (iatom <= jatom) THEN
                            CALL dgemm("N","T",na,nb,np,1._dp,achint(1,1,1),na,&
                                 bcint(1,1,1),nb,1.0_dp,h_block,SIZE(h_block,1))
@@ -376,6 +417,7 @@ CONTAINS
                            CALL dgemm("N","T",nb,na,np,1.0_dp,bchint(1,1,1),nb,&
                                 acint(1,1,1),na,1.0_dp,h_block,SIZE(h_block,1))
                         END IF
+!$OMP END CRITICAL(h_block_critical)
                         IF (calculate_forces) THEN
                            IF(ASSOCIATED(p_block)) THEN
                               katom = alist_ac%clist(kac)%catom
@@ -393,26 +435,32 @@ CONTAINS
                                     fb(i)=SUM(p_block(1:nb,1:na)*&
                                          MATMUL(bcint(1:nb,1:np,j),TRANSPOSE(achint(1:na,1:np,1))))
                                  END IF
+!$OMP CRITICAL(force_critical)
                                  force(ikind)%gth_ppnl(i,atom_a) =force(ikind)%gth_ppnl(i,atom_a) + f0*fa(i)
                                  force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) - f0*fa(i)
                                  force(jkind)%gth_ppnl(i,atom_b) =force(jkind)%gth_ppnl(i,atom_b) + f0*fb(i)
                                  force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) - f0*fb(i)
-                              END DO
+!$OMP END CRITICAL(force_critical)
+                              END DO  
+
                               IF (use_virial) THEN
                                  rac = alist_ac%clist(kac)%rac
                                  rbc = alist_bc%clist(kbc)%rac
+!$OMP CRITICAL(virial_critical)
                                  CALL virial_pair_force ( virial%pv_virial, f0, fa, rac, error)
                                  CALL virial_pair_force ( virial%pv_virial, f0, fb, rbc, error)
+!$OMP END CRITICAL(virial_critical)
                               END IF
                            ENDIF
                         END IF
                         EXIT ! We have found a match and there can be only one single match
                      END IF
-                  END DO
-               END DO
-            END DO
+                  END DO  
+               END DO  
+            END DO 
          ENDIF
-      END DO
+      END DO  
+!$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
 
       CALL release_sap_int(sap_int, error)
