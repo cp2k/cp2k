@@ -545,7 +545,6 @@ CONTAINS
        IF(ASSOCIATED(polar_env%psi1_dBerry)) THEN
           DO idir = 1,SIZE(polar_env%psi1_dBerry,1)
              DO ispin = 1,SIZE(polar_env%psi1_dBerry,2)
-            WRITE(*,*)'release it'
                 CALL cp_fm_release(polar_env%psi1_dBerry(idir,ispin)%matrix,error=error)
              ENDDO
           ENDDO
