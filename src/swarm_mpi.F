@@ -197,7 +197,7 @@ MODULE swarm_mpi
        project_name = old_logger%iter_info%project_name
        IF(worker_id > 99999) &
           STOP "logger_init_worker: Did not expect so many workers."
-       WRITE(worker_name,"(A,I5.5)"), 'WORKER', worker_id
+       WRITE(worker_name,"(A,I5.5)") 'WORKER', worker_id
        IF(LEN_TRIM(project_name)+1+LEN_TRIM(worker_name)>default_string_length) &
           STOP "logger_init_worker: project name too long"
        output_path = TRIM(project_name) // "-"// TRIM(worker_name) // ".out"

@@ -243,7 +243,7 @@ MODULE swarm_master
     IF(ASSOCIATED(master%queued_commands(worker_id)%p)) THEN
        cmd = master%queued_commands(worker_id)%p
        DEALLOCATE(master%queued_commands(worker_id)%p)
-       IF(master%iw>0) WRITE (master%iw,'(A,A,A,I9,X,A)') ' SWARM| ',&
+       IF(master%iw>0) WRITE (master%iw,'(A,A,A,I9,1X,A)') ' SWARM| ',&
           REPEAT("*", 9), " Sending out queued command to worker: ",&
           worker_id,REPEAT("*", 9)
        CALL timestop(handle)
@@ -255,7 +255,7 @@ MODULE swarm_master
        ! There are no queued commands. Do the normal processing.
        master%i_iteration = master%i_iteration + 1
 
-       IF(master%iw>0) WRITE (master%iw,'(A,A,X,I8,A,A)') ' SWARM| ',REPEAT("*", 15),&
+       IF(master%iw>0) WRITE (master%iw,'(A,A,1X,I8,A,A)') ' SWARM| ',REPEAT("*", 15),&
            master%i_iteration,' Master / Worker Communication  ',REPEAT("*", 15)
     ENDIF
 
@@ -276,7 +276,7 @@ MODULE swarm_master
 
     IF(master%should_stop) THEN
        CALL swarm_message_add(cmd, "command", "shutdown")
-       IF(master%iw>0) WRITE(master%iw,'(X,A,T71,I10)') &
+       IF(master%iw>0) WRITE(master%iw,'(1X,A,T71,I10)') &
          "SWARM| Sending shutdown command to worker",worker_id
     ELSE
        SELECT CASE(master%behavior)
@@ -289,7 +289,7 @@ MODULE swarm_master
        IF(should_stop) THEN
           !TODO: does overwritting entries in swarm_message actually work?
           CALL swarm_message_add(cmd, "command", "shutdown") !overwrite command
-          IF(master%iw>0) WRITE(master%iw,'(X,A,T71,I10)') &
+          IF(master%iw>0) WRITE(master%iw,'(1X,A,T71,I10)') &
               "SWARM| Sending shutdown command to worker",worker_id
            master%should_stop = .TRUE.
        ENDIF
@@ -304,7 +304,7 @@ MODULE swarm_master
     IF(TRIM(status)/="wait_done" .OR. TRIM(command)/="wait") THEN
        CALL swarm_message_file_write(report, master%comlog_unit)
        CALL swarm_message_file_write(cmd, master%comlog_unit)
-       IF(master%n_waiting>0 .AND. master%iw>0) WRITE(master%iw,'(X,A,T71,I10)') &
+       IF(master%n_waiting>0 .AND. master%iw>0) WRITE(master%iw,'(1X,A,T71,I10)') &
          "SWARM| Number of waiting workers:", master%n_waiting
        master%ignore_last_iteration = .FALSE.
     ELSE
@@ -322,7 +322,7 @@ MODULE swarm_master
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF(master%iw > 0) THEN
-       WRITE(master%iw,"(X,A,T71,I10)") "SWARM| Total number of iterations ", master%i_iteration
+       WRITE(master%iw,"(1X,A,T71,I10)") "SWARM| Total number of iterations ", master%i_iteration
        WRITE(master%iw,"(A)") " SWARM| Shutting down the master."
     ENDIF
 

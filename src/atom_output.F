@@ -466,19 +466,19 @@ CONTAINS
     ! zmp
     IF (atom%do_zmp) THEN
       IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Method on atomic radial density')")
-      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Lambda : ',F5.1)"), atom%lambda
-      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Reading external density : ',A20)"), atom%ext_file
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Lambda : ',F5.1)") atom%lambda
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Reading external density : ',A20)") atom%ext_file
       IF (atom%dm) THEN
         IF (iw > 0) WRITE (iw, fmt="(' ZMP       | The file is in the form of a density matrix')")
       ELSE
         IF (iw > 0) WRITE (iw, fmt="(' ZMP       | The file is in the form of a linear density')")
       END IF
       IF (atom%doread) THEN
-        IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Restarting calculation from ',A20,' file if present')"), atom%zmp_restart_file
+        IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Restarting calculation from ',A20,' file if present')") atom%zmp_restart_file
       END IF
     ELSE IF (atom%read_vxc) THEN
       IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Calculating density from external V_xc')")
-      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Reading external v_xc file : ',A20)"), atom%ext_vxc_file
+      IF (iw > 0) WRITE (iw, fmt="(' ZMP       | Reading external v_xc file : ',A20)") atom%ext_vxc_file
     END IF
 
     IF (atom%pp_calc) THEN

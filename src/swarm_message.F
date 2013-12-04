@@ -327,7 +327,7 @@ MODULE swarm_message
        value_str_arr = str2iarr(entry%value_str)
        CALL mp_send(value_str_arr, dest, tag, group)
     ELSE
-       CALL abort()
+       CALL mp_abort()
        STOP "swarm_message_entry_mpi_send: no value ASSOCIATED"
     END IF
   END SUBROUTINE swarm_message_entry_mpi_send
@@ -576,18 +576,18 @@ MODULE swarm_message
        WRITE(unit,"(A)") "datatype: r4_1d"
        WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_r4_1d)
        DO i=1, SIZE(entry%value_r4_1d)
-         WRITE(unit,"(X,E30.20)") entry%value_r4_1d(i)
+         WRITE(unit,"(1X,E30.20)") entry%value_r4_1d(i)
        END DO
 
     ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
        WRITE(unit,"(A)") "datatype: r8_1d"
        WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_r8_1d)
        DO i=1, SIZE(entry%value_r8_1d)
-         WRITE(unit,"(X,E30.20)") entry%value_r8_1d(i)
+         WRITE(unit,"(1X,E30.20)") entry%value_r8_1d(i)
        END DO
 
     ELSE
-       CALL abort()
+       CALL mp_abort()
        STOP "swarm_message_entry_file_write: no value ASSOCIATED"
     END IF
   END SUBROUTINE swarm_message_entry_file_write
