@@ -269,8 +269,8 @@ CONTAINS
                                                 nmo, nspins, output_unit
     LOGICAL                                  :: failure, restart
     REAL(dp)                                 :: norm_res, t1, t2
-    REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
-                                                tr_rz00, tr_rz1
+    REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
+                                                tr_rz1
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_t
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -645,7 +645,7 @@ CONTAINS
        CALL cp_fm_release(chc(ispin)%matrix,error=error)
     ENDDO
     CALL cp_fm_release(buf,error=error)
-    DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array,STAT=istat)
+    DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz00,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,"PRINT%PROGRAM_RUN_INFO",error=error)
