@@ -837,6 +837,11 @@ CONTAINS
      failure = .FALSE.
      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
+    IF(ASSOCIATED(qs_env%ls_scf_env)) THEN
+      WRITE(unit_number,*) "Periodic moment calculation not implemented in linear scaling code"
+      RETURN
+    ENDIF
+
      IF (.NOT.failure) THEN
 
        CALL timeset(routineN,handle)
