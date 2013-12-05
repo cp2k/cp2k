@@ -42,6 +42,8 @@ MODULE almo_scf
                                              almo_mat_dim_virt_full,&
                                              almo_max_cutoff_multiplier,&
                                              almo_objectM1_type
+  USE bibliography,                    ONLY: Khaliullin2013,&
+                                             cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_control_types,                ONLY: dft_control_type
@@ -126,6 +128,8 @@ CONTAINS
     TYPE(almo_objectM1_type)                 :: main_objectM1
 
     CALL timeset(routineN,handle)
+
+    CALL cite_reference(Khaliullin2013)
 
     ! no forces so far 
     CALL cp_assert(.NOT.calc_forces,cp_failure_level,cp_assertion_failed,routineP,&

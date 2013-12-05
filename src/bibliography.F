@@ -62,7 +62,7 @@ MODULE bibliography
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
              Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996, &
-             Goedecker2004
+             Goedecker2004,Khaliullin2013
 
 CONTAINS
 
@@ -2499,6 +2499,28 @@ CONTAINS
          "DI 10.1063/1.1724816",&
          "ER"),&
          DOI="10.1063/1.1724816")
+
+    CALL add_reference(key=Khaliullin2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Khaliullin, RZ",&
+         "   VandeVondele, J",&
+         "   Hutter, J",&
+         "AF Khaliullin, Rustam Z.",&
+         "   VandeVondele, Joost",&
+         "   Hutter, Juerg",&
+         "TI Efficient Linear-Scaling Density Functional Theory for Molecular Systems",&
+         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+         "SN 1549-9618",&
+         "PD OCT",&
+         "PY 2013",&
+         "VL 9",&
+         "IS 10",&
+         "BP 4421",&
+         "EP 4427",&
+         "DI 10.1021/ct400595k",&
+         "UT WOS:000326355100014",&
+         "ER"),&
+         DOI="10.1021/ct400595k")
 
   END SUBROUTINE add_all_references
 
