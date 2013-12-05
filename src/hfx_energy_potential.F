@@ -66,7 +66,8 @@ MODULE hfx_energy_potential
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE machine,                         ONLY: m_memory,&
+  USE machine,                         ONLY: m_flush,&
+                                             m_memory,&
                                              m_walltime
   USE mathconstants
   USE message_passing,                 ONLY: mp_max,&
@@ -312,6 +313,7 @@ MODULE hfx_energy_potential
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I21))")&
               "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
+        CALL m_flush(iw)
       END IF
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
                                        "HF_INFO", error=error)
@@ -2000,7 +2002,7 @@ MODULE hfx_energy_potential
         END IF
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21),/)")&
                  "HFX_MEM_INFO| Est. max. program size after HFX  [MB's]:", memsize_after/(1024*1024)
-
+        CALL m_flush(iw)
       END IF
 
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
