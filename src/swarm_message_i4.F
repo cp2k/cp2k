@@ -31,7 +31,7 @@
  SUBROUTINE swarm_message_get_i4(msg, key, value)
    TYPE(swarm_message_type), INTENT(IN)  :: msg
    CHARACTER(LEN=*), INTENT(IN)          :: key
-   INTEGER(KIND=int_4), INTENT(OUT)                :: value
+   INTEGER(KIND=int_4), INTENT(OUT)                             :: value
 
    TYPE(message_entry_type), POINTER :: curr_entry
    !WRITE (*,*) "swarm_message_get_i4: key=",key

@@ -1,7 +1,7 @@
 [
 {'nametype'   :'str',
 'type'        :'CHARACTER(LEN=*)',
-'typeout'     :'CHARACTER(LEN=default_string_length)',
+'typeout'     :'CHARACTER(LEN=default_string_length), INTENT(OUT)',
 'alloc_entry' :'ALLOCATE(new_entry%value_str)',
 'alloc_check' :'',
 'alloc_value' :'',
@@ -9,7 +9,7 @@
 
 {'nametype'   :'i4',
 'type'        :'INTEGER(KIND=int_4)',
-'typeout'     :'INTEGER(KIND=int_4)',
+'typeout'     :'INTEGER(KIND=int_4), INTENT(OUT)',
 'alloc_entry' :'ALLOCATE(new_entry%value_i4)',
 'alloc_check' :'',
 'alloc_value' :'',
@@ -17,7 +17,7 @@
 
 {'nametype'   :'i8',
 'type'        :'INTEGER(KIND=int_8)',
-'typeout'     :'INTEGER(KIND=int_8)',
+'typeout'     :'INTEGER(KIND=int_8), INTENT(OUT)',
 'alloc_entry' :'ALLOCATE(new_entry%value_i8)',
 'alloc_check' :'',
 'alloc_value' :'',
@@ -25,7 +25,7 @@
 
 {'nametype'   :'r4',
 'type'        :'REAL(KIND=real_4)',
-'typeout'     :'REAL(KIND=real_4)',
+'typeout'     :'REAL(KIND=real_4), INTENT(OUT)',
 'alloc_entry' :'ALLOCATE(new_entry%value_r4)',
 'alloc_check' :'',
 'alloc_value' :'',
@@ -33,7 +33,7 @@
 
 {'nametype'   :'r8',
 'type'        :'REAL(KIND=real_8)',
-'typeout'     :'REAL(KIND=real_8)',
+'typeout'     :'REAL(KIND=real_8), INTENT(OUT)',
 'alloc_entry' :'ALLOCATE(new_entry%value_r8)',
 'alloc_check' :'',
 'alloc_value' :'',

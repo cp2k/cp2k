@@ -31,7 +31,7 @@
  SUBROUTINE swarm_message_get_r4_1d(msg, key, value)
    TYPE(swarm_message_type), INTENT(IN)  :: msg
    CHARACTER(LEN=*), INTENT(IN)          :: key
-   REAL(KIND=real_4), DIMENSION(:), POINTER, INTENT(OUT)                :: value
+   REAL(KIND=real_4), DIMENSION(:), POINTER                             :: value
 
    TYPE(message_entry_type), POINTER :: curr_entry
    !WRITE (*,*) "swarm_message_get_r4_1d: key=",key

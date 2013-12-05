@@ -31,7 +31,7 @@
  SUBROUTINE swarm_message_get_str(msg, key, value)
    TYPE(swarm_message_type), INTENT(IN)  :: msg
    CHARACTER(LEN=*), INTENT(IN)          :: key
-   CHARACTER(LEN=default_string_length), INTENT(OUT)                :: value
+   CHARACTER(LEN=default_string_length), INTENT(OUT)                             :: value
 
    TYPE(message_entry_type), POINTER :: curr_entry
    !WRITE (*,*) "swarm_message_get_str: key=",key
