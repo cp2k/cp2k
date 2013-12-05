@@ -182,7 +182,7 @@ CONTAINS
             description="This keyword specifies how the QM system is centered with respect to the QM box during MD.",&
             usage="typ_center NONE",&
             enum_c_vals=s2a( "NONE","GRID"),&
-            enum_desc=s2a("centering is performes continuously",&
+            enum_desc=s2a("centering is performed continuously",&
                           "centering is performed in units of the grid spacing"),&
             enum_i_vals=(/ do_center_none, do_center_grid /),&
             default_i_val=do_center_none, error=error)
