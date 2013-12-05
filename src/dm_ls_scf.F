@@ -70,8 +70,8 @@ MODULE dm_ls_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_scf_post_gpw,                 ONLY: write_mo_free_results,&
-                                             qs_scf_post_moments
+  USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
+                                             write_mo_free_results
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
