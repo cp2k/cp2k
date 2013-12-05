@@ -337,10 +337,12 @@ CONTAINS
 
     ! check the configuration consitency with selected moves
     CALL check_moves(tmc_params=tmc_env%params, &
-           move_types=tmc_env%params%move_types, error=error)
+           move_types=tmc_env%params%move_types, &
+           mol_array=init_conf%mol, error=error)
     IF(ASSOCIATED(tmc_env%params%nmc_move_types)) &
       CALL check_moves(tmc_params=tmc_env%params, &
-             move_types=tmc_env%params%nmc_move_types, error=error)
+             move_types=tmc_env%params%nmc_move_types, &
+             mol_array=init_conf%mol, error=error)
 
     ! set initial configuration 
     ! set initial random number generator seed (rng seed)

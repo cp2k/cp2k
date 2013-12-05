@@ -177,7 +177,7 @@ CONTAINS
           ! set the communicator in the external control for receiving exit tags 
           !  and sending additional information (e.g. the intermediate scf energies)
           IF(tmc_env%params%use_scf_energy_info) &
-            CALL set_inermediate_info_comm(env_id=itmp, &
+            CALL set_intermediate_info_comm(env_id=itmp, &
                   comm=tmc_env%tmc_comp_set%para_env_m_w%group, error=error)
           IF(tmc_env%params%SPECULATIVE_CANCELING) &
             CALL set_external_comm(comm=tmc_env%tmc_comp_set%para_env_m_w%group, &
@@ -601,7 +601,7 @@ CONTAINS
             ELSE
               itmp = tmc_env%w_env%env_id_approx
             END IF
-            CALL remove_inermediate_info_comm(env_id=itmp, error=error)
+            CALL remove_intermediate_info_comm(env_id=itmp, error=error)
           END IF
         END IF
         IF(ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group)) &
@@ -939,12 +939,12 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE set_inermediate_info_comm(comm, env_id, error)
+  SUBROUTINE set_intermediate_info_comm(comm, env_id, error)
     INTEGER, INTENT(IN)                      :: comm
     INTEGER                                  :: env_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_inermediate_info_comm', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_intermediate_info_comm', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
@@ -975,7 +975,7 @@ CONTAINS
     CALL put_results(results=f_env%force_env%qs_env%results, &
                      description=description, values=values, &
                      error=error)
-  END SUBROUTINE set_inermediate_info_comm
+  END SUBROUTINE set_intermediate_info_comm
 
 ! *****************************************************************************
 !> \brief set the communicator in the SCF environment 
@@ -986,11 +986,11 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE remove_inermediate_info_comm(env_id, error)
+  SUBROUTINE remove_intermediate_info_comm(env_id, error)
     INTEGER                                  :: env_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_inermediate_info_comm', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_intermediate_info_comm', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
@@ -1015,7 +1015,7 @@ CONTAINS
     ! set the communicator information in the qs_env result container
     CALL cp_results_erase(results=f_env%force_env%qs_env%results, &
                           description=description, error=error)
-  END SUBROUTINE remove_inermediate_info_comm
+  END SUBROUTINE remove_intermediate_info_comm
 
 
 !! *****************************************************************************

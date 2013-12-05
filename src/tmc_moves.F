@@ -125,7 +125,6 @@ CONTAINS
     ELSE
       act_nr_elem_mv = tmc_params%nr_elem_mv
     END IF
-
     !-- select the type of move (looked up in list, using the move type index)
     !-- for each move type exist single moves of certain number of elements 
     !-- or move of all elements
@@ -217,6 +216,9 @@ CONTAINS
           END IF
           CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                start_ind=ind, end_ind=ind_e, error=error)
+          ! when "molecule" is single atom, search a new one
+          IF(ind .EQ. ind_e) CYCLE move_molecule_loop
+
           ! calculate displacement
           !  move only molecules, with geom. center in subbox
           IF(mol_in_sb(m) .EQ. status_ok) THEN
@@ -288,6 +290,9 @@ CONTAINS
           END IF
           CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                start_ind=ind, end_ind=ind_e, error=error)
+          ! when "molecule" is single atom, search a new one
+          IF(ind .EQ. ind_e) CYCLE rot_molecule_loop
+
           ! apply move
           IF(mol_in_sb(m).EQ.status_ok)THEN
             CALL do_mol_rot(pos=elem%pos, ind_start=ind, ind_end=ind_e, &
