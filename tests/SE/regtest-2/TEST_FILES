@@ -30,7 +30,7 @@ H2O-PDDG.inp    3
 b2h6_pm6.inp    3
 ch2o_pm6.inp    3
 hcn_pm6.inp     3
-md.inp         11
+md.inp                           11     4e-14
 # d-orbitals analytical der
 O2-ROKS-PM6.inp        3
 Pt-cis-2xpet3Cl2.inp   3
@@ -65,6 +65,6 @@ stp6.inp               3
 scan_zn_1w_cp2k.inp    3
 zn_1w_debug.inp                   3     3e-13
 #Jacobi diagonalization
-H2O-32.inp                        3     3e-14
+H2O-32.inp                        3     8e-13
 # Test for new option relax_multiplicity
 O2-UKS-MNDO-relax_multip.inp 3

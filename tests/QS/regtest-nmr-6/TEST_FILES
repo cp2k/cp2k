@@ -17,11 +17,11 @@ ch4-gapw-1-distributed.inp 14
 ch4-gapw-1-replicated.inp  14
 no-gapw-1-distributed.inp        14     2e-03
 no-gapw-1-replicated.inp         14     2e-03
-w2_qmmm-1.inp 14
-w2_qmmm-2.inp 14
-w2_qmmm-3.inp 14
+w2_qmmm-1.inp                    14     2e-04
+w2_qmmm-2.inp                    14     7e-05
+w2_qmmm-3.inp                    14     8e-05
 ch4-gapw-gpw-1.inp 14
 no-gapw-gpw-1.inp                14     1e-04
 h2-gapw-1.inp 14
-ch3m-gapw-1.inp 14
-ch3p-gapw-1.inp 14
+ch3m-gapw-1.inp                  14     1e-04
+ch3p-gapw-1.inp                  14     2e-04

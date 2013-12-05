@@ -8,7 +8,7 @@
 H2O-dimer-dangchang.inp               2
 H2OandI-dangchang.inp                 2
 deca_cg.inp                          11
-deca_sc.inp                          11
+deca_sc.inp                      11     2e-14
 ethanol_cg.inp                       11
 ethanol_sc.inp                       11
 nacl_cg.inp                          11

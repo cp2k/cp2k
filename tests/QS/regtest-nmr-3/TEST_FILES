@@ -3,6 +3,6 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-ch2o-nmr-nics-1.inp 15
+ch2o-nmr-nics-1.inp              15     4e-05
 h2o-nmr-nics-1.inp  15
-no-gapw-nics.inp 15
+no-gapw-nics.inp                 15     1e-03
