@@ -269,8 +269,8 @@ CONTAINS
                                                 nmo, nspins, output_unit
     LOGICAL                                  :: failure, restart
     REAL(dp)                                 :: norm_res, t1, t2
-    REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
-                                                tr_rz1
+    REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
+                                                tr_rz00, tr_rz1
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_t
     TYPE(cp_fm_p_type), DIMENSION(:), &
