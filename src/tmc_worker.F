@@ -990,7 +990,8 @@ CONTAINS
     INTEGER                                  :: env_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_intermediate_info_comm', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'remove_intermediate_info_comm', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
