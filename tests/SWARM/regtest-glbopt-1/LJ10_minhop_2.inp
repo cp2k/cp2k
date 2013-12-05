@@ -118,7 +118,7 @@
   &MM
     &FORCEFIELD
      &SPLINE
-        R0_NB 0.0     ! solely MAX_SPLINE shall control spline range
+        R0_NB 1.0E-10 ! solely MAX_SPLINE shall control spline range
         EMAX_SPLINE   [hartree]  1000
         EMAX_ACCURACY [hartree]  1000  ! yields r_min = 0.66 bohr
         EPS_SPLINE    [hartree] 1.0E-10   ! yields 1698 spline points
