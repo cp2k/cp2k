@@ -132,7 +132,7 @@ CONTAINS
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter",i,occ_matrix, &
                                                              maxnorm_matrix,t2-t1,&
-                                                                    (flop1+flop2)/(1.0E6_dp*(t2-t1))
+                                                                    (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
@@ -243,7 +243,7 @@ CONTAINS
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sign iter ",i,occ_matrix,&
                                                                     frob_matrix/frob_matrix_base,t2-t1,&
-                                                                    (flop1+flop2)/(1.0E6_dp*(t2-t1))
+                                                                    (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
@@ -440,7 +440,7 @@ CONTAINS
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sqrt iter ",i,occ_matrix,&
                                                              frob_matrix/frob_matrix_base,t2-t1,&
-                                                 (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*(t2-t1))
+                                                 (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 

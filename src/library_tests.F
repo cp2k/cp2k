@@ -1925,7 +1925,7 @@ CONTAINS
           WRITE(iw,'(T2,A,T50,F12.6)')     "average cp_fm_gemm timing: ",(t2-t1)/N_loop
           IF (t2>t1) THEN
              WRITE(iw,'(T2,A,T50,F12.6)') "cp_fm_gemm Gflops per MPI task: ", &
-                2*REAL(m,kind=dp)*REAL(n,kind=dp)*REAL(k,kind=dp)*N_loop / (t2-t1) / 1.0E9_dp / para_env%num_pe
+                2*REAL(m,kind=dp)*REAL(n,kind=dp)*REAL(k,kind=dp)*N_loop / MAX(0.001_dp,t2-t1) / 1.0E9_dp / para_env%num_pe
           ENDIF
        ENDIF
 
