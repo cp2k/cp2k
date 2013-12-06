@@ -185,6 +185,10 @@ CONTAINS
           para_env=para_env, globenv=globenv, force_env_section= force_env_section,&
           error=error)
 
+     ! set a flag to identify when force mixing is active
+     CALL force_env_get(force_env,qmmm_env=qmmm_env_qm,error=error)
+     qmmm_env_qm%do_force_mixing = force_mixing_active
+
   END SUBROUTINE qmmm_create_force_env
 
   SUBROUTINE qmmm_update_force_mixing_env(md_env, force_env, root_section, error)
@@ -328,6 +332,9 @@ CPSourceFileRef,&
         CALL qmmm_env_qm_retain(force_env%qmmm_env, error=error)
         force_env%subsys => sub_force_env(primary_subsys)%force_env%subsys
         CALL cp_subsys_retain(force_env%subsys, error=error)
+
+        ! set a flag to identify when force mixing is active
+        force_env%qmmm_env%do_force_mixing = .TRUE.
 
       ENDIF
 

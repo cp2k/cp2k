@@ -1026,8 +1026,7 @@ CPSourceFileRef,&
         ! see force_env_get for potential energy to copy 
         ! copy forces, energy, virial up
         CONTINUE
-    ELSE IF (SIZE(force_env%sub_force_env) == 2) THEN
-        ! force mixing happens here
+    ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing happens here
         ! energy will just inherit from extended sub_force_env in force_env_get()
 
         ! get forces from subsys of each sub force env
@@ -1107,8 +1106,8 @@ CPSourceFileRef,&
 
     ELSE
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"size(sub_force_env) neither 1 (conventional QM/MM) nor "//&
-             "2 (force-mixing)! "//&
+             routineP,"sub_force_env confusing: neither size=1 (conventional QM/MM) nor "//&
+             "(do_force_mixing and size=2) (force-mixing)! "//&
 CPSourceFileRef,&
          error,failure)
     ENDIF

@@ -193,7 +193,16 @@ CONTAINS
     NULLIFY(qmmm_env,subsys,particles,force_env_section)
     CALL force_env_get(force_env, subsys=subsys, qmmm_env=qmmm_env, force_env_section=force_env_section, error=error)
     IF(ASSOCIATED(qmmm_env)) THEN
-      IF (SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
+      IF (SIZE(force_env%sub_force_env) == 1) THEN ! conventional QM/MM
+        CALL cp_subsys_get(subsys, particles=particles, error=error)
+        ! The degrees of freedom for the quantum part of the system
+        ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
+        ! system is treated at QM level (not really QM/MM, just for consistency).
+        ! The degree of freedom will not be correct if 1-3 atoms are treated only
+        ! MM. In this case we should take care of rotations
+        md_ener%nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
+        IF (md_ener%nfree_qm == 3*(particles%n_els)) md_ener%nfree_qm = md_ener%nfree
+      ELSE IF (qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
         CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
         CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
         md_ener%nfree_qm = 0
@@ -203,14 +212,10 @@ CONTAINS
           END IF
         END DO
       ELSE
-        CALL cp_subsys_get(subsys, particles=particles, error=error)
-        ! The degrees of freedom for the quantum part of the system
-        ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
-        ! system is treated at QM level (not really QM/MM, just for consistency).
-        ! The degree of freedom will not be correct if 1-3 atoms are treated only
-        ! MM. In this case we should take care of rotations
-        md_ener%nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
-        IF (md_ener%nfree_qm == 3*(particles%n_els)) md_ener%nfree_qm = md_ener%nfree
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"bad number of sub_force_envs (or do_force_mixing setting) updating nfree_qm "//&
+CPSourceFileRef,&
+             error,failure)
       ENDIF
     END IF
 

@@ -570,7 +570,16 @@ CONTAINS
     !
     ! Compute the QM/MM kinetic energy
     IF (ASSOCIATED(qmmm_env)) THEN
-       IF (SIZE(force_env%sub_force_env) == 2) THEN !doing force mixing
+       IF (SIZE(force_env%sub_force_env) == 1) THEN ! conventional QM/MM
+          DO i = 1, SIZE(qmmm_env%qm_atom_index)
+             iparticle = qmmm_env%qm_atom_index(i)
+             mass = particle_set(iparticle)%atomic_kind%mass
+             md_ener%ekin_qm = md_ener%ekin_qm +  0.5_dp * mass *  &
+                  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+          END DO
+       ELSE IF (qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
           CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
           CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
           DO i=1, SIZE(cur_indices)
@@ -584,14 +593,10 @@ CONTAINS
             END IF
           END DO
        ELSE
-          DO i = 1, SIZE(qmmm_env%qm_atom_index)
-             iparticle = qmmm_env%qm_atom_index(i)
-             mass = particle_set(iparticle)%atomic_kind%mass
-             md_ener%ekin_qm = md_ener%ekin_qm +  0.5_dp * mass *  &
-                  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-          END DO
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting ke for qmmm"//&
+               CPSourceFileRef,&
+               error,failure)
        END IF
     END IF
   END SUBROUTINE get_part_ke
