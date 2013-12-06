@@ -265,7 +265,12 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword,&
             name="RESTART_OUT",&
-            description="if existing write restart file at the end or after each XXX result configurations", &
+            description="Defines the frequency to write restart files. "//&
+                        "If no frequency is specified (lone keyword) "//&
+                        "the restart file is written at the end (only). "//&
+                        "If the value is 0, no restart file is written at all. "//&
+                        "The frequency specifies is related "//&
+                        "to the calculated Markov chain elements",&
             usage="RESTART or RESTART {INTEGER}",&
             default_i_val=-1, lone_keyword_i_val=-9,&
             error=error)

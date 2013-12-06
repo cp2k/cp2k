@@ -765,6 +765,14 @@ CONTAINS
         tmc_env%m_env%restart_out_file_name = tmc_default_restart_out_file_name
         tmc_env%m_env%restart_out_step = HUGE(tmc_env%m_env%restart_out_step)
       END IF
+      CALL cp_assert(tmc_env%m_env%restart_out_step.GE.0,&
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "Please specify a valid value for the frequency "//&
+                   "to write restart files (RESTART_OUT #). "//&
+                   "# > 0 to define the amount of Markov chain elements in between, "//&
+                   "or 0 to deactivate the restart file writing. "//&
+                   "Lonely keyword writes restart file only at the end of the run.",&
+                   error, failure=flag, only_ionode=.TRUE.)
  
       CALL section_vals_val_get(tmc_section,"INFO_OUT_STEP_SIZE",i_val=tmc_env%m_env%info_out_step_size,error=error)
       CALL section_vals_val_get(tmc_section,"DOT_TREE",c_val=tmc_env%params%dot_file_name,error=error)

@@ -353,8 +353,10 @@ CONTAINS
                        worker_timings=worker_timings_aver, error=error)
 
     ! init restart counter (espacially for restart case)
-    restart_count = INT(tmc_env%m_env%result_count(0)/&
-                      REAL(tmc_env%m_env%restart_out_step, KIND=dp))+1
+    IF(tmc_env%m_env%restart_out_step .NE. 0) THEN
+      restart_count = INT(tmc_env%m_env%result_count(0)/&
+                          REAL(tmc_env%m_env%restart_out_step, KIND=dp))+1
+    END IF
     restarted_elem_nr = tmc_env%m_env%result_count(0)
 
 !TODO check conf and cell of both input files (cell has to be equal, 
