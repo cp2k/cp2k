@@ -665,7 +665,7 @@ CONTAINS
                        move_types%mv_size(typ,temper)/(PI/180.0_dp)
                    END IF
                 CASE(mv_type_MD)
-CALL cp_assert(.TRUE.,&
+CALL cp_assert(.FALSE.,&
 cp_warning_level,cp_assertion_failed,routineP,&
 "md_time_step and nr md_steps not implemented...",&
 error)

@@ -522,7 +522,7 @@ END SUBROUTINE cp_ma_net_affinity
         IF (pol_sched .NE. def )  CALL ma_sched_mpi(pol_sched)
       END IF
     ELSE
-      CALL cp_assert (.TRUE.,&
+      CALL cp_assert (.FALSE.,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
        "Need hwloc/libnuma library to query machine architecture.")
     ENDIF
@@ -563,7 +563,7 @@ END SUBROUTINE cp_ma_net_affinity
       ENDIF
       IF (pol_sched .NE. def) CALL ma_sched_threads(id, pol_sched)
     ELSE
-      CALL cp_assert (.TRUE.,&
+      CALL cp_assert (.FALSE.,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
        "Need hwloc/libnuma library to query machine architecture.")
    ENDIF
