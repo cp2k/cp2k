@@ -24,6 +24,7 @@ MODULE qmmm_util
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE particle_types,                  ONLY: particle_type,&
                                              write_fist_particle_coordinates,&
                                              write_qs_particle_coordinates
@@ -428,9 +429,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip, unit_nr
+    INTEGER                                  :: bigger_ip, i_dim, ip, max_ip, &
+                                                min_ip, smaller_ip, tmp_ip, &
+                                                unit_nr
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE                     :: avoid(:)
+    REAL(DP) :: bigger_lat_dv, center_p(3), lat_dv, lat_dv3(3), lat_min(3), &
+      lat_p(3), max_coord_lat(3), min_coord_lat(3), smaller_lat_dv
     REAL(DP), POINTER                        :: charges(:)
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
@@ -442,8 +448,6 @@ CONTAINS
 
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
-       min_coord       =  HUGE(0.0_dp)
-       max_coord       = -HUGE(0.0_dp)
        failure         = .FALSE.
        logger => cp_error_get_logger(error)
        NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
@@ -463,20 +467,81 @@ CONTAINS
 
        particles_qm => subsys_qm%particles%els
        particles_mm => subsys_mm%particles%els
-       DO ip=1,SIZE(qm_atom_index)
-          min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
-          max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
-       END DO
        IF (.NOT.force_env%qmmm_env%center_qm_subsys0) force_env%qmmm_env%do_translate = .FALSE.
        IF (force_env%qmmm_env%do_translate) THEN
+          IF (.NOT. force_env%qmmm_env%center_qm_subsys_pbc_aware) THEN
+             ! naive coordinate based min-max
+             min_coord       =  HUGE(0.0_dp)
+             max_coord       = -HUGE(0.0_dp)
+             DO ip=1,SIZE(qm_atom_index)
+                min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
+                max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
+             END DO
+          ELSE
+             !! periodic based min max (uses complex number based mean)
+             center_p = qmmm_pbc_aware_mean(particles_mm, mm_cell, qm_atom_index)
+             ALLOCATE(avoid(SIZE(qm_atom_index)))
+             DO i_dim=1, 3
+                IF (mm_cell%perd(i_dim) /= 1) THEN
+                  ! find absolute min and max positions (along i_dim direction) in lattice coordinates
+                  min_coord_lat(i_dim) = HUGE(0.0_dp)
+                  max_coord_lat(i_dim) = -HUGE(0.0_dp)
+                  DO ip=1, SIZE(qm_atom_index)
+                    lat_p = MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r)
+                    min_coord_lat(i_dim)=MIN(lat_p(i_dim), min_coord_lat(i_dim))
+                    max_coord_lat(i_dim)=MAX(lat_p(i_dim), max_coord_lat(i_dim))
+                  END DO
+                ELSE
+                  ! find min_ip closest to (pbc-aware) mean pos
+                  avoid = .FALSE.
+                  min_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, center_p, i_dim, 0)
+                  avoid(min_ip) = .TRUE.
+                  ! find max_ip closest to min_ip
+                  max_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, &
+                           particles_mm(qm_atom_index(min_ip))%r, i_dim, 0, lat_dv)
+                  avoid(max_ip) = .TRUE.
+                  ! switch min and max if necessary
+                  IF (lat_dv < 0.0) THEN
+                    tmp_ip = min_ip
+                    min_ip = max_ip
+                    max_ip = tmp_ip
+                  ENDIF
+                  ! loop over all other atoms
+                  DO WHILE (.NOT. ALL(avoid))
+                    ! find smaller below min, bigger after max
+                    smaller_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index,&
+                                 avoid, particles_mm(qm_atom_index(min_ip))%r, i_dim, -1, smaller_lat_dv)
+                    bigger_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index,&
+                                 avoid, particles_mm(qm_atom_index(max_ip))%r, i_dim, 1, bigger_lat_dv)
+                    ! move min or max, not both
+                    IF (ABS(smaller_lat_dv) < ABS(bigger_lat_dv)) THEN
+                       min_ip = smaller_ip
+                       avoid(min_ip) = .TRUE.
+                    ELSE
+                       max_ip = bigger_ip
+                       avoid(max_ip) = .TRUE.
+                    END IF
+                  END DO
+                  ! find min and max coordinates in lattice positions (i_dim ! only)
+                  lat_dv3 = qmmm_lat_dv(mm_cell, particles_mm(qm_atom_index(min_ip))%r, particles_mm(qm_atom_index(max_ip))%r)
+                  IF (lat_dv3(i_dim) < 0.0_dp) lat_dv3(i_dim) = lat_dv3(i_dim) + 1.0_dp
+                  lat_min = MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(min_ip))%r)
+                  min_coord_lat(i_dim) = lat_min(i_dim)
+                  max_coord_lat(i_dim) = lat_min(i_dim) + lat_dv3(i_dim)
+                END IF ! periodic
+             END DO ! i_dim
+             ! min and max coordinates from lattice positions to Cartesian
+             min_coord = MATMUL(mm_cell%hmat, min_coord_lat)
+             max_coord = MATMUL(mm_cell%hmat, max_coord_lat)
+             DEALLOCATE(avoid)
+          END IF ! pbc aware center
+          transl_v = (max_coord + min_coord) / 2.0_dp
+
           !
           ! The first time we always translate all the system in order
           ! to centre the QM system in the box.
           !
-          transl_v = (max_coord + min_coord) / 2.0_dp
-          transl_v(1) = transl_v(1) - qm_cell%hmat(1,1)/2.0_dp
-          transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
-          transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
+          transl_v(:) = transl_v(:) - SUM(qm_cell%hmat, 2)/2.0_dp
 
           IF (ANY(force_env%qmmm_env%utrasl /= 1.0_dp)) THEN
              transl_v = REAL( FLOOR(transl_v/force_env%qmmm_env%utrasl),KIND=dp) *&
@@ -508,6 +573,77 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE apply_qmmm_translate_low
+
+  ! pbc-aware mean QM atom position
+  FUNCTION qmmm_pbc_aware_mean(particles_mm, mm_cell, qm_atom_index)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+    REAL(dp)                                 :: qmmm_pbc_aware_mean(3)
+
+    COMPLEX(dp)                              :: mean_z(3)
+    INTEGER                                  :: ip
+
+      mean_z = 0.0_dp
+      DO ip=1,SIZE(qm_atom_index)
+        mean_z = mean_z + EXP(CMPLX(0.0_dp,1.0_dp)*2.0*pi*MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r))
+      END DO
+      mean_z = mean_z / ABS(mean_z)
+      qmmm_pbc_aware_mean = MATMUL(mm_cell%hmat, REAL(LOG(mean_z)/(CMPLX(0.0_dp,1.0_dp)*2.0_dp*pi), dp))
+  END FUNCTION
+
+  ! minimum image lattice coordinates difference vector
+  FUNCTION qmmm_lat_dv(mm_cell, p1, p2)
+    TYPE(cell_type), POINTER                 :: mm_cell
+    REAL(dp)                                 :: p1(3), p2(3), qmmm_lat_dv(3)
+
+    REAL(dp)                                 :: lat_v1(3), lat_v2(3)
+
+      lat_v1 = MATMUL(mm_cell%h_inv, p1)
+      lat_v2 = MATMUL(mm_cell%h_inv, p2)
+
+      qmmm_lat_dv = lat_v2-lat_v1
+      qmmm_lat_dv = qmmm_lat_dv - FLOOR(qmmm_lat_dv)
+  END FUNCTION qmmm_lat_dv
+
+  ! find closest QM particle, in position/negative direction if dir is 1 or -1,
+  ! respectively
+  FUNCTION qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, p, i_dim, dir, closest_dv) RESULT (closest_ip)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+    LOGICAL                                  :: avoid(:)
+    REAL(dp)                                 :: p(3)
+    INTEGER                                  :: i_dim, dir
+    REAL(dp), OPTIONAL                       :: closest_dv
+    INTEGER                                  :: closest_ip
+
+    INTEGER                                  :: ip, shift
+    REAL(dp)                                 :: lat_dv3(3), lat_dv_shifted, &
+                                                my_closest_dv
+
+      closest_ip = -1
+      my_closest_dv=HUGE(0.0)
+      DO ip=1, SIZE(qm_atom_index)
+        IF (avoid(ip)) CYCLE
+        lat_dv3 = qmmm_lat_dv(mm_cell, p, particles_mm(qm_atom_index(ip))%r)
+        DO shift=-1, 1
+           lat_dv_shifted = lat_dv3(i_dim)+shift*1.0_dp
+           IF (ABS(lat_dv_shifted) < ABS(my_closest_dv) .AND. (dir*lat_dv_shifted >= 0.0)) THEN
+              my_closest_dv = lat_dv_shifted
+              closest_ip = ip
+           ENDIF
+        END DO
+      END DO
+
+      IF (PRESENT(closest_dv)) THEN
+        closest_dv = my_closest_dv
+      ENDIF
+
+  END FUNCTION qmmm_find_closest
+
 
 ! *****************************************************************************
 !> \brief Computes a spherical cutoff factor for the QMMM interactions

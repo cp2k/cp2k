@@ -162,30 +162,34 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Centering keywords
-       CALL keyword_create(keyword, name="nocenter",&
-            description="This keyword disables the automatic centering of the qm system every MD step."//&
-            "It centers the system only for the first step. Default .FALSE. (i.e. the QM system is centered every step)",&
-            usage="nocenter LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_create(keyword, name="CENTER",&
+            description="This keyword sets when the qm system is automatically "//&
+            "centered.  Default is EVERY_STEP.",&
+            usage="center (EVERY_STEP|SETUP_ONLY|NEVER)",&
+            enum_c_vals=s2a("EVERY_STEP","SETUP_ONLY","NEVER"),&
+            enum_desc=s2a("re-center every step",&
+                          "center at first step only", &
+                          "never center"),&
+            enum_i_vals=(/ do_qmmm_center_every_step, do_qmmm_center_setup_only, do_qmmm_center_never /),&
+            default_i_val=do_qmmm_center_every_step, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="nocenter0",&
-            description="This keyword disables the automatic centering of the qm system every MD step "//&
-            " even for the first step. Default .FALSE. (i.e. the QM system is centered every step)",&
-            usage="nocenter LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_create(keyword, name="CENTER_TYPE",&
+            description="How to do the centering",&
+            usage="center_type (MAX_MINUS_MIN|PBC_AWARE_MAX_MINUS_MIN)",&
+            enum_c_vals=s2a("MAX_MINUS_MIN","PBC_AWARE_MAX_MINUS_MIN"),&
+            enum_desc=s2a("center of box defined by maximum coordinate minus minimum coordinate",&
+                          "PBC-aware centering.  Useful  for &QMMM&FORCE_MIXING."),&
+            enum_i_vals=(/ do_qmmm_center_max_minus_min, do_qmmm_center_pbc_aware /),&
+            default_i_val=do_qmmm_center_max_minus_min, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="typ_center",&
-            description="This keyword specifies how the QM system is centered with respect to the QM box during MD.",&
-            usage="typ_center NONE",&
-            enum_c_vals=s2a( "NONE","GRID"),&
-            enum_desc=s2a("centering is performed continuously",&
-                          "centering is performed in units of the grid spacing"),&
-            enum_i_vals=(/ do_center_none, do_center_grid /),&
-            default_i_val=do_center_none, error=error)
+       CALL keyword_create(keyword, name="CENTER_GRID",&
+            description="This keyword specifies whether the QM system is centered in units of the grid spacing.",&
+            usage="grid_center LOGICAL",&
+            default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

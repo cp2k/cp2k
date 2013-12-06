@@ -264,6 +264,13 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: do_par_atom=0,&
                                               do_par_grid=1
+
+  INTEGER, PARAMETER, PUBLIC               :: do_qmmm_center_every_step=0,&
+                                              do_qmmm_center_setup_only=1,&
+                                              do_qmmm_center_never=2
+
+  INTEGER, PARAMETER, PUBLIC                    :: do_qmmm_center_max_minus_min=0,&
+                                              do_qmmm_center_pbc_aware=1
   ! Thermostats
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_no_communication=0,&
                                               do_thermo_communication=1,&
@@ -307,8 +314,8 @@ MODULE input_constants
                                               do_qmmm_link_imomm=1,&
                                               do_qmmm_link_gho=2,&
                                               do_qmmm_link_pseudo=3,&
-                                              do_center_none=0,&
-                                              do_center_grid=1,&
+                                              do_qmmm_center_none=0,&
+                                              do_qmmm_center_grid=1,&
                                               do_qmmm_wall_none=0,&
                                               do_qmmm_wall_reflective=1,&
                                               do_qmmm_wall_quadratic=2,&

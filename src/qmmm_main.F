@@ -44,6 +44,10 @@ MODULE qmmm_main
   USE header,                          ONLY: qmmm_header
   USE input_constants,                 ONLY: do_fist,&
                                              do_qmmm,&
+                                             do_qmmm_center_every_step,&
+                                             do_qmmm_center_never,&
+                                             do_qmmm_center_pbc_aware,&
+                                             do_qmmm_center_setup_only,&
                                              do_qmmm_none,&
                                              do_qs
   USE input_cp2k_restarts,             ONLY: update_input
@@ -364,12 +368,13 @@ CPSourceFileRef,&
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER                                  :: delta_charge, handle, isubf, &
-                                                iw, iw2, orig_charge, &
-                                                qmmm_coupl_type, stat
+    INTEGER                                  :: center_i, delta_charge, &
+                                                handle, isubf, iw, iw2, &
+                                                orig_charge, qmmm_coupl_type, &
+                                                stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index
-    LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
+    LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, &
       nocompatibility, qmmm_link, qmmm_link_Imomm
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
@@ -444,11 +449,25 @@ CPSourceFileRef,&
        qmmm_env_mm%qmmm_coupl_type        =  qmmm_coupl_type
        qmmm_env_mm%qmmm_link              =  qmmm_link
        ! Center the qm subsys into the qm box
-       CALL section_vals_val_get(qmmm_section,"NOCENTER",l_val=nocenter,error=error)
-       qmmm_env_qm%center_qm_subsys  = .NOT.nocenter
+       CALL section_vals_val_get(qmmm_section,"CENTER",i_val=center_i,error=error)
+       IF (center_i == do_qmmm_center_never) THEN
+          qmmm_env_qm%center_qm_subsys  = .FALSE.
+          qmmm_env_qm%center_qm_subsys0  = .FALSE.
+       ELSE IF (center_i == do_qmmm_center_setup_only) THEN
+          qmmm_env_qm%center_qm_subsys  = .FALSE.
+          qmmm_env_qm%center_qm_subsys0  = .TRUE.
+       ELSE IF (center_i == do_qmmm_center_every_step) THEN
+          qmmm_env_qm%center_qm_subsys  = .TRUE.
+          qmmm_env_qm%center_qm_subsys0  = .TRUE.
+       ELSE
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Unknown type of CENTER! "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+       ENDIF
 
-       CALL section_vals_val_get(qmmm_section,"NOCENTER0",l_val=nocenter,error=error)
-       qmmm_env_qm%center_qm_subsys0 = .NOT.nocenter
+       CALL section_vals_val_get(qmmm_section,"CENTER_TYPE",i_val=center_i,error=error)
+       qmmm_env_qm%center_qm_subsys_pbc_aware = (center_i == do_qmmm_center_pbc_aware)
 
        ! Compatibility with the QM/MM in CPMD code
        CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)

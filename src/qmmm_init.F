@@ -32,10 +32,14 @@ MODULE qmmm_init
                                              read_gp_section,&
                                              read_lj_section,&
                                              read_wl_section
-  USE input_constants,                 ONLY: &
-       RADIUS_QMMM_DEFAULT, do_center_grid, do_center_none, do_qmmm_gauss, &
-       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
-       do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_swave
+  USE input_constants,                 ONLY: RADIUS_QMMM_DEFAULT,&
+                                             do_qmmm_gauss,&
+                                             do_qmmm_image_calcmatrix,&
+                                             do_qmmm_image_iter,&
+                                             do_qmmm_link_gho,&
+                                             do_qmmm_link_imomm,&
+                                             do_qmmm_link_pseudo,&
+                                             do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -1306,8 +1310,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_type
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: center_grid, failure
     REAL(KIND=dp), DIMENSION(3)              :: tmp
     REAL(KINd=dp), DIMENSION(:), POINTER     :: vec
 
@@ -1321,13 +1324,12 @@ CPSourceFileRef,&
         qmmm_env%dOmmOqm = tmp/2.0_dp
         ! This is unit vector to translate the QM system in order to center it
         ! in QM cell
-        CALL section_vals_val_get(qmmm_section,"TYP_CENTER",i_val=my_type,error=error)
-        SELECT CASE(my_type)
-        CASE(do_center_none)
-           qmmm_env%utrasl = 1.0_dp
-        CASE(do_center_grid)
+        CALL section_vals_val_get(qmmm_section,"CENTER_GRID",l_val=center_grid,error=error)
+        IF (center_grid) THEN
            qmmm_env%utrasl = dr
-        END SELECT
+        ELSE
+           qmmm_env%utrasl = 1.0_dp
+        ENDIF
         CALL section_vals_val_get(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
         qmmm_env%transl_v = vec
      END IF

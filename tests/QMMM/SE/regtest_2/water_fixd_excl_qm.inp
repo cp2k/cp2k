@@ -32,7 +32,7 @@
     &END POISSON
   &END MM
   &QMMM
-    NOCENTER
+    CENTER SETUP_ONLY
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
