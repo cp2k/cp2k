@@ -220,3 +220,5 @@ water_3_full.inp
 water_3_full_num.inp
 #
 mol_sph_cut.inp
+#
+water_3_walls_q.inp
