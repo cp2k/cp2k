@@ -123,9 +123,9 @@ MODULE glbopt_master
           WRITE (this%iw,'(A,13X,E15.8)')&
              " GLBOPT| Lowest reported potential energy [Hartree] ", this%E_lowest
           WRITE (this%iw,'(A,T71,F10.1)')&
-             " GLBOPT| Average number of MD steps", REAL(this%total_md_steps)/this%count_reports
+             " GLBOPT| Average number of MD steps", REAL(this%total_md_steps,KIND=dp)/this%count_reports
           WRITE (this%iw,'(A,T71,F10.1)')&
-             " GLBOPT| Average number of Geo-Opt steps", REAL(this%total_gopt_steps)/this%count_reports
+             " GLBOPT| Average number of Geo-Opt steps", REAL(this%total_gopt_steps,KIND=dp)/this%count_reports
        END IF
     END IF
 

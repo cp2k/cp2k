@@ -1159,10 +1159,10 @@ END SUBROUTINE hfx_recursive_load_balance
     REAL(dp)                                 :: sqN
 
     k=2
-    sqN = SQRT(REAL(N))
+    sqN = SQRT(REAL(N,KIND=dp))
     p = 1
 
-    DO WHILE (REAL(k) <= sqN)
+    DO WHILE (REAL(k,KIND=dp) <= sqN)
         IF (MODULO(N,k) == 0) THEN
             p = k
         END IF

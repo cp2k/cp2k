@@ -16,7 +16,8 @@ MODULE cp_dbcsr_util
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE dbcsr_types,                     ONLY: dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
                                              mp_max,&
@@ -238,12 +239,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, info, lwork, n, ntask, rank
-    REAL                                     :: alpha, beta, nrm_v, SDOT, &
-                                                SNRM2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eval, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evs, evs_tmp
-    REAL, ALLOCATABLE, DIMENSION(:, :)       :: u, u_tmp, v, vn
+    REAL(kind=sp)                            :: alpha, beta, nrm_v, SDOT, &
+                                                SNRM2
+    REAL(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: u, u_tmp, v, vn
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     converged = .FALSE.

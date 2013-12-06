@@ -249,7 +249,7 @@ CONTAINS
           !
           ! if we are within tol of the optimal cost, stop optimizing, or cost model is certainly not that good
           !
-          IF (REAL((max_cost-cost_optimal))/cost_optimal.LT.tol) EXIT
+          IF (REAL(max_cost-cost_optimal,KIND=dp)/cost_optimal.LT.tol) EXIT
           ! write(iw,*) best_iac,best_max_cost, T
        ENDIF
 

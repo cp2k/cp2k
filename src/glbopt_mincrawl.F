@@ -45,7 +45,7 @@ MODULE glbopt_mincrawl
    INTEGER                                             :: id = -1
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pos
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: escape_hist
-   REAL,          DIMENSION(:), ALLOCATABLE            :: tempdist
+   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: tempdist
    REAL(KIND=dp)                                       :: Epot = -1.0
    TYPE(history_fingerprint_type)                      :: fp
    LOGICAL                                             :: disabled = .FALSE.
@@ -77,7 +77,7 @@ MODULE glbopt_mincrawl
    INTEGER                                             :: esc_hist_len = 0
 
    INTEGER                                             :: tempstep_init = 0
-   REAL, DIMENSION(:), ALLOCATABLE                     :: tempdist_init
+   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: tempdist_init
 
    INTEGER                                             :: n_minima = 0
    INTEGER                                             :: n_workers = 0
@@ -289,15 +289,16 @@ MODULE glbopt_mincrawl
 ! *****************************************************************************
  SUBROUTINE update_tempdist(this, tempdist, center, direction)
     TYPE(mincrawl_type)                      :: this
-    REAL, DIMENSION(:), INTENT(INOUT)        :: tempdist
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: tempdist
     INTEGER                                  :: center, direction
 
     INTEGER                                  :: i
 
    DO i=1, SIZE(tempdist)
      tempdist(i) = tempdist(i) + this%tempdist_update_height &
-          * REAL(direction) * EXP(-((center-i)/this%tempdist_update_width)**2)
-     tempdist(i) = MAX(0.0, MIN(1.0, tempdist(i)))
+          * REAL(direction,KIND=dp) * EXP(-((center-i)/this%tempdist_update_width)**2)
+     tempdist(i) = MAX(0.0_dp, MIN(1.0_dp, tempdist(i)))
    ENDDO
  END SUBROUTINE update_tempdist
 

@@ -373,7 +373,7 @@ MODULE helium_methods
        !
        itmp = helium%bisection
        rtmp = 2**(ANINT(LOG(REAL(itmp))/LOG(2.0_dp)))
-       tcheck=ABS(REAL(itmp)-rtmp)
+       tcheck=ABS(REAL(itmp,KIND=dp)-rtmp)
        msg_str = "BISECTION should be integer power of 2."
        CALL cp_assert(tcheck<100.0_dp*EPSILON(0.0_dp),cp_failure_level,&
             cp_assertion_failed, routineP, msg_str)
@@ -395,7 +395,7 @@ MODULE helium_methods
        END IF
        CALL section_vals_val_get(helium_section,"RDF%NBIN",&
             i_val=helium%rdf_nbin, error=error)
-       helium%rdf_delr = helium%rdf_maxr / REAL(helium%rdf_nbin)
+       helium%rdf_delr = helium%rdf_maxr / REAL(helium%rdf_nbin,KIND=dp)
 
        IF (logger%para_env%ionode) THEN
          CALL section_vals_val_get(helium_section,"POTENTIAL_FILE_NAME",&
@@ -526,7 +526,7 @@ MODULE helium_methods
               i_val=helium%rho_iweight, error=error)
          CALL section_vals_val_get(helium_section,"RHO%NBIN",&
               i_val=helium%rho_nbin, error=error)
-         helium%rho_delr = helium%rho_maxr / REAL(helium%rho_nbin)
+         helium%rho_delr = helium%rho_maxr / REAL(helium%rho_nbin,KIND=dp)
          helium%rho_minb = INT(-helium%cell_size / 2.0_dp / helium%rho_delr )
          itmp = helium%rho_nbin
          jtmp = helium%rho_num

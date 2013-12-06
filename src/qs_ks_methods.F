@@ -771,7 +771,7 @@ CONTAINS
              energy%kTS = energy%kTS + mo_array(ispin)%mo_set%kTS
              energy%efermi = energy%efermi + mo_array(ispin)%mo_set%mu
           ENDDO
-          energy%efermi = energy%efermi /REAL(SIZE(mo_array))
+          energy%efermi = energy%efermi /REAL(SIZE(mo_array),KIND=dp)
        ENDIF
 
        !** merge the auxiliary KS matrix and the primary one

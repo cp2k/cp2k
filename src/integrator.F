@@ -339,7 +339,8 @@ CONTAINS
     LOGICAL :: deallocate_vel, ehrenfest_md, failure, shell_adiabatic, &
       shell_check_distance, shell_present
     REAL(KIND=dp)                            :: dt
-    REAL, ALLOCATABLE, DIMENSION(:, :)       :: v_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: v_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

@@ -994,7 +994,7 @@ CONTAINS
          CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
          CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U,error=error)
-         cmat_U%local_data=REAL(cmat_U%local_data) ! enforce numerics, U is a real matrix
+         cmat_U%local_data=REAL(cmat_U%local_data,KIND=dp) ! enforce numerics, U is a real matrix
 
          IF ( new_direction .AND. MOD(line_searches,20).EQ.5 ) THEN ! reset with A .eq. 0
             DO idim=1,ndim
@@ -1002,7 +1002,7 @@ CONTAINS
                CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix,error=error)
             ENDDO
             ! collect rotation matrix
-            matrix_H%local_data=REAL(cmat_U%local_data)
+            matrix_H%local_data=REAL(cmat_U%local_data,KIND=dp)
             CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
             CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
 
@@ -1039,7 +1039,7 @@ CONTAINS
                DO irow=1,nrow_local
                   tmp = cmat_t1%local_data(irow,icol)*CONJG(diag_z(col_indices(icol),idim))
                   cmat_M%local_data(irow,icol)=cmat_M%local_data(irow,icol) &
-                                              +4.0_dp*fvald(col_indices(icol))*REAL(tmp)
+                                              +4.0_dp*fvald(col_indices(icol))*REAL(tmp,KIND=dp)
                ENDDO
             ENDDO
          ENDDO
@@ -1076,7 +1076,7 @@ CONTAINS
          CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1,error=error)
          CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2,error=error)
          CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1,error=error)
-         matrix_G%local_data=REAL(cmat_t1%local_data)
+         matrix_G%local_data=REAL(cmat_t1%local_data,KIND=dp)
          CALL cp_fm_transpose(matrix_G,matrix_T,error=error)
          CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T,error=error)
          CALL cp_fm_maxabsval(matrix_G,tol,error=error)
@@ -1252,7 +1252,7 @@ CONTAINS
     ENDDO
 
     ! collect rotation matrix
-    matrix_H%local_data=REAL(cmat_U%local_data)
+    matrix_H%local_data=REAL(cmat_U%local_data,KIND=dp)
     CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
     CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
     CALL rotate_orbitals(matrix_R,vectors)

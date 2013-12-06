@@ -256,7 +256,7 @@ CONTAINS
        CALL copy_dbcsr_to_fm(matrix_q(ispin)%matrix,scf_env%scf_work2,error=error)
        CALL cp_fm_upper_to_full(scf_env%scf_work2,scf_env%scf_work1(ispin)%matrix,error=error)
        CALL cp_fm_trace(scf_env%s_minus_one,scf_env%scf_work2,trace,error=error)
-       trace = -trace / REAL(nao)
+       trace = -trace / REAL(nao,KIND=dp)
        CALL cp_dbcsr_add(matrix_a=matrix_q(ispin)%matrix,matrix_b=matrix_s(1)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=trace,error=error)
     END IF

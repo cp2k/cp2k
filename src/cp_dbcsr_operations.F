@@ -81,6 +81,7 @@ MODULE cp_dbcsr_operations
                                              distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              int_size,&
+                                             real_4,&
                                              sp
   USE message_passing,                 ONLY: mp_bcast
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -574,10 +575,12 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_multiply_local_s(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
-    REAL, DIMENSION(:, :), INTENT(IN)        :: vec_b
-    REAL, DIMENSION(:, :), INTENT(INOUT)     :: vec_c
+    REAL(KIND=real_4), DIMENSION(:, :), &
+      INTENT(IN)                             :: vec_b
+    REAL(KIND=real_4), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vec_c
     INTEGER, INTENT(in), OPTIONAL            :: ncol
-    REAL, INTENT(IN), OPTIONAL               :: alpha
+    REAL(KIND=real_4), INTENT(IN), OPTIONAL  :: alpha
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local_s', &
@@ -585,8 +588,9 @@ CONTAINS
 
     INTEGER                                  :: blk, col, coloff, my_ncol, &
                                                 row, rowoff, timing_handle
-    REAL                                     :: my_alpha, my_alpha2
-    REAL, DIMENSION(:, :), POINTER           :: data_d
+    REAL(KIND=real_4)                        :: my_alpha, my_alpha2
+    REAL(KIND=real_4), DIMENSION(:, :), &
+      POINTER                                :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN, timing_handle)

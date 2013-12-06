@@ -573,10 +573,10 @@ CONTAINS
 
     IF ( MOD ( n, 2 ) == 0 ) THEN
        center ( : ) = INT ( grid_i ( : ) + rmp ) - mp
-       ca ( : ) = REAL ( center ( : ) ) + 0.5_dp
+       ca ( : ) = REAL ( center ( : ), KIND=dp ) + 0.5_dp
     ELSE
        center ( : ) = NINT ( grid_i ( : ) )
-       ca ( : ) = REAL ( center ( : ) )
+       ca ( : ) = REAL ( center ( : ), KIND=dp )
     END IF
 
     ! find the distance vector
