@@ -139,7 +139,7 @@ END FUNCTION m_procrun
       IF (iostat.NE.0) THEN
          m_memory=0
       ELSE
-         m_memory=m1
+         m_memory=m2
 #if defined(__STATM_TOTAL)
          m_memory=m1
 #endif
