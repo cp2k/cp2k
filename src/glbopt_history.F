@@ -141,7 +141,7 @@ MODULE glbopt_history
     low = 1
     high = history%length
 
-    DO WHILE(low <= high)
+    DO WHILE(low < high)
        !linear interpolation
        slope = (high - low) / (history%entries(high)%p%Epot - history%entries(low)%p%Epot)
        mid = low + slope * (Efind - history%entries(low)%p%Epot) 
