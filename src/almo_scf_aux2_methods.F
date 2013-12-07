@@ -1157,11 +1157,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: matrix_type
-    INTEGER :: block_offset, col, col_offset, colsize, dest_node, GroupID, &
-      handle, iBlock, icol, idomain, iNode, irow_subm, ldesc, myNode, &
-      nblkcols_tot, nblkrows_tot, ndomains, ndomains2, nNodes, &
-      recv_size2_total, recv_size_total, row, rowsize, send_size2_total, &
-      send_size_total, smroff, start_data, unit_nr
+    INTEGER :: block_offset, col, col_offset, col_s, colsize, dest_node, &
+      GroupID, handle, iBlock, icol, idomain, iNode, irow_subm, ldesc, &
+      myNode, nblkcols_tot, nblkrows_tot, ndomains, ndomains2, nNodes, &
+      recv_size2_total, recv_size_total, row, row_s, rowsize, &
+      send_size2_total, send_size_total, smroff, start_data, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:) :: offset2_block, offset_block, &
       recv_data2, recv_offset2_cpu, recv_offset_cpu, recv_size2_cpu, &
       recv_size_cpu, send_data2, send_offset2_cpu, send_offset_cpu, &
@@ -1244,8 +1244,12 @@ CONTAINS
              ENDIF
 
              transp=.FALSE.
+             row_s = row
+             col_s = idomain
              CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
-                     row, idomain, transp, dest_node)
+                     row_s, col_s, transp, dest_node)
+             CPPrecondition(row_s==row,cp_failure_level,routineP,error,failure)
+             CPPrecondition(col_s==idomain,cp_failure_level,routineP,error,failure)
              
              send_descriptor(1,dest_node+1)=send_descriptor(1,dest_node+1)+1
              send_descriptor(2,dest_node+1)=send_descriptor(2,dest_node+1)+&
@@ -1325,8 +1329,12 @@ CONTAINS
              colsize = object01(idomain)%size_bcol(1)
 
              transp=.FALSE.
+             row_s = row
+             col_s = idomain
              CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
-                     row, idomain, transp, dest_node)
+                     row_s, col_s, transp, dest_node)
+             CPPrecondition(row_s==row,cp_failure_level,routineP,error,failure)
+             CPPrecondition(col_s==idomain,cp_failure_level,routineP,error,failure)
             
              col_offset=0
              DO icol=1,colsize
