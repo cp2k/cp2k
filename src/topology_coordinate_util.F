@@ -72,7 +72,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,topology,qmmm,qmmm_env,&
-       subsys_section,force_env_section,exclusions,error)
+       subsys_section,force_env_section,exclusions,ignore_outside_box,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -90,6 +90,7 @@ CONTAINS
                                                 force_env_section
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
+    LOGICAL, INTENT(IN), OPTIONAL            :: ignore_outside_box
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
@@ -105,8 +106,8 @@ CONTAINS
                                                 natom_of_kind, wlist
     INTEGER, DIMENSION(:, :), POINTER        :: pairs
     LOGICAL :: autogen, check, disable_exclusion_lists, do_center, explicit, &
-      failure, found, my_qmmm, present_12_excl_ei_list, &
-      present_12_excl_vdw_list
+      failure, found, my_ignore_outside_box, my_qmmm, &
+      present_12_excl_ei_list, present_12_excl_vdw_list
     REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
@@ -347,7 +348,9 @@ CONTAINS
          check = check.AND.(dims(i)<cdims(i))
        END IF
     END DO
-    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+    my_ignore_outside_box = .FALSE.
+    IF (PRESENT(ignore_outside_box)) my_ignore_outside_box = ignore_outside_box
+    CALL cp_assert(my_ignore_outside_box .OR. check,cp_failure_level,cp_assertion_failed,routineP,&
          "A non-periodic calculation has been requested but the system size "//&
          "exceeds the cell size in at least one of the non-periodic directions! "//&
 CPSourceFileRef,&

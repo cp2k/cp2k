@@ -110,7 +110,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell,&
        small_para_env, sub_atom_index, sub_atom_kind_name, &
-       para_env, force_env_section, subsys_section, error)
+       para_env, force_env_section, subsys_section, ignore_outside_box, error)
 
     TYPE(cp_subsys_type), POINTER            :: small_subsys, big_subsys
     TYPE(cell_type), POINTER                 :: small_cell
@@ -121,6 +121,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(in), OPTIONAL            :: ignore_outside_box
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsys', &
@@ -226,7 +227,8 @@ CONTAINS
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,topology,subsys_section=subsys_section,&
-            force_env_section=force_env_section,error=error)
+            force_env_section=force_env_section,ignore_outside_box=ignore_outside_box,&
+            error=error)
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------

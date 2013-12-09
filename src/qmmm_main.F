@@ -146,7 +146,8 @@ CONTAINS
         ELSE
           CALL qmmm_create_force_env_low(use_dummy_force_env, &
             root_section, para_env, globenv,&
-            force_env_section, qmmm_section, subsys_section, use_motion_section, error=error)
+            force_env_section, qmmm_section, subsys_section, use_motion_section, &
+            ignore_outside_box = .TRUE., error=error)
         ENDIF
         CALL force_env_get(use_dummy_force_env, subsys=subsys, error=error)
 
@@ -163,11 +164,13 @@ CONTAINS
         NULLIFY(sub_force_env(force_mixing_core_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_core_subsys)%force_env, &
           root_section, para_env, globenv,&
-          force_env_section, qmmm_core_section, subsys_section, use_motion_section, error=error)
+          force_env_section, qmmm_core_section, subsys_section, use_motion_section, &
+          ignore_outside_box = .TRUE., error=error)
         NULLIFY(sub_force_env(force_mixing_extended_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_extended_subsys)%force_env, &
           root_section, para_env, globenv,&
-          force_env_section, qmmm_extended_section, subsys_section, use_motion_section, error=error)
+          force_env_section, qmmm_extended_section, subsys_section, use_motion_section, &
+          ignore_outside_box = .TRUE., error=error)
 
         CALL section_vals_release(qmmm_core_section, error=error)
         CALL section_vals_release(qmmm_extended_section, error=error)
@@ -284,12 +287,12 @@ CPSourceFileRef,&
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_core_subsys)%force_env, &
           force_env%root_section, force_env%para_env, force_env%globenv,&
           force_env%force_env_section, qmmm_core_section, subsys_section, use_motion_section=.TRUE., &
-          prev_subsys=subsys, error=error)
+          prev_subsys=subsys, ignore_outside_box = .TRUE., error=error)
         NULLIFY(sub_force_env(force_mixing_extended_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_extended_subsys)%force_env, &
           force_env%root_section, force_env%para_env, force_env%globenv,&
           force_env%force_env_section, qmmm_extended_section, subsys_section, use_motion_section=.TRUE., &
-          prev_subsys=subsys, error=error)
+          prev_subsys=subsys, ignore_outside_box = .TRUE., error=error)
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! [NB] need to copy wiener process data, since it's not recreated when
@@ -351,8 +354,9 @@ CPSourceFileRef,&
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE  qmmm_create_force_env_low(force_env, root_section, para_env, globenv,&
-       force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, error)
+  SUBROUTINE qmmm_create_force_env_low(force_env, root_section, para_env, globenv,&
+       force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, &
+       ignore_outside_box, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -361,6 +365,7 @@ CPSourceFileRef,&
                                                 qmmm_section, subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
+    LOGICAL, INTENT(in), OPTIONAL            :: ignore_outside_box
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_create_force_env_low', &
@@ -616,7 +621,8 @@ CPSourceFileRef,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_atom_kind_name=qm_atom_type, para_env=para_env, &
-            force_env_section=force_env_section, subsys_section=subsys_section,error=error)
+            force_env_section=force_env_section, subsys_section=subsys_section, &
+            ignore_outside_box=ignore_outside_box, error=error)
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
        CALL quickstep_create_force_env(sub_force_env(qs_subsys)%force_env,root_section,para_env,&
