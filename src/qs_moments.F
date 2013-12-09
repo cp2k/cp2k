@@ -838,7 +838,7 @@ CONTAINS
      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     IF(ASSOCIATED(qs_env%ls_scf_env)) THEN
-      WRITE(unit_number,*) "Periodic moment calculation not implemented in linear scaling code"
+      IF(unit_number > 0) WRITE(unit_number,*) "Periodic moment calculation not implemented in linear scaling code"
       RETURN
     ENDIF
 
