@@ -46,6 +46,8 @@ MODULE qmmm_util
             apply_qmmm_walls,&
             apply_qmmm_translate,&
             apply_qmmm_translate_low,&
+            apply_qmmm_wrap,&
+            apply_qmmm_unwrap,&
             spherical_cutoff_factor,&
             qmmm_force_mixing_active
 
@@ -327,6 +329,66 @@ CONTAINS
     energy%total = energy%total + wallenergy
 
   END SUBROUTINE apply_qmmm_walls_quadratic
+
+  ! wrap positions (with mm periodicity)
+  SUBROUTINE apply_qmmm_wrap(subsys_mm, mm_cell, subsys_qm, qm_atom_index, saved_pos, error)
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys_qm
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_atom_index
+    REAL(dp), ALLOCATABLE                    :: saved_pos(:,:)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_wrap', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_dim, ip
+    REAL(dp)                                 :: r_lat(3)
+
+    ALLOCATE(saved_pos(3,subsys_mm%particles%n_els))
+
+    DO ip=1, subsys_mm%particles%n_els
+       saved_pos(1:3,ip) = subsys_mm%particles%els(ip)%r(1:3)
+       r_lat = MATMUL(mm_cell%h_inv, subsys_mm%particles%els(ip)%r)
+       DO i_dim=1, 3
+          IF (mm_cell%perd(i_dim) /= 1) THEN
+            r_lat(i_dim) = 0.0_dp
+          END IF
+       END DO
+       subsys_mm%particles%els(ip)%r = subsys_mm%particles%els(ip)%r - MATMUL(mm_cell%hmat, FLOOR(r_lat))
+    END DO
+
+    IF (PRESENT(subsys_qm) .AND. PRESENT(qm_atom_index)) THEN
+       DO ip=1,SIZE(qm_atom_index)
+          subsys_qm%particles%els(ip)%r=subsys_mm%particles%els(qm_atom_index(ip))%r
+       END DO
+    END IF
+  END SUBROUTINE apply_qmmm_wrap
+
+  SUBROUTINE apply_qmmm_unwrap(subsys_mm, subsys_qm, qm_atom_index, saved_pos, error)
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys_qm
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_atom_index
+    REAL(dp), ALLOCATABLE                    :: saved_pos(:,:)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_unwrap', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip
+
+    DO ip=1, subsys_mm%particles%n_els
+       subsys_mm%particles%els(ip)%r(1:3) = saved_pos(1:3,ip)
+    END DO
+
+    IF (PRESENT(subsys_qm) .AND. PRESENT(qm_atom_index)) THEN
+       DO ip=1,SIZE(qm_atom_index)
+          subsys_qm%particles%els(ip)%r=subsys_mm%particles%els(qm_atom_index(ip))%r
+       END DO
+    END IF
+
+    DEALLOCATE(saved_pos)
+  END SUBROUTINE apply_qmmm_unwrap
 
 ! *****************************************************************************
 !> \brief Apply translation to the full system in order to center the QM

@@ -459,3 +459,5 @@ H2O-qmmm-gauss-4.inp
 H2O-qmmm-gauss-11.inp
 H2O-qmmm-none-1.inp
 H2O-qmmm-gauss-15.inp
+#
+H2O-qmmm-gauss-force-mixing-1.inp

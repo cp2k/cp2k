@@ -126,7 +126,9 @@ MODULE force_env_methods
        force_mixing_label_buffer, primary_subsys, qmmm_env_qm_retain, &
        qmmm_env_qm_type, qmmm_links_type, qs_subsys
   USE qmmm_util,                       ONLY: apply_qmmm_translate,&
+                                             apply_qmmm_unwrap,&
                                              apply_qmmm_walls,&
+                                             apply_qmmm_wrap,&
                                              qmmm_force_mixing_active
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -966,12 +968,15 @@ CONTAINS
                                                 mom_conserv_n, &
                                                 mom_conserv_region, &
                                                 mom_conserv_type
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
     LOGICAL :: do_require_consistent_energy_force, failure
     REAL(dp)                                 :: delta_a(3), delta_f(3), &
                                                 mom_conserv_mass, total_f(3)
-    TYPE(cp_subsys_type), POINTER            :: subsys_primary, &
-                                                subsys_qmmm_core, &
+    REAL(dp), ALLOCATABLE                    :: saved_pos(:,:)
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_primary, &
+                                                subsys_qm, subsys_qmmm_core, &
                                                 subsys_qmmm_extended
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_primary, &
@@ -994,6 +999,17 @@ CPSourceFileRef,&
     CALL apply_qmmm_translate(force_env, error)
 
     DO isubf=1, SIZE(force_env%sub_force_env)
+        ! For force mixing only (for now), wrap positions before QM/MM calculation.
+        ! Required if diffusion causes atoms outside of periodic box get added to QM
+        ! region.
+        IF (force_env%qmmm_env%do_force_mixing) THEN ! force mixing only
+           CALL force_env_get(force_env%sub_force_env(isubf)%force_env%sub_force_env(fist_subsys)%force_env,&
+                             cell=mm_cell,subsys=subsys_mm,error=error)
+           CALL force_env_get(force_env%sub_force_env(isubf)%force_env%sub_force_env(qs_subsys)%force_env,&
+                       subsys=subsys_qm,error=error)
+           qm_atom_index   => force_env%sub_force_env(isubf)%force_env%qmmm_env%qm_atom_index
+           CALL apply_qmmm_wrap(subsys_mm, mm_cell, subsys_qm, qm_atom_index, saved_pos, error)
+        END IF
         IF (SIZE(force_env%sub_force_env) > 1) THEN ! rewrite restart file name
            CALL force_env_get(force_env, force_env_section=force_env_section,error=error)
            CALL section_vals_val_get(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME", &
@@ -1020,7 +1036,13 @@ CPSourceFileRef,&
            CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME", &
                 c_val=TRIM(restart_history_filename), error=error)
         ENDIF
+
+        ! Restore unwrapped positions after calculation if needed
+        IF (ALLOCATED(saved_pos)) THEN
+           CALL apply_qmmm_unwrap(subsys_mm, subsys_qm, qm_atom_index, saved_pos, error)
+        END IF
     END DO
+
 
     IF (SIZE(force_env%sub_force_env) == 1) THEN
         ! see force_env_get for potential energy to copy 
@@ -1192,6 +1214,10 @@ CPSourceFileRef,&
        DO ip=1, SIZE(particles_qm)
           check = (DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r) >= 0.0) .AND. &
                   (DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r) <= 1.0)
+          IF (logger%para_env%ionode .AND. .NOT. check) THEN
+            WRITE (unit=*, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
+               particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r)
+          ENDIF
           CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
                   "QM/MM QM atoms must be fully contained in the same image of the QM box "//&
                   "- No wrapping of coordinates is allowed! "//&
