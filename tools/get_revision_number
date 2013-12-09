@@ -8,11 +8,11 @@ export LC_ALL=C
 if [ -s $1/../REVISION ]; then
   cat ../REVISION
 
-elif svn info &>/dev/null; then
+elif svn info >/dev/null 2>&1 ; then
   echo -n "svn:"
-  svn info | grep "Last Changed Rev: " | cut -d: -f2 | tr -d ' '
+  svn info 2>&1 | grep "Last Changed Rev: " | cut -d: -f2 | tr -d ' '
 
-elif git rev-parse &>/dev/null; then
+elif git rev-parse > /dev/null 2>&1 ; then
   echo -n "git:"
   git rev-parse --short HEAD
 
