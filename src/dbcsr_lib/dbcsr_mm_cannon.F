@@ -2784,8 +2784,10 @@ MODULE dbcsr_mm_cannon
              threads_finished = threads_finished + 1
              IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
                DO 
-! requires OMP 3.1 (e.g. gcc >=4.7), workarounds possible
-!$omp atomic read
+! requires OMP 3.1 (e.g. gcc >=4.7), for correctness, otherwise we keep fingers crossed
+#if defined _OPENMP && _OPENMP >= 200711
+               !$OMP ATOMIC READ
+#endif
                threads_finished_read=threads_finished
                   IF (threads_finished_read .EQ. nthreads) EXIT
                   CALL mp_testany(right_data_sr)
