@@ -105,7 +105,7 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 build: dirs deptool libcusmm
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
-	+if [ -a $(LIBCUSMM_DEPENDENCIES) ]; then \
+	+if [ -e $(LIBCUSMM_DEPENDENCIES) ]; then \
 	  cp $(LIBCUSMM_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cusmm.dep; \
 	fi
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
