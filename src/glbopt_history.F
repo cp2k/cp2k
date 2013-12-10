@@ -143,8 +143,8 @@ MODULE glbopt_history
 
     DO WHILE(low < high)
        !linear interpolation
-       slope = (high - low) / (history%entries(high)%p%Epot - history%entries(low)%p%Epot)
-       mid = low + slope * (Efind - history%entries(low)%p%Epot) 
+       slope = REAL(high - low) / (history%entries(high)%p%Epot - history%entries(low)%p%Epot)
+       mid = low + slope * (Efind - history%entries(low)%p%Epot)
        mid = MIN(MAX(mid, low), high)
 
        IF (history%entries(mid)%p%Epot < Efind) THEN
@@ -153,6 +153,12 @@ MODULE glbopt_history
         high = mid -1
        END IF
     END DO
+
+
+    IF(0<low .AND. low<=history%length) THEN
+      IF(Efind > history%entries(low)%p%Epot) low=low+1
+    END IF
+
     res = low
  END FUNCTION interpolation_search
 
@@ -206,11 +212,12 @@ MODULE glbopt_history
 ! *****************************************************************************
   SUBROUTINE history_lookup(history, fingerprint, found, id)
     TYPE(history_type), INTENT(IN)           :: history
-    TYPE(history_fingerprint_type)           :: fingerprint
+    TYPE(history_fingerprint_type), &
+      INTENT(IN)                             :: fingerprint
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: id
 
-    INTEGER                                  :: i, k, k_max, k_min
+    INTEGER                                  :: found_i, i, k, k_max, k_min
     REAL(KIND=dp)                            :: best_match, dist, Epot
 
     found = .FALSE.
@@ -226,12 +233,14 @@ MODULE glbopt_history
       IF(history%entries(k_min)%p%Epot < Epot - history%E_precision) EXIT
     ENDDO
 
-    DO k_max=k+1, history%length
+    DO k_max=k, history%length
       IF(history%entries(k_max)%p%Epot > Epot + history%E_precision) EXIT
     ENDDO
 
-    k_min = MAX(k_min, 1)
-    k_max = MIN(k_max, history%length)
+    k_min = MAX(k_min+1, 1)
+    k_max = MIN(k_max-1, history%length)
+
+    IF(debug) found_i = -1
 
     DO i=k_min, k_max
        dist = fingerprint_distance(fingerprint, history%entries(i)%p)
@@ -240,11 +249,49 @@ MODULE glbopt_history
           best_match = dist
           found = .TRUE.
           IF(PRESENT(id)) id = history%entries(i)%id
+          IF(debug) found_i = i
        END IF
     ENDDO
 
+    IF(debug) CALL verify_history_lookup(history, fingerprint, found_i)
 
  END SUBROUTINE history_lookup
+
+ 
+ 
+! *****************************************************************************
+! \brief Routine used for debugging. It performs a slow linear search.
+! *****************************************************************************
+  SUBROUTINE verify_history_lookup(history, fingerprint, found_i_ref)
+    TYPE(history_type), INTENT(IN)           :: history
+    TYPE(history_fingerprint_type), &
+      INTENT(IN)                             :: fingerprint
+    INTEGER, INTENT(IN)                      :: found_i_ref
+
+    INTEGER                                  :: found_i, i
+    REAL(KIND=dp)                            :: best_fp_match, Epot_dist, &
+                                                fp_dist
+
+    found_i = -1
+    best_fp_match = HUGE(1.0_dp)
+
+    DO i=1, history%length
+       Epot_dist = ABS(fingerprint%Epot - history%entries(i)%p%Epot)
+       IF(Epot_dist > history%E_precision) CYCLE
+       fp_dist = fingerprint_distance(fingerprint, history%entries(i)%p)
+       !WRITE(*,*) "entry ", i, " dist: ",dist
+       IF(fp_dist < history%fp_precision .AND. fp_dist < best_fp_match) THEN
+          best_fp_match = fp_dist
+          found_i = i
+       END IF
+    ENDDO
+
+    IF(found_i /= found_i_ref) THEN
+      WRITE (*,*) found_i, found_i_ref
+      CALL mp_abort("verify_history_lookup failed")
+    ENDIF
+
+ END SUBROUTINE verify_history_lookup
 
 ! *****************************************************************************
 ! Credit: Stefan Goedecker
