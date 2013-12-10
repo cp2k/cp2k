@@ -4,44 +4,15 @@
 " Vim syntax file
 " Language: cp2k input files
 " Maintainer: based on work by Alin M Elena available at https://gitorious.org/cp2k-vim
-" Latest Revision: 13th of September 2010
+" Revision: 13th of September 2010
+" History: 
+" - XSLT dump and improved syntax highlighting (10.12.2013, Matthias Krack)
 
 if exists("b:current_syntax")
   finish
 endif
 
 syn case ignore
-
-"----------------------------------------------------------------/
-" CP2K predefined constants
-"----------------------------------------------------------------/
-<xsl:for-each-group select="//ITEM" group-by="NAME">
-<xsl:sort select="NAME"/>
-syn keyword cp2kConstant <xsl:value-of select="NAME"/>
-</xsl:for-each-group>
-
-"----------------------------------------------------------------/
-" CP2K sections
-"----------------------------------------------------------------/
-<xsl:for-each-group select="//SECTION" group-by="NAME">
-<xsl:sort select="NAME"/>
-syn keyword cp2kSection <xsl:value-of select="NAME"/>
-</xsl:for-each-group>
-syn keyword cp2kSection END
-
-"----------------------------------------------------------------/
-" CP2K keywords
-"----------------------------------------------------------------/
-<xsl:for-each-group select="//KEYWORD" group-by="NAME[@type='default']">
-<xsl:sort select="NAME[@type='default']"/>
-syn keyword cp2kKeyword <xsl:value-of select="NAME"/>
-</xsl:for-each-group>
-
-"----------------------------------------------------------------/
-" fun stuff folding
-"----------------------------------------------------------------/
-
-syn region cp2kFold start="^\s*&amp;\z(\w*\)" end="^\s*&amp;End\s\+\z1\>" contains=cp2kFold fold keepend
 
 "----------------------------------------------------------------/
 " CP2K numbers used in blocks
@@ -70,6 +41,10 @@ syn match cp2kNumber '\d[[:digit:]]*[eE][\-+]\=\d\+'
 syn match cp2kNumber '[-+]\=\d[[:digit:]]*\.\d*[eE][\-+]\=\d\+'
 syn match cp2kNumber '\d[[:digit:]]*\.\d*[eE][\-+]\=\d\+'
 
+"----------------------------------------------------------------/
+" CP2K Boolean entities
+"----------------------------------------------------------------/
+
 syn keyword cp2kBool true false T F yes no
 
 "-----------------------------------------------------------------/
@@ -80,23 +55,47 @@ syn keyword cp2kTodo TODO FIXME NOTE REMARK
 syn match cp2kComment "#.*$" contains=cp2kTodo
 syn match cp2kComment "!.*$" contains=cp2kTodo
 
+"----------------------------------------------------------------/
+" CP2K predefined constants
+"----------------------------------------------------------------/
+<xsl:for-each-group select="//ITEM" group-by="NAME">
+<xsl:sort select="NAME"/>
+syn keyword cp2kConstant <xsl:value-of select="NAME"/>
+</xsl:for-each-group>
+
+"----------------------------------------------------------------/
+" CP2K sections
+"----------------------------------------------------------------/
+<xsl:for-each-group select="//SECTION" group-by="NAME">
+<xsl:sort select="NAME"/>
+syn keyword cp2kSection <xsl:value-of select="NAME"/>
+</xsl:for-each-group>
+syn keyword cp2kSection END
+syn match cp2kBegSection "^\s*&amp;\w\+" contains=cp2kSection nextgroup=test
+syn match test ".*[^!#]" contains=cp2kConstant,cp2kNumber,cp2kBool,cp2kComment,cp2kSection
+
+"----------------------------------------------------------------/
+" CP2K keywords
+"----------------------------------------------------------------/
+<xsl:for-each-group select="//KEYWORD" group-by="NAME[@type='default']">
+<xsl:sort select="NAME[@type='default']"/>
+syn keyword cp2kKeyword <xsl:value-of select="NAME"/>
+</xsl:for-each-group>
+syn match cp2kBegKeyword "^\s*\w\+" contains=cp2kKeyword
+
 "-----------------------------------------------------------------/
 " CP2K preprocessing directives
 "-----------------------------------------------------------------/
 
 syn keyword cp2kPreProc endif if include set
-
-syn match cp2kBegSection "^\s*&amp;\w\+" contains=cp2kSection nextgroup=test
-syn match test ".*[^!#]" contains=cp2kConstant,cp2kNumber,cp2kBool,cp2kComment,cp2kSection
-
-syn match cp2kBegKeyword "^\s*\w\+" contains=cp2kKeyword
+syn match cp2kBegPreProc "^\s*@\w\+" contains=cp2kPreProc
 
 "----------------------------------------------------------------------------/
 " Final setup
 "----------------------------------------------------------------------------/
 
 let b:current_syntax="cp2k"
-set fdm=syntax
+set fdm=manual
 set foldlevel=3
 
 "----------------------------------------------------------------------------/
