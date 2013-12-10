@@ -71,8 +71,8 @@ syn keyword cp2kConstant <xsl:value-of select="NAME"/>
 syn keyword cp2kSection <xsl:value-of select="NAME"/>
 </xsl:for-each-group>
 syn keyword cp2kSection END
-syn match cp2kBegSection "^\s*&amp;\w\+" contains=cp2kSection nextgroup=test
-syn match test ".*[^!#]" contains=cp2kConstant,cp2kNumber,cp2kBool,cp2kComment,cp2kSection
+syn match cp2kBegSection '^\s*&amp;\w\+' contains=cp2kSection
+syn match cp2kEndSection '^\s*&amp;END\s*\w\+' contains=cp2kSection
 
 "----------------------------------------------------------------/
 " CP2K keywords
@@ -81,34 +81,42 @@ syn match test ".*[^!#]" contains=cp2kConstant,cp2kNumber,cp2kBool,cp2kComment,c
 <xsl:sort select="NAME[@type='default']"/>
 syn keyword cp2kKeyword <xsl:value-of select="NAME"/>
 </xsl:for-each-group>
-syn match cp2kBegKeyword "^\s*\w\+" contains=cp2kKeyword
 
 "-----------------------------------------------------------------/
 " CP2K preprocessing directives
 "-----------------------------------------------------------------/
 
 syn keyword cp2kPreProc endif if include set
-syn match cp2kBegPreProc "^\s*@\w\+" contains=cp2kPreProc
+
+"-----------------------------------------------------------------/
+" CP2K strings
+"-----------------------------------------------------------------/
+
+syn region cp2kString matchgroup=cp2kStringDelimiter start=+"+ end=+"+
+syn region cp2kString matchgroup=cp2kStringDelimiter start=+'+ end=+'+
+syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 
 "----------------------------------------------------------------------------/
 " Final setup
 "----------------------------------------------------------------------------/
 
 let b:current_syntax="cp2k"
-set fdm=manual
+set fdm=syntax
 set foldlevel=3
 
 "----------------------------------------------------------------------------/
 " CP2K keyword highlighting rules
 "----------------------------------------------------------------------------/
 
-hi def link cp2kComment Comment
-hi def link cp2kTodo Todo
-hi def link cp2kBool Boolean
-hi def link cp2kNumber Number
-hi def link cp2kSection Type
-hi def link cp2kKeyword Identifier
-hi def link cp2kConstant Constant
-hi def link cp2kPreProc PreProc
+hi def link cp2kComment         Comment
+hi def link cp2kConstant        Constant
+hi def link cp2kTodo            Todo
+hi def link cp2kBool            Boolean
+hi def link cp2kNumber          Number
+hi def link cp2kKeyword         Keyword
+hi def link cp2kSection         Structure
+hi def link cp2kPreProc         PreProc
+hi def link cp2kString          String
+hi def link cp2kStringDelimiter Delimiter
 </xsl:template>
 </xsl:stylesheet>
