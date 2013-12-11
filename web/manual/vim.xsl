@@ -101,8 +101,14 @@ syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 "----------------------------------------------------------------------------/
 
 let b:current_syntax="cp2k"
-set fdm=syntax
-set foldlevel=3
+set autoindent
+set smartindent
+set expandtab
+set foldlevelstart=99
+set foldmethod=indent
+set shiftwidth=1
+set softtabstop=1
+set tabstop=1
 
 "----------------------------------------------------------------------------/
 " CP2K keyword highlighting rules
