@@ -8,6 +8,6 @@ export SAXON=/usr/share/java/saxon8.jar
 # Java version from http://sourceforge.net/projects/saxon
 # For Saxon 9 HE syntax has changed, use -o:index.html
 java -jar $SAXON -o cp2k.vim cp2k_input.xml vim.xsl
-[[ -d ~/.vim/plugin ]] || mkdir -p ~/.vim/plugin
-cp -i cp2k.vim ~/.vim/plugin
+[[ -d ~/.vim/syntax ]] || mkdir -p ~/.vim/syntax
+cp -i cp2k.vim ~/.vim/syntax
 # Edit a CP2K input file with vim

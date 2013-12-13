@@ -2,15 +2,17 @@
 <xsl:output indent="no" method="text" omit-xml-declaration="yes" version="2.0"/>
 <xsl:template match="/">
 " Vim syntax file
-" Language: cp2k input files
+" Language: CP2K input files
 " Maintainer: based on work by Alin M Elena available at https://gitorious.org/cp2k-vim
 " Revision: 13th of September 2010
 " History: 
 " - XSLT dump and improved syntax highlighting (10.12.2013, Matthias Krack)
+" - Folding and automatic indentation added (13.12.2013, Matthias Krack)
 
 if exists("b:current_syntax")
-  finish
+   finish
 endif
+let b:current_syntax = "cp2k"
 
 syn case ignore
 
@@ -100,14 +102,10 @@ syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 " Final setup
 "----------------------------------------------------------------------------/
 
-let b:current_syntax="cp2k"
-set autoindent
-set expandtab
-set foldlevelstart=99
-set foldmethod=indent
-set shiftwidth=1
-set softtabstop=1
-set tabstop=1
+setlocal autoindent
+setlocal expandtab
+setlocal foldlevel=99
+setlocal foldmethod=indent
 
 "----------------------------------------------------------------------------/
 " Indentation support for CP2K input syntax
