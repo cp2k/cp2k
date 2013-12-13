@@ -102,13 +102,57 @@ syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 
 let b:current_syntax="cp2k"
 set autoindent
-set smartindent
 set expandtab
 set foldlevelstart=99
 set foldmethod=indent
 set shiftwidth=1
 set softtabstop=1
 set tabstop=1
+
+"----------------------------------------------------------------------------/
+" Indentation support for CP2K input syntax
+"----------------------------------------------------------------------------/
+
+if exists("b:did_indent")
+   finish
+endif
+let b:did_indent = 1
+
+setlocal indentexpr=GetCp2kIndent()
+setlocal indentkeys+=0=~&amp;END,0=#,0=@
+setlocal nosmartindent
+
+if exists("*GetCp2kIndent")
+   finish
+endif
+
+function! GetCp2kIndent()
+   let lnum = prevnonblank(v:lnum - 1)
+   if lnum == 0
+      return 0
+   endif
+   let ind = indent(lnum)
+   let line = getline(lnum)
+   if line =~ '^\s*&amp;'
+      let ind += &amp;shiftwidth
+      if line =~ '^\s*\c\%(&amp;END\)\>'
+         let ind -= &amp;shiftwidth
+      endif
+   elseif line =~ '^\s*\c\%(@if\|@endif\|@include\|@set\)\>'
+      let plnum = lnum
+      while getline(plnum) =~ '^\s*@'
+         let plnum -= 1
+      endwhile
+      let ind = indent(plnum)
+   endif
+   let line = getline(v:lnum)
+   if line =~ '^\s*\c\%(&amp;END\)\>'
+      let ind -= &amp;shiftwidth
+   elseif line =~ '^\s*@'
+      let ind = 0
+   endif
+   return ind
+endfunction
 
 "----------------------------------------------------------------------------/
 " CP2K keyword highlighting rules
