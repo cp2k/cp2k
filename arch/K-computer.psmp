@@ -1,0 +1,23 @@
+# Minimal Configuration for K-Computer (Fujitsu)
+# http://www.fujitsu.com/global/about/tech/k/
+# SPARC64 VIIIfx CPU designed and developed by Fujitsu
+# Tofu interconnect: 6-Dimensional Mesh/Torus Topology Network Technology 
+# WARNING: The clause "collapse(n)" has troubles on the Fujitsu compiler
+#          (K-computer and Fujitsu FX10 machine) and should be avoided.
+#          You might well need to better tune your own compilation !
+# (MB-University of Tokyo, 2013).
+CC       = mpifccpx -c -O
+CPP      = /lib/cpp
+FC       = mpifrtpx -c
+FC_fixed = mpifrtpx -FI -c
+LD       = mpifrtpx
+AR       = /usr/bin/ar -r
+DFLAGS   = -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS = -C $(DFLAGS) -P -traditional
+FCFLAGS  = -Kvisimpact,array_private,auto,ilfunc,ocl,NOFLTLD \
+           -Kopenmp -Am -X9 -V -Ec -Qa,d,i,p,t,x -Koptmsg=2 -V \
+           -Cpp -Ccpp
+LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib 
+LIBS     = $(FCFLAGS) -SSL2BLAMP -SCALAPACK -Ntl_trt
+
+OBJECTS_ARCHITECTURE = machine_intel.o
