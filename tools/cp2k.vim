@@ -1215,8 +1215,8 @@ syn keyword cp2kSection XYZ_DIAG
 syn keyword cp2kSection XYZ_OUTERDIAG
 syn keyword cp2kSection ZMP
 syn keyword cp2kSection END
-syn match cp2kBegSection "^\s*&\w\+" contains=cp2kSection nextgroup=test
-syn match test ".*[^!#]" contains=cp2kConstant,cp2kNumber,cp2kBool,cp2kComment,cp2kSection
+syn match cp2kBegSection '^\s*&\w\+' contains=cp2kSection
+syn match cp2kEndSection '^\s*&END\s*\w\+' contains=cp2kSection
 
 "----------------------------------------------------------------/
 " CP2K keywords
@@ -2704,32 +2704,90 @@ syn keyword cp2kKeyword Z_HI
 syn keyword cp2kKeyword Z_LOW
 syn keyword cp2kKeyword __CONTROL_VAL
 syn keyword cp2kKeyword __ROOT__
-syn match cp2kBegKeyword "^\s*\w\+" contains=cp2kKeyword
 
 "-----------------------------------------------------------------/
 " CP2K preprocessing directives
 "-----------------------------------------------------------------/
 
 syn keyword cp2kPreProc endif if include set
-syn match cp2kBegPreProc "^\s*@\w\+" contains=cp2kPreProc
+
+"-----------------------------------------------------------------/
+" CP2K strings
+"-----------------------------------------------------------------/
+
+syn region cp2kString matchgroup=cp2kStringDelimiter start=+"+ end=+"+
+syn region cp2kString matchgroup=cp2kStringDelimiter start=+'+ end=+'+
+syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 
 "----------------------------------------------------------------------------/
 " Final setup
 "----------------------------------------------------------------------------/
 
 let b:current_syntax="cp2k"
-set fdm=manual
-set foldlevel=3
+set autoindent
+set expandtab
+set foldlevelstart=99
+set foldmethod=indent
+set shiftwidth=1
+set softtabstop=1
+set tabstop=1
+
+"----------------------------------------------------------------------------/
+" Indentation support for CP2K input syntax
+"----------------------------------------------------------------------------/
+
+if exists("b:did_indent")
+   finish
+endif
+let b:did_indent = 1
+
+setlocal indentexpr=GetCp2kIndent()
+setlocal indentkeys+=0=~&END,0=#,0=@
+setlocal nosmartindent
+
+if exists("*GetCp2kIndent")
+   finish
+endif
+
+function! GetCp2kIndent()
+   let lnum = prevnonblank(v:lnum - 1)
+   if lnum == 0
+      return 0
+   endif
+   let ind = indent(lnum)
+   let line = getline(lnum)
+   if line =~ '^\s*&'
+      let ind += &shiftwidth
+      if line =~ '^\s*\c\%(&END\)\>'
+         let ind -= &shiftwidth
+      endif
+   elseif line =~ '^\s*\c\%(@if\|@endif\|@include\|@set\)\>'
+      let plnum = lnum
+      while getline(plnum) =~ '^\s*@'
+         let plnum -= 1
+      endwhile
+      let ind = indent(plnum)
+   endif
+   let line = getline(v:lnum)
+   if line =~ '^\s*\c\%(&END\)\>'
+      let ind -= &shiftwidth
+   elseif line =~ '^\s*@'
+      let ind = 0
+   endif
+   return ind
+endfunction
 
 "----------------------------------------------------------------------------/
 " CP2K keyword highlighting rules
 "----------------------------------------------------------------------------/
 
-hi def link cp2kComment Comment
-hi def link cp2kTodo Todo
-hi def link cp2kBool Boolean
-hi def link cp2kNumber Number
-hi def link cp2kSection Type
-hi def link cp2kKeyword Identifier
-hi def link cp2kConstant Constant
-hi def link cp2kPreProc PreProc
+hi def link cp2kComment         Comment
+hi def link cp2kConstant        Constant
+hi def link cp2kTodo            Todo
+hi def link cp2kBool            Boolean
+hi def link cp2kNumber          Number
+hi def link cp2kKeyword         Keyword
+hi def link cp2kSection         Structure
+hi def link cp2kPreProc         PreProc
+hi def link cp2kString          String
+hi def link cp2kStringDelimiter Delimiter
