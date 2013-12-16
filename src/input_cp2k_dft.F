@@ -7119,7 +7119,7 @@ CONTAINS
             enum_i_vals=(/do_taylor,do_diag,do_pade,do_arnoldi/),&
             enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"//&
             " with a taylor expansion of the exponential.",&
-            "uses the eignvalues an eigenvectors to calculate the exponential.",&
+            "uses the eigenvalues and eigenvectors to calculate the exponential.",&
             "uses scaling and squaring together with the pade approximation",&
             "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "//&
             "combination with Crank Nicholson"),&
