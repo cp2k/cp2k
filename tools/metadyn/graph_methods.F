@@ -292,7 +292,7 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data)
+  SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data, l_int)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, INTENT(IN)                      :: ndim
     INTEGER, DIMENSION(:), POINTER           :: ngrid
@@ -305,7 +305,7 @@ CONTAINS
     INTEGER                                  :: i, id, irep, iter, nf, &
                                                 nreplica, ns, pnt
     INTEGER, DIMENSION(:), POINTER           :: ipos
-    LOGICAL                                  :: converged
+    LOGICAL                                  :: converged, l_int
     REAL(KIND=dp)                            :: avg1, avg2, diff, ene, &
                                                 norm_dx, xx0, yy0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: davg1, davg2, dxx, dyy, &
@@ -317,19 +317,26 @@ CONTAINS
     ALLOCATE(xx(ndim),dx(ndim,nreplica),pos_old(ndim,nreplica),pos(ndim,nreplica),&
              ipos(ndim),fes_rep(nreplica),dxx(ndim),dyy(ndim),yy(ndim),davg1(ndim),&
              tang(ndim),davg2(ndim))
-    ! Evaluate position and derivative
-    id = 0
-    DO i=ndim,ndim-ndw+1,-1
-       id = id +1
-       pos(i,1)        = mep_input_data%minima(id,1)
-       pos(i,nreplica) = mep_input_data%minima(id,2)
-    END DO
+
+
+    IF (l_int) THEN
+        id = 0
+      DO i=ndim,ndim-ndw+1,-1
+         id = id +1
+         pos(i,1)        = mep_input_data%minima(id,1)
+         pos(i,nreplica) = mep_input_data%minima(id,2)
+      END DO
     
-    ! Interpolate nreplica-2 points
-    xx=(pos(:,nreplica)-pos(:,1))/REAL(nreplica-1,KIND=dp)
-    DO irep=2,nreplica-1
+      ! Interpolate nreplica-2 points
+      xx=(pos(:,nreplica)-pos(:,1))/REAL(nreplica-1,KIND=dp)
+      DO irep=2,nreplica-1
        pos(:,irep)=pos(:,1)+xx(:)*REAL(irep-1,KIND=dp)
-    END DO
+      END DO
+
+    ELSE
+      pos=mep_input_data%minima
+    ENDIF
+
 
     ! Compute value and derivative in all replicas
     DO irep=1,nreplica

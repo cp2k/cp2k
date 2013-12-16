@@ -32,7 +32,8 @@ PROGRAM graph
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=80)                        :: file, out1, out2, out3, wq_char
+  CHARACTER(LEN=80)                        :: file, out1, out2, out3, wq_char, &
+                                              path_file
   CHARACTER(LEN=default_string_length)     :: active_label, per_label
   INTEGER                                  :: argcount, coor, i, id, ip, &
                                               it, iw, ix, j, ncount, ndim, &
@@ -46,7 +47,7 @@ PROGRAM graph
   LOGICAL                                  :: failure, fix, l_cp2k, l_cpmd, &
                                               l_dp, l_fes_int, l_fmin, &
                                               l_grid, l_math, l_orac, &
-                                              l_pmin, lstride
+                                              l_pmin, lstride, l_popt, l_int
   REAL(KIND=dp)                            :: delta_s_glob, diff, dp2, dum, &
                                               eps_cut, sc, ss, x0w(3), &
                                               xfw(3)
@@ -76,6 +77,8 @@ PROGRAM graph
   l_math  = .FALSE.
   l_fmin  = .FALSE.
   l_pmin  = .FALSE.
+  l_popt  = .FALSE.
+  l_int   = .FALSE.
   iw      = 6
 
   argcount = m_iargc()
@@ -105,6 +108,7 @@ PROGRAM graph
      WRITE(iw,*)'[-find-path]         (Finds MEP between all minima (found) in the computed FES)'
      WRITE(iw,*)'[-point-a]           (Specifies point (a) when using -find-path option)'
      WRITE(iw,*)'[-point-b]           (Specifies point (b) when using -find-path option)'
+     WRITE(iw,*)'[-opt-path filename] (Optimize initial MEP of mep-nreplica points in the same format as mep.data)'
      WRITE(iw,*)'[-mep-kb]            (Specifies the value of the force constant for the MEP: default 0.1_dp)'
      WRITE(iw,*)'[-mep-nreplica]      (Specifies the number of replica points used in the MEP: default 8)'
      WRITE(iw,*)'[-mep-iter]          (Specifies the maximum number of iterations used in the MEP: default 10000)'
@@ -173,6 +177,13 @@ PROGRAM graph
      IF (INDEX(wq_char,'-mathlab').NE.0)THEN
         l_math=.TRUE.
      ENDIF
+
+     IF (INDEX(wq_char,'-opt-path').NE.0)THEN
+       l_popt=.TRUE.
+       CALL M_GETARG(i+1,wq_char)
+       READ(wq_char,*)path_file
+     ENDIF
+
   END DO
   IF (COUNT((/l_orac,l_cp2k,l_cpmd/))/=1) &
        STOP "Error! You've to specify either ORAC, CP2K or CPMD!!"
@@ -324,6 +335,47 @@ PROGRAM graph
   ELSE
      ALLOCATE(mep_input_data%minima(0,0))
   END IF
+
+! Read parameters for Path_optimization 
+   IF (l_popt) THEN
+        mep_input_data%nreplica=0
+        mep_input_data%max_iter=10000
+        mep_input_data%kb=0.1_dp
+
+     DO i=1,argcount
+        CALL M_GETARG(i,wq_char)
+
+        IF (INDEX(wq_char,'-mep-kb').NE.0)THEN
+           CALL M_GETARG(i+1,wq_char)
+           READ(wq_char,*)mep_input_data%kb
+        ENDIF
+
+        IF (INDEX(wq_char,'-mep-iter').NE.0)THEN
+           CALL M_GETARG(i+1,wq_char)
+           READ(wq_char,*)mep_input_data%max_iter
+        ENDIF
+
+        IF (INDEX(wq_char,'-mep-nreplica').NE.0)THEN
+           CALL M_GETARG(i+1,wq_char)
+           READ(wq_char,*)mep_input_data%nreplica
+        ENDIF
+     END DO
+
+        ALLOCATE(mep_input_data%minima(ndw,mep_input_data%nreplica))
+
+        OPEN(87,file=path_file,status='old')
+        DO id=1, mep_input_data%nreplica
+         READ(87,*) j, mep_input_data%minima(:,id)
+        END DO
+        CLOSE(87)
+
+        DO id=1, mep_input_data%nreplica
+         WRITE(*,*)  mep_input_data%minima(:,id)
+        END DO
+  END IF
+
+
+
 
   !  Defines the order of the collectiv var.: first the "wanted" ones, then the others
   ALLOCATE(i_map(ndim),stat=stat)
@@ -604,9 +656,14 @@ PROGRAM graph
   ! If requested find minima
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
-  ! If requested find path
-  IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data)
-     
+  ! If requested find  or opt path
+  IF ((l_pmin) .AND. (l_popt)) STOP "USE EITHER -find-path OR -opt-path"
+  IF (l_pmin) l_int=.TRUE.
+  IF (l_popt) l_int=.FALSE.
+
+  IF ((l_pmin) .OR. (l_popt)) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data,l_int)
+ 
+ 
   ! Free memory
   DEALLOCATE(ngrid,stat=stat)
   IF (stat/=0) STOP "Deallocation Error"
