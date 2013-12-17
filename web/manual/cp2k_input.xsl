@@ -470,9 +470,8 @@
      </td>
      <td class="r">
       <xsl:if test="string-length(USAGE) > 0">
-       <big class="uctt">
-        <xsl:value-of disable-output-escaping="yes" select="USAGE"/>
-       </big>
+       <big class="uctt"><xsl:value-of disable-output-escaping="yes" select="substring-before(USAGE,' ')"/></big>&#160;
+       <big class="tt"><xsl:value-of disable-output-escaping="yes" select="substring-after(USAGE,' ')"/></big>
       </xsl:if>
      </td>
     </tr>
