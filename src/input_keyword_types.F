@@ -952,7 +952,7 @@ CONTAINS
             REPEAT(" ",l1)//"</DATA_TYPE>"
 
        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<USAGE>"//&
-            TRIM(substitute_special_xml_tokens(keyword%usage,ltu=.TRUE.))&
+            TRIM(substitute_special_xml_tokens(keyword%usage))&
             //"</USAGE>"
 
        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<DESCRIPTION>"//&
