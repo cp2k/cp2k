@@ -55,6 +55,7 @@ MODULE xas_control
     REAL(dp)                            :: eps_diis
     REAL(dp)                            :: eps_added
     REAL(dp)                            :: xes_core_occupation
+    REAL(dp)                            :: xes_homo_occupation
   END TYPE xas_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
@@ -88,7 +89,7 @@ CONTAINS
 
     INTEGER                                  :: i, ir, istat, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, was_present
+    LOGICAL                                  :: failure, hempty, was_present
     TYPE(section_vals_type), POINTER         :: xas_section
 
     failure=.FALSE.
@@ -128,6 +129,14 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"XES_CORE", &
          r_val=xas_control%xes_core_occupation,error=error)
+
+    CALL section_vals_val_get(xas_section,"XES_EMPTY_HOMO", &
+         l_val=hempty,error=error)
+    IF(hempty) THEN
+         xas_control%xes_homo_occupation = 0
+    ELSE
+         xas_control%xes_homo_occupation = 1
+    END IF
 
 ! It should be further generalized
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
@@ -275,6 +284,7 @@ CONTAINS
 !    xas_control%emission = .FALSE.
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
+    xas_control%xes_homo_occupation=1.0_dp
     NULLIFY(xas_control%exc_atoms)
     xas_control%cubes = .FALSE.
     xas_control%do_centers = .FALSE.

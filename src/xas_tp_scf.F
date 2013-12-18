@@ -653,21 +653,25 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
             matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
 
-       CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
-       nelectron = nelectron - 1
-       CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
-       CALL set_mo_occupation(mo_set=mos(1)%mo_set,smear=xas_env%smear,&
+
+       IF(xas_env%homo_occ == 0) THEN
+         CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
+         nelectron = nelectron - 1
+         CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
+         CALL set_mo_occupation(mo_set=mos(1)%mo_set,smear=xas_env%smear,&
                              error=error)
 
 
-       NULLIFY(scf_env)
-       CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-       CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
+         NULLIFY(scf_env)
+         CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+         CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
                                   do_xas_tp=.TRUE., error=error)
 
-       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
-            converged=converged, should_stop=should_stop, error=error)
-       CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+         CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
+              converged=converged, should_stop=should_stop, error=error)
+         CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+
+       END IF
 
        !   The eigenstate of the KS Hamiltonian are nedeed
        NULLIFY(mo_coeff,eigenvalues)
@@ -705,8 +709,10 @@ CONTAINS
           CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
        END IF
 
-       nelectron = nelectron + 1
-       CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
+       IF(xas_env%homo_occ == 0) THEN
+          nelectron = nelectron + 1
+          CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
+       END IF
     END IF  ! failure
     CALL timestop(handle)
 

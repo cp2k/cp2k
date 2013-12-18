@@ -835,20 +835,22 @@ CONTAINS
     IF(PRESENT(xas_env) )THEN
       CALL get_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_estate=xas_estate,&
                   xas_nelectron=xas_nelectron,error=error)
-      mo_set%occupation_numbers(xas_estate) = occ_estate
-      el_count = 0.0_dp
-      DO i = 1,nomo
-        el_count = el_count + mo_set%occupation_numbers(i)
-        IF((el_count-xas_nelectron) >EPSILON(0.0_dp)) THEN
-          nomo = i
-          mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - &
-               (el_count-xas_nelectron)
-          EXIT
+      IF(xas_estate>-1) THEN
+        mo_set%occupation_numbers(xas_estate) = occ_estate
+        el_count = 0.0_dp
+        DO i = 1,nomo
+          el_count = el_count + mo_set%occupation_numbers(i)
+          IF((el_count-xas_nelectron) >EPSILON(0.0_dp)) THEN
+            nomo = i
+            mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - &
+                 (el_count-xas_nelectron)
+            EXIT
+           END IF
+        END DO
+        IF((xas_nelectron - el_count) > EPSILON(0.0_dp) ) THEN
+          nomo = nomo + 1
+          mo_set%occupation_numbers(nomo) = xas_nelectron -  el_count
         END IF
-      END DO
-      IF((xas_nelectron - el_count) > EPSILON(0.0_dp) ) THEN
-        nomo = nomo + 1
-        mo_set%occupation_numbers(nomo) = xas_nelectron -  el_count
       END IF
     ENDIF
     ! zeros don't count as uniform

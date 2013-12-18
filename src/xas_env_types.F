@@ -81,7 +81,7 @@ MODULE xas_env_types
     INTEGER, DIMENSION(:), POINTER :: mykind_of_atom
     INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
     INTEGER, DIMENSION(:), POINTER :: exc_atoms
-    REAL(dp) :: eps_diis, ip_energy, occ_estate, unoccupied_eps, xas_nelectron
+    REAL(dp) :: eps_diis, ip_energy, occ_estate, unoccupied_eps, xas_nelectron, homo_occ
     REAL(dp), DIMENSION(:), POINTER :: all_evals
     REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
@@ -201,7 +201,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_xas_env(xas_env,iter_count,eps_diis,nexc_search,nexc_atoms,&
              nvirtual,nvirtual2, ip_energy, occ_estate, qs_loc_env,&
-             xas_estate, xas_nelectron,error)
+             xas_estate, xas_nelectron, homo_occ,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(IN), OPTIONAL            :: iter_count
@@ -213,6 +213,7 @@ CONTAINS
       POINTER                                :: qs_loc_env
     INTEGER, INTENT(IN), OPTIONAL            :: xas_estate
     REAL(dp), INTENT(IN), OPTIONAL           :: xas_nelectron
+    REAL(dp), INTENT(IN), OPTIONAL           :: homo_occ
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
@@ -234,6 +235,7 @@ CONTAINS
       IF (PRESENT(eps_diis)) xas_env%eps_diis = eps_diis
       IF (PRESENT(occ_estate)) xas_env%occ_estate = occ_estate
       IF (PRESENT(xas_nelectron)) xas_env%xas_nelectron = xas_nelectron
+      IF (PRESENT(homo_occ)) xas_env%homo_occ = homo_occ
       IF (PRESENT(xas_estate)) xas_env%xas_estate = xas_estate
       IF (PRESENT(ip_energy)) xas_env%ip_energy = ip_energy
       IF (PRESENT(qs_loc_env)) THEN

@@ -281,11 +281,11 @@ CONTAINS
     END DO
 
     nspins = dft_control%nspins
-    transition_potential = (xas_control%xas_method==xas_tp_hh).OR.&
-                           (xas_control%xas_method==xas_tp_fh).OR.&
-                           (xas_control%xas_method==xas_tp_xhh).OR.&
-                           (xas_control%xas_method==xas_tp_xfh).OR.&
-                           (xas_control%xas_method==xas_dscf)
+    transition_potential =  .true. !(xas_control%xas_method==xas_tp_hh).OR.&
+ !                           (xas_control%xas_method==xas_tp_fh).OR.&
+  !                          (xas_control%xas_method==xas_tp_xhh).OR.&
+   !                         (xas_control%xas_method==xas_tp_xfh).OR.&
+    !                        (xas_control%xas_method==xas_dscf)
     IF(nspins==1 .AND. transition_potential) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "XAS with TP method requires LSD calculations")
@@ -310,19 +310,26 @@ CONTAINS
                    xas_control%xes_core_occupation==1.0_dp) THEN
       IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,/,T10,A)') &
         "START Core Level Spectroscopy Calculation for the Emission Spectrum"
-      IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(T10,A,/,A)')&
-       "The core state is fully occupied and the homo is empty",&
-       " (final state of the core hole decay). Only one SCF is needed (not one per atom)"
+      IF(xas_control%xes_homo_occupation == 1) THEN
+        IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(T10,A,/,A)')&
+         "The core state is fully occupied and XES from ground state calculation.",&
+         " No SCF is needed, MOS already available"
+      ELSE IF(xas_control%xes_homo_occupation == 0) THEN
+        IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(T10,A,/,A)')&
+         "The core state is fully occupied and the homo is empty",&
+         " (final state of the core hole decay). Only one SCF is needed (not one per atom)"
+      END IF
       skip_scf = .TRUE.
 
-      CALL set_xas_env(xas_env=xas_env,xas_estate=1,error=error)
+      CALL set_xas_env(xas_env=xas_env,xas_estate=-1, homo_occ=xas_control%xes_homo_occupation, &
+            error=error)
       CALL xes_scf_once(qs_env,xas_env,scf_section,converged,should_stop,error=error)
 
-      IF(converged .AND. .NOT. should_stop) THEN
+      IF(converged .AND. .NOT. should_stop .AND. xas_control%xes_homo_occupation == 0) THEN
 
         IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo converged "
-      ELSE
+      ELSE IF(.NOT. converged .OR. should_stop) THEN
         IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo NOT converged"
         GOTO 1000
@@ -336,7 +343,7 @@ CONTAINS
       IF(output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
               "Localize a sub-set of MOs with spin alpha,"//&
-              " to better identify the core states that have to be excited"
+              " to better identify the core states"
           IF(&
               qs_loc_env%localized_wfn_control%set_of_states == state_loc_range ) THEN
               WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-set contains states from ",&
@@ -418,10 +425,6 @@ CONTAINS
                         error,failure)
         END IF
     END IF
-!dbg
-!    write(*,*) xas_env%mixing_method, xas_env%mixing_store%alpha
-! STOP
-!dbg
 
     DO iat = 1,nexc_atoms
       iatom = xas_env%exc_atoms(iat)
@@ -500,9 +503,6 @@ CONTAINS
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
              GO TO 1000
           END IF
-          IF(iat == nexc_atoms) THEN
-             CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
-          END IF
 
         END IF
        ! SCF DONE
@@ -521,6 +521,10 @@ CONTAINS
       END IF
 
       IF(converged) THEN
+ write(*,*) 'qui si',  iat
+!        CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,&
+!             xas_section,output_unit,error=error)
+
         CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
              iatom,error=error)
       ELSE
@@ -537,6 +541,9 @@ CONTAINS
                  nao=nao, nmo=nmo)
             CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nmo,1,1)
          END DO
+         IF(iat == nexc_atoms) THEN
+             CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+         END IF
       END IF
 
     END DO

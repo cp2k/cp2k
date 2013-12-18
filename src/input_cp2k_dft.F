@@ -6422,6 +6422,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="XES_EMPTY_HOMO",&
+            description="Set the occupation of the HOMO in XES calculation by TP_VAL."//&
+            "The HOMO can be emptied or not, if the core is still full",&
+            usage="XES_EMPTY_HOMO",&
+            default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="DIPOLE_FORM",&
             variants=(/"DIP_FORM"/),&
             description="Type of integral to get the oscillator strengths "//&

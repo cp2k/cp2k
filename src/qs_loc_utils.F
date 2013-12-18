@@ -584,7 +584,9 @@ CONTAINS
           ! only do that if we have a history of course. The history is filled
           IF (PRESENT(mo_loc_history)) THEN
             IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
-               CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, mo_loc_history(ispin)%matrix, matrix_s(1)%matrix, error)
+               CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, &
+                   mo_loc_history(ispin)%matrix, matrix_s(1)%matrix, &
+                   error=error)
             ENDIF
           ENDIF
 

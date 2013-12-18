@@ -938,7 +938,7 @@ CONTAINS
     failure=.FALSE.
 
     IF ( output_unit > 0) THEN
-      WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functiona; "
+      WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functional; "
       WRITE(output_unit,'(T5,2A13,A20,A20,A10 )') " Line search ", " Iteration ", " Functional ", " Tolerance "," ds Min "
     END IF
 
