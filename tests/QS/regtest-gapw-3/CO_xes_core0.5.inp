@@ -1,5 +1,7 @@
+#CPQA DEPENDS CO.inp
+
 &GLOBAL
- PROJECT      co_gapw_lsd
+ PROJECT      xes_core0.5
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -11,6 +13,7 @@
     LSD
     BASIS_SET_FILE_NAME ../ALL_BASIS_SETS
     POTENTIAL_FILE_NAME ../POTENTIAL
+    RESTART_FILE_NAME   CO-RESTART
     &XC
       &XC_FUNCTIONAL
        &BECKE88
@@ -36,7 +39,7 @@
       NGRIDS        4
     &END
     &SCF
-      SCF_GUESS ATOMIC
+      SCF_GUESS RESTART
       EPS_SCF 5.E-6
       EPS_DIIS 0.4
       MAX_SCF 100
@@ -48,8 +51,7 @@
       &PRINT
         &TOTAL_DENSITIES MEDIUM
         &END
-        &RESTART
-           FILENAME =CO-RESTART
+        &RESTART OFF
         &END
       &END
     &END SCF
@@ -62,6 +64,29 @@
      PERIODIC NONE
     &END POISSON
 
+    &XAS 
+      CONVERGENCE 0.000001
+      EPS_DIIS   0.4
+      METHOD        TP_VAL
+      DIPOLE_FORM   VELOCITY
+      MAXSTEP       100
+      STATE_TYPE    1s
+      STATE_SEARCH  2
+      ATOMS_LIST    1
+      ATOMS_LIST    2
+      ADDED_MOS     20
+      XES_CORE 0.5
+      &LOCALIZE
+      &END
+      &PRINT
+        &RESTART
+        &END
+        &XAS_SPECTRUM OFF
+        &END
+        &XES_SPECTRUM
+        &END
+      &END
+    &END
   &END SECTION DFT
   &SUBSYS
     &CELL

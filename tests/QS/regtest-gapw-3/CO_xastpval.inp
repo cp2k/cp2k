@@ -1,7 +1,7 @@
 #CPQA DEPENDS CO.inp
 
 &GLOBAL
- PROJECT      xas_tpval
+ PROJECT      xes_core1_homo1
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -35,14 +35,14 @@
       ALPHA0_H     10
      &END
     &MGRID
-      CUTOFF       50
-      NGRIDS        1
+      CUTOFF       150
+      NGRIDS        4
     &END
     &SCF
       SCF_GUESS RESTART
-      EPS_SCF 5.E-7
+      EPS_SCF 5.E-6
       EPS_DIIS 0.4
-      MAX_SCF 1
+      MAX_SCF 100
        
       ADDED_MOS  1 1
       &OT OFF
@@ -79,6 +79,10 @@
       &END
       &PRINT
         &RESTART
+        &END
+        &XAS_SPECTRUM OFF
+        &END
+        &XES_SPECTRUM
         &END
       &END
     &END
