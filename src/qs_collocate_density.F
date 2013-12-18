@@ -1402,7 +1402,8 @@ END SUBROUTINE calculate_rho_resp_all
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, task_list_external, error)
+       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, &
+       task_list_external, pw_env_external, error)
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
@@ -1412,6 +1413,7 @@ END SUBROUTINE calculate_rho_resp_all
                                                 compute_grad
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type, idir
     TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_external
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
@@ -1545,6 +1547,7 @@ END SUBROUTINE calculate_rho_resp_all
            pw_env=pw_env,error=error)
     END SELECT
 
+    IF (PRESENT(pw_env_external)) pw_env => pw_env_external
     IF (PRESENT(task_list_external)) task_list=>task_list_external
 
     ! *** assign from pw_env

@@ -432,6 +432,9 @@ OBJECTS_GENERIC =\
  mp2_ri_libint.o\
  mp2_setup.o\
  mp2_types.o\
+ mp2_cphf.o\
+ mp2_ri_grad.o\
+ mp2_ri_grad_util.o\
  mt_util.o\
  mulliken.o\
  multipole_types.o\

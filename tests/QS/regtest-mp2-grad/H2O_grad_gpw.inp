@@ -1,0 +1,95 @@
+&GLOBAL                                                                                           
+  PROJECT     GRAD_H2O_gpw
+  PRINT_LEVEL LOW
+  RUN_TYPE    GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MAX_ITER  1
+  &END
+&END MOTION
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  ../HFX_BASIS
+    POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF     150
+      REL_CUTOFF  30
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS   ATOMIC
+      EPS_SCF     1.0E-6
+      MAX_SCF     100
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          SCREEN_ON_INITIAL_P .FALSE.
+          EPS_SCHWARZ         1.0E-9
+          EPS_SCHWARZ_FORCES  1.0E-9
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 2.4999999999
+          T_C_G_DATA ../t_c_g.dat
+        &END
+      &END HF
+      &WF_CORRELATION
+        METHOD  RI_MP2_GPW
+        &RI_MP2
+          BLOCK_SIZE  1
+          EPS_CANONICAL 0.00001
+          FREE_HFX_BUFFER .TRUE.
+        &END
+        &CPHF
+          EPS_CONV  1.0E-6
+          MAX_ITER  50
+        &END
+        &WFC_GPW
+          CUTOFF      150
+          REL_CUTOFF  30
+          EPS_FILTER  1.0E-12
+          EPS_GRID    1.0E-8
+        &END
+        MEMORY       1.00
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &PRINT
+   &FORCES
+   &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  5.0 5.0 5.0
+    &END CELL
+    &KIND H
+      BASIS_SET         DZVP-GTH
+      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET         DZVP-GTH
+      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      POTENTIAL         GTH-HF-q6
+    &END KIND
+    &COORD
+      O       0.000000    0.000000    -0.211000
+      H       0.000000   -0.844000     0.495000
+      H       0.000000    0.744000     0.495000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

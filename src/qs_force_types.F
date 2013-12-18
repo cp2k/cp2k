@@ -45,6 +45,8 @@ MODULE qs_force_types
                                          ehrenfest,&
                                          efield,&
                                          eev,&
+                                         mp2_sep,&
+                                         mp2_non_sep,&
                                          total
   END TYPE qs_force_type
 
@@ -192,6 +194,16 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,&
                          "qs_force(ikind)%hfx_ri",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%mp2_sep(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "qs_force(ikind)%mp2_sep",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%mp2_non_sep(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "qs_force(ikind)%mp2_non_sep",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -354,6 +366,20 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(qs_force(ikind)%mp2_sep)) THEN
+        DEALLOCATE (qs_force(ikind)%mp2_sep,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%mp2_sep")
+        END IF
+      END IF
+
+      IF (ASSOCIATED(qs_force(ikind)%mp2_non_sep)) THEN
+        DEALLOCATE (qs_force(ikind)%mp2_non_sep,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%mp2_non_sep")
+        END IF
+      END IF
+
       IF (ASSOCIATED(qs_force(ikind)%hfx_ri)) THEN
         DEALLOCATE (qs_force(ikind)%hfx_ri,STAT=istat)
         IF (istat /= 0) THEN
@@ -431,6 +457,8 @@ CONTAINS
       qs_force(ikind)%ehrenfest(:,:) = 0.0_dp
       qs_force(ikind)%efield(:,:) = 0.0_dp
       qs_force(ikind)%eev(:,:) = 0.0_dp
+      qs_force(ikind)%mp2_non_sep(:,:) = 0.0_dp
+      qs_force(ikind)%mp2_sep(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
 
@@ -505,6 +533,8 @@ CONTAINS
         qs_force_output(ikind)%ehrenfest(:,:) = qs_force_input(ikind)%ehrenfest(:,:)
         qs_force_output(ikind)%efield(:,:) = qs_force_input(ikind)%efield(:,:)
         qs_force_output(ikind)%eev(:,:) = qs_force_input(ikind)%eev(:,:)
+        qs_force_output(ikind)%mp2_non_sep(:,:) = qs_force_input(ikind)%mp2_non_sep(:,:)
+        qs_force_output(ikind)%mp2_sep(:,:) = qs_force_input(ikind)%mp2_sep(:,:)
         qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)
       END DO
     END IF

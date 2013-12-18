@@ -10,6 +10,9 @@
 !> \author MDB
 ! *****************************************************************************
 MODULE mp2_types
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE hfx_types,                       ONLY: hfx_release,&
                                              hfx_type,&
                                              pair_list_element_type
@@ -35,6 +38,7 @@ MODULE mp2_types
 
   PUBLIC :: mp2_type, mp2_direct_type, &
             integ_mat_buffer_type,&
+            integ_mat_buffer_type_2D,&
             mp2_method_none,&
             mp2_method_laplace,&
             mp2_method_direct,&
@@ -48,7 +52,7 @@ MODULE mp2_types
   PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
             pair_list_type_mp2,&
             mp2_potential_type, mp2_gpw_type, ri_rpa_type, ri_mp2_type,&
-            mp2_laplace_type
+            mp2_laplace_type, grad_util
 
   INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -84,6 +88,8 @@ MODULE mp2_types
 
   TYPE ri_mp2_type
        INTEGER                  :: block_size
+       REAL(dp)                 :: eps_canonical
+       LOGICAL                  :: free_hfx_buffer
   END TYPE
 
   TYPE ri_rpa_type
@@ -100,6 +106,18 @@ MODULE mp2_types
        INTEGER                  :: max_num_iter
   END TYPE
 
+  TYPE grad_util
+       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: P_ij, P_ab
+       REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: Gamma_P_ia
+       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: PQ_half, Gamma_PQ
+       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
+       TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
+                                                   mo_coeff_v, mo_coeff_v_beta
+       TYPE(cp_fm_type), POINTER                :: P_mo, W_mo, L_jb
+       REAL(KIND=dp) :: cphf_eps_conv
+       INTEGER :: cphf_max_num_iter
+  END TYPE
+
   TYPE mp2_type
        REAL(KIND=dp)            :: energy
        LOGICAL                  :: compute_reference
@@ -111,6 +129,7 @@ MODULE mp2_types
        TYPE(ri_mp2_type)        :: ri_mp2
        TYPE(ri_rpa_type)        :: ri_rpa
        TYPE(ri_basis_opt)       :: ri_opt_param
+       TYPE(grad_util)          :: ri_grad
        REAL(dp) :: mp2_memory
        REAL(dp) :: scale_S
        REAL(dp) :: scale_T
@@ -122,6 +141,12 @@ MODULE mp2_types
 
   TYPE integ_mat_buffer_type
     REAL(KIND=dp), DIMENSION(:), POINTER  :: msg
+    INTEGER :: proc
+    INTEGER :: msg_req
+  END TYPE
+
+  TYPE integ_mat_buffer_type_2D
+    REAL(KIND=dp), DIMENSION(:,:), POINTER  :: msg
     INTEGER :: proc
     INTEGER :: msg_req
   END TYPE

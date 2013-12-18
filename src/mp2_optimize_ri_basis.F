@@ -387,6 +387,16 @@ MODULE mp2_optimize_ri_basis
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Skip Hessian Update'   
       END IF
 
+      !XXXXXXXXXXXXX
+      ! DO i=1, ndof
+      !   IF(g(i)<0.0D+00) THEN
+      !     xi(i)=pnew(i)*0.005
+      !   ELSE
+      !     xi(i)=-pnew(i)*0.005
+      !   END IF
+      ! END DO
+      !XXXXXXXXXXXXX
+
       ! new direction
       xi=-MATMUL(hessin,g)
 

@@ -16,9 +16,10 @@ MODULE qs_energy_utils
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_set
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
+       cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
@@ -109,7 +110,8 @@ CONTAINS
     INTEGER                                  :: ispin
     LOGICAL                                  :: has_unit_metric, molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_w
+      POINTER                                :: matrix_s, matrix_w, &
+                                                matrix_w_mp2
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL qs_energies_init_kg(qs_env,molecule_only,error)
@@ -132,6 +134,18 @@ CONTAINS
           CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
        END DO
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+       IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         ! create the MP2 energy weighted density matrix
+         CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
+         DO ispin=1,dft_control%nspins
+            ALLOCATE(matrix_w_mp2(ispin)%matrix)
+            CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix,error=error)
+            CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix_s(1)%matrix,&
+                 name="W MATRIX MP2",error=error)
+            CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix,0.0_dp,error=error)
+         END DO
+         CALL set_qs_env(qs_env=qs_env,matrix_w_mp2=matrix_w_mp2,error=error)
+       END IF
     ENDIF
 
   END SUBROUTINE qs_energies_init
@@ -342,6 +356,10 @@ CONTAINS
              ELSE
                 CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
              END IF
+          END IF
+          ! if MP2 time to update the W matrix with the MP2 contribution
+          IF(ASSOCIATED(qs_env%mp2_env)) THEN
+            CALL cp_dbcsr_add(matrix_w(ispin)%matrix, qs_env%matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp, error)
           END IF
        END DO
     END IF
@@ -559,14 +577,14 @@ CONTAINS
        CALL external_control(should_stop,"MP2",target_time=qs_env%target_time, &
        start_time = qs_env%start_time,error=error)
 
-       CALL mp2_main(qs_env=qs_env,error=error)
+       CALL mp2_main(qs_env=qs_env,calc_forces=calc_forces,error=error)
 
        ! no forces so far with MP2 (except one electron systems ;-)
-       IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               " No forces/gradients with MP2.... yet(?!) "//&
-                CPSourceFileRef, only_ionode=.TRUE.)
-       ENDIF
+       ! IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
+       !    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       !         " No forces/gradients with MP2.... yet(?!) "//&
+       !          CPSourceFileRef, only_ionode=.TRUE.)
+       ! ENDIF
     ENDIF
 
   END SUBROUTINE qs_energies_mp2

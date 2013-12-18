@@ -100,8 +100,9 @@ MODULE mp2
 !> \brief the main entry point for MP2 calculations
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE mp2_main(qs_env,error)
+  SUBROUTINE mp2_main(qs_env,calc_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp2_main', &
@@ -116,7 +117,8 @@ MODULE mp2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: calc_ex, &
                                                 do_dynamic_load_balancing, &
-                                                do_exx, failure
+                                                do_exx, failure, &
+                                                free_hfx_buffer
     REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
       Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
       Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2
@@ -188,6 +190,13 @@ MODULE mp2
        END IF
     ENDIF
 
+    IF (calc_forces) THEN
+       IF(mp2_env%method/=ri_mp2_method_gpw) THEN
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                        "No forces/gradients for the selected method."//&
+                        CPSourceFileRef, only_ionode=.TRUE.)
+       END IF
+    ENDIF
 
     IF(mp2_env%mp2_num_proc<=0 .OR. mp2_env%mp2_num_proc>para_env%num_pe .OR. MOD(para_env%num_pe,mp2_env%mp2_num_proc).NE.0) THEN
        IF (unit_nr>0 .AND. mp2_env%mp2_num_proc.NE.-1) &
@@ -215,6 +224,18 @@ MODULE mp2
     IF (unit_nr>0) CALL m_flush(unit_nr)
 
     nspins=qs_env%dft_control%nspins
+
+    IF (calc_forces.AND.nspins/=1) THEN
+      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "No forces/gradients for LSD."//&
+                     CPSourceFileRef, only_ionode=.TRUE.)
+    END IF
+
+    IF(qs_env%virial%pv_availability) THEN
+      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "MP2 stress not implemented."//&
+                     CPSourceFileRef, only_ionode=.TRUE.)
+    END IF
 
     natom = SIZE(particle_set,1)
 
@@ -339,40 +360,45 @@ MODULE mp2
 
     CALL build_index_table(natom,max_nset,mp2_biel%index_table,basis_parameter,kind_of)
 
-    ! free the hfx_container
+    ! free the hfx_container (for now if forces are required we don't release the HFX stuff)
+    free_hfx_buffer=.FALSE.
     IF (ASSOCIATED(qs_env%x_data)) THEN
+      free_hfx_buffer=.TRUE.
+      IF(calc_forces.AND.(.NOT.mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer=.FALSE.
+    END IF
+    IF(free_hfx_buffer) THEN
       CALL timeset(routineN//"_free_hfx",handle2)
       CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-      i_thread = 0
-!$  i_thread = omp_get_thread_num()
       n_threads = 1
 !$  n_threads = omp_get_max_threads()
 
       DO irep = 1, n_rep_hf
-        actual_x_data => qs_env%x_data(irep, i_thread + 1)
+        DO i_thread = 0, n_threads-1
+          actual_x_data => qs_env%x_data(irep, i_thread + 1)
 
-        do_dynamic_load_balancing = .TRUE.
-        IF( n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage ) do_dynamic_load_balancing = .FALSE.
+          do_dynamic_load_balancing = .TRUE.
+          IF( n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage ) do_dynamic_load_balancing = .FALSE.
 
-        IF( do_dynamic_load_balancing ) THEN
-          my_bin_size = SIZE(actual_x_data%distribution_energy)
-        ELSE
-          my_bin_size = 1
-        END IF
+          IF( do_dynamic_load_balancing ) THEN
+            my_bin_size = SIZE(actual_x_data%distribution_energy)
+          ELSE
+            my_bin_size = 1
+          END IF
 
-        IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
-          CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
-          CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
-         
-          DO bin=1, my_bin_size
-            maxval_container => actual_x_data%maxval_container(bin)
-            integral_containers => actual_x_data%integral_containers(:,bin)
-            CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
-            DO i=1,64
-              CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
-            END DO
-          END DO
-        END IF
+          IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
+            CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
+           !  CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+           ! 
+           !  DO bin=1, my_bin_size
+           !    maxval_container => actual_x_data%maxval_container(bin)
+           !    integral_containers => actual_x_data%integral_containers(:,bin)
+           !    CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+           !    DO i=1,64
+           !      CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+           !    END DO
+           !  END DO
+          END IF
+        END DO
       END DO
       CALL timestop(handle2)
     END IF
@@ -499,7 +525,7 @@ MODULE mp2
        END IF
 
      CASE (mp2_ri_optimize_basis)
-       ! optimize ri basis set
+       ! optimize ri basis set or tests for RI-MP2 gradients
        IF (unit_nr>0) THEN
          WRITE(unit_nr,*)
          WRITE(unit_nr,'(T3,A)') 'Optimization of the auxiliary RI-MP2 basis'
@@ -533,6 +559,7 @@ MODULE mp2
          CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE., error)
          Auto_beta(:)=mo_eigenvalues(:)
 
+         ! optimize basis
          CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron, &
                                      mp2_biel,mp2_env,C,Auto, &
                                      kind_of,basis_parameter, &
@@ -541,13 +568,12 @@ MODULE mp2
                                      nelec_beta,C_beta,Auto_beta)
 
        ELSE
-
+         ! optimize basis
          CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron/2, &
                                      mp2_biel,mp2_env,C,Auto, &
                                      kind_of,basis_parameter, &
                                      qs_env,particle_set,matrix_ks,rho,hfx_sections,para_env, &
                                      unit_nr,error)
-
        END IF
 
      CASE (mp2_method_gpw)
@@ -556,7 +582,7 @@ MODULE mp2
 
        ! go with mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_ex,error)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error)
 
      CASE (ri_mp2_method_gpw)
        ! check if calculate the exchange contribution
@@ -564,7 +590,7 @@ MODULE mp2
 
        ! go with mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_mp2=.TRUE.)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error,do_ri_mp2=.TRUE.)
 
      CASE(ri_rpa_method_gpw)
        ! perform RI-RPA energy calculation (since most part of the calculation
@@ -575,7 +601,7 @@ MODULE mp2
 
        ! go with ri_rpa_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_rpa=.TRUE.)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error,do_ri_rpa=.TRUE.)
 
      CASE(ri_mp2_laplace) 
        ! perform RI-SOS-Laplace-MP2 energy calculation, most part of the code in common
@@ -586,7 +612,7 @@ MODULE mp2
         
        ! go with sos_laplace_mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_ex,error,do_ri_sos_laplace_mp2=.TRUE.)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error,do_ri_sos_laplace_mp2=.TRUE.)
 
      CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -636,6 +662,40 @@ MODULE mp2
      CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set,error=error)
    END DO
    DEALLOCATE(mos_mp2)
+
+   ! if necessary reallocate hfx buffer
+   IF(free_hfx_buffer.AND.(.NOT.calc_forces)) THEN
+     CALL timeset(routineN//"_alloc_hfx",handle2)
+     DO irep = 1, n_rep_hf
+       DO i_thread = 0, n_threads-1
+         actual_x_data => qs_env%x_data(irep, i_thread + 1)
+
+         do_dynamic_load_balancing = .TRUE.
+         IF( n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage ) do_dynamic_load_balancing = .FALSE.
+
+         IF( do_dynamic_load_balancing ) THEN
+           my_bin_size = SIZE(actual_x_data%distribution_energy)
+         ELSE
+           my_bin_size = 1
+         END IF
+
+         IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
+          ! CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
+           CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+          
+           DO bin=1, my_bin_size
+             maxval_container => actual_x_data%maxval_container(bin)
+             integral_containers => actual_x_data%integral_containers(:,bin)
+             CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+             DO i=1,64
+               CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+             END DO
+           END DO
+         END IF
+       END DO
+     END DO
+     CALL timestop(handle2)
+   END IF
 
    CALL hfx_release_basis_types(basis_parameter,error)
 

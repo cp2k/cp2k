@@ -74,7 +74,8 @@ CONTAINS
             citations=(/DelBen2012/),&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD MP2_GPW",&
-            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE","OPTIMIZE_RI_BASIS"),&
+            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE",&
+                            "OPTIMIZE_RI_BASIS"),&
             enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,&
                           ri_rpa_method_gpw,ri_mp2_laplace,mp2_ri_optimize_basis/),&
             enum_desc=s2a("Skip MP2 calculation",&
@@ -200,6 +201,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_cphf(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_mp2_potential(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -260,7 +265,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_MP2",&
             description="Parameters influencing the RI MP2 method",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/DelBen2013/),&
             error=error)
 
@@ -272,6 +277,29 @@ CONTAINS
                         "reduces communication but requires more memory. The default (-1) is automatic.",&
             usage="BLOCK_SIZE 2",&
             default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_CANONICAL",&
+            description="Threshold for discriminate if a given ij pairs "//&
+                        "of the unrelaxed MP2 density matrix has to be "//&
+                        "calculated with a canonical reformulation based "//&
+                        "on the occupied eigenvalues differences.",&
+            usage="EPS_CANONICAL 1.0E-8",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-7_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="FREE_HFX_BUFFER",&
+            description="Free the buffer containing the 4 center integrals used in the Hartree-Fock exchange calculation. "//&
+                        "This will be effective only for gradients calculations, since for the energy only "//&
+                        "case, the buffers are released by default. (Right now debugging only).",&
+            usage="FREE_HFX_BUFFER",&
+            default_l_val=.TRUE.,&
+            lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -516,6 +544,49 @@ CONTAINS
 
   END SUBROUTINE create_wfc_gpw
 
+  SUBROUTINE create_cphf(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cphf', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"CPHF",&
+            description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            variants=(/"MAX_NUM_ITER"/),&
+            description="Maximum number of iterations allowed for the solution of the Z-vector equations.",&
+            usage="MAX_ITER  50",&
+            default_i_val=30,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_CONV",&
+            description="Convergence threshold for the solution of the Z-vector equations. "//&
+                        "The Z-vector equations have the form of a linear system of equations Ax=b, "//&
+                        "convergence is achieved when |Ax-b|<=EPS_CONV.",&
+            usage="EPS_CONV 1.0E-6",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-4_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_cphf
 
   SUBROUTINE create_mp2_potential(section,error)
     TYPE(section_type), POINTER              :: section
