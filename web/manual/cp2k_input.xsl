@@ -469,10 +469,36 @@
      <td class="l">
      </td>
      <td class="r">
-      <xsl:if test="string-length(USAGE) > 0">
-       <big class="uctt"><xsl:value-of disable-output-escaping="yes" select="substring-before(USAGE,' ')"/></big>&#160;
-       <big class="tt"><xsl:value-of disable-output-escaping="yes" select="substring-after(USAGE,' ')"/></big>
-      </xsl:if>
+      <xsl:choose>
+       <xsl:when test="NAME[@type='default'] = 'DEFAULT_KEYWORD'">
+        <big class="tt"><xsl:value-of disable-output-escaping="yes" select="USAGE"/></big>
+       </xsl:when>
+       <xsl:otherwise>
+        <xsl:variable name="vartype" select="concat(upper-case(substring(DATA_TYPE/@kind,1,1)),substring(DATA_TYPE/@kind,2))"/>
+        <xsl:if test="DATA_TYPE/N_VAR > 0">
+         <xsl:choose>
+          <xsl:when test="NAME[@type='default'] = 'SECTION_PARAMETERS'">
+           <big class="uctt">&amp;<xsl:value-of disable-output-escaping="yes" select="../NAME"/></big>
+          </xsl:when>
+          <xsl:otherwise>
+           <big class="uctt"><xsl:value-of disable-output-escaping="yes" select="NAME[@type='default']"/></big>
+          </xsl:otherwise>
+         </xsl:choose>
+         <xsl:call-template name="repeat">
+          <xsl:with-param name="ivar" select="1"/>
+          <xsl:with-param name="nvar" select="DATA_TYPE/N_VAR"/>
+          <xsl:with-param name="vartype" select="$vartype"/>
+         </xsl:call-template>
+        </xsl:if>
+        <xsl:if test="DATA_TYPE/N_VAR = -1">
+         <big class="uctt"><xsl:value-of disable-output-escaping="yes" select="NAME[@type='default']"/></big>
+         <big class="tt">&#160;{<xsl:value-of select="$vartype"/>}&#160;...</big>
+         <xsl:if test="contains(upper-case(NAME[@type='default']),'LIST')">
+          <big class="tt">&#160;or&#160;a&#160;range&#160;{<xsl:value-of select="$vartype"/>}..{<xsl:value-of select="$vartype"/>}</big>
+         </xsl:if>      
+        </xsl:if>
+       </xsl:otherwise>
+      </xsl:choose>
      </td>
     </tr>
     <tr>
@@ -790,6 +816,20 @@
    </body>
   </html>
  </xsl:result-document>
+</xsl:template>
+
+<xsl:template name="repeat">
+ <xsl:param name="ivar"/>
+ <xsl:param name="nvar"/>
+ <xsl:param name="vartype"/>
+ <big class="tt">&#160;{<xsl:value-of select="concat(upper-case(substring($vartype,1,1)),substring($vartype,2))"/>}</big>
+ <xsl:if test="not($ivar = $nvar)">
+  <xsl:call-template name="repeat">
+   <xsl:with-param name="ivar" select="$ivar + 1"/>
+   <xsl:with-param name="nvar" select="$nvar"/>
+   <xsl:with-param name="vartype" select="$vartype"/>
+  </xsl:call-template>
+ </xsl:if>
 </xsl:template>
 
 </xsl:stylesheet>
