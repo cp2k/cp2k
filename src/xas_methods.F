@@ -281,7 +281,7 @@ CONTAINS
     END DO
 
     nspins = dft_control%nspins
-    transition_potential =  .true. !(xas_control%xas_method==xas_tp_hh).OR.&
+    transition_potential =  .TRUE. !(xas_control%xas_method==xas_tp_hh).OR.&
  !                           (xas_control%xas_method==xas_tp_fh).OR.&
   !                          (xas_control%xas_method==xas_tp_xhh).OR.&
    !                         (xas_control%xas_method==xas_tp_xfh).OR.&
@@ -521,7 +521,7 @@ CONTAINS
       END IF
 
       IF(converged) THEN
- write(*,*) 'qui si',  iat
+ WRITE(*,*) 'qui si',  iat
 !        CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,&
 !             xas_section,output_unit,error=error)
 

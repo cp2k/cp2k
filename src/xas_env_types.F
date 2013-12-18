@@ -212,8 +212,7 @@ CONTAINS
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
     INTEGER, INTENT(IN), OPTIONAL            :: xas_estate
-    REAL(dp), INTENT(IN), OPTIONAL           :: xas_nelectron
-    REAL(dp), INTENT(IN), OPTIONAL           :: homo_occ
+    REAL(dp), INTENT(IN), OPTIONAL           :: xas_nelectron, homo_occ
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
