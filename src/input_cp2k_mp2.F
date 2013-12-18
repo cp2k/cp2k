@@ -547,13 +547,12 @@ CONTAINS
             enum_i_vals=(/do_hfx_potential_coulomb,&
                           do_mp2_potential_TShPSC/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
-                          "TShPSC: 1/x - s/Rc  ->  for x<=Rc "//&
-                          "(1-s)/Rc - "//&
-                          "(x-Rc)/Rc^2 + "//&
-                          "(x-Rc)^2/Rc^3 - "//&
-                          "(2*n^2-7*n+9-4*s)*(x-Rc)^3/(Rc^4*(n^2-2*n+1)*(n-1)) + "//&
-                          "(6-3*s-4*n+n^2)*(x-Rc)^4/(Rc^5*(n^4-4*n^3+6*n^2-4*n+1))   -> for Rc<x<=n*Rc (4th order polynomial) "//&
-                          " 0  -> for x>n*Rc"),&
+                          "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"//&
+                          "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "//&
+                          "(2*n^2 - 7*n + 9 - 4*s)*(x - Rc)^3/(Rc^4*(n^2 - 2*n + 1)*(n - 1)) + "//&
+                          "(6-3*s - 4*n + n^2)*(x - Rc)^4/(Rc^5*(n^4 - 4*n^3 + 6*n^2 - 4*n + 1)) "//&
+                          "for Rc &lt; x &le; n*Rc (4th order polynomial)</li>"//&
+                          "<li>0 for x &gt; n*Rc</li></ul>"),&
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -2588,7 +2588,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PW_GRID_LAYOUT",&
             description="Force a particular real-space layout for the plane waves grids. "//&
-                        "Numbers <=0 mean that this dimension is free, incorrect layouts will be ignored. "//&
+                        "Numbers &le; 0 mean that this dimension is free, incorrect layouts will be ignored. "//&
                         "The default (/-1,-1/) causes CP2K to select a good value, "//&
                         "i.e. plane distributed for large grids, more general distribution for small grids.",&
             usage="PW_GRID_LAYOUT 4 16",&
@@ -6429,7 +6429,8 @@ CONTAINS
             usage="DIPOLE_FORM string",&
             default_i_val=xas_dip_vel,&
             enum_c_vals=s2a( "LENGTH","VELOCITY" ),&
-            enum_desc=s2a("Length form <i|e r |j>","Velocity form <i|d/dr|j>"),&
+            enum_desc=s2a("Length form &lang; i | e r | j &rang;",&
+                          "Velocity form &lang; i | d/dr | j &rang;"),&
             enum_i_vals=(/xas_dip_len2,xas_dip_vel/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
 

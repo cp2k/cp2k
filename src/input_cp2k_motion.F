@@ -4108,7 +4108,7 @@ CONTAINS
          //"is slightly displaced from the current positions x in the direction "&
          //"of the original velocities v. The velocities are then updated with "&
          //"the force component F_t, which is perpendicular to N. "&
-         //"N = v / |v|;  y = x + delta * N;  F_t = F(y) - <F(y) | N> * N;  "&
+         //"N = v / |v|;  y = x + delta * N;  F_t = F(y) - &lang; F(y) | N &rang; * N; "&
          //"v' = v + alpha * F_t", error=error)
 
     NULLIFY(keyword)

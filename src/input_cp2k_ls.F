@@ -284,7 +284,7 @@ CONTAINS
                         "the electronic density (states) "//&
                         "contributing to the density of states within "//&
                         "the specific energy range "//&
-                        "(MIN_ENERGY<= E <=MAX_ENERGY). MIN_ENERGY and MAX_ENERGY need to be specified explicitly.",&
+                        "(MIN_ENERGY &le; E &le; MAX_ENERGY). MIN_ENERGY and MAX_ENERGY need to be specified explicitly.",&
             print_level=high_print_level,filename="",error=error)
 
        CALL keyword_create(keyword, name="stride",&

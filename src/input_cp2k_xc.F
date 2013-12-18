@@ -1187,7 +1187,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="LAMBDA",&
-            description="The point to be used along the adiabatic curve (0<lambda<1)",&
+            description="The point to be used along the adiabatic curve (0 &lt; &lambda; &lt; 1)",&
             usage="LAMBDA 0.71",&
             default_r_val=0.71_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
