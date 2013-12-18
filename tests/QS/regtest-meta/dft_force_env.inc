@@ -23,6 +23,10 @@
         EPS_SCF 1.0E-5
         MAX_SCF 5
       &END OUTER_SCF 
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
