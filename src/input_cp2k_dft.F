@@ -4756,7 +4756,7 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The energy computed for each fragment",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, error=error)
+            usage="{REAL}", type_of_var=real_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, subsection, error=error)

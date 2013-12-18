@@ -635,7 +635,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify s variable for GLE thermostat ",repeats=.FALSE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -783,7 +783,8 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial thermostat DOF "//TRIM(sec_name)//" for Ad-Langevin thermostat.",repeats=.TRUE.,&
+            description="Specify an initial thermostat DOF "//TRIM(sec_name)//&
+                        " for Ad-Langevin thermostat.",repeats=.TRUE.,&
             unit_str="fs^-1",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -819,8 +820,8 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial thermostat energy  for CSVR thermostat.",repeats=.TRUE.,&
-            unit_str="internal_cp2k",type_of_var=real_t, error=error)
+            description="Specify an initial thermostat energy for CSVR thermostat.",&
+            repeats=.TRUE., unit_str="internal_cp2k",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -857,7 +858,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify masses of the system",repeats=.FALSE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -894,7 +895,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify masses of the system",repeats=.FALSE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -931,7 +932,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify velocities of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -968,7 +969,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify positions of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

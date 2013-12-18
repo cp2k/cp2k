@@ -241,7 +241,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Starting and ending atomic index defining one fragment must be provided",&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
+            usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -287,7 +287,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Starting and ending atomic index defining one fragment must be provided",&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
+            usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

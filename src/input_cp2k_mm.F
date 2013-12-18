@@ -940,7 +940,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Value of the charge for the individual atom. Order MUST reflect"//&
-            " the one specified for the geometry.", repeats=.TRUE., usage="0.3", &
+            " the one specified for the geometry.", repeats=.TRUE., usage="{Real}", &
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

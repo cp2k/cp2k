@@ -1382,7 +1382,7 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify on each line the components of the dimer vector.",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} {Real} {Real}", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(subsection2,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,subsection2,error=error)
@@ -3272,7 +3272,7 @@ CONTAINS
          error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Cubefile data", &
-         repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>",&
+         repeats=.TRUE., usage="{Real} ...",&
          type_of_var=real_t, n_var=-1, error=error)
     CALL section_add_keyword(subsubsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -3293,7 +3293,7 @@ CONTAINS
          error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Specify particle index permutation for every "// &
-         "helium atom",repeats=.TRUE.,usage="<INT> <INT> .. <INT>",&
+         "helium atom",repeats=.TRUE.,usage="{Integer} ...",&
          type_of_var=integer_t, n_var=-1, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -3308,7 +3308,7 @@ CONTAINS
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
          description="Number of real values should be 3 * "//&
          "<num_solute_atoms> * <num_solute_beads>", repeats=.TRUE., &
-         usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, &
+         usage="{Real} ...", type_of_var=real_t, &
          n_var=-1, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -4365,8 +4365,10 @@ CONTAINS
                            description="Defines the list of atoms for which the velocities are modified. "//&
                                        "Each record consists of the atomic index, the velocity vector, and "//&
                                        "a weight to define which fraction of the total energy is assigned "//&
-                                       "to the current atom.",&
-                           usage="Atomic index   v(x) v(y) v(z)   weight",&
+                                       "to the current atom:"//&
+                                       "<p><tt><big>Atomic_index v<sub>x</sub> v<sub>y</sub> v<sub>x</sub> "//&
+                                       "Weight</big></tt></p>",&
+                           usage="{{Integer} {Real} {Real} {Real} {Real}}",&
                            repeats=.TRUE.,&
                            required=.FALSE.,&
                            type_of_var=lchar_t,&
@@ -4380,7 +4382,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_cascade_section
-
-
 
 END MODULE input_cp2k_motion

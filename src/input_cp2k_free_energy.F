@@ -460,7 +460,7 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the communication filename for each walker.",repeats=.TRUE.,&
-            usage="<STRING>", type_of_var=lchar_t, n_var=1, error=error)
+            usage="{String}", type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -594,7 +594,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -612,7 +612,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -626,7 +626,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -640,7 +640,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -656,7 +656,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the positions",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -670,7 +670,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the velocities",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -684,7 +684,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the theta",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -698,7 +698,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the theta",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)

@@ -240,8 +240,8 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial RNG stream",repeats=.TRUE.,&
-            type_of_var=lchar_t, error=error)
+            description="Specify an initial RNG stream record",repeats=.TRUE.,&
+            usage="{RNG record string}",type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -617,8 +617,10 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The dipole components for each atom.",repeats=.TRUE.,&
-            usage="dx dy dz", type_of_var=real_t, n_var=3, error=error)
+            description="The dipole components for each atom in the format:"//&
+            "<p><tt><big>D<sub>x</sub> D<sub>y</sub> D<sub>z</sub></big></tt></p>",&
+            repeats=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -629,8 +631,11 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The quadrupole components for each atom.",repeats=.TRUE.,&
-            usage="qxx qxy qxz qyy qyz qzz", type_of_var=real_t, n_var=6, error=error)
+            description="The quadrupole components for each atom in the format:"//&
+            "<p><big><tt>Q<sub>xx</sub> Q<sub>xy</sub> Q<sub>xz</sub> Q<sub>yy</sub> "//&
+            "Q<sub>yz</sub> Q<sub>zz</sub></big></tt></p>",&
+            repeats=.TRUE., usage="{Real} {Real} {Real} {Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=6, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -749,13 +754,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The atoms velocities in xyz format. The same order as"//&
-            " the atom's order is assumed.",repeats=.TRUE.,required=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=3, error=error)
+            description="The atomic velocities in the format:"//&
+            "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
+            "The same order as for the atomic coordinates is assumed.",&
+            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_velocity_section
 
 ! *****************************************************************************
@@ -787,13 +795,16 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The shell velocities in xyz format. The same order as"//&
-            " the shell coordinate is assumed.",repeats=.TRUE.,required=.TRUE.,&
-            usage="<REAL> <REAL> <REAL> ", type_of_var=real_t, n_var=3, error=error)
+            description="The shell particle velocities in the format:"//&
+            "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
+            "The same order as for the shell particle coordinates is assumed.",&
+            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_shell_vel_section
 
 ! *****************************************************************************
@@ -825,13 +836,16 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The core velocities in xyz format. The same order as"//&
-            " the shell coordinate is assumed.",repeats=.TRUE.,required=.TRUE.,&
-            usage="<REAL> <REAL> <REAL> ", type_of_var=real_t, n_var=3, error=error)
+            description="The core particle velocities in the format:"//&
+            "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
+            "The same order as for the core particle coordinates is assumed.",&
+            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_core_vel_section
 
 ! *****************************************************************************
@@ -865,6 +879,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
+
   END SUBROUTINE create_potential_section
 
 ! *****************************************************************************
@@ -920,6 +935,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
+
   END SUBROUTINE create_basis_section
 
 ! *****************************************************************************
@@ -999,10 +1015,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="ATOM_KIND  X  Y  Z  <MOLNAME>. MOLNAME is optional. "//&
-            "If not provided the molecule name is internally created. All other "//&
-            "fields after MOLNAME are simply ignored.",repeats=.TRUE.,&
-            usage="H 0.7 0.3 0.3", type_of_var=lchar_t, error=error)
+            description="The atomic coordinates in the format:"//&
+            "<p><tt>ATOMIC_KIND  X Y Z  MOLNAME</tt></p>"//&
+            "The <tt>MOLNAME</tt> is optional. If not provided the molecule name "//&
+            "is internally created. All other fields after <tt>MOLNAME</tt> are simply ignored.",&
+            repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {String}}",&
+            type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
@@ -1051,12 +1069,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The shell coordinates in xyz format.",repeats=.TRUE.,&
-            usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
+            description="The shell particle coordinates in the format:"//&
+            "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p>"//&
+            "The <tt>ATOMIC_INDEX</tt> refers to the atom the shell particle belongs to.",&
+            repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}",&
+            type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_shell_coord_section
 
 ! *****************************************************************************
@@ -1102,12 +1124,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The core coordinates in xyz format.",repeats=.TRUE.,&
-            usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
+            description="The core particle coordinates in the format:"//&
+            "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p>"//&
+            "The <tt>ATOMIC_INDEX</tt> refers to the atom the core particle belongs to.",&
+            repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}",&
+            type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_core_coord_section
 
 ! *****************************************************************************
@@ -1950,7 +1976,7 @@ CONTAINS
             description="Two integer indexes per line defining the new bond."//&
             " Indexes must be relative to the full system and not to the single molecules",&
             repeats=.TRUE.,required=.TRUE.,&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, error=error)
+            usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1962,7 +1988,7 @@ CONTAINS
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Three integer indexes per line defining the new angle"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=3, error=error)
+            usage="{Integer} {Integer} {Integer}", type_of_var=integer_t, n_var=3, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1974,7 +2000,7 @@ CONTAINS
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new torsion"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+            usage="{Integer} {Integer} {Integer} {Integer}", type_of_var=integer_t, n_var=4, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1986,7 +2012,7 @@ CONTAINS
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new improper"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+            usage="{Integer} {Integer} {Integer} {Integer}", type_of_var=integer_t, n_var=4, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1996,6 +2022,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
     END IF
+
   END SUBROUTINE create_molset_section
 
 ! *****************************************************************************
