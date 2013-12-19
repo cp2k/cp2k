@@ -508,18 +508,16 @@ PROGRAM graph
   ELSE
      DO it=1,nt
         DO id=ndim,1,-1
-           x0(id)=MIN(x0(id),ss0(id,it)-3.*delta_s(id,it))
-           xf(id)=MAX(xf(id),ss0(id,it)+3.*delta_s(id,it))
+           IF (iperd(id)==1) THEN
+              x0(id)=-pi
+              xf(id)= pi
+           ELSE
+              x0(id)=MIN(x0(id),ss0(id,it)-3.*delta_s(id,it))
+              xf(id)=MAX(xf(id),ss0(id,it)+3.*delta_s(id,it))
+           END IF
         ENDDO
      ENDDO
   ENDIF
-
-  DO id=ndim,1,-1
-     IF (iperd(id)==1) THEN
-        x0(id)=-pi
-        xf(id)= pi
-     END IF
-  END DO
 
   IF(l_dp)THEN
      ALLOCATE(tmpr(ndim))
@@ -661,7 +659,7 @@ PROGRAM graph
   IF (l_pmin) l_int=.TRUE.
   IF (l_popt) l_int=.FALSE.
 
-  IF ((l_pmin) .OR. (l_popt)) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data,l_int)
+  IF ((l_pmin) .OR. (l_popt)) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data, l_int)
  
  
   ! Free memory
