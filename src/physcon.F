@@ -30,6 +30,7 @@
 !>      massunit    : Conversion factor [u] -> [a.u.]
 !>      mu_perm     : Magnetic constant or permeability of vacuum [N/A**2]
 !>      n_avogadro  : Avogadro constant [1/mol]
+!>      newton      : Conversion factor [a.u.] -> [N]
 !>      pascal      : Conversion factor [a.u.] -> [Pa]
 !>      permittivity: Electric constant or permittivity of vacuum [F/m]
 !>      picoseconds : Conversion factor [a.u.] -> [ps]
@@ -75,14 +76,14 @@ MODULE physcon
   REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,atm,bar,bohr,boltzmann,&
                      c_light,debye,e_charge,e_gfactor,e_mass,evolt,&
                      femtoseconds,h_bar,h_planck,hertz,joule,kcalmol,kelvin,&
-                     kjmol,massunit,mu_perm,n_avogadro,p_mass,pascal,permittivity,&
-                     picoseconds,rydberg,seconds,vibfac,wavenumbers
+                     kjmol,massunit,mu_perm,n_avogadro,newton,p_mass,pascal,&
+                     permittivity,picoseconds,rydberg,seconds,vibfac,wavenumbers
 
   REAL(KIND = dp), DIMENSION(maxmom) :: esu
 
   PUBLIC :: a_bohr,a_fine,a_mass,angstrom,atm,bar,bohr,boltzmann,c_light,&
             debye,e_charge,e_gfactor,e_mass,evolt,femtoseconds,h_bar,h_planck,&
-            hertz,joule,kcalmol,kelvin,kjmol,massunit,mu_perm,n_avogadro,&
+            hertz,joule,kcalmol,kelvin,kjmol,massunit,mu_perm,n_avogadro,newton,&
             p_mass,pascal,permittivity,picoseconds,rydberg,seconds,vibfac,wavenumbers
 
   PUBLIC :: init_physcon,&
@@ -276,6 +277,9 @@ CONTAINS
     ! [a.u.] -> [J]
     joule = 2.0_dp*rydberg*h_planck*c_light
 
+    ! [a.u.] -> [N]
+    newton = joule/a_bohr
+
     ! [a.u.] -> [K]
     kelvin = joule/boltzmann
 
@@ -402,6 +406,7 @@ CONTAINS
       "[a.u.] -> [s]",seconds,&
       "[a.u.] -> [fs]",femtoseconds,&
       "[a.u.] -> [J]",joule,&
+      "[a.u.] -> [N]",newton,&
       "[a.u.] -> [K]",kelvin,&
       "[a.u.] -> [kJ/mol]",kjmol,&
       "[a.u.] -> [kcal/mol]",kcalmol,&

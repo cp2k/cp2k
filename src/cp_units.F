@@ -33,7 +33,7 @@ MODULE cp_units
                                              twopi
   USE physcon,                         ONLY: &
        atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, &
-       kjmol, massunit, pascal, picoseconds, seconds, wavenumbers
+       kjmol, massunit, newton, pascal, picoseconds, seconds, wavenumbers
   USE string_utilities,                ONLY: compress,&
                                              s2a,&
                                              uppercase
@@ -56,7 +56,8 @@ MODULE cp_units
                                 cp_ukind_mass=7,&
                                 cp_ukind_undef=8,&
                                 cp_ukind_potential=9,&
-                                cp_ukind_max=9
+                                cp_ukind_force=10,&
+                                cp_ukind_max=10
 
   ! General
   INTEGER, PARAMETER, PUBLIC :: cp_units_none=100,&
@@ -82,8 +83,10 @@ MODULE cp_units
                                 cp_units_m=142,&
                                 cp_units_pm=143,&
                                 cp_units_nm=144
+
   ! Temperature
   INTEGER, PARAMETER, PUBLIC :: cp_units_k=150
+
   ! Pressure
   INTEGER, PARAMETER, PUBLIC :: cp_units_bar=161
   INTEGER, PARAMETER, PUBLIC :: cp_units_atm=162
@@ -91,16 +94,23 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC :: cp_units_Pa=164
   INTEGER, PARAMETER, PUBLIC :: cp_units_MPa=165
   INTEGER, PARAMETER, PUBLIC :: cp_units_GPa=166
+
   ! Angles
   INTEGER, PARAMETER, PUBLIC :: cp_units_rad=170,&
                                 cp_units_deg=171
+
   ! Time
   INTEGER, PARAMETER, PUBLIC :: cp_units_fs=180,&
                                 cp_units_s=181,&
                                 cp_units_wn=182,&
                                 cp_units_ps=183
+
   ! Potential
   INTEGER, PARAMETER, PUBLIC :: cp_units_volt=190
+
+  ! Force
+  INTEGER, PARAMETER, PUBLIC :: cp_units_Newton=200,&
+                                cp_units_mNewton=201
 
   INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, cp_unit_basic_desc_length=15,&
        cp_unit_desc_length=cp_unit_max_kinds*cp_unit_basic_desc_length
@@ -192,7 +202,7 @@ CONTAINS
        IF (i_unit>cp_unit_max_kinds) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,&
                cp_assertion_failed,routineP,&
-               "maximum number of combined units exceded",&
+               "Maximum number of combined units exceeded",&
                error,failure)
           EXIT
        END IF
@@ -210,7 +220,7 @@ CONTAINS
        CASE("wavenumber_e")
           unit_id(i_unit)=cp_units_wavenum
           kind_id(i_unit)=cp_ukind_energy
-       CASE("joule")
+       CASE("joule","J")
           unit_id(i_unit)=cp_units_joule
           kind_id(i_unit)=cp_ukind_energy
        CASE("kcalmol")
@@ -342,14 +352,27 @@ CONTAINS
        CASE("potential")
           unit_id(i_unit)=cp_units_none
           kind_id(i_unit)=cp_ukind_potential
+       CASE("N","Newton")
+          unit_id(i_unit)=cp_units_Newton
+          kind_id(i_unit)=cp_ukind_force
+       CASE("mN","mNewton")
+          unit_id(i_unit)=cp_units_mNewton
+          kind_id(i_unit)=cp_ukind_force
+       CASE("au_f")
+          unit_id(i_unit)=cp_units_au
+          kind_id(i_unit)=cp_ukind_force
+       CASE("force")
+          unit_id(i_unit)=cp_units_none
+          kind_id(i_unit)=cp_ukind_force
        CASE("au")
           CALL cp_assert(.FALSE.,cp_failure_level,&
                cp_assertion_failed,routineP,&
-               "au unit without specifing its kind not accepted, use (au_e, au_t, au_temp, au_l, au_m, au_p, au_pot)",&
+               "au unit without specifing its kind not accepted, use "//&
+               "(au_e, au_f, au_t, au_temp, au_l, au_m, au_p, au_pot)",&
                error,failure)
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown unit:"//string(i_low:i_high-1),&
+               routineP,"Unknown unit: "//string(i_low:i_high-1),&
                error,failure)
        END SELECT
        power(i_unit)=next_power
@@ -703,6 +726,14 @@ CONTAINS
                   routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
                   error,failure)
           END SELECT
+       CASE(cp_ukind_force)
+          SELECT CASE (basic_unit)
+          CASE(cp_units_Newton, cp_units_mNewton, cp_units_au, cp_units_none)
+          CASE default
+             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                  routineP,"unknown force unit:"//TRIM(cp_to_string(basic_unit)),&
+                  error,failure)
+          END SELECT
        CASE(cp_ukind_none)
           IF(basic_unit/=cp_units_none)&
                CALL cp_assert(.FALSE.,my_error_level,&
@@ -776,13 +807,13 @@ CONTAINS
           CASE(cp_units_kjmol)
              res=kjmol**(-my_power)*value
           CASE(cp_units_jmol)
-             res=(kjmol*1000.0_dp)**(-my_power)*value
+             res=(kjmol*1.0E+3_dp)**(-my_power)*value
           CASE(cp_units_Ry)
              res=0.5_dp**my_power*value
           CASE(cp_units_eV)
              res=evolt**(-my_power)*value
           CASE(cp_units_keV)
-             res=(0.001_dp*evolt)**(-my_power)*value
+             res=(1.0E-3_dp*evolt)**(-my_power)*value
           CASE(cp_units_k)
              res=kelvin**(-my_power)*value
           CASE default
@@ -795,11 +826,11 @@ CONTAINS
           CASE(cp_units_bohr,cp_units_au)
              res=value
           CASE(cp_units_m)
-             res=value*(1.e10_dp*bohr)**my_power
+             res=value*(1.0E10_dp*bohr)**my_power
           CASE(cp_units_pm)
              res=value*(0.01_dp*bohr)**my_power
           CASE(cp_units_nm)
-             res=value*(10_dp*bohr)**my_power
+             res=value*(10.0_dp*bohr)**my_power
           CASE(cp_units_angstrom)
              res=value*bohr**my_power
           CASE default
@@ -825,13 +856,13 @@ CONTAINS
           CASE(cp_units_atm)
              res = atm**(-my_power)*value
           CASE(cp_units_kbar)
-             res = 1.0E+3_dp*bar**(-my_power)*value
+             res = (1.0E-3_dp*bar)**(-my_power)*value
           CASE(cp_units_Pa)
              res = pascal**(-my_power)*value
           CASE(cp_units_MPa)
-             res = 1.0E+6_dp*pascal**(-my_power)*value
+             res = (1.0E-6_dp*pascal)**(-my_power)*value
           CASE(cp_units_GPa)
-             res = 1.0E+9_dp*pascal**(-my_power)*value
+             res = (1.0E-9_dp*pascal)**(-my_power)*value
           CASE(cp_units_au)
              res = value
           CASE default
@@ -889,6 +920,19 @@ CONTAINS
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+                  error,failure)
+          END SELECT
+       CASE(cp_ukind_force)
+          SELECT CASE (basic_unit)
+          CASE(cp_units_Newton)
+             res=value*newton**(-my_power)
+          CASE(cp_units_mNewton)
+             res=value*(1.0E+3*newton)**(-my_power)
+          CASE(cp_units_au)
+             res=value
+          CASE default
+             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                  routineP,"unknown force unit:"//TRIM(cp_to_string(basic_unit)),&
                   error,failure)
           END SELECT
        CASE(cp_ukind_none)
@@ -1124,6 +1168,25 @@ CONTAINS
                   routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
                   error,failure)
           END SELECT
+       CASE(cp_ukind_force)
+          SELECT CASE (basic_unit)
+          CASE(cp_units_Newton)
+             res="N"
+          CASE(cp_units_mNewton)
+             res="mN"
+          CASE(cp_units_au)
+             res="au_f"
+          CASE(cp_units_none)
+             res="force"
+             CALL cp_assert(my_accept_undefined,my_error_level,&
+                  cp_assertion_failed,routineP,&
+                  "unit not yet fully specified, unit of kind "//&
+                  TRIM(res),error,failure)
+          CASE default
+             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+                  error,failure)
+          END SELECT
        CASE(cp_ukind_none)
           CALL cp_assert(.FALSE.,my_error_level,&
                cp_assertion_failed, routineP,&
@@ -1193,12 +1256,17 @@ CONTAINS
                 CPPrecondition(check,cp_failure_level,routineP,error,failure)
              END IF
           END IF
+          IF (i > 1) THEN
+             res(pos:pos) = "*"
+             pos = pos + 1
+          END IF
           res(pos:)=TRIM(cp_basic_unit_desc(basic_kind=unit%kind_id(i),&
                basic_unit=my_unit,accept_undefined=my_accept_undefined,&
                power=unit%power(i),error=error))
           pos=LEN_TRIM(res)+1
        END DO
     END IF
+
   END FUNCTION cp_unit_desc
 
 ! *****************************************************************************
@@ -1465,6 +1533,9 @@ CONTAINS
              CASE (cp_ukind_potential)
                 CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_volt/),&
                      power=(/1/), error=error)
+             CASE (cp_ukind_force)
+                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_newton/),&
+                     power=(/1/), error=error)
              CASE default
                 CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,routineP,&
                      "unhandled unit type "//TRIM(cp_to_string(i)),error,failure)
@@ -1592,6 +1663,11 @@ CONTAINS
          "for potentials. The [potential] entry acts like a dummy flag (assumes the unit of "//&
          "measurement of potential is in internal units), useful for dimensional analysis.",&
          units_set=s2a("volt","au_pot","potential"),unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Force",description="Possible units of measurement "//&
+         "for forces. The [force] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of force is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("N","Newton","mN","mNewton","au_f","force"),unit_nr=unit_nr)
 
   END SUBROUTINE print_all_units
 
