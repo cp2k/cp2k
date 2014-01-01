@@ -57,7 +57,6 @@ LIB1_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB3_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
 LIB4_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
-LIB5_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB5).a
 LIB_CP2K_ARCHIVE      = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SVN_ENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
 GIT_HEAD              = $(wildcard $(CP2KHOME)/../.git/HEAD*)
@@ -175,7 +174,6 @@ include $(LIB1_OBJECTDEFS)
 include $(LIB2_OBJECTDEFS)
 include $(LIB3_OBJECTDEFS)
 include $(LIB4_OBJECTDEFS)
-include $(LIB5_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
@@ -223,8 +221,8 @@ endif
 
 
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIB5_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBCUSMM_ARCHIVE)
-ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBCUSMM_ARCHIVE)
+ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
 
 #
 # some practical variables for the build
@@ -298,7 +296,7 @@ endif
 fes.dep: $(FESOBJS:.o=.F) 
 	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
 
-plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h src-plumed/metadyn.h cp2k.F 
+plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h src-plumed/metadyn.h cp2k.F 
 
 #ifeq ($(HACKDEP),yes)
 #	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/plumed.dep
@@ -324,7 +322,6 @@ _pretty_lib1:$(LIB1_OBJECTS:.o=.pretty)
 _pretty_lib2:$(LIB2_OBJECTS:.o=.pretty)
 _pretty_lib3:$(LIB3_OBJECTS:.o=.pretty)
 _pretty_lib4:$(LIB4_OBJECTS:.o=.pretty)
-_pretty_lib5:$(LIB5_OBJECTS:.o=.pretty)
 
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
@@ -351,18 +348,12 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB4_ARCHIVE)
 endif
 
-$(LIB5_ARCHIVE): $(LIB5_OBJECTS)
-	$(AR) $(LIB5_ARCHIVE) $?
-ifneq ($(RANLIB),)
-	$(RANLIB) $(LIB5_ARCHIVE)
-endif
-
 #
 # a hack to first compile the src/lib/ stuff before files from src/
 # otherwise we have missing dependencies
 #
 ifneq ($(HACKLIBDEP),yes)
-LIB_OBJECTS = $(LIB5_ARCHIVE) $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+LIB_OBJECTS = $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 else
 LIB_OBJECTS =
 endif
@@ -514,7 +505,6 @@ realclean: clean
 	-rm -f $(LIB2_ARCHIVE)
 	-rm -f $(LIB3_ARCHIVE)
 	-rm -f $(LIB4_ARCHIVE)
-	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
 	-rm -f $(LIBCUSMM_FILES)
 
