@@ -1,6 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   FES: a fast and general program to map metadynamics on grids              !
 !   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013 !
+!                 2014                                                        !
 !                 Teodoro Laino                                               !
 !-----------------------------------------------------------------------------!
 
@@ -21,7 +22,8 @@ PROGRAM graph
                                              fes_min,&
                                              fes_only_write,&
                                              fes_path,&
-                                             fes_write
+                                             fes_write,&
+                                             fes_cube_write
   USE graph_utils,                     ONLY: get_val_res,&
                                              mep_input_data_type
   USE kinds,                           ONLY: default_string_length,&
@@ -33,7 +35,7 @@ PROGRAM graph
   IMPLICIT NONE
 
   CHARACTER(LEN=80)                        :: file, out1, out2, out3, wq_char, &
-                                              path_file
+                                              path_file, out3_stride
   CHARACTER(LEN=default_string_length)     :: active_label, per_label
   INTEGER                                  :: argcount, coor, i, id, ip, &
                                               it, iw, ix, j, ncount, ndim, &
@@ -47,7 +49,8 @@ PROGRAM graph
   LOGICAL                                  :: failure, fix, l_cp2k, l_cpmd, &
                                               l_dp, l_fes_int, l_fmin, &
                                               l_grid, l_math, l_orac, &
-                                              l_pmin, lstride, l_popt, l_int
+                                              l_pmin, lstride, l_popt, l_int,&
+                                              l_cube
   REAL(KIND=dp)                            :: delta_s_glob, diff, dp2, dum, &
                                               eps_cut, sc, ss, x0w(3), &
                                               xfw(3)
@@ -75,6 +78,7 @@ PROGRAM graph
   l_cp2k  = .FALSE.
   l_cpmd  = .FALSE.
   l_math  = .FALSE.
+  l_cube  = .FALSE.
   l_fmin  = .FALSE.
   l_pmin  = .FALSE.
   l_popt  = .FALSE.
@@ -104,6 +108,7 @@ PROGRAM graph
      WRITE(iw,*)'                     (With CPMD you do not need to specify -file, parvar_mtd and'
      WRITE(iw,*)'                      colvar_mtd are expected to be present in the working directory)'
      WRITE(iw,*)'[-mathlab]           (File storing FES in Mathlab format. Default format Gnuplot)'
+     WRITE(iw,*)'[-cube]              (File storing FES in GAUSSIAN CUBE format. Default format Gnuplot)'
      WRITE(iw,*)'[-find-minima]       (Tries to finds all minima in the computed FES)'
      WRITE(iw,*)'[-find-path]         (Finds MEP between all minima (found) in the computed FES)'
      WRITE(iw,*)'[-point-a]           (Specifies point (a) when using -find-path option)'
@@ -176,6 +181,10 @@ PROGRAM graph
 
      IF (INDEX(wq_char,'-mathlab').NE.0)THEN
         l_math=.TRUE.
+     ENDIF
+
+     IF (INDEX(wq_char,'-cube').NE.0)THEN
+        l_cube=.TRUE.
      ENDIF
 
      IF (INDEX(wq_char,'-opt-path').NE.0)THEN
@@ -621,13 +630,13 @@ PROGRAM graph
         END IF
 
         IF(ncount<10) THEN
-           WRITE(file,'(A,i1)')TRIM(out3),ncount
+           WRITE(out3_stride,'(A,i1)')TRIM(out3),ncount
         ELSEIF(ncount<100) THEN
-           WRITE(file,'(A,i2)')TRIM(out3),ncount
+           WRITE(out3_stride,'(A,i2)')TRIM(out3),ncount
         ELSE
-           WRITE(file,'(A,i3)')TRIM(out3),ncount
+           WRITE(out3_stride,'(A,i3)')TRIM(out3),ncount
         END IF
-        OPEN(123,file=file)
+        OPEN(123,file=out3_stride)
         ind   = 1
         CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, dp_grid, ndw, l_fes_int)
         CLOSE(123)
@@ -643,14 +652,20 @@ PROGRAM graph
   ELSE
      out3=out1
   END IF
+ 
   WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out3)//" >"
   OPEN(123,file=out3)
-  ix=0
-  IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
-  ind   = 1   
-  CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
+  IF (l_cube) THEN
+     ind   = 1 
+     CALL fes_cube_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
+  ELSE
+     ix=0
+     IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
+     ind   = 1   
+     CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
+  END IF
   CLOSE(123)
- 
+
   ! If requested find minima
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
@@ -660,8 +675,7 @@ PROGRAM graph
   IF (l_popt) l_int=.FALSE.
 
   IF ((l_pmin) .OR. (l_popt)) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data, l_int)
- 
- 
+  
   ! Free memory
   DEALLOCATE(ngrid,stat=stat)
   IF (stat/=0) STOP "Deallocation Error"

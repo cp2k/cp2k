@@ -24,13 +24,19 @@ MODULE graph_methods
                                              point_no_pbc,&
                                              point_pbc
   USE kinds,                           ONLY: dp
+  USE memory_utilities,                ONLY: reallocate
+  USE physcon,                         ONLY: bohr, init_physcon
+  USE string_utilities,                ONLY: uppercase
+  USE periodic_table,                  ONLY: ptable, nelem
+  USE graph_utils,                     ONLY: get_val_res
 
   IMPLICIT NONE
   PUBLIC :: fes_compute_low,&
             fes_write,&
             fes_only_write,&
             fes_min,&
-            fes_path
+            fes_path,&
+            fes_cube_write
 
 CONTAINS
 ! *****************************************************************************
@@ -88,7 +94,8 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
+  RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid,&
+       & dp_grid, x0, ndw, l_fes_int, array)
     INTEGER, INTENT(IN)                      :: idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
@@ -97,8 +104,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
     INTEGER, INTENT(IN)                      :: ndw
     LOGICAL, INTENT(IN)                      :: l_fes_int
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: array
 
-    INTEGER                                  :: dimval, i, id, is, pnt
+    INTEGER                                  :: dimval, i, id, is,&
+         & pnt, ind, it, itt, np
     REAL(KIND=dp)                            :: dvol, sum_fes
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xx
 
@@ -107,20 +116,46 @@ CONTAINS
     DO i = 1,ngrid(idim)
        pos(idim)=i
        IF(idim/=ndim-ndw+1) THEN
-          CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
-       ELSE        
+          IF (PRESENT(array)) THEN
+             CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid,&
+                  & x0, ndw, l_fes_int, array)
+          ELSE
+             CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid,&
+                  & x0, ndw, l_fes_int)
+          END IF
+       ELSE
+          IF (PRESENT(array)) THEN
+             ind=1
+             np=ngrid(ndim)*ngrid(ndim-1)*ngrid(ndim-2)
+             DO is=1, ndw
+                itt=1
+                DO it=1,is-1
+                   itt=itt*ngrid(ndim-it)
+                END DO
+                ind=ind+(pos(ndim-is+1)-1)*itt
+             END DO
+             IF (ind >np) STOP "something wrong in indexing .."
+          END IF
           pnt=point_no_pbc(pos,ngrid,ndim)
           xx = x0 + dp_grid * ( pos - 1 )
-          dimval = PRODUCT(ngrid(1:ndim-ndw)) 
+          dimval = PRODUCT(ngrid(1:ndim-ndw))
           IF (l_fes_int) THEN
-             WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
+             IF (PRESENT(array)) THEN
+                array(ind)=MINVAL(-fes(pnt:pnt+dimval-1))
+             ELSE
+                WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
+             END IF
           ELSE
              sum_fes =0.0_dp
              dvol = PRODUCT(dp_grid(1:ndim-ndw))
              DO is = pnt,pnt+dimval-1
                 sum_fes = sum_fes + fes(is)*dvol
              END DO
-             WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
+             IF (PRESENT(array)) THEN
+                array(ind)=-sum_fes
+             ELSE
+                WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
+             END IF
           END IF
        END IF
     END DO
@@ -472,5 +507,178 @@ CONTAINS
 
     DEALLOCATE(xx,dx,pos,fes_rep,ipos,pos_old,yy,dyy,dxx,davg1,tang,davg2)
   END SUBROUTINE fes_path
+
+! *****************************************************************************
+!> \brief Dump FES with a GAUSSIAN cube format - Useful for multidimensional FES
+!> \par History
+!>      12.2013 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+  SUBROUTINE fes_cube_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN)                      :: idim
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
+    INTEGER, DIMENSION(:), POINTER           :: pos
+    INTEGER, INTENT(IN)                      :: ndim
+    INTEGER, DIMENSION(:), POINTER           :: ngrid
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
+    INTEGER, INTENT(IN)                      :: ndw
+    LOGICAL, INTENT(IN)                      :: l_fes_int
+    CHARACTER(LEN=80)                        :: file
+
+    INTEGER                                  ::  ix, iy, iz, i, ip, natoms, np, &
+         mesh(3), nspin, ind, id(3), iix, iiy, iiz, ii
+    INTEGER, DIMENSION(:), POINTER           :: izat
+
+    CHARACTER(LEN=5)                         :: label, labelp
+    CHARACTER(LEN=120)                       :: line
+    
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: rho, rhot
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: xat
+    REAL(KIND=dp)                            :: cell(3,3), cm(3), rt(3),&
+         delta(3), dr(3), residual
+    
+    CALL init_physcon
+    IF (ndw .GT. 3) THEN
+       WRITE(6,*) 
+       WRITE(6,*) 'ERROR: GAUSSIAN format can only handle FES on 3 CV !'
+       STOP
+    END IF
+
+    OPEN(10,file=file,status='old')
+    CALL get_val_res(unit=10,section="&SUBSYS",subsection="&CELL")
+    READ(10,*)label,cell(1,1),cell(2,1),cell(3,1) 
+    READ(10,*)label,cell(1,2),cell(2,2),cell(3,2)
+    READ(10,*)label,cell(1,3),cell(2,3),cell(3,3)
+    rt(1)=-(cell(1,1)/2._dp)
+    rt(2)=-(cell(2,2)/2._dp)
+    rt(3)=-(cell(3,3)/2._dp)
+
+    WRITE(6,*) 'Dumping GAUSSIAN CUBE format' 
+    WRITE(6,*) 'Cell vectors'
+    WRITE(6,*) 
+
+    residual = 0.0d0
+    DO ix=1,3
+       DO iy=ix+1,3
+          residual = residual + cell(ix,iy)**2
+       END DO
+    END DO
+
+    IF (residual .gt. 1.0d-6) THEN
+       WRITE(6,*) 
+       WRITE(6,*) 'ERROR: this progam can only handle orthogonal cells'
+       WRITE(6,*) ' with vectors pointing in the X, Y and Z directions'
+       STOP
+    END IF
+
+    WRITE(6,*) 
+    WRITE(6,*) 'Cube grid mesh: ',ngrid(1),'x',ngrid(2),'x',ngrid(3)
+    WRITE(6,*) 'Origin in:',rt
+    WRITE(6,*) 
+    
+    DO ix=1,3
+       dr(ix)=cell(ix,ix)/REAL(ngrid(ix),KIND=dp)
+    END DO
+    
+    np = ngrid(1) * ngrid(2) * ngrid(3)    
+    ALLOCATE(rho(np), rhot(np))
+    CALL fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int, rho)
+    WRITE(6,*) 'Internal FES transfer completed!'
+
+    ! translate cell
+    DO ix=1,3
+       delta(ix) = rt(ix)/dr(ix)
+       id(ix) = delta(ix)
+       delta(ix) = rt(ix) - id(ix) * dr(ix)
+    END DO
+
+    DO iz=1,ngrid(3)
+       DO iy=1,ngrid(2)
+          DO ix=1,ngrid(1)
+             iix=ix+id(1)
+             iiy=iy+id(2)
+             iiz=iz+id(3)
+             IF (iix .LT. 1) iix=iix+ngrid(1)
+             IF (iiy .LT. 1) iiy=iiy+ngrid(2)
+             IF (iiz .LT. 1) iiz=iiz+ngrid(3)
+             IF (iix .GT. ngrid(1)) iix=iix-ngrid(1)
+             IF (iiy .GT. ngrid(2)) iiy=iiy-ngrid(2)
+             IF (iiz .GT. ngrid(3)) iiz=iiz-ngrid(3)
+             
+             IF (iix .LT. 1) STOP 'ix < 0'
+             IF (iiy .LT. 1) STOP 'iy < 0'
+             IF (iiz .LT. 1) STOP 'iz < 0'
+             IF (iix .GT. ngrid(1)) STOP 'ix > cell'
+             IF (iiy .GT. ngrid(2)) STOP 'iy > cell'
+             IF (iiz .GT. ngrid(3)) STOP 'iz > cell'
+             i=ix+(iy-1)*ngrid(1)+(iz-1)*ngrid(1)*ngrid(2)
+             ii=iix+(iiy-1)*ngrid(1)+(iiz-1)*ngrid(1)*ngrid(2)
+             rhot(ii)=rho(i)
+          END DO
+       END DO
+    END DO
+    
+    REWIND(10)
+    CALL get_val_res(unit=10,section="&SUBSYS",subsection="&COORD")
+    natoms=0
+    ALLOCATE(xat(1000,3))
+    ALLOCATE(izat(1000))
+    DO WHILE (.TRUE.)
+       READ(10,'(A)') line
+       IF (INDEX(line,'&END') /= 0) EXIT
+       natoms=natoms+1
+       READ(line,*)label,(xat(natoms,ix),ix=1,3)
+       IF (natoms == SIZE(xat,1)) THEN
+          CALL reallocate(xat,1,SIZE(xat,1)*2,1,3)
+          CALL reallocate(izat,1,SIZE(izat)*2)
+       END IF
+       CALL uppercase(label)
+       DO i=1, nelem
+          labelp=ptable(i)%symbol
+          CALL uppercase(labelp)
+          IF (TRIM(label)==TRIM(labelp)) EXIT
+       END DO
+       IF (i == nelem+1) THEN
+          WRITE(6,*)TRIM(label), "In line: ", line
+          STOP "Element not recognized!"
+       END IF
+       izat(natoms)=i
+    END DO
+    CALL reallocate(xat,1,natoms,1,3)
+    CALL reallocate(izat,1,natoms)
+    
+    DO i=1,natoms
+       DO ix=1,3
+          xat(i,ix)=xat(i,ix)+rt(ix)-delta(ix)
+          IF (xat(i,ix) .LT. 0.0)         xat(i,ix)=xat(i,ix)+cell(ix,ix)
+          IF (xat(i,ix) .GT. cell(ix,ix)) xat(i,ix)=xat(i,ix)-cell(ix,ix)
+       END DO
+    END DO
+    
+    WRITE(123,*) "FES on CUBE"
+    WRITE(123,*) "created by fes in CP2K"
+    WRITE(123,'(i5,4f12.6)') natoms, 0.0,0.0,0.0
+
+    DO ix=1,3
+       ii = ngrid(ix)
+       WRITE(123,'(i5,4f12.6)') ii,(cell(ix,iy)/ii*bohr,iy=1,3)
+    END DO
+
+    DO i=1,natoms
+       WRITE(123,'(i5,4f12.6)') izat(i),0.0,(xat(i,ix)*bohr,ix=1,3)
+    END DO
+
+    DO ix=1,ngrid(1)
+       DO iy=1,ngrid(2)
+
+        WRITE(123,'(6e13.5)')(rhot(ix+(iy-1)*ngrid(1)+(iz-1)*ngrid(1)&
+             &*ngrid(2)),iz=1,ngrid(3)) 
+     END DO
+  END DO
+  DEALLOCATE(xat, rho, rhot)
+
+  END SUBROUTINE fes_cube_write
 
 END MODULE graph_methods
