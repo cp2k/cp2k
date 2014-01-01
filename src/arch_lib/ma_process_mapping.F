@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulationsi        !
-!   Copyright (C) 2000 - 2013  CP2K developers group group!
+!   Copyright (C) 2000 - 2014  CP2K developers group group!
 !-----------------------------------------------------------------------------!
 !> \brief   Process mapping support for cp2k
 !> \author  Christiane Pousa Ribeiro
