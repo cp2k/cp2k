@@ -358,7 +358,7 @@ else
 LIB_OBJECTS =
 endif
 
-$(LIB_CP2K_ARCHIVE): $(OBJECTS)
+$(LIB_CP2K_ARCHIVE): $(OBJECTS) sockets.o
 	$(AR) $(LIB_CP2K_ARCHIVE) $?
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB_CP2K_ARCHIVE)
