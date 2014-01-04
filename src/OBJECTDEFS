@@ -351,6 +351,7 @@ OBJECTS_GENERIC =\
  input_val_types.o\
  integrator.o\
  integrator_utils.o\
+ ipi_driver.o\
  iterate_matrix.o\
  k290.o\
  kahan_sum.o\

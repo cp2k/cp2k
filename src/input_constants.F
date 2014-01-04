@@ -139,7 +139,8 @@ MODULE input_constants
                                               real_time_propagation=15,&
                                               ehrenfest=16, &
                                               do_tamc=17, &
-                                              tree_mc_run=18
+                                              tree_mc_run=18,&
+                                              driver_run=19
 
   ! Run Types of Atom Code
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&
