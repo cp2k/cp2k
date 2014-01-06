@@ -6,35 +6,29 @@
 ! *****************************************************************************
 MODULE ipi_driver
 
-  USE cell_types,                      ONLY: cell_clone,&
-                                             cell_create,&
-                                             cell_release,&
+  USE cell_types,                      ONLY: cell_create,&
                                              cell_type,&
-                                             compare_cells,&
-                                             init_cell,&
-                                             real_to_scaled,&
-                                             scaled_to_real                                             
+                                             init_cell
   USE cp_external_control,             ONLY: external_control
-  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
-                                             cp_subsys_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp                                             
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE iso_c_binding 
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_interface,                   ONLY: default_para_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type, &
-                                             force_env_set_cell
-  USE message_passing,                 ONLY: mp_bcast, mp_sync
-  USE virial_types,                    ONLY: virial_type 
-
+                                             force_env_set_cell,&
+                                             force_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE iso_c_binding
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sync
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"                                               
-                                             
+
   IMPLICIT NONE
   
   PRIVATE
@@ -43,15 +37,16 @@ MODULE ipi_driver
 
   PUBLIC :: run_driver
 
-  interface
-  subroutine usleep(useconds) bind(C)
+  INTERFACE
+  SUBROUTINE usleep(useconds) bind(C)
   ! integer(c_int) function usleep(useconds) bind(C)
-  use iso_c_binding
-  implicit none
-  integer(c_int32_t), value :: useconds
-  ! end function
-  end subroutine
-  end interface
+  USE iso_c_binding
+    INTEGER(c_int32_t), value                :: useconds
+
+! end function
+
+  END SUBROUTINE
+  END INTERFACE
 
   CONTAINS
 ! *****************************************************************************
@@ -68,30 +63,28 @@ MODULE ipi_driver
 
     CHARACTER(len=*), PARAMETER :: routineN = 'run_driver', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: MSGLEN = 12
 
-
-    CHARACTER(len=default_path_length)       :: drv_hostname, c_hostname
-    INTEGER                                  :: drv_port, ip, ii, idir, nat
-    LOGICAL                                  :: drv_unix, should_stop
-    
-    !MIK DRIVER
-    ! server address parsing
-    CHARACTER*1024  :: serveraddr, host
-    INTEGER         :: socket, port, inet, nread, readbuffer, slock, swait, uwait
-    ! buffers and temporaries for communication
-    INTEGER, PARAMETER :: MSGLEN=12
-    LOGICAL         :: isinit=.true., hasdata=.false., ionode=.false.
+    CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
-    CHARACTER*1024  :: parbuffer
-    REAL (KIND=dp)  :: cellh(3,3), cellih(3,3), vir(3,3), pot
-    REAL(KIND=dp) , ALLOCATABLE :: combuf(:)
-    REAL(KIND=dp)   :: sigma(3,3)
+    CHARACTER*1024                           :: host
+    INTEGER                                  :: drv_port, idir, ii, inet, ip, &
+                                                nat, nread, port, readbuffer, &
+                                                slock, socket, swait, uwait
+    LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
+                                                ionode = .FALSE., should_stop
+    REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), pot, &
+                                                vir(3,3)
+    REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
+    TYPE(cell_type), POINTER                 :: cpcell
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: drv_section, motion_section
     TYPE(virial_type), POINTER               :: virial
-    ! access cp2k structures
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(cell_type), POINTER                 :: cpcell
 
+!MIK DRIVER
+! server address parsing
+! buffers and temporaries for communication
+! access cp2k structures
 
     ionode=(default_para_env%source==default_para_env%mepos)
 
@@ -107,16 +100,16 @@ MODULE ipi_driver
     ! opens the socket
     socket=0    
     inet=1
-    if (ionode) then
-       write(*,*) "@ i-PI DRIVER BEING LOADED"
-       write(*,*) "@ INPUT DATA: ", TRIM(drv_hostname), drv_port, drv_unix                          
-       c_hostname=TRIM(drv_hostname)//achar(0)
-       CALL open_socket(socket, .not. drv_unix, drv_port, c_hostname) 
-    endif    
+    IF (ionode) THEN
+       WRITE(*,*) "@ i-PI DRIVER BEING LOADED"
+       WRITE(*,*) "@ INPUT DATA: ", TRIM(drv_hostname), drv_port, drv_unix                          
+       c_hostname=TRIM(drv_hostname)//ACHAR(0)
+       CALL open_socket(socket, .NOT. drv_unix, drv_port, c_hostname) 
+    ENDIF    
     
     !now we have a socket, so we can initialize the CP2K environments. 
     NULLIFY(cpcell)
-    call cell_create(cpcell,error=error)
+    CALL cell_create(cpcell,error=error)
     uwait=10000  ! number of MICROseconds to be waited in filesystem lock
     driver_loop: DO
       ! do communication on master node only...
@@ -127,51 +120,51 @@ MODULE ipi_driver
       inet=slock(default_para_env%source, default_para_env%mepos) 
       CALL mp_sync(default_para_env%group)
 
-      if (ionode) nread=readbuffer(socket, header, MSGLEN)
-      if (ionode)  write(0,*) "returned from readbuffer" 
+      IF (ionode) nread=readbuffer(socket, header, MSGLEN)
+      IF (ionode)  WRITE(0,*) "returned from readbuffer" 
 
       inet=swait(uwait, default_para_env%source, default_para_env%mepos)
       CALL mp_sync(default_para_env%group)
 
-      call mp_bcast(nread,default_para_env%source, default_para_env%group)
-      if (nread .eq. 0) then
-        if (ionode) write(*,*) " @ DRIVER MODE: Could not read from socket, exiting now."
-        exit
-      endif
+      CALL mp_bcast(nread,default_para_env%source, default_para_env%group)
+      IF (nread .EQ. 0) THEN
+        IF (ionode) WRITE(*,*) " @ DRIVER MODE: Could not read from socket, exiting now."
+        EXIT
+      ENDIF
 
-      call mp_bcast(header,default_para_env%source, default_para_env%group)
+      CALL mp_bcast(header,default_para_env%source, default_para_env%group)
       
-      if (ionode) write(*,*) " @ DRIVER MODE: Message from server: ", trim(header)
-      if (trim(header) == "STATUS") then          
+      IF (ionode) WRITE(*,*) " @ DRIVER MODE: Message from server: ", TRIM(header)
+      IF (TRIM(header) == "STATUS") THEN          
 
          inet=slock(default_para_env%source, default_para_env%mepos) 
          CALL mp_sync(default_para_env%group)
-         if (ionode) then  ! does not  need init (well, maybe it should, just to check atom numbers and the like... )
-            if (hasdata) then
-               call writebuffer(socket,"HAVEDATA    ",MSGLEN)
-            else
-               call writebuffer(socket,"READY       ",MSGLEN)
-            endif
-         endif
+         IF (ionode) THEN  ! does not  need init (well, maybe it should, just to check atom numbers and the like... )
+            IF (hasdata) THEN
+               CALL writebuffer(socket,"HAVEDATA    ",MSGLEN)
+            ELSE
+               CALL writebuffer(socket,"READY       ",MSGLEN)
+            ENDIF
+         ENDIF
          inet=swait(uwait,default_para_env%source, default_para_env%mepos)
          CALL mp_sync(default_para_env%group)
-      else if (trim(header) == "POSDATA") then              
-         if (ionode) then        
+      ELSE IF (TRIM(header) == "POSDATA") THEN              
+         IF (ionode) THEN        
             nread=readbuffer(socket, cellh, 9*8)
             nread=readbuffer(socket, cellih, 9*8)
             nread=readbuffer(socket, nat, 4)
-            cellh=transpose(cellh)
-            cellih=transpose(cellih)
-         endif
-         call mp_bcast(cellh,default_para_env%source, default_para_env%group)
-         call mp_bcast(cellih,default_para_env%source, default_para_env%group)
-         call mp_bcast(nat,default_para_env%source, default_para_env%group)
-         if (.not.allocated(combuf)) allocate(combuf(3*nat))
-         if (ionode) nread=readbuffer(socket, combuf, nat*3*8)
-         call mp_bcast(combuf,default_para_env%source, default_para_env%group)
+            cellh=TRANSPOSE(cellh)
+            cellih=TRANSPOSE(cellih)
+         ENDIF
+         CALL mp_bcast(cellh,default_para_env%source, default_para_env%group)
+         CALL mp_bcast(cellih,default_para_env%source, default_para_env%group)
+         CALL mp_bcast(nat,default_para_env%source, default_para_env%group)
+         IF (.not.ALLOCATED(combuf)) ALLOCATE(combuf(3*nat))
+         IF (ionode) nread=readbuffer(socket, combuf, nat*3*8)
+         CALL mp_bcast(combuf,default_para_env%source, default_para_env%group)
          
          CALL force_env_get(force_env,subsys=subsys,error=error)
-         if (nat/=subsys%particles%n_els) WRITE(*,*) &
+         IF (nat/=subsys%particles%n_els) WRITE(*,*) &
                 " @DRIVER MODE: Uh-oh! Particle number mismatch between i-pi and cp2k input!"
          ii=0
          DO ip=1,subsys%particles%n_els
@@ -185,7 +178,7 @@ MODULE ipi_driver
          
          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=error)
     
-         if (ionode) write(*,*) " @ DRIVER MODE: Received positions "
+         IF (ionode) WRITE(*,*) " @ DRIVER MODE: Received positions "
          
          combuf=0
          ii=0
@@ -197,33 +190,33 @@ MODULE ipi_driver
          END DO         
          CALL force_env_get(force_env, potential_energy=pot, error=error)
          CALL force_env_get(force_env,cell=cpcell, virial=virial, error=error)
-         vir = transpose(virial%pv_virial)
+         vir = TRANSPOSE(virial%pv_virial)
          
          CALL external_control(should_stop,"DPI",globenv=globenv,error=error)
          IF (should_stop) EXIT
        
-         hasdata=.true.
-      else if (trim(header)=="GETFORCE") then
-         if (ionode) write(*,*) " @ DRIVER MODE: Returning v,forces,stress "
-         if (ionode) then     
-            call writebuffer(socket,"FORCEREADY  ",MSGLEN)            
-            call writebuffer(socket,pot,8)
-            call writebuffer(socket,nat,4)            
-            call writebuffer(socket,combuf,3*nat*8)
-            call writebuffer(socket,vir,9*8)
+         hasdata=.TRUE.
+      ELSE IF (TRIM(header)=="GETFORCE") THEN
+         IF (ionode) WRITE(*,*) " @ DRIVER MODE: Returning v,forces,stress "
+         IF (ionode) THEN     
+            CALL writebuffer(socket,"FORCEREADY  ",MSGLEN)            
+            CALL writebuffer(socket,pot,8)
+            CALL writebuffer(socket,nat,4)            
+            CALL writebuffer(socket,combuf,3*nat*8)
+            CALL writebuffer(socket,vir,9*8)
 
             ! i-pi can also receive an arbitrary string, that will be printed out to the "extra" 
             ! trajectory file. this is useful if you want to return additional information, e.g.
             ! atomic charges, wannier centres, etc. one must return the number of characters, then
             ! the string. here we just send back zero characters.            
             nat=0
-            call writebuffer(socket,nat,4)  ! writes out zero for the length of the "extra" field (not implemented yet!)
-         endif
-         hasdata=.false.
-      else 
-         if (ionode) write(*,*) " @DRIVER MODE:  Socket disconnected, time to exit. "
-         exit
-      endif
+            CALL writebuffer(socket,nat,4)  ! writes out zero for the length of the "extra" field (not implemented yet!)
+         ENDIF
+         hasdata=.FALSE.
+      ELSE 
+         IF (ionode) WRITE(*,*) " @DRIVER MODE:  Socket disconnected, time to exit. "
+         EXIT
+      ENDIF
     ENDDO driver_loop  
     
   END SUBROUTINE run_driver

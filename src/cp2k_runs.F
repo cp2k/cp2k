@@ -73,7 +73,7 @@ MODULE cp2k_runs
        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
        do_farming, do_fist, do_mixed, do_opt_basis, do_optimize_input, &
        do_qmmm, do_qs, do_swarm, do_tamc, do_test, do_tree_mc, &
-       do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, energy_force_run, &
+       do_tree_mc_ana, ehrenfest, electronic_spectra_run, energy_force_run, &
        energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
        mon_car_run, none_run, pint_run, real_time_propagation, tree_mc_run, &
        vib_anal
@@ -90,7 +90,6 @@ MODULE cp2k_runs
        section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
        section_vals_type, section_vals_val_get, section_vals_write, &
        write_section_xml
-  USE ipi_driver,                      ONLY: run_driver
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
