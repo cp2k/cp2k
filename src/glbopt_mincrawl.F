@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Routines for the Minima Crawling global optimization scheme
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_mincrawl
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -96,6 +95,8 @@ MODULE glbopt_mincrawl
 
 
 ! *****************************************************************************
+!> \brief Initializes master for Minima Crawling
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE mincrawl_init(this, glbopt_section, n_workers, iw, particle_set, error)
     TYPE(mincrawl_type)                      :: this
@@ -156,6 +157,8 @@ MODULE glbopt_mincrawl
 
 
 ! *****************************************************************************
+!> \brief Central steering routine of Minima Crawling
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE mincrawl_steer(this, report, cmd)
     TYPE(mincrawl_type)                      :: this
@@ -179,7 +182,8 @@ MODULE glbopt_mincrawl
     IF(TRIM(status) == "ok") &
       CALL mincrawl_register_minima(this, report)
 
-    !CALL print_tempdist(best_minima)
+
+    IF(.FALSE.) CALL print_tempdist(best_minima)
 
     best_minima => choose_promising_minima(this)
 
@@ -211,8 +215,11 @@ MODULE glbopt_mincrawl
 
  END SUBROUTINE mincrawl_steer
 
+
 ! *****************************************************************************
-! *****************************************************************************
+!> \brief Helper routine for mincrawl_steer, choses minimum based on its score.
+!> \author Ole Schuett
+! ****************************************************************************
  FUNCTION choose_promising_minima(this) RESULT(minima)
     TYPE(mincrawl_type)                      :: this
     TYPE(minima_type), POINTER               :: minima
@@ -235,8 +242,11 @@ MODULE glbopt_mincrawl
     END DO
  END FUNCTION choose_promising_minima
 
+
 ! *****************************************************************************
-! *****************************************************************************
+!> \brief Helper routine for choose_promising_minima, calculates a minimum's score
+!> \author Ole Schuett
+! ****************************************************************************
  FUNCTION minima_score(minima) RESULT(res)
     TYPE(minima_type), POINTER               :: minima
     REAL(KIND=dp)                            :: res
@@ -244,8 +254,11 @@ MODULE glbopt_mincrawl
     res = SUM(minima%escape_hist) / SIZE(minima%escape_hist)
  END FUNCTION minima_score
 
+
 ! *****************************************************************************
-! *****************************************************************************
+!> \brief Helper routine for mincrawl_steer, samples from a temp-dist.
+!> \author Ole Schuett
+! ****************************************************************************
  FUNCTION choose_tempstep(this, minima) RESULT(step)
     TYPE(mincrawl_type)                      :: this
     TYPE(minima_type), POINTER               :: minima
@@ -265,7 +278,9 @@ MODULE glbopt_mincrawl
 
 
 ! *****************************************************************************
-! *****************************************************************************
+!> \brief Debugging routine, prints a minimum's temp-distribution.
+!> \author Ole Schuett
+! ****************************************************************************
  SUBROUTINE print_tempdist(minima)
     TYPE(minima_type), POINTER               :: minima
 
@@ -278,8 +293,11 @@ MODULE glbopt_mincrawl
    ENDDO
  END SUBROUTINE print_tempdist
 
+
 ! *****************************************************************************
-! *****************************************************************************
+!> \brief Helper routine, convertes a  discrete temp-step to a temperature.
+!> \author Ole Schuett
+! ****************************************************************************
  FUNCTION tempstep2temp(this, step) RESULT(temp_in_au)
     TYPE(mincrawl_type)                      :: this
     INTEGER                                  :: step
@@ -290,7 +308,9 @@ MODULE glbopt_mincrawl
 
 
 ! *****************************************************************************
-! *****************************************************************************
+!> \brief Helper routine, convertes a temperature to a discrete temp-step.
+!> \author Ole Schuett
+! ****************************************************************************
  FUNCTION temp2tempstep(this, temp_in_au) RESULT(step)
     TYPE(mincrawl_type)                      :: this
     REAL(KIND=dp)                            :: temp_in_au
@@ -302,24 +322,12 @@ MODULE glbopt_mincrawl
    IF(step > this%tempstep_max) STOP "temp2tempstep: step > tempstep_max"
  END FUNCTION temp2tempstep
 
-! *****************************************************************************
-! *****************************************************************************
- SUBROUTINE update_tempdist(this, tempdist, center, direction)
-    TYPE(mincrawl_type)                      :: this
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: tempdist
-    INTEGER                                  :: center, direction
 
-    INTEGER                                  :: i
-
-   DO i=1, SIZE(tempdist)
-     tempdist(i) = tempdist(i) + this%tempdist_update_height &
-          * REAL(direction,KIND=dp) * EXP(-((center-i)/this%tempdist_update_width)**2)
-     tempdist(i) = MAX(0.0_dp, MIN(1.0_dp, tempdist(i)))
-   ENDDO
- END SUBROUTINE update_tempdist
 
 ! *****************************************************************************
+!> \brief Helper routine for mincrawl_steer
+!>        Incorporates information of new report into history.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE mincrawl_register_minima(this, report)
     TYPE(mincrawl_type)                      :: this
@@ -410,6 +418,29 @@ MODULE glbopt_mincrawl
 
 
 ! *****************************************************************************
+!> \brief Helper routine for mincrawl_register_minima.
+!>        Adds or substracts small Gaussian from a minimum's temp-distribution.
+!> \author Ole Schuett
+! ****************************************************************************
+ SUBROUTINE update_tempdist(this, tempdist, center, direction)
+    TYPE(mincrawl_type)                      :: this
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: tempdist
+    INTEGER                                  :: center, direction
+
+    INTEGER                                  :: i
+
+   DO i=1, SIZE(tempdist)
+     tempdist(i) = tempdist(i) + this%tempdist_update_height &
+          * REAL(direction,KIND=dp) * EXP(-((center-i)/this%tempdist_update_width)**2)
+     tempdist(i) = MAX(0.0_dp, MIN(1.0_dp, tempdist(i)))
+   ENDDO
+ END SUBROUTINE update_tempdist
+
+
+! *****************************************************************************
+!> \brief Helper routine for mincrawl_register_minima, write trajectory.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE write_minima_traj(this, worker_id, minimum_id, Epot, positions)
     TYPE(mincrawl_type), INTENT(INOUT)       :: this
@@ -434,6 +465,8 @@ MODULE glbopt_mincrawl
 
 
 ! *****************************************************************************
+!> \brief Finalizes master for Minima Crawling
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE mincrawl_finalize(this)
     TYPE(mincrawl_type)                      :: this

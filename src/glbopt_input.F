@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Declares the input for global optimization
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_input
   USE bibliography,                    ONLY: Goedecker2004
@@ -39,8 +38,10 @@ MODULE glbopt_input
 
 
 
-!! *****************************************************************************
-!! *****************************************************************************
+! *****************************************************************************
+!> \brief Declares the SWARM%GLOBAL_OPT input section
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE glbopt_declare_input(swarm_section,error)
     TYPE(section_type), POINTER              :: swarm_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -117,8 +118,11 @@ MODULE glbopt_input
     CALL section_release(glbopt_section,error=error)
   END SUBROUTINE glbopt_declare_input
 
-!! *****************************************************************************
-!! *****************************************************************************
+
+! *****************************************************************************
+!> \brief Declares the SWARM%GLOBAL_OPT%HISTORY input section
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE history_declare_input(glbopt_section,error)
     TYPE(section_type), POINTER              :: glbopt_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -152,8 +156,10 @@ MODULE glbopt_input
   END SUBROUTINE history_declare_input
 
 
-!! *****************************************************************************
-!! *****************************************************************************
+! *****************************************************************************
+!> \brief Declares the SWARM%GLOBAL_OPT%MINIMA_HOPPING input section
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE minhop_declare_input(glbopt_section,error)
     TYPE(section_type), POINTER              :: glbopt_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -226,8 +232,10 @@ MODULE glbopt_input
   END SUBROUTINE minhop_declare_input
 
 
-!! *****************************************************************************
-!! *****************************************************************************
+! *****************************************************************************
+!> \brief Declares the SWARM%GLOBAL_OPT%MINIMA_CRAWLING input section
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE mincrawl_declare_input(glbopt_section,error)
     TYPE(section_type), POINTER              :: glbopt_section
     TYPE(cp_error_type), INTENT(inout)       :: error

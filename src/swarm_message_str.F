@@ -1,3 +1,7 @@
+! *****************************************************************************
+!> \brief Addes an entry from a swarm-message.
+!> \author Ole Schuett
+! *****************************************************************************
  SUBROUTINE swarm_message_add_str(msg, key, value)
    TYPE(swarm_message_type), INTENT(INOUT)   :: msg
    CHARACTER(LEN=*), INTENT(IN)              :: key
@@ -26,7 +30,10 @@
 
  END SUBROUTINE swarm_message_add_str
 
+
 ! *****************************************************************************
+!> \brief Returns an entry from a swarm-message.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE swarm_message_get_str(msg, key, value)
    TYPE(swarm_message_type), INTENT(IN)  :: msg

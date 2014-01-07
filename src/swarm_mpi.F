@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Handles the MPI communication of the swarm framework.
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_mpi
   USE cp_files,                        ONLY: close_file,&
@@ -58,6 +57,8 @@ MODULE swarm_mpi
 
 
 ! *****************************************************************************
+!> \brief Initialize MPI communicators for a swarm run.
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_mpi_init(swarm_mpi, world_para_env, root_section, n_workers, worker_id, iw, error)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
@@ -139,8 +140,11 @@ MODULE swarm_mpi
     CALL logger_init_worker(swarm_mpi, root_section, worker_id, error)
   END SUBROUTINE swarm_mpi_init
 
- ! *****************************************************************************
- ! *****************************************************************************
+
+! *****************************************************************************
+!> \brief Helper routine for swarm_mpi_init, configures the master's logger.
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE logger_init_master(swarm_mpi, error)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -165,8 +169,10 @@ MODULE swarm_mpi
   END SUBROUTINE logger_init_master
 
 
- ! *****************************************************************************
- ! *****************************************************************************
+! *****************************************************************************
+!> \brief Helper routine for logger_init_master, inquires filename for given unit.
+!> \author Ole Schuett
+! *****************************************************************************
   FUNCTION output_unit2path(output_unit) RESULT(output_path)
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=default_path_length)       :: output_path
@@ -177,8 +183,10 @@ MODULE swarm_mpi
   END FUNCTION output_unit2path
 
 
- ! *****************************************************************************
- ! *****************************************************************************
+! *****************************************************************************
+!> \brief Helper routine for swarm_mpi_init, configures the workers's logger.
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE logger_init_worker(swarm_mpi, root_section, worker_id, error)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(section_vals_type), POINTER         :: root_section
@@ -210,8 +218,10 @@ MODULE swarm_mpi
   END SUBROUTINE logger_init_worker
 
 
-  ! *****************************************************************************
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief Helper routine for logger_init_master and logger_init_worker
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE error_add_new_logger(para_env, output_path, iter_info, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=default_path_length)       :: output_path
@@ -243,8 +253,29 @@ MODULE swarm_mpi
   END SUBROUTINE error_add_new_logger
 
 
- ! *****************************************************************************
- ! *****************************************************************************
+! *****************************************************************************
+!> \brief Finalizes the MPI communicators of a swarm run.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_mpi_finalize(swarm_mpi, root_section, error)
+    TYPE(swarm_mpi_type)                     :: swarm_mpi
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CALL mp_sync(swarm_mpi%world%group)
+    CALL logger_finalize(swarm_mpi, root_section, error)
+
+    IF(ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker, error)
+    IF(ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master, error)
+    NULLIFY(swarm_mpi%worker, swarm_mpi%master)
+    DEALLOCATE(swarm_mpi%wid2group)
+  END SUBROUTINE swarm_mpi_finalize
+
+
+! *****************************************************************************
+!> \brief Helper routine for swarm_mpi_finalize, restores the original loggers
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE logger_finalize(swarm_mpi, root_section, error)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(section_vals_type), POINTER         :: root_section
@@ -280,24 +311,10 @@ MODULE swarm_mpi
   END SUBROUTINE logger_finalize
 
 
-! *****************************************************************************
-! *****************************************************************************
-   SUBROUTINE swarm_mpi_finalize(swarm_mpi, root_section, error)
-    TYPE(swarm_mpi_type)                     :: swarm_mpi
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CALL mp_sync(swarm_mpi%world%group)
-    CALL logger_finalize(swarm_mpi, root_section, error)
-
-    IF(ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker, error)
-    IF(ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master, error)
-    NULLIFY(swarm_mpi%worker, swarm_mpi%master)
-    DEALLOCATE(swarm_mpi%wid2group)
-  END SUBROUTINE swarm_mpi_finalize
-
 
 ! *****************************************************************************
+!> \brief Sends a report via MPI
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_send_report(swarm_mpi, report)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
@@ -315,7 +332,10 @@ MODULE swarm_mpi
 
   END SUBROUTINE swarm_mpi_send_report
 
+
 ! *****************************************************************************
+!> \brief Receives a report via MPI
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_recv_report(swarm_mpi, report)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
@@ -330,7 +350,10 @@ MODULE swarm_mpi
 
   END SUBROUTINE swarm_mpi_recv_report
 
+
 ! *****************************************************************************
+!> \brief Sends a command via MPI
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_send_command(swarm_mpi, cmd)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
@@ -344,9 +367,12 @@ MODULE swarm_mpi
 
      CALL swarm_message_mpi_send(cmd, group=swarm_mpi%world%group, dest=dest, tag=tag)
 
-  END SUBROUTINE swarm_mpi_send_command      
+  END SUBROUTINE swarm_mpi_send_command
+
 
 ! *****************************************************************************
+!> \brief Receives a command via MPI and broadcasts it within a worker.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_recv_command(swarm_mpi, cmd)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
@@ -366,7 +392,6 @@ MODULE swarm_mpi
 
 !     ! Second: The command is broadcasted within the worker group.
       CALL swarm_message_mpi_bcast(cmd, src=swarm_mpi%worker%source, group=swarm_mpi%worker%group)
-
 
   END SUBROUTINE swarm_mpi_recv_command
 

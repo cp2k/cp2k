@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Swarm-message, a convenient data-container for with build-in serialization.
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_message
 
@@ -50,6 +49,11 @@ MODULE swarm_message
    REAL(KIND=real_8),   DIMENSION(:),   POINTER     :: value_r8_1d => Null()
  END TYPE message_entry_type
 
+
+! *****************************************************************************
+!> \brief Adds an entry from a swarm-message.
+!> \author Ole Schuett
+! *****************************************************************************
  INTERFACE swarm_message_add
     MODULE PROCEDURE swarm_message_add_str
     MODULE PROCEDURE swarm_message_add_i4,    swarm_message_add_i8
@@ -58,6 +62,11 @@ MODULE swarm_message
     MODULE PROCEDURE swarm_message_add_r4_1d, swarm_message_add_r8_1d
  END INTERFACE swarm_message_add
 
+
+! *****************************************************************************
+!> \brief Returns an entry from a swarm-message.
+!> \author Ole Schuett
+! *****************************************************************************
  INTERFACE swarm_message_get
     MODULE PROCEDURE swarm_message_get_str
     MODULE PROCEDURE swarm_message_get_i4,    swarm_message_get_i8
@@ -66,16 +75,62 @@ MODULE swarm_message
     MODULE PROCEDURE swarm_message_get_r4_1d, swarm_message_get_r8_1d
  END INTERFACE swarm_message_get
 
+
  PUBLIC :: swarm_message_type, swarm_message_add, swarm_message_get
  PUBLIC :: swarm_message_mpi_send, swarm_message_mpi_recv, swarm_message_mpi_bcast
  PUBLIC :: swarm_message_file_write, swarm_message_file_read
  PUBLIC :: swarm_message_length, swarm_message_haskey, swarm_message_equal
  PUBLIC :: swarm_message_free
 
+
  CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Returns the number of entries contained in a swarm-message.
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION swarm_message_length(msg) RESULT(l)
+    TYPE(swarm_message_type), INTENT(IN)     :: msg
+    INTEGER                                  :: l
+
+    TYPE(message_entry_type), POINTER        :: curr_entry
+
+    l = 0
+    curr_entry => msg%root
+    DO WHILE(ASSOCIATED(curr_entry))
+      l = l + 1
+      curr_entry => curr_entry%next
+    END DO
+  END FUNCTION swarm_message_length
+
+
+! *****************************************************************************
+!> \brief Checks if a swarm-message contains an entry with the given key.
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION swarm_message_haskey(msg, key) RESULT(res)
+    TYPE(swarm_message_type), INTENT(IN)     :: msg
+    CHARACTER(LEN=*), INTENT(IN)             :: key
+    LOGICAL                                  :: res
+
+    TYPE(message_entry_type), POINTER        :: curr_entry
+
+    res = .FALSE.
+    curr_entry => msg%root
+    DO WHILE(ASSOCIATED(curr_entry))
+      IF(TRIM(curr_entry%key) == TRIM(key)) THEN
+         res = .TRUE.
+         EXIT
+      END IF
+      curr_entry => curr_entry%next
+    END DO
+  END FUNCTION swarm_message_haskey
+
+
+! *****************************************************************************
+!> \brief Deallocates all entries contained in a swarm-message.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_message_free(msg)
     TYPE(swarm_message_type), INTENT(INOUT)  :: msg
@@ -103,7 +158,10 @@ MODULE swarm_message
      IF(swarm_message_length(msg) > 0) STOP "swarm_message_free failed"
   END SUBROUTINE swarm_message_free
 
+
 ! *****************************************************************************
+!> \brief Checks if two swarm-messages are equal
+!> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION swarm_message_equal(msg1, msg2) RESULT(res)
     TYPE(swarm_message_type), INTENT(IN)     :: msg1, msg2
@@ -114,7 +172,160 @@ MODULE swarm_message
 
   END FUNCTION swarm_message_equal
 
+
 ! *****************************************************************************
+!> \brief Sends a swarm message via MPI.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_mpi_send(msg, group, dest, tag)
+    TYPE(swarm_message_type), INTENT(IN)     :: msg
+    INTEGER, INTENT(IN)                      :: group, dest, tag
+
+    TYPE(message_entry_type), POINTER        :: curr_entry
+
+    CALL mp_send(swarm_message_length(msg), dest, tag, group)
+    curr_entry => msg%root
+    DO WHILE(ASSOCIATED(curr_entry))
+      CALL swarm_message_entry_mpi_send(curr_entry, group, dest, tag)
+      curr_entry => curr_entry%next
+    END DO
+  END SUBROUTINE swarm_message_mpi_send
+
+
+! *****************************************************************************
+!> \brief Receives a swarm message via MPI.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_mpi_recv(msg, group, src, tag)
+    TYPE(swarm_message_type), INTENT(INOUT)  :: msg
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, INTENT(INOUT)                   :: src, tag
+
+    INTEGER                                  :: i, length
+    TYPE(message_entry_type), POINTER        :: new_entry
+
+    IF(ASSOCIATED(msg%root)) STOP "swarm_message_mpi_recv: message not empty"
+    CALL mp_recv(length, src, tag, group)
+    DO i=1, length
+       ALLOCATE(new_entry)
+       CALL swarm_message_entry_mpi_recv(new_entry, group, src, tag)
+       new_entry%next => msg%root
+       msg%root => new_entry
+    END DO
+
+  END SUBROUTINE swarm_message_mpi_recv
+
+
+! *****************************************************************************
+!> \brief Broadcasts a swarm message via MPI.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_mpi_bcast(msg, src, group)
+    TYPE(swarm_message_type), INTENT(INOUT)  :: msg
+    INTEGER, INTENT(IN)                      :: src, group
+
+    INTEGER                                  :: i, length, mepos, num_pe
+    TYPE(message_entry_type), POINTER        :: curr_entry
+
+    CALL mp_environ(num_pe, mepos, group)
+
+    IF(mepos/=src .AND. ASSOCIATED(msg%root)) STOP "swarm_message_mpi_bcast: message not empty"
+    length = swarm_message_length(msg)
+    CALL mp_bcast(length, src, group)
+
+    IF(mepos==src) curr_entry => msg%root
+
+    DO i=1, length
+       IF(mepos/=src) ALLOCATE(curr_entry)
+
+       CALL swarm_message_entry_mpi_bcast(curr_entry, src, group, mepos)
+
+       IF(mepos==src) THEN
+          curr_entry => curr_entry%next
+       ELSE
+          curr_entry%next => msg%root
+          msg%root => curr_entry
+       END IF
+    END DO
+
+  END SUBROUTINE swarm_message_mpi_bcast
+
+
+
+! *****************************************************************************
+!> \brief Write a swarm-message to a given file / unit.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_file_write(msg, unit)
+    TYPE(swarm_message_type), INTENT(IN)     :: msg
+    INTEGER, INTENT(IN)                      :: unit
+
+    INTEGER                                  :: handle
+    TYPE(message_entry_type), POINTER        :: curr_entry
+
+    IF(unit <= 0) RETURN
+
+    CALL timeset("swarm_message_file_write", handle)
+    WRITE(unit,"(A)") "BEGIN SWARM_MESSAGE"
+    WRITE(unit,"(A,I10)") "msg_length: ", swarm_message_length(msg)
+
+    curr_entry => msg%root
+    DO WHILE(ASSOCIATED(curr_entry))
+      CALL swarm_message_entry_file_write(curr_entry, unit)
+      curr_entry => curr_entry%next
+    END DO
+
+    WRITE(unit,"(A)") "END SWARM_MESSAGE"
+    WRITE(unit,"()")
+    CALL timestop(handle)
+  END SUBROUTINE swarm_message_file_write
+
+
+! *****************************************************************************
+!> \brief Reads a swarm-message from a given file / unit.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_file_read(msg, parser, at_end, error)
+    TYPE(swarm_message_type), INTENT(OUT)    :: msg
+    TYPE(cp_parser_type), POINTER            :: parser
+    LOGICAL, INTENT(INOUT)                   :: at_end
+    TYPE(cp_error_type)                      :: error
+
+    CHARACTER(LEN=default_string_length)     :: key
+    INTEGER                                  :: i, length
+    TYPE(message_entry_type), POINTER        :: new_entry
+
+!IF(ASSOCIATED(msg%root)) STOP "swarm_message_file_read: message not empty"
+
+    CALL parser_get_next_line(parser, 1, at_end, error)
+    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    IF(at_end) RETURN
+    IF(TRIM(parser%input_line)/="BEGIN SWARM_MESSAGE") STOP "swarm_message_file_read failed (1)"
+
+    CALL parser_get_next_line(parser, 1, at_end, error)
+    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    IF(at_end) RETURN
+    READ (parser%input_line,*) key, length
+    IF(TRIM(key)/="msg_length:") STOP "swarm_message_file_read failed (2)"
+
+    DO i=1, length
+       ALLOCATE(new_entry)
+       CALL swarm_message_entry_file_read(new_entry, parser, at_end, error)
+       new_entry%next => msg%root
+       msg%root => new_entry
+    END DO
+
+    CALL parser_get_next_line(parser, 1, at_end, error)
+    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    IF(at_end) RETURN
+    IF(TRIM(parser%input_line)/="END SWARM_MESSAGE") STOP "swarm_message_file_read failed (3)"
+
+  END SUBROUTINE swarm_message_file_read
+
+
+! *****************************************************************************
+!> \brief Helper routine for swarm_message_equal
+!> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION swarm_message_equal_oneway(msg1, msg2) RESULT(res)
     TYPE(swarm_message_type), INTENT(IN)     :: msg1, msg2
@@ -190,6 +401,129 @@ MODULE swarm_message
 
 
 ! *****************************************************************************
+!> \brief Helper routine for swarm_message_mpi_send.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_entry_mpi_send(ENTRY, group, dest, tag)
+    TYPE(message_entry_type), INTENT(IN)     :: ENTRY
+    INTEGER, INTENT(IN)                      :: group, dest, tag
+
+    INTEGER, &
+      DIMENSION(default_string_length)       :: value_str_arr
+    INTEGER, DIMENSION(key_length)           :: key_arr
+
+    key_arr = str2iarr(entry%key)
+    CALL mp_send(key_arr, dest, tag, group)
+
+    IF(ASSOCIATED(entry%value_i4)) THEN
+       CALL mp_send(1, dest, tag, group)
+       CALL mp_send(entry%value_i4, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_i8)) THEN
+       CALL mp_send(2, dest, tag, group)
+       CALL mp_send(entry%value_i8, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_r4)) THEN
+       CALL mp_send(3, dest, tag, group)
+       CALL mp_send(entry%value_r4, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_r8)) THEN
+       CALL mp_send(4, dest, tag, group)
+       CALL mp_send(entry%value_r8, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_i4_1d)) THEN
+       CALL mp_send(5, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_i4_1d), dest, tag, group)
+       CALL mp_send(entry%value_i4_1d, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_i8_1d)) THEN
+       CALL mp_send(6, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_i8_1d), dest, tag, group)
+       CALL mp_send(entry%value_i8_1d, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_r4_1d)) THEN
+       CALL mp_send(7, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_r4_1d), dest, tag, group)
+       CALL mp_send(entry%value_r4_1d, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
+       CALL mp_send(8, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_r8_1d), dest, tag, group)
+       CALL mp_send(entry%value_r8_1d, dest, tag, group)
+
+    ELSE IF(ASSOCIATED(entry%value_str)) THEN
+       CALL mp_send(9, dest, tag, group)
+       value_str_arr = str2iarr(entry%value_str)
+       CALL mp_send(value_str_arr, dest, tag, group)
+    ELSE
+       CALL mp_abort()
+       STOP "swarm_message_entry_mpi_send: no value ASSOCIATED"
+    END IF
+  END SUBROUTINE swarm_message_entry_mpi_send
+
+
+! *****************************************************************************
+!> \brief Helper routine for swarm_message_mpi_recv.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_entry_mpi_recv(ENTRY, group, src, tag)
+    TYPE(message_entry_type), INTENT(INOUT)  :: ENTRY
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, INTENT(INOUT)                   :: src, tag
+
+    INTEGER                                  :: datatype, s
+    INTEGER, &
+      DIMENSION(default_string_length)       :: value_str_arr
+    INTEGER, DIMENSION(key_length)           :: key_arr
+
+    CALL mp_recv(key_arr, src, tag, group)
+    entry%key = iarr2str(key_arr)
+
+    CALL mp_recv(datatype, src, tag, group)
+
+    SELECT CASE(datatype)
+    CASE(1)
+       ALLOCATE(entry%value_i4)
+       CALL mp_recv(entry%value_i4, src, tag, group)
+    CASE(2)
+       ALLOCATE(entry%value_i8)
+       CALL mp_recv(entry%value_i8, src, tag, group)
+    CASE(3)
+       ALLOCATE(entry%value_r4)
+       CALL mp_recv(entry%value_r4, src, tag, group)
+    CASE(4)
+       ALLOCATE(entry%value_r8)
+       CALL mp_recv(entry%value_r8, src, tag, group)
+
+    CASE(5)
+       CALL mp_recv(s, src, tag, group)
+       ALLOCATE(entry%value_i4_1d(s))
+       CALL mp_recv(entry%value_i4_1d, src, tag, group)
+    CASE(6)
+       CALL mp_recv(s, src, tag, group)
+       ALLOCATE(entry%value_i8_1d(s))
+       CALL mp_recv(entry%value_i8_1d, src, tag, group)
+    CASE(7)
+       CALL mp_recv(s, src, tag, group)
+       ALLOCATE(entry%value_r4_1d(s))
+       CALL mp_recv(entry%value_r4_1d, src, tag, group)
+    CASE(8)
+       CALL mp_recv(s, src, tag, group)
+       ALLOCATE(entry%value_r8_1d(s))
+       CALL mp_recv(entry%value_r8_1d, src, tag, group)
+    CASE(9)
+       ALLOCATE(entry%value_str)
+       CALL mp_recv(value_str_arr, src, tag, group)
+       entry%value_str = iarr2str(value_str_arr)
+    CASE DEFAULT
+       STOP "swarm_message_entry_mpi_recv: unkown datatype"
+    END SELECT
+  END SUBROUTINE swarm_message_entry_mpi_recv
+
+
+! *****************************************************************************
+!> \brief Helper routine for swarm_message_mpi_bcast.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_message_entry_mpi_bcast(ENTRY, src, group, mepos)
     TYPE(message_entry_type), INTENT(INOUT)  :: ENTRY
@@ -273,263 +607,10 @@ MODULE swarm_message
 
   END SUBROUTINE swarm_message_entry_mpi_bcast
 
-! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_entry_mpi_send(ENTRY, group, dest, tag)
-    TYPE(message_entry_type), INTENT(IN)     :: ENTRY
-    INTEGER, INTENT(IN)                      :: group, dest, tag
-
-    INTEGER, &
-      DIMENSION(default_string_length)       :: value_str_arr
-    INTEGER, DIMENSION(key_length)           :: key_arr
-
-    key_arr = str2iarr(entry%key)
-    CALL mp_send(key_arr, dest, tag, group)
-
-    IF(ASSOCIATED(entry%value_i4)) THEN
-       CALL mp_send(1, dest, tag, group)
-       CALL mp_send(entry%value_i4, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_i8)) THEN
-       CALL mp_send(2, dest, tag, group)
-       CALL mp_send(entry%value_i8, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_r4)) THEN
-       CALL mp_send(3, dest, tag, group)
-       CALL mp_send(entry%value_r4, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_r8)) THEN
-       CALL mp_send(4, dest, tag, group)
-       CALL mp_send(entry%value_r8, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_i4_1d)) THEN
-       CALL mp_send(5, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_i4_1d), dest, tag, group)
-       CALL mp_send(entry%value_i4_1d, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_i8_1d)) THEN
-       CALL mp_send(6, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_i8_1d), dest, tag, group)
-       CALL mp_send(entry%value_i8_1d, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_r4_1d)) THEN
-       CALL mp_send(7, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_r4_1d), dest, tag, group)
-       CALL mp_send(entry%value_r4_1d, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
-       CALL mp_send(8, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_r8_1d), dest, tag, group)
-       CALL mp_send(entry%value_r8_1d, dest, tag, group)
-
-    ELSE IF(ASSOCIATED(entry%value_str)) THEN
-       CALL mp_send(9, dest, tag, group)
-       value_str_arr = str2iarr(entry%value_str)
-       CALL mp_send(value_str_arr, dest, tag, group)
-    ELSE
-       CALL mp_abort()
-       STOP "swarm_message_entry_mpi_send: no value ASSOCIATED"
-    END IF
-  END SUBROUTINE swarm_message_entry_mpi_send
-
 
 ! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_entry_mpi_recv(ENTRY, group, src, tag)
-    TYPE(message_entry_type), INTENT(INOUT)  :: ENTRY
-    INTEGER, INTENT(IN)                      :: group
-    INTEGER, INTENT(INOUT)                   :: src, tag
-
-    INTEGER                                  :: datatype, s
-    INTEGER, &
-      DIMENSION(default_string_length)       :: value_str_arr
-    INTEGER, DIMENSION(key_length)           :: key_arr
-
-    CALL mp_recv(key_arr, src, tag, group)
-    entry%key = iarr2str(key_arr)
-
-    CALL mp_recv(datatype, src, tag, group)
-
-    SELECT CASE(datatype)
-    CASE(1)
-       ALLOCATE(entry%value_i4)
-       CALL mp_recv(entry%value_i4, src, tag, group)
-    CASE(2)
-       ALLOCATE(entry%value_i8)
-       CALL mp_recv(entry%value_i8, src, tag, group)
-    CASE(3)
-       ALLOCATE(entry%value_r4)
-       CALL mp_recv(entry%value_r4, src, tag, group)
-    CASE(4)
-       ALLOCATE(entry%value_r8)
-       CALL mp_recv(entry%value_r8, src, tag, group)
-
-    CASE(5)
-       CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_i4_1d(s))
-       CALL mp_recv(entry%value_i4_1d, src, tag, group)
-    CASE(6)
-       CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_i8_1d(s))
-       CALL mp_recv(entry%value_i8_1d, src, tag, group)
-    CASE(7)
-       CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_r4_1d(s))
-       CALL mp_recv(entry%value_r4_1d, src, tag, group)
-    CASE(8)
-       CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_r8_1d(s))
-       CALL mp_recv(entry%value_r8_1d, src, tag, group)
-    CASE(9)
-       ALLOCATE(entry%value_str)
-       CALL mp_recv(value_str_arr, src, tag, group)
-       entry%value_str = iarr2str(value_str_arr)
-    CASE DEFAULT
-       STOP "swarm_message_entry_mpi_recv: unkown datatype"
-    END SELECT
-  END SUBROUTINE swarm_message_entry_mpi_recv
-
-
-! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_mpi_send(msg, group, dest, tag)
-    TYPE(swarm_message_type), INTENT(IN)     :: msg
-    INTEGER, INTENT(IN)                      :: group, dest, tag
-
-    TYPE(message_entry_type), POINTER        :: curr_entry
-
-    CALL mp_send(swarm_message_length(msg), dest, tag, group)
-    curr_entry => msg%root
-    DO WHILE(ASSOCIATED(curr_entry))
-      CALL swarm_message_entry_mpi_send(curr_entry, group, dest, tag)
-      curr_entry => curr_entry%next
-    END DO
-  END SUBROUTINE swarm_message_mpi_send
-
-! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_mpi_recv(msg, group, src, tag)
-    TYPE(swarm_message_type), INTENT(INOUT)  :: msg
-    INTEGER, INTENT(IN)                      :: group
-    INTEGER, INTENT(INOUT)                   :: src, tag
-
-    INTEGER                                  :: i, length
-    TYPE(message_entry_type), POINTER        :: new_entry
-
-    IF(ASSOCIATED(msg%root)) STOP "swarm_message_mpi_recv: message not empty"
-    CALL mp_recv(length, src, tag, group)
-    DO i=1, length
-       ALLOCATE(new_entry)
-       CALL swarm_message_entry_mpi_recv(new_entry, group, src, tag)
-       new_entry%next => msg%root
-       msg%root => new_entry
-    END DO
-
-  END SUBROUTINE swarm_message_mpi_recv
-
-! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_mpi_bcast(msg, src, group)
-    TYPE(swarm_message_type), INTENT(INOUT)  :: msg
-    INTEGER, INTENT(IN)                      :: src, group
-
-    INTEGER                                  :: i, length, mepos, num_pe
-    TYPE(message_entry_type), POINTER        :: curr_entry
-
-    CALL mp_environ(num_pe, mepos, group)
-
-    IF(mepos/=src .AND. ASSOCIATED(msg%root)) STOP "swarm_message_mpi_bcast: message not empty"
-    length = swarm_message_length(msg)
-    CALL mp_bcast(length, src, group)
-
-    IF(mepos==src) curr_entry => msg%root
-
-    DO i=1, length
-       IF(mepos/=src) ALLOCATE(curr_entry)
-
-       CALL swarm_message_entry_mpi_bcast(curr_entry, src, group, mepos)
-
-       IF(mepos==src) THEN
-          curr_entry => curr_entry%next
-       ELSE
-          curr_entry%next => msg%root
-          msg%root => curr_entry
-       END IF
-    END DO
-
-  END SUBROUTINE swarm_message_mpi_bcast
-
-
-! *****************************************************************************
-! *****************************************************************************
-  FUNCTION swarm_message_length(msg) RESULT(l)
-    TYPE(swarm_message_type), INTENT(IN)     :: msg
-    INTEGER                                  :: l
-
-    TYPE(message_entry_type), POINTER        :: curr_entry
-
-    l = 0
-    curr_entry => msg%root
-    DO WHILE(ASSOCIATED(curr_entry))
-      l = l + 1
-      curr_entry => curr_entry%next
-    END DO
-  END FUNCTION swarm_message_length
-
-
-! *****************************************************************************
-! *****************************************************************************
-  FUNCTION swarm_message_haskey(msg, key) RESULT(res)
-    TYPE(swarm_message_type), INTENT(IN)     :: msg
-    CHARACTER(LEN=*), INTENT(IN)             :: key
-    LOGICAL                                  :: res
-
-    TYPE(message_entry_type), POINTER        :: curr_entry
-
-    res = .FALSE.
-    curr_entry => msg%root
-    DO WHILE(ASSOCIATED(curr_entry))
-      IF(TRIM(curr_entry%key) == TRIM(key)) THEN
-         res = .TRUE.
-         EXIT
-      END IF
-      curr_entry => curr_entry%next
-    END DO
-  END FUNCTION swarm_message_haskey
-! *****************************************************************************
-! *****************************************************************************
-
-!  END SUBROUTINE swarm_mpi_recv_message_entry(group, dest, tag, entry)
-  
-
-! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_file_write(msg, unit)
-    TYPE(swarm_message_type), INTENT(IN)     :: msg
-    INTEGER, INTENT(IN)                      :: unit
-
-    INTEGER                                  :: handle
-    TYPE(message_entry_type), POINTER        :: curr_entry
-
-    IF(unit <= 0) RETURN
-
-    CALL timeset("swarm_message_file_write", handle)
-    WRITE(unit,"(A)") "BEGIN SWARM_MESSAGE"
-    WRITE(unit,"(A,I10)") "msg_length: ", swarm_message_length(msg)
-
-    curr_entry => msg%root
-    DO WHILE(ASSOCIATED(curr_entry))
-      CALL swarm_message_entry_file_write(curr_entry, unit)
-      curr_entry => curr_entry%next
-    END DO
-
-    WRITE(unit,"(A)") "END SWARM_MESSAGE"
-    WRITE(unit,"()")
-    CALL timestop(handle)
-  END SUBROUTINE swarm_message_file_write
-
-
-! *****************************************************************************
+!> \brief Helper routine for swarm_message_file_write.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_message_entry_file_write(ENTRY, unit)
     TYPE(message_entry_type), INTENT(IN)     :: ENTRY
@@ -594,45 +675,8 @@ MODULE swarm_message
 
 
 ! *****************************************************************************
-! *****************************************************************************
-  SUBROUTINE swarm_message_file_read(msg, parser, at_end, error)
-    TYPE(swarm_message_type), INTENT(OUT)    :: msg
-    TYPE(cp_parser_type), POINTER            :: parser
-    LOGICAL, INTENT(INOUT)                   :: at_end
-    TYPE(cp_error_type)                      :: error
-
-    CHARACTER(LEN=default_string_length)     :: key
-    INTEGER                                  :: i, length
-    TYPE(message_entry_type), POINTER        :: new_entry
-
-!IF(ASSOCIATED(msg%root)) STOP "swarm_message_file_read: message not empty"
-
-    CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
-    IF(at_end) RETURN
-    IF(TRIM(parser%input_line)/="BEGIN SWARM_MESSAGE") STOP "swarm_message_file_read failed (1)"
-
-    CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
-    IF(at_end) RETURN
-    READ (parser%input_line,*) key, length
-    IF(TRIM(key)/="msg_length:") STOP "swarm_message_file_read failed (2)"
-
-    DO i=1, length
-       ALLOCATE(new_entry)
-       CALL swarm_message_entry_file_read(new_entry, parser, at_end, error)
-       new_entry%next => msg%root
-       msg%root => new_entry
-    END DO
-
-    CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
-    IF(at_end) RETURN
-    IF(TRIM(parser%input_line)/="END SWARM_MESSAGE") STOP "swarm_message_file_read failed (3)"
-
-  END SUBROUTINE swarm_message_file_read
-
-! *****************************************************************************
+!> \brief Helper routine for swarm_message_file_read.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_message_entry_file_read(ENTRY, parser, at_end, error)
     TYPE(message_entry_type), INTENT(INOUT)  :: ENTRY
@@ -723,9 +767,8 @@ MODULE swarm_message
 
 
 ! *****************************************************************************
-!> \brief Converts a string into an integer-array
-!> \par History
-!>      12.2013 created [Ole Schuett]
+!> \brief Helper routine, converts a string into an integer-array
+!> \author Ole Schuett
 ! *****************************************************************************
   PURE FUNCTION str2iarr(str) RESULT(arr)
     CHARACTER(LEN=*), INTENT(IN)             :: str
@@ -738,10 +781,10 @@ MODULE swarm_message
     ENDDO
   END FUNCTION str2iarr
 
+
 ! *****************************************************************************
-!> \brief Converts an integer-array into a string
-!> \par History
-!>      12.2013 created [Ole Schuett]
+!> \brief Helper routine, converts an integer-array into a string
+!> \author Ole Schuett
 ! *****************************************************************************
   PURE FUNCTION iarr2str(arr) RESULT(str)
     INTEGER, DIMENSION(:), INTENT(IN)        :: arr
@@ -753,10 +796,6 @@ MODULE swarm_message
       str(i:i) = CHAR(arr(i))
     ENDDO
   END FUNCTION iarr2str
-
-
-! *****************************************************************************
-! *****************************************************************************
 
 
 #include "swarm_message_str.F"

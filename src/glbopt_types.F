@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Common types used by the global optimization schemes.
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_types
 

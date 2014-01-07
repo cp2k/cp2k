@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Swarm-framwork, provides a convenient master/worker architecture.
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
@@ -45,15 +44,13 @@ MODULE swarm
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm'
 
  PUBLIC :: run_swarm
- 
-  CONTAINS 
- 
- 
+
+ CONTAINS
+
 
 ! *****************************************************************************
-!> \brief Main driver to perform global optimization
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!> \brief Central driver routine of the swarm framework, called by cp2k_runs.F
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE run_swarm(root_section, para_env, globenv, input_path, error)
     TYPE(section_vals_type), POINTER         :: root_section
@@ -91,7 +88,10 @@ MODULE swarm
     CALL timestop(handle)
    END SUBROUTINE run_swarm
 
+
 ! *****************************************************************************
+!> \brief Special driver for using only a single worker.
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_serial_driver(root_section, input_path, para_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: root_section
@@ -130,8 +130,9 @@ MODULE swarm
     END SUBROUTINE swarm_serial_driver
 
 
-
 ! *****************************************************************************
+!> \brief Normal driver routine for parallelized runs.
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_parallel_driver(n_workers, root_section, input_path, para_env, globenv, iw, error)
     INTEGER, INTENT(IN)                      :: n_workers
@@ -157,7 +158,10 @@ MODULE swarm
 
    END SUBROUTINE swarm_parallel_driver
 
+
 ! *****************************************************************************
+!> \brief Worker's driver routine for parallelized runs.
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_parallel_worker_driver(swarm_mpi, n_workers, worker_id, root_section, input_path, error)
     TYPE(swarm_mpi_type), INTENT(IN)         :: swarm_mpi
@@ -193,7 +197,10 @@ MODULE swarm
 
    END SUBROUTINE swarm_parallel_worker_driver
 
+
 ! *****************************************************************************
+!> \brief Master's driver routine for parallelized runs.
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, input_path, globenv, error)
     TYPE(swarm_mpi_type), INTENT(IN)         :: swarm_mpi

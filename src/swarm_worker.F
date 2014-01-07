@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Workers's routines for the swarm-framework
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_worker
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
@@ -44,12 +43,13 @@ MODULE swarm_worker
    !possbily more behaviors...
  END TYPE swarm_worker_type
 
+
  CONTAINS
 
 
-
-
 ! *****************************************************************************
+!> \brief Initializes a swarm worker
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_worker_init(worker, para_env, root_section,&
                  input_path, worker_id, error)
@@ -84,24 +84,9 @@ MODULE swarm_worker
   END SUBROUTINE swarm_worker_init
 
 
-
 ! *****************************************************************************
-! *****************************************************************************
-   SUBROUTINE swarm_worker_finalize(worker)
-    TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
-
-     SELECT CASE(worker%behavior)
-      CASE(swarm_do_glbopt)
-         CALL glbopt_worker_finalize(worker%glbopt)
-         DEALLOCATE(worker%glbopt)
-      CASE DEFAULT
-         STOP "swarm_worker_finalize: got unkown behavior"
-    END SELECT
-
-   END SUBROUTINE swarm_worker_finalize
-
-
-! *****************************************************************************
+!> \brief Central execute routine of the swarm worker
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_worker_execute(worker, cmd, report, should_stop)
     TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
@@ -132,6 +117,24 @@ MODULE swarm_worker
         CALL swarm_message_add(report, "status", "ok")
 
    END SUBROUTINE swarm_worker_execute
+
+
+! *****************************************************************************
+!> \brief Finalizes a swarm worker
+!> \author Ole Schuett
+! *****************************************************************************
+   SUBROUTINE swarm_worker_finalize(worker)
+    TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
+
+     SELECT CASE(worker%behavior)
+      CASE(swarm_do_glbopt)
+         CALL glbopt_worker_finalize(worker%glbopt)
+         DEALLOCATE(worker%glbopt)
+      CASE DEFAULT
+         STOP "swarm_worker_finalize: got unkown behavior"
+    END SELECT
+
+   END SUBROUTINE swarm_worker_finalize
 
 
 END MODULE swarm_worker

@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Master's routines for global optimization
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_master
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -85,6 +84,8 @@ MODULE glbopt_master
 
 
 ! *****************************************************************************
+!> \brief Initializes the master of the global optimizer
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE glbopt_master_init(this, para_env, root_section, input_path, n_walkers, iw, error)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
@@ -129,6 +130,8 @@ MODULE glbopt_master
 
 
 ! *****************************************************************************
+!> \brief Helper-routine for glbopt_master_init, reads part of SUBSYS-section
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE glbopt_read_particle_set(this, para_env, root_section, iw, error)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
@@ -187,6 +190,8 @@ MODULE glbopt_master
 
 
 ! *****************************************************************************
+!> \brief Central steering routine of global optimizer
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE glbopt_master_steer(this, report, cmd, should_stop)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
@@ -213,6 +218,8 @@ MODULE glbopt_master
 
 
 ! *****************************************************************************
+!> \brief Helper routine for glbopt_master_steer(), updates stats, etc.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE progress_report(this, report)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
@@ -258,6 +265,8 @@ MODULE glbopt_master
 
 
 ! *****************************************************************************
+!> \brief Helper routine for progress_report(), write frames to trajectory.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE write_progress_traj(this, report)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
@@ -289,7 +298,10 @@ MODULE glbopt_master
      DEALLOCATE(report_positions)
  END SUBROUTINE write_progress_traj
 
+
 ! *****************************************************************************
+!> \brief Finalized the master of the global optimizer
+!> \author Ole
 ! *****************************************************************************
  SUBROUTINE glbopt_master_finalize(this)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
@@ -318,7 +330,6 @@ MODULE glbopt_master
     CALL deallocate_atomic_kind_set(this%atomic_kind_set, this%error)
 
  END SUBROUTINE glbopt_master_finalize
-
 
 END MODULE glbopt_master
 

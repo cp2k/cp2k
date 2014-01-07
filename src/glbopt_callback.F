@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Callback used by global geometry optimization schemes
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_callback
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -33,9 +32,10 @@ MODULE glbopt_callback
 
 
 ! *****************************************************************************
-!> \brief Main driver to perform global optimization
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!> \brief Callback used to hook into the main MD-loop.
+!>        It recognizes and counts bumps in the potential energy.
+!>        When MD_BUMPS_MAX is reached, the MD simulations is stoped.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE glbopt_md_callback(mdctrl_data, md_env, should_stop, error)
     TYPE(glbopt_mdctrl_data_type), POINTER   :: mdctrl_data

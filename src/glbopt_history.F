@@ -4,9 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief History of minima, calulates, stores and compares fingerprints of minima.
+!>        Used by Minima Hopping and Minima Crawling.
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_history
   USE input_section_types,             ONLY: section_vals_type,&
@@ -55,6 +55,8 @@ MODULE glbopt_history
 
 
 ! *****************************************************************************
+!> \brief Initializes a history.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE history_init(history, history_section, iw, error)
     TYPE(history_type), INTENT(INOUT)        :: history
@@ -79,6 +81,8 @@ MODULE glbopt_history
 
 
 ! *****************************************************************************
+!> \brief Calculates a fingerprint for a given configuration.
+!> \author Ole Schuett
 ! *****************************************************************************
  FUNCTION history_fingerprint(history, Epot, pos) RESULT(fp)
     TYPE(history_type), INTENT(IN)           :: history
@@ -98,7 +102,47 @@ MODULE glbopt_history
     DEALLOCATE(tmp)
  END FUNCTION history_fingerprint
 
+
 ! *****************************************************************************
+!> \brief Helper routine for history_fingerprint.
+!>        Calulates a fingerprint based on inter-atomic distances.
+!> \author Stefan Goedecker
+! *****************************************************************************
+ SUBROUTINE goedecker_fingerprint(pos, res)
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pos
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: res
+
+    INTEGER                                  :: i, info, j, N
+    REAL(KIND=dp)                            :: d2, t
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: matrix, work
+    REAL(KIND=dp), DIMENSION(3)              :: d
+
+    IF(ASSOCIATED(res)) CALL mp_abort("goedecker_fingerprint: res already allocated")
+    N = SIZE(pos) / 3 ! number of atoms
+
+    ALLOCATE(matrix(N,N), work(N,N))
+    DO i=1,N
+      matrix(i,i) = 1.0
+      DO j=i+1,N
+        d = pos(3*i-2:3*i) - pos(3*j-2:3*j)
+        d2 = SUM(d**2)
+        t=EXP(-0.5 * d2)
+        matrix(i,j) = t
+        matrix(j, i) = t
+      ENDDO
+    ENDDO
+    !TODO: call dsyv through cp2k wrappers
+    !TODO: do we need to store lower triangle of matrix?
+    ALLOCATE(res(N))
+    CALL DSYEV('N','U',N,matrix,N, res, work, N**2, info)
+    IF(info /= 0) CALL mp_abort("goedecker_fingerprint: DSYEV failed")
+ END SUBROUTINE goedecker_fingerprint
+
+
+! *****************************************************************************
+!> \brief Checks if two given fingerprints match.
+!> \author Ole Schuett
 ! *****************************************************************************
  FUNCTION history_fingerprint_match(history, fp1, fp2) RESULT(res)
     TYPE(history_type), INTENT(IN)           :: history
@@ -111,59 +155,25 @@ MODULE glbopt_history
 
  END FUNCTION history_fingerprint_match
 
+
 ! *****************************************************************************
+!> \brief Helper routine for history_fingerprint_match
+!>        Calulates the distance between two given fingerprints.
+!> \author Stefan Goedecker
 ! *****************************************************************************
- SUBROUTINE history_finalize(history)
-    TYPE(history_type)                       :: history
+ PURE FUNCTION fingerprint_distance(fp1, fp2) RESULT(res)
+    TYPE(history_fingerprint_type), &
+      INTENT(IN)                             :: fp1, fp2
+    REAL(KIND=dp)                            :: res
 
-    INTEGER                                  :: i
-
-    DO i=1, SIZE(history%entries)
-      IF(ASSOCIATED(history%entries(i)%p)) &
-          DEALLOCATE(history%entries(i)%p)
-    END DO
-
-    DEALLOCATE(history%entries)
-
- END SUBROUTINE history_finalize
+     res = SQRT(SUM( (fp1%goedecker - fp2%goedecker)**2 )/SIZE(fp1%goedecker))
+ END FUNCTION fingerprint_distance
 
 
 ! *****************************************************************************
-! *****************************************************************************
- FUNCTION interpolation_search(history, Efind) RESULT(res)
-    TYPE(history_type), INTENT(IN)           :: history
-    REAL(KIND=dp), INTENT(IN)                :: Efind
-    INTEGER                                  :: res
-
-    INTEGER                                  :: high, low, mid
-    REAL(KIND=dp)                            :: slope
-
-    low = 1
-    high = history%length
-
-    DO WHILE(low < high)
-       !linear interpolation
-       slope = REAL(high - low) / (history%entries(high)%p%Epot - history%entries(low)%p%Epot)
-       mid = low + slope * (Efind - history%entries(low)%p%Epot)
-       mid = MIN(MAX(mid, low), high)
-
-       IF (history%entries(mid)%p%Epot < Efind) THEN
-        low = mid +1
-       ELSE
-        high = mid -1
-       END IF
-    END DO
-
-
-    IF(0<low .AND. low<=history%length) THEN
-      IF(Efind > history%entries(low)%p%Epot) low=low+1
-    END IF
-
-    res = low
- END FUNCTION interpolation_search
-
-
-! *****************************************************************************
+!> \brief Addes a new fingerprints to the history.
+!>        Optionally, an abitrary id can be stored alongside the fingerprint.
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE history_add(history, fingerprint, id)
     TYPE(history_type), INTENT(INOUT)        :: history
@@ -209,6 +219,8 @@ MODULE glbopt_history
 
 
 ! *****************************************************************************
+!> \brief Checks if a given fingerprints is contained in the history.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE history_lookup(history, fingerprint, found, id)
     TYPE(history_type), INTENT(IN)           :: history
@@ -257,10 +269,47 @@ MODULE glbopt_history
 
  END SUBROUTINE history_lookup
 
- 
- 
+
 ! *****************************************************************************
-! \brief Routine used for debugging. It performs a slow linear search.
+!> \brief Helper routine for history_lookup
+!> \author Ole Schuett
+! *****************************************************************************
+ FUNCTION interpolation_search(history, Efind) RESULT(res)
+    TYPE(history_type), INTENT(IN)           :: history
+    REAL(KIND=dp), INTENT(IN)                :: Efind
+    INTEGER                                  :: res
+
+    INTEGER                                  :: high, low, mid
+    REAL(KIND=dp)                            :: slope
+
+    low = 1
+    high = history%length
+
+    DO WHILE(low < high)
+       !linear interpolation
+       slope = REAL(high - low) / (history%entries(high)%p%Epot - history%entries(low)%p%Epot)
+       mid = low + slope * (Efind - history%entries(low)%p%Epot)
+       mid = MIN(MAX(mid, low), high)
+
+       IF (history%entries(mid)%p%Epot < Efind) THEN
+        low = mid +1
+       ELSE
+        high = mid -1
+       END IF
+    END DO
+
+
+    IF(0<low .AND. low<=history%length) THEN
+      IF(Efind > history%entries(low)%p%Epot) low=low+1
+    END IF
+
+    res = low
+ END FUNCTION interpolation_search
+
+
+! *****************************************************************************
+!> \brief Debugging routine, performs a slow (but robust) linear search.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE verify_history_lookup(history, fingerprint, found_i_ref)
     TYPE(history_type), INTENT(IN)           :: history
@@ -293,50 +342,24 @@ MODULE glbopt_history
 
  END SUBROUTINE verify_history_lookup
 
-! *****************************************************************************
-! Credit: Stefan Goedecker
-! ***************************************************************************** 
- SUBROUTINE goedecker_fingerprint(pos, res)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pos
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: res
-
-    INTEGER                                  :: i, info, j, N
-    REAL(KIND=dp)                            :: d2, t
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: matrix, work
-    REAL(KIND=dp), DIMENSION(3)              :: d
-
-    IF(ASSOCIATED(res)) CALL mp_abort("goedecker_fingerprint: res already allocated")
-    N = SIZE(pos) / 3 ! number of atoms
-
-    ALLOCATE(matrix(N,N), work(N,N))
-    DO i=1,N
-      matrix(i,i) = 1.0
-      DO j=i+1,N
-        d = pos(3*i-2:3*i) - pos(3*j-2:3*j)
-        d2 = SUM(d**2)
-        t=EXP(-0.5 * d2)
-        matrix(i,j) = t
-        matrix(j, i) = t
-      ENDDO
-    ENDDO
-    !TODO: call dsyv through cp2k wrappers
-    !TODO: do we need to store lower triangle of matrix?
-    ALLOCATE(res(N))
-    CALL DSYEV('N','U',N,matrix,N, res, work, N**2, info)
-    IF(info /= 0) CALL mp_abort("goedecker_fingerprint: DSYEV failed")
- END SUBROUTINE goedecker_fingerprint
-
 
 ! *****************************************************************************
-! Credit: Stefan Goedecker
-! ***************************************************************************** 
- PURE FUNCTION fingerprint_distance(fp1, fp2) RESULT(res)
-    TYPE(history_fingerprint_type), &
-      INTENT(IN)                             :: fp1, fp2
-    REAL(KIND=dp)                            :: res
+!> \brief Finalizes a history.
+!> \author Ole Schuett
+! *****************************************************************************
+ SUBROUTINE history_finalize(history)
+    TYPE(history_type)                       :: history
 
-     res = SQRT(SUM( (fp1%goedecker - fp2%goedecker)**2 )/SIZE(fp1%goedecker))
- END FUNCTION fingerprint_distance
+    INTEGER                                  :: i
+
+    DO i=1, SIZE(history%entries)
+      IF(ASSOCIATED(history%entries(i)%p)) &
+          DEALLOCATE(history%entries(i)%p)
+    END DO
+
+    DEALLOCATE(history%entries)
+
+ END SUBROUTINE history_finalize
+
 
 END MODULE glbopt_history

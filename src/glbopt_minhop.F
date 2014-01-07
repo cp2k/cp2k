@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Routines for the Minima Hopping global optimization scheme
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_minhop
   USE bibliography,                    ONLY: Goedecker2004,&
@@ -90,6 +89,8 @@ MODULE glbopt_minhop
 
 
 ! *****************************************************************************
+!> \brief Initializes master for Minima Hopping
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE minhop_init(this, glbopt_section, n_workers, iw, error)
     TYPE(minhop_type)                        :: this
@@ -146,6 +147,8 @@ MODULE glbopt_minhop
 
 
 ! *****************************************************************************
+!> \brief Central steering routine of Minima Hopping
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE minhop_steer(this, report, cmd)
     TYPE(minhop_type)                        :: this
@@ -259,6 +262,8 @@ MODULE glbopt_minhop
 
 
 ! *****************************************************************************
+!> \brief Finalizes master for Minima Hopping
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE minhop_finalize(this)
     TYPE(minhop_type)                        :: this
@@ -269,7 +274,6 @@ MODULE glbopt_minhop
       CALL history_finalize(this%history(i))
     END DO
  END SUBROUTINE minhop_finalize
-
 
 
 END MODULE glbopt_minhop

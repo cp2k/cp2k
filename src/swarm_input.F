@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Declares the input for swarm framework
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_input
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -36,8 +35,10 @@ MODULE swarm_input
   CONTAINS
 
 
-!! *****************************************************************************
-!! *****************************************************************************
+! *****************************************************************************
+!> \brief Declares the SWARM input section
+!> \author Ole Schuett
+! *****************************************************************************
   SUBROUTINE create_swarm_section(swarm_section,error)
     TYPE(section_type), POINTER              :: swarm_section
     TYPE(cp_error_type), INTENT(inout)       :: error

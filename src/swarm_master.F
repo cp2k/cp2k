@@ -3,10 +3,10 @@
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Master's routines for the swarm-framework
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_master
   USE cp_external_control,             ONLY: external_control
@@ -81,10 +81,10 @@ MODULE swarm_master
  CONTAINS
 
 
-
 ! *****************************************************************************
+!> \brief Initializes the swarm master
+!> \author Ole Schuett
 ! *****************************************************************************
-! TODO: input_path and root_section not really need
  SUBROUTINE swarm_master_init(master, para_env, globenv, root_section, input_path, n_workers, error)
     TYPE(swarm_master_type)                  :: master
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -135,9 +135,9 @@ MODULE swarm_master
  END SUBROUTINE swarm_master_init
 
 
-
-
 ! *****************************************************************************
+!> \brief Helper routine for swarm_master_init, restarts a calculation
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE replay_comlog(master)
     TYPE(swarm_master_type)                  :: master
@@ -205,6 +205,8 @@ MODULE swarm_master
 
 
 ! *****************************************************************************
+!> \brief Helper routine for replay_comlog, compares two commands
+!> \author Ole Schuett
 ! *****************************************************************************
  FUNCTION commands_equal(cmd1, cmd2, iw) RESULT(res)
     TYPE(swarm_message_type)                 :: cmd1, cmd2
@@ -221,8 +223,9 @@ MODULE swarm_master
  END FUNCTION commands_equal
 
 
-
 ! *****************************************************************************
+!> \brief Central steering routine of the swarm master
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE swarm_master_steer(master, report, cmd)
     TYPE(swarm_master_type), INTENT(INOUT)   :: master
@@ -315,6 +318,8 @@ MODULE swarm_master
 
 
 ! *****************************************************************************
+!> \brief Finalizes the swarm master
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE swarm_master_finalize(master)
     TYPE(swarm_master_type)                  :: master
@@ -344,6 +349,7 @@ MODULE swarm_master
 
     CALL rm_timer_env() !pops the top-most timer
  END SUBROUTINE swarm_master_finalize
+
 
 END MODULE swarm_master
 

@@ -4,9 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs global geometry optimization
-!> \par History
-!> \author Ole
+!> \brief Worker routines used by global optimization schemes
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE glbopt_worker
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -73,9 +72,9 @@ MODULE glbopt_worker
  CONTAINS
 
 
-
-
 ! *****************************************************************************
+!> \brief Initializes worker for global optimization
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE glbopt_worker_init(worker, para_env, root_section,&
                  input_path, worker_id, iw, error)
@@ -133,21 +132,9 @@ MODULE glbopt_worker
   END SUBROUTINE glbopt_worker_init
 
 
-
 ! *****************************************************************************
-! *****************************************************************************
-   SUBROUTINE glbopt_worker_finalize(worker)
-    TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
-
-    INTEGER                                  :: ierr
-
-     CALL f_env_rm_defaults(worker%f_env, worker%error)
-     CALL destroy_force_env(worker%f_env_id, ierr)
-     IF(ierr /= 0) STOP "glbopt_worker_finalize: destroy_force_env failed"
-   END SUBROUTINE glbopt_worker_finalize
-
-
-! *****************************************************************************
+!> \brief Central execute routine of global optimization worker
+!> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE glbopt_worker_execute(worker, cmd, report)
     TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
@@ -167,6 +154,8 @@ MODULE glbopt_worker
 
 
 ! *****************************************************************************
+!> \brief Performs an escape attempt as need by e.g. Minima Hopping
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE run_mdgopt(worker, cmd, report)
     TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
@@ -270,7 +259,8 @@ MODULE glbopt_worker
 
 
 ! *****************************************************************************
-! Credit: Stefan Goedecker
+!> \brief Helper routine for run_mdgopt, fixes a fragmented atomic cluster.
+!> \author Stefan Goedecker
 ! *****************************************************************************
   FUNCTION fix_fragmentation(positions, bondlength) RESULT(all_connected)
     REAL(KIND=dp), DIMENSION(:)              :: positions
@@ -334,7 +324,10 @@ MODULE glbopt_worker
 
   END FUNCTION fix_fragmentation
 
+
 ! *****************************************************************************
+!> \brief Helper routine for fix_fragmentation, calulates atomic distance
+!> \author Ole Schuett
 ! *****************************************************************************
 PURE FUNCTION diff(positions, i, j) RESULT(dr)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: positions
@@ -346,6 +339,8 @@ END FUNCTION diff
 
 
 ! *****************************************************************************
+!> \brief Helper routine for fix_fragmentation, calulates vector norm
+!> \author Ole Schuett
 ! *****************************************************************************
 PURE FUNCTION norm(vec) RESULT(res)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vec
@@ -353,6 +348,21 @@ PURE FUNCTION norm(vec) RESULT(res)
 
     res = SQRT(DOT_PRODUCT(vec,vec))
 END FUNCTION norm
+
+
+! *****************************************************************************
+!> \brief Finalizes worker for global optimization
+!> \author Ole Schuett
+! *****************************************************************************
+   SUBROUTINE glbopt_worker_finalize(worker)
+    TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
+
+    INTEGER                                  :: ierr
+
+     CALL f_env_rm_defaults(worker%f_env, worker%error)
+     CALL destroy_force_env(worker%f_env_id, ierr)
+     IF(ierr /= 0) STOP "glbopt_worker_finalize: destroy_force_env failed"
+   END SUBROUTINE glbopt_worker_finalize
 
 
 END MODULE glbopt_worker
