@@ -10,8 +10,10 @@
 ! *****************************************************************************
 MODULE glbopt_input
   USE bibliography,                    ONLY: Goedecker2004
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants,                 ONLY: glbopt_do_mincrawl,&
-                                             glbopt_do_minhop
+                                             glbopt_do_minhop,&
+                                             low_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -44,9 +46,9 @@ MODULE glbopt_input
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: glbopt_section
+    TYPE(section_type), POINTER              :: glbopt_section, printkey
 
-    NULLIFY(glbopt_section, keyword)
+    NULLIFY(glbopt_section, keyword, printkey)
 
     CALL section_create(glbopt_section,name="GLOBAL_OPT",&
          description="Section to control global geometry optimizations.",&
@@ -98,6 +100,14 @@ MODULE glbopt_input
     !     default_r_val=0.0_dp, type_of_var=real_t,error=error)
     !CALL section_add_keyword(glbopt_section, keyword, error=error)
     !CALL keyword_release(keyword, error=error)
+
+    CALL cp_print_key_section_create(printkey,"PROGRESS_TRAJECTORY",&
+            description="Printkey to controll the writting of the progress trajectory. "//&
+            "This trajectory contains the minima, which are lower in energy than the by then lowerest.",&
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",unit_str="angstrom",error=error)
+    CALL section_add_subsection(glbopt_section,printkey,error=error)
+    CALL section_release(printkey,error=error)
 
     CALL history_declare_input(glbopt_section, error=error)
     CALL minhop_declare_input(glbopt_section, error=error)
@@ -223,9 +233,9 @@ MODULE glbopt_input
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: mincrawl_section
+    TYPE(section_type), POINTER              :: mincrawl_section, printkey
 
-    NULLIFY(mincrawl_section, keyword)
+    NULLIFY(mincrawl_section, keyword, printkey)
 
     CALL section_create(mincrawl_section,name="MINIMA_CRAWLING",&
          description="Section controls Minima Crawling run.",&
@@ -278,6 +288,14 @@ MODULE glbopt_input
          default_i_val=10, type_of_var=integer_t,error=error)
     CALL section_add_keyword(mincrawl_section, keyword, error=error)
     CALL keyword_release(keyword, error=error)
+
+    CALL cp_print_key_section_create(printkey,"MINIMA_TRAJECTORY",&
+            description="Printkey to controll the writting of the minima trajectory. "//&
+            "This trajectory contains all encountered local minima.",&
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",unit_str="angstrom",error=error)
+    CALL section_add_subsection(mincrawl_section,printkey,error=error)
+    CALL section_release(printkey,error=error)
 
     CALL section_add_subsection(glbopt_section,mincrawl_section,error=error)
     CALL section_release(mincrawl_section,error=error)

@@ -126,7 +126,7 @@ MODULE swarm_master
     SELECT CASE(master%behavior)
       CASE(swarm_do_glbopt)
          ALLOCATE(master%glbopt)
-         CALL glbopt_master_init(master%glbopt, para_env, master%swarm_section, input_path, n_workers, master%iw, error)
+         CALL glbopt_master_init(master%glbopt, para_env, root_section, input_path, n_workers, master%iw, error)
       CASE DEFAULT
          STOP "swarm_master_init: got unkown behavior"
     END SELECT
@@ -272,8 +272,6 @@ MODULE swarm_master
 
     !IF(unit > 0) &
 
-    CALL swarm_message_add(cmd, "worker_id", worker_id)
-
     IF(master%should_stop) THEN
        CALL swarm_message_add(cmd, "command", "shutdown")
        IF(master%iw>0) WRITE(master%iw,'(1X,A,T71,I10)') &
@@ -287,13 +285,15 @@ MODULE swarm_master
        END SELECT
 
        IF(should_stop) THEN
-          !TODO: does overwritting entries in swarm_message actually work?
+          CALL swarm_message_free(cmd)
           CALL swarm_message_add(cmd, "command", "shutdown") !overwrite command
           IF(master%iw>0) WRITE(master%iw,'(1X,A,T71,I10)') &
               "SWARM| Sending shutdown command to worker",worker_id
            master%should_stop = .TRUE.
        ENDIF
     ENDIF
+
+    CALL swarm_message_add(cmd, "worker_id", worker_id)
 
     ! Don't pollute comlog with "continue waiting"-commands.
     CALL swarm_message_get(report, "status", status)

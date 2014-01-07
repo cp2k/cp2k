@@ -9,6 +9,8 @@
 !> \author Ole
 ! *****************************************************************************
 MODULE glbopt_mincrawl
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE glbopt_history,                  ONLY: history_add,&
                                              history_finalize,&
                                              history_fingerprint,&
@@ -16,6 +18,7 @@ MODULE glbopt_mincrawl
                                              history_init,&
                                              history_lookup,&
                                              history_type
+  USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -25,6 +28,8 @@ MODULE glbopt_mincrawl
                                              delete_rng_stream,&
                                              next_random_number,&
                                              rng_stream_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_coordinates
   USE physcon,                         ONLY: kelvin
   USE swarm_message,                   ONLY: swarm_message_add,&
                                              swarm_message_get,&
@@ -68,23 +73,22 @@ MODULE glbopt_mincrawl
    TYPE(history_type)                                  :: history
    TYPE(worker_state_type), DIMENSION(:), ALLOCATABLE  :: workers
    TYPE(minima_p_type), DIMENSION(:), ALLOCATABLE      :: minimas
-
    REAL(KIND=dp)                                       :: tempstep_base = 0
    INTEGER                                             :: tempstep_max = 0
    REAL(KIND=dp)                                       :: tempdist_init_width = 0
    REAL(KIND=dp)                                       :: tempdist_update_width = 0
    REAL(KIND=dp)                                       :: tempdist_update_height = 0
    INTEGER                                             :: esc_hist_len = 0
-
    INTEGER                                             :: tempstep_init = 0
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: tempdist_init
-
    INTEGER                                             :: n_minima = 0
    INTEGER                                             :: n_workers = 0
    INTEGER                                             :: worker_per_min = 0
    INTEGER                                             :: iw = 0
-
+   INTEGER                                             :: minima_traj_unit = 0
+   TYPE(section_vals_type), POINTER                    :: mincrawl_section => Null()
    TYPE(rng_stream_type),POINTER                       :: rng_stream => Null()
+   TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set => Null()
    TYPE(cp_error_type)                                 :: error
  END TYPE mincrawl_type
 
@@ -93,41 +97,54 @@ MODULE glbopt_mincrawl
 
 ! *****************************************************************************
 ! *****************************************************************************
- SUBROUTINE mincrawl_init(this, glbopt_section, n_workers, iw, error)
+ SUBROUTINE mincrawl_init(this, glbopt_section, n_workers, iw, particle_set, error)
     TYPE(mincrawl_type)                      :: this
     TYPE(section_vals_type), POINTER         :: glbopt_section
     INTEGER, INTENT(IN)                      :: n_workers, iw
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
     REAL(kind=dp)                            :: temp_in_kelvin
-    TYPE(section_vals_type), POINTER         :: history_section, &
-                                                mincrawl_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: history_section
 
-! read input
+    NULLIFY(logger, history_section)
 
-    mincrawl_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_CRAWLING", error=error)
-    CALL section_vals_val_get(mincrawl_section,"TEMPSTEP_BASE",         r_val=this%tempstep_base,error=error)
-    CALL section_vals_val_get(mincrawl_section,"TEMPSTEP_MAX",          i_val=this%tempstep_max,error=error)
-    CALL section_vals_val_get(mincrawl_section,"TEMPDIST_INIT_WIDTH",   r_val=this%tempdist_init_width,error=error)
-    CALL section_vals_val_get(mincrawl_section,"TEMPDIST_UPDATE_WIDTH", r_val=this%tempdist_update_width,error=error)
-    CALL section_vals_val_get(mincrawl_section,"TEMPDIST_UPDATE_HEIGHT",r_val=this%tempdist_update_height,error=error)
-    CALL section_vals_val_get(mincrawl_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin,error=error)
+    ! read input
+    this%mincrawl_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_CRAWLING", error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPSTEP_BASE",         r_val=this%tempstep_base,error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPSTEP_MAX",          i_val=this%tempstep_max,error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_INIT_WIDTH",   r_val=this%tempdist_init_width,error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_UPDATE_WIDTH", r_val=this%tempdist_update_width,error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_UPDATE_HEIGHT",r_val=this%tempdist_update_height,error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin,error=error)
     this%tempstep_init = temp2tempstep(this, temp_in_kelvin / kelvin)
-    CALL section_vals_val_get(mincrawl_section,"WORKER_PER_MINIMA", i_val=this%worker_per_min, error=error)
-    CALL section_vals_val_get(mincrawl_section,"ESCAPE_HISTORY_LENGTH", i_val=this%esc_hist_len, error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"WORKER_PER_MINIMA", i_val=this%worker_per_min, error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"ESCAPE_HISTORY_LENGTH", i_val=this%esc_hist_len, error=error)
 
+    !init minima trajectory
+    logger => cp_error_get_logger(error)
+    this%minima_traj_unit = cp_print_key_unit_nr(logger, &
+      this%mincrawl_section,"MINIMA_TRAJECTORY", &
+      middle_name="minima", extension=".xyz", &
+      file_action="WRITE", file_position="REWIND", error=error)
+
+    !init history
     history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY", error=error)
     CALL history_init(this%history, history_section, iw=iw, error=error)
 
+    !allocate data structures
     ALLOCATE(this%minimas(1000)) !will be grown if needed
 
     ALLOCATE(this%workers(n_workers))
     this%n_workers = n_workers
     this%iw = iw
+    this%particle_set => particle_set
     this%error = error
 
-    ! fermi-like stepfunction
+    ! call fermi-like stepfunction for initial temp-dist
     ALLOCATE(this%tempdist_init(this%tempstep_max))
     this%tempdist_init = 0.0
     DO i=1, this%tempstep_max
@@ -378,7 +395,7 @@ MODULE glbopt_mincrawl
          IF(report_Epot < start_minima%Epot) THEN
            start_minima%disabled = .TRUE.
            IF(this%iw > 0) WRITE(this%iw,'(1X,A,T71,I10)') &
-             "MINCRAWL| Disabling minima with id", start_minima%id
+             "MINCRAWL| Disabling minimum with id", start_minima%id
          ENDIF
        ENDIF
 
@@ -386,9 +403,35 @@ MODULE glbopt_mincrawl
           "MINCRAWL| Adding new minima with id", new_mid
 
        CALL history_add(this%history, report_fp, id=new_mid)
+       CALL write_minima_traj(this, wid, new_mid, report_Epot, report_positions)
     ENDIF
     DEALLOCATE(report_positions)
  END SUBROUTINE mincrawl_register_minima
+
+
+! *****************************************************************************
+! *****************************************************************************
+ SUBROUTINE write_minima_traj(this, worker_id, minimum_id, Epot, positions)
+    TYPE(mincrawl_type), INTENT(INOUT)       :: this
+    INTEGER, INTENT(IN)                      :: worker_id, minimum_id
+    REAL(KIND=dp), INTENT(IN)                :: Epot
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: positions
+
+    CHARACTER(len=default_string_length)     :: title
+
+    IF(this%minima_traj_unit <= 0) RETURN
+
+    WRITE (title, '(A,I8,A,I5,A,F20.10)') 'minimum_id = ',minimum_id, &
+      ' worker_id = ',worker_id, ' Epot = ', Epot
+    CALL write_particle_coordinates(this%particle_set,&
+                                    iunit=this%minima_traj_unit, &
+                                    output_format=dump_xmol, &
+                                    content="POS", &
+                                    title=TRIM(title), &
+                                    array=positions,&
+                                    error=this%error)
+ END SUBROUTINE write_minima_traj
+
 
 ! *****************************************************************************
 ! *****************************************************************************
@@ -396,11 +439,18 @@ MODULE glbopt_mincrawl
     TYPE(mincrawl_type)                      :: this
 
     INTEGER                                  :: i
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
 
     DO i=1, this%n_minima
-   !   WRITE (*,*) "Minima: ", i, " n_sampled: ",this%minimas(i)%n_sampled
+       !WRITE (*,*) "Minima: ", i, " n_sampled: ",this%minimas(i)%n_sampled
        DEALLOCATE(this%minimas(i)%p)
     ENDDO
+
+    logger => cp_error_get_logger(this%error)
+    CALL cp_print_key_finished_output(this%minima_traj_unit, logger, &
+      this%mincrawl_section, "MINIMA_TRAJECTORY", error=this%error)
 
     CALL history_finalize(this%history)
     CALL delete_rng_stream(this%rng_stream, error=this%error)
