@@ -124,7 +124,8 @@ MODULE molecule_types_new
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_molecule_set,&
+  PUBLIC :: deallocate_global_constraint,&
+            allocate_molecule_set,&
             deallocate_molecule_set,&
             get_molecule,&
             set_molecule,&
@@ -133,6 +134,59 @@ MODULE molecule_types_new
             get_molecule_set_info
 
 CONTAINS
+
+
+! *****************************************************************************
+!> \brief   Deallocate a global constraint.
+!> \author  Ole Schuett
+!> \par History
+!>      07.2003 created [fawzi]
+!>      01.2014 moved from cp_subsys_release() into separate routine.
+! *****************************************************************************
+  SUBROUTINE deallocate_global_constraint(gci, error)
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i
+
+    IF (ASSOCIATED(gci)) THEN
+       ! List of constraints
+       IF (ASSOCIATED(gci%colv_list)) THEN
+          DO i=1, SIZE(gci%colv_list)
+             DEALLOCATE (gci%colv_list(i)%i_atoms)
+          END DO
+          DEALLOCATE (gci%colv_list)
+       END IF
+
+       IF (ASSOCIATED(gci%g3x3_list)) &
+          DEALLOCATE (gci%g3x3_list)
+
+       IF (ASSOCIATED(gci%g4x6_list)) &
+          DEALLOCATE (gci%g4x6_list)
+
+       ! Local information
+       IF (ASSOCIATED(gci%lcolv)) THEN
+          DO i=1, SIZE(gci%lcolv)
+             CALL colvar_release(gci%lcolv(i)%colvar,error=error)
+             CALL colvar_release(gci%lcolv(i)%colvar_old,error=error)
+             NULLIFY(gci%lcolv(i)%colvar, gci%lcolv(i)%colvar_old)
+          END DO
+          DEALLOCATE (gci%lcolv)
+       ENDIF
+
+       IF (ASSOCIATED(gci%lg3x3)) &
+          DEALLOCATE (gci%lg3x3)
+
+       IF (ASSOCIATED(gci%lg4x6)) &
+          DEALLOCATE (gci%lg4x6)
+
+       IF (ASSOCIATED(gci%fixd_list)) &
+          DEALLOCATE (gci%fixd_list)
+
+       DEALLOCATE (gci)
+    ENDIF
+  END SUBROUTINE deallocate_global_constraint
+
 
 ! *****************************************************************************
 !> \brief   Allocate a molecule set.
@@ -460,7 +514,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_molecule_set_info(molecule_set,atom_to_mol,mol_to_first_atom,&
     mol_to_last_atom,mol_to_nelectrons,mol_to_nbasis,error)
-    
+
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, DIMENSION(:), INTENT(OUT), &

@@ -19,8 +19,8 @@ MODULE cp_subsys_types
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE colvar_types,                    ONLY: colvar_p_type,&
-                                             colvar_release
+  USE colvar_types,                    ONLY: colvar_p_release,&
+                                             colvar_p_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -35,7 +35,8 @@ MODULE cp_subsys_types
   USE mol_new_list_types,              ONLY: mol_new_list_release,&
                                              mol_new_list_retain,&
                                              mol_new_list_type
-  USE molecule_types_new,              ONLY: global_constraint_type
+  USE molecule_types_new,              ONLY: deallocate_global_constraint,&
+                                             global_constraint_type
   USE multipole_types,                 ONLY: multipole_type,&
                                              release_multipole_type,&
                                              retain_multipole_type
@@ -194,11 +195,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (ASSOCIATED(subsys)) THEN
        CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
        subsys%ref_count=subsys%ref_count-1
@@ -212,67 +208,10 @@ CONTAINS
           CALL mol_new_list_release(subsys%molecules_new, error=error)
           CALL distribution_1d_release(subsys%local_molecules_new,error=error)
           CALL cp_para_env_release(subsys%para_env, error=error)
-          ! Multipoles
-          IF(ASSOCIATED(subsys%multipoles)) THEN
-             CALL release_multipole_type(subsys%multipoles, error)
-          END IF
-          ! Colvar info
-          IF(ASSOCIATED(subsys%colvar_p)) THEN
-             DO i=1,SIZE(subsys%colvar_p)
-                IF (ASSOCIATED(subsys%colvar_p(i)%colvar)) THEN
-                   CALL colvar_release(subsys%colvar_p(i)%colvar,error)
-                END IF
-             ENDDO
-             DEALLOCATE(subsys%colvar_p,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          ! Intermolecular constraints
-          IF (ASSOCIATED(subsys%gci)) THEN
-             ! List of constraints
-             IF (ASSOCIATED(subsys%gci%colv_list)) THEN
-                DO j = 1, SIZE(subsys%gci%colv_list)
-                   DEALLOCATE (subsys%gci%colv_list(j)%i_atoms,STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                END DO
-                DEALLOCATE (subsys%gci%colv_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-             IF (ASSOCIATED(subsys%gci%g3x3_list)) THEN
-                DEALLOCATE (subsys%gci%g3x3_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-             IF (ASSOCIATED(subsys%gci%g4x6_list)) THEN
-                DEALLOCATE (subsys%gci%g4x6_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-             ! Local information
-             IF (ASSOCIATED(subsys%gci%lcolv)) THEN
-                DO j = 1, SIZE(subsys%gci%lcolv)
-                   CALL colvar_release(subsys%gci%lcolv(j)%colvar,error=error)
-                   CALL colvar_release(subsys%gci%lcolv(j)%colvar_old,error=error)
-                   NULLIFY(subsys%gci%lcolv(j)%colvar)
-                   NULLIFY(subsys%gci%lcolv(j)%colvar_old)
-                END DO
-                DEALLOCATE (subsys%gci%lcolv,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ENDIF
-             IF (ASSOCIATED(subsys%gci%lg3x3)) THEN
-                DEALLOCATE (subsys%gci%lg3x3,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ENDIF
-             IF (ASSOCIATED(subsys%gci%lg4x6)) THEN
-                DEALLOCATE (subsys%gci%lg4x6,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ENDIF
-             IF (ASSOCIATED(subsys%gci%fixd_list)) THEN
-                DEALLOCATE (subsys%gci%fixd_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ENDIF
-             DEALLOCATE (subsys%gci,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ENDIF
-          DEALLOCATE(subsys, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CALL release_multipole_type(subsys%multipoles, error)
+          CALL colvar_p_release(subsys%colvar_p, error)
+          CALL deallocate_global_constraint(subsys%gci, error)
+          DEALLOCATE(subsys)
        END IF
     END IF
   END SUBROUTINE cp_subsys_release

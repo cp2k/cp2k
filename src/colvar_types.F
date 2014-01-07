@@ -41,6 +41,7 @@ MODULE colvar_types
   PUBLIC :: colvar_type,&
             colvar_p_type,&
             colvar_p_reallocate,&
+            colvar_p_release,&
             colvar_create,&
             colvar_clone,&
             colvar_setup,&
@@ -1892,6 +1893,32 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE colvar_p_reallocate
+
+
+! *****************************************************************************
+!> \brief Deallocate a set of colvar_p_type
+!> \author Ole Schuett
+!> \par History
+!>      07.2003 created [fawzi]
+!>      01.2014 moved from cp_subsys_release() into separate routine.
+! *****************************************************************************
+  SUBROUTINE colvar_p_release(colvar_p, error)
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i
+
+! Colvar info
+
+     IF(ASSOCIATED(colvar_p)) THEN
+        DO i=1,SIZE(colvar_p)
+           IF (ASSOCIATED(colvar_p(i)%colvar)) &
+              CALL colvar_release(colvar_p(i)%colvar,error)
+        ENDDO
+        DEALLOCATE(colvar_p)
+     END IF
+  END SUBROUTINE colvar_p_release
 
 ! *****************************************************************************
 !> \brief Evaluate the position of the geometrical point
