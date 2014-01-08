@@ -348,7 +348,7 @@ CONTAINS
     CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
     CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
-         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
+         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit, error)
 
     CALL cp_fm_struct_release(fm_struct_hes,error=error)
     CALL cp_fm_release(hess_mat,error=error)

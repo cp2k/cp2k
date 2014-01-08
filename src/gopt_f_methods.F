@@ -302,7 +302,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
-       para_env, master, error)
+       para_env, master, output_unit, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
@@ -310,7 +310,7 @@ CONTAINS
     INTEGER                                  :: its
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: master
+    INTEGER, INTENT(IN)                      :: master, output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_finalize', &
@@ -318,8 +318,8 @@ CONTAINS
 
     IF (gopt_env%eval_opt_geo) THEN
        IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL write_final_info(conv, its, gopt_env, x0, master, para_env, force_env,&
-               gopt_env%motion_section, root_section, error)
+          CALL write_final_info(output_unit, conv, its, gopt_env, x0, master, &
+             para_env, force_env, gopt_env%motion_section, root_section, error)
        ELSE
           CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
           CALL write_restart(force_env=force_env,root_section=root_section,&
@@ -630,8 +630,9 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date  11.2007
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
+  RECURSIVE SUBROUTINE write_final_info(output_unit, conv, it, gopt_env, x0, master, para_env, force_env,&
     motion_section, root_section, error)
+    INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: conv
     INTEGER, INTENT(INOUT)                   :: it
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -645,19 +646,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_final_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: etot
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
     CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
@@ -667,11 +664,10 @@ CONTAINS
       CALL write_structure_data(particle_set,cell,motion_section,error)
       CALL write_restart(force_env=force_env,root_section=root_section,&
                          error=error)
-      ! Write out more data for the minimum
-      unit_nr = cp_logger_get_default_io_unit(logger)
-      IF (unit_nr > 0) THEN
-        WRITE (UNIT=unit_nr,FMT="(/,T20,' Reevaluating energy at the minimum')")
-      END IF
+
+      IF (output_unit > 0) &
+        WRITE (UNIT=output_unit,FMT="(/,T20,' Reevaluating energy at the minimum')")
+
       CALL cp_eval_at(gopt_env,x0,f=etot,master=master,final_evaluation=.TRUE.,&
                       para_env=para_env,error=error)
       CALL write_geo_traj(force_env,root_section,it,etot,error)

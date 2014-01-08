@@ -94,16 +94,12 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".geoLog",error=error)
        CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
-       CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)
 
        ! Stop if not implemented
-       SELECT CASE (gopt_env%type_id)
-       CASE (default_ts_method_id)
+       IF(gopt_env%type_id == default_ts_method_id) &
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="BFGS method not yet working with DIMER", &
                error=error, error_level=cp_failure_level)
-       END SELECT
 
        CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env,&
             x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error,&
@@ -137,7 +133,7 @@ CONTAINS
        ! Write final output information, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
        CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section,&
-            optimizer%para_env, optimizer%master, error)
+            optimizer%para_env, optimizer%master, output_unit,  error)
 
        CALL cp_opt_gopt_release(optimizer, error=error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&

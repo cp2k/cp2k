@@ -153,7 +153,7 @@ CONTAINS
        ALLOCATE(xold(SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL force_env_get(force_env,cell=cell,error=error)
-       
+
        ! Evaluate energy and forces at the first step
        ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
        save_consistent_energy_force = gopt_env%require_consistent_energy_force
@@ -228,7 +228,7 @@ CONTAINS
        IF (PRESENT(do_update)) do_update = conv
        CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
        CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
-            gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, error)
+            gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit, error)
 
        DEALLOCATE(xold, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
