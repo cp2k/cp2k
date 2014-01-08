@@ -289,24 +289,42 @@ MODULE swarm_message
     TYPE(swarm_message_type), INTENT(OUT)    :: msg
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(INOUT)                   :: at_end
-    TYPE(cp_error_type)                      :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: key
+    INTEGER                                  :: handle
+
+    CALL timeset("swarm_message_file_read", handle)
+    CALL swarm_message_file_read_low(msg, parser, at_end, error)
+    CALL timestop(handle)
+  END SUBROUTINE swarm_message_file_read
+
+
+! *****************************************************************************
+!> \brief Helper routine, does the actual work of swarm_message_file_read().
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE swarm_message_file_read_low(msg, parser, at_end, error)
+    TYPE(swarm_message_type), INTENT(OUT)    :: msg
+    TYPE(cp_parser_type), POINTER            :: parser
+    LOGICAL, INTENT(INOUT)                   :: at_end
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=20)                        :: label
     INTEGER                                  :: i, length
     TYPE(message_entry_type), POINTER        :: new_entry
 
 !IF(ASSOCIATED(msg%root)) STOP "swarm_message_file_read: message not empty"
 
     CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    IF(TRIM(parser%input_line)/="BEGIN SWARM_MESSAGE") STOP "swarm_message_file_read failed (1)"
+    IF(TRIM(parser%input_line(1:20))/="BEGIN SWARM_MESSAGE") STOP "swarm_message_file_read failed (1)"
 
     CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    READ (parser%input_line,*) key, length
-    IF(TRIM(key)/="msg_length:") STOP "swarm_message_file_read failed (2)"
+    READ (parser%input_line(1:40),*) label, length
+    IF(TRIM(label)/="msg_length:") STOP "swarm_message_file_read failed (2)"
 
     DO i=1, length
        ALLOCATE(new_entry)
@@ -316,11 +334,11 @@ MODULE swarm_message
     END DO
 
     CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    IF(TRIM(parser%input_line)/="END SWARM_MESSAGE") STOP "swarm_message_file_read failed (3)"
+    IF(TRIM(parser%input_line(1:20))/="END SWARM_MESSAGE") STOP "swarm_message_file_read failed (3)"
 
-  END SUBROUTINE swarm_message_file_read
+  END SUBROUTINE swarm_message_file_read_low
 
 
 ! *****************************************************************************
@@ -684,45 +702,46 @@ MODULE swarm_message
     LOGICAL, INTENT(INOUT)                   :: at_end
     TYPE(cp_error_type)                      :: error
 
-    CHARACTER(LEN=default_string_length)     :: datatype, label
+    CHARACTER(LEN=15)                        :: datatype, label
     INTEGER                                  :: arr_size, i
     LOGICAL                                  :: is_scalar
 
     CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    READ (parser%input_line,*) label, entry%key
+    READ (parser%input_line(1:key_length+10),*) label, entry%key
     IF(TRIM(label)/="key:") STOP "swarm_message_entry_file_read failed (1)"
 
     CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    READ (parser%input_line,*) label, datatype
+    READ (parser%input_line(1:30),*) label, datatype
     IF(TRIM(label)/="datatype:") STOP "swarm_message_entry_file_read failed (2)"
 
     CALL parser_get_next_line(parser, 1, at_end, error)
-    at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
+    at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
 
     is_scalar=.TRUE.
-    IF(TRIM(datatype)=="i4") THEN
-       ALLOCATE(entry%value_i4)
-       READ (parser%input_line,*) label, entry%value_i4
-    ELSE IF(TRIM(datatype)=="i8") THEN
-       ALLOCATE(entry%value_i8)
-       READ (parser%input_line,*) label, entry%value_i8
-    ELSE IF(TRIM(datatype)=="r4") THEN
-       ALLOCATE(entry%value_r4)
-       READ (parser%input_line,*) label, entry%value_r4
-    ELSE IF(TRIM(datatype)=="r8") THEN
-       ALLOCATE(entry%value_r8)
-       READ (parser%input_line,*) label, entry%value_r8
-    ELSE IF(TRIM(datatype)=="str") THEN
-       ALLOCATE(entry%value_str)
-       READ (parser%input_line,*) label, entry%value_str
-    ELSE
-       is_scalar = .FALSE.
-    END IF
+    SELECT CASE (TRIM(datatype))
+      CASE("i4")
+         ALLOCATE(entry%value_i4)
+         READ (parser%input_line(1:40),*) label, entry%value_i4
+      CASE("i8")
+         ALLOCATE(entry%value_i8)
+         READ (parser%input_line(1:40),*) label, entry%value_i8
+      CASE("r4")
+         ALLOCATE(entry%value_r4)
+         READ (parser%input_line(1:40),*) label, entry%value_r4
+      CASE("r8")
+         ALLOCATE(entry%value_r8)
+         READ (parser%input_line(1:40),*) label, entry%value_r8
+      CASE("str")
+         ALLOCATE(entry%value_str)
+         READ (parser%input_line(1:40),*) label, entry%value_str
+      CASE DEFAULT
+         is_scalar = .FALSE.
+    END SELECT
 
     IF(is_scalar) THEN
        IF(TRIM(label)/="value:") STOP "swarm_message_entry_file_read failed (3)"
@@ -730,37 +749,41 @@ MODULE swarm_message
     END IF
 
     ! musst be an array-datatype
-    READ (parser%input_line,*) label, arr_size
+    READ (parser%input_line(1:30),*) label, arr_size
     IF(TRIM(label)/="size:") STOP "swarm_message_entry_file_read failed (4)"
 
-    IF(TRIM(datatype)=="i4_1d") THEN
-       ALLOCATE(entry%value_i4_1d(arr_size))
-    ELSE IF(TRIM(datatype)=="i8_1d") THEN
+    SELECT CASE (TRIM(datatype))
+      CASE("i4_1d")
+        ALLOCATE(entry%value_i4_1d(arr_size))
+      CASE("i8_1d")
        ALLOCATE(entry%value_i8_1d(arr_size))
-    ELSE IF(TRIM(datatype)=="r4_1d") THEN
-       ALLOCATE(entry%value_r4_1d(arr_size))
-    ELSE IF(TRIM(datatype)=="r8_1d") THEN
-      ALLOCATE(entry%value_r8_1d(arr_size))
-    ELSE
+      CASE("r4_1d")
+        ALLOCATE(entry%value_r4_1d(arr_size))
+      CASE("r8_1d")
+        ALLOCATE(entry%value_r8_1d(arr_size))
+      CASE DEFAULT
        STOP "swarm_message_entry_file_read: unkown datatype"
-    END IF
+    END SELECT
 
     DO i=1, arr_size
-     CALL parser_get_next_line(parser, 1, at_end, error)
-     at_end = at_end .OR. LEN_TRIM(parser%input_line)==0
-     IF(at_end) RETURN
-     IF(TRIM(datatype)=="i4_1d") THEN
-       READ (parser%input_line,*) entry%value_i4_1d(i)
-     ELSE IF(TRIM(datatype)=="i8_1d") THEN
-       READ (parser%input_line,*) entry%value_i8_1d(i)
-     ELSE IF(TRIM(datatype)=="r4_1d") THEN
-       READ (parser%input_line,*) entry%value_r4_1d(i)
-     ELSE IF(TRIM(datatype)=="r8_1d") THEN
-      READ (parser%input_line,*) entry%value_r8_1d(i)
-     ELSE
-       STOP "swarm_message_entry_file_read: unkown datatype"
-     END IF
-   END DO
+      CALL parser_get_next_line(parser, 1, at_end, error)
+      at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
+      IF(at_end) RETURN
+
+      !Numbers were written with at most 31 characters.
+      SELECT CASE (TRIM(datatype))
+        CASE("i4_1d")
+          READ (parser%input_line(1:31),*) entry%value_i4_1d(i)
+        CASE("i8_1d")
+          READ (parser%input_line(1:31),*) entry%value_i8_1d(i)
+        CASE("r4_1d")
+          READ (parser%input_line(1:31),*) entry%value_r4_1d(i)
+        CASE("r8_1d")
+          READ (parser%input_line(1:31),*) entry%value_r8_1d(i)
+        CASE DEFAULT
+          STOP "swarm_message_entry_file_read: unkown datatype"
+      END SELECT
+    END DO
 
 
   END SUBROUTINE swarm_message_entry_file_read

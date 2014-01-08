@@ -179,8 +179,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iline, istat
+    INTEGER                                  :: handle, iline, istat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
@@ -208,6 +210,7 @@ CONTAINS
                      TRIM(ADJUSTL(cp_to_string(istat)))//")"//&
                      TRIM(parser_location(parser,error=error)),error,failure)
              END IF
+             CALL timestop(handle)
              RETURN
           END IF
        END DO
@@ -217,6 +220,7 @@ CONTAINS
 
     END IF
 
+    CALL timestop(handle)
   END SUBROUTINE parser_read_line
 
 ! *****************************************************************************
@@ -419,7 +423,7 @@ CONTAINS
     INTEGER                                  :: icol
 
     resval = .TRUE.
-    DO icol=1,LEN_TRIM(line)
+    DO icol=1,LEN(line)
        thischar=line(icol:icol)
        IF (.NOT.is_whitespace(thischar)) THEN
           IF (.NOT.is_comment(parser,thischar)) resval=.FALSE.

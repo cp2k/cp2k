@@ -34,12 +34,8 @@ MODULE swarm_master
                                              swarm_message_free,&
                                              swarm_message_get,&
                                              swarm_message_type
-  USE timings,                         ONLY: add_timer_env,&
-                                             rm_timer_env,&
-                                             timer_env_create,&
-                                             timeset,&
+  USE timings,                         ONLY: timeset,&
                                              timestop
-  USE timings_types,                   ONLY: timer_env_type
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
@@ -95,12 +91,6 @@ MODULE swarm_master
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(timer_env_type), POINTER            :: timer_env
-
-    NULLIFY(timer_env)
-    CALL timer_env_create(timer_env)
-    CALL add_timer_env(timer_env)
-    !CALL add_mp_perf_env(f_env%mp_perf_env) TODO: this as well?
 
     master%swarm_section => section_vals_get_subs_vals(root_section, "SWARM", error=error)
 
@@ -144,7 +134,7 @@ MODULE swarm_master
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: command_log
-    INTEGER                                  :: i, worker_id
+    INTEGER                                  :: handle, i, worker_id
     LOGICAL                                  :: at_end, explicit
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(swarm_message_type)                 :: cmd_log, report_log
@@ -162,6 +152,7 @@ MODULE swarm_master
     IF(master%iw>0) WRITE(master%iw,'(A,A)') &
        " SWARM| Starting replay of communication-log: ", TRIM(filename)
 
+    CALL timeset("swarm_master_replay_comlog", handle)
     CALL parser_create(parser, filename, para_env=master%para_env, error=master%error)
 
     at_end = .FALSE.
@@ -201,6 +192,7 @@ MODULE swarm_master
     END DO
 
     CALL parser_release(parser, error=master%error)
+    CALL timestop(handle)
  END SUBROUTINE replay_comlog
 
 
@@ -347,7 +339,7 @@ MODULE swarm_master
     CALL cp_print_key_finished_output(master%comlog_unit, logger,&
             master%swarm_section, "PRINT%COMMUNICATION_LOG", error=master%error)
 
-    CALL rm_timer_env() !pops the top-most timer
+    !CALL rm_timer_env() !pops the top-most timer
  END SUBROUTINE swarm_master_finalize
 
 

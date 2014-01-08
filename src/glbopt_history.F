@@ -13,6 +13,8 @@ MODULE glbopt_history
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_abort
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
@@ -90,7 +92,10 @@ MODULE glbopt_history
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pos
     TYPE(history_fingerprint_type)           :: fp
 
+    INTEGER                                  :: handle
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp
+
+    CALL timeset("glbopt_history_fingerprint", handle)
 
     NULLIFY(tmp)
     fp%Epot = Epot
@@ -100,6 +105,8 @@ MODULE glbopt_history
     ALLOCATE(fp%goedecker(SIZE(tmp)))
     fp%goedecker = tmp
     DEALLOCATE(tmp)
+
+    CALL timestop(handle)
  END FUNCTION history_fingerprint
 
 
@@ -181,9 +188,11 @@ MODULE glbopt_history
       INTENT(IN)                             :: fingerprint
     INTEGER, INTENT(IN), OPTIONAL            :: id
 
-    INTEGER                                  :: k, n
+    INTEGER                                  :: handle, k, n
     TYPE(history_entry_type), DIMENSION(:), &
       POINTER                                :: tmp
+
+    CALL timeset("glbopt_history_add", handle)
 
     n = SIZE(history%entries)
     IF(n == history%length) THEN
@@ -215,6 +224,7 @@ MODULE glbopt_history
        END DO
     ENDIF
 
+    CALL timestop(handle)
  END SUBROUTINE history_add
 
 
@@ -229,43 +239,48 @@ MODULE glbopt_history
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: id
 
-    INTEGER                                  :: found_i, i, k, k_max, k_min
+    INTEGER                                  :: found_i, handle, i, k, k_max, &
+                                                k_min
     REAL(KIND=dp)                            :: best_match, dist, Epot
+
+    CALL timeset("glbopt_history_lookup", handle)
 
     found = .FALSE.
     IF(PRESENT(id)) id = -1
     best_match = HUGE(1.0_dp)
 
-    IF(history%length==0) RETURN
+    IF(history%length>0) THEN
+       Epot = fingerprint%Epot
+       k = interpolation_search(history, fingerprint%Epot)
 
-    Epot = fingerprint%Epot
-    k = interpolation_search(history, fingerprint%Epot)
+       DO k_min=k-1, 1, -1
+         IF(history%entries(k_min)%p%Epot < Epot - history%E_precision) EXIT
+       ENDDO
 
-    DO k_min=k-1, 1, -1
-      IF(history%entries(k_min)%p%Epot < Epot - history%E_precision) EXIT
-    ENDDO
+       DO k_max=k, history%length
+         IF(history%entries(k_max)%p%Epot > Epot + history%E_precision) EXIT
+       ENDDO
 
-    DO k_max=k, history%length
-      IF(history%entries(k_max)%p%Epot > Epot + history%E_precision) EXIT
-    ENDDO
+       k_min = MAX(k_min+1, 1)
+       k_max = MIN(k_max-1, history%length)
 
-    k_min = MAX(k_min+1, 1)
-    k_max = MIN(k_max-1, history%length)
+       IF(debug) found_i = -1
 
-    IF(debug) found_i = -1
+       DO i=k_min, k_max
+          dist = fingerprint_distance(fingerprint, history%entries(i)%p)
+          !WRITE(*,*) "entry ", i, " dist: ",dist
+          IF(dist < history%fp_precision .AND. dist < best_match) THEN
+             best_match = dist
+             found = .TRUE.
+             IF(PRESENT(id)) id = history%entries(i)%id
+             IF(debug) found_i = i
+          END IF
+       ENDDO
 
-    DO i=k_min, k_max
-       dist = fingerprint_distance(fingerprint, history%entries(i)%p)
-       !WRITE(*,*) "entry ", i, " dist: ",dist
-       IF(dist < history%fp_precision .AND. dist < best_match) THEN
-          best_match = dist
-          found = .TRUE.
-          IF(PRESENT(id)) id = history%entries(i)%id
-          IF(debug) found_i = i
-       END IF
-    ENDDO
+       IF(debug) CALL verify_history_lookup(history, fingerprint, found_i)
+    END IF
 
-    IF(debug) CALL verify_history_lookup(history, fingerprint, found_i)
+    CALL timestop(handle)
 
  END SUBROUTINE history_lookup
 
