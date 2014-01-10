@@ -54,10 +54,9 @@ CONTAINS
 
     INTEGER                                  :: handle, info, my_n
     INTEGER, DIMENSION(9)                    :: desca
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
@@ -91,16 +90,10 @@ CONTAINS
 
 #endif
 
-    IF(PRESENT(info_out)) THEN
-      info_out=info
+    IF (PRESENT(info_out)) THEN
+      info_out = info
     ELSE
-      ! this can be output on the master only, as it is anyway synced,
-      ! and doesn't need to be a hard error
-      logger => cp_error_get_logger(error)
-      ionode = logger%para_env%mepos==logger%para_env%source
-      IF (ionode) THEN
-         CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-      ENDIF
+      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)
