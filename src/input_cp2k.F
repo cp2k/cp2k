@@ -61,7 +61,8 @@ MODULE input_cp2k
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
   USE swarm_input,                     ONLY: create_swarm_section
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -2022,7 +2023,9 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="farming",&
-         description="describes a farming job, in which multiple inputs are executed",&
+         description="Describes a farming job, in which multiple inputs are executed."//newline//&
+         "The RUN_TYPE in the global section has to be set to NONE for FARMING."//newline//&
+         "The different groups are executed in parallel. The jobs inside the same groups in series.",&
          repeats=.FALSE., required=.TRUE., supported_feature=.TRUE.,error=error)
     NULLIFY(keyword, print_key)
 

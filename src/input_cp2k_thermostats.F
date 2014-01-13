@@ -482,7 +482,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Yoshida",&
-            description="order of the yoshida integretor usef for the thermostat",&
+            description="order of the yoshida integretor used for the thermostat",&
             usage="Yoshida integer", &
             default_i_val=3,&
             error=error)
