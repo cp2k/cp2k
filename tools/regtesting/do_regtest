@@ -690,19 +690,27 @@ for dir in ${dirs}; do
 
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
-     ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
+     ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
      (( cp2k_exit_status = $? ))
      if (( cp2k_exit_status )); then
         # CP2K failed obviously
+        if (( cp2k_exit_status == 137 )); then
+           # SIGKILL = 9 ... exit code 9+128
+           # usually caused by time-out
+           this_test="KILLED"
+        else
+           this_test="RUNTIME FAIL"
+        fi 
+        #
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
         echo ${output_file} >>${error_description_file}
         tail -40 ${output_file} >>${error_description_file}
+        echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-        this_test="RUNTIME FAIL"
         n_runtime_error=$((n_runtime_error+1))
         failed_tests="${failed_tests} ${output_file}"
      else
-        # but didn't end !?
+        # ran but didn't end !?
         grep -a "ENDED" ${output_file} &> /dev/null
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
