@@ -5553,7 +5553,7 @@ CONTAINS
        NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="INTENSITY",&
-            description="Intensity of the electric field in J*cm-2 which corresponds "//&
+            description="Intensity of a laser field in W*cm-2 which corresponds "//&
             "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16))",&
             usage="INTENSITY  0.001",&
             default_r_val=0._dp,error=error)
