@@ -262,7 +262,7 @@ CONTAINS
     file_name=TRIM(expand_file_name_char(&
                         file_name=tmc_default_restart_out_file_name, &
                         extra=c_tmp, error=error)) 
-    CALL open_file(file_name=file_name, file_status="NEW", &
+    CALL open_file(file_name=file_name, file_status="REPLACE", &
                    file_action="WRITE", file_form="UNFORMATTED", &
                    unit_number=f_unit)
     WRITE(f_unit) SIZE(tmc_env%params%Temp)
