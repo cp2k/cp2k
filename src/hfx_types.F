@@ -434,6 +434,7 @@ MODULE hfx_types
      TYPE(lib_deriv)                          :: lib_deriv
      REAL(dp), DIMENSION(:,:), POINTER        :: pmax_block
      LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list
+     LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list_forces
   END TYPE hfx_type
 
   CONTAINS
@@ -734,6 +735,8 @@ MODULE hfx_types
         actual_x_data%memory_parameter%size_p_screen = 0_int_8
         IF( i_thread == 1 ) THEN
           ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 
@@ -1250,6 +1253,8 @@ MODULE hfx_types
 
         IF( i_thread == 1 ) THEN
           DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%atomic_pair_list_forces, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 

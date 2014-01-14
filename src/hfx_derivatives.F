@@ -36,7 +36,8 @@ MODULE hfx_derivatives
   USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                              hfx_load_balance,&
                                              hfx_update_load_balance
-  USE hfx_pair_list_methods,           ONLY: build_pair_list,&
+  USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
+                                             build_pair_list,&
                                              build_pair_list_pgf,&
                                              build_pgf_product_list
   USE hfx_screening_methods,           ONLY: update_pmax_mat
@@ -746,6 +747,13 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 !$OMP BARRIER
 
+
+    coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
+    ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
 !$OMP BARRIER
 
     IF(actual_x_data%memory_parameter%recalc_forces) THEN
@@ -861,7 +869,12 @@ MODULE hfx_derivatives
         END DO
       END DO
     END IF
-    shm_atomic_pair_list => actual_x_data%atomic_pair_list
+    shm_atomic_pair_list => actual_x_data%atomic_pair_list_forces
+    IF( actual_x_data%memory_parameter%recalc_forces ) THEN
+      CALL build_atomic_pair_list(natom, shm_atomic_pair_list, kind_of,basis_parameter,particle_set, &
+                                  do_periodic,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
+                                  actual_x_data%blocks)
+    END IF
 
     my_bin_size = SIZE(actual_x_data%distribution_forces)
     DO bin=1,my_bin_size
@@ -879,13 +892,6 @@ MODULE hfx_derivatives
         integral_caches        => actual_x_data%integral_caches_forces(:,1)
       END IF
     END IF
-
-
-    coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
-    ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     nblocks = load_balance_parameter%nblocks
 

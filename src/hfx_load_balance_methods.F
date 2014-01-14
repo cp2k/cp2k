@@ -245,7 +245,12 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       pmax_blocks = 0.0_dp
-      atomic_pair_list => x_data%atomic_pair_list
+      SELECT CASE(eval_type)
+      CASE (hfx_do_eval_energy)
+        atomic_pair_list => x_data%atomic_pair_list
+      CASE (hfx_do_eval_forces)
+        atomic_pair_list => x_data%atomic_pair_list_forces
+      END SELECT
       atomic_pair_list = .TRUE.
       CALL init_blocks(nkind, para_env, natom,block_size,INT(nblocks),blocks_guess,&
                        list_ij, list_kl, set_list_ij, set_list_kl, &
@@ -463,7 +468,12 @@ MODULE hfx_load_balance_methods
       END DO
     END IF
 
-    atomic_pair_list => x_data%atomic_pair_list
+    SELECT CASE(eval_type)
+      CASE (hfx_do_eval_energy)
+        atomic_pair_list => x_data%atomic_pair_list
+      CASE (hfx_do_eval_forces)
+        atomic_pair_list => x_data%atomic_pair_list_forces
+    END SELECT
     CALL build_atomic_pair_list(natom, atomic_pair_list, kind_of,basis_parameter,particle_set, &
                                 do_periodic,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
                                 x_data%blocks)
