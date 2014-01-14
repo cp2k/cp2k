@@ -1,0 +1,85 @@
+&GLOBAL                                                                                           
+  PROJECT     GRAD_H2_gpw
+  PRINT_LEVEL LOW
+  RUN_TYPE    GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MAX_ITER  1
+  &END
+&END MOTION
+&FORCE_EVAL
+  &PRINT
+    &FORCES
+    &END
+  &END
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  ../HFX_BASIS
+    POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF     150
+      REL_CUTOFF  20
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-30
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      MAX_SCF 100
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ         1.0E-9
+          EPS_SCHWARZ_FORCES  1.0E-3
+          SCREEN_ON_INITIAL_P FALSE 
+        &END SCREENING
+      &END HF
+      &WF_CORRELATION
+        METHOD  RI_MP2_GPW
+        &RI_MP2
+          EPS_CANONICAL  0.00001
+          FREE_HFX_BUFFER .FALSE.
+        &END
+        &CPHF
+          EPS_CONV  1.0E-6
+          MAX_ITER  50
+        &END
+        &WFC_GPW
+          CUTOFF    100
+          REL_CUTOFF 20
+        &END
+        MEMORY  1000.0
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  4.000   4.000   8.000
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET         DZVP-GTH
+      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &COORD
+      H       0.000000    0.000000     1.000000
+      H       0.000000    0.000000     1.740000
+      H       0.000000    0.000000     6.260000
+      H       0.000000    0.000000     7.000000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
