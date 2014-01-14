@@ -15,6 +15,7 @@ MODULE glbopt_master
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE exclusion_types,                 ONLY: exclusion_release,&
                                              exclusion_type
   USE glbopt_mincrawl,                 ONLY: mincrawl_finalize,&
@@ -272,9 +273,9 @@ MODULE glbopt_master
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
     TYPE(swarm_message_type), INTENT(IN)     :: report
 
-    CHARACTER(len=default_string_length)     :: title
+    CHARACTER(len=default_string_length)     :: title, unit_str
     INTEGER                                  :: report_worker_id
-    REAL(KIND=dp)                            :: report_Epot
+    REAL(KIND=dp)                            :: report_Epot, unit_conv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: report_positions
 
     NULLIFY(report_positions)
@@ -288,12 +289,17 @@ MODULE glbopt_master
     WRITE (title, '(A,I8,A,I5,A,F20.10)') 'i = ',this%i_iteration, &
       ' worker_id = ',report_worker_id, ' Epot = ', report_Epot
 
+    !get the conversion factor for the length unit
+    CALL section_vals_val_get(this%glbopt_section,"PROGRESS_TRAJECTORY%UNIT",&
+            c_val=unit_str,error=this%error)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=this%error)
     CALL write_particle_coordinates(this%particle_set,&
                                     iunit=this%progress_traj_unit, &
                                     output_format=dump_xmol, &
                                     content="POS", &
                                     title=TRIM(title), &
                                     array=report_positions,&
+                                    unit_conv=unit_conv,&
                                     error=this%error)
      DEALLOCATE(report_positions)
  END SUBROUTINE write_progress_traj

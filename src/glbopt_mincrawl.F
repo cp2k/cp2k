@@ -10,6 +10,7 @@
 MODULE glbopt_mincrawl
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE glbopt_history,                  ONLY: history_add,&
                                              history_finalize,&
                                              history_fingerprint,&
@@ -448,18 +449,26 @@ MODULE glbopt_mincrawl
     REAL(KIND=dp), INTENT(IN)                :: Epot
     REAL(KIND=dp), DIMENSION(:), POINTER     :: positions
 
-    CHARACTER(len=default_string_length)     :: title
+    CHARACTER(len=default_string_length)     :: title, unit_str
+    REAL(KIND=dp)                            :: unit_conv
 
     IF(this%minima_traj_unit <= 0) RETURN
 
     WRITE (title, '(A,I8,A,I5,A,F20.10)') 'minimum_id = ',minimum_id, &
       ' worker_id = ',worker_id, ' Epot = ', Epot
+
+    !get the conversion factor for the length unit
+    CALL section_vals_val_get(this%mincrawl_section,"MINIMA_TRAJECTORY%UNIT",&
+            c_val=unit_str,error=this%error)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=this%error)
+
     CALL write_particle_coordinates(this%particle_set,&
                                     iunit=this%minima_traj_unit, &
                                     output_format=dump_xmol, &
                                     content="POS", &
                                     title=TRIM(title), &
                                     array=positions,&
+                                    unit_conv=unit_conv,&
                                     error=this%error)
  END SUBROUTINE write_minima_traj
 
