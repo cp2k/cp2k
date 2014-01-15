@@ -38,7 +38,8 @@ MODULE force_env_methods
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              cp_results_mp_bcast,&
                                              get_results,&
-                                             put_results
+                                             put_results,&
+                                             test_for_result
   USE cp_result_types,                 ONLY: cp_result_copy,&
                                              cp_result_create,&
                                              cp_result_p_type,&
@@ -1360,7 +1361,8 @@ CPSourceFileRef,&
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
       natom, nforce_eval, source, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: failure, virial_consistent
+    LOGICAL                                  :: dip_exists, failure, &
+                                                virial_consistent
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix
@@ -1661,9 +1663,14 @@ CPSourceFileRef,&
          extension=".data",middle_name="MIXED_DIPOLE",log_filename=.FALSE.,error=error)
     IF (unit_nr>0) THEN
        description ='[DIPOLE]'
-       CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
-       WRITE(unit_nr,'(/,1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  ( A.U.)|",dip_mix
-       WRITE(unit_nr,'(  1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  (Debye)|",dip_mix*debye
+       dip_exists = test_for_result(results=results_mix,description=description, error=error)
+       IF (dip_exists) THEN
+         CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
+         WRITE(unit_nr,'(/,1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  ( A.U.)|",dip_mix
+         WRITE(unit_nr,'(  1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  (Debye)|",dip_mix*debye
+       ELSE
+         WRITE(unit_nr,*) "NO FORCE_EVAL section calculated the dipole"
+       END IF
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,mixed_section,"PRINT%DIPOLE",error=error)
   END SUBROUTINE mixed_energy_forces

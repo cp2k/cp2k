@@ -9,11 +9,10 @@
 ! *****************************************************************************
 MODULE mixed_environment_utils
 
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              get_results,&
-                                             put_results
+                                             put_results,&
+                                             test_for_result
   USE cp_result_types,                 ONLY: cp_result_p_type,&
                                              cp_result_type
   USE f77_blas
@@ -74,14 +73,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: iparticle, jparticle, natom, &
                                                 nres, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: dip_exists, failure
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix, dip_tmp
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
-    NULLIFY(logger, print_key)
-    logger => cp_error_get_logger(error)
     ! Get Mapping index array
     natom = SIZE(global_forces(iforce_eval)%forces,2)
     CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
@@ -109,22 +104,23 @@ CONTAINS
        DEALLOCATE(map_index, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
     ! Collect Requested Results info
-    print_key => section_vals_get_subs_vals(mixed_section,"PRINT%DIPOLE",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
-         cp_p_file)) THEN
-       description ='[DIPOLE]'
-       IF (overwrite) CALL cp_results_erase(results_mix, error=error)
-       CALL get_results(results=results_mix,description=description,n_rep=nres,error=error)
-       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
-       dip_mix = 0.0_dp
-       IF (nres==1) CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
-       CALL get_results(results=results(iforce_eval)%results,description=description,n_rep=nres,error=error)
-       CALL get_results(results=results(iforce_eval)%results,description=description,&
-            values=dip_tmp,nval=nres,error=error)
-       dip_mix = dip_mix + factor*dip_tmp
-       CALL cp_results_erase(results=results_mix,description=description,error=error)
-       CALL put_results(results=results_mix,description=description,values=dip_mix,error=error)
+    description = '[DIPOLE]'
+    IF (overwrite) CALL cp_results_erase(results_mix, error=error)
+
+    dip_exists = test_for_result(results=results(iforce_eval)%results,description=description, error=error)
+    IF (dip_exists) THEN
+      CALL get_results(results=results_mix,description=description,n_rep=nres,error=error)
+      CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
+      dip_mix = 0.0_dp
+      IF (nres==1) CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
+      CALL get_results(results=results(iforce_eval)%results,description=description,n_rep=nres,error=error)
+      CALL get_results(results=results(iforce_eval)%results,description=description,&
+           values=dip_tmp,nval=nres,error=error)
+      dip_mix = dip_mix + factor*dip_tmp
+      CALL cp_results_erase(results=results_mix,description=description,error=error)
+      CALL put_results(results=results_mix,description=description,values=dip_mix,error=error)
     END IF
 
   END SUBROUTINE mixed_map_forces
