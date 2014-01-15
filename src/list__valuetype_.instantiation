@@ -15,6 +15,15 @@
 'value_assign':    '=>',
 },
 
+{
+'valuetype':'routinereport',
+'USE': "USE timings_base_type,    ONLY: routine_report_type",
+'valuetype_in':    'TYPE(routine_report_type), POINTER',
+'valuetype_out':   'TYPE(routine_report_type), POINTER',
+'value_assign':    '=>',
+},
+
+
 
 {
 'valuetype':'callstackentry',

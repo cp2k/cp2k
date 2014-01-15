@@ -12,7 +12,7 @@
 !>      12.2012 Created [ole]	
 !> \author Ole Schuett
 ! *****************************************************************************
-MODULE timings_types      
+MODULE timings_types
   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_type
   USE dict_str_i4,                     ONLY: dict_str_i4_type
   USE list_callstackentry,             ONLY: list_callstackentry_type
@@ -20,7 +20,7 @@ MODULE timings_types
 
   IMPLICIT NONE
   PRIVATE
-  
+
   TYPE timer_env_type
      INTEGER                                          :: ref_count
      TYPE(dict_str_i4_type)                           :: routine_names
@@ -31,11 +31,11 @@ MODULE timings_types
      INTEGER                                          :: trace_unit
      CHARACTER(len=13)                                :: trace_str
      LOGICAL                                          :: trace_all
-  END TYPE timer_env_type                                
- 
+  END TYPE timer_env_type
+
   PUBLIC :: timer_env_type
 
-END MODULE timings_types   
+END MODULE timings_types
 
 ! *****************************************************************************
 

@@ -370,6 +370,7 @@ OBJECTS_GENERIC =\
  linear_systems.o\
  list_callstackentry.o\
  list.o\
+ list_routinereport.o\
  list_routinestat.o\
  list_timerenv.o\
  lri_environment_methods.o\

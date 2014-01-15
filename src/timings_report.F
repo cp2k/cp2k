@@ -9,7 +9,8 @@
 !>      02.2004 made a stacked version (of stacks...) [Joost VandeVondele]
 !>      11.2004 storable timer_envs (for f77 interface) [fawzi]
 !>      10.2005 binary search to speed up lookup in timeset [fawzi]
-!>      12.2012 Complete rewrite based on dictionaries. [ole]	
+!>      12.2012 Complete rewrite based on dictionaries. [ole]
+!>      01.2014 Collect statistics from all MPI ranks. [ole]
 !> \author JGH
 ! *****************************************************************************
 MODULE timings_report
@@ -24,13 +25,19 @@ MODULE timings_report
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
-  USE list,                            ONLY: list_get,&
+  USE list,                            ONLY: list_destroy,&
+                                             list_get,&
+                                             list_init,&
+                                             list_isready,&
+                                             list_push,&
                                              list_size
+  USE list_routinereport,              ONLY: list_routinereport_type
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
   USE timings,                         ONLY: get_timer_env
   USE timings_base_type,               ONLY: call_stat_type,&
+                                             routine_report_type,&
                                              routine_stat_type
   USE timings_types,                   ONLY: timer_env_type
   USE util,                            ONLY: sort
@@ -38,9 +45,11 @@ MODULE timings_report
   IMPLICIT NONE
   PRIVATE
 
-  INTEGER, PARAMETER :: accu_type_time=17, accu_type_energy=18
+  INTEGER, PUBLIC, PARAMETER :: cost_type_time=17, cost_type_energy=18
 
-  PUBLIC :: timings_report_print, timings_report_callgraph, accu_type_time, accu_type_energy
+  PUBLIC :: timings_report_print, timings_report_callgraph
+
+
 
   CONTAINS
 
@@ -51,173 +60,205 @@ MODULE timings_report
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timings_report_print(iw,r_timings,sort_by_self_time,accu_type,para_env)
+  SUBROUTINE timings_report_print(iw,r_timings,sort_by_self_time,cost_type,para_env)
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: r_timings
     LOGICAL, INTENT(IN)                      :: sort_by_self_time
-    INTEGER, INTENT(IN)                      :: accu_type
+    INTEGER, INTENT(IN)                      :: cost_type
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
-    CHARACTER(LEN=default_string_length)     :: fmt, routineN
-    INTEGER                                  :: decimals, i, j, num_routines, &
-                                                routine_id
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indices
-    REAL(KIND=dp)                            :: asd, maxtime, mintime
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: max_ewalltime, max_iwalltime, &
-                                                sum_ewalltime, sum_iwalltime
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: max_walltime
+    TYPE(list_routinereport_type)            :: reports
+
+    CALL list_init(reports)
+    CALL collect_reports_from_ranks(reports, cost_type, para_env)
+
+    IF(list_size(reports)>0 .AND. iw>0) &
+      CALL print_reports(reports, iw,r_timings,sort_by_self_time,cost_type, para_env)
+
+    CALL list_destroy(reports)
+
+  END SUBROUTINE timings_report_print
+
+
+! *****************************************************************************
+!> \brief Collects the timing or energy reports from all MPI ranks.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE collect_reports_from_ranks(reports, cost_type, para_env)
+    TYPE(list_routinereport_type), &
+      INTENT(INOUT)                          :: reports
+    INTEGER, INTENT(IN)                      :: cost_type
+    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
+
+    CHARACTER(LEN=default_string_length)     :: routineN
+    INTEGER                                  :: local_routine_id, sending_rank
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: collected
+    TYPE(routine_report_type), POINTER       :: r_report
     TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
 
-    NULLIFY (max_walltime)
+    NULLIFY (r_stat, r_report, timer_env)
+    IF(.NOT. list_isready(reports)) STOP "BUG"
 
     timer_env => get_timer_env()
-    ! find the number of timing events on the parent
-    ! note: we assume that timing events on the parent
-    !       include all possible timing events.. i.e. there
-    !       are no other timing events on the rest of the group.
-    !       If this is the case they will be ignored in the
-    !       timing report.
 
-    num_routines = list_size(timer_env%routine_stats)
-    CALL mp_bcast(num_routines, para_env%source, para_env%group)
+    ! Array collected is used as a bit field.
+    ! It's of type integer in order to use the convenient MINLOC routine.
+    ALLOCATE(collected(list_size(timer_env%routine_stats)))
+    collected(:) = 0
 
-    ALLOCATE(max_iwalltime(num_routines))
-    ALLOCATE(sum_iwalltime(num_routines))
-    ALLOCATE(max_ewalltime(num_routines))
-    ALLOCATE(sum_ewalltime(num_routines))
+    DO
+      ! does any rank have uncollected stats?
+      sending_rank = -1
+      IF(.NOT. ALL(collected==1)) sending_rank = para_env%mepos
+      CALL mp_max(sending_rank, para_env%group)
+      IF(sending_rank < 0) EXIT ! every rank got all routines collected
+      IF(sending_rank == para_env%mepos) THEN
+        local_routine_id = MINLOC(collected, dim=1)
+        r_stat => list_get(timer_env%routine_stats, local_routine_id)
+        routineN = r_stat%routineN
+      ENDIF
+      CALL mp_bcast(routineN, sending_rank, para_env%group)
 
-    ! for each clock_name find the needed quantities over all CPUs.
-    DO i=1, num_routines
-       IF(para_env%mepos == para_env%source) THEN
-                  r_stat => list_get(timer_env%routine_stats, i)
-                  routineN = r_stat%routineN
-       END IF
+      ! Create new report for routineN
+      ALLOCATE(r_report)
+      CALL list_push(reports, r_report)
+      r_report%routineN = routineN
 
-       CALL mp_bcast(routineN, para_env%source, para_env%group)
-       IF(dict_haskey(timer_env%routine_names, routineN)) THEN
-           ! assinged routine_id might vary between nodes 
-           routine_id = dict_get(timer_env%routine_names, routineN)
-           r_stat => list_get(timer_env%routine_stats, routine_id)
-           SELECT CASE(accu_type)
-           CASE(accu_type_energy)
-               max_iwalltime(i) = r_stat%incl_energy_accu
-               sum_iwalltime(i) = r_stat%incl_energy_accu
-               max_ewalltime(i) = r_stat%excl_energy_accu
-               sum_ewalltime(i) = r_stat%excl_energy_accu
-           CASE(accu_type_time)
-               max_iwalltime(i) = r_stat%incl_walltime_accu
-               sum_iwalltime(i) = r_stat%incl_walltime_accu
-               max_ewalltime(i) = r_stat%excl_walltime_accu
-               sum_ewalltime(i) = r_stat%excl_walltime_accu
-           CASE DEFAULT
-               STOP "BUG"
-           END SELECT
-       ELSE
-           ! this node did not register the routine 
-           max_iwalltime(i) = 0.0_dp
-           sum_iwalltime(i) = 0.0_dp
-           max_ewalltime(i) = 0.0_dp
-           sum_ewalltime(i) = 0.0_dp
-       END IF
+      ! If routineN was called on local node, add local stats
+      IF(dict_haskey(timer_env%routine_names, routineN)) THEN
+        local_routine_id = dict_get(timer_env%routine_names, routineN)
+        collected(local_routine_id) = 1
+        r_stat => list_get(timer_env%routine_stats, local_routine_id)
+        r_report%max_total_calls = r_stat%total_calls
+        r_report%sum_total_calls = r_stat%total_calls
+        r_report%sum_stackdepth  = r_stat%stackdepth_accu
+        SELECT CASE(cost_type)
+          CASE(cost_type_energy)
+            r_report%max_icost = r_stat%incl_energy_accu
+            r_report%sum_icost = r_stat%incl_energy_accu
+            r_report%max_ecost = r_stat%excl_energy_accu
+            r_report%sum_ecost = r_stat%excl_energy_accu
+          CASE(cost_type_time)
+            r_report%max_icost = r_stat%incl_walltime_accu
+            r_report%sum_icost = r_stat%incl_walltime_accu
+            r_report%max_ecost = r_stat%excl_walltime_accu
+            r_report%sum_ecost = r_stat%excl_walltime_accu
+          CASE DEFAULT
+            STOP "BUG"
+        END SELECT
+      END IF
 
-       CALL mp_max(max_iwalltime(i), para_env%group)
-       CALL mp_sum(sum_iwalltime(i), para_env%group)
-       CALL mp_max(max_ewalltime(i), para_env%group)
-       CALL mp_sum(sum_ewalltime(i), para_env%group)
+      ! collect stats of routineN via MPI
+      CALL mp_max(r_report%max_total_calls, para_env%group)
+      CALL mp_sum(r_report%sum_total_calls, para_env%group)
+      CALL mp_sum(r_report%sum_stackdepth, para_env%group)
+      CALL mp_max(r_report%max_icost, para_env%group)
+      CALL mp_sum(r_report%sum_icost, para_env%group)
+      CALL mp_max(r_report%max_ecost, para_env%group)
+      CALL mp_sum(r_report%sum_ecost, para_env%group)
     ENDDO
 
+  END SUBROUTINE collect_reports_from_ranks
 
-    IF(num_routines>0 .AND. iw>0) THEN
-       IF (sort_by_self_time) THEN
-          max_walltime => max_ewalltime
-       ELSE
-          max_walltime => max_iwalltime
-       END IF
 
-       ALLOCATE(indices(num_routines))
-       CALL sort(max_walltime, num_routines, indices)
-       maxtime = max_walltime(num_routines)
-       mintime = maxtime*r_timings
+! *****************************************************************************
+!> \brief Print the collected reports
+!> \par History
+!>      01.2014 Refactored (Ole Schuett)
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE print_reports(reports, iw,threshold,sort_by_exclusiv_cost,cost_type, para_env)
+    TYPE(list_routinereport_type), &
+      INTENT(IN)                             :: reports
+    INTEGER, INTENT(IN)                      :: iw
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    LOGICAL, INTENT(IN)                      :: sort_by_exclusiv_cost
+    INTEGER, INTENT(IN)                      :: cost_type
+    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
-       WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
-       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-       SELECT CASE(accu_type)
-       CASE(accu_type_energy)
-           WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","E N E R G Y","-"
-       CASE(accu_type_time)
-           WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
-       CASE DEFAULT
-           STOP "BUG"
-       END SELECT
-       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+    CHARACTER(LEN=4)                         :: label
+    CHARACTER(LEN=default_string_length)     :: fmt, title
+    INTEGER                                  :: decimals, i, j, num_routines
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indices
+    REAL(KIND=dp)                            :: asd, maxcost, mincost
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: max_costs
+    TYPE(routine_report_type), POINTER       :: r_report_i, r_report_j
 
-       SELECT CASE(accu_type)
-       CASE(accu_type_energy)
-         WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
-              "SUBROUTINE","CALLS"," ASD","SELF ENER","TOTAL ENER"
-       CASE(accu_type_time)
-         WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
-              "SUBROUTINE","CALLS"," ASD","SELF TIME","TOTAL TIME"
-       CASE DEFAULT
-           STOP "BUG"
-       END SELECT
-       WRITE (UNIT=iw,FMT="(T45,4A9)")&
-            "AVERAGE", "MAXIMUM", "AVERAGE","MAXIMUM"
+    NULLIFY(r_report_i, r_report_j)
+    IF(.NOT. list_isready(reports)) STOP "BUG"
 
-       ! adjust fmt dynamically based on the max walltime.
-       ! few clocks have more than 3 digits resolution, so stop there
-       IF (num_routines > 0) THEN
-         i = num_routines
-         decimals = 3
-         IF (max_walltime(i) >= 10000)   decimals = 2
-         IF (max_walltime(i) >= 100000)  decimals = 1
-         IF (max_walltime(i) >= 1000000) decimals = 0
-         WRITE (UNIT=fmt,FMT="(A,I0,A)")&
-           "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
-       END IF
+    ! are we printing timing or energy ?
+    SELECT CASE(cost_type)
+      CASE(cost_type_energy)
+        title = "E N E R G Y"
+        label = "ENER"
+      CASE(cost_type_time)
+         title = "T I M I N G"
+         label = "TIME"
+      CASE DEFAULT
+        STOP "BUG"
+    END SELECT
 
-       DO i=num_routines,1,-1
+    ! write banner
+    WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+    WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+    WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-",TRIM(title),"-"
+    WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+    WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+    WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
+         "SUBROUTINE","CALLS"," ASD","SELF "//label,"TOTAL "//label
+    WRITE (UNIT=iw,FMT="(T33,A)")&
+         "MAXIMUM       AVERAGE  MAXIMUM  AVERAGE  MAXIMUM"
 
+    ! sort statistics
+    num_routines = list_size(reports)
+    ALLOCATE(max_costs(num_routines))
+    DO i=1, num_routines
+      r_report_i => list_get(reports, i)
+      IF (sort_by_exclusiv_cost) THEN
+        max_costs(i) = r_report_i%max_ecost
+      ELSE
+        max_costs(i) = r_report_i%max_icost
+      END IF
+    ENDDO
+    ALLOCATE(indices(num_routines))
+    CALL sort(max_costs, num_routines, indices)
+
+    maxcost = MAXVAL(max_costs)
+    mincost = maxcost*threshold
+
+    ! adjust fmt dynamically based on the max walltime.
+    ! few clocks have more than 3 digits resolution, so stop there
+    decimals = 3
+    IF (maxcost >= 10000)   decimals = 2
+    IF (maxcost >= 100000)  decimals = 1
+    IF (maxcost >= 1000000) decimals = 0
+    WRITE (UNIT=fmt,FMT="(A,I0,A)")&
+        "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
+
+    !write output
+    DO i=num_routines,1,-1
+       IF (max_costs(i) >= mincost) THEN
           j = indices(i)
+          r_report_j => list_get(reports, j)
+          ! average stack depth
+          asd = REAL(r_report_j%sum_stackdepth, KIND=dp) / &
+                REAL(MAX(1,r_report_j%sum_total_calls), KIND=dp)
+          WRITE (UNIT=iw,FMT=fmt) &
+              ADJUSTL(r_report_j%routineN(1:31)),&
+              r_report_j%max_total_calls,&
+              asd,&
+              r_report_j%sum_ecost/para_env%num_pe,&
+              r_report_j%max_ecost,&
+              r_report_j%sum_icost/para_env%num_pe,&
+              r_report_j%max_icost
+       END IF
+    END DO
+    WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",79)
 
-          IF (max_walltime(i) >= mintime) THEN
-             r_stat => list_get(timer_env%routine_stats, j)
-             ! average stack depth
-             asd = REAL(r_stat%stackdepth_accu, KIND=dp)/ &
-                   REAL(MAX(1,r_stat%total_calls), KIND=dp)
+  END SUBROUTINE print_reports
 
-             IF (sort_by_self_time) THEN
-                WRITE (UNIT=iw,FMT=fmt) &
-                 ADJUSTL(r_stat%routineN(1:31)),&
-                 r_stat%total_calls,&
-                 ASD,&
-                 sum_ewalltime(j)/para_env%num_pe,&
-                 max_ewalltime(i),&
-                 sum_iwalltime(j)/para_env%num_pe,&
-                 max_iwalltime(j)
-             ELSE
-                WRITE (UNIT=iw,FMT=fmt) &
-                 ADJUSTL(r_stat%routineN(1:31)),&
-                 r_stat%total_calls,&
-                 ASD,&
-                 sum_ewalltime(j)/para_env%num_pe,&
-                 max_ewalltime(j),&
-                 sum_iwalltime(j)/para_env%num_pe,&
-                 max_iwalltime(i)
-             END IF
-          END IF
-
-       END DO
-       WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",79)
-       DEALLOCATE(indices)
-    END IF
-
-    NULLIFY (max_walltime)
-
-  END SUBROUTINE timings_report_print
 
 ! *****************************************************************************
 !> \brief Write accumulated callgraph information as cachegrind-file.
