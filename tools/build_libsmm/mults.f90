@@ -83,11 +83,12 @@ CONTAINS
        write(6,'(A)')                    "        INTEGER, INTENT(IN) :: p_a_first, p_b_first, p_c_first"
     ENDIF
   END SUBROUTINE write_stack_params
-  SUBROUTINE write_matrix_defs(M,N,K,transpose_flavor,data_type,write_intent,stack_size_label)
+  SUBROUTINE write_matrix_defs(M,N,K,transpose_flavor,data_type,write_intent,stack_size_label,padding)
    INTEGER, OPTIONAL          :: M,N,K,transpose_flavor
    INTEGER                    :: data_type
    LOGICAL                    :: write_intent
    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+   LOGICAL, OPTIONAL          :: padding
    CHARACTER(LEN=50)          :: intent_label   
 
    IF (PRESENT(M).AND.PRESENT(N).AND.PRESENT(K).AND.PRESENT(transpose_flavor)) THEN
@@ -104,8 +105,13 @@ CONTAINS
                  "      "//trdat(data_type,"INOUT")//" :: C(",M,",",N,")"
             intent_label="IN"
          ELSE
-            write(6,'(A,I0,A,I0,A)') &
-                 "      "//trdat(data_type)//" :: C(",M,",",N,")"
+            IF (PRESENT(padding).AND.padding) THEN
+               write(6,'(A)') &
+                    "      "//trdat(data_type)//" :: C(M*N+8)"
+            ELSE
+               write(6,'(A,I0,A,I0,A)') &
+                    "      "//trdat(data_type)//" :: C(",M,",",N,")"
+            ENDIF
             intent_label=""
          ENDIF
          SELECT CASE(transpose_flavor)

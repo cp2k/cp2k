@@ -76,7 +76,7 @@ CONTAINS
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
     INTEGER, OPTIONAL :: Cbuffer_row, Cbuffer_col
 
-    IF (PRESENT(stack_size_label)) THEN
+    IF (PRESENT(stack_size_label).AND.stack_size_label/="") THEN
        write(6,'(A,I0,A,I0,A,I0,A)') "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
             M,"_",N,"_",K,"_stack"//TRIM(label)//"("//TRIM(trparam(stack_size_label))//")"
        CALL write_stack_params(data_type,stack_size_label)
@@ -107,8 +107,8 @@ CONTAINS
     multElements=(M/nSIMD)*nSIMD
     modElements=MOD(M,nSIMD)
 
-    IF (modElements>0.AND.nSIMD>0.AND.stride>0) THEN
-       if (PRESENT(stack_size_label)) THEN
+    IF (modElements>0) THEN
+       if (PRESENT(stack_size_label).AND.stack_size_label/="") THEN
           write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                M,"_",N,"_",K,TRIM(label)//"_buffer(A,B,C,Cbuffer)"
           write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type,"INOUT")//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
@@ -264,7 +264,7 @@ CONTAINS
            ENDIF
         ENDDO
      ENDDO
-     IF (ANY(best_square<1)) STOP "tiny opts file needs sufficiently many square sizes"
+     IF (ANY(best_square<1)) ERROR STOP "tiny opts file needs sufficiently many square sizes"
 
      IF (version.ge.1.and.version.le.7) THEN
         IF (version.ne.3) THEN
@@ -328,7 +328,7 @@ CONTAINS
 
         ENDIF
      CASE DEFAULT
-       STOP "MISSING CASE mult_versions"
+       ERROR STOP "MISSING CASE mult_versions"
      END SELECT
 
      IF (version.ge.1.and.version.le.7) THEN

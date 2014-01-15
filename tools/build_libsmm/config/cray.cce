@@ -1,6 +1,6 @@
 # Author: Alfio Lazzaro, alazzaro@cray.com (2013)
 
-# Use: module load PrgEnv-intel
+# Use: module load PrgEnv-cray
 # Remember to remove any module specific for GPU, e.g. module unload craype-accel-nvidia35 cudatoolkit
 
 #
@@ -9,21 +9,22 @@
 # and allow some flexibility in reordering floating point expressions (-ffast-math).
 # Higher level optimisation (in particular loop nest optimization) should not be used.
 #
-target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -xHost -fno-inline-functions -nogen-interfaces -openmp -nolib-inline"
+target_compile="ftn -O2 -hfp3 -Oipa0 -hnodwarf -Onopattern "
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)
 # blas is used as a fall back option for sizes not included in the library or in those cases where it is faster
 # the same blas library should thus also be used when libsmm is linked.
 #
-blas_linking="-static-intel -mkl=sequential"
+# Use libsci when using ftn, therefore no need to set blas_linking
+#
 
 #
 # host compiler... this is used only to compile a few tools needed to build
 # the library. The library itself is not compiled this way.
 # This compiler needs to be able to deal with some Fortran2003 constructs.
 #
-host_compile="ifort -O2"
+host_compile="gfortran -O2"
 
 #
 # Set the aprun command and its options for batch submission

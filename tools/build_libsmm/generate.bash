@@ -166,6 +166,16 @@ do_generate_tiny() {
 
 do_generate_small() {
     #
+    # Check if tiny file exists
+    #
+    if [ ! -s ${tiny_file} ]; then
+	echo "Tiny file ${tiny_file} doesn't exist. Have you ran tiny1/tiny2 phase?"
+	echo "Abort execution."
+	echo
+	exit
+    fi
+
+    #
     # skip the compilation part if it needs only to collect the results
     #
     if [ "$run_cmd" != "true" ]; then
@@ -233,6 +243,26 @@ do_generate_small() {
 }
 
 do_generate_lib() {
+    #
+    # Check if tiny file exists
+    #
+    if [ ! -s ${tiny_file} ]; then
+	echo "Tiny file ${tiny_file} doesn't exist. Have you ran tiny1/tiny2 phase?"
+	echo "Abort execution."
+	echo
+	exit
+    fi    
+    
+    #
+    # Check if small file exists
+    #
+    if [ ! -s ${small_file} ]; then
+	echo "Small file ${small_file} doesn't exist. Have you ran small1/small2 phase?"
+	echo "Abort execution."
+	echo
+	exit
+    fi    
+
     #
     # compile the generator of small mults
     #
@@ -548,7 +578,7 @@ SUBROUTINE testit(M,N,K)
         write(6,*) "C1=",C1
         write(6,*) "C2=",C2
         write(6,*) "BLAS and smm yield different results : possible compiler bug... do not use the library ;-)"
-        STOP
+        ERROR STOP
      ENDIF
   ENDDO
 

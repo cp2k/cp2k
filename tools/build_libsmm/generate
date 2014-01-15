@@ -32,9 +32,9 @@ show_help() {
     echo "Run with: ./generate [OPTIONS] [COMMAND]"
     echo
     echo "OPTIONS are:"
+    echo "   -h               : show this help."
     echo "   -c <config file> : config file to use (declared inside ${def_config_dir} directory)."
     echo "                      Default value is \"${def_config_file}\"."
-    echo "   -h               : show this help."
     echo "   -j <#>           : set the number of jobs for batch submission. Setting to zero means no batch submission."
     echo "                      Default value is \"${def_njobs}\"."
     echo "   -s <SIMD type>   : SIMD registers type (sse, avx, mic). Use novec to not generate vector kernel."
@@ -61,7 +61,8 @@ show_help() {
     echo "NOTE: COMMANDs must be executed in the above order."
     echo
     echo "Special COMMAND:"
-    echo "   clean  : remove intermediate files (but not some key output and the library itself)."
+    echo "    clean : remove intermediate files (but not some key output and the library itself)."
+    echo " cleanall : remove all intermediate files."
     echo
     exit
 }
@@ -156,17 +157,22 @@ if [ $# -eq 0 ]; then
     exit
 fi
 
-case `echo $1 | awk '{ print tolower($0)}'` in
+cmd=`echo $1 | awk '{ print tolower($0)}'`
+
+case $cmd in
     tiny1|tiny2|small1|small2|lib|check1|check2)
-	cmd=`echo $1 | awk '{ print tolower($0)}'`
 	;;
-    clean)
+    clean|cleanall)
 	echo "Remove files."
 	rm -fR run_tiny_*/
 	rm -fR run_small_*/
 	rm -fR run_lib_*/
 	rm -f *.mod Makefile.* *.x *.o
 	rm -f *~
+	if [ "$cmd" == "cleanall" ]; then
+	    rm -f *.out
+	    rm -fR lib
+	fi
 	echo
 	exit
 	;;
