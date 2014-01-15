@@ -31,10 +31,10 @@ MODULE dbcsr_mm_sched
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8
-  USE dbcsr_message_passing,           ONLY: mp_abort,&
+  USE dbcsr_message_passing,           ONLY: dmp_max,&
+                                             mp_abort,&
                                              mp_bcast,&
                                              mp_environ,&
-                                             mp_min,&
                                              mp_sum
   USE dbcsr_mm_cudadrv,                ONLY: dbcsr_mm_cudadrv_barrier,&
                                              dbcsr_mm_cudadrv_finalize,&
@@ -511,7 +511,7 @@ MODULE dbcsr_mm_sched
       ! each rank with uncollected stats tries to become the sending_rank
       sending_rank = -1
       IF(.NOT. ALL(mnk_collected==1)) sending_rank = myrank
-      CALL mp_min(sending_rank, group)
+      CALL dmp_max(sending_rank, group)
       IF(sending_rank < 0) EXIT ! every rank got all mnk collected
 
       IF(sending_rank == myrank) THEN
