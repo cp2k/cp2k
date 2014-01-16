@@ -381,7 +381,7 @@ if [[ ${nosvn} != "nosvn" ]]; then
   #  echo "cp2k is now ${cp2k_lines} lines .F"
 
   # Using svn2cl.pl to generate GNU like ChangeLog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} 2>&1 >>${error_description_file}
+  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} >>${error_description_file} 2>&1
 
   line1="$(head -n 1 ${changelog})"
   nline=$(grep -n "${line1}" ${changelog_new} | head -n 1 | cut -f 1 -d:)
@@ -421,7 +421,7 @@ if [[ ${nosvn} != "nosvn" ]]; then
   echo "svn update tests went fine"
 
   # Using svn2cl.pl to generate GNU like ChangeLog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_tests_new} 2>&1 >>${error_description_file}
+  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_tests_new} >>${error_description_file} 2>&1
 
   line1="$(head -n 1 ${changelog_tests})"
   nline=$(grep -n "${line1}" ${changelog_tests_new} | head -n 1 | cut -f 1 -d:)
@@ -464,7 +464,7 @@ fi
 # make realclean
 if [[ ${quick} != "quick" ]]; then
    cd ${dir_base}/${cp2k_dir}/makefiles
-   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} 2>&1 >>${make_out}
+   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       cat ${make_out} >>${error_description_file}
@@ -485,7 +485,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
    echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
    cd ${dir_base}/${cp2k_dir}/makefiles
-   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} 2>&1 >>${make_out}
+   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       cat ${make_out} >>${error_description_file}
@@ -710,7 +710,7 @@ for dir in ${dirs}; do
         n_runtime_error=$((n_runtime_error+1))
         failed_tests="${failed_tests} ${output_file}"
      else
-        # ran but didn't end !?
+        # ran but did not end !?
         grep -a "ENDED" ${output_file} &> /dev/null
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
