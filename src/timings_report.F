@@ -29,6 +29,7 @@ MODULE timings_report
                                              list_get,&
                                              list_init,&
                                              list_isready,&
+                                             list_pop,&
                                              list_push,&
                                              list_size
   USE list_routinereport,              ONLY: list_routinereport_type
@@ -68,6 +69,7 @@ MODULE timings_report
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
     TYPE(list_routinereport_type)            :: reports
+    TYPE(routine_report_type), POINTER       :: r_report
 
     CALL list_init(reports)
     CALL collect_reports_from_ranks(reports, cost_type, para_env)
@@ -75,6 +77,11 @@ MODULE timings_report
     IF(list_size(reports)>0 .AND. iw>0) &
       CALL print_reports(reports, iw,r_timings,sort_by_self_time,cost_type, para_env)
 
+    ! deallocate reports
+    DO WHILE(list_size(reports)>0)
+       r_report => list_pop(reports)
+       DEALLOCATE(r_report)
+    END DO
     CALL list_destroy(reports)
 
   END SUBROUTINE timings_report_print
