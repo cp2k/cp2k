@@ -62,7 +62,7 @@ MODULE bibliography
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
              Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996, &
-             Goedecker2004,Khaliullin2013
+             Goedecker2004,Khaliullin2013,Hutter2014
 
 CONTAINS
 
@@ -2521,6 +2521,30 @@ CONTAINS
          "UT WOS:000326355100014",&
          "ER"),&
          DOI="10.1021/ct400595k")
+
+    CALL add_reference(key=Hutter2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Hutter, J",&
+         "   Iannuzzi, M",&
+         "   Schiffmann, F",&
+         "   VandeVondele, J",&
+         "AF Hutter, Juerg",&
+         "   Iannuzzi, Marcella",&
+         "   Schiffmann, Florian",&
+         "   VandeVondele, Joost",&
+         "TI CP2K: atomistic simulations of condensed matter systems",&
+         "SO WILEY INTERDISCIPLINARY REVIEWS-COMPUTATIONAL MOLECULAR SCIENCE",&
+         "SN 1759-0876",&
+         "PD JAN",&
+         "PY 2014",&
+         "VL 4",&
+         "IS 1",&
+         "BP 15",&
+         "EP 25",&
+         "DI 10.1002/wcms.1159",&
+         "UT WOS:000328646100002",&
+         "ER"),&
+         DOI="10.1002/wcms.1159")
 
   END SUBROUTINE add_all_references
 

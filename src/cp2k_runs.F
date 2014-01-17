@@ -5,8 +5,9 @@
 
 ! *****************************************************************************
 MODULE cp2k_runs
-
   USE atom,                            ONLY: atom_code
+  USE bibliography,                    ONLY: Hutter2014,&
+                                             cite_reference
   USE bsse,                            ONLY: do_bsse_calculation
   USE cell_opt,                        ONLY: cp_cell_opt
   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
@@ -194,6 +195,8 @@ CONTAINS
     NULLIFY(globenv, force_env)
 
     CALL cp_error_init(error, stop_level=cp_fatal_level)
+
+    CALL cite_reference(Hutter2014)
 
     ! parse the input
     input_file => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables, &
