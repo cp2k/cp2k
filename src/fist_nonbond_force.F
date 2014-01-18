@@ -29,7 +29,9 @@ MODULE fist_nonbond_force
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type,&
                                              pos_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE mathconstants,                   ONLY: oorootpi,&
                                              sqrthalf
   USE mathlib,                         ONLY: matvec_3x3
@@ -48,6 +50,7 @@ MODULE fist_nonbond_force
   USE splines_methods,                 ONLY: potential_s
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_factor_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -90,16 +93,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ilist, &
-      ipair, istart, j, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
-      shell_type
+    INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ikind, &
+      ilist, ipair, istart, istat, j, kind_a, kind_b, nkind, npairs, shell_a, &
+      shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_multipoles, &
                                                 failure, full_nl, &
                                                 shell_present
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_shell_kind
     REAL(KIND=dp) :: alpha, beta, beta_a, beta_b, energy, etot, fac_ei, &
       fac_kind, fac_vdw, fscalar, mm_radius_a, mm_radius_b, qcore_a, qcore_b, &
       qeff_a, qeff_b, qshell_a, qshell_b, rab2, rab2_com, rab2_max
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mm_radius, qcore, qeff, qshell
     REAL(KIND=dp), DIMENSION(3) :: cell_v, cvi, fatom_a, fatom_b, fcore_a, &
       fcore_b, fshell_a, fshell_b, rab, rab_cc, rab_com, rab_cs, rab_sc, &
       rab_ss
@@ -131,7 +136,7 @@ CONTAINS
     NULLIFY(pot, rshell_last_update_pbc, spl_f, ij_kind_full_fac)
     CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, &
          potparm14=potparm14, potparm=potparm, r_last_update=r_last_update, &
-         r_last_update_pbc=r_last_update_pbc,natom_types=nkinds, &
+         r_last_update_pbc=r_last_update_pbc,natom_types=nkind, &
          rshell_last_update_pbc=rshell_last_update_pbc, &
          rcore_last_update_pbc=rcore_last_update_pbc, &
          ij_kind_full_fac=ij_kind_full_fac, error=error)
@@ -153,6 +158,35 @@ CONTAINS
        fcore_nonbond = 0.0_dp
        shell_present = .TRUE.
     END IF
+    ! Load atomic kind information
+    ALLOCATE (mm_radius(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mm_radius",dp_size*nkind)
+    ALLOCATE (qeff(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qeff",dp_size*nkind)
+    ALLOCATE (qcore(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qcore",dp_size*nkind)
+    ALLOCATE (qshell(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qshell",dp_size*nkind)
+    ALLOCATE (is_shell_kind(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_shell_kind",int_size*nkind)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind,&
+                            qeff=qeff(ikind),&
+                            mm_radius=mm_radius(ikind),&
+                            shell=shell_kind)
+       is_shell_kind(ikind) = ASSOCIATED(shell_kind)
+       IF (ASSOCIATED(shell_kind)) THEN
+          CALL get_shell(shell=shell_kind,&
+                         charge_core=qcore(ikind),&
+                         charge_shell=qshell(ikind),&
+                         error=error)
+       ELSE
+          qcore(ikind) = 0.0_dp
+          qshell(ikind) = 0.0_dp
+       END IF
+    END DO
     ! Starting the force loop
     Lists: DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
@@ -160,7 +194,7 @@ CONTAINS
        IF (npairs == 0) CYCLE
        list  => neighbor_kind_pair%list
        cvi   =  neighbor_kind_pair%cell_vector
-       CALL matvec_3x3(cell_v, cell%hmat, cvi)
+       CALL matvec_3x3(cell_v,cell%hmat,cvi)
        Kind_Group_Loop: DO igrp=1,neighbor_kind_pair%ngrp_kind
           istart = neighbor_kind_pair%grp_kind_start(igrp)
           iend   = neighbor_kind_pair%grp_kind_end(igrp)
@@ -181,7 +215,8 @@ CONTAINS
           !$omp          shared(use_virial,ei_interaction_cutoffs,alpha,cell_v) &
           !$omp          shared(rcore_last_update_pbc,rshell_last_update_pbc) &
           !$omp          shared(f_nonbond,fcore_nonbond,fshell_nonbond,logger) &
-          !$omp          shared(ewald_type,pot_nonbond,pv_nonbond,atprop_env)
+          !$omp          shared(ewald_type,pot_nonbond,pv_nonbond,atprop_env) &
+          !$omp          shared(is_shell_kind,mm_radius,qcore,qeff,qshell)
           IF (use_virial) pv_thread(:,:) = 0.0_dp
           !$omp do
           Pairs: DO ipair=istart,iend
@@ -218,37 +253,29 @@ CONTAINS
                 fac_vdw = fac_vdw*neighbor_kind_pair%vdw_scale(ipair)
              END IF
 
-             IF (fac_ei > 0) THEN
-                ! Get electrostatic parameters for atom a
-                atomic_kind => atomic_kind_set(kind_a)
-                CALL get_atomic_kind(atomic_kind,&
-                                     qeff=qeff_a,&
-                                     mm_radius=mm_radius_a,&
-                                     shell=shell_kind)
-                IF (ASSOCIATED(fist_nonbond_env%charges)) qeff_a = fist_nonbond_env%charges(atom_a)
-                IF (ASSOCIATED(shell_kind)) THEN
-                   CALL get_shell(shell=shell_kind,&
-                                  charge_core=qcore_a,&
-                                  charge_shell=qshell_a,&
-                                  error=error)
+             IF (fac_ei > 0.0_dp) THEN
+                ! Get the electrostatic parameters for the atoms a and b
+                mm_radius_a = mm_radius(kind_a)
+                mm_radius_b = mm_radius(kind_b)
+                IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
+                   qeff_a = fist_nonbond_env%charges(atom_a)
+                   qeff_b = fist_nonbond_env%charges(atom_b)
+                ELSE
+                   qeff_a = qeff(kind_a)
+                   qeff_b = qeff(kind_b)
+                END IF
+                IF (is_shell_kind(kind_a)) THEN
+                   qcore_a = qcore(kind_a)
+                   qshell_a = qshell(kind_a)
                    IF ((qcore_a == 0.0_dp).AND.(qshell_a == 0.0_dp)) fac_ei = 0.0_dp
                 ELSE
                    qcore_a = qeff_a
                    qshell_a = HUGE(0.0_dp)
                    IF (qeff_a == 0.0_dp) fac_ei = 0.0_dp
                 END IF
-                ! Get electrostatic parameters for atom b
-                atomic_kind => atomic_kind_set(kind_b)
-                CALL get_atomic_kind(atomic_kind,&
-                                     qeff=qeff_b,&
-                                     mm_radius=mm_radius_b,&
-                                     shell=shell_kind)
-                IF (ASSOCIATED(fist_nonbond_env%charges)) qeff_b=fist_nonbond_env%charges(atom_b)
-                IF (ASSOCIATED(shell_kind)) THEN
-                   CALL get_shell(shell=shell_kind,&
-                                  charge_core=qcore_b,&
-                                  charge_shell=qshell_b,&
-                                  error=error)
+                IF (is_shell_kind(kind_b)) THEN
+                   qcore_b = qcore(kind_b)
+                   qshell_b = qshell(kind_b)
                    IF ((qcore_b == 0.0_dp).AND.(qshell_b == 0.0_dp)) fac_ei = 0.0_dp
                 ELSE
                    qcore_b = qeff_b
@@ -544,6 +571,17 @@ CONTAINS
           !$omp end parallel
        END DO Kind_Group_Loop
     END DO Lists
+
+    DEALLOCATE (mm_radius,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mm_radius")
+    DEALLOCATE (qeff,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qeff")
+    DEALLOCATE (qcore,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qcore")
+    DEALLOCATE (qshell,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qshell")
+    DEALLOCATE (is_shell_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_shell_kind")
 
     CALL timestop(handle)
 
