@@ -464,7 +464,7 @@ vkin = 0.0_dp
   END SUBROUTINE helium_solute_e
 
   ! ***************************************************************************
-  !> \breif Helium-helium pair interaction potential.
+  !> \brief Helium-helium pair interaction potential.
   ! ***************************************************************************
   FUNCTION helium_vij(r) RESULT(vij)
 
@@ -487,7 +487,7 @@ vkin = 0.0_dp
   END FUNCTION helium_vij
 
   ! ***************************************************************************
-  !> \breif Helium-helium pair interaction potential's derivative.
+  !> \brief Helium-helium pair interaction potential's derivative.
   ! ***************************************************************************
   FUNCTION helium_d_vij(r) RESULT(dvij)
 

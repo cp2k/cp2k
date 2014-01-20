@@ -7,8 +7,8 @@
 !> \brief module that contains the algorithms to perform an itrative
 !>         diagonalization by the block-Davidson approach
 !>         P. Blaha, et al J. Comp. Physics, 229, (2010), 453-460
-!>         \Iterative diagonalization in augmented plane wave based
-!>              methods in electronic structure calculations\
+!>         Iterative diagonalization in augmented plane wave based
+!>         methods in electronic structure calculations
 !> \par History
 !>      05.2011 created [MI]
 !> \author MI
