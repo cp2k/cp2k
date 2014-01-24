@@ -360,7 +360,11 @@ MODULE mp2
       free_hfx_buffer=.TRUE.
       IF(calc_forces.AND.(.NOT.mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer=.FALSE.
     END IF
-    IF(qs_env%virial%pv_numer) free_hfx_buffer=.FALSE.
+    IF(qs_env%virial%pv_numer) THEN
+      ! in the case of numerical stress we don't have to free the HFX integrals
+      free_hfx_buffer=.FALSE.
+      mp2_env%ri_mp2%free_hfx_buffer=.FALSE.
+    END IF
     IF(free_hfx_buffer) THEN
       CALL timeset(routineN//"_free_hfx",handle2)
       CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
