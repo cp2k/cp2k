@@ -1,0 +1,97 @@
+&GLOBAL                                                                                           
+  PROJECT     STRESS_NUM_RI-MP2
+  PRINT_LEVEL LOW
+  RUN_TYPE    CELL_OPT
+&END GLOBAL
+&MOTION
+  &CELL_OPT
+    MAX_ITER  1
+  &END
+&END MOTION
+&FORCE_EVAL
+  METHOD         Quickstep
+  STRESS_TENSOR  DIAGONAL_NUMERICAL
+  &PRINT
+    &FORCES
+    &END
+    &STRESS_TENSOR
+    &END
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME  ../HFX_BASIS
+    POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF      150
+      REL_CUTOFF   30
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS   ATOMIC
+      EPS_SCF     1.0E-10
+      MAX_SCF     100
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ 1.0E-9
+          EPS_SCHWARZ_FORCES  1.0E-9
+          SCREEN_ON_INITIAL_P .FALSE.
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE  TRUNCATED
+          CUTOFF_RADIUS   2.4999999
+          T_C_G_DATA      ../t_c_g.dat
+        &END
+      &END HF
+      &WF_CORRELATION
+        METHOD  RI_MP2_GPW
+        &RI_MP2
+          BLOCK_SIZE  1
+          EPS_CANONICAL 0.0001
+          FREE_HFX_BUFFER .TRUE.
+        &END
+        &CPHF
+          EPS_CONV  1.0E-6
+          MAX_ITER  50
+        &END
+        &WFC_GPW
+          CUTOFF      100
+          REL_CUTOFF  20
+          EPS_FILTER  1.0E-12
+          EPS_GRID    1.0E-8
+        &END
+        MEMORY       1.00
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  5.000   5.000  5.000
+    &END CELL
+    &KIND H
+      BASIS_SET         DZVP-GTH
+      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &COORD
+      H       0.000000    0.000000     0.000000
+      H       0.000000    0.000000     0.740000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

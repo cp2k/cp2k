@@ -54,12 +54,17 @@ MODULE mp2_cphf
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE machine,                         ONLY: m_walltime
+  USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: mp_sum
   USE mp2_types,                       ONLY: mp2_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_scale,&
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_derive,&
+                                             pw_integral_ab,&
+                                             pw_scale,&
                                              pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -84,6 +89,7 @@ MODULE mp2_cphf
                                              qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -124,17 +130,21 @@ MODULE mp2_cphf
     CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, dimen, handle, handle2, i, i_global, i_thread, iiB, &
-      ikind, irep, ispin, j_global, jjB, my_bin_size, n_rep_hf, n_threads, &
-      ncol_local, nrow_local, stat, transf_type_in, transf_type_out, virtual
+    INTEGER :: alpha, beta, bin, dimen, handle, handle2, i, i_global, &
+      i_thread, iiB, ikind, irep, ispin, j_global, jjB, my_bin_size, &
+      n_rep_hf, n_threads, ncol_local, nrow_local, stat, transf_type_in, &
+      transf_type_out, virtual
+    INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: do_dynamic_load_balancing, &
                                                 do_hfx, failure, &
-                                                hfx_treat_lsd_in_core
-    REAL(KIND=dp)                            :: out_alpha, pair_energy, &
-                                                tot_rho_r
+                                                hfx_treat_lsd_in_core, &
+                                                use_virial
+    REAL(KIND=dp)                            :: e_hartree, out_alpha, &
+                                                pair_energy, tot_rho_r
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_deb
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type)                    :: P_mu_nu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -148,7 +158,8 @@ MODULE mp2_cphf
     TYPE(hfx_container_type), POINTER        :: maxval_container
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
+    TYPE(pw_p_type)                          :: dvg(3), pot_g, rho_g, rho_r, &
+                                                temp_pw_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -158,6 +169,7 @@ MODULE mp2_cphf
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho, rho_work
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
+    TYPE(virial_type), POINTER               :: virial
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
@@ -167,7 +179,7 @@ MODULE mp2_cphf
     ! start collecting stuff
     dimen=nmo
     virtual=dimen-homo
-    NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force)
+    NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force,virial)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
                     input=input,&
@@ -176,8 +188,12 @@ MODULE mp2_cphf
                     rho=rho,&
                     energy=energy,&
                     force=force,&
+                    virial=virial,&
                     error=error)
     
+    ! check if we have to calculate the virial
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+
     ! mp2 matrices
     NULLIFY(P_mo, W_mo, L_jb)
     P_mo => mp2_env%ri_grad%P_mo
@@ -532,6 +548,70 @@ MODULE mp2_cphf
     ! right contribution
     CALL integrate_v_rspace(v_rspace=rho_r,p=qs_env%rho%rho_ao(1),h=qs_env%matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.,error=error)
+
+    IF(use_virial) THEN
+      ! update virial if necessery with the volume term
+      ! first create pw auxilliary stuff
+      CALL timeset(routineN//"_Virial",handle2)
+      NULLIFY(temp_pw_g%pw)
+      CALL pw_pool_create_pw(auxbas_pw_pool,temp_pw_g%pw,&
+                             use_data=COMPLEXDATA1D,&
+                             in_space=RECIPROCALSPACE,error=error)
+      DO i=1, 3
+        NULLIFY(dvg(i)%pw)
+        CALL pw_pool_create_pw(auxbas_pw_pool,dvg(i)%pw,&
+                               use_data=COMPLEXDATA1D,&
+                               in_space=RECIPROCALSPACE,error=error)
+      END DO
+     
+      ! make a copy of the MP2 density in G space
+      CALL pw_copy(rho_g%pw, temp_pw_g%pw, error=error)
+      ! calculate MP2-like-hartree potential derivatives
+      DO i=1, 3
+        comp=0
+        comp(i)=1
+        CALL pw_copy(pot_g%pw, dvg(i)%pw, error=error)
+        CALL pw_derive(dvg(i)%pw, comp, error=error)
+      END DO
+ 
+      ! calculate total SCF density and potential
+      CALL calculate_rho_elec(matrix_p=qs_env%rho%rho_ao(1)%matrix,&
+                              rho=rho_r,&
+                              rho_gspace=rho_g,&
+                              total_rho=tot_rho_r,&
+                              qs_env=qs_env,&
+                              soft_valid=.FALSE.,&
+                              error=error)
+      ! and associated potential
+      CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
+      ! don't forget the core density
+      CALL pw_axpy(qs_env%rho_core%pw, rho_g%pw, error=error)
+      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
+
+      ! finally update virial with the volume contribution
+      e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error)
+      DO alpha=1, 3
+        comp=0
+        comp(alpha)=1
+        CALL pw_copy(pot_g%pw, rho_g%pw, error=error)
+        CALL pw_derive(rho_g%pw, comp, error=error)
+        h_stress(alpha,alpha)=-e_hartree
+        DO beta=alpha, 3
+          h_stress(alpha,beta)=h_stress(alpha,beta) &
+                     -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error)/fourpi
+          h_stress (beta,alpha)=h_stress(alpha,beta)
+        END DO
+      END DO
+      virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe,dp)
+
+      ! free stuff
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,temp_pw_g%pw,error=error)
+      DO i=1, 3
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvg(i)%pw,error=error)
+      END DO
+      CALL timestop(handle2)
+    END IF
+
     DO ispin=1, qs_env%dft_control%nspins
       CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, qs_env%matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
     END DO   

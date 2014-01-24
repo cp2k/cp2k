@@ -138,6 +138,10 @@ CONTAINS
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  just_energy=.TRUE.,error=error)
+        ! add MP2 energy if necessary
+        IF(ASSOCIATED(qs_env%mp2_env)) THEN
+          qs_env%energy%total = qs_env%energy%total + qs_env%energy%mp2
+        END IF
       END IF
     END IF
 

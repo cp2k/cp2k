@@ -48,6 +48,7 @@ MODULE mp2_ri_grad
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_comm_split_direct, mp_irecv, mp_isend, &
        mp_request_null, mp_sendrecv, mp_sum, mp_wait, mp_waitall
@@ -60,15 +61,20 @@ MODULE mp2_ri_grad
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_scale,&
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_derive,&
+                                             pw_integral_ab,&
+                                             pw_scale,&
                                              pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: REALDATA3D,&
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
                                              REALSPACE,&
+                                             RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
@@ -87,6 +93,7 @@ MODULE mp2_ri_grad
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -141,22 +148,25 @@ MODULE mp2_ri_grad
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, dimen, dir, handle, handle2, handle3, i, iatom, &
-      igrid_level, ikind, iorb, ipgf, iset, istat, itmp(2), L_counter, lb(3), &
-      LLL, location(3), my_P_end, my_P_size, my_P_start, na1, na2, natom, &
-      ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual
+    INTEGER :: alpha, atom_a, beta, dimen, dir, handle, handle2, handle3, i, &
+      iatom, igrid_level, ikind, iorb, ipgf, iset, istat, itmp(2), L_counter, &
+      lb(3), LLL, location(3), my_P_end, my_P_size, my_P_start, na1, na2, &
+      natom, ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, map_it_here, &
-                                                skip_shell
-    REAL(KIND=dp)                            :: eps_filter, pair_energy, &
-                                                rab2, total_rho
+                                                skip_shell, use_virial
+    REAL(KIND=dp)                            :: e_hartree, eps_filter, &
+                                                pair_energy, rab2, total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: wf_vector
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: G_PQ_local, I_ab
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress, my_virial_a, &
+                                                my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, pab, rpgfa, sphi_a, &
                                                 zeta, zetb
@@ -174,7 +184,7 @@ MODULE mp2_ri_grad
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(pw_p_type)                          :: psi_L
+    TYPE(pw_p_type)                          :: dvg(3), psi_L, temp_pw_g
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(realspace_grid_desc_p_type), &
@@ -182,6 +192,7 @@ MODULE mp2_ri_grad
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -268,8 +279,27 @@ MODULE mp2_ri_grad
                            in_space=REALSPACE,error=error_sub)
 
     ! get input section and forces
-    NULLIFY (force)
-    CALL get_qs_env(qs_env=qs_env,input=input,force=force,error=error)
+    NULLIFY (force, virial)
+    CALL get_qs_env(qs_env=qs_env,input=input,force=force,virial=virial,error=error)
+
+    ! check if we want to calculate the virial
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+ 
+    ! in case virial is required we need auxilliary pw 
+    ! for calculate the MP2-volume contribution to the virial
+    ! (hartree potential derivatives)   
+    IF(use_virial) THEN
+      NULLIFY(temp_pw_g%pw)
+      CALL pw_pool_create_pw(auxbas_pw_pool,temp_pw_g%pw,&
+                             use_data=COMPLEXDATA1D,&
+                             in_space=RECIPROCALSPACE,error=error_sub)
+      DO i=1, 3
+        NULLIFY(dvg(i)%pw)
+        CALL pw_pool_create_pw(auxbas_pw_pool,dvg(i)%pw,&
+                               use_data=COMPLEXDATA1D,&
+                               in_space=RECIPROCALSPACE,error=error_sub)
+      END DO
+    END IF
 
     ! start main loop over auxiliary basis functions
     CALL timeset(routineN//"_loop",handle2)
@@ -331,6 +361,20 @@ MODULE mp2_ri_grad
       CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
       CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
       CALL timestop(handle3)
+
+      IF(use_virial) THEN
+        ! make a copy of the density in G space
+        ! calculate the potential derivatives in G space 
+        CALL timeset(routineN//"_Virial",handle3)
+        CALL pw_copy(rho_g%pw, temp_pw_g%pw, error=error)
+        DO i=1, 3
+          comp=0
+          comp(i)=1 
+          CALL pw_copy(pot_g%pw, dvg(i)%pw, error=error_sub)
+          CALL pw_derive(dvg(i)%pw, comp, error=error_sub)
+        END DO
+        CALL timestop(handle3)
+      END IF
  
       ! integrate the potential of the single gaussian and update 
       ! 2-center forces with Gamma_PQ
@@ -368,6 +412,10 @@ MODULE mp2_ri_grad
 
         force_a(:) = 0.0_dp
         force_b(:) = 0.0_dp
+        IF (use_virial) THEN
+          my_virial_a = 0.0_dp
+          my_virial_b = 0.0_dp
+        END IF
 
         DO iset=1, nseta
          ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -438,6 +486,7 @@ MODULE mp2_ri_grad
                                                eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
+                                               use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
                                                error=error_sub)
 
            END DO
@@ -457,6 +506,9 @@ MODULE mp2_ri_grad
 
         force(ikind)%rho_elec(:,atom_a) =&
                     force(ikind)%rho_elec(:,atom_a) + force_a(:) + force_b
+        IF(use_virial) THEN
+          virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
+        END IF
       END DO
 
       DO i=1,SIZE(rs_v)
@@ -501,6 +553,43 @@ MODULE mp2_ri_grad
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL timestop(handle3)
 
+      IF(use_virial) THEN
+        ! add the volume contribution to the virial due to
+        ! the (P|Q) integrals, first we put the full gamme_PQ
+        ! pseudo wave-function into grid in order to calculate the 
+        ! hartree potential derivatives
+        CALL timeset(routineN//"_Virial",handle3)
+        wf_vector=0.0_dp
+        wf_vector=-2.0_dp*G_PQ_local(:,L_counter)
+        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
+                                    atomic_kind_set,cell,dft_control,particle_set, &
+                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    external_vector=wf_vector,&
+                                    error=error_sub)
+        ! transfer to reciprocal space and calculate potential
+        rho_r%pw%cr3d = psi_L%pw%cr3d
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
+        e_hartree=0.0_dp
+        h_stress=0.0_dp
+        e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error_sub)
+        DO alpha=1, 3
+          comp=0
+          comp(alpha)=1
+          CALL pw_copy(pot_g%pw, rho_g%pw, error=error_sub)
+          CALL pw_derive(rho_g%pw, comp, error=error_sub)   
+          h_stress(alpha,alpha)=-e_hartree
+          DO beta=alpha, 3
+            h_stress(alpha,beta)=h_stress(alpha,beta) &
+                       -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error_sub)/fourpi
+            h_stress (beta,alpha)=h_stress(alpha,beta)
+          END DO
+        END DO
+        virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe,dp)
+        CALL timestop(handle3)
+      END IF
+
       ! put the gamma density on grid
       CALL timeset(routineN//"_Gpot",handle3)
       CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix,&
@@ -517,6 +606,29 @@ MODULE mp2_ri_grad
       CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
       CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
       CALL timestop(handle3)
+
+      IF(use_virial) THEN
+        ! add the volume contribution to the virial coming from 
+        ! the 3-center integrals (mu nu|P) 
+        CALL timeset(routineN//"_Virial",handle3)
+        e_hartree=0.0_dp
+        h_stress=0.0_dp
+        e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error_sub)
+        DO alpha=1, 3
+          comp=0
+          comp(alpha)=1
+          CALL pw_copy(pot_g%pw, rho_g%pw, error=error_sub)
+          CALL pw_derive(rho_g%pw, comp, error=error_sub)
+          h_stress(alpha,alpha)=-e_hartree
+          DO beta=alpha, 3
+            h_stress(alpha,beta)=h_stress(alpha,beta) &
+                       -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error_sub)/fourpi
+            h_stress (beta,alpha)=h_stress(alpha,beta)
+          END DO
+        END DO
+        virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe,dp)
+        CALL timestop(handle3)
+      END IF
 
       ! integrate potential with auxiliary basis function derivatives
       NULLIFY(rs_v)
@@ -552,6 +664,10 @@ MODULE mp2_ri_grad
 
         force_a(:) = 0.0_dp
         force_b(:) = 0.0_dp
+        IF (use_virial) THEN
+          my_virial_a = 0.0_dp
+          my_virial_b = 0.0_dp
+        END IF
 
         DO iset=1, nseta
          ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -635,6 +751,7 @@ MODULE mp2_ri_grad
                                                eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
+                                               use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
                                                error=error_sub)
 
            END DO
@@ -654,6 +771,9 @@ MODULE mp2_ri_grad
 
         force(ikind)%rho_elec(:,atom_a) =&
                       force(ikind)%rho_elec(:,atom_a) + force_a(:) + force_b(:)
+        IF(use_virial) THEN
+          virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
+        END IF
       END DO
 
       DO i=1,SIZE(rs_v)
@@ -669,6 +789,13 @@ MODULE mp2_ri_grad
     DEALLOCATE(wf_vector,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw,error=error_sub)
+
+    IF(use_virial) THEN
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,temp_pw_g%pw,error=error_sub)
+      DO i=1, 3
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvg(i)%pw,error=error_sub)
+      END DO
+    END IF
 
     CALL cp_dbcsr_release(matrix_P_inu%matrix,error=error_sub)
     DEALLOCATE(matrix_P_inu%matrix,STAT=stat)

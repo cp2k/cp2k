@@ -1478,9 +1478,16 @@ MODULE hfx_derivatives
                     DO i=1,3
                       T2 => primitive_forces_virial(((i-1)*12+coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1:&
                                               ((i-1)*12+coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
-                      CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                         pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
-                                         T2, tmp_virial, coord, i)
+                      IF(with_mp2_density) THEN
+                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                           pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
+                                           T2, tmp_virial, coord, i, &
+                                           pbd_buf_mp2, pbc_buf_mp2, pad_buf_mp2, pac_buf_mp2)
+                      ELSE
+                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                           pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
+                                           T2, tmp_virial, coord, i)
+                      END IF
                       IF( nspins == 2 ) THEN
                         CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                            pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
@@ -2186,7 +2193,8 @@ MODULE hfx_derivatives
 ! *****************************************************************************
   SUBROUTINE update_virial(ma_max, mb_max, mc_max, md_max, &
                            pbd, pbc, pad, pac, fac, &
-                           prim, tmp_virial, coord, l)
+                           prim, tmp_virial, coord, l, &
+                           pbd_mp2, pbc_mp2, pad_mp2, pac_mp2)
 
     INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
     REAL(dp), DIMENSION(*), INTENT(IN)       :: pbd, pbc, pad, pac
@@ -2195,26 +2203,65 @@ MODULE hfx_derivatives
       *md_max), INTENT(IN)                   :: prim
     REAL(dp)                                 :: tmp_virial(3,3)
     INTEGER, INTENT(IN)                      :: coord, l
+    REAL(dp), DIMENSION(*), INTENT(IN), &
+      OPTIONAL                               :: pbd_mp2, pbc_mp2, pad_mp2, &
+                                                pac_mp2
 
     INTEGER                                  :: i, j, ma, mb, mc, md, p_index
-    REAL(dp)                                 :: temp1, temp2, temp3, temp4
+    LOGICAL                                  :: with_mp2_density
+    REAL(dp)                                 :: temp1, temp1_mp2, temp2, &
+                                                temp3, temp3_mp2, temp4
 
-    p_index = 0
-    temp4 = 0.0_dp
-    DO md = 1,md_max
-      DO mc = 1,mc_max
-        DO mb = 1,mb_max
-          temp1 = pbc((mc-1)*mb_max+mb) * fac
-          temp3 = pbd((md-1)*mb_max+mb) * fac
-          DO ma = 1,ma_max
-            p_index = p_index + 1
-            temp2 = temp1 * pad((md-1)*ma_max+ma) + &
-                    temp3 * pac((mc-1)*ma_max+ma)
-            temp4 = temp4 + temp2 * prim(p_index)
-          END DO !ma
-        END DO !mb
-      END DO !mc
-    END DO !md
+    with_mp2_density=.FALSE.
+    IF(PRESENT(pbd_mp2).AND.&
+       PRESENT(pbc_mp2).AND.&
+       PRESENT(pad_mp2).AND.&
+       PRESENT(pac_mp2)) with_mp2_density=.TRUE.
+
+    IF(with_mp2_density) THEN
+      p_index = 0
+      temp4 = 0.0_dp
+      DO md = 1,md_max
+        DO mc = 1,mc_max
+          DO mb = 1,mb_max
+            temp1 = pbc((mc-1)*mb_max+mb) * fac
+            temp3 = pbd((md-1)*mb_max+mb) * fac
+            temp1_mp2 = pbc_mp2((mc-1)*mb_max+mb) * fac
+            temp3_mp2 = pbd_mp2((md-1)*mb_max+mb) * fac
+            DO ma = 1,ma_max
+              p_index = p_index + 1
+              ! HF-SCF
+              temp2 = temp1 * pad((md-1)*ma_max+ma) + &
+                      temp3 * pac((mc-1)*ma_max+ma)
+              ! MP2+HF
+              temp2 = temp2 + &
+                      pac((mc-1)*ma_max+ma) * temp3_mp2 + &
+                      pac_mp2((mc-1)*ma_max+ma) * temp3 + &
+                      pad((md-1)*ma_max+ma) * temp1_mp2 + &
+                      pad_mp2((md-1)*ma_max+ma) * temp1
+              temp4 = temp4 + temp2 * prim(p_index)
+            END DO !ma
+          END DO !mb
+        END DO !mc
+      END DO !md
+    ELSE
+      p_index = 0
+      temp4 = 0.0_dp
+      DO md = 1,md_max
+        DO mc = 1,mc_max
+          DO mb = 1,mb_max
+            temp1 = pbc((mc-1)*mb_max+mb) * fac
+            temp3 = pbd((md-1)*mb_max+mb) * fac
+            DO ma = 1,ma_max
+              p_index = p_index + 1
+              temp2 = temp1 * pad((md-1)*ma_max+ma) + &
+                      temp3 * pac((mc-1)*ma_max+ma)
+              temp4 = temp4 + temp2 * prim(p_index)
+            END DO !ma
+          END DO !mb
+        END DO !mc
+      END DO !md
+    END IF
 
     j = l
     i = MOD(coord-1,3)+1
