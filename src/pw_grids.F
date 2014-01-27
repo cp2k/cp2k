@@ -692,7 +692,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_print', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n(3)
+    INTEGER                                  :: i
+    INTEGER(KIND=int_8)                      :: n(3)
     REAL(KIND=dp)                            :: rv(3,3)
 
 !------------------------------------------------------------------------------
@@ -1366,8 +1367,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_count', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, l, m, mm, n, &
-                                                n_upperlimit, nlim( 2 ), nn
+    INTEGER                                  :: l, m, mm, n, n_upperlimit, &
+                                                nlim( 2 ), nn
+    INTEGER(KIND=int_8)                      :: gpt
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
     REAL(KIND=dp)                            :: length, length_x, length_y, &
                                                 length_z
