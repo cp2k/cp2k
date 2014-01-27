@@ -221,7 +221,9 @@ MODULE glbopt_worker
     ! fix fragmentation
     IF(.NOT. ASSOCIATED(positions))  ALLOCATE(positions(3*worker%n_atoms))
     CALL pack_subsys_particles(worker%subsys, r=positions, error=worker%error)
-    DO n_fragments=0, HUGE(1)
+    n_fragments=0
+    DO 
+      n_fragments=n_fragments+1
       IF(fix_fragmentation(positions, worker%fragmentation_threshold)) EXIT
     END DO
     CALL unpack_subsys_particles(worker%subsys, r=positions, error=worker%error)
