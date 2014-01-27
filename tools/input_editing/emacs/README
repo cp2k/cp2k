@@ -4,7 +4,7 @@
 #+author: Lianheng Tong
 #+date: Wednesday, 2014/01/22
 
-cp2k-mode.el is provides a major mode in emacs for editing CP2K input
+cp2k-mode.el provides a major mode in emacs for editing CP2K input
 files. It has been tested on emacs 2.1, 2.3 and 2.4.
 
 * Functionalities
@@ -14,6 +14,13 @@ files. It has been tested on emacs 2.1, 2.3 and 2.4.
     - the keywords
     - the comment lines
   - Indents lines according to the CP2K input syntax using <tab> key
+  - Input sections can be folded or unfolded, using emacs outline
+    minor mode.
+    - outline-toggle-children when called on a unfolded section, folds
+      the section recursively; when called on a folded section,
+      unfolds the top level tree.
+    - show-all when called unfolds all sections recursively.
+    - show-subtree when called unfolds a folded section recursively.
   - New interactive functions:
     - cp2k-indent-line:        indents the line according to CP2K 
                                input syntax.
@@ -22,12 +29,14 @@ files. It has been tested on emacs 2.1, 2.3 and 2.4.
     - cp2k-end-of-block:       goes to the ending of the subsection,
                                marks the current cursor position.
   - Key Bindings:
-    - <tab>   cp2k-indent-line
-    - C-j     newline-and-indent
-    - C-c ;   comment-region
-    - C-M-a   cp2k-beginning-of-block
-    - C-M-e   cp2k-end-of-block
-
+    - <tab>    cp2k-indent-line
+    - C-j      newline-and-indent
+    - C-c ;    comment-region
+    - C-M-a    cp2k-beginning-of-block
+    - C-M-e    cp2k-end-of-block
+    - C-c C-c  outline-toggle-children
+    - C-c C-a  show-all
+    - C-c C-t  show-subtree
 * Installation
   You need to put cp2k-mode.el in one of your local emacs lisp
   directories, which is in the search path of your emacs installation.

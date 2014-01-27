@@ -1,6 +1,6 @@
 ;;;;; Emacs major mode for cp2k input, written by Lianheng Tong
 ;;;;; Copyright (c) Lianheng Tong
-;;;;; Last modify date: Thursday, 2013/12/05
+;;;;; Last modify date: Saturday, 2014/01/25
 
 ;;;; Syntax highlighting of keywords
 (defconst cp2k-font-lock-keywords
@@ -49,6 +49,9 @@
     (define-key map (kbd "TAB")     'cp2k-indent-line)
     (define-key map (kbd "C-M-a")   'cp2k-beginning-of-block)
     (define-key map (kbd "C-M-e")   'cp2k-end-of-block)
+    (define-key map (kbd "C-c C-c") 'outline-toggle-children)
+    (define-key map (kbd "C-c C-a") 'show-all)
+    (define-key map (kbd "C-c C-t") 'show-subtree)
     map)
   "Keymap for `cp2k-mode'.")
 
@@ -238,6 +241,13 @@
 
 ;;;; Add to autoload alist
 (add-to-list 'auto-mode-alist '("\\.cp2kin\\'" . cp2k-mode))
+
+;;;; Setup outline mode
+(when (require 'outline nil 'noerror)
+  (add-hook 'cp2k-mode-hook 'outline-minor-mode)
+  ;; in outline mode, the level of header depends on the length of
+  ;; match, which suits our purposes quite well
+  (setq outline-regexp "[ \t]*\\(&\\|@\\(IF\\|EN\\)\\)"))
 
 ;;;; Last line
 (provide 'cp2k-mode)
