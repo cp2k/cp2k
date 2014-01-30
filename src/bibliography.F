@@ -62,7 +62,7 @@ MODULE bibliography
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
              Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996, &
-             Goedecker2004,Khaliullin2013,Hutter2014
+             Goedecker2004,Khaliullin2013,Hutter2014,Bengtsson1999
 
 CONTAINS
 
@@ -92,6 +92,20 @@ CONTAINS
          "UT WOS:A1979GR73200004",&
          "ER"),&
          DOI="10.1145/359094.359101")
+
+    CALL add_reference(key=Bengtsson1999, ISI_record=s2a(&
+         "AU BENGTSSON, L",&
+         "TI DIPOLE CORRECTION FOR SURFACE SUPERCELL CALCULATIONE",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 0163-1829",&
+         "PY 1999",&
+         "VL 59",&
+         "IS 19",&
+         "BP 12301",&
+         "EP 12304",&
+         "ER"),&
+          DOI="10.1103/PhysRevB.59.12301")
+
 
     CALL add_reference(key=Foiles1986, ISI_record=s2a(&
          "AU FOILES, SM",&
