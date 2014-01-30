@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
+       Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
        Dudarev1998, Elstner1998, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
        Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
        Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
@@ -386,6 +386,36 @@ CONTAINS
          n_var=1,default_r_val=2.0_dp, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword=keyword,&
+         name="SURFACE_DIPOLE_CORRECTION",&
+         variants=s2a("SURFACE_DIPOLE",&
+         "SURF_DIP"),&
+         description="For slab calculations with asymmetric geometries, activate the correction of "//&
+         " the electrostatic potential with "//&
+         "by compensating for the surface dipole. Implemented only for slabs with normal "//&
+          " parallel to one Cartesian axis. The normal direction is given by the keyword SURF_DIP_DIR ",&
+         usage="SURF_DIP",&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.,&
+         citations=(/Bengtsson1999/),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword=keyword,&
+         name="SURF_DIP_DIR",&
+         description="Cartesian axis parallel to surface normal.",&
+         enum_c_vals=s2a("X","Y","Z"),&
+         enum_i_vals=(/1,2,3/),&
+         enum_desc=s2a("Along x", "Along y", "Along z"),&
+         n_var=1,&
+         default_i_val=3,&
+         usage="SURF_DIP_DIR Z",&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
 
     NULLIFY(subsection)
     CALL create_scf_section(subsection,error)

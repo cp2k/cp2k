@@ -148,6 +148,7 @@ MODULE qs_ks_methods
                                              scp_environment_type
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
   USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
+  USE surface_dipole,                  ONLY: calc_dipsurf_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -512,6 +513,11 @@ CONTAINS
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
           CALL efield_potential(qs_env,v_efield_rspace,error)
           CALL pw_scale(v_efield_rspace%pw, v_efield_rspace%pw%pw_grid%dvol, error=error)
+       END IF
+
+       IF(dft_control%correct_surf_dip) THEN
+         CALL calc_dipsurf_potential(qs_env,ks_env,energy,error=error)
+         energy%hartree = energy%hartree + energy%surf_dipole
        END IF
 
        ! SIC

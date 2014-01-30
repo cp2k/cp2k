@@ -184,8 +184,6 @@ CONTAINS
 
       CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
 
-!      CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, scf_section=scf_section, error=error)
-
       IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
         max_scf_tmp = qs_env%scf_control%max_scf
         qs_env%scf_control%max_scf = 1

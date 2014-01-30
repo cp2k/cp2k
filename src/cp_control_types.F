@@ -362,7 +362,8 @@ MODULE cp_control_types
                                           sic_method_id,&
                                           ref_count,&
                                           id_nr,&
-                                          plus_u_method_id
+                                          plus_u_method_id,&
+                                          dir_surf_dip
      INTEGER                           :: sic_list_id
      REAL(KIND=dp)                     :: relax_multiplicity,&
                                           sic_scaling_a,&
@@ -386,7 +387,8 @@ MODULE cp_control_types
                                           apply_external_density,&
                                           read_external_density,&
                                           apply_external_vxc,&
-                                          read_external_vxc
+                                          read_external_vxc,&
+                                          correct_surf_dip
 
   END TYPE dft_control_type
 

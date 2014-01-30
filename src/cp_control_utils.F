@@ -244,6 +244,12 @@ CPSourceFileRef,&
     ! Smearing in use
     dft_control%smear = .FALSE.
 
+    ! Surface dipole correction
+    dft_control%correct_surf_dip = .FALSE.
+    CALL section_vals_val_get(dft_section,"SURFACE_DIPOLE_CORRECTION",l_val=dft_control%correct_surf_dip,error=error)
+    CALL section_vals_val_get(dft_section,"SURF_DIP_DIR",i_val=dft_control%dir_surf_dip,error=error)
+    
+
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
     CALL section_vals_val_get(dft_section,"GEMINAL_FILE_NAME",&

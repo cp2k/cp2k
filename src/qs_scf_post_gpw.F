@@ -2383,8 +2383,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
          atomic_kind_set, particle_set, rho, ks_rmpv, matrix_s, &
-         dft_section, xc_section, input, particles, subsys)
-    para_env=>qs_env%para_env
+         dft_section, xc_section, input, particles, subsys, ks_rmpv_aux_fit)
+
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -2393,7 +2393,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control, &
             atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,matrix_ks_aux_fit=ks_rmpv_aux_fit,&
-            matrix_s=matrix_s,input=input,cell=cell,subsys=subsys,error=error)
+            matrix_s=matrix_s,input=input,cell=cell,subsys=subsys,para_env=para_env,error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -2410,8 +2410,8 @@ CONTAINS
 
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
                rho0_s_gs=rho0_s_gs,error=error)
-          CALL pw_env_get(pw_env, error=error)
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+!          CALL pw_env_get(pw_env, error=error)
+!          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
@@ -2419,6 +2419,9 @@ CONTAINS
                in_space = REALSPACE, error=error)
           IF (dft_control%qs_control%gapw) THEN
              CALL pw_transfer(rho0_s_gs%pw,wf_r%pw,error=error)
+             IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+                CALL pw_axpy(rho_core%pw,wf_r%pw, error=error)
+             END IF
           ELSE
              CALL pw_transfer(rho_core%pw,wf_r%pw,error=error)
           END IF

@@ -731,6 +731,7 @@ OBJECTS_GENERIC =\
  structure_factors.o\
  structure_factor_types.o\
  subcell_types.o\
+ surface_dipole.o\
  swarm_input.o\
  swarm_master.o\
  swarm_message.o\
