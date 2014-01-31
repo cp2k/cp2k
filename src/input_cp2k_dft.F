@@ -11,14 +11,14 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
-       Dudarev1998, Elstner1998, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
-       Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
-       Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
-       Stewart1989, Stewart2007, Thiel1992, Tozer1996, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-       Zhao1994, Zhechkov2005
+       Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, Dewar1977, &
+       Dewar1985, Dudarev1997, Dudarev1998, Elstner1998, Guidon2010, Hu2007, &
+       Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, &
+       Krack2000, Krack2002, Kunert2003, Lippert1997, Lippert1999, &
+       Perdew1981, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
+       Seifert1996, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
+       Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+       VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas

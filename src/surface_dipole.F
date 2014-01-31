@@ -7,8 +7,7 @@
 ! *****************************************************************************
 MODULE surface_dipole
 
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -18,30 +17,24 @@ MODULE surface_dipole
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: bohr,&
-                                             debye
-  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grids,                        ONLY: get_pw_grid_info
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_methods,                      ONLY: pw_axpy,&
-                                             pw_copy,&
-                                             pw_scale,&
                                              pw_transfer,&
                                              pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: REALDATA3D,REALSPACE,&
-                                             pw_p_type,&
-                                             pw_type
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE,&
+                                             pw_p_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -78,14 +71,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_dipsurf_potential', &
       routineP = moduleN//':'//routineN
 
-
-    INTEGER :: handle, i, idir_surfdip, ilow, ilayer_min, ispin, isurf, iup, jsurf, stat
-    INTEGER :: j, k, irho, kk
-    INTEGER, DIMENSION(3) :: ngrid
+    INTEGER                                  :: handle, i, idir_surfdip, &
+                                                ilayer_min, ilow, irho, &
+                                                ispin, isurf, iup, jsurf, stat
+    INTEGER, DIMENSION(3)                    :: ngrid
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL :: failure
-    REAL(dp) :: dh(3,3), dsurf, surfarea, rhoav_min, udvol, &
-                hh, dip_hh, dip_fac,  height_min, vdip, vdip_fac
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dh(3,3), dip_fac, dip_hh, &
+                                                dsurf, height_min, hh, &
+                                                rhoav_min, surfarea, vdip, &
+                                                vdip_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rhoavsurf
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -98,7 +93,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -138,7 +132,7 @@ CONTAINS
        IF(i /= idir_surfdip) THEN
            IF(ABS(wf_r%pw%pw_grid%dh(idir_surfdip,i)) > 1.E-7_dp) THEN
              ! stop surface dipole defined only for slab perpendigular to one of the Cartesian axis
-              stop
+              STOP
            END IF
        END IF
       ENDDO
