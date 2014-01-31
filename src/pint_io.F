@@ -24,6 +24,7 @@ MODULE pint_io
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
+                                             dump_dcd_aligned_cell,&
                                              dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -177,7 +178,7 @@ MODULE pint_io
            error=error)
 
       SELECT CASE(outformat)
-        CASE (dump_dcd)
+        CASE (dump_dcd,dump_dcd_aligned_cell)
           form="UNFORMATTED"
           ext=".dcd"
         CASE (dump_atomic)
@@ -340,7 +341,7 @@ MODULE pint_io
            error=error)
 
       SELECT CASE(outformat)
-        CASE (dump_dcd)
+        CASE (dump_dcd,dump_dcd_aligned_cell)
           form="UNFORMATTED"
           ext=".dcd"
         CASE (dump_atomic)

@@ -48,8 +48,8 @@ MODULE qs_loc_methods
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
-       do_loc_none, dump_dcd, dump_xmol, op_loc_berry, op_loc_boys, &
-       op_loc_pipek, state_loc_list
+       do_loc_none, dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, &
+       op_loc_boys, op_loc_pipek, state_loc_list
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_ivals,&
                                              section_get_lval,&
@@ -1102,7 +1102,8 @@ CONTAINS
     CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,error=error)
 
     ! Header file
-    IF(outformat==dump_dcd) THEN
+    SELECT CASE (outformat)
+    CASE (dump_dcd,dump_dcd_aligned_cell)
        IF ( init_traj ) THEN
           !Lets write the header for the coordinate dcd
           ! Note (TL) : even the new DCD format is unfortunately too poor
@@ -1119,13 +1120,13 @@ CONTAINS
           WRITE(iunit) 2,remark1,remark2
           WRITE(iunit) ntot
           CALL m_flush(iunit)
-       ENDIF
-    ELSEIF(outformat==dump_xmol) THEN
+       END IF
+    CASE (dump_xmol)
        iter = cp_iter_string(logger%iter_info,error=error)
        WRITE (UNIT=title,FMT="(A)")" Particles+Wannier centers. Iteration:"//TRIM(iter)
-    ELSE
+    CASE DEFAULT
        title = ""
-    END IF
+    END SELECT
     CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell,&
          unit_conv=unit_conv, error=error)
     CALL m_flush(iunit)

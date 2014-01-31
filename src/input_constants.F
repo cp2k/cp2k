@@ -303,7 +303,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: dump_atomic=1,&
                                               dump_xmol=2,&
                                               dump_dcd=3,&
-                                              dump_pdb=4
+                                              dump_pdb=4,&
+                                              dump_dcd_aligned_cell=5
 
   INTEGER, PARAMETER, PUBLIC               :: fmt_id_xyz=1,&
                                               fmt_id_pdb=2

@@ -19,10 +19,14 @@ MODULE particle_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_clone,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type,&
                                              get_cell,&
                                              pbc,&
-                                             real_to_scaled
+                                             real_to_scaled,&
+                                             set_cell_param
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -31,6 +35,7 @@ MODULE particle_types
   USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
+                                             dump_dcd_aligned_cell,&
                                              dump_pdb,&
                                              dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -38,7 +43,9 @@ MODULE particle_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             sp
+                                             dp_size,&
+                                             sp,&
+                                             sp_size
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              dihedral_angle
@@ -49,7 +56,8 @@ MODULE particle_types
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort,&
@@ -273,8 +281,10 @@ CONTAINS
                                                 angle_gamma, factor, qeff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
-    REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
+    REAL(KIND=dp), DIMENSION(3)              :: abc, angles, f, r, v
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h
+    REAL(KIND=sp), ALLOCATABLE, DIMENSION(:) :: x4, y4, z4
+    TYPE(cell_type), POINTER                 :: cell_dcd
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(shell_kind_type), POINTER           :: shell
 
@@ -373,72 +383,85 @@ CONTAINS
              WRITE (iunit,"(3F20.10)")f(1:3)*factor
           END SELECT
        END DO
-    CASE (dump_dcd)
+    CASE (dump_dcd,dump_dcd_aligned_cell)
        IF (.NOT.(PRESENT(cell))) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "Cell is not present! Report this bug!")
+                            "Cell is not present! Report this bug!")
        END IF
+       CALL get_cell(cell,alpha=angle_alpha,beta=angle_beta,gamma=angle_gamma,&
+                     abc=abc)
+       IF (.NOT.cell%orthorhombic.AND.(output_format == dump_dcd_aligned_cell)) THEN
+          ! In the case of a non-orthorhombic cell adopt a common convention
+          ! for the orientation of the cell with respect to the Cartesian axes:
+          ! Cell vector a is aligned with the x axis and the cell vector b lies
+          ! in the xy plane.
+          NULLIFY (cell_dcd)
+          CALL cell_create(cell_dcd,error=error)
+          CALL cell_clone(cell,cell_dcd,error=error)
+          angles(1) = angle_alpha/degree
+          angles(2) = angle_beta/degree
+          angles(3) = angle_gamma/degree
+          CALL set_cell_param(cell_dcd,abc,angles,&
+                              do_init_cell=.TRUE.,error=error)
+          h(1:3,1:3) = MATMUL(cell_dcd%hmat(1:3,1:3),cell%h_inv(1:3,1:3))
+          CALL cell_release(cell_dcd,error=error)
+       END IF
+       ALLOCATE (arr(3,natom),STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "arr",3*natom*dp_size)
        IF (PRESENT(array)) THEN
-          ALLOCATE(arr(3,natom),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          arr = RESHAPE(array,(/3,natom/))
+          arr(1:3,1:natom) = RESHAPE(array,(/3,natom/))
+       ELSE
+          SELECT CASE (TRIM(content))
+          CASE ("POS")
+             DO iatom=1,natom
+                arr(1:3,iatom) = particle_set(iatom)%r(1:3)
+             END DO
+          CASE ("VEL")
+             DO iatom=1,natom
+                arr(1:3,iatom) = particle_set(iatom)%v(1:3)
+             END DO
+          CASE ("FORCE")
+             DO iatom=1,natom
+                arr(1:3,iatom) = particle_set(iatom)%f(1:3)
+             END DO
+          CASE DEFAULT
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Illegal DCD dump type")
+          END SELECT
        END IF
-       NULLIFY(x4,y4,z4)
-       ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_cell(cell, alpha=angle_alpha, beta=angle_beta, gamma=angle_gamma, abc=abc)
-       WRITE(iunit) abc(1)*factor, angle_gamma, abc(2)*factor,&
-                    angle_beta, angle_alpha, abc(3)*factor
-       SELECT CASE (TRIM(content))
-       CASE ("POS")
-          IF (PRESENT(array)) THEN
-             x4(:) = arr(1,:)
-             y4(:) = arr(2,:)
-             z4(:) = arr(3,:)
-          ELSE
-             x4(:) = particle_set(:)%r(1)
-             y4(:) = particle_set(:)%r(2)
-             z4(:) = particle_set(:)%r(3)
-          END IF
-          WRITE(iunit) x4*REAL(factor,KIND=sp)
-          WRITE(iunit) y4*REAL(factor,KIND=sp)
-          WRITE(iunit) z4*REAL(factor,KIND=sp)
-       CASE ("VEL")
-          IF (PRESENT(array)) THEN
-             x4(:) = arr(1,:)
-             y4(:) = arr(2,:)
-             z4(:) = arr(3,:)
-          ELSE
-             x4(:) = particle_set(:)%v(1)
-             y4(:) = particle_set(:)%v(2)
-             z4(:) = particle_set(:)%v(3)
-          END IF
-          WRITE(iunit) x4*REAL(factor,KIND=sp)
-          WRITE(iunit) y4*REAL(factor,KIND=sp)
-          WRITE(iunit) z4*REAL(factor,KIND=sp)
-       CASE ("FORCE")
-          IF (PRESENT(array)) THEN
-             x4(:) = arr(1,:)
-             y4(:) = arr(2,:)
-             z4(:) = arr(3,:)
-          ELSE
-             x4(:) = particle_set(:)%f(1)
-             y4(:) = particle_set(:)%f(2)
-             z4(:) = particle_set(:)%f(3)
-          END IF
-          WRITE(iunit) x4*REAL(factor,KIND=sp)
-          WRITE(iunit) y4*REAL(factor,KIND=sp)
-          WRITE(iunit) z4*REAL(factor,KIND=sp)
-       CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal dcd dump type")
-       END SELECT
-       IF (PRESENT(array)) THEN
-          DEALLOCATE(arr,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (x4(natom),STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "x4",natom*sp_size)
+       ALLOCATE (y4(natom),STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "y4",natom*sp_size)
+       ALLOCATE (z4(natom),STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "z4",natom*sp_size)
+       IF (.NOT.cell%orthorhombic.AND.(output_format == dump_dcd_aligned_cell)) THEN
+          x4(1:natom) = MATMUL(h(1,1:3),arr(1:3,1:natom))
+          y4(1:natom) = MATMUL(h(2,1:3),arr(1:3,1:natom))
+          z4(1:natom) = MATMUL(h(3,1:3),arr(1:3,1:natom))
+       ELSE
+          x4(1:natom) = arr(1,1:natom)
+          y4(1:natom) = arr(2,1:natom)
+          z4(1:natom) = arr(3,1:natom)
        END IF
-       DEALLOCATE(x4,y4,z4,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       WRITE (iunit) abc(1)*factor,angle_gamma,abc(2)*factor,&
+                     angle_beta,angle_alpha,abc(3)*factor
+       WRITE (iunit) x4*REAL(factor,KIND=sp)
+       WRITE (iunit) y4*REAL(factor,KIND=sp)
+       WRITE (iunit) z4*REAL(factor,KIND=sp)
+       ! Release work storage
+       DEALLOCATE (arr,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"arr")
+       DEALLOCATE (x4,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"x4")
+       DEALLOCATE (y4,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"y4")
+       DEALLOCATE (z4,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"z4")
     CASE (dump_pdb)
        my_charge_occup = .FALSE.
        IF (PRESENT(charge_occup)) my_charge_occup = charge_occup

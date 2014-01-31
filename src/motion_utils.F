@@ -26,6 +26,7 @@ MODULE motion_utils
                                              force_env_type
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
+                                             dump_dcd_aligned_cell,&
                                              dump_pdb,&
                                              dump_xmol
   USE input_section_types,             ONLY: section_get_ival,&
@@ -351,7 +352,7 @@ CONTAINS
                                  i_val=outformat,error=error)
        title = ""
        SELECT CASE (outformat)
-       CASE (dump_dcd)
+       CASE (dump_dcd,dump_dcd_aligned_cell)
           IF (new_file) THEN
              !Lets write the header for the coordinate dcd
              section_ref = "MOTION%PRINT%"//TRIM(my_pk_name)//"%EACH%"//TRIM(id_label)
@@ -475,7 +476,7 @@ CPSourceFileRef,&
     END IF
 
     SELECT CASE (output_format)
-    CASE (dump_dcd)
+    CASE (dump_dcd,dump_dcd_aligned_cell)
        my_form = "UNFORMATTED"
        my_ext  = ".dcd"
     CASE (dump_pdb)
