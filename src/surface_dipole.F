@@ -17,6 +17,7 @@ MODULE surface_dipole
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -132,7 +133,9 @@ CONTAINS
        IF(i /= idir_surfdip) THEN
            IF(ABS(wf_r%pw%pw_grid%dh(idir_surfdip,i)) > 1.E-7_dp) THEN
              ! stop surface dipole defined only for slab perpendigular to one of the Cartesian axis
-              STOP
+              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
+                   routineP, " Dipole correction only for surface perpendicular to "//&
+                   " one Cartesian axis",error, only_ionode=.TRUE.)
            END IF
        END IF
       ENDDO
@@ -177,27 +180,17 @@ CONTAINS
       dsurf = surfarea/REAL(ngrid(isurf)*ngrid(jsurf),dp)
 
 
-!      write(*,*) ' area ' , surfarea, dsurf, dsurf*dh(idir_surfdip,idir_surfdip),wf_r%pw%pw_grid%dvol
-
       IF (wf_r%pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
          CALL mp_sum(rhoavsurf,wf_r%pw%pw_grid%para%group)
       END IF
       rhoavsurf(ilow:iup) = dsurf*rhoavsurf(ilow:iup)
 
-!dbg
-!      check_sum = 0.0_dp
-!      check_sum = accurate_sum(rhoavsurf(ilow:iup))
-!      check_sum = check_sum*dh(idir_surfdip,idir_surfdip)
-!      write(*,*) 'checksum ' , check_sum
-!dbg
 
       rhoavsurf(ilow:iup) = rhoavsurf(ilow:iup)/surfarea
       ilayer_min = MINLOC(rhoavsurf(ilow:iup),1)  
       rhoav_min = rhoavsurf(ilayer_min)
       height_min =  REAL((ilayer_min - ilow),dp)*dh(idir_surfdip,idir_surfdip)
 
-!      write(*,*) 'rhoav min' , ilayer_min, height_min,  rhoav_min
-!   stop 'min val av' 
 
 !   surface dipole form average rhoavsurf
 !   \sum_i NjdjNkdkdi rhoav_i (i-imin)di
@@ -214,11 +207,6 @@ CONTAINS
         dip_hh = dip_hh + rhoavsurf(irho)*hh*dip_fac
      END DO 
 
-!      write(*,*) ' dip surf ' , dip_fac, debye,  dip_hh, dip_hh*debye
-!      write(*,*) ' vol ' , wf_r%pw%pw_grid%vol, wf_r%pw%pw_grid%dvol, &
-!          wf_r%pw%pw_grid%vol/REAL(ngrid(1),dp)/REAL(ngrid(2),dp)/REAL(ngrid(3),dp)
-!dbg
-    
      DEALLOCATE(rhoavsurf,stat=stat)
      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -252,27 +240,11 @@ CONTAINS
      END DO
 
      energy%surf_dipole = 0.5_dp * accurate_sum(vdip_r%pw%cr3d* wf_r%pw%cr3d)
-
-!dbg
-!      udvol = 1.0_dp/ ks_env%v_hartree_rspace%pw%pw_grid%dvol
-!      CALL pw_copy(ks_env%v_hartree_rspace%pw, wf_r%pw, error=error)
-!      CALL pw_scale(wf_r%pw,udvol,error=error)
-!
-!      open(115,FILE='hartree1.cube',STATUS='unknown')
-!      CALL pw_to_cube(wf_r%pw,115,"hartree1",particles=particles,error=error)
-!      close(115)
-!dbg
+     IF (wf_r%pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
+         CALL mp_sum(energy%surf_dipole,wf_r%pw%pw_grid%para%group)
+     END IF
 
      ks_env%v_hartree_rspace%pw%cr3d =  ks_env%v_hartree_rspace%pw%cr3d + vdip_r%pw%cr3d
-
-!dbg
-!      CALL pw_copy(ks_env%v_hartree_rspace%pw, wf_r%pw, error=error)
-!      CALL pw_scale(wf_r%pw,udvol,error=error)
-!      open(116,FILE='hartree2.cube',STATUS='unknown')
-!      CALL pw_to_cube(wf_r%pw,116,"hartree2",particles=particles,error=error)
-!      close(116)
-!dbg
-!      stop ' dipole' 
 
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,vdip_r%pw, error=error)
