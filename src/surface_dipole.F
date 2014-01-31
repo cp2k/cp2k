@@ -187,8 +187,11 @@ CONTAINS
 
 
       rhoavsurf(ilow:iup) = rhoavsurf(ilow:iup)/surfarea
-      ilayer_min = MINLOC(rhoavsurf(ilow:iup),1)  
-      rhoav_min = rhoavsurf(ilayer_min)
+      ilayer_min = ilow -1 + MINLOC(ABS(rhoavsurf(ilow:iup)),1)  
+      rhoav_min = ABS(rhoavsurf(ilayer_min))
+      CALL cp_assert(rhoav_min<1.E-5_dp, cp_failure_level,cp_assertion_failed,&
+                routineP, " Dipole correction needs more vacuum space above the surface ",&
+                error, only_ionode=.TRUE.)
       height_min =  REAL((ilayer_min - ilow),dp)*dh(idir_surfdip,idir_surfdip)
 
 
