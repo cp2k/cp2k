@@ -115,6 +115,7 @@ CONTAINS
        dx = ABS(dx)
        CALL section_vals_val_get(root_section,"DEBUG%EPS_NO_ERROR_CHECK",&
                                  r_val=eps_no_error_check,error=error)
+       eps_no_error_check = MAX(eps_no_error_check,EPSILON(0.0_dp))
        CALL section_vals_val_get(root_section,"DEBUG%STOP_ON_MISMATCH",&
                                  l_val=stop_on_mismatch,error=error)
 
@@ -192,9 +193,9 @@ CONTAINS
              DO i=1,3
                 err(:) = 0.0_dp
                 DO k=1,3
-                   IF (ABS(virial_numerical%pv_virial(i,k)) >= eps_no_error_check) THEN
-                      err(k) = (virial_numerical%pv_virial(i,k) - virial_analytical%pv_virial(i,k))/&
-                               virial_analytical%pv_virial(i,k)*100.0_dp
+                   IF (ABS(virial_analytical%pv_virial(i,k)) >= eps_no_error_check) THEN
+                      err(k) = 100.0_dp*(virial_numerical%pv_virial(i,k) - virial_analytical%pv_virial(i,k))/&
+                               virial_analytical%pv_virial(i,k)
                    END IF
                 END DO
                 IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
@@ -267,11 +268,11 @@ CONTAINS
              err(1:3) = 0.0_dp
              DO k=1,3
                 ! Calculate percentage error, but ignore very small force values
-                IF (ABS(numer_forces(ip,k)) >= eps_no_error_check) THEN
-                   err(k) = 100_dp*(analyt_forces(ip,k) - numer_forces(ip,k))/numer_forces(ip,k)
+                IF (ABS(analyt_forces(ip,k)) >= eps_no_error_check) THEN
+                   err(k) = 100.0_dp*(numer_forces(ip,k) - analyt_forces(ip,k))/analyt_forces(ip,k)
                 END IF
                 ! Increase error tolerance for small force values
-                IF (ABS(analyt_forces(ip,k)) <= 0.0001_dp ) my_maxerr(k) = 5.0_dp*my_maxerr(k)
+                IF (ABS(analyt_forces(ip,k)) <= 0.0001_dp) my_maxerr(k) = 5.0_dp*my_maxerr(k)
              END DO
              IF (iw > 0) THEN
                 WRITE (UNIT=iw,FMT="(/,T2,A)")&

@@ -1694,9 +1694,9 @@ CONTAINS
 
     CALL keyword_create(keyword, name="EPS_NO_ERROR_CHECK",&
          description="The mismatch between the numerical and the "//&
-                     "analytical value is not checked for numerical "//&
+                     "analytical value is not checked for analytical "//&
                      "values smaller than this threshold value",&
-         usage="EPS_NO_ERROR_CHECK {REAL}",default_r_val=1.0E-6_dp,error=error)
+         usage="EPS_NO_ERROR_CHECK {REAL}",default_r_val=1.0E-5_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
