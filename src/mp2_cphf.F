@@ -590,6 +590,7 @@ MODULE mp2_cphf
 
       ! finally update virial with the volume contribution
       e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error)
+      h_stress=0.0_dp
       DO alpha=1, 3
         comp=0
         comp(alpha)=1
