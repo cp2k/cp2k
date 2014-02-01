@@ -209,15 +209,21 @@ MODULE dbcsr_mm_cannon
     INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    INTEGER(KIND=int_8)                      :: total_marketing_flops
+
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
      ! Each thread has its own working-matrix and its own mempool
      IF (ASSOCIATED(memtype_product_wm%pool)) &
         CALL dbcsr_mempool_destruct(memtype_product_wm%pool, error)
 
+     ! this could overflow
+     total_marketing_flops=marketing_flops
+     CALL mp_sum(total_marketing_flops,group)
+
      !$omp master
      IF(output_unit>0) &
-       WRITE (output_unit,'(A,T30,I20)') " marketing flops", marketing_flops
+       WRITE (output_unit,'(A,T30,I20)') " marketing flops", total_marketing_flops
      IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
         CALL dbcsr_mempool_destruct(memtype_trsbuffer_1%pool, error)
      IF (ASSOCIATED(memtype_trsbuffer_2%pool)) &
@@ -232,8 +238,6 @@ MODULE dbcsr_mm_cannon
         CALL dbcsr_cuda_stream_destroy(stream_2, error)
      !$omp end master
   END SUBROUTINE
-
-
 
 
 ! *****************************************************************************
@@ -561,10 +565,12 @@ MODULE dbcsr_mm_cannon
        l_k = last_k
     ENDIF
 
-    ! update statistics
-    marketing_flops = marketing_flops + 2_int_8*INT(l_row-f_row+1, int_8) &
-                                               *INT(l_col-f_col+1, int_8) &
-                                               *INT(l_k-f_k+1,     int_8)
+    ! update statistics (we count marketing flops per MPI rank), 
+    ! note that this number can easily overflow
+    numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (matrix_c)))
+    marketing_flops = marketing_flops + &
+                         (2_int_8*INT(l_row-f_row+1, int_8)*INT(l_col-f_col+1, int_8)/numnodes) * &
+                         INT(l_k-f_k+1,     int_8)
 
     !
     ! Now optimize the default submatrix selection values away
