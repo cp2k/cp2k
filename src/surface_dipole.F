@@ -17,7 +17,6 @@ MODULE surface_dipole
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
-  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
