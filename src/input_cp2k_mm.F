@@ -320,7 +320,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        !Universal scattering potential at very short distances
        CALL keyword_create(keyword, name="ZBL_SCATTERING",&
-            description="A short range repulsive potential is added, to simulate"//&
+            description="A short range repulsive potential is added, to simulate "//&
             "collisions and scattering.",&
             usage="ZBL_SCATTERING T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
             error=error)
