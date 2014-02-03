@@ -42,7 +42,6 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE input_constants,                 ONLY: do_arnoldi,&
-                                             do_cn,&
                                              do_em,&
                                              do_etrs,&
                                              do_pade,&
@@ -58,8 +57,7 @@ MODULE rt_propagation_methods
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE rt_make_propagators,             ONLY: make_cn_propagator,&
-                                             make_em_propagator,&
+  USE rt_make_propagators,             ONLY: make_em_propagator,&
                                              make_etrs_exp,&
                                              propagate_arnoldi
   USE rt_propagation_output,           ONLY: rt_convergence
@@ -152,7 +150,7 @@ CONTAINS
     CASE( do_pade, do_taylor)
 
        SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-       CASE(do_cn,do_em)
+       CASE(do_em)
           IF(rtp%iter.NE.1)&
                CALL calc_SinvH(exp_H_new,qs_env,error)
           CALL propagate_cn_or_em(qs_env,error)
@@ -229,12 +227,7 @@ CONTAINS
             error=error)
     END DO
 
-    SELECT CASE (qs_env%dft_control%rtp_control%propagator)
-    CASE(do_cn)
-       CALL make_cn_propagator(propagator,rtp,error)
-    CASE(do_em)
-       CALL make_em_propagator(propagator,rtp,qs_env,error)
-    END SELECT
+    CALL make_em_propagator(propagator,rtp,qs_env,error)
 
     DO i=1,SIZE(mos)
        re=2*i-1
@@ -256,9 +249,6 @@ CONTAINS
     CALL calc_update_rho(qs_env,error)
 
   END SUBROUTINE propagate_cn_or_em
-
-
-
 
 ! *****************************************************************************
 !> \brief applies the propagator on the MO coefficients

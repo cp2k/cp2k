@@ -11,12 +11,6 @@
 
 MODULE rt_make_propagators
 
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
-                                             cp_cfm_solve
-  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_release,&
-                                             cp_cfm_set_all,&
-                                             cp_cfm_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -54,7 +48,6 @@ MODULE rt_make_propagators
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_make_propagators'
 
   PUBLIC :: make_etrs_exp,&
-            make_cn_propagator,&
             make_em_propagator,&
             propagate_arnoldi
 
@@ -161,88 +154,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE make_etrs_exp
-
-! *****************************************************************************
-!> \brief computes the Crank-Nicolson propagator
-!>        [1-idt/2H(t+dt/2)-dt/2B(t+dt/2)]/ (1+idt/2H(t+dt/2)+dt/2B(t+dt/2))
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE make_cn_propagator(propagator,rtp,error)
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: propagator
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_cn_propagator', &
-      routineP = moduleN//':'//routineN
-    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
-                                                zero = (0.0_dp,0.0_dp)
-
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: a
-    INTEGER                                  :: i, im, ispin, ldim, ndim, re
-    REAL(dp)                                 :: dt
-    TYPE(cp_cfm_type), POINTER               :: M1, M2, M_inverse
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: new_Ham, old_Ham
-    TYPE(cp_fm_type), POINTER                :: U_im, U_re
-
-    CALL cp_cfm_create(M1,&
-                      matrix_struct=propagator(1)%matrix%matrix_struct,&
-                      name="M1",&
-                      error=error)
-    CALL cp_cfm_create(M2,&
-                      matrix_struct=propagator(1)%matrix%matrix_struct,&
-                      name="M2",&
-                      error=error)
-    CALL cp_cfm_create(M_inverse,&
-                      matrix_struct=propagator(1)%matrix%matrix_struct,&
-                      name="M_inverse",&
-                      error=error)
-
-
-    a=> M_inverse%local_data
-    CALL get_rtp(rtp=rtp,exp_H_old=old_Ham,exp_H_new=new_Ham,dt=dt,error=error)
-
-    CALL cp_fm_get_info(propagator(1)%matrix,ncol_local=ldim,nrow_global=ndim,error=error)
-    DO ispin=1,SIZE(propagator)/2
-       re=2*ispin-1
-       im=2*ispin
-
-       U_re=>propagator(re)%matrix
-       U_im=>propagator(im)%matrix
-
-       CALL cp_cfm_set_all(M1,zero,one,error)
-       CALL cp_cfm_set_all(M2,zero,one,error)
-
-       dt=dt*0.5_dp
-
-       !M_inverse is used right here as temporary matrix
-       DO i=1,ldim
-          a(:,i)=&
-               CMPLX(0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i),&
-               0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i),KIND=dp)
-       END DO
-
-       CALL cp_cfm_add(one,M1,-one,M_inverse,error)
-       CALL cp_cfm_add(one,M2,one,M_inverse,error)
-
-       CALL cp_cfm_solve(M2,M1,error=error)
-
-       !now M2 is temporary
-
-       U_re%local_data=REAL(M1%local_data,KIND=dp)
-       U_im%local_data=AIMAG(M1%local_data)
-
-
-    END DO
-
-    CALL cp_cfm_release(M1,error)
-    CALL cp_cfm_release(M2,error)
-    CALL cp_cfm_release(M_inverse,error)
-
-  END SUBROUTINE make_cn_propagator
 
 ! *****************************************************************************
 !> \brief computes exponential midpoint propagator

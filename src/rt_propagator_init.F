@@ -9,6 +9,8 @@
 ! *****************************************************************************
 MODULE rt_propagator_init
 
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             rtp_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -75,25 +77,36 @@ CONTAINS
       POINTER                                :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, mos_old
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL get_qs_env(qs_env,&
          mos=mos,&
          rtp=rtp,&
+         dft_control=dft_control,&
          matrix_s=s_mat,&
          error=error)
 
+    rtp_control=>dft_control%rtp_control
     CALL get_rtp (rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,mos_old=mos_old,error=error)
 
 
-
-    SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+    IF(rtp_control%propagator==do_cn) rtp_control%mat_exp=do_pade
+    SELECT CASE(rtp_control%mat_exp)
     CASE(do_taylor,do_pade)
-       CALL get_maxabs_eigval(rtp,qs_env,error)
-       SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-       CASE (do_cn,do_em)
+       ! use the fact that CN propagator is a first order pade approximation on the EM propagator
+       IF(rtp_control%propagator==do_cn)THEN
+          rtp%orders=1
+          rtp_control%propagator=do_em
+       ELSE
+          CALL get_maxabs_eigval(rtp,qs_env,error)
+       END IF
+
+       SELECT CASE(rtp_control%propagator)
+       CASE (do_em)
           CALL s_matrices_create (s_mat,rtp,error)
           CALL calc_SinvH(exp_H_old,qs_env,error)
           DO i=1,SIZE(exp_H_old)
