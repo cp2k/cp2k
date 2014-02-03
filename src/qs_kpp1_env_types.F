@@ -18,12 +18,12 @@ MODULE qs_kpp1_env_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE f77_blas
   USE kinds,                           ONLY: default_path_length
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE string_utilities,                ONLY: compress
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
@@ -261,7 +261,7 @@ CONTAINS
                         local=my_local)
                    CALL open_file(file_name=TRIM(filename),file_status="UNKNOWN",&
                         file_action="WRITE",unit_number=file_unit)
-                   CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                   CALL cp_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         unit_nr=file_unit,&
                         particles=particles,&
                         title="v_rspace",error=error)
@@ -310,7 +310,7 @@ CONTAINS
                       CALL open_file(file_name=TRIM(filename),&
                            file_status="UNKNOWN",&
                            file_action="WRITE",unit_number=file_unit)
-                      CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                      CALL cp_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            unit_nr=file_unit,&
                            particles=particles,&
                            title="drho_r",error=error)

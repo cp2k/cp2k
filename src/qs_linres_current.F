@@ -60,6 +60,7 @@ MODULE qs_linres_current
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
@@ -125,7 +126,6 @@ MODULE qs_linres_current
                                              neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
@@ -536,7 +536,7 @@ CONTAINS
                   &                       log_filename=.FALSE.,file_position=my_pos,&
                   &                       error=error)
 
-             CALL pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
+             CALL cp_pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
                   &          particles=particles,&
                   &          stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
                   &          error=error),error=error)

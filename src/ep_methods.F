@@ -57,6 +57,7 @@ MODULE ep_methods
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE ep_qs_methods,                   ONLY: ep_qs_create
@@ -151,7 +152,6 @@ MODULE ep_methods
                                              wfi_get_snapshot,&
                                              wfi_release,&
                                              wfs_release
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_create,&
                                              rep_env_local_index,&
@@ -1831,7 +1831,7 @@ CONTAINS
                 unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO1",&
                      extension=".cube",middle_name="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      log_filename=.FALSE.,error=error)
-                CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, unit_nr=unit_nr,&
+                CALL cp_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, unit_nr=unit_nr,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      particles=particles,&
                      stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
@@ -1850,7 +1850,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO0",&
                extension=".cube",middle_name="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,error=error)
-          CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, unit_nr=unit_nr,&
+          CALL cp_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, unit_nr=unit_nr,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                particles=particles,&
                stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&

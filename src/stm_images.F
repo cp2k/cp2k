@@ -30,6 +30,7 @@ MODULE stm_images
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -54,7 +55,6 @@ MODULE stm_images
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -386,7 +386,7 @@ CONTAINS
               middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
               log_filename=.FALSE.,error=error)
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
-         CALL pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
+         CALL cp_pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
              stride=section_get_ivals(stm_section,"STRIDE",error=error),zero_tails=.TRUE., error=error)
 
          CALL cp_print_key_finished_output(unit_nr,logger,stm_section,error=error)

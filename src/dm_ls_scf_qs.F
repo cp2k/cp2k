@@ -28,6 +28,7 @@ MODULE dm_ls_scf_qs
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
@@ -75,7 +76,6 @@ MODULE dm_ls_scf_qs
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -528,7 +528,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
-    
+
     NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys)
 
     CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, error=error)
@@ -566,9 +566,9 @@ CONTAINS
                             error=error)
 
     ! write this to a cube
-    CALL pw_to_cube(wf_r%pw, unit_nr=unit_nr, title=title,&
+    CALL cp_pw_to_cube(wf_r%pw, unit_nr=unit_nr, title=title,&
          particles=particles, stride=stride, error = error)
-     
+
     !free memory
     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error) 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw,error=error)   
@@ -576,7 +576,7 @@ CONTAINS
     DEALLOCATE(matrix_p_qs)
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE write_matrix_to_cube
 
 END MODULE dm_ls_scf_qs

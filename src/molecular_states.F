@@ -31,6 +31,7 @@ MODULE molecular_states
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
@@ -50,7 +51,6 @@ MODULE molecular_states
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -330,7 +330,7 @@ CONTAINS
                                                     evals(i)," Orig. index ",ind(i)
              unit_nr=cp_print_key_unit_nr(logger,loc_print_section,"MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL pw_to_cube(wf_r%pw,unit_nr,particles=particles,title=title,&
+             CALL cp_pw_to_cube(wf_r%pw,unit_nr,particles=particles,title=title,&
                   stride=section_get_ivals(loc_print_section,&
                   "MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,loc_print_section,&

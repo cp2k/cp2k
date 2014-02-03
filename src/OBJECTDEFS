@@ -151,6 +151,7 @@ OBJECTS_GENERIC =\
  cp_parser_methods.o\
  cp_parser_status_types.o\
  cp_parser_types.o\
+ cp_realspace_grid_cube.o\
  cp_realspace_grid_init.o\
  cp_result_methods.o\
  cp_result_types.o\

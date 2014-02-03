@@ -19,6 +19,7 @@ MODULE qs_linres_epr_nablavks
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE erf_fn,                          ONLY: erf,&
@@ -77,7 +78,6 @@ MODULE qs_linres_epr_nablavks
                                              qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
@@ -1015,7 +1015,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%NABLAVKS_CUBES",&
                   extension=TRIM(ext),middle_name=TRIM(filename),&
                   log_filename=.FALSE.,file_position="REWIND",error=error)
-          CALL pw_to_cube(wf_r%pw,unit_nr,"NABLA V_KS ",&
+          CALL cp_pw_to_cube(wf_r%pw,unit_nr,"NABLA V_KS ",&
                   particles=particles,&
                   stride=section_get_ivals(lr_section,&
                   "EPR%PRINT%NABLAVKS_CUBES%STRIDE",error=error),&

@@ -42,6 +42,7 @@ MODULE qs_loc_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -95,7 +96,6 @@ MODULE qs_loc_methods
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -981,7 +981,7 @@ CONTAINS
           WRITE(title,'(A7,I5.5,A1,I1.1,A1,3F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom
        END IF
-       CALL pw_to_cube(wf_r%pw,unit_out_c,title,&
+       CALL cp_pw_to_cube(wf_r%pw,unit_out_c,title,&
             particles=particles,&
             stride=section_get_ivals(print_key,"STRIDE",error=error),error=error)
        CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"",error=error)

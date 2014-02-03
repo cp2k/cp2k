@@ -23,6 +23,7 @@ MODULE qs_resp
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
@@ -76,7 +77,6 @@ MODULE qs_resp
                                              calculate_rho_resp_single
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1617,14 +1617,14 @@ CPSourceFileRef,&
      udvol = 1.0_dp/v_resp_rspace%pw%pw_grid%dvol
      CALL pw_copy(v_resp_rspace%pw,aux_r%pw, error=error)
      CALL pw_scale(aux_r%pw,udvol,error=error)
-     CALL pw_to_cube(aux_r%pw,unit_nr,"RESP POTENTIAL",particles=particles,&
+     CALL cp_pw_to_cube(aux_r%pw,unit_nr,"RESP POTENTIAL",particles=particles,&
                stride=section_get_ivals(resp_section,&
                "PRINT%V_RESP_CUBE%STRIDE",error=error),&
                error=error)
      CALL cp_print_key_finished_output(unit_nr,logger,resp_section,&
           "PRINT%V_RESP_CUBE",error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
-   
+
     !RMS and RRMS
     sum_diff=0.0_dp
     sum_hartree=0.0_dp

@@ -7,7 +7,6 @@
 !> \brief Generate Gaussian cube files
 ! *****************************************************************************
 MODULE realspace_grid_cube
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_maxloc,&
@@ -15,7 +14,6 @@ MODULE realspace_grid_cube
                                              mp_send,&
                                              mp_sum,&
                                              mp_sync
-  USE particle_list_types,             ONLY: particle_list_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
@@ -32,11 +30,14 @@ MODULE realspace_grid_cube
 
 CONTAINS
 
-  SUBROUTINE pw_to_cube ( pw, unit_nr, title, particles, stride, zero_tails, error )
+  SUBROUTINE pw_to_cube ( pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, error )
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: unit_nr
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    TYPE(particle_list_type), POINTER        :: particles
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: particles_r
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: particles_z
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: stride
     LOGICAL, INTENT(IN), OPTIONAL            :: zero_tails
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -49,7 +50,6 @@ CONTAINS
       U2, U3, z
     LOGICAL                                  :: failure, my_zero_tails
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
-    TYPE(particle_list_type), POINTER        :: my_particles
 
     CALL timeset(routineN,handle)
 
@@ -84,12 +84,14 @@ CPSourceFileRef,&
          WRITE(unit_nr,*) "No Title"
       ENDIF
 
+      CPPrecondition(PRESENT(particles_z) .EQV. PRESENT(particles_r),cp_failure_level,routineP,error,failure)
       np=0
-      NULLIFY(my_particles)
-      my_particles=>particles
-      ! cube files can only be written for 99999 particles due to a format limitation (I5)
-      ! so we limit the number of particles written.
-      IF (ASSOCIATED(my_particles)) np=MIN(99999,my_particles%n_els)
+      IF(PRESENT(particles_z)) THEN
+         CPPrecondition(SIZE(particles_z) == SIZE(particles_r, dim=2),cp_failure_level,routineP,error,failure)
+         ! cube files can only be written for 99999 particles due to a format limitation (I5)
+         ! so we limit the number of particles written.
+         np=MIN(99999,SIZE(particles_z))
+      END IF
 
       WRITE(unit_nr,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
 
@@ -103,11 +105,9 @@ CPSourceFileRef,&
            pw%pw_grid%dh(1,3)*REAL(my_stride(3),dp),pw%pw_grid%dh(2,3)*REAL(my_stride(3),dp),&
            pw%pw_grid%dh(3,3)*REAL(my_stride(3),dp)
 
-      IF (ASSOCIATED(my_particles)) THEN
+      IF(PRESENT(particles_z)) THEN
          DO iat=1,np
-            CALL get_atomic_kind(my_particles%els(iat)%atomic_kind,z=z)
-
-            WRITE(unit_nr,'(I5,4f12.6)') z,0._dp,my_particles%els(iat)%r
+            WRITE(unit_nr,'(I5,4f12.6)') particles_z(iat),0._dp,particles_r(:,iat)
          END DO
       END IF
     ENDIF
