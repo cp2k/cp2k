@@ -37,8 +37,6 @@
 !>      @version 12.2001
 ! *****************************************************************************
 MODULE cp_log_handling
-  USE cp2k_info,                       ONLY: r_host_name,&
-                                             r_pid
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_iter_types,                   ONLY: cp_iteration_info_create,&
@@ -51,7 +49,9 @@ MODULE cp_log_handling
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_datum,&
-                                             m_flush
+                                             m_flush,&
+                                             m_getpid,&
+                                             m_hostnm
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_comm_free
   USE string_utilities,                ONLY: compress
@@ -675,8 +675,8 @@ CONTAINS
       routineN = 'cp_logger_get_default_unit_nr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename
-    INTEGER                                  :: iostat
+    CHARACTER(len=default_path_length)       :: filename, host_name
+    INTEGER                                  :: iostat, pid
     LOGICAL                                  :: loc, skip
     TYPE(cp_logger_type), POINTER            :: lggr
 
@@ -713,11 +713,13 @@ CONTAINS
           WRITE (UNIT=lggr%default_global_unit_nr,FMT='(/,T2,A)',IOSTAT=iostat)&
                ' *** WARNING non ionode asked for global logger ***'
           IF (iostat /= 0) THEN
+             CALL m_getpid(pid)
+             CALL m_hostnm(host_name)
              PRINT*," *** Error trying to WRITE to the local logger ***"
              PRINT*," *** MPI_id           = ",lggr%para_env%mepos
              PRINT*," *** MPI_Communicator = ",lggr%para_env%group
-             PRINT*," *** PID              = ",r_pid
-             PRINT*," *** Hostname         = "//TRIM(r_host_name)
+             PRINT*," *** PID              = ",pid
+             PRINT*," *** Hostname         = "//TRIM(host_name)
              CALL print_stack(6)
           ELSE
              CALL print_stack(lggr%default_global_unit_nr)
@@ -736,17 +738,21 @@ CONTAINS
                '*** Local logger file of MPI task ',lggr%para_env%mepos,&
                ' in communicator ',lggr%para_env%group,' ***'
           IF (iostat == 0) THEN
+             CALL m_getpid(pid)
+             CALL m_hostnm(host_name)
              WRITE (UNIT=lggr%default_local_unit_nr,FMT='(T2,A,I0)',IOSTAT=iostat)&
-                  '*** PID      = ',r_pid,&
-                  '*** Hostname = '//r_host_name
+                  '*** PID      = ',pid,&
+                  '*** Hostname = '//host_name
              CALL print_stack(lggr%default_local_unit_nr)
           END IF
           IF (iostat /= 0) THEN
+             CALL m_getpid(pid)
+             CALL m_hostnm(host_name)
              PRINT*," *** Error trying to WRITE to the local logger ***"
              PRINT*," *** MPI_id           = ",lggr%para_env%mepos
              PRINT*," *** MPI_Communicator = ",lggr%para_env%group
-             PRINT*," *** PID              = ",r_pid
-             PRINT*," *** Hostname         = "//TRIM(r_host_name)
+             PRINT*," *** PID              = ",pid
+             PRINT*," *** Hostname         = "//TRIM(host_name)
              CALL print_stack(6)
           END IF
 
