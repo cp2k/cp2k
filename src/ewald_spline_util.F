@@ -102,7 +102,7 @@ CONTAINS
             extension=".Log",error=error)
        bo ( 1, 1:3 ) = 0
        bo ( 2, 1:3 ) = npts(1:3) - 1
-       CALL pw_grid_setup (cell, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit, error=error)
+       CALL pw_grid_setup (cell%hmat, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit, error=error)
 
        CALL cp_print_key_finished_output(iounit,logger,print_section,&
            "",error=error)

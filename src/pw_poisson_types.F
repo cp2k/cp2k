@@ -22,8 +22,6 @@ MODULE pw_poisson_types
                                              bessj1,&
                                              bessk0,&
                                              bessk1
-  USE cell_types,                      ONLY: cell_release,&
-                                             cell_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
@@ -84,7 +82,7 @@ MODULE pw_poisson_types
      TYPE ( greens_fn_type ), POINTER :: green_fft
      TYPE (ps_wavelet_type ),POINTER  :: wavelet
      TYPE (section_vals_type), POINTER :: parameters
-     TYPE (cell_type), POINTER :: cell
+     REAL(KIND = dp), DIMENSION(3,3)   :: cell_hmat = 0.0_dp
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE ( pw_grid_type), POINTER :: mt_super_ref_pw_grid
   END TYPE pw_poisson_type
@@ -123,11 +121,12 @@ CONTAINS
 !>      solvers
 !> \author Fawzi, based on previous functions by JGH and Teo
 ! *****************************************************************************
-  SUBROUTINE pw_green_create ( green, poisson_section, cell, pw_pool, &
+  SUBROUTINE pw_green_create ( green, poisson_section, cell_hmat, pw_pool, &
        mt_super_ref_pw_grid, error )
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(section_vals_type), POINTER         :: poisson_section
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -149,7 +148,6 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(ewald_section)
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ALLOCATE(green, stat=stat)
@@ -189,7 +187,7 @@ CONTAINS
 
        !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
        DO i=1,3
-          abc(i)=cell%hmat(i,i)
+          abc(i)=cell_hmat(i,i)
        END DO
        SELECT CASE(my_per)
        CASE(use_perd_x)
@@ -600,7 +598,7 @@ END SUBROUTINE calc_p3m_charge
        poisson_env%ref_count=1
        poisson_env%method=use_none
        poisson_env%rebuild=.TRUE.
-       NULLIFY(poisson_env%parameters,poisson_env%green_fft,poisson_env%cell,&
+       NULLIFY(poisson_env%parameters,poisson_env%green_fft,&
             poisson_env%pw_pools,poisson_env%green_fft,&
             poisson_env%mt_super_ref_pw_grid,poisson_env%wavelet)
        poisson_env%pw_level=-1
@@ -660,7 +658,6 @@ END SUBROUTINE calc_p3m_charge
              CALL pw_pools_dealloc(poisson_env%pw_pools,error=error)
           END IF
           CALL pw_green_release(poisson_env%green_fft,error=error)
-          CALL cell_release(poisson_env%cell,error=error)
           CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid,error=error)
           CALL ps_wavelet_release(poisson_env%wavelet,error=error)
           DEALLOCATE(poisson_env,stat=stat)

@@ -32,12 +32,13 @@
 !>      CJM
 ! *****************************************************************************
 MODULE pw_grids
-  USE cell_types,                      ONLY: cell_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              int_size
   USE mathconstants,                   ONLY: twopi
+  USE mathlib,                         ONLY: det_3x3,&
+                                             inv_3x3
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
        mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
@@ -62,7 +63,7 @@ MODULE pw_grids
   PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
   PUBLIC :: get_pw_grid_info, set_pw_grid_info, pw_grid_compare
   PUBLIC :: pw_grid_setup
-  PUBLIC :: pw_grid_change, create_gvectors
+  PUBLIC :: pw_grid_change
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
@@ -299,11 +300,12 @@ CONTAINS
 !>      this is the function that should be used in the future
 !> \author JGH (21-Dec-2007)
 ! *****************************************************************************
-  SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
+  SUBROUTINE pw_grid_setup (cell_hmat, pw_grid, grid_span, cutoff, bounds, npts, &
        spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid,&
        rs_dims, iounit, error )
 
-    TYPE(cell_type), INTENT(IN)              :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: grid_span
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
@@ -328,9 +330,19 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: my_fft_usage, my_odd, &
                                                 my_spherical
-    REAL(KIND=dp)                            :: my_cutoff
+    REAL(KIND=dp)                            :: cell_deth, my_cutoff
+    REAL(KIND=dp), DIMENSION(3, 3)           :: cell_h_inv
 
     CALL timeset(routineN,handle)
+
+    cell_deth = ABS(det_3x3(cell_hmat))
+    IF (cell_deth < 1.0E-10_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid set of cell vectors was specified. "//&
+                         "The determinant det(h) is too small")
+    END IF
+    cell_h_inv = inv_3x3(cell_hmat)
+
 
     IF ( PRESENT(grid_span) ) THEN
        CALL set_pw_grid_info ( pw_grid, grid_span=grid_span, error=error)
@@ -372,7 +384,7 @@ CONTAINS
                spherical=my_spherical, error=error)
        ELSE
           n = bounds(2,:) - bounds(1,:) + 1
-          my_cutoff = pw_find_cutoff ( n, cell%h_inv, error=error)
+          my_cutoff = pw_find_cutoff ( n, cell_h_inv, error=error)
           my_cutoff = 0.5_dp * my_cutoff * my_cutoff
           CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=my_cutoff, &
                spherical=my_spherical, error=error)
@@ -382,11 +394,11 @@ CONTAINS
        IF ( PRESENT(cutoff) ) THEN
           my_cutoff=cutoff
        ELSE
-          my_cutoff = pw_find_cutoff ( npts, cell%h_inv, error=error)
+          my_cutoff = pw_find_cutoff ( npts, cell_h_inv, error=error)
           my_cutoff = 0.5_dp * my_cutoff * my_cutoff
        END IF
        IF ( my_fft_usage ) THEN
-          n  = pw_grid_init_setup(cell%hmat, cutoff=my_cutoff,&
+          n  = pw_grid_init_setup(cell_hmat, cutoff=my_cutoff,&
                spherical=my_spherical, odd=my_odd, fft_usage=my_fft_usage,&
                ncommensurate=my_ncommensurate, icommensurate=my_icommensurate,&
                ref_grid=ref_grid, n_orig=n, error=error)
@@ -394,7 +406,7 @@ CONTAINS
        CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=my_cutoff, &
             spherical=my_spherical, error=error)
     ELSE IF ( PRESENT(cutoff) ) THEN
-       n = pw_grid_init_setup(cell%hmat,cutoff=cutoff,&
+       n = pw_grid_init_setup(cell_hmat,cutoff=cutoff,&
             spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
             ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
             ref_grid=ref_grid,error=error)
@@ -405,7 +417,7 @@ CONTAINS
                          "BOUNDS, NPTS or CUTOFF have to be specified")
     END IF
 
-    CALL pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+    CALL pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
 
 #if defined ( __PW_CUDA )
     CALL pw_grid_create_ghatmap ( pw_grid, error )
@@ -436,7 +448,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-  
+
     ! some checks
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pw_grid), cp_failure_level, routineP, error, failure)
@@ -527,9 +539,10 @@ CONTAINS
 !>      JGH (18-Dec-2007) : Refactoring
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
-
-    TYPE(cell_type), INTENT(IN)              :: cell
+  SUBROUTINE pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat, cell_h_inv
+    REAL(KIND=dp), INTENT(IN)                :: cell_deth
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(in), OPTIONAL :: ref_grid
@@ -572,7 +585,7 @@ CONTAINS
     ! these are not mapped indices !
     ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
     CPPrecondition(allocstat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
+    CALL pw_grid_count ( cell_h_inv, pw_grid, ecut, yz_mask )
 
     ! Check if reference grid is compatible
     IF ( PRESENT ( ref_grid ) ) THEN
@@ -594,7 +607,7 @@ CONTAINS
          pw_grid % bounds, error )
 
     ! Fill in the grid structure
-    CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
+    CALL pw_grid_assign ( cell_h_inv, pw_grid, ecut, error )
 
     ! Sort g vector wrt length (only local for each processor)
     CALL pw_grid_sort ( pw_grid, ref_grid, error )
@@ -604,22 +617,7 @@ CONTAINS
     DEALLOCATE ( yz_mask , STAT=allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-    pw_grid % vol = ABS ( cell % deth )
-    pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
-    pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
-         / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-    pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
-         / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-    pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
-         / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-    pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-    pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-    pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-    pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
-    pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
-    pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
-    pw_grid % orthorhombic = cell % orthorhombic
-
+    CALL cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
     !
     ! Output: All the information of this grid type
     !
@@ -631,53 +629,40 @@ CONTAINS
   END SUBROUTINE pw_grid_setup_internal
 
 ! *****************************************************************************
-  SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocked,ref_grid,error)
-    ! Find the number of grid points
-    ! yz_mask counts the number of g-vectors orthogonal to the yz plane
-    ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
-    ! these are not mapped indices !
-
+!> \brief Helper routine used by pw_grid_setup_internal and pw_grid_change
+!> \author Ole Schuett
+!> \history moved common code into new subroutine
+! *****************************************************************************
+  SUBROUTINE cell2grid (cell_hmat, cell_h_inv, cell_deth, pw_grid)
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat, cell_h_inv
+    REAL(KIND=dp), INTENT(IN)                :: cell_deth
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cell_type), INTENT(IN)              :: cell
-    REAL(KIND=dp)                            :: ecut
-    INTEGER, OPTIONAL                        :: blocked
-    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_gvectors', &
-      routineP = moduleN//':'//routineN
+    pw_grid % vol = ABS ( cell_deth )
+    pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
+    pw_grid % dr ( 1 ) = SQRT ( SUM ( cell_hmat ( :, 1 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dr ( 2 ) = SQRT ( SUM ( cell_hmat ( :, 2 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dr ( 3 ) = SQRT ( SUM ( cell_hmat ( :, 3 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % dh ( :,1 ) = cell_hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dh ( :,2 ) = cell_hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dh ( :,3 ) = cell_hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % dh_inv ( 1,: ) = cell_h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dh_inv ( 2,: ) = cell_h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dh_inv ( 3,: ) = cell_h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
 
-    INTEGER                                  :: istat, n(3)
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: failure
+    IF ((cell_hmat(1,2) == 0.0_dp).AND.(cell_hmat(1,3) == 0.0_dp).AND.&
+        (cell_hmat(2,1) == 0.0_dp).AND.(cell_hmat(2,3) == 0.0_dp).AND.&
+        (cell_hmat(3,1) == 0.0_dp).AND.(cell_hmat(3,2) == 0.0_dp)) THEN
+       pw_grid % orthorhombic = .TRUE.
+    ELSE
+       pw_grid % orthorhombic = .FALSE.
+    END IF
+ END SUBROUTINE cell2grid
 
-    failure = .FALSE.
-
-    n ( : )  = pw_grid % npts ( : )
-
-    ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = istat )
-    CPPrecondition(istat == 0,cp_failure_level,routineP,error,failure)
-    CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
-
-    ! Distribute grid
-    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocked ,error=error)
-
-    ! Allocate the grid fields
-    CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
-         pw_grid % bounds, error )
-
-    ! Fill in the grid structure
-    CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
-
-    ! Sort g vector wrt length (only local for each processor)
-    CALL pw_grid_sort ( pw_grid, ref_grid, error )
-
-    CALL pw_grid_remap ( pw_grid, yz_mask, error )
-
-    DEALLOCATE ( yz_mask, STAT=istat )
-    CPPrecondition(istat == 0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE create_gvectors
 
 ! *****************************************************************************
 !> \brief Output of information on pw_grid
@@ -2191,33 +2176,31 @@ CONTAINS
 !> \author apsi
 !>      Christopher Mundy
 ! *****************************************************************************
-  SUBROUTINE pw_grid_change ( cell, pw_grid )
+  SUBROUTINE pw_grid_change ( cell_hmat, pw_grid )
     ! Argument
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
-    INTEGER                                  :: gpt
-    REAL(KIND=dp)                            :: l, m, n
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_change', &
+      routineP = moduleN//':'//routineN
 
-    h_inv => cell % h_inv
+    INTEGER                                  :: gpt
+    REAL(KIND=dp)                            :: cell_deth, l, m, n
+    REAL(KIND=dp), DIMENSION(3, 3)           :: cell_h_inv
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g
+
+    cell_deth = ABS(det_3x3(cell_hmat))
+    IF (cell_deth < 1.0E-10_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid set of cell vectors was specified. "//&
+                         "The determinant det(h) is too small")
+    END IF
+    cell_h_inv = inv_3x3(cell_hmat)
+
     g => pw_grid % g
 
-    pw_grid % vol = ABS ( cell % deth )
-    pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
-    pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
-         / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-    pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
-         / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-    pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
-         / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-    pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-    pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-    pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-    pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
-    pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
-    pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
-    pw_grid % orthorhombic = cell % orthorhombic
+    CALL cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
 
     DO gpt = 1, SIZE ( g ,2 )
 
@@ -2225,9 +2208,9 @@ CONTAINS
        m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ),KIND=dp)
        n = twopi * REAL ( pw_grid % g_hat ( 3, gpt ),KIND=dp)
 
-       g ( 1, gpt ) = l * h_inv(1,1) + m * h_inv(2,1) + n * h_inv(3,1)
-       g ( 2, gpt ) = l * h_inv(1,2) + m * h_inv(2,2) + n * h_inv(3,2)
-       g ( 3, gpt ) = l * h_inv(1,3) + m * h_inv(2,3) + n * h_inv(3,3)
+       g ( 1, gpt ) = l * cell_h_inv(1,1) + m * cell_h_inv(2,1) + n * cell_h_inv(3,1)
+       g ( 2, gpt ) = l * cell_h_inv(1,2) + m * cell_h_inv(2,2) + n * cell_h_inv(3,2)
+       g ( 3, gpt ) = l * cell_h_inv(1,3) + m * cell_h_inv(2,3) + n * cell_h_inv(3,3)
 
        pw_grid % gsq ( gpt ) = g ( 1, gpt ) * g ( 1, gpt ) &
             + g ( 2, gpt ) * g ( 2, gpt ) &

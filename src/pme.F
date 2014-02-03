@@ -510,7 +510,7 @@ CONTAINS
        ez1 => exp_igr%ez ( :, p1 )
     END IF
 
-    CALL dg_get_strucfac ( box, r1, grid_s%npts, grid_b%npts, center1, &
+    CALL dg_get_strucfac ( box%hmat, r1, grid_s%npts, grid_b%npts, center1, &
          exp_igr%lb, ex1, ey1, ez1 )
 
     IF ( p2 /= 0 ) THEN
@@ -547,7 +547,7 @@ CONTAINS
           ey2 => exp_igr%ey ( :, p2 )
           ez2 => exp_igr%ez ( :, p2 )
        END IF
-       CALL dg_get_strucfac ( box, r2, grid_s%npts, grid_b%npts, center2, &
+       CALL dg_get_strucfac ( box%hmat, r2, grid_s%npts, grid_b%npts, center2, &
             exp_igr%lb, ex2, ey2, ez2 )
     END IF
 

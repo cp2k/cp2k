@@ -14,7 +14,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_spline_utils
-  USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -30,6 +29,8 @@ MODULE pw_spline_utils
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
+  USE mathlib,                         ONLY: det_3x3,&
+                                             inv_3x3
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_comm_compare,&
                                              mp_sendrecv,&
@@ -53,6 +54,7 @@ MODULE pw_spline_utils
                                              SQUARE,&
                                              pw_p_type,&
                                              pw_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -575,9 +577,10 @@ CONTAINS
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
+  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell_hmat,transpose,scale,error)
     TYPE(pw_p_type), DIMENSION(3)            :: deriv_vals_r
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -589,15 +592,23 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n_tot
     LOGICAL                                  :: diag, failure, my_transpose
-    REAL(KIND=dp)                            :: dVal1, dVal2, dVal3, &
-                                                my_scale, scalef
-    REAL(KIND=dp), DIMENSION(3, 3)           :: h_grid
+    REAL(KIND=dp)                            :: cell_deth, dVal1, dVal2, &
+                                                dVal3, my_scale, scalef
+    REAL(KIND=dp), DIMENSION(3, 3)           :: cell_h_inv, h_grid
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: ddata, ddata2, ddata3
 
 ! sun does not like that its components are modified
 
     CALL timeset(routineN,handle)
+
+    cell_deth = ABS(det_3x3(cell_hmat))
+    IF (cell_deth < 1.0E-10_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid set of cell vectors was specified. "//&
+                         "The determinant det(h) is too small")
+    END IF
+    cell_h_inv = inv_3x3(cell_hmat)
 
     failure=.FALSE.
     my_transpose=.FALSE.
@@ -607,21 +618,19 @@ CONTAINS
     n_tot(1:3) = deriv_vals_r(1)%pw%pw_grid%npts (1:3)
     bo = deriv_vals_r(1)%pw%pw_grid%bounds_local
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-
     ! map grid to real derivative
     diag=.TRUE.
     IF (my_transpose) THEN
        DO j=1,3
           DO i=1,3
-             h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
+             h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell_h_inv(i,j)
              IF (i/=j.AND.h_grid(j,i)/=0.0_dp) diag=.FALSE.
           END DO
        END DO
     ELSE
        DO j=1,3
           DO i=1,3
-             h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
+             h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell_h_inv(i,j)
              IF (i/=j.AND.h_grid(i,j)/=0.0_dp) diag=.FALSE.
           END DO
        END DO

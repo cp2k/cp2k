@@ -408,7 +408,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+              CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
@@ -418,7 +418,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+              CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
@@ -428,7 +428,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+           CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
                 cutoff=cutilev,&
                 spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
@@ -475,7 +475,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      IF (set_vdw_pool) THEN
         CPPrecondition(ASSOCIATED(old_pw_grid),cp_failure_level,routineP,error,failure)
         CALL pw_grid_create(vdw_grid,para_env%group,error=error)
-        CALL pw_grid_setup(my_cell,vdw_grid,grid_span=grid_span,&
+        CALL pw_grid_setup(my_cell%hmat,vdw_grid,grid_span=grid_span,&
              cutoff=dispersion_env%pw_cutoff,&
              spherical=spherical,odd=odd,fft_usage=.TRUE.,&
              ncommensurate=ncommensurate,icommensurate=0,&
@@ -496,7 +496,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      END IF
      poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",&
           error=error)
-     CALL pw_poisson_set(pw_env%poisson_env,cell=my_cell,pw_pools=pw_env%pw_pools,&
+     CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=my_cell%hmat,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
      CALL pw_grid_release(mt_super_ref_grid,error=error)
@@ -506,10 +506,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
     IF ( use_ref_cell ) THEN
          DO igrid_level = 1, SIZE ( pw_pools )
-           CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
+           CALL pw_grid_change ( cell%hmat, pw_pools ( igrid_level ) % pool % pw_grid )
          ENDDO
-         IF (set_vdw_pool) CALL pw_grid_change( cell, pw_env%vdw_pw_pool%pw_grid )
-         CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
+         IF (set_vdw_pool) CALL pw_grid_change( cell%hmat, pw_env%vdw_pw_pool%pw_grid )
+         CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=cell%hmat,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
     ENDIF
@@ -846,7 +846,7 @@ END SUBROUTINE compute_max_radius
 
        IF (uf_grid) THEN
           CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group,error=error)
-          CALL pw_grid_setup(cell_ref, xc_super_ref_pw_grid, grid_span=grid_span,&
+          CALL pw_grid_setup(cell_ref%hmat, xc_super_ref_pw_grid, grid_span=grid_span,&
                cutoff=4._dp*cutilev,spherical=spherical,odd=.FALSE., fft_usage=.TRUE., &
                ncommensurate=my_ncommensurate,icommensurate=1,&
                blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
@@ -870,7 +870,7 @@ END SUBROUTINE compute_max_radius
 
              ! bug appears for nn==no, also in old versions
              CPPrecondition(ALL(nn>no),cp_failure_level,routineP,error,failure)
-             CALL pw_grid_setup(cell_ref, mt_super_ref_pw_grid, &
+             CALL pw_grid_setup(cell_ref%hmat, mt_super_ref_pw_grid, &
                   cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
                   blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
                   iounit=iounit,error=error)

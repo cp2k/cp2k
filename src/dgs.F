@@ -9,11 +9,6 @@
 !>                          with dg_grid_change
 ! *****************************************************************************
 MODULE dgs
-  USE cell_types,                      ONLY: cell_create,&
-                                             cell_release,&
-                                             cell_type,&
-                                             get_cell_param,&
-                                             init_cell
   USE f77_blas
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
@@ -22,6 +17,8 @@ MODULE dgs
                                              fft_radix_operations
   USE kinds,                           ONLY: dp,&
                                              dp_size
+  USE mathlib,                         ONLY: det_3x3,&
+                                             inv_3x3
   USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
@@ -79,10 +76,11 @@ MODULE dgs
 CONTAINS
 
 ! *****************************************************************************
-SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
+SUBROUTINE dg_pme_grid_setup ( b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_b, &
            grid_ref, rs_dims, iounit, fft_usage, error )
 
-    TYPE(cell_type), POINTER                 :: box_b
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: b_cell_hmat
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
@@ -95,50 +93,79 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
 
     INTEGER, DIMENSION(2, 3)                 :: bo
     REAL(KIND=dp)                            :: cutoff, ecut
-    TYPE(cell_type), POINTER                 :: box_s, unit_box
+    REAL(KIND=dp), DIMENSION(3, 3)           :: s_cell_hmat, unit_cell_hmat
 
-  NULLIFY(box_s, unit_box)
-  CALL cell_create(box_s,error=error)
-  CALL cell_create(unit_box,error=error)
-
-  CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff ,error=error)
+  CALL dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_b, cutoff ,error=error)
 
   ecut = 0.5_dp * cutoff * cutoff
   bo = grid_b % bounds
   IF ( PRESENT ( grid_ref ) ) THEN
-     CALL pw_grid_setup ( box_b, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
+     CALL pw_grid_setup (b_cell_hmat, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
           ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage,&
           error=error)
   ELSE
-     CALL pw_grid_setup ( box_b, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
+     CALL pw_grid_setup (b_cell_hmat, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
           rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage, error=error)
   ENDIF
 
-  CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
+  CALL dg_find_basis ( grid_b % npts, b_cell_hmat, unit_cell_hmat)
 
-  CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
+  CALL dg_set_cell ( grid_s % npts, unit_cell_hmat, s_cell_hmat )
 
   bo = grid_s % bounds
-  CALL pw_grid_setup ( box_s, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, fft_usage=fft_usage,&
+  CALL pw_grid_setup (s_cell_hmat, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, fft_usage=fft_usage,&
                        error=error)
 
-  CALL cell_release(box_s,error=error)
-  CALL cell_release(unit_box,error=error)
 END SUBROUTINE dg_pme_grid_setup
 
 ! *****************************************************************************
-SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
+!> \brief Calculate the lengths of the cell vectors a, b, and c
+!> \author Ole Schuett
+!> \history 01.2014 copied from cell_types::get_cell()
+! *****************************************************************************
+FUNCTION get_cell_lengths(cell_hmat) RESULT(abc)
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
+    REAL(KIND=dp), DIMENSION(3)              :: abc
+
+  abc(1) = SQRT(cell_hmat(1,1)*cell_hmat(1,1) +&
+                cell_hmat(2,1)*cell_hmat(2,1) +&
+                cell_hmat(3,1)*cell_hmat(3,1))
+  abc(2) = SQRT(cell_hmat(1,2)*cell_hmat(1,2) +&
+                cell_hmat(2,2)*cell_hmat(2,2) +&
+                cell_hmat(3,2)*cell_hmat(3,2))
+  abc(3) = SQRT(cell_hmat(1,3)*cell_hmat(1,3) +&
+                cell_hmat(2,3)*cell_hmat(2,3) +&
+                     cell_hmat(3,3)*cell_hmat(3,3))
+END FUNCTION get_cell_lengths
+
+! *****************************************************************************
+SUBROUTINE dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s,  &
                             grid_b, cutoff, error)
 
-    TYPE(cell_type), POINTER                 :: box_b
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: b_cell_hmat
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     REAL(KIND=dp), INTENT(OUT)               :: cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_find_cutoff', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: nout( 3 )
-    REAL(KIND=dp)                            :: cell_lengths( 3 ), dr( 3 )
+    REAL(KIND=dp)                            :: b_cell_deth, &
+                                                cell_lengths( 3 ), dr( 3 )
+    REAL(KIND=dp), DIMENSION(3, 3)           :: b_cell_h_inv
+
+    b_cell_deth = ABS(det_3x3(b_cell_hmat))
+    IF (b_cell_deth < 1.0E-10_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid set of cell vectors was specified. "//&
+                         "The determinant det(h) is too small")
+    END IF
+    b_cell_h_inv = inv_3x3(b_cell_hmat)
 
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
        operation = FFT_RADIX_NEXT_ODD )
@@ -147,7 +174,8 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 3 ), &
        operation = FFT_RADIX_NEXT_ODD )
 
-  CALL get_cell_param ( box_b, cell_lengths , error=error)
+  cell_lengths = get_cell_lengths(b_cell_hmat)
+
   CALL dg_get_spacing ( nout, cutoff_radius, dr )
   CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
 
@@ -175,7 +203,7 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   grid_s % grid_span = HALFSPACE
   grid_s % npts = nout
 
-  cutoff = pw_find_cutoff ( grid_b % npts, box_b%h_inv, error=error)
+  cutoff = pw_find_cutoff ( grid_b % npts, b_cell_h_inv, error=error)
 
 END SUBROUTINE  dg_find_cutoff
 
@@ -191,21 +219,17 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
  END SUBROUTINE dg_get_spacing
 
 ! *****************************************************************************
-SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s, error)
-    TYPE(cell_type), POINTER                 :: box_b
+SUBROUTINE dg_grid_change (b_cell_hmat, grid_b, grid_s, error)
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: b_cell_hmat
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(cell_type), POINTER                 :: box_s, unit_box
+    REAL(KIND=dp), DIMENSION(3, 3)           :: s_cell_hmat, unit_cell_hmat
 
-  NULLIFY(box_s, unit_box)
-  CALL cell_create(unit_box ,error=error)
-  CALL cell_create(box_s,error=error)
-  CALL dg_find_basis  ( grid_b % npts, box_b, unit_box )
-  CALL dg_set_cell    ( grid_s % npts, unit_box, box_s )
-  CALL pw_grid_change ( box_s, grid_s )
-  CALL cell_release(unit_box,error=error)
-  CALL cell_release(box_s,error=error)
+  CALL dg_find_basis  ( grid_b % npts, b_cell_hmat, unit_cell_hmat)
+  CALL dg_set_cell    ( grid_s % npts, unit_cell_hmat, s_cell_hmat)
+  CALL pw_grid_change ( s_cell_hmat, grid_s )
 END SUBROUTINE dg_grid_change
 
 ! *****************************************************************************
@@ -229,34 +253,38 @@ SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
 END SUBROUTINE dg_find_radix
 
 ! *****************************************************************************
-SUBROUTINE dg_find_basis( npts, box, unit_box )
+SUBROUTINE dg_find_basis( npts, cell_hmat, unit_cell_hmat)
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), POINTER                 :: box, unit_box
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: unit_cell_hmat
 
     INTEGER                                  :: i
 
   DO i = 1, 3
-     unit_box % hmat ( :, i ) = box % hmat ( :, i ) / REAL ( npts ( : ),KIND=dp)
+     unit_cell_hmat ( :, i ) = cell_hmat ( :, i ) / REAL ( npts ( : ),KIND=dp)
   END DO
 
-  CALL init_cell ( unit_box )
 
 END SUBROUTINE dg_find_basis
 
 !! Calculation of the basis on the mesh 'box'
 
 ! *****************************************************************************
-SUBROUTINE dg_set_cell (npts, unit_box, box )
+SUBROUTINE dg_set_cell (npts, unit_cell_hmat, cell_hmat)
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), POINTER                 :: unit_box, box
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: unit_cell_hmat
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: cell_hmat
 
 ! computing the unit vector along a, b, c and scaling it to length dr:
 
-  box % hmat ( :, 1 ) = unit_box % hmat ( :, 1 ) * npts ( 1 )
-  box % hmat ( :, 2 ) = unit_box % hmat ( :, 2 ) * npts ( 2 )
-  box % hmat ( :, 3 ) = unit_box % hmat ( :, 3 ) * npts ( 3 )
+  cell_hmat ( :, 1 ) = unit_cell_hmat ( :, 1 ) * npts ( 1 )
+  cell_hmat ( :, 2 ) = unit_cell_hmat ( :, 2 ) * npts ( 2 )
+  cell_hmat ( :, 3 ) = unit_cell_hmat ( :, 3 ) * npts ( 3 )
 
-  CALL init_cell ( box )
 
 END SUBROUTINE dg_set_cell
 
@@ -275,9 +303,9 @@ SUBROUTINE dg_find_max_cutoff ( npts, grid_b )
 END SUBROUTINE dg_find_max_cutoff
 
 ! *****************************************************************************
-SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
-
-    TYPE(cell_type), INTENT(IN)              :: box
+SUBROUTINE dg_get_strucfac (cell_hmat, r, npts_s, npts_b, centre, lb, ex, ey, ez )
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
     INTEGER, INTENT(OUT)                     :: centre( 3 )
@@ -291,26 +319,39 @@ SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
 
     REAL(KIND=dp)                            :: delta( 3 )
 
-  CALL dg_get_delta ( box, r, npts_s, npts_b, centre, delta)
+  CALL dg_get_delta (cell_hmat, r, npts_s, npts_b, centre, delta)
 
   CALL structure_factor_evaluate ( delta, npts_s, lb, ex, ey, ez )
 
 END SUBROUTINE dg_get_strucfac
 
 ! *****************************************************************************
-SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
-
-    TYPE(cell_type), INTENT(IN)              :: box
+SUBROUTINE dg_get_delta (cell_hmat, r, npts_s, npts_b, centre, delta )
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
     INTEGER, DIMENSION(:), INTENT(OUT)       :: centre
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: delta
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dg_get_delta', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp)                            :: cell_deth
     REAL(KIND=dp), DIMENSION(3)              :: grid_i, s
+    REAL(KIND=dp), DIMENSION(3, 3)           :: cell_h_inv
+
+  cell_deth = ABS(det_3x3(cell_hmat))
+  IF (cell_deth < 1.0E-10_dp) THEN
+     CALL stop_program(routineN,moduleN,__LINE__,&
+                       "An invalid set of cell vectors was specified. "//&
+                       "The determinant det(h) is too small")
+  END IF
+
+  cell_h_inv = inv_3x3(cell_hmat)
 
 ! compute the scaled coordinate of atomi
-
-  s = MATMUL ( box % h_inv, r )
+  s = MATMUL ( cell_h_inv, r )
   s = s - NINT ( s )
 
 ! find the continuous ``grid'' point (on big grid)

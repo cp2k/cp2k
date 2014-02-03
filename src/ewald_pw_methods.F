@@ -90,7 +90,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
   CASE ( do_ewald_ewald )
      CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool, &
                          dg = dg, poisson_env=poisson_env )
-     CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
+     CALL pw_grid_change ( cell%hmat, pw_big_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg ,error=error)
      CALL pw_poisson_release(poisson_env,error=error)
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg, &
@@ -103,8 +103,8 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
         CALL pw_poisson_create(poisson_env,error=error)
         CALL ewald_pw_set(ewald_pw, poisson_env=poisson_env,error=error)
      END IF
-     CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL dg_grid_change ( cell, pw_big_pool % pw_grid, pw_small_pool % pw_grid ,error=error)
+     CALL pw_grid_change ( cell%hmat, pw_big_pool % pw_grid )
+     CALL dg_grid_change ( cell%hmat, pw_big_pool % pw_grid, pw_small_pool % pw_grid ,error=error)
      CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg ,error=error)
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool,  &
                          pw_small_pool = pw_small_pool, dg = dg, &
@@ -115,7 +115,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
      IF (.NOT.ASSOCIATED(poisson_env)) THEN
         CALL pw_poisson_create(poisson_env,error=error)
      END IF
-     CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
+     CALL pw_grid_change ( cell%hmat, pw_big_pool % pw_grid )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, &
           poisson_env=poisson_env ,error=error)
   CASE ( do_ewald_none )
@@ -126,7 +126,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
      ALLOCATE(pw_pools(1),stat=stat)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      pw_pools(1)%pool => pw_big_pool
-     CALL pw_poisson_set(poisson_env,cell=cell,parameters=poisson_section,&
+     CALL pw_poisson_set(poisson_env,cell_hmat=cell%hmat,parameters=poisson_section,&
           use_level=1,pw_pools=pw_pools,error=error)
      DEALLOCATE(pw_pools,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

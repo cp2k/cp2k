@@ -753,7 +753,7 @@ CONTAINS
     CALL section_vals_val_get(rs_pw_transfer_section,"GRID",i_vals=i_vals,error=error )
     np = i_vals
     CALL pw_grid_create ( grid, para_env%group ,error=error)
-    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw, error=error)
+    CALL pw_grid_setup ( box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw, error=error)
     no = grid % npts
 
     NULLIFY(ca%pw)
@@ -946,7 +946,7 @@ CONTAINS
           END IF
 
           ! actual setup
-          CALL pw_grid_setup ( box, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
+          CALL pw_grid_setup ( box%hmat, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
                                blocked=blocked_id, npts=np, fft_usage=.TRUE.,&
                                rs_dims=distribution_layout, iounit=iw, error=error)
 

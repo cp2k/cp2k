@@ -880,7 +880,7 @@ CONTAINS
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
              END DO
-             CALL pw_spline_scale_deriv(drho_r_att, cell=cell,&
+             CALL pw_spline_scale_deriv(drho_r_att, cell%hmat,&
                   error=error)
           END IF
 

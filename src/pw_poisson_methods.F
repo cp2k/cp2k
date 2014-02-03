@@ -9,9 +9,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE pw_poisson_methods
-  USE cell_types,                      ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
@@ -129,7 +126,6 @@ CONTAINS
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(poisson_env%cell),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(poisson_env%parameters),cp_failure_level,routineP,error,failure)
        CPPrecondition(poisson_env%pw_level>=LBOUND(poisson_env%pw_pools,1),cp_failure_level,routineP,error,failure)
        CPPrecondition(poisson_env%pw_level<=UBOUND(poisson_env%pw_pools,1),cp_failure_level,routineP,error,failure)
@@ -211,7 +207,6 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(poisson_env%cell),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(poisson_env%parameters),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -222,7 +217,7 @@ CONTAINS
                i_val=poisson_env%method,error=error)
            SELECT CASE (poisson_env%method)
            CASE(use_periodic,use_analytic,use_mt,use_multipole)
-              CALL pw_green_create(poisson_env%green_fft,cell=poisson_env%cell,&
+              CALL pw_green_create(poisson_env%green_fft,cell_hmat=poisson_env%cell_hmat,&
                    pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
                    poisson_section=poisson_env%parameters,&
                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
@@ -472,11 +467,12 @@ CONTAINS
 !>      you have to set everything at once. Change this behaviour?
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_poisson_set ( poisson_env, cell, parameters, pw_pools,&
+  SUBROUTINE pw_poisson_set ( poisson_env, cell_hmat, parameters, pw_pools,&
        use_level, mt_super_ref_pw_grid, force_rebuild, error )
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN), OPTIONAL                   :: cell_hmat
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: parameters
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -500,16 +496,10 @@ CONTAINS
        CALL section_vals_release(poisson_env%parameters,error=error)
        poisson_env%parameters => parameters
     END IF
-    IF (PRESENT(cell)) THEN
-       CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-       IF (ASSOCIATED(poisson_env%cell)) THEN
-          IF (poisson_env%cell%id_nr/=cell%id_nr) THEN
-             CALL pw_poisson_cleanup(poisson_env,error=error)
-          END IF
-       END IF
-       CALL cell_retain(cell,error=error)
-       CALL cell_release(poisson_env%cell,error=error)
-       poisson_env%cell => cell
+    IF (PRESENT(cell_hmat)) THEN
+       IF (ANY(poisson_env%cell_hmat /= cell_hmat)) &
+          CALL pw_poisson_cleanup(poisson_env,error=error)
+       poisson_env%cell_hmat(:,:) = cell_hmat(:,:)
        poisson_env%rebuild=.TRUE.
     END IF
     IF (PRESENT(pw_pools)) THEN

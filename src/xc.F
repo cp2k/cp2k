@@ -1625,7 +1625,7 @@ CPSourceFileRef,&
         IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
            ! partial integration
            IF (xc_deriv_method_id/=xc_deriv_pw) THEN
-              CALL pw_spline_scale_deriv(pw_to_deriv, cell=cell,&
+              CALL pw_spline_scale_deriv(pw_to_deriv, cell%hmat,&
                    transpose=.TRUE.,&
                    error=error)
            END IF

@@ -239,7 +239,7 @@ CONTAINS
           END IF
           bo ( 1, : ) = -gmax / 2
           bo ( 2, : ) = +gmax / 2
-          CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
+          CALL pw_grid_setup ( cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
                                 fft_usage=.FALSE., iounit=output_unit, error=error)
           NULLIFY ( pw_pool )
           CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid ,error=error)
@@ -267,7 +267,7 @@ CONTAINS
           norm = ( 2.0_dp * alphasq / pi ) ** ( 1.5_dp )
           cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, epsilon , norm )
 
-          CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
+          CALL dg_pme_grid_setup ( cell_ref%hmat, npts_s, cutoff_radius,   &
                pw_small_grid, pw_big_grid, rs_dims=(/para_env%num_pe,1/),&
                iounit=output_unit, fft_usage=.TRUE., error=error )
           ! Write some useful info
@@ -322,7 +322,7 @@ CONTAINS
           END IF
           CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
           npts_s = gmax
-          CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
+          CALL pw_grid_setup ( cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
                rs_dims=(/para_env%num_pe,1/), iounit=output_unit, fft_usage=.TRUE., error=error)
 
           ! pw pools initialized
@@ -359,7 +359,7 @@ CONTAINS
           ALLOCATE(pw_pools(1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           pw_pools(1)%pool => ewald_pw%pw_big_pool
-          CALL pw_poisson_set(ewald_pw%poisson_env,cell=cell,parameters=poisson_section,&
+          CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_section,&
                use_level=1,pw_pools=pw_pools,error=error)
           DEALLOCATE(pw_pools,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
