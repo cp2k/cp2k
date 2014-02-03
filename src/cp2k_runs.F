@@ -16,10 +16,10 @@ MODULE cp2k_runs
                                              cp2k_version,&
                                              cp2k_year,&
                                              enable_color_tags
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_config,&
-                                             cp_dbcsr_finalize_lib,&
-                                             cp_dbcsr_init_lib,&
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config,&
                                              cp_dbcsr_print_config
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
+                                             cp_dbcsr_init_lib
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_add_iter_level,&

@@ -30,24 +30,6 @@ MODULE cp_dbcsr_interface
                                              dbcsr_put_block,&
                                              dbcsr_reserve_block2d,&
                                              dbcsr_reserve_blocks
-  USE dbcsr_config,                    ONLY: &
-       cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
-       cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
-       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
-       cudadrv_priority_buffers, cudadrv_priority_streams, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_cuda, &
-       has_mpi, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -55,9 +37,7 @@ MODULE cp_dbcsr_interface
                                              dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_index_operations,          ONLY: dbcsr_index_compact
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                              dbcsr_binary_write,&
@@ -108,9 +88,6 @@ MODULE cp_dbcsr_interface
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -133,8 +110,6 @@ MODULE cp_dbcsr_interface
   ! Interface to libdbcsr (contains cp2k timing and error)
   PUBLIC :: cp_dbcsr_conform_scalar
   PUBLIC :: cp_dbcsr_init_lib, cp_dbcsr_finalize_lib
-  PUBLIC :: cp_dbcsr_config
-  PUBLIC :: cp_dbcsr_print_config
   PUBLIC :: cp_dbcsr_untranspose_blocks
   PUBLIC :: cp_dbcsr_set
   PUBLIC :: cp_dbcsr_add
@@ -424,183 +399,6 @@ CONTAINS
     CALL dbcsr_finalize_lib (group, output_unit, dbcsr_error)
   END SUBROUTINE cp_dbcsr_finalize_lib
 
-
-! *****************************************************************************
-!> \brief Configures options for DBCSR
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_config(root_section, error)
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: comm_thread_load, &
-                                                error_handle, max_ele_block, &
-                                                mm_driver, mm_ss
-    INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
-                                                use_subcomms
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(section_vals_type), POINTER         :: dbcsr_section
-
-! need to call dbcsr_set_conf_external_timing() before dbcsr_error_set()
-! otherwise this would lead to mismatched calls to timeset/timestop
-
-    CALL dbcsr_set_conf_external_timing(timeset, timestop, error=dbcsr_error)
-    
-    CALL dbcsr_error_set (routineN, error_handle, dbcsr_error)
-    dbcsr_section => section_vals_get_subs_vals(root_section,&
-      "GLOBAL%DBCSR",error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "subcommunicators", l_val=use_subcomms, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "combined_types", l_val=use_combtypes, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "use_mpi_allocation", l_val=use_mpi_mem, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "mm_stack_size", i_val=mm_ss, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "mm_driver", i_val=mm_driver, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "MAX_ELEMENTS_PER_BLOCK", i_val=max_ele_block, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "n_size_mnk_stacks", i_val=nstacks(1), error=error)
-    nstacks(2:3) = nstacks(1)
-    CALL section_vals_val_get(dbcsr_section,&
-         "use_comm_thread", l_val=use_comm_thread, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "comm_thread_load", i_val=comm_thread_load, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "multrec_limit", i_val=multrec_limit, error=error)
-
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%priority_streams", i_val=cudadrv_priority_streams, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%priority_buffers", i_val=cudadrv_priority_buffers, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%posterior_streams", i_val=cudadrv_posterior_streams, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%posterior_buffers", i_val=cudadrv_posterior_buffers, error=error)
-
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%min_flop_process", i_val=cudadrv_min_flop_process, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%min_flop_sort", i_val=cudadrv_min_flop_sort, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%process_inhomogenous", l_val=cudadrv_do_inhomogenous, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%avoid_after_busy", l_val=cudadrv_avoid_after_busy, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%binning_nbins", i_val=cudadrv_binning_nbins, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%binning_binsize", i_val=cudadrv_binning_binsize, error=error)
-
-    CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
-    CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
-    CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
-    CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
-    CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=dbcsr_error)
-    IF(mm_ss > 0) &
-    CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
-    IF(nstacks(1) > 0) &
-    CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
-
-    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
-    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
-
-    CALL dbcsr_error_stop (error_handle, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_config
-
-
-! *****************************************************************************
-!> \brief Prints configuration for DBCSR
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_print_config(unit_nr, error)
-    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_config', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=default_string_length)     :: mm_name
-    INTEGER                                  :: unit_num
-    INTEGER, DIMENSION(3)                    :: n_mnk_stacks
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    logger => cp_error_get_logger(error)
-    unit_num = cp_logger_get_default_io_unit(logger)
-    IF (PRESENT (unit_nr)) unit_num=unit_nr
-
-    IF (unit_num>0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-       SELECT CASE (dbcsr_get_conf_mm_driver())
-       CASE(mm_driver_blas)   ; mm_name = mm_name_blas
-       CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
-       CASE(mm_driver_smm)    ; mm_name = mm_name_smm
-       CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
-       CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
-       END SELECT
-       WRITE(UNIT=unit_num, FMT='(1X,A,T41,A40)')&
-        "DBCSR| Multiplication driver", ADJUSTR(mm_name(1:40))
-
-       WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-        "DBCSR| Multrec recursion limit", multrec_limit
-       WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-        "DBCSR| Multiplication stack size", dbcsr_get_conf_mm_stacksize()
-
-       CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
-       IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| Multiplication size stacks", n_mnk_stacks(1)
-       ELSE
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| Multiplication size m stacks", n_mnk_stacks(1)
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| Multiplication size n stacks", n_mnk_stacks(2)
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| Multiplication size l stacks", n_mnk_stacks(3)
-       ENDIF
-
-       IF (has_mpi) THEN
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| Use subcommunicators",  dbcsr_get_conf_subcomm ()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| Use MPI combined types" ,  dbcsr_get_conf_combtypes ()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem ()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
-       ENDIF
-
-       IF (has_cuda) THEN
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of priority stack-buffers", cudadrv_priority_buffers
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of posterior stack-buffers", cudadrv_posterior_buffers
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of priority streams", cudadrv_priority_streams
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of posterior streams", cudadrv_posterior_streams
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| CUDA: Process inhomogenous stacks", cudadrv_do_inhomogenous
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of binning bins", cudadrv_binning_nbins
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Size of binning bins", cudadrv_binning_binsize
-       END IF
-    ENDIF
-
-  END SUBROUTINE cp_dbcsr_print_config
 
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.

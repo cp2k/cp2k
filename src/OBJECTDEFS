@@ -101,6 +101,7 @@ OBJECTS_GENERIC =\
  cp_control_types.o\
  cp_control_utils.o\
  cp_dbcsr_cholesky.o\
+ cp_dbcsr_cp2k_link.o\
  cp_dbcsr_diag.o\
  cp_dbcsr_interface.o\
  cp_dbcsr_methods.o\

@@ -29,6 +29,7 @@ MODULE almo_scf_special
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
@@ -39,7 +40,6 @@ MODULE almo_scf_special
        cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_work_create
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type

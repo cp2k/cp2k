@@ -14,6 +14,7 @@ MODULE admm_methods
                                              admm_env_create,&
                                              admm_type
   USE cp_control_types,                ONLY: admm_control_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
@@ -24,7 +25,6 @@ MODULE admm_methods
        cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_plus_fm_fm_t
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix

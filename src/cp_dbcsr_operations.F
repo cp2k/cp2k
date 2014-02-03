@@ -31,8 +31,8 @@ MODULE cp_dbcsr_operations
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_norm, &
        cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
-       cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, cp_dbcsr_work_create
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_valid_index, &
+       cp_dbcsr_verify_matrix, cp_dbcsr_work_create
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -84,12 +84,6 @@ MODULE cp_dbcsr_operations
                                              real_4,&
                                              sp
   USE message_passing,                 ONLY: mp_bcast
-  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                             neighbor_list_iterate,&
-                                             neighbor_list_iterator_create,&
-                                             neighbor_list_iterator_p_type,&
-                                             neighbor_list_iterator_release,&
-                                             neighbor_list_set_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -121,8 +115,7 @@ MODULE cp_dbcsr_operations
             cp_dbcsr_from_fm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             copy_dbcsr_to_cfm, copy_cfm_to_dbcsr, &
             cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t,&
-            cp_dbcsr_get_id_nr,&
-            cp_dbcsr_alloc_block_from_nbl
+            cp_dbcsr_get_id_nr
 
   ! distribution_2d_type compatibility
   PUBLIC :: cp_dbcsr_dist2d_to_dist
@@ -251,101 +244,6 @@ CONTAINS
     CALL array_release (rd)
     CALL array_release (cd)
   END SUBROUTINE cp_dbcsr_dist2d_to_dist
-
-! *****************************************************************************
-!> \brief allocate the blocks of a dbcsr based on the neighbor list
-!> \note
-!> \param matrix        the matrix
-!> \param sab_orb       the corresponding neighbor list
-!> \param error
-!> \par History
-!>      11.2009 created vw
-!> \author vw
-! *****************************************************************************
-
-  SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)
-
-    TYPE(cp_dbcsr_type)                      :: matrix
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_alloc_block_from_nbl', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=1)                         :: symmetry
-    INTEGER                                  :: blk_cnt, handle, iatom, icol, &
-                                                inode, irow, jatom, last_jatom
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows, tmp
-    LOGICAL                                  :: failure, new_atom_b
-    TYPE(neighbor_list_iterator_p_type), &
-      DIMENSION(:), POINTER                  :: nl_iterator
-
-    CALL timeset(routineN,handle)
-
-    failure = .FALSE.
-
-    symmetry = cp_dbcsr_get_matrix_type(matrix)
-
-    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
-
-    CALL cp_dbcsr_finalize (matrix, error=error)
-    ALLOCATE (rows(1), cols(1))
-    blk_cnt = 0
-
-    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
-    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-       CALL get_iterator_info(nl_iterator,iatom=iatom,jatom=jatom,inode=inode)
-       IF(inode==1) last_jatom = 0
-       IF (jatom /= last_jatom) THEN
-          new_atom_b = .TRUE.
-          last_jatom = jatom
-       ELSE
-          new_atom_b = .FALSE.
-          CYCLE
-       END IF
-       IF (blk_cnt+1 .GT. SIZE(rows)) THEN
-          ALLOCATE (tmp (blk_cnt))
-          tmp(:) = rows(:)
-          DEALLOCATE (rows)
-          ALLOCATE (rows((blk_cnt+1)*2))
-          rows(1:blk_cnt) = tmp(1:blk_cnt)
-          tmp(:) = cols(:)
-          DEALLOCATE (cols)
-          ALLOCATE (cols((blk_cnt+1)*2))
-          cols(1:blk_cnt) = tmp(1:blk_cnt)
-          DEALLOCATE (tmp)
-       ENDIF
-       blk_cnt = blk_cnt+1
-       IF(symmetry==dbcsr_type_no_symmetry) THEN
-          rows(blk_cnt) = iatom
-          cols(blk_cnt) = jatom
-       ELSE
-          IF(iatom<=jatom) THEN
-             irow = iatom
-             icol = jatom
-          ELSE
-             irow = jatom
-             icol = iatom
-          END IF
-          rows(blk_cnt) = irow
-          cols(blk_cnt) = icol
-       END IF
-
-    END DO
-    CALL neighbor_list_iterator_release(nl_iterator)
-
-    !
-    CALL cp_dbcsr_reserve_blocks (matrix, rows(1:blk_cnt), cols(1:blk_cnt),&
-         error=error)
-    DEALLOCATE (rows)
-    DEALLOCATE (cols)
-    CALL cp_dbcsr_finalize( matrix, error=error )
-
-    CALL timestop(handle)
-
-  END SUBROUTINE cp_dbcsr_alloc_block_from_nbl
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a column vector

@@ -23,13 +23,13 @@ MODULE qs_kinetic
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
                                              cp_dbcsr_filter,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type

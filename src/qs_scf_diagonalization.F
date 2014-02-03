@@ -13,6 +13,7 @@
 MODULE qs_scf_diagonalization
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
@@ -22,7 +23,6 @@ MODULE qs_scf_diagonalization
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
