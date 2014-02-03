@@ -11,6 +11,9 @@
 ! *****************************************************************************
 MODULE input_cp2k
   USE bibliography,                    ONLY: Frigo2005
+  USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
+                                             BLACS_GRID_ROW,&
+                                             BLACS_GRID_SQUARE
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_types,                 ONLY: cp_parser_type,&

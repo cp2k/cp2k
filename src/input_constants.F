@@ -64,11 +64,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: weight_type_unit=0,&
                                               weight_type_mass=1
 
-  ! Blacs type of distribution
-  INTEGER, PARAMETER, PUBLIC               :: BLACS_GRID_SQUARE = 1,&
-                                              BLACS_GRID_ROW    = 2,&
-                                              BLACS_GRID_COL    = 3
-
   ! diag methods
   INTEGER, PARAMETER, PUBLIC               :: do_diag_syevd = 1,&
                                               do_diag_syevx = 2

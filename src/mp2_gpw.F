@@ -15,7 +15,8 @@ MODULE mp2_gpw
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+  USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
+                                             cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -61,8 +62,7 @@ MODULE mp2_gpw
   USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                              distribute_molecules_2d
   USE f77_blas
-  USE input_constants,                 ONLY: BLACS_GRID_SQUARE,&
-                                             use_orb_basis_set
+  USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: default_output_unit,&

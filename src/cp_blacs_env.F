@@ -21,9 +21,6 @@ MODULE cp_blacs_env
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: BLACS_GRID_COL,&
-                                             BLACS_GRID_ROW,&
-                                             BLACS_GRID_SQUARE
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: gcd
@@ -36,6 +33,11 @@ MODULE cp_blacs_env
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_env'
+
+  ! Blacs type of distribution
+  INTEGER, PARAMETER, PUBLIC               :: BLACS_GRID_SQUARE = 1,&
+                                              BLACS_GRID_ROW    = 2,&
+                                              BLACS_GRID_COL    = 3
 
   PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
