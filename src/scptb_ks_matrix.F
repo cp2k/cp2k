@@ -37,10 +37,6 @@ MODULE scptb_ks_matrix
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE f77_blas
   USE gamma,                           ONLY: fgamma_0
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -60,7 +56,11 @@ MODULE scptb_ks_matrix
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
-  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&

@@ -10,9 +10,6 @@
 ! *****************************************************************************
 MODULE input_cp2k_rsgrid
   USE f77_blas
-  USE realspace_grid_types,            ONLY: rsgrid_distributed,&
-                                             rsgrid_replicated,&
-                                             rsgrid_automatic
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -20,6 +17,9 @@ MODULE input_cp2k_rsgrid
                                              section_create,&
                                              section_type
   USE kinds,                           ONLY: dp
+  USE realspace_grid_types,            ONLY: rsgrid_automatic,&
+                                             rsgrid_distributed,&
+                                             rsgrid_replicated
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 

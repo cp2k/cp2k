@@ -24,16 +24,16 @@ MODULE fist_pol_scf
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             do_fist_pol_cg,&
+  USE input_constants,                 ONLY: do_fist_pol_cg,&
                                              do_fist_pol_sc
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE multipole_types,                 ONLY: multipole_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

@@ -9,9 +9,6 @@ MODULE mt_util
                                              cite_reference
   USE erf_fn,                          ONLY: erf
   USE f77_blas
-  USE input_constants,                 ONLY: MT0D,&
-                                             MT1D,&
-                                             MT2D
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi,&
@@ -39,6 +36,10 @@ MODULE mt_util
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mt_util'
+
+  INTEGER, PARAMETER, PUBLIC               :: MT2D = 1101,&
+                                              MT1D = 1102,&
+                                              MT0D = 1103
 
   PUBLIC :: MTin_create_screen_fn
 CONTAINS

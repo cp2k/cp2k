@@ -16,7 +16,12 @@ MODULE input_cp2k_poisson
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_fist_pol_cg, do_fist_pol_none, do_fist_pol_sc, &
+       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
+       do_multipole_quadrupole, low_print_level, medium_print_level, &
+       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
+       use_perd_y, use_perd_yz, use_perd_z
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -30,6 +35,16 @@ MODULE input_cp2k_poisson
                                              integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pw_poisson_types,                ONLY: &
+       do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
+       pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
+       pw_poisson_periodic, pw_poisson_wavelet
+  USE pw_spline_utils,                 ONLY: no_precond,&
+                                             precond_spl3_1,&
+                                             precond_spl3_2,&
+                                             precond_spl3_3,&
+                                             precond_spl3_aint,&
+                                             precond_spl3_aint2
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 
@@ -79,9 +94,9 @@ CONTAINS
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
             enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE","WAVELET"),&
-            enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_multipole,use_wavelet/),&
+            enum_i_vals=(/ pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole,pw_poisson_wavelet/),&
             citations=(/Blochl1995,Martyna1999,Genovese2006,Genovese2007/),&
-            default_i_val=use_periodic, error=error)
+            default_i_val=pw_poisson_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

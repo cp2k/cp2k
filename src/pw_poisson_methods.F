@@ -10,23 +10,20 @@
 ! *****************************************************************************
 MODULE pw_poisson_methods
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
-       PERIODIC3D, WAVELET0D, WAVELET1D, WAVELET2D, WAVELET3D, do_ewald_spme, &
-       use_analytic, use_gs_grid, use_mt, use_multipole, use_none, &
-       use_periodic, use_rs_grid, use_wavelet
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
-  USE ps_wavelet_types,                ONLY: cp2k_distribution_to_z_slices,&
+  USE mt_util,                         ONLY: MT0D,&
+                                             MT1D,&
+                                             MT2D
+  USE ps_wavelet_methods,              ONLY: cp2k_distribution_to_z_slices,&
                                              ps_wavelet_create,&
                                              ps_wavelet_solve,&
-                                             ps_wavelet_type,&
                                              z_slices_to_cp2k_distribution
+  USE ps_wavelet_types,                ONLY: WAVELET0D,&
+                                             WAVELET1D,&
+                                             WAVELET2D,&
+                                             WAVELET3D,&
+                                             ps_wavelet_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare,&
                                              pw_grid_release,&
@@ -35,10 +32,12 @@ MODULE pw_poisson_methods
                                              pw_derive,&
                                              pw_integral_ab,&
                                              pw_transfer
-  USE pw_poisson_types,                ONLY: greens_fn_type,&
-                                             pw_green_create,&
-                                             pw_green_release,&
-                                             pw_poisson_type
+  USE pw_poisson_types,                ONLY: &
+       ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MULTIPOLE0D, PERIODIC3D, &
+       do_ewald_spme, greens_fn_type, pw_green_create, pw_green_release, &
+       pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
+       pw_poisson_none, pw_poisson_parameter_type, pw_poisson_periodic, &
+       pw_poisson_type, pw_poisson_wavelet
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -63,6 +62,10 @@ MODULE pw_poisson_methods
 
   PUBLIC :: pw_poisson_cleanup, pw_poisson_rebuild, pw_poisson_check, &
        pw_poisson_solve, pw_poisson_set
+
+  INTEGER, PARAMETER                       :: use_rs_grid=0,&
+                                              use_gs_grid = 1
+
 CONTAINS
 
 ! *****************************************************************************
@@ -111,22 +114,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ewald_kind, i_val, itype_scf, &
-                                                s_order
     LOGICAL                                  :: failure, rebuild
-    REAL(kind=dp)                            :: alpha
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(ps_wavelet_type), POINTER           :: wavelet
-    TYPE(section_vals_type), POINTER         :: ewald_section
 
     failure=.FALSE.
 
-    NULLIFY(ewald_section)
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(poisson_env%parameters),cp_failure_level,routineP,error,failure)
        CPPrecondition(poisson_env%pw_level>=LBOUND(poisson_env%pw_pools,1),cp_failure_level,routineP,error,failure)
        CPPrecondition(poisson_env%pw_level<=UBOUND(poisson_env%pw_pools,1),cp_failure_level,routineP,error,failure)
     END IF
@@ -134,46 +131,36 @@ CONTAINS
        green => poisson_env%green_fft
        wavelet => poisson_env%wavelet
        rebuild=poisson_env%rebuild
-       CALL section_vals_val_get(poisson_env%parameters,"POISSON_SOLVER",&
-            i_val=i_val,error=error)
-       ewald_section => section_vals_get_subs_vals(poisson_env%parameters,&
-            "EWALD", can_return_null=.TRUE., error=error)
-       rebuild=rebuild.OR.(poisson_env%method/=i_val)&
+       rebuild=rebuild.OR.(poisson_env%method/=poisson_env%parameters%solver)&
             .OR..NOT.ASSOCIATED(green)
-       poisson_env%method=i_val
-       IF(i_val==use_wavelet)THEN
+       poisson_env%method=poisson_env%parameters%solver
+
+       IF(poisson_env%method==pw_poisson_wavelet)THEN
          poisson_env%used_grid=use_rs_grid
        ELSE
          poisson_env%used_grid=use_gs_grid
        END IF
        IF (.NOT.rebuild) THEN
-          IF (ASSOCIATED(ewald_section)) THEN
-             CALL section_vals_val_get(ewald_section,"ewald_type",i_val=ewald_kind,error=error)
-             IF (ewald_kind==do_ewald_spme) THEN
-                CALL section_vals_val_get(ewald_section,"alpha",r_val=alpha,error=error)
-                rebuild=(alpha/=green%p3m_alpha).OR.rebuild
-                CALL section_vals_val_get(ewald_section,"o_spline",i_val=s_order,error=error)
-                rebuild=(s_order/=green%p3m_order).OR.rebuild
-             END IF
+          IF (poisson_env%parameters%ewald_type==do_ewald_spme) THEN
+             rebuild=(poisson_env%parameters%ewald_alpha/=green%p3m_alpha).OR.rebuild
+             rebuild=(poisson_env%parameters%ewald_o_spline/=green%p3m_order).OR.rebuild
           END IF
           SELECT CASE(poisson_env%method)
-          CASE(use_analytic)
+          CASE(pw_poisson_analytic)
              SELECT CASE(green%method)
              CASE(ANALYTIC0D,ANALYTIC1D,ANALYTIC2D,PERIODIC3D)
              CASE default
                 rebuild=.TRUE.
              END SELECT
-          CASE(use_mt)
+          CASE(pw_poisson_mt)
              SELECT CASE(green%method)
              CASE(MT0D,MT1D,MT2D)
              CASE default
                 rebuild=.TRUE.
              END SELECT
-             CALL section_vals_val_get(poisson_env%parameters,"MT%ALPHA",r_val=alpha,error=error)
-             rebuild=(alpha/=green%mt_alpha).OR.rebuild
-          CASE(use_wavelet)
-             CALL section_vals_val_get(poisson_env%parameters,"WAVELET%SCF_TYPE",i_val=itype_scf,error=error)
-             rebuild=(itype_scf/=wavelet%itype_scf).OR.rebuild
+             rebuild=(poisson_env%parameters%mt_alpha/=green%mt_alpha).OR.rebuild
+          CASE(pw_poisson_wavelet)
+             rebuild=(poisson_env%parameters%wavelet_scf_type/=wavelet%itype_scf).OR.rebuild
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -208,25 +195,21 @@ CONTAINS
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(poisson_env%parameters),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (poisson_env%rebuild) THEN
           CALL pw_poisson_cleanup(poisson_env,error=error)
-
-          CALL section_vals_val_get(poisson_env%parameters,"POISSON_SOLVER",&
-               i_val=poisson_env%method,error=error)
-           SELECT CASE (poisson_env%method)
-           CASE(use_periodic,use_analytic,use_mt,use_multipole)
+           SELECT CASE (poisson_env%parameters%solver)
+           CASE(pw_poisson_periodic,pw_poisson_analytic,pw_poisson_mt,pw_poisson_multipole)
               CALL pw_green_create(poisson_env%green_fft,cell_hmat=poisson_env%cell_hmat,&
                    pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
-                   poisson_section=poisson_env%parameters,&
+                   poisson_params=poisson_env%parameters,&
                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
                    error=error)
-           CASE(use_wavelet)
+           CASE(pw_poisson_wavelet)
               CPPrecondition(ASSOCIATED(density%pw_grid),cp_failure_level,routineP,error,failure)
               CALL ps_wavelet_create(poisson_env%parameters,poisson_env%wavelet,&
                                      density%pw_grid,error)
-           CASE(use_none)
+           CASE(pw_poisson_none)
            CASE default
               CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
            END SELECT
@@ -473,8 +456,8 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN), OPTIONAL                   :: cell_hmat
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: parameters
+    TYPE(pw_poisson_parameter_type), &
+      INTENT(IN), OPTIONAL                   :: parameters
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
     INTEGER, INTENT(in), OPTIONAL            :: use_level
@@ -490,12 +473,9 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: tmp_pools
 
-    IF (PRESENT(parameters)) THEN
-       CPPrecondition(ASSOCIATED(parameters),cp_failure_level,routineP,error,failure)
-       CALL section_vals_retain(parameters,error=error)
-       CALL section_vals_release(poisson_env%parameters,error=error)
-       poisson_env%parameters => parameters
-    END IF
+    IF (PRESENT(parameters)) &
+       poisson_env%parameters = parameters
+
     IF (PRESENT(cell_hmat)) THEN
        IF (ANY(poisson_env%cell_hmat /= cell_hmat)) &
           CALL pw_poisson_cleanup(poisson_env,error=error)

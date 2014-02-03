@@ -18,8 +18,7 @@ MODULE  hartree_local_methods
                                              ecoul_1center_type,&
                                              hartree_local_type,&
                                              set_ecoul_1c
-  USE input_constants,                 ONLY: tddfpt_singlet,&
-                                             use_periodic
+  USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              pi
@@ -28,7 +27,8 @@ MODULE  hartree_local_methods
                                              nsoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_types,                ONLY: pw_poisson_periodic,&
+                                             pw_poisson_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -269,7 +269,7 @@ CONTAINS
          pw_env=pw_env,qs_charges=qs_charges,error=error)
 
     CALL pw_env_get(pw_env,poisson_env=poisson_env,error=error)
-    my_periodic= (poisson_env%method==use_periodic)
+    my_periodic= (poisson_env%method==pw_poisson_periodic)
 
     back_ch = qs_charges%background*cell%deth
 

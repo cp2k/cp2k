@@ -17,10 +17,6 @@ MODULE ewald_environment_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
   USE input_cp2k_poisson,              ONLY: create_ewald_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -35,6 +31,10 @@ MODULE ewald_environment_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

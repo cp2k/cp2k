@@ -7,9 +7,9 @@ MODULE pair_potential_coulomb
 
   USE erf_fn,                          ONLY: erf,&
                                              erfc
-  USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: oorootpi
+  USE pw_poisson_types,                ONLY: do_ewald_none
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

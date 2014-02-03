@@ -10,9 +10,6 @@
 ! *****************************************************************************
 MODULE pw_grid_types
   USE f77_blas
-  USE input_constants,                 ONLY: do_pw_grid_blocked_false,&
-                                             do_pw_grid_blocked_free,&
-                                             do_pw_grid_blocked_true
   USE kinds,                           ONLY: dp,&
                                              int_8
 #include "cp_common_uses.h"
@@ -21,7 +18,6 @@ MODULE pw_grid_types
 
   PRIVATE
   PUBLIC :: pw_grid_type, map_pn, pw_para_type
-  PUBLIC :: do_pw_grid_blocked_false,do_pw_grid_blocked_true,do_pw_grid_blocked_free
 
   ! (only for reciprocal grid:) fill in half or full space
   INTEGER, PARAMETER, PUBLIC :: HALFSPACE = 211, FULLSPACE = 212

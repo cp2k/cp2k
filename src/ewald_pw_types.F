@@ -21,10 +21,6 @@ MODULE ewald_pw_types
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -36,10 +32,11 @@ MODULE ewald_pw_types
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
-  USE pw_poisson_types,                ONLY: pw_poisson_create,&
-                                             pw_poisson_release,&
-                                             pw_poisson_retain,&
-                                             pw_poisson_type
+  USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
+  USE pw_poisson_types,                ONLY: &
+       do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
+       pw_poisson_create, pw_poisson_parameter_type, pw_poisson_release, &
+       pw_poisson_retain, pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
@@ -197,6 +194,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: pw_big_grid, pw_small_grid
+    TYPE(pw_poisson_parameter_type)          :: poisson_params
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -360,7 +358,8 @@ CONTAINS
           ALLOCATE(pw_pools(1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           pw_pools(1)%pool => ewald_pw%pw_big_pool
-          CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_section,&
+          CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+          CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_params,&
                use_level=1,pw_pools=pw_pools,error=error)
           DEALLOCATE(pw_pools,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

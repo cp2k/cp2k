@@ -24,7 +24,6 @@ MODULE ewalds
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi,&
@@ -33,6 +32,7 @@ MODULE ewalds
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_poisson_types,                ONLY: do_ewald_none
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type

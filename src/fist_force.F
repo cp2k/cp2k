@@ -46,11 +46,7 @@ MODULE fist_force
   USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
                                              force_nonbond
   USE fist_pol_scf,                    ONLY: fist_pol_evaluate
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             do_fist_pol_none
+  USE input_constants,                 ONLY: do_fist_pol_none
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -69,6 +65,10 @@ MODULE fist_force
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: debye
   USE pme,                             ONLY: pme_evaluate
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE shell_potential_types,           ONLY: shell_kind_type
   USE spme,                            ONLY: spme_evaluate
   USE timings,                         ONLY: timeset,&

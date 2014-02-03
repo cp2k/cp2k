@@ -19,7 +19,6 @@ MODULE cp_ddapc_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE f77_blas
-  USE input_constants,                 ONLY: use_multipole
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -29,6 +28,7 @@ MODULE cp_ddapc_types
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
+  USE pw_poisson_types,                ONLY: pw_poisson_multipole
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_release,&
                                              pw_pool_type
@@ -331,7 +331,7 @@ CONTAINS
        ! Simple decoupling technique
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        SELECT CASE (my_val)
-       CASE (use_multipole)
+       CASE (pw_poisson_multipole)
           multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        CASE DEFAULT
           decoupling = .FALSE.

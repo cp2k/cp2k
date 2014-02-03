@@ -61,6 +61,9 @@ MODULE input_cp2k
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
+                                             do_pw_grid_blocked_free,&
+                                             do_pw_grid_blocked_true
   USE string_utilities,                ONLY: newline,&
                                              s2a
   USE swarm_input,                     ONLY: create_swarm_section

@@ -47,6 +47,15 @@ MODULE input_cp2k_dft
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
+                                             do_pw_grid_blocked_free,&
+                                             do_pw_grid_blocked_true
+  USE pw_spline_utils,                 ONLY: no_precond,&
+                                             precond_spl3_1,&
+                                             precond_spl3_2,&
+                                             precond_spl3_3,&
+                                             precond_spl3_aint,&
+                                             precond_spl3_aint2
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 

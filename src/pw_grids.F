@@ -46,10 +46,12 @@ MODULE pw_grids
   USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                              pw_grid_bounds_from_n,&
                                              pw_grid_init_setup
-  USE pw_grid_types,                   ONLY: &
-       FULLSPACE, HALFSPACE, PW_MODE_DISTRIBUTED, PW_MODE_LOCAL, &
-       do_pw_grid_blocked_false, do_pw_grid_blocked_free, &
-       do_pw_grid_blocked_true, map_pn, pw_grid_type
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
+                                             PW_MODE_DISTRIBUTED,&
+                                             PW_MODE_LOCAL,&
+                                             map_pn,&
+                                             pw_grid_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -89,6 +91,11 @@ MODULE pw_grids
     END INTERFACE
 #endif
 
+
+  ! Distribution in g-space can be
+  INTEGER, PARAMETER, PUBLIC               :: do_pw_grid_blocked_false=0,&
+                                              do_pw_grid_blocked_true=1,&
+                                              do_pw_grid_blocked_free=2
 CONTAINS
 
 ! *****************************************************************************

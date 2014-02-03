@@ -14,12 +14,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_spline_utils
-  USE input_constants,                 ONLY: no_precond,&
-                                             precond_spl3_1,&
-                                             precond_spl3_2,&
-                                             precond_spl3_3,&
-                                             precond_spl3_aint,&
-                                             precond_spl3_aint2
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE mathlib,                         ONLY: det_3x3,&
@@ -57,6 +51,13 @@ MODULE pw_spline_utils
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_spline_utils'
+
+  INTEGER, PARAMETER, PUBLIC               :: no_precond=0,&
+                                              precond_spl3_aint=1,&
+                                              precond_spl3_1=2,&
+                                              precond_spl3_aint2=3,&
+                                              precond_spl3_2=4,&
+                                              precond_spl3_3=5
 
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs=&
          (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /),&

@@ -486,6 +486,7 @@ OBJECTS_GENERIC =\
  ps_wavelet_fft3d.o\
  ps_wavelet_kernel.o\
  ps_wavelet_scaling_function.o\
+ ps_wavelet_methods.o\
  ps_wavelet_types.o\
  ps_wavelet_util.o\
  pw_env_methods.o\
@@ -496,6 +497,7 @@ OBJECTS_GENERIC =\
  pw_methods_cuda.o\
  pw_methods.o\
  pw_poisson_methods.o\
+ pw_poisson_read_input.o\
  pw_poisson_types.o\
  pw_pool_types.o\
  pw_spline_utils.o\

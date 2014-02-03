@@ -23,20 +23,13 @@ MODULE pw_poisson_types
                                              bessk0,&
                                              bessk1
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
-       PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
-       use_multipole, use_none, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
-       use_periodic
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
-  USE mt_util,                         ONLY: MTin_create_screen_fn
+  USE mt_util,                         ONLY: MT0D,&
+                                             MT1D,&
+                                             MT2D,&
+                                             MTin_create_screen_fn
   USE ps_wavelet_types,                ONLY: ps_wavelet_release,&
                                              ps_wavelet_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -65,9 +58,53 @@ MODULE pw_poisson_types
   PUBLIC :: greens_fn_type,pw_green_create,&
             pw_green_retain,&
             pw_green_release
+  PUBLIC :: pw_poisson_parameter_type
 
   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
   INTEGER, SAVE, PRIVATE :: last_poisson_id=0
+
+  INTEGER, PARAMETER, PUBLIC               :: pw_poisson_none=0,&
+                                              pw_poisson_periodic = 1,&
+                                              pw_poisson_analytic = 2,&
+                                              pw_poisson_mt=3,&
+                                              pw_poisson_hockney=5,&
+                                              pw_poisson_multipole=4,&
+                                              pw_poisson_wavelet=6
+  ! EWALD methods
+  INTEGER, PARAMETER, PUBLIC               :: do_ewald_none=1,&
+                                              do_ewald_ewald=2,&
+                                              do_ewald_pme=3,&
+                                              do_ewald_spme=4
+
+  INTEGER, PARAMETER, PUBLIC               :: PERIODIC3D = 1000,&
+                                              ANALYTIC2D = 1001,&
+                                              ANALYTIC1D = 1002,&
+                                              ANALYTIC0D = 1003,&
+                                              HOCKNEY2D = 1201,&
+                                              HOCKNEY1D = 1202,&
+                                              HOCKNEY0D = 1203,&
+                                              MULTIPOLE2D = 1301,&
+                                              MULTIPOLE1D = 1302,&
+                                              MULTIPOLE0D = 1303
+
+! *****************************************************************************
+!> \brief parameters for the poisson solver independet of input_section
+!> \author Ole Schuett
+! *****************************************************************************
+  TYPE pw_poisson_parameter_type
+    INTEGER                                  :: solver
+    INTEGER, DIMENSION(3)                    :: periodic
+    INTEGER                                  :: ewald_type = do_ewald_none
+    INTEGER                                  :: ewald_o_spline
+    REAL (KIND=dp)                           :: ewald_alpha
+    REAL (KIND=dp)                           :: mt_rel_cutoff
+    REAL (KIND=dp)                           :: mt_alpha
+    INTEGER                                  :: wavelet_scf_type
+    INTEGER                                  :: wavelet_method
+    INTEGER                                  :: wavelet_special_dimension
+    CHARACTER(LEN=1)                         :: wavelet_geocode
+  END TYPE pw_poisson_parameter_type
+
 
 ! *****************************************************************************
 !> \brief environment for the poisson solver
@@ -81,7 +118,7 @@ MODULE pw_poisson_types
      LOGICAL :: rebuild
      TYPE ( greens_fn_type ), POINTER :: green_fft
      TYPE (ps_wavelet_type ),POINTER  :: wavelet
-     TYPE (section_vals_type), POINTER :: parameters
+     TYPE (pw_poisson_parameter_type) :: parameters
      REAL(KIND = dp), DIMENSION(3,3)   :: cell_hmat = 0.0_dp
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE ( pw_grid_type), POINTER :: mt_super_ref_pw_grid
@@ -116,15 +153,18 @@ MODULE pw_poisson_types
 
 CONTAINS
 
+
+
 ! *****************************************************************************
 !> \brief Allocates and sets up the green functions for the fft based poisson
 !>      solvers
 !> \author Fawzi, based on previous functions by JGH and Teo
 ! *****************************************************************************
-  SUBROUTINE pw_green_create ( green, poisson_section, cell_hmat, pw_pool, &
+  SUBROUTINE pw_green_create ( green, poisson_params, cell_hmat, pw_pool, &
        mt_super_ref_pw_grid, error )
     TYPE(greens_fn_type), POINTER            :: green
-    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(pw_poisson_parameter_type), &
+      INTENT(IN)                             :: poisson_params
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: cell_hmat
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -135,19 +175,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nr = 250
 
-    INTEGER                                  :: dim, ewald_kind, i, ig, iz, &
-                                                my_per, my_val, n, nz, stat
-    INTEGER, DIMENSION(3)                    :: perd
+    INTEGER                                  :: dim, i, ig, iz, n, nz, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, g3d, gg, gxy, j0g, j1g, &
                                                 k0g, k1g, rlength, zlength
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
-    TYPE(section_vals_type), POINTER         :: ewald_section, mt_section
 
     failure = .FALSE.
-    NULLIFY(ewald_section)
     CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ALLOCATE(green, stat=stat)
@@ -176,67 +212,35 @@ CONTAINS
        NULLIFY (green%p3m_coeff,green%p3m_bm2)
        NULLIFY (green%screen_fn)
 
-       CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
-       ewald_section => section_vals_get_subs_vals(poisson_section,&
-            "EWALD", can_return_null=.TRUE., error=error)
-       ewald_kind=do_ewald_none
-       IF ( ASSOCIATED(ewald_section) ) THEN
-          CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_kind,&
-               error=error)
-       END IF
-
        !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
        DO i=1,3
           abc(i)=cell_hmat(i,i)
        END DO
-       SELECT CASE(my_per)
-       CASE(use_perd_x)
-          perd = (/1,0,0/)
-       CASE(use_perd_y)
-          perd = (/0,1,0/)
-       CASE(use_perd_z)
-          perd = (/0,0,1/)
-       CASE(use_perd_xy)
-          perd = (/1,1,0/)
-       CASE(use_perd_xz)
-          perd = (/1,0,1/)
-       CASE(use_perd_yz)
-          perd = (/0,1,1/)
-       CASE(use_perd_xyz)
-          perd = (/1,1,1/)
-       CASE(use_perd_none)
-          perd = (/0,0,0/)
-       CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-       ! check for consistent use of periodicity (cell <-> Poisson solver)
-       !CPPostcondition(ALL(perd == cell%perd),cp_fatal_level,routineP,error,failure)
+       dim = COUNT(poisson_params%periodic == 1)
 
-       dim = COUNT(perd == 1)
-       CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
-       SELECT CASE (my_val)
-       CASE (use_periodic)
+       SELECT CASE (poisson_params%solver)
+       CASE (pw_poisson_periodic)
           green%method = PERIODIC3D
           IF (dim /= 3) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Illegal combination of periodicity and Poisson solver periodic3d",&
                   error=error,failure=failure)
           END IF
-       CASE (use_multipole)
+       CASE (pw_poisson_multipole)
           green%method = MULTIPOLE0D
           IF (dim /= 0) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Illegal combination of periodicity and Poisson solver mulipole0d",&
                   error=error,failure=failure)
           END IF
-       CASE (use_analytic)
+       CASE (pw_poisson_analytic)
           SELECT CASE (dim)
           CASE (0)
              green%method = ANALYTIC0D
              green%radius = 0.5_dp*MINVAL(abc)
           CASE (1)
              green%method = ANALYTIC1D
-             green%special_dimension = MAXLOC(perd(1:3),1)
+             green%special_dimension = MAXLOC(poisson_params%periodic(1:3),1)
              green%radius = MAXVAL(abc(1:3))
              DO i=1,3
                 IF (i == green%special_dimension) CYCLE
@@ -244,7 +248,7 @@ CONTAINS
              END DO
           CASE (2)
              green%method = ANALYTIC2D
-             i = MINLOC(perd,1)
+             i = MINLOC(poisson_params%periodic,1)
              green%special_dimension = i
              green%slab_size = abc(i)
           CASE (3)
@@ -252,10 +256,9 @@ CONTAINS
           CASE DEFAULT
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
-       CASE (use_mt)
-          mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
-          CALL section_vals_val_get(mt_section,"REL_CUTOFF",r_val=green%MT_rel_cutoff,error=error)
-          CALL section_vals_val_get(mt_section,"ALPHA",r_val=green%MT_alpha,error=error)
+       CASE (pw_poisson_mt)
+          green%MT_rel_cutoff = poisson_params%mt_rel_cutoff
+          green%MT_alpha     = poisson_params%mt_alpha
           green%MT_alpha=green%MT_alpha/MINVAL(abc)
           SELECT CASE (dim)
           CASE (0)
@@ -263,7 +266,7 @@ CONTAINS
              green%radius = 0.5_dp*MINVAL(abc)
           CASE (1)
              green%method = MT1D
-             green%special_dimension = MAXLOC(perd(1:3),1)
+             green%special_dimension = MAXLOC(poisson_params%periodic(1:3),1)
              green%radius = MAXVAL(abc(1:3))
              DO i=1,3
                 IF (i == green%special_dimension) CYCLE
@@ -271,7 +274,7 @@ CONTAINS
              END DO
           CASE (2)
              green%method = MT2D
-             i = MINLOC(perd,1)
+             i = MINLOC(poisson_params%periodic,1)
              green%special_dimension = i
              green%slab_size = abc(i)
           CASE (3)
@@ -290,12 +293,10 @@ CONTAINS
        CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
           CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
-          IF (ewald_kind==do_ewald_spme) THEN
-             green % p3m = .TRUE.
-             CALL section_vals_val_get(ewald_section,"o_spline",&
-                  i_val=green % p3m_order,error=error)
-             CALL section_vals_val_get(ewald_section,"alpha",&
-                  r_val=green%p3m_alpha,error=error)
+          IF (poisson_params%ewald_type==do_ewald_spme) THEN
+             green%p3m = .TRUE.
+             green%p3m_order = poisson_params%ewald_o_spline
+             green%p3m_alpha = poisson_params%ewald_alpha
              n=green % p3m_order
              ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ), stat = stat )
              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -596,9 +597,9 @@ END SUBROUTINE calc_p3m_charge
        last_poisson_id=last_poisson_id+1
        poisson_env%id_nr=last_poisson_id
        poisson_env%ref_count=1
-       poisson_env%method=use_none
+       poisson_env%method=pw_poisson_none
        poisson_env%rebuild=.TRUE.
-       NULLIFY(poisson_env%parameters,poisson_env%green_fft,&
+       NULLIFY(poisson_env%green_fft,&
             poisson_env%pw_pools,poisson_env%green_fft,&
             poisson_env%mt_super_ref_pw_grid,poisson_env%wavelet)
        poisson_env%pw_level=-1
@@ -653,7 +654,6 @@ END SUBROUTINE calc_p3m_charge
        CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
        poisson_env%ref_count=poisson_env%ref_count-1
        IF (poisson_env%ref_count==0) THEN
-          CALL section_vals_release(poisson_env%parameters,error=error)
           IF (ASSOCIATED(poisson_env%pw_pools)) THEN
              CALL pw_pools_dealloc(poisson_env%pw_pools,error=error)
           END IF

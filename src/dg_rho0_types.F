@@ -10,13 +10,13 @@
 MODULE dg_rho0_types
 
   USE f77_blas
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_zero
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE pw_types,                        ONLY: REALDATA3D,&
                                              pw_create,&
                                              pw_p_type,&

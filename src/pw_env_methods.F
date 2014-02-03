@@ -33,11 +33,11 @@ MODULE pw_env_methods
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE input_constants,                 ONLY: &
-       use_mt, xc_deriv_collocate, xc_deriv_nn10_smooth, &
-       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_vdw_fun_nonloc
+       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
+       xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -50,14 +50,17 @@ MODULE pw_env_methods
   USE pw_grid_info,                    ONLY: pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
-                                             do_pw_grid_blocked_false,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_change,&
+  USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
+                                             pw_grid_change,&
                                              pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
-  USE pw_poisson_types,                ONLY: pw_poisson_create
+  USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
+  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+                                             pw_poisson_mt,&
+                                             pw_poisson_parameter_type
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
@@ -181,6 +184,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                                                 old_pw_grid, pw_grid, &
                                                 super_ref_grid, vdw_grid, &
                                                 xc_super_ref_grid
+    TYPE(pw_poisson_parameter_type)          :: poisson_params
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
@@ -500,8 +504,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      END IF
      poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",&
           error=error)
+     CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
      CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=my_cell%hmat,pw_pools=pw_env%pw_pools,&
-          parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
+          parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
      CALL pw_grid_release(mt_super_ref_grid,error=error)
 !
@@ -513,8 +518,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
            CALL pw_grid_change ( cell%hmat, pw_pools ( igrid_level ) % pool % pw_grid )
          ENDDO
          IF (set_vdw_pool) CALL pw_grid_change( cell%hmat, pw_env%vdw_pw_pool%pw_grid )
+         CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
          CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=cell%hmat,pw_pools=pw_env%pw_pools,&
-          parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
+          parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
     ENDIF
 !
@@ -838,7 +844,7 @@ END SUBROUTINE compute_max_radius
        ! Check if grids will be the same... In this case we don't use a super-reference grid
        !
        mt_s_grid=.FALSE.
-       IF (my_val==use_mt) THEN
+       IF (my_val==pw_poisson_mt) THEN
           CALL section_vals_val_get(poisson_section,"MT%REL_CUTOFF",&
                r_val=mt_rel_cutoff,error=error)
           IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
