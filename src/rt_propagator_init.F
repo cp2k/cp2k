@@ -154,7 +154,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: ispin, method, ndim, stat
-    LOGICAL                                  :: emd, failure, is_present
+    LOGICAL                                  :: emd, failure
     REAL(dp)                                 :: max_eval, min_eval, norm2, &
                                                 scale, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
