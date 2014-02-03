@@ -70,7 +70,7 @@ MODULE cell_types
   TYPE cell_type
      INTEGER                           :: ref_count,id_nr
      INTEGER                           :: symmetry_id
-     LOGICAL                           :: orthorhombic
+     LOGICAL                           :: orthorhombic ! actually means a diagonal hmat
      REAL(KIND = dp)                   :: deth
      INTEGER, DIMENSION(3)             :: perd
      REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
@@ -1009,14 +1009,13 @@ CPSourceFileRef,&
             TRIM(my_label)//" Requested initial symmetry: ",&
             ADJUSTR(TRIM(enum_i2c(enum,cell%symmetry_id,error=error)))
            CALL section_release(section,error=error)
+        END IF
+        IF (cell%orthorhombic) THEN
+           WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
+            TRIM(my_label)//" Numerically orthorhombic/diagonal: ","YES"
         ELSE
-           IF (cell%orthorhombic) THEN
-              WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
-               TRIM(my_label)//" Orthorhombic: ","YES"
-           ELSE
-              WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
-               TRIM(my_label)//" Orthorhombic: "," NO"
-           END IF
+           WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
+            TRIM(my_label)//" Numerically orthorhombic/diagonal: "," NO"
         END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&

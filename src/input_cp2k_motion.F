@@ -1233,14 +1233,14 @@ CONTAINS
     CALL keyword_create(keyword, name="KEEP_ANGLES",&
          description="Keep angles between the cell vectors constant, but allow the lenghts of the"//&
                      " cell vectors to change independently."//&
-                     " For example, a cubic cell might become orthorhombic, but not triclinic.",&
+                     " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.",&
          usage="KEEP_ANGLES TRUE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="KEEP_SYMMETRY",&
          description="Keep the requested initial cell symmetry (e.g. during a cell optimisation). "//&
-                     "See cell section for how to impose a cell symmetry.",&
+                     "The initial symmetry must be specified in the &CELL section.",&
          usage="KEEP_SYMMETRY yes",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
