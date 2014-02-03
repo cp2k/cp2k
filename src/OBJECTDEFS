@@ -153,6 +153,7 @@ OBJECTS_GENERIC =\
  cp_parser_types.o\
  cp_result_methods.o\
  cp_result_types.o\
+ cp_spline_utils.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
  cp_symmetry.o\
@@ -425,18 +426,18 @@ OBJECTS_GENERIC =\
  molsym.o\
  moments_utils.o\
  motion_utils.o\
+ mp2_cphf.o\
  mp2_direct_method.o\
  mp2_gpw.o\
  mp2_laplace.o\
  mp2.o\
  mp2_optimize_ri_basis.o\
  mp2_ri_gpw.o\
+ mp2_ri_grad.o\
+ mp2_ri_grad_util.o\
  mp2_ri_libint.o\
  mp2_setup.o\
  mp2_types.o\
- mp2_cphf.o\
- mp2_ri_grad.o\
- mp2_ri_grad_util.o\
  mt_util.o\
  mulliken.o\
  multipole_types.o\

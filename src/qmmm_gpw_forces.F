@@ -16,6 +16,7 @@ MODULE qmmm_gpw_forces
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_spline_utils,                 ONLY: pw_restrict_s3
   USE cube_utils,                      ONLY: cube_info_type
   USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
@@ -48,7 +49,6 @@ MODULE qmmm_gpw_forces
                                              pw_pool_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_restrict_s3
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type,&

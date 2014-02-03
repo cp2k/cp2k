@@ -17,6 +17,7 @@ MODULE qmmm_gpw_energy
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_spline_utils,                 ONLY: pw_prolongate_s3
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
@@ -44,7 +45,6 @@ MODULE qmmm_gpw_energy
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_prolongate_s3
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type,&

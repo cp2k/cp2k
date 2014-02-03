@@ -49,6 +49,7 @@ MODULE qs_collocate_density
                                              cp_fm_get_info,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_spline_utils,                 ONLY: pw_prolongate_s3
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -99,7 +100,6 @@ MODULE qs_collocate_density
                                              pw_pool_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_prolongate_s3
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&

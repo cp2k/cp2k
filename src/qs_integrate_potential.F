@@ -47,6 +47,7 @@ MODULE qs_integrate_potential
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_spline_utils,                 ONLY: pw_restrict_s3
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_dist_operations
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_has_threads
@@ -81,7 +82,6 @@ MODULE qs_integrate_potential
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_restrict_s3
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
