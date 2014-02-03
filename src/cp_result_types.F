@@ -15,9 +15,6 @@
 ! *****************************************************************************
   MODULE cp_result_types
 
-  USE input_val_types,                 ONLY: integer_t,&
-                                             logical_t,&
-                                             real_t
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -29,6 +26,10 @@
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_result_types'
+
+  INTEGER, PARAMETER, PUBLIC :: result_type_logical=1,&
+                                result_type_integer=2,&
+                                result_type_real=3
 
 ! *** Public data types ***
   PUBLIC :: cp_result_type,&
@@ -261,13 +262,13 @@ CONTAINS
     CPPostcondition(ASSOCIATED(value),cp_failure_level,routineP,error,failure)
     value%type_in_use = type_in_use
     SELECT CASE(value%type_in_use)
-    CASE(real_t)
+    CASE(result_type_real)
        ALLOCATE(value%real_type(size_value),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CASE(integer_t)
+    CASE(result_type_integer)
        ALLOCATE(value%integer_type(size_value),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CASE(logical_t)
+    CASE(result_type_logical)
        ALLOCATE(value%logical_type(size_value),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
@@ -295,21 +296,21 @@ CONTAINS
     failure=.FALSE.
     IF (ASSOCIATED(value)) THEN
        SELECT CASE(value%type_in_use)
-       CASE(real_t)
+       CASE(result_type_real)
           IF (ASSOCIATED(value%real_type)) THEN
              DEALLOCATE(value%real_type,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           CPPostcondition(.NOT.ASSOCIATED(value%integer_type),cp_failure_level,routineP,error,failure)
           CPPostcondition(.NOT.ASSOCIATED(value%logical_type),cp_failure_level,routineP,error,failure)
-       CASE(integer_t)
+       CASE(result_type_integer)
           IF (ASSOCIATED(value%integer_type)) THEN
              DEALLOCATE(value%integer_type,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           CPPostcondition(.NOT.ASSOCIATED(value%real_type),cp_failure_level,routineP,error,failure)
           CPPostcondition(.NOT.ASSOCIATED(value%logical_type),cp_failure_level,routineP,error,failure)
-       CASE(logical_t)
+       CASE(result_type_logical)
           IF (ASSOCIATED(value%logical_type)) THEN
              DEALLOCATE(value%logical_type,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -382,17 +383,17 @@ CONTAINS
     CPPostcondition(ASSOCIATED(value_out),cp_failure_level,routineP,error,failure)
     value_out%type_in_use = value_in%type_in_use
     SELECT CASE(value_out%type_in_use)
-    CASE(real_t)
+    CASE(result_type_real)
        isize = SIZE(value_in%real_type)
        ALLOCATE(value_out%real_type(isize),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        value_out%real_type = value_in%real_type
-    CASE(integer_t)
+    CASE(result_type_integer)
        isize = SIZE(value_in%integer_type)
        ALLOCATE(value_out%integer_type(isize),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        value_out%integer_type = value_in%integer_type
-    CASE(logical_t)
+    CASE(result_type_logical)
        isize = SIZE(value_in%logical_type)
        ALLOCATE(value_out%logical_type(isize),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

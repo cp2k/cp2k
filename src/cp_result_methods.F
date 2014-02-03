@@ -17,11 +17,9 @@ MODULE cp_result_methods
   USE cp_result_types,                 ONLY: &
        cp_result_clean, cp_result_copy, cp_result_create, cp_result_release, &
        cp_result_type, cp_result_value_copy, cp_result_value_create, &
-       cp_result_value_init, cp_result_value_p_reallocate
+       cp_result_value_init, cp_result_value_p_reallocate, &
+       result_type_integer, result_type_logical, result_type_real
   USE f77_blas
-  USE input_val_types,                 ONLY: integer_t,&
-                                             logical_t,&
-                                             real_t
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -80,7 +78,7 @@ CONTAINS
     CALL cp_result_value_p_reallocate(results%result_value,1,isize+1,error)
 
     results%result_label(isize+1) = description
-    CALL cp_result_value_init(results%result_value(isize+1)%value, real_t, jsize, error)
+    CALL cp_result_value_init(results%result_value(isize+1)%value, result_type_real, jsize, error)
     results%result_value(isize+1)%value%real_type = values
 
   END SUBROUTINE put_result_r1
@@ -116,7 +114,7 @@ CONTAINS
     CALL cp_result_value_p_reallocate(results%result_value,1,isize+1,error)
 
     results%result_label(isize+1) = description
-    CALL cp_result_value_init(results%result_value(isize+1)%value, real_t, jsize, error)
+    CALL cp_result_value_init(results%result_value(isize+1)%value, result_type_real, jsize, error)
     results%result_value(isize+1)%value%real_type = RESHAPE(values,(/jsize/))
 
   END SUBROUTINE put_result_r2
@@ -198,7 +196,7 @@ CPSourceFileRef,&
 
     DO i=1,nlist
        IF(TRIM(results%result_label(i))==TRIM(description))THEN
-          CALL cp_assert(results%result_value(i)%value%type_in_use==real_t,&
+          CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Attempt to retrieve a RESULT which is not a REAL! "//&
 CPSourceFileRef,&
@@ -278,7 +276,7 @@ CPSourceFileRef,&
 
     DO i=1,nlist
        IF(TRIM(results%result_label(i))==TRIM(description))THEN
-          CALL cp_assert(results%result_value(i)%value%type_in_use==real_t,&
+          CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Attempt to retrieve a RESULT which is not a REAL! "//&
 CPSourceFileRef,&
@@ -350,11 +348,11 @@ CPSourceFileRef,&
        DO i=1,nlist
           IF(TRIM(results%result_label(i))==TRIM(description))THEN
              SELECT CASE(results%result_value(i)%value%type_in_use)
-             CASE(real_t)
+             CASE(result_type_real)
                 n_entries = n_entries + SIZE(results%result_value(i)%value%real_type)
-             CASE(integer_t)
+             CASE(result_type_integer)
                 n_entries = n_entries + SIZE(results%result_value(i)%value%integer_type)
-             CASE(logical_t)
+             CASE(result_type_logical)
                 n_entries = n_entries + SIZE(results%result_value(i)%value%logical_type)
              CASE DEFAULT
                 ! Type not implemented in cp_result_type
@@ -512,11 +510,11 @@ CPSourceFileRef,&
     DO i = 1, nlist
        CALL mp_bcast(results%result_label(i), source, para_env%group)
        SELECT CASE(results%result_value(i)%value%type_in_use)
-       CASE(real_t)
+       CASE(result_type_real)
           CALL mp_bcast(results%result_value(i)%value%real_type, source, para_env%group)
-       CASE(integer_t)
+       CASE(result_type_integer)
           CALL mp_bcast(results%result_value(i)%value%integer_type, source, para_env%group)
-       CASE(logical_t)
+       CASE(result_type_logical)
           CALL mp_bcast(results%result_value(i)%value%logical_type, source, para_env%group)
        CASE DEFAULT
           ! Type not implemented in cp_result_type
