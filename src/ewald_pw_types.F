@@ -12,6 +12,7 @@ MODULE ewald_pw_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_init,          ONLY: init_input_type
   USE dg_types,                        ONLY: dg_create,&
                                              dg_release,&
                                              dg_retain,&
@@ -46,7 +47,7 @@ MODULE ewald_pw_types
                                              pw_pool_type
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_desc_type, realspace_grid_input_type, &
+       realspace_grid_desc_type, realspace_grid_input_type, &
        realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &
        rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
        rs_grid_retain_descriptor

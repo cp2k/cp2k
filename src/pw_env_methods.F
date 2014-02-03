@@ -24,6 +24,7 @@ MODULE pw_env_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_init,          ONLY: init_input_type
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info,&
                                              return_cube_max_iradius
@@ -68,11 +69,14 @@ MODULE pw_env_methods
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
-  USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_desc_p_type, &
-       realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
-       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
-       rs_grid_release_descriptor
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_input_type,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_create,&
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_print,&
+                                             rs_grid_release,&
+                                             rs_grid_release_descriptor
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

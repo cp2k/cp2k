@@ -42,6 +42,7 @@ MODULE library_tests
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_realspace_grid_init,          ONLY: init_input_type
   USE dbcsr_tests,                     ONLY: cp_test_multiplies
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
@@ -94,10 +95,10 @@ MODULE library_tests
                                              pw_p_type,&
                                              pw_release
   USE realspace_grid_types,            ONLY: &
-       init_input_type, pw2rs, realspace_grid_desc_type, &
-       realspace_grid_input_type, realspace_grid_type, rs2pw, rs_grid_create, &
-       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
-       rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
+       pw2rs, realspace_grid_desc_type, realspace_grid_input_type, &
+       realspace_grid_type, rs2pw, rs_grid_create, rs_grid_create_descriptor, &
+       rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
+       rs_grid_zero, rs_pw_transfer
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
