@@ -217,11 +217,13 @@ MODULE dbcsr_mm_cannon
      IF (ASSOCIATED(memtype_product_wm%pool)) &
         CALL dbcsr_mempool_destruct(memtype_product_wm%pool, error)
 
+
+     !$omp master
+
      ! this could overflow
      total_marketing_flops=marketing_flops
      CALL mp_sum(total_marketing_flops,group)
 
-     !$omp master
      IF(output_unit>0) &
        WRITE (output_unit,'(A,T30,I20)') " marketing flops", total_marketing_flops
      IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
