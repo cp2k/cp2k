@@ -13,9 +13,6 @@
 MODULE cuda_memory
 
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -56,19 +53,13 @@ CONTAINS
 !> allocated up front to eliminate the cost of allocating repeatedly later.
 !> \author Benjamin G Levine
 ! *****************************************************************************
-  SUBROUTINE cuda_device_mem_init(root_section, error)
-    TYPE(section_vals_type), POINTER, INTENT(IN) :: root_section
+  SUBROUTINE cuda_device_mem_init(error)
     TYPE(cp_error_type), INTENT(INOUT)           :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_device_mem_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                      :: memory
-    TYPE(section_vals_type), POINTER             :: cuda_section
-
-!    cuda_section => section_vals_get_subs_vals(root_section,&
-!      "GLOBAL%CUDA",error=error)
-!    CALL section_vals_val_get(cuda_section, "MEMORY", i_val=memory, error=error)
 
 #if defined ( __PW_CUDA ) || defined ( __CUBLASDP )
 

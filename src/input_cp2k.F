@@ -663,18 +663,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
-! input for CUDA support
     NULLIFY(sub_section)
-    CALL section_create(sub_section,name="CUDA",&
-         description="For CUDA support related input",&
-         repeats=.FALSE., required=.FALSE., supported_feature=.TRUE.,error=error)
-    CALL keyword_create(keyword, name="MEMORY",&
-         description="Allocates this much device memory (in kB)",&
-         usage="MEMORY 10",default_i_val=-1,error=error)
-    CALL section_add_keyword(sub_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(section,sub_section,error=error)
-    CALL section_release(sub_section,error=error)
     ! Machine arch
     CALL create_march_section(sub_section,error)
     CALL section_add_subsection(section,sub_section,error=error)

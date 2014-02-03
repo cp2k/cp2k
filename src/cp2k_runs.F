@@ -303,7 +303,7 @@ CONTAINS
           IF (prog_name_id/=do_farming) THEN
              ! if PW_CUDA is enabled we need to get cudaStreams and
              ! cudaEvents on the GPU
-             CALL cuda_device_mem_init(root_section, error)
+             CALL cuda_device_mem_init(error)
           ENDIF
 
 
