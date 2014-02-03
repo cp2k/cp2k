@@ -247,11 +247,9 @@ CONTAINS
 
     DEALLOCATE(eigval_H,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF(.NOT.is_present)THEN
-       CALL cp_fm_release(S_half,error)
-       CALL cp_fm_release(S_minus_half,error)
-    END IF
 
+    CALL cp_fm_release(S_half,error)
+    CALL cp_fm_release(S_minus_half,error)
     CALL cp_fm_release(H_fm,error)
     CALL cp_fm_release(tmp_mat_H,error)
 
