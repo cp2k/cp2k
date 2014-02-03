@@ -17,8 +17,7 @@ MODULE qs_energy
                                              cp_fm_to_fm
   USE dm_ls_scf,                       ONLY: ls_scf
   USE f77_blas
-  USE input_constants,                 ONLY: do_diag,&
-                                             ehrenfest
+  USE input_constants,                 ONLY: ehrenfest
   USE kinds,                           ONLY: dp
   USE mp2
   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
