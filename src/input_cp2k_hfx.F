@@ -514,7 +514,7 @@ CONTAINS
                         "What remains will be used for storage of integrals. NOTE: This number "//&
                         "is assumed to represent the memory available to one MPI process. "//&
                         "When running a threaded version, cp2k automatically takes care of "//&
-                        "distributing the memory among all involved sub-processes.",&
+                        "distributing the memory among all the threads within a process.",&
             usage="MAX_MEMORY 256",&
             default_i_val=512,&
             error=error)
