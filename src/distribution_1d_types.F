@@ -27,14 +27,9 @@ MODULE distribution_1d_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
-                                             read_rng_stream,&
-                                             rng_record_length,&
                                              rng_stream_p_type
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
@@ -51,8 +46,6 @@ MODULE distribution_1d_types
   PUBLIC :: distribution_1d_create, distribution_1d_retain, distribution_1d_release, &
        distribution_1d_build_gdist, distribution_1d_destroy_gdist,&
        distribution_1d_search_el, distribution_1d_sort_list, distribution_1d_write
-
-  PUBLIC :: local_particle_type, init_local_particle_set
 
 ! *****************************************************************************
   TYPE local_particle_type
@@ -279,56 +272,6 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
   END IF
 
 END SUBROUTINE distribution_1d_release
-
-! *****************************************************************************
-  SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,&
-                                     work_section,error)
-
-    TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    INTEGER, INTENT(in)                      :: nparticle_kind
-    TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: iparticle, iparticle_kind, &
-                                                iparticle_local, &
-                                                nparticle_local
-    LOGICAL                                  :: explicit, failure
-
-! -------------------------------------------------------------------------
-
-    failure = .FALSE.
-
-    CPPrecondition (ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
-
-    IF (ASSOCIATED(work_section)) THEN
-      CALL section_vals_get(work_section,explicit=explicit,error=error)
-      IF (explicit) THEN
-        DO iparticle_kind=1,nparticle_kind
-          nparticle_local = distribution_1d%n_el(iparticle_kind)
-          DO iparticle_local=1,nparticle_local
-            iparticle = distribution_1d%list(iparticle_kind)%array(iparticle_local)
-            IF (iparticle == distribution_1d%list(iparticle_kind)%array(iparticle_local)) THEN
-              CALL section_vals_val_get(section_vals=work_section,&
-                                        keyword_name="_DEFAULT_KEYWORD_",&
-                                        i_rep_val=iparticle,&
-                                        c_val=rng_record,&
-                                        error=error)
-              CALL read_rng_stream(rng_stream=distribution_1d%&
-                                              &local_particle_set(iparticle_kind)%&
-                                              &rng(iparticle_local)%stream,&
-                                   rng_record=rng_record,&
-                                   error=error)
-            END IF
-          END DO
-        END DO
-      END IF
-    END IF
-
-  END SUBROUTINE init_local_particle_set
 
 ! *****************************************************************************
 !> \brief sorts the given list (if not specified all)

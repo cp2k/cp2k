@@ -16,13 +16,14 @@ MODULE wiener_process
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type,&
-                                             init_local_particle_set
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
@@ -30,7 +31,9 @@ MODULE wiener_process
   USE metadynamics_types,              ONLY: meta_env_type
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
-                                             next_rng_seed
+                                             next_rng_seed,&
+                                             read_rng_stream,&
+                                             rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
@@ -163,6 +166,60 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_wiener_process
+
+! *****************************************************************************
+!> \brief Helper routine for create_wiener_process.
+!> \par History
+!>      01.2014 moved from distribution_1d_types (Ole Schuett)
+! *****************************************************************************
+  SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,&
+                                     work_section,error)
+
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    INTEGER, INTENT(in)                      :: nparticle_kind
+    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local
+    LOGICAL                                  :: explicit, failure
+
+! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    CPPrecondition (ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
+
+    IF (ASSOCIATED(work_section)) THEN
+      CALL section_vals_get(work_section,explicit=explicit,error=error)
+      IF (explicit) THEN
+        DO iparticle_kind=1,nparticle_kind
+          nparticle_local = distribution_1d%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = distribution_1d%list(iparticle_kind)%array(iparticle_local)
+            IF (iparticle == distribution_1d%list(iparticle_kind)%array(iparticle_local)) THEN
+              CALL section_vals_val_get(section_vals=work_section,&
+                                        keyword_name="_DEFAULT_KEYWORD_",&
+                                        i_rep_val=iparticle,&
+                                        c_val=rng_record,&
+                                        error=error)
+              CALL read_rng_stream(rng_stream=distribution_1d%&
+                                              &local_particle_set(iparticle_kind)%&
+                                              &rng(iparticle_local)%stream,&
+                                   rng_record=rng_record,&
+                                   error=error)
+            END IF
+          END DO
+        END DO
+      END IF
+    END IF
+
+  END SUBROUTINE init_local_particle_set
 
 ! *****************************************************************************
 !> \brief Create a Wiener process for Langevin dynamics used for
