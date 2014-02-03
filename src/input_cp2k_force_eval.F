@@ -109,9 +109,9 @@ CONTAINS
          enum_i_vals=(/do_stress_none,do_stress_analytical,do_stress_numerical,&
                        do_stress_diagonal_anal,do_stress_diagonal_numer/),&
          enum_desc=s2a("Do not compute stress tensor",&
-                       "Compute the stress tensor analytical (if available).",&
+                       "Compute the stress tensor analytically (if available).",&
                        "Compute the stress tensor numerically.",&
-                       "Compute the diagonal part only of the stress tensor analytical (if available).",&
+                       "Compute the diagonal part only of the stress tensor analytically (if available).",&
                        "Compute the diagonal part only of the stress tensor numerically"),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
