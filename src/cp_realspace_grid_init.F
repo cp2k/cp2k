@@ -11,13 +11,13 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE cp_realspace_grid_init
-  USE input_constants,                 ONLY: rsgrid_automatic,&
-                                             rsgrid_replicated
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE realspace_grid_types,            ONLY: realspace_grid_input_type
+  USE realspace_grid_types,            ONLY: realspace_grid_input_type,&
+                                             rsgrid_automatic,&
+                                             rsgrid_replicated
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

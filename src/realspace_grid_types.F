@@ -15,8 +15,6 @@
 ! *****************************************************************************
 MODULE realspace_grid_types
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE input_constants,                 ONLY: rsgrid_automatic,&
-                                             rsgrid_replicated
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp, int_8
   USE mathlib,                         ONLY: det_3x3
@@ -67,6 +65,10 @@ MODULE realspace_grid_types
             rs_grid_locate_rank, &
             rs_grid_max_ngpts, &
             rs_grid_mult_and_add
+
+  INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
+                                              rsgrid_replicated=1,&
+                                              rsgrid_automatic=2
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'

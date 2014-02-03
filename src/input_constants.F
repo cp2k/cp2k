@@ -259,10 +259,6 @@ MODULE input_constants
                                               do_se_lr_ewald_r3=2,&
                                               do_se_lr_ewald_gks=3
 
-  INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
-                                              rsgrid_replicated=1,&
-                                              rsgrid_automatic=2
-
   INTEGER, PARAMETER, PUBLIC               :: do_par_atom=0,&
                                               do_par_grid=1
 
