@@ -176,9 +176,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_calculate_orthonormality', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, im_part, ispin, j, &
-                                                k, n, ncol_local, nrow_local, &
-                                                nspin, re_part
+    INTEGER                                  :: handle, i, im, ispin, j, k, &
+                                                n, ncol_local, nrow_local, &
+                                                nspin, re
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: alpha, max_alpha, max_beta
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
@@ -192,29 +192,29 @@ CONTAINS
    max_alpha=0.0_dp
    max_beta=0.0_dp
    DO ispin=1,nspin
-      re_part=(ispin-1)*2+1
-      im_part=(ispin-1)*2+2
+      re=ispin*2-1
+      im=ispin*2
       ! get S*C
-      CALL cp_fm_create(svec_re,mos_new(2*ispin)%matrix%matrix_struct,error=error)
-      CALL cp_fm_create(svec_im,mos_new(2*ispin)%matrix%matrix_struct,error=error)
-      CALL cp_fm_get_info(mos_new(2*ispin)%matrix,&
+      CALL cp_fm_create(svec_re,mos_new(im)%matrix%matrix_struct,error=error)
+      CALL cp_fm_create(svec_im,mos_new(im)%matrix%matrix_struct,error=error)
+      CALL cp_fm_get_info(mos_new(im)%matrix,&
            nrow_global=n,ncol_global=k,error=error)
-      CALL cp_dbcsr_sm_fm_multiply(matrix_s,mos_new(re_part)%matrix,&
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s,mos_new(re)%matrix,&
            svec_re,k,error=error)
-      CALL cp_dbcsr_sm_fm_multiply(matrix_s,mos_new(im_part)%matrix,&
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s,mos_new(im)%matrix,&
            svec_im,k,error=error)
 
       ! get C^T (S*C)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
-           para_env=mos_new(re_part)%matrix%matrix_struct%para_env, &
-           context=mos_new(re_part)%matrix%matrix_struct%context,error=error)
+           para_env=mos_new(re)%matrix%matrix_struct%para_env, &
+           context=mos_new(re)%matrix%matrix_struct%context,error=error)
       CALL cp_fm_create(overlap_re,tmp_fm_struct,error=error)
 
       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(re_part)%matrix,&
+      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(re)%matrix,&
            svec_re,0.0_dp,overlap_re,error=error)
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(im_part)%matrix,&
+      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(im)%matrix,&
            svec_im,1.0_dp,overlap_re,error=error)
 
       CALL cp_fm_release(svec_re,error=error)
@@ -260,9 +260,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, icol, im_part, &
-                                                ispin, j, lcol, lrow, nao, &
-                                                newdim, nmo, nspin, re_part
+    INTEGER                                  :: handle, i, icol, im, ispin, &
+                                                j, lcol, lrow, nao, newdim, &
+                                                nmo, nspin, re
     LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -286,14 +286,14 @@ CONTAINS
 
 
    DO ispin=1,nspin
-      re_part=(ispin-1)*2+1
-      im_part=(ispin-1)*2+2
+      re=ispin*2-1
+      im=ispin*2
 
       double_col=.TRUE.
       double_row=.FALSE.
       CALL cp_fm_struct_double(newstruct,&
-           delta_mos(re_part)%matrix%matrix_struct,&
-           delta_mos(re_part)%matrix%matrix_struct%context,&
+           delta_mos(re)%matrix%matrix_struct,&
+           delta_mos(re)%matrix%matrix_struct%context,&
            double_col,&
            double_row,&
            error)
@@ -301,15 +301,15 @@ CONTAINS
       CALL cp_fm_create(work,matrix_struct=newstruct,error=error)
       CALL cp_fm_create(work1,matrix_struct=newstruct,error=error)
 
-      CALL cp_fm_get_info(delta_mos(re_part)%matrix,ncol_local=lcol,ncol_global=nmo,&
+      CALL cp_fm_get_info(delta_mos(re)%matrix,ncol_local=lcol,ncol_global=nmo,&
            nrow_global=nao,error=error)
       CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
 
       CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
 
       DO icol=1,lcol
-         work%local_data(:,icol)=delta_mos(re_part)%matrix%local_data(:,icol)
-         work%local_data(:,icol+lcol)=delta_mos(im_part)%matrix%local_data(:,icol)
+         work%local_data(:,icol)=delta_mos(re)%matrix%local_data(:,icol)
+         work%local_data(:,icol+lcol)=delta_mos(im)%matrix%local_data(:,icol)
       END DO
 
 
@@ -318,11 +318,11 @@ CONTAINS
       CALL cp_fm_release(work,error)
 
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,ncol_global=nmo, &
-           para_env=delta_mos(re_part)%matrix%matrix_struct%para_env, &
-           context=delta_mos(re_part)%matrix%matrix_struct%context,error=error)
+           para_env=delta_mos(re)%matrix%matrix_struct%para_env, &
+           context=delta_mos(re)%matrix%matrix_struct%context,error=error)
       CALL cp_fm_struct_double(newstruct1,&
            tmp_fm_struct,&
-           delta_mos(re_part)%matrix%matrix_struct%context,&
+           delta_mos(re)%matrix%matrix_struct%context,&
            double_col,&
            double_row,&
            error)
@@ -331,10 +331,10 @@ CONTAINS
       CALL cp_fm_create(work2,matrix_struct=newstruct1,error=error)
 
 
-      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re_part)%matrix,&
+      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re)%matrix,&
            work1,0.0_dp,work,error=error)
 
-      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im_part)%matrix,&
+      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im)%matrix,&
            work1,0.0_dp,work2,error=error)
 
       CALL cp_fm_get_info(work,nrow_local=lrow,error=error)

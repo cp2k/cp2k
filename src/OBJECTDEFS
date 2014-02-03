@@ -658,6 +658,7 @@ OBJECTS_GENERIC =\
  rmsd.o\
  rpa_communication.o \
  rpa_ri_gpw.o\
+ rt_delta_pulse.o\
  rt_make_propagators.o\
  rt_matrix_exp.o\
  rtp_admm_methods.o\

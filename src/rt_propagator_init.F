@@ -22,7 +22,6 @@ MODULE rt_propagator_init
                                              cp_fm_type
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
-                                             do_diag,&
                                              do_em,&
                                              do_etrs,&
                                              do_pade,&
@@ -34,7 +33,8 @@ MODULE rt_propagator_init
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE rt_make_propagators,             ONLY: make_etrs_exp
-  USE rt_matrix_exp,                   ONLY: get_nsquare_norder
+  USE rt_matrix_exp,                   ONLY: backtransform_matrix,&
+                                             get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              calc_update_rho,&
                                              put_data_to_history,&
@@ -71,7 +71,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: diagonalize
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -91,13 +90,11 @@ CONTAINS
 
 
     SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
-    CASE(do_taylor,do_pade,do_diag)
+    CASE(do_taylor,do_pade)
        CALL get_maxabs_eigval(rtp,qs_env,error)
        SELECT CASE(qs_env%dft_control%rtp_control%propagator)
        CASE (do_cn,do_em)
-          diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
-          IF(qs_env%dft_control%rtp_control%propagator==do_cn)diagonalize=.FALSE.
-          CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+          CALL s_matrices_create (s_mat,rtp,error)
           CALL calc_SinvH(exp_H_old,qs_env,error)
           DO i=1,SIZE(exp_H_old)
              CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
@@ -105,8 +102,7 @@ CONTAINS
 
        CASE (do_etrs)
 
-          diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
-          CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+          CALL s_matrices_create (s_mat,rtp,error)
 
           CALL make_etrs_exp(exp_H_old,qs_env,error)
           DO i=1,SIZE(exp_H_old)
@@ -114,8 +110,7 @@ CONTAINS
           END DO
        END SELECT
     CASE(do_arnoldi)
-       diagonalize=.FALSE.
-       CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+       CALL s_matrices_create (s_mat,rtp,error)
        CALL calc_SinvH(exp_H_old,qs_env,error)
        DO i=1,SIZE(exp_H_old)
           CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
@@ -152,59 +147,81 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, s_mat
-    TYPE(cp_fm_type), POINTER                :: H_fm, tmp_mat_H
+    TYPE(cp_fm_type), POINTER                :: eigvec_H, H_fm, S_half, &
+                                                S_inv, S_minus_half, tmp, &
+                                                tmp_mat_H
 
     failure=.FALSE.
 
-    is_present=(ASSOCIATED(rtp%S_half))
-    IF(.NOT.is_present)THEN
-       CALL cp_fm_create(rtp%S_half,&
-            matrix_struct=rtp%S_inv%matrix_struct,&
-            name="S_half",&
-            error=error)
-       CALL cp_fm_create(rtp%S_minus_half,&
-            matrix_struct=rtp%S_inv%matrix_struct,&
-            name="S_minus_half",&
-            error=error)
-    END IF
-
-    t=rtp%dt
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=s_mat,error=error)
-    CALL  s_matrices_create (s_mat,rtp,.TRUE.,error)
+    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
+
+    CALL cp_fm_create(S_half,&
+          matrix_struct=S_inv%matrix_struct,&
+          name="S_half",&
+          error=error)
+
+    CALL cp_fm_create(S_minus_half,&
+          matrix_struct=S_inv%matrix_struct,&
+          name="S_minus_half",&
+          error=error)
 
     CALL cp_fm_create(H_fm,&
-         matrix_struct=rtp%S_inv%matrix_struct,&
+         matrix_struct=S_inv%matrix_struct,&
          name="RTP_H_FM",&
          error=error)
 
     CALL cp_fm_create(tmp_mat_H,&
-         matrix_struct=rtp%S_inv%matrix_struct,&
+         matrix_struct=S_inv%matrix_struct,&
          name="TMP_H",&
          error=error)
 
-    ndim=H_fm%matrix_struct%nrow_global
+    ndim=S_inv%matrix_struct%nrow_global
     scale=1.0_dp
     IF(qs_env%dft_control%rtp_control%propagator==do_etrs)scale=2.0_dp
     t=-t/scale
+
+    ! Create the overlap matrices
+
+    CALL cp_fm_create(tmp,&
+         matrix_struct=S_inv%matrix_struct,&
+         name="tmp_mat",&
+         error=error)
+
+    CALL cp_fm_create(eigvec_H,&
+         matrix_struct=S_inv%matrix_struct,&
+         name="tmp_EVEC",&
+         error=error)
+
     ALLOCATE(eigval_H(ndim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp,error=error)
+    CALL cp_fm_upper_to_full(tmp,eigvec_H,error)
+
+    CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error=error)
+
+    eigval_H(:)=one/eigval_H(:)
+    CALL backtransform_matrix(eigval_H,eigvec_H,S_inv,error)
+    eigval_H(:)=SQRT(eigval_H(:))
+    CALL backtransform_matrix(eigval_H,eigvec_H,S_minus_half,error)
+    eigval_H(:)=one/eigval_H(:)
+    CALL backtransform_matrix(eigval_H,eigvec_H,S_half,error)
+    CALL cp_fm_release(eigvec_H,error)
+    CALL cp_fm_release(tmp,error)
 
     IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)method=1
     IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)method=2
     emd=(.NOT.qs_env%dft_control%rtp_control%fixed_ions)
-
 
     DO ispin=1,SIZE(matrix_ks)
 
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
        CALL cp_fm_scale(t,H_fm,error)
-       ndim=H_fm%matrix_struct%nrow_global
 
-
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,H_fm,rtp%S_minus_half,zero,&
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
             tmp_mat_H,error)
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_minus_half,tmp_mat_H,zero,&
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat_H,zero,&
             H_fm,error)
 
        CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H,error=error)
@@ -218,14 +235,15 @@ CONTAINS
     DEALLOCATE(eigval_H,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(.NOT.is_present)THEN
-       CALL cp_fm_release(rtp%S_half,error)
-       CALL cp_fm_release(rtp%S_minus_half,error)
+       CALL cp_fm_release(S_half,error)
+       CALL cp_fm_release(S_minus_half,error)
     END IF
 
     CALL cp_fm_release(H_fm,error)
     CALL cp_fm_release(tmp_mat_H,error)
 
   END SUBROUTINE get_maxabs_eigval
+
 
 ! *****************************************************************************
 !> \brief computs all matrices needed to initialize emd (S_derivs, SinvH,

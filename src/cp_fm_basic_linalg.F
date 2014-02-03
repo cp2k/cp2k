@@ -43,6 +43,7 @@ MODULE cp_fm_basic_linalg
             cp_fm_triangular_multiply, &   ! triangular matrix multiply / solve
             cp_fm_symm, &                  ! multiply a symmetric with a non-symmetric matrix
             cp_fm_gemm, &                  ! multiply two matrices
+            cp_complex_fm_gemm, &          ! multiply two complex matrices, represented by non_complex fm matrices
             cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
             cp_fm_invert,&                 ! computes the inverse and determinant
             cp_fm_frobenius_norm,&         ! frobenius norm
@@ -1350,5 +1351,52 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     DEALLOCATE(ipivot)
     CALL timestop(handle)
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief Convenience function. Computes the matrix multiplications needed
+!>        for the multiplication of complex matrices.
+!>        C = beta * C + alpha * ( A  ** transa ) * ( B ** transb )
+!> \param A : m x k matrix ( ! for transa = 'N'), A_re is the real part, A_im the imaginary part
+!> \param B : k x n matrix ( ! for transb = 'N')
+!> \param C : m x n matrix
+!> \param transa : 'N' -> normal   'T' -> transpose
+!>      alpha,beta :: can be 0.0_dp and 1.0_dp
+!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!> \note
+!>      C should have no overlap with A, B
+!> \author Samuel Andermatt
+! *****************************************************************************
+SUBROUTINE cp_complex_fm_gemm(transa,transb,m,n,k,alpha,A_re,A_im,B_re,B_im,beta,&
+       C_re,C_im,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    INTEGER, INTENT(IN)                      :: m, n, k
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: A_re, A_im, B_re, B_im
+    REAL(KIND=dp), INTENT(IN)                :: beta
+    TYPE(cp_fm_type), POINTER                :: C_re, C_im
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col, a_first_row, &
+                                                b_first_row, c_first_col, &
+                                                c_first_row
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_fm_gemm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_re,B_re,beta,&
+       C_re,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,-alpha,A_im,B_im,1.0_dp,&
+       C_re,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_re,B_im,beta,&
+       C_im,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_im,B_re,1.0_dp,&
+       C_im,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+
+    CALL timestop(handle)
+
+END SUBROUTINE
 
 END MODULE cp_fm_basic_linalg

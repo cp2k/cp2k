@@ -7155,11 +7155,10 @@ CONTAINS
             " in the propagator. For Ehrenfest MD only the Taylor method works, "//&
             "for real time propagation diagonalization works as well.",&
             usage="MAT_EXP TAYLOR",default_i_val=do_arnoldi, &
-            enum_c_vals=s2a("TAYLOR","DIAG","PADE","ARNOLDI"),&
-            enum_i_vals=(/do_taylor,do_diag,do_pade,do_arnoldi/),&
+            enum_c_vals=s2a("TAYLOR","PADE","ARNOLDI"),&
+            enum_i_vals=(/do_taylor,do_pade,do_arnoldi/),&
             enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"//&
             " with a taylor expansion of the exponential.",&
-            "uses the eigenvalues and eigenvectors to calculate the exponential.",&
             "uses scaling and squaring together with the pade approximation",&
             "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "//&
             "combination with Crank Nicholson"),&

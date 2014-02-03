@@ -28,8 +28,7 @@ MODULE rt_make_propagators
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE input_constants,                 ONLY: do_diag,&
-                                             do_em,&
+  USE input_constants,                 ONLY: do_em,&
                                              do_etrs,&
                                              do_pade,&
                                              do_taylor
@@ -37,7 +36,6 @@ MODULE rt_make_propagators
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE rt_matrix_exp,                   ONLY: arnoldi,&
-                                             exp_diag,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
                                              taylor_full_complex,&
@@ -80,7 +78,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, ispin, lb, ndim, ub
+    INTEGER                                  :: handle, im, ispin, ndim, re
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -111,8 +109,8 @@ CONTAINS
     t=-t/2.0_dp
     DO ispin=1,SIZE(matrix_ks)
 
-       lb=(ispin-1)*2+1
-       ub=(ispin-1)*2+2
+       re=2*ispin-1
+       im=2*ispin
 
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
 
@@ -126,10 +124,10 @@ CONTAINS
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
              CALL cp_fm_scale(t,tmp_mat_H,error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
-                  CALL taylor_only_imaginary(exp_H(lb:ub),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
+                  CALL taylor_only_imaginary(exp_H(re:im),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
 
              IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
-                  CALL exp_pade_only_imaginary(exp_H(lb:ub),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
+                  CALL exp_pade_only_imaginary(exp_H(re:im),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
              CALL cp_fm_to_fm(tmp_mat_H,SinvH(ispin)%matrix,error)
              CALL cp_fm_scale(t,tmp_mat_H,error)
@@ -147,18 +145,11 @@ CONTAINS
                 CALL cp_fm_scale(t,tmp_mat_B,error)
              END IF
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
-                  CALL taylor_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
+                  CALL taylor_full_complex(exp_H(re:im),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
-                  CALL exp_pade_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),&
+                  CALL exp_pade_full_complex(exp_H(re:im),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),&
                   qs_env%sim_step,error)
           END IF
-
-       CASE(do_diag)
-          CALL cp_assert(qs_env%dft_control%rtp_control%fixed_ions,&
-               cp_failure_level,cp_assertion_failed,&
-               routineP,"diagonalization does not yet work for the Ehrenfest scheme",&
-               error,failure)
-          CALL exp_diag(rtp,exp_H(lb:ub),H_fm,error)
        END SELECT
 
     END DO
@@ -325,14 +316,7 @@ CONTAINS
           ELSE
              CALL exp_pade_full_complex(propagator(re:im),M1,M2,rtp%orders(1,ispin),rtp%orders(2,ispin),qs_env%sim_step,error)
           END IF
-
-       CASE(do_diag)
-          CALL cp_assert(.FALSE.,&
-               cp_failure_level,cp_assertion_failed,&
-               routineP,"diagonalization does not work for EM propagator scheme",&
-               error,failure)
-       END SELECT
-
+        END SELECT
     END DO
     CALL cp_fm_release(M1,error)
     CALL cp_fm_release(M2,error)
@@ -354,8 +338,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, ispin, lb, ldim, &
-                                                ndim, nspin, ub
+    INTEGER                                  :: handle, i, im, ispin, ldim, &
+                                                ndim, nspin, re
     REAL(dp)                                 :: dt, eps_arnoldi, t
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_next, mos_old, &
@@ -385,20 +369,20 @@ CONTAINS
           dt=-t/2.0_dp
           DO ispin=1,nspin
 
-             lb=ispin*2-1
-             ub=ispin*2
-             CALL cp_fm_to_fm(old_ham(ub)%matrix,tmp_mat_H,error)
+             re=ispin*2-1
+             im=ispin*2
+             CALL cp_fm_to_fm(old_ham(im)%matrix,tmp_mat_H,error)
              CALL cp_fm_scale(dt,tmp_mat_H,error)
 
              IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                     eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)
+                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
+                     eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(re:im),error=error)
              ELSE
-                CALL cp_fm_to_fm(old_ham(lb)%matrix,tmp_mat_B,error)
+                CALL cp_fm_to_fm(old_ham(re)%matrix,tmp_mat_B,error)
                 CALL cp_fm_scale(dt,tmp_mat_B,error)
 
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)
+                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
+                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,mos_next=mos_next(re:im),error=error)
              END IF
           END DO
           DO i=1,SIZE(mos_new)
@@ -416,19 +400,19 @@ CONTAINS
 
        DO ispin=1,nspin
 
-          lb=ispin*2-1
-          ub=ispin*2
-          CALL cp_fm_to_fm(new_ham(ub)%matrix,tmp_mat_H,error)
+          re=ispin*2-1
+          im=ispin*2
+          CALL cp_fm_to_fm(new_ham(im)%matrix,tmp_mat_H,error)
           CALL cp_fm_scale(dt,tmp_mat_H,error)
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                  eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)
+             CALL arnoldi(mos_old(re:im),mos_new(re:im),&
+                  eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(re:im),error=error)
           ELSE
-             CALL cp_fm_to_fm(new_ham(lb)%matrix,tmp_mat_B,error)
+             CALL cp_fm_to_fm(new_ham(re)%matrix,tmp_mat_B,error)
              CALL cp_fm_scale(dt,tmp_mat_B,error)
-             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+             CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                   eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,&
-                  mos_next=mos_next(lb:ub),error=error)
+                  mos_next=mos_next(re:im),error=error)
           END IF
 
        END DO
@@ -436,22 +420,22 @@ CONTAINS
        CASE(do_em)
           CALL cp_fm_get_info(tmp_mat_H,ncol_local=ldim,nrow_global=ndim,error=error)
           DO ispin=1,nspin
-             lb=2*ispin-1
-             ub=2*ispin
+             re=2*ispin-1
+             im=2*ispin
              dt=-t
              DO i=1,ldim
-                tmp_mat_H%local_data(:,i)=0.5_dp*dt*old_ham(ub)%matrix%local_data(:,i)+&
-                     0.5_dp*dt*new_ham(ub)%matrix%local_data(:,i)
+                tmp_mat_H%local_data(:,i)=0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+&
+                     0.5_dp*dt*new_ham(im)%matrix%local_data(:,i)
              END DO
              IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
                 DO i=1,ldim
-                   tmp_mat_B%local_data(:,i)=0.5_dp*dt*old_ham(lb)%matrix%local_data(:,i)+&
-                        0.5_dp*dt*new_ham(lb)%matrix%local_data(:,i)
+                   tmp_mat_B%local_data(:,i)=0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+&
+                        0.5_dp*dt*new_ham(re)%matrix%local_data(:,i)
                 END DO
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                      eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)
              ELSE
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                      eps_arnoldi,Him=tmp_mat_H,error=error)
              END IF
 

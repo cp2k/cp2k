@@ -33,8 +33,7 @@ MODULE rt_propagation_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-  USE input_constants,                 ONLY: do_diag,&
-                                             do_taylor
+  USE input_constants,                 ONLY: do_taylor
   USE kinds,                           ONLY: dp
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -53,8 +52,6 @@ MODULE rt_propagation_types
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: exp_H_old
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: exp_H_new
     TYPE(cp_fm_type),POINTER                                   :: S_inv
-    TYPE(cp_fm_type),POINTER                                   :: S_half
-    TYPE(cp_fm_type),POINTER                                   :: S_minus_half
     TYPE(cp_fm_type),POINTER                                   :: B_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: C_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: S_der
@@ -183,19 +180,8 @@ CONTAINS
          name="S_inv",&
          error=error)
 
-    NULLIFY(rtp%S_half)
-    NULLIFY(rtp%S_minus_half)
     SELECT CASE(rtp_control%mat_exp)
     CASE(do_taylor)
-    CASE(do_diag)
-       CALL cp_fm_create(rtp%S_half,&
-            matrix_struct=ao_ao_fmstruct,&
-            name="S_half",&
-            error=error)
-       CALL cp_fm_create(rtp%S_minus_half,&
-            matrix_struct=ao_ao_fmstruct,&
-            name="S_minus_half",&
-            error=error)
     END SELECT
 
     NULLIFY(rtp%B_mat)
@@ -248,15 +234,14 @@ CONTAINS
 
 
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,mos_new,mos_old,mos_next,&
-                     S_inv,S_half,S_minus_half,B_mat,C_mat,&
+                     S_inv,B_mat,C_mat,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exp_H_old, exp_H_new, &
                                                 mos_new, mos_old, mos_next
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: S_inv, S_half, S_minus_half, &
-                                                B_mat
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: S_inv, B_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: C_mat, S_der
     REAL(dp), OPTIONAL                       :: dt
@@ -285,8 +270,6 @@ CONTAINS
     IF (PRESENT(admm_mos))admm_mos=>rtp%admm_mos
 
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
-    IF(PRESENT(S_half))S_half=>rtp%S_half
-    IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
     IF(PRESENT(B_mat))B_mat=>rtp%B_mat
     IF(PRESENT(C_mat))C_mat=>rtp%C_mat
     IF(PRESENT(SinvH))SinvH=>rtp%SinvH
@@ -312,10 +295,6 @@ CONTAINS
     CALL cp_fm_vect_dealloc(rtp%mos_next,error)
     CALL cp_fm_vect_dealloc(rtp%admm_mos,error)
     CALL cp_fm_release(rtp%S_inv,error)
-    IF(ASSOCIATED(rtp%S_half))&
-         CALL cp_fm_release(rtp%S_half,error)
-    IF(ASSOCIATED(rtp%S_minus_half))&
-         CALL cp_fm_release(rtp%S_minus_half,error)
     IF(ASSOCIATED(rtp%B_mat))&
          CALL cp_fm_release(rtp%B_mat,error)
     IF(ASSOCIATED(rtp%C_mat))&

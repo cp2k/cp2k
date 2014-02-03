@@ -166,7 +166,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order, handle, i, ihist
-    LOGICAL                                  :: diagonalize
     REAL(Kind=dp)                            :: delta_iter, eps_ener
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
@@ -187,8 +186,7 @@ CONTAINS
        END IF
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
 
-       diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
-       CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+       CALL s_matrices_create (s_mat,rtp,error)
        CALL calc_S_derivs(qs_env,error)
 
        CALL get_rtp(rtp=rtp,&

@@ -20,11 +20,11 @@ MODULE rt_matrix_exp
                                              cp_cfm_set_all,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_complex_fm_gemm,&
+                                             cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_solve
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -40,8 +40,6 @@ MODULE rt_matrix_exp
   USE mathconstants,                   ONLY: fac
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
-  USE rt_propagation_types,            ONLY: get_rtp,&
-                                             rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -53,16 +51,61 @@ MODULE rt_matrix_exp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_matrix_exp'
 
-  PUBLIC :: exp_diag,&
-            taylor_only_imaginary,&
+  PUBLIC :: taylor_only_imaginary,&
+            backtransform_matrix,&
             taylor_full_complex,&
             exp_pade_full_complex,&
-            backtransform_matrix,&
             exp_pade_only_imaginary,&
             get_nsquare_norder,&
             arnoldi, exp_pade_real
 
 CONTAINS
+
+  ! *****************************************************************************
+  !> \brief Is still left from diagonalization, should be removed later but is
+  !>  still needed for the guess for the padé/Taylor method
+  !> \author Florian Schiffmann (02.09)
+  ! *****************************************************************************
+
+  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
+
+    REAL(dp), DIMENSION(:)                   :: Eval
+    TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, j, l, ncol_local, &
+                                                ndim, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    TYPE(cp_fm_type), POINTER                :: tmp
+
+    CALL timeset(routineN,handle)
+    CALL cp_fm_create(tmp,&
+         matrix_struct=matrix%matrix_struct,&
+         name="TMP_BT",&
+         error=error)
+    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
+         row_indices=row_indices,col_indices=col_indices,error=error)
+
+    ndim=matrix%matrix_struct%nrow_global
+
+    CALL cp_fm_set_all(tmp,zero,zero,error)
+    DO i=1,ncol_local
+       l=col_indices(i)
+       DO j=1,nrow_local
+          tmp%local_data(j,i)=eigenvec%local_data(j,i)*Eval(l)
+       END DO
+    END DO
+    CALL cp_fm_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
+         matrix ,error)
+
+    CALL cp_fm_release(tmp,error)
+    CALL timestop(handle)
+
+  END SUBROUTINE backtransform_matrix
 
 ! *****************************************************************************
 !> \brief specialized subroutine for purely imaginary matrix exponentials
@@ -135,15 +178,8 @@ CONTAINS
 
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,Tres_re,Tres_re,zero,&
-               exp_H(1)%matrix,error)
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,-one,Tres_im,Tres_im,one,&
-               exp_H(1)%matrix,error)
-
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,Tres_re,Tres_im,zero,&
-               exp_H(2)%matrix,error)
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,Tres_im,Tres_re,one,&
-               exp_H(2)%matrix,error)
+          CALL cp_complex_fm_gemm("N","N",ndim,ndim,ndim,one,Tres_re,Tres_im,&
+               Tres_re,Tres_im,zero,exp_H(1)%matrix,exp_H(2)%matrix,error)
 
           CALL cp_fm_to_fm(exp_H(1)%matrix,Tres_re,error)
           CALL cp_fm_to_fm(exp_H(2)%matrix,Tres_im,error)
@@ -250,8 +286,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief exponential of a purely imaginary matrix,
-!>        calculated using diagonalization
+!> \brief optimization function for pade/taylor order and number of squaring steps
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
   SUBROUTINE get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
@@ -271,8 +306,6 @@ CONTAINS
     LOGICAL                                  :: new_scale
     REAL(dp)                                 :: D, eval, myval, N, scaleD, &
                                                 scaleN
-
-!    optimization function for pade/taylor order and number of squaring steps
 
     orders(:)=(/12,12,12/)
     IF(method==2)THEN
@@ -348,128 +381,6 @@ CONTAINS
 
   END SUBROUTINE get_nsquare_norder
 
-
-! *****************************************************************************
-!> \brief exponential of a purely imaginary matrix,
-!>        calculated using diagonalization
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE exp_diag(rtp,exp_H,H_fm,error)
-
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
-    TYPE(cp_fm_type), POINTER                :: H_fm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'exp_diag', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: handle, ndim, stat
-    LOGICAL                                  :: failure
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: exp_eig_val
-    TYPE(cp_fm_type), POINTER                :: eigvec_H, S_half, &
-                                                S_minus_half, tmp_mat
-
-    CALL timeset(routineN,handle)
-    CALL get_rtp(rtp=rtp,S_half=S_half,S_minus_half=S_minus_half,error=error)
-
-    CALL cp_fm_create(eigvec_H,&
-         matrix_struct=exp_H(1)%matrix%matrix_struct,&
-         name="tmp_EVEC",&
-         error=error)
-    CALL cp_fm_create(tmp_mat,&
-         matrix_struct=exp_H(1)%matrix%matrix_struct,&
-         name="tmp_mat",&
-         error=error)
-
-    !H_fm,eigvec_H,eigval_H is used as tmp, for diagonalizing S
-
-    ndim=H_fm%matrix_struct%nrow_global
-    ALLOCATE(eigval_H(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(exp_eig_val(ndim,2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
-         tmp_mat,error)
-    CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat,zero,&
-         H_fm,error)
-
-    CALL cp_fm_syevd(H_fm,eigvec_H,eigval_H,error=error)
-
-    exp_eig_val(:,1)=COS(eigval_H(:))
-    exp_eig_val(:,2)=SIN(eigval_H(:))
-
-    CALL backtransform_matrix(exp_eig_val(:,1),eigvec_H,exp_H(1)%matrix,error)
-
-    CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,exp_H(1)%matrix,S_half,zero,&
-         tmp_mat,error)
-
-    CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat,zero,&
-         exp_H(1)%matrix,error)
-
-
-    CALL backtransform_matrix(exp_eig_val(:,2),eigvec_H,exp_H(2)%matrix,error)
-
-    CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,exp_H(2)%matrix,S_half,zero,&
-         tmp_mat,error)
-
-    CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat,zero,&
-         exp_H(2)%matrix,error)
-
-    CALL cp_fm_release(eigvec_H,error)
-    CALL cp_fm_release(tmp_mat,error)
-    DEALLOCATE(eigval_H,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(exp_eig_val,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(handle)
-
-  END SUBROUTINE exp_diag
-
-  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
-
-    REAL(dp), DIMENSION(:)                   :: Eval
-    TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: handle, i, j, l, ncol_local, &
-                                                ndim, nrow_local
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    TYPE(cp_fm_type), POINTER                :: tmp
-
-    CALL timeset(routineN,handle)
-    CALL cp_fm_create(tmp,&
-         matrix_struct=matrix%matrix_struct,&
-         name="TMP_BT",&
-         error=error)
-    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
-         row_indices=row_indices,col_indices=col_indices,error=error)
-
-    ndim=matrix%matrix_struct%nrow_global
-
-    CALL cp_fm_set_all(tmp,zero,zero,error)
-    DO i=1,ncol_local
-       l=col_indices(i)
-       DO j=1,nrow_local
-          tmp%local_data(j,i)=eigenvec%local_data(j,i)*Eval(l)
-       END DO
-    END DO
-    CALL cp_fm_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
-         matrix ,error)
-
-    CALL cp_fm_release(tmp,error)
-    CALL timestop(handle)
-
-  END SUBROUTINE backtransform_matrix
-
 ! *****************************************************************************
 !> \brief exponential of a complex matrix,
 !>        calculated using pade approximation together with scaling and squaring
@@ -496,7 +407,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: Dpq, fin_p, Npq, T1, T2, Tres
 
     p=npade
-    q=npade
+    q=npade !p==q seems to be neccesary for the rest of the code
 
     CALL timeset(routineN,handle)
     CALL cp_fm_get_info(re_part,local_data=local_data_re,ncol_local=ldim,&
@@ -507,7 +418,7 @@ CONTAINS
 
     CALL cp_cfm_create(Dpq,&
                        matrix_struct=re_part%matrix_struct,&
-                       name="T1",&
+                       name="Dpq",&
                        error=error)
 
     square_fac=2.0_dp**REAL(nsquare,dp)
@@ -613,8 +524,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: T2, Tres
 
     CALL timeset(routineN,handle)
-    p=npade
-    q=npade
+    p=npade 
+    q=npade !p==q seems to be neccesary for the rest of the code
 
     CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
     square_fac=2.0_dp**REAL(nsquare,dp)
@@ -622,7 +533,7 @@ CONTAINS
 
     CALL cp_cfm_create(Dpq,&
                        matrix_struct=im_part%matrix_struct,&
-                       name="T1",&
+                       name="Dpq",&
                        error=error)
 
     CALL cp_cfm_create(Npq,&
@@ -744,7 +655,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     p=npade
-    q=npade
+    q=npade !p==q seems to be neccesary for the rest of the code
 
     CALL cp_fm_get_info(matrix,local_data=local_data,ncol_local=ldim,nrow_global=ndim,error=error)
     square_fac=2.0_dp**REAL(nsquare,dp)
@@ -752,7 +663,7 @@ CONTAINS
 
     CALL cp_fm_create(Dpq,&
                        matrix_struct=matrix%matrix_struct,&
-                       name="T1",&
+                       name="Dpq",&
                        error=error)
 
     CALL cp_fm_create(Npq,&
@@ -834,11 +745,11 @@ CONTAINS
 
   END SUBROUTINE exp_pade_real
 
-! *****************************************************************************
+! ******************************************************************************
 !> \brief exponential of a complex matrix,
-!>        calculated using arnoldi subspace method (directly apllies to the MOs
+!>        calculated using arnoldi subspace method (directly apllies to the MOs)
 !> \author Florian Schiffmann (02.09)
-! *****************************************************************************
+! ******************************************************************************
 
   SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,mos_next,error)
 
@@ -944,7 +855,7 @@ CONTAINS
     END IF
 
 
-    !matrices for adaptive arnoldi (convergence check
+    !matrices for adaptive arnoldi (convergence check)
 
     !!! number of arnoldi steps,
     narnoldi=MIN(18,nao)
@@ -1076,7 +987,7 @@ CONTAINS
 
        H_approx=H_approx_save
 
-       ! PADE approximation for exp(H_approx), everything is done locally)
+       ! PADE approximation for exp(H_approx), everything is done locally
 
        npade=9
        mydim=MIN(i,narnoldi)

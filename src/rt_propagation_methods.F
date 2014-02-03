@@ -24,12 +24,12 @@ MODULE rt_propagation_methods
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_complex_fm_gemm,&
+                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -43,7 +43,6 @@ MODULE rt_propagation_methods
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
-                                             do_diag,&
                                              do_em,&
                                              do_etrs,&
                                              do_pade,&
@@ -63,7 +62,6 @@ MODULE rt_propagation_methods
                                              make_em_propagator,&
                                              make_etrs_exp,&
                                              propagate_arnoldi
-  USE rt_matrix_exp,                   ONLY: backtransform_matrix
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -151,7 +149,7 @@ CONTAINS
     END IF
 
     SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
-    CASE( do_diag, do_pade, do_taylor)
+    CASE( do_pade, do_taylor)
 
        SELECT CASE(qs_env%dft_control%rtp_control%propagator)
        CASE(do_cn,do_em)
@@ -205,8 +203,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: i, im_part, nao, nmo, &
-                                                re_part, stat
+    INTEGER                                  :: i, im, nao, nmo, re, stat
     LOGICAL                                  :: failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
@@ -240,25 +237,17 @@ CONTAINS
     END SELECT
 
     DO i=1,SIZE(mos)
-       re_part=2*i-1
-       im_part=2*i
+       re=2*i-1
+       im=2*i
 
-       tmp_re=>propagator(re_part)%matrix
-       tmp_im=>propagator(im_part)%matrix
+       tmp_re=>propagator(re)%matrix
+       tmp_im=>propagator(im)%matrix
 
        CALL cp_fm_get_info(mos(i)%mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
 
-
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
-            mos_old(re_part)%matrix,zero,mos_new(re_part)%matrix,error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_im,&
-            mos_old(re_part)%matrix,zero,mos_new(im_part)%matrix,error)
-
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,-one,tmp_im,&
-            mos_old(im_part)%matrix,one,mos_new(re_part)%matrix,error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
-            mos_old(im_part)%matrix,one,mos_new(im_part)%matrix,error)
-
+       CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,tmp_im,&
+            mos_old(re)%matrix,mos_old(im)%matrix,zero,&
+            mos_new(re)%matrix,mos_new(im)%matrix,error)
 
     END DO
 
@@ -288,8 +277,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im_part, nao, nmo, &
-                                                re_part
+    INTEGER                                  :: handle, i, im, nao, nmo, re
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 mos_new, mos_old
@@ -321,29 +309,17 @@ CONTAINS
             name="tmp_im",&
             error=error)
 
-       re_part=2*i-1
-       im_part=2*i
+       re=2*i-1
+       im=2*i
        !whole bunch of gemms, since exp_H_old, exp_H_new and mo_coeff are all complex
        !case LSD needs 2 cycles
-       CALL cp_fm_gemm("N","N",nao,nao,nao,one,exp_H_new(re_part)%matrix,&
-            exp_H_old(re_part)%matrix,zero,tmp_re,error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,one,exp_H_new(im_part)%matrix,&
-            exp_H_old(re_part)%matrix,zero,tmp_im,error)
 
-       CALL cp_fm_gemm("N","N",nao,nao,nao,-one,exp_H_new(im_part)%matrix,&
-            exp_H_old(im_part)%matrix,one,tmp_re,error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,one,exp_H_new(re_part)%matrix,&
-            exp_H_old(im_part)%matrix,one,tmp_im,error)
-
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
-            mos_old(re_part)%matrix,zero,mos_new(re_part)%matrix,error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_im,&
-            mos_old(re_part)%matrix,zero,mos_new(im_part)%matrix,error)
-
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,-one,tmp_im,&
-            mos_old(im_part)%matrix,one,mos_new(re_part)%matrix,error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
-            mos_old(im_part)%matrix,one,mos_new(im_part)%matrix,error)
+       CALL cp_complex_fm_gemm("N","N",nao,nao,nao,one,exp_H_new(re)%matrix,&
+            exp_H_new(im)%matrix,exp_H_old(re)%matrix,exp_H_old(im)%matrix,&
+            zero,tmp_re,tmp_im,error)
+       CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
+            tmp_im,mos_old(re)%matrix,mos_old(im)%matrix, zero,&
+            mos_new(re)%matrix,mos_new(im)%matrix,error)
 
        CALL cp_fm_release(tmp_re,error)
        CALL cp_fm_release(tmp_im,error)
@@ -372,7 +348,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, ispin, lb, ndim, ub
+    INTEGER                                  :: handle, im, ispin, ndim, re
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -401,16 +377,16 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_ks)
 
-       lb=(ispin-1)*2+1
-       ub=(ispin-1)*2+2
+       re=ispin*2-1
+       im=ispin*2
 
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
-       CALL cp_fm_upper_to_full(H_fm,exp_H(ub)%matrix,error)
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(ub)%matrix,error)
+       CALL cp_fm_upper_to_full(H_fm,exp_H(im)%matrix,error)
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(im)%matrix,error)
 
        IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
           CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
-          CALL cp_fm_to_fm(exp_H(ub)%matrix,SinvH(ispin)%matrix,error)
+          CALL cp_fm_to_fm(exp_H(im)%matrix,SinvH(ispin)%matrix,error)
        END IF
     END DO
     IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
@@ -432,28 +408,24 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the needed overlaplike matrices
-!>        depending on the way the exponential is calculated, only S^-1
-!>        or S^-0.5, S^0.5 and S^-1 are needed
+!>        depending on the way the exponential is calculated, only S^-1 is needed
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE s_matrices_create (s_mat,rtp,diagonalize,error)
+  SUBROUTINE s_matrices_create (s_mat,rtp,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
-    LOGICAL                                  :: diagonalize
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's_matrices_create', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, ndim, stat
+    INTEGER                                  :: handle, ndim
     LOGICAL                                  :: failure
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
-    TYPE(cp_fm_type), POINTER                :: eigvec_H, S_half, S_inv, &
-                                                S_minus_half, tmp
+    TYPE(cp_fm_type), POINTER                :: S_inv, tmp
 
     CALL timeset(routineN,handle)
 
@@ -467,38 +439,11 @@ CONTAINS
             error=error)
        ndim=S_inv%matrix_struct%nrow_global
 
-    IF(diagonalize)THEN
-       CALL get_rtp(rtp=rtp,S_half=S_half,S_minus_half=S_minus_half,error=error)
 
-       CALL cp_fm_create(eigvec_H,&
-            matrix_struct=S_inv%matrix_struct,&
-            name="tmp_EVEC",&
-            error=error)
-
-       !H_fm,eigvec_H,eigval_H is used as tmp, for diagonalizing S
-
-       ALLOCATE(eigval_H(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp,error=error)
-       CALL cp_fm_upper_to_full(tmp,eigvec_H,error)
-
-       CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error=error)
-
-       eigval_H(:)=one/eigval_H(:)
-       CALL backtransform_matrix(eigval_H,eigvec_H,S_inv,error)
-       eigval_H(:)=SQRT(eigval_H(:))
-       CALL backtransform_matrix(eigval_H,eigvec_H,S_minus_half,error)
-       eigval_H(:)=one/eigval_H(:)
-       CALL backtransform_matrix(eigval_H,eigvec_H,S_half,error)
-       CALL cp_fm_release(eigvec_H,error)
-
-    ELSE
        CALL copy_dbcsr_to_fm(s_mat(1)%matrix,S_inv,error=error)
        CALL cp_fm_cholesky_decompose(S_inv,error=error)
        CALL cp_fm_cholesky_invert(S_inv,error=error)
        CALL cp_fm_upper_to_full(S_inv,tmp,error=error)
-    END IF
     CALL cp_fm_release(tmp,error)
     CALL timestop(handle)
   END SUBROUTINE s_matrices_create
@@ -521,7 +466,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im_part, re_part
+    INTEGER                                  :: handle, i, im, re
     TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
@@ -544,11 +489,11 @@ CONTAINS
     CALL cp_dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
 
     DO i=1,SIZE(mos)
-       re_part=2*(i-1)+1
-       im_part=2*(i-1)+2
-       CALL cp_fm_to_fm(mos_new(im_part)%matrix,mos(i)%mo_set%mo_coeff,error)
+       re=2*i-1
+       im=2*i
+       CALL cp_fm_to_fm(mos_new(im)%matrix,mos(i)%mo_set%mo_coeff,error)
        CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_im,error=error)
-       CALL cp_fm_to_fm(mos_new(re_part)%matrix,mos(i)%mo_set%mo_coeff,error)
+       CALL cp_fm_to_fm(mos_new(re)%matrix,mos(i)%mo_set%mo_coeff,error)
        CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error=error)
 
        CALL cp_dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_re,&
