@@ -33,7 +33,8 @@ MODULE dbcsr_operations
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_type, dbcsr_get_info, dbcsr_init, dbcsr_mp_npcols, &
        dbcsr_release
-  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_lib_finalize,&
+  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_clear_mempools,&
+                                             dbcsr_mm_cannon_lib_finalize,&
                                              dbcsr_mm_cannon_lib_init,&
                                              dbcsr_mm_cannon_multiply
   USE dbcsr_operations_low,            ONLY: &
@@ -75,7 +76,8 @@ MODULE dbcsr_operations
             dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
             dbcsr_init_random, dbcsr_lanczos, dbcsr_block_in_limits,&
             dbcsr_sum_replicated, dbcsr_norm, &
-            dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm
+            dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm, &
+            dbcsr_clear_mempools
 
   INTERFACE dbcsr_multiply
      MODULE PROCEDURE dbcsr_mm_cannon_multiply
@@ -175,6 +177,18 @@ MODULE dbcsr_operations
     is_initialized = .FALSE.
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_finalize_lib
+
+
+! *****************************************************************************
+!> \brief  Deallocate memory contained in mempools
+! *****************************************************************************
+  SUBROUTINE dbcsr_clear_mempools(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    !$omp parallel default(none) shared( error)
+    CALL dbcsr_mm_cannon_clear_mempools(error)
+    !$omp end parallel
+  END SUBROUTINE dbcsr_clear_mempools
 
 ! *****************************************************************************
 ! *****************************************************************************

@@ -21,9 +21,9 @@ MODULE mp2_gpw
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
-       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_create_bl_distribution, cp_dbcsr_clear_mempools, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set
@@ -502,6 +502,10 @@ MODULE mp2_gpw
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error_sub)
+
+    ! Free possibly large buffers allocated by dbcsr on the GPU,
+    ! large hybrid dgemm/pdgemm's coming later will need the space.
+    CALL cp_dbcsr_clear_mempools(error_sub)
 
     ! moved down
     ! CALL deallocate_task_list(task_list_sub,error=error_sub)

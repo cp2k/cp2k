@@ -60,13 +60,13 @@ MODULE cp_dbcsr_interface
        dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_filter, dbcsr_finalize_lib, &
-       dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
-       dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_init_lib, dbcsr_maxabs, &
-       dbcsr_multiply, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
-       dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
-       dbcsr_trace, dbcsr_triu
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_clear_mempools, &
+       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
+       dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, &
+       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
+       dbcsr_init_lib, dbcsr_maxabs, dbcsr_multiply, dbcsr_norm, dbcsr_scale, &
+       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, &
+       dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
   USE dbcsr_operations_low,            ONLY: dbcsr_function_of_elements
   USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
@@ -188,6 +188,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_function_of_elements
   PUBLIC :: cp_dbcsr_print_block_sum
   PUBLIC :: cp_dbcsr_triu
+  PUBLIC :: cp_dbcsr_clear_mempools
 
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
@@ -399,6 +400,16 @@ CONTAINS
     CALL dbcsr_finalize_lib (group, output_unit, dbcsr_error)
   END SUBROUTINE cp_dbcsr_finalize_lib
 
+! *****************************************************************************
+!> \brief Deallocate memory contained in mempools
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_clear_mempools(error)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_clear_mempools(dbcsr_error)
+  END SUBROUTINE cp_dbcsr_clear_mempools
 
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.

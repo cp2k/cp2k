@@ -84,7 +84,8 @@ MODULE dbcsr_mm_cannon
                                              sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush
-  USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
+  USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_clear,&
+                                             dbcsr_mempool_destruct,&
                                              dbcsr_mempool_ensure_capacity,&
                                              dbcsr_memtype_setup
   USE dbcsr_message_passing,           ONLY: &
@@ -178,6 +179,7 @@ MODULE dbcsr_mm_cannon
   ! ab-panels and streams are shared between all threads
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
+  PUBLIC :: dbcsr_mm_cannon_clear_mempools
   PUBLIC :: dbcsr_mm_cannon_multiply
 
   CONTAINS
@@ -198,7 +200,7 @@ MODULE dbcsr_mm_cannon
     ! Each thread has its own working-matrix and its own mempool
     CALL dbcsr_memtype_setup(memtype_product_wm, has_pool=.TRUE., error=error)
     CALL dbcsr_mempool_ensure_capacity(memtype_product_wm%pool, capacity=1)
-  END SUBROUTINE
+  END SUBROUTINE dbcsr_mm_cannon_lib_init
 
 
 ! *****************************************************************************
@@ -239,8 +241,31 @@ MODULE dbcsr_mm_cannon
      IF(dbcsr_cuda_stream_associated(stream_2)) &
         CALL dbcsr_cuda_stream_destroy(stream_2, error)
      !$omp end master
-  END SUBROUTINE
+  END SUBROUTINE dbcsr_mm_cannon_lib_finalize
 
+! *****************************************************************************
+! \brief Deallocate memory contained in mempools
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_cannon_clear_mempools(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+! Each thread has its own working-matrix and its own mempool
+
+     IF (ASSOCIATED(memtype_product_wm%pool)) &
+        CALL dbcsr_mempool_clear(memtype_product_wm%pool, error)
+
+     !$omp master
+     IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
+        CALL dbcsr_mempool_clear(memtype_trsbuffer_1%pool, error)
+     IF (ASSOCIATED(memtype_trsbuffer_2%pool)) &
+        CALL dbcsr_mempool_clear(memtype_trsbuffer_2%pool, error)
+     IF (ASSOCIATED(memtype_abpanel_1%pool)) &
+        CALL dbcsr_mempool_clear(memtype_abpanel_1%pool, error)
+     IF (ASSOCIATED(memtype_abpanel_2%pool)) &
+        CALL dbcsr_mempool_clear(memtype_abpanel_2%pool, error)
+     !$omp end master
+  END SUBROUTINE dbcsr_mm_cannon_clear_mempools
 
 ! *****************************************************************************
 !> \brief Performs a multiplication of two dbcsr_type matrices,

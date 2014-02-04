@@ -34,7 +34,7 @@ MODULE dbcsr_mem_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mem_methods'
 
   PUBLIC :: dbcsr_mempool_get, dbcsr_mempool_add, dbcsr_mempool_ensure_capacity
-  PUBLIC :: dbcsr_mempool_create, dbcsr_mempool_destruct
+  PUBLIC :: dbcsr_mempool_create, dbcsr_mempool_destruct, dbcsr_mempool_clear
   PUBLIC :: dbcsr_memtype_setup, dbcsr_memtype_equal
 
   LOGICAL, PARAMETER :: debug = .FALSE.
@@ -210,7 +210,6 @@ MODULE dbcsr_mem_methods
  END SUBROUTINE mempool_collect_garbage
 
 
-
 ! *****************************************************************************
 ! \brief Finalizes mempool, includes deallocation of all contained data_areas.
 ! \author Ole Schuett
@@ -219,12 +218,31 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_mempool_type), POINTER        :: pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mempool_destruct'
+    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_destruct: pool not allocated"
+
+    CALL dbcsr_mempool_clear(pool, error)
+
+    !$ CALL OMP_DESTROY_LOCK (pool%lock)
+    DEALLOCATE(pool%root)
+    DEALLOCATE(pool)
+    NULLIFY(pool)
+
+ END SUBROUTINE dbcsr_mempool_destruct
+
+! *****************************************************************************
+! \brief Deallocates all data_areas contained in given mempool.
+! \author Ole Schuett
+! *****************************************************************************
+ SUBROUTINE dbcsr_mempool_clear(pool, error)
+    TYPE(dbcsr_mempool_type), POINTER        :: pool
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mempool_clear'
 
     INTEGER                                  :: error_handler
     TYPE(dbcsr_mempool_entry_type), POINTER  :: cur, prev
 
-    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_destruct: pool not allocated"
+    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_clear: pool not allocated"
 
     CALL dbcsr_error_set (routineN, error_handler, error)
 
@@ -237,16 +255,11 @@ MODULE dbcsr_mem_methods
        cur => cur%next
        DEALLOCATE(prev)
     ENDDO
+    NULLIFY(pool%root%next)
     !$ CALL OMP_UNSET_LOCK(pool%lock)
 
-    !$ CALL OMP_DESTROY_LOCK (pool%lock)
-    DEALLOCATE(pool%root)
-    DEALLOCATE(pool)
-    NULLIFY(pool)
-
     CALL dbcsr_error_stop(error_handler, error)
- END SUBROUTINE dbcsr_mempool_destruct
-
+ END SUBROUTINE dbcsr_mempool_clear
 
 ! *****************************************************************************
 ! \brief Ensures that given memtype has requested settings.
