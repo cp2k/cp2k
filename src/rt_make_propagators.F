@@ -11,24 +11,19 @@
 
 MODULE rt_make_propagators
 
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale,&
-                                             cp_fm_upper_to_full
+  USE cp_control_types,                ONLY: rtp_control_type
+  USE cp_fm_basic_linalg,              ONLY: cp_complex_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE input_constants,                 ONLY: do_em,&
-                                             do_etrs,&
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE input_constants,                 ONLY: do_etrs,&
                                              do_pade,&
                                              do_taylor
   USE kinds,                           ONLY: dp
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE rt_matrix_exp,                   ONLY: arnoldi,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
@@ -47,9 +42,10 @@ MODULE rt_make_propagators
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_make_propagators'
 
-  PUBLIC :: make_etrs_exp,&
-            make_em_propagator,&
-            propagate_arnoldi
+  PUBLIC :: propagate_em_exp,&
+            propagate_etrs_exp,&
+            propagate_arnoldi,&
+            compute_exponential
 
 
 CONTAINS
@@ -59,101 +55,67 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE make_etrs_exp(exp_H,qs_env,error)
+  SUBROUTINE propagate_etrs_exp(rtp,rtp_control,error)
 
-
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_etrs_exp', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_etrs_exp', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, im, ispin, ndim, re
+    INTEGER                                  :: handle, i, im, nao, nmo, re
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: t
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: SinvH
-    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
-                                                tmp_mat_B, tmp_mat_H
-    TYPE(rt_prop_type), POINTER              :: rtp
+      POINTER                                :: exp_H_new, exp_H_old, &
+                                                mos_new, mos_old, &
+                                                propagator_matrix
+    TYPE(cp_fm_type), POINTER                :: tmp_im, tmp_re
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)
-    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
-    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
-    CALL cp_fm_create(H_fm,&
-         matrix_struct=exp_H(1)%matrix%matrix_struct,&
-         name="RTP_H_FM",&
-         error=error)
-    CALL cp_fm_create(tmp_mat_H,&
-         matrix_struct=exp_H(1)%matrix%matrix_struct,&
-         name="TMP_H",&
-         error=error)
+    CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix, mos_old=mos_old, mos_new=mos_new,&
+                 exp_H_new=exp_H_new,exp_H_old=exp_H_old,error=error)
 
-    ndim=H_fm%matrix_struct%nrow_global
+    ! Not great structure currently but its better to properly handle reuse
+    IF(rtp%iter.NE.1)THEN
+       CALL compute_exponential(exp_H_new,propagator_matrix,&
+                                rtp_control,rtp,error)
+    END IF
 
-    t=-t/2.0_dp
-    DO ispin=1,SIZE(matrix_ks)
+    DO i=1,SIZE(mos_new)/2
+       re=2*i-1
+       im=2*i
+       CALL cp_fm_get_info(mos_new(re)%matrix,nrow_global=nao,ncol_global=nmo,error=error)
+       CALL cp_fm_create(tmp_re,&
+            matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
+            name="tmp_re",&
+            error=error)
 
-       re=2*ispin-1
-       im=2*ispin
+       CALL cp_fm_create(tmp_im,&
+            matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
+            name="tmp_im",&
+            error=error)
 
-       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
+       !whole bunch of gemms, since exp_H_old, exp_H_new and mo_coeff are all complex
+       !case LSD needs 2 cycles
 
-       CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
+       CALL cp_complex_fm_gemm("N","N",nao,nao,nao,one,exp_H_new(re)%matrix,&
+            exp_H_new(im)%matrix,exp_H_old(re)%matrix,exp_H_old(im)%matrix,&
+            zero,tmp_re,tmp_im,error)
+       CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
+            tmp_im,mos_old(re)%matrix,mos_old(im)%matrix, zero,&
+            mos_new(re)%matrix,mos_new(im)%matrix,error)
 
-
-       SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
-
-       CASE(do_taylor,do_pade)
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error)
-          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL cp_fm_scale(t,tmp_mat_H,error)
-             IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
-                  CALL taylor_only_imaginary(exp_H(re:im),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
-
-             IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
-                  CALL exp_pade_only_imaginary(exp_H(re:im),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
-          ELSE
-             CALL cp_fm_to_fm(tmp_mat_H,SinvH(ispin)%matrix,error)
-             CALL cp_fm_scale(t,tmp_mat_H,error)
-             IF(ispin==1)THEN
-                CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
-
-                CALL cp_fm_create(tmp_mat_B,&
-                     matrix_struct=exp_H(1)%matrix%matrix_struct,&
-                     name="TMP_B",&
-                     error=error)
-
-                CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,tmp_mat_B,error)
-                CALL cp_fm_to_fm(tmp_mat_B,SinvB,error)
-
-                CALL cp_fm_scale(t,tmp_mat_B,error)
-             END IF
-             IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
-                  CALL taylor_full_complex(exp_H(re:im),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
-             IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
-                  CALL exp_pade_full_complex(exp_H(re:im),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-                  qs_env%sim_step,error)
-          END IF
-       END SELECT
-
+       CALL cp_fm_release(tmp_re,error)
+       CALL cp_fm_release(tmp_im,error)
     END DO
-
-    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)CALL cp_fm_release(tmp_mat_B,error)
-    CALL cp_fm_release(H_fm,error)
-    CALL cp_fm_release(tmp_mat_H,error)
-
+   
     CALL timestop(handle)
 
-  END SUBROUTINE make_etrs_exp
+  END SUBROUTINE propagate_etrs_exp
 
 ! *****************************************************************************
 !> \brief computes exponential midpoint propagator
@@ -161,202 +123,160 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE make_em_propagator(propagator,rtp,qs_env,error)
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: propagator
+  SUBROUTINE propagate_em_exp(rtp,rtp_control,error)
     TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_em_propagator', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_em_exp', &
       routineP = moduleN//':'//routineN
-    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
-                                                zero = (0.0_dp,0.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, ispin, ldim, &
-                                                ndim, re
+    INTEGER                                  :: handle, i, im, ispin, nao, &
+                                                nmo, re, stat
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: dt, eps_exp
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: new_Ham, old_Ham
-    TYPE(cp_fm_type), POINTER                :: M1, M2
+      POINTER                                :: exp_H_new, mos_new, mos_old, &
+                                                propagator, propagator_matrix
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CALL cp_fm_create(M1,&
-                      matrix_struct=propagator(1)%matrix%matrix_struct,&
-                      name="M1",&
-                      error=error)
-    CALL cp_fm_create(M2,&
-                      matrix_struct=propagator(1)%matrix%matrix_struct,&
-                      name="M2",&
-                      error=error)
 
+    CALL get_rtp(rtp=rtp,propagator_matrix=propagator_matrix,&
+                 mos_old=mos_old,mos_new=mos_new,exp_H_new=exp_H_new,error=error)
+    ALLOCATE(propagator(SIZE(propagator_matrix)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cp_fm_get_info(M1,ncol_local=ldim,nrow_global=ndim,error=error)
-    CALL get_rtp(rtp=rtp,exp_H_old=old_Ham,exp_H_new=new_Ham,dt=dt,error=error)
+!   would be enough only to have 2 matrices replace by exp_H_new causes trouble with extrapolation
+   DO i=1,SIZE(propagator_matrix)
+      CALL cp_fm_create(propagator(i)%matrix,&
+           matrix_struct=propagator_matrix(1)%matrix%matrix_struct,&
+           error=error)
+   END DO
 
+   CALL compute_exponential(propagator,propagator_matrix,rtp_control,rtp,error)
+!  IF(rtp%iter.NE.1)THEN
+!     CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
+!  END IF
 
-    DO ispin=1,SIZE(propagator)/2
+   DO ispin=1,SIZE(propagator)/2
+      re=2*ispin-1
+      im=2*ispin
+      CALL cp_fm_get_info(mos_new(im)%matrix,nrow_global=nao,ncol_global=nmo,error=error)
+      CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,propagator(re)%matrix,&
+                              propagator(im)%matrix,mos_old(re)%matrix,mos_old(im)%matrix,&
+                              zero, mos_new(re)%matrix,mos_new(im)%matrix,error)
+!     CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,exp_H_new(re)%matrix,&
+!                             exp_H_new(im)%matrix,mos_old(re)%matrix,mos_old(im)%matrix,&
+!                             zero, mos_new(re)%matrix,mos_new(im)%matrix,error)
+    END DO
+ 
+    CALL cp_fm_vect_dealloc(propagator,error)
+    CALL timestop(handle)
+
+  END SUBROUTINE propagate_em_exp
+
+! *****************************************************************************
+!> \brief decides which type of exponential has to eb computed
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE compute_exponential(propagator,propagator_matrix,rtp_control,rtp,error)
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: propagator, propagator_matrix
+    TYPE(rtp_control_type), POINTER          :: rtp_control
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_exponential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: im, ispin, re
+
+   DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1
        im=2*ispin
 
-       dt=-dt
-
-       DO i=1,ldim
-          M2%local_data(:,i)=0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i)
-       END DO
-       IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
-          DO i=1,ldim
-             M1%local_data(:,i)=0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i)
-          END DO
-       END IF
-       SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+       SELECT CASE(rtp_control%mat_exp)
 
        CASE(do_taylor)
-          eps_exp=qs_env%dft_control%rtp_control%eps_exp
-          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL taylor_only_imaginary(propagator(re:im),M2,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
+          IF(rtp_control%fixed_ions)THEN
+             CALL taylor_only_imaginary(propagator(re:im),propagator_matrix(im)%matrix,&
+                                        rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
-             CALL taylor_full_complex(propagator(re:im),M1,M2,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
+             CALL taylor_full_complex(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+                                      rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           END IF
        CASE(do_pade)
-          eps_exp=qs_env%dft_control%rtp_control%eps_exp
-          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL exp_pade_only_imaginary(propagator(re:im),M2,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
+          IF(rtp_control%fixed_ions)THEN
+             CALL exp_pade_only_imaginary(propagator(re:im),propagator_matrix(im)%matrix,&
+                                          rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
-             CALL exp_pade_full_complex(propagator(re:im),M1,M2,rtp%orders(1,ispin),rtp%orders(2,ispin),qs_env%sim_step,error)
+             CALL exp_pade_full_complex(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+                                        rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           END IF
-        END SELECT
+       END SELECT
     END DO
-    CALL cp_fm_release(M1,error)
-    CALL cp_fm_release(M2,error)
-    CALL timestop(handle)
 
-  END SUBROUTINE make_em_propagator
-
+  END SUBROUTINE compute_exponential
 ! *****************************************************************************
 !> \brief computes U_prop*MOs using arnoldi subspace algorithm
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE propagate_arnoldi(qs_env,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE propagate_arnoldi(rtp,rtp_control,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'propagate_arnoldi', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, ispin, ldim, &
-                                                ndim, nspin, re
+    INTEGER                                  :: handle, i, im, ispin, nspin, &
+                                                re
     REAL(dp)                                 :: dt, eps_arnoldi, t
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_next, mos_old, &
-                                                new_Ham, old_Ham
-    TYPE(cp_fm_type), POINTER                :: tmp_mat_B, tmp_mat_H
-    TYPE(rt_prop_type), POINTER              :: rtp
+                                                new_Ham, old_Ham, &
+                                                propagator_matrix
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,dt=t,mos_new=mos_new,mos_old=mos_old,&
-         mos_next=mos_next,exp_H_old=old_Ham,exp_H_new=new_Ham,error=error)
+         mos_next=mos_next,exp_H_old=old_Ham,exp_H_new=new_Ham,&
+         propagator_matrix=propagator_matrix,error=error)
 
-    CALL cp_fm_create(tmp_mat_H,&
-         matrix_struct=old_Ham(1)%matrix%matrix_struct,&
-         name="TMP_H",&
-         error=error)
-    CALL cp_fm_create(tmp_mat_B,&
-         matrix_struct=old_Ham(1)%matrix%matrix_struct,&
-         name="TMP_B",&
-         error=error)
     nspin=SIZE(mos_new)/2
-    eps_arnoldi=qs_env%dft_control%rtp_control%eps_exp
-    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-    CASE(do_etrs)
-       IF(rtp%iter==1.AND.rtp%istep==1)THEN
-          dt=-t/2.0_dp
-          DO ispin=1,nspin
-
-             re=ispin*2-1
-             im=ispin*2
-             CALL cp_fm_to_fm(old_ham(im)%matrix,tmp_mat_H,error)
-             CALL cp_fm_scale(dt,tmp_mat_H,error)
-
-             IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
-                     eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(re:im),error=error)
-             ELSE
-                CALL cp_fm_to_fm(old_ham(re)%matrix,tmp_mat_B,error)
-                CALL cp_fm_scale(dt,tmp_mat_B,error)
-
-                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
-                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,mos_next=mos_next(re:im),error=error)
-             END IF
-          END DO
-          DO i=1,SIZE(mos_new)
-             CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
-             CALL cp_fm_to_fm(mos_next(i)%matrix,mos_new(i)%matrix,error)
-
-          END DO
+    eps_arnoldi=rtp_control%eps_exp
+    IF(rtp_control%propagator==do_etrs.AND.rtp%iter==1.AND.rtp%istep.NE.1)THEN
+       DO i=1,SIZE(mos_new)
+          CALL cp_fm_to_fm(mos_next(i)%matrix,mos_old(i)%matrix,error)
+       END DO
+    END IF
+    DO ispin=1,nspin
+       re=ispin*2-1
+       im=ispin*2
+       IF(rtp_control%fixed_ions)THEN
+          CALL arnoldi(mos_old(re:im),mos_new(re:im),&
+               eps_arnoldi,Him=propagator_matrix(im)%matrix,&
+               mos_next=mos_next(re:im),error=error)
        ELSE
-          IF(rtp%iter==1)THEN
-             DO i=1,SIZE(mos_new)
-                CALL cp_fm_to_fm(mos_next(i)%matrix,mos_old(i)%matrix,error)
-             END DO
-          END IF
-       dt=-t/2.0_dp
-
-       DO ispin=1,nspin
-
-          re=ispin*2-1
-          im=ispin*2
-          CALL cp_fm_to_fm(new_ham(im)%matrix,tmp_mat_H,error)
-          CALL cp_fm_scale(dt,tmp_mat_H,error)
-          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL arnoldi(mos_old(re:im),mos_new(re:im),&
-                  eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(re:im),error=error)
-          ELSE
-             CALL cp_fm_to_fm(new_ham(re)%matrix,tmp_mat_B,error)
-             CALL cp_fm_scale(dt,tmp_mat_B,error)
-             CALL arnoldi(mos_old(re:im),mos_new(re:im),&
-                  eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,&
-                  mos_next=mos_next(re:im),error=error)
-          END IF
+          CALL arnoldi(mos_old(re:im),mos_new(re:im),&
+               eps_arnoldi,Hre=propagator_matrix(re)%matrix,&
+               Him=propagator_matrix(im)%matrix,mos_next=mos_next(re:im),error=error)
+       END IF
+    END DO
+    IF(rtp_control%propagator==do_etrs.AND.rtp%iter==1.AND.rtp%istep==1)THEN
+       DO i=1,SIZE(mos_new)
+          CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
+          CALL cp_fm_to_fm(mos_next(i)%matrix,mos_new(i)%matrix,error)
 
        END DO
-       END IF
-       CASE(do_em)
-          CALL cp_fm_get_info(tmp_mat_H,ncol_local=ldim,nrow_global=ndim,error=error)
-          DO ispin=1,nspin
-             re=2*ispin-1
-             im=2*ispin
-             dt=-t
-             DO i=1,ldim
-                tmp_mat_H%local_data(:,i)=0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+&
-                     0.5_dp*dt*new_ham(im)%matrix%local_data(:,i)
-             END DO
-             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
-                DO i=1,ldim
-                   tmp_mat_B%local_data(:,i)=0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+&
-                        0.5_dp*dt*new_ham(re)%matrix%local_data(:,i)
-                END DO
-                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
-                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)
-             ELSE
-                CALL arnoldi(mos_old(re:im),mos_new(re:im),&
-                     eps_arnoldi,Him=tmp_mat_H,error=error)
-             END IF
+    END IF
 
+    CALL timestop(handle)
 
-          END DO
-       END SELECT
-       CALL cp_fm_release(tmp_mat_H,error)
-       CALL cp_fm_release(tmp_mat_B,error)
-       CALL timestop(handle)
-
-     END SUBROUTINE propagate_arnoldi
+  END SUBROUTINE propagate_arnoldi
 
 END MODULE rt_make_propagators

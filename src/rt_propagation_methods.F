@@ -16,6 +16,7 @@ MODULE rt_propagation_methods
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
+  USE cp_control_types,                ONLY: rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_init
@@ -24,8 +25,7 @@ MODULE rt_propagation_methods
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_complex_fm_gemm,&
-                                             cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -57,8 +57,8 @@ MODULE rt_propagation_methods
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE rt_make_propagators,             ONLY: make_em_propagator,&
-                                             make_etrs_exp,&
+  USE rt_make_propagators,             ONLY: propagate_em_exp,&
+                                             propagate_etrs_exp,&
                                              propagate_arnoldi
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -97,231 +97,121 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'propagation_step', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: aspc_order, handle, i
     LOGICAL                                  :: my_force
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: delta_mos, exp_H_new
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: delta_mos, exp_H_new, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(matrix_ks,rho,mos,ks_env,rtp)
-    my_force=.TRUE.
-
+    NULLIFY(rho,ks_env,rtp)
+    ! get everything needed and set some values
     CALL get_qs_env(qs_env,&
-         matrix_ks=matrix_ks,&
          rho=rho,&
-         mos=mos,&
          ks_env=ks_env,&
          rtp=rtp,&
          error=error)
+    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new, mos_new=mos_new, error=error)
+    rtp_control=>qs_env%dft_control%rtp_control
 
-    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,error=error)
+    my_force=.NOT.rtp_control%fixed_ions
+    delta_iter=1.0_dp
 
-    IF(rtp%istep.GT.0.AND.rtp%iter==1.AND.rtp%history%mos_or_H==2)THEN
-       aspc_order=qs_env%dft_control%rtp_control%aspc_order
-       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
-    END IF
-    ALLOCATE(delta_mos(2*SIZE(mos)))
-    DO i=1,2*SIZE(mos)
+    ALLOCATE(delta_mos(SIZE(mos_new)))
+    DO i=1,SIZE(mos_new)
        CALL cp_fm_create(delta_mos(i)%matrix,&
-            matrix_struct=rtp%mos_new(i)%matrix%matrix_struct,&
+            matrix_struct=mos_new(i)%matrix%matrix_struct,&
             name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))),&
             error=error)
-       CALL cp_fm_to_fm(rtp%mos_new(i)%matrix,delta_mos(i)%matrix,error)
+       CALL cp_fm_to_fm(mos_new(i)%matrix,delta_mos(i)%matrix,error)
     END DO
 
-    IF(rtp%istep.GT.1.AND.rtp%iter==1.AND.rtp%history%mos_or_H==1)THEN
-       aspc_order=qs_env%dft_control%rtp_control%aspc_order
+    IF(rtp%iter==1)THEN
+       aspc_order=rtp_control%aspc_order
        CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
-       CALL calc_update_rho(qs_env,error)
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-            error=error)
+       IF(rtp%history%mos_or_H==1)THEN
+          CALL calc_update_rho(qs_env,error)
+          CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+               error=error)
+       END IF
     END IF
 
-    SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+    CALL compute_propagator_matrix(qs_env,error)
+ 
+    SELECT CASE(rtp_control%mat_exp)
     CASE( do_pade, do_taylor)
-
        SELECT CASE(qs_env%dft_control%rtp_control%propagator)
        CASE(do_em)
-          IF(rtp%iter.NE.1)&
-               CALL calc_SinvH(exp_H_new,qs_env,error)
-          CALL propagate_cn_or_em(qs_env,error)
+          CALL propagate_em_exp(rtp,rtp_control,error)
        CASE(do_etrs)
-          IF(rtp%iter.NE.1)&
-               CALL make_etrs_exp(exp_H_new,qs_env,error)
-          CALL propagate_etrs(qs_env,error)
+          CALL propagate_etrs_exp(rtp,rtp_control,error)
        END SELECT
     CASE(do_arnoldi)
-       IF(rtp%iter.EQ.1.AND.rtp%istep.EQ.1)THEN
-       ELSE
-            CALL calc_SinvH(exp_H_new,qs_env,error)
-       ENDIF
-       CALL propagate_arnoldi(qs_env,error)
-       CALL calc_update_rho(qs_env,error)
+       CALL propagate_arnoldi(rtp,rtp_control,error)
     END SELECT
+    CALL calc_update_rho(qs_env,error)
 
-    DO i=1,2*SIZE(mos)
-       CALL cp_fm_scale_and_add(-1.0_dp,delta_mos(i)%matrix,1.0_dp,rtp%mos_new(i)%matrix,error)
-    END DO
+    IF(rtp_control%sc_check_start.LT.rtp%iter)&
+        CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
 
-    IF(qs_env%dft_control%rtp_control%sc_check_start.LT.rtp%iter)THEN
-       CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
-    ELSE
-       delta_iter=1.0_dp
-    END IF
     CALL cp_fm_vect_dealloc(delta_mos,error)
-    IF(qs_env%dft_control%rtp_control%fixed_ions)my_force=.FALSE.
+
+    IF(rtp_control%fixed_ions)my_force=.FALSE.
     CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=my_force,&
          error=error)
     CALL timestop(handle)
 
   END SUBROUTINE propagation_step
 
-
-
 ! *****************************************************************************
-!> \brief performes a crank-nicolson or exponential midpoint propagation
+!> \brief computes the propagator matrix for EM/ETRS, RTP/EMD
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE propagate_cn_or_em(qs_env, error)
-
+  SUBROUTINE compute_propagator_matrix(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_cn_or_em', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_propagator_matrix', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: i, im, nao, nmo, re, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: imat
+    REAL(KIND=dp)                            :: dt, prefac
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
-                                                mos_new, mos_old, propagator
-    TYPE(cp_fm_type), POINTER                :: tmp_im, tmp_re
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(qs_rho_type), POINTER               :: rho
+                                                propagator_matrix
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    failure=.FALSE.
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_ks=matrix_ks,error=error)
+    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,exp_H_old=exp_H_old,&
+                 propagator_matrix=propagator_matrix,dt=dt,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,rho=rho,mos=mos,rtp=rtp,error=error)
-    CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,&
-         exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
+    prefac=-0.5_dp*dt
+    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
+    ! HMMM, not really clean to put the matrix on the exp_H variable
+    CASE(do_em)
+       IF(rtp%iter.NE.1) CALL calc_SinvH(exp_H_new,qs_env,error)
+       DO imat=1,SIZE(exp_H_new)
+          CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
+          CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
+       END DO
+    CASE(do_etrs)
+      IF(rtp%iter.NE.1.OR.qs_env%dft_control%rtp_control%mat_exp==do_arnoldi)THEN
+          CALL calc_SinvH(exp_H_new,qs_env,error)
+          DO imat=1,SIZE(exp_H_new)
+             CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
+          END DO
+      END IF
+       
+    END SELECT
 
-    ALLOCATE(propagator(2*SIZE(mos)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO i=1,2*SIZE(mos)
-       CALL cp_fm_create(propagator(i)%matrix,&
-            matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
-            error=error)
-    END DO
-
-    CALL make_em_propagator(propagator,rtp,qs_env,error)
-
-    DO i=1,SIZE(mos)
-       re=2*i-1
-       im=2*i
-
-       tmp_re=>propagator(re)%matrix
-       tmp_im=>propagator(im)%matrix
-
-       CALL cp_fm_get_info(mos(i)%mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
-
-       CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,tmp_im,&
-            mos_old(re)%matrix,mos_old(im)%matrix,zero,&
-            mos_new(re)%matrix,mos_new(im)%matrix,error)
-
-    END DO
-
-    CALL cp_fm_vect_dealloc(propagator,error)
-
-    CALL calc_update_rho(qs_env,error)
-
-  END SUBROUTINE propagate_cn_or_em
-
-! *****************************************************************************
-!> \brief applies the propagator on the MO coefficients
-!>        at the moment only the ETRS, might have to be splitted when different
-!>        propagators are implemented
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE propagate_etrs(qs_env,error)
-
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_etrs', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: handle, i, im, nao, nmo, re
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new, exp_H_old, &
-                                                mos_new, mos_old
-    TYPE(cp_fm_type), POINTER                :: tmp_im, tmp_re
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rt_prop_type), POINTER              :: rtp
-
-    CALL timeset(routineN,handle)
-    NULLIFY (rho, ks_env, mos, rtp)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)
-    CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,&
-         exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
-
-    !case ETRS
-
-    DO i=1,SIZE(mos)
-       CALL cp_fm_get_info(mos(i)%mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
-
-       CALL cp_fm_create(tmp_re,&
-            matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
-            name="tmp_re",&
-            error=error)
-
-       CALL cp_fm_create(tmp_im,&
-            matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
-            name="tmp_im",&
-            error=error)
-
-       re=2*i-1
-       im=2*i
-       !whole bunch of gemms, since exp_H_old, exp_H_new and mo_coeff are all complex
-       !case LSD needs 2 cycles
-
-       CALL cp_complex_fm_gemm("N","N",nao,nao,nao,one,exp_H_new(re)%matrix,&
-            exp_H_new(im)%matrix,exp_H_old(re)%matrix,exp_H_old(im)%matrix,&
-            zero,tmp_re,tmp_im,error)
-       CALL cp_complex_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
-            tmp_im,mos_old(re)%matrix,mos_old(im)%matrix, zero,&
-            mos_new(re)%matrix,mos_new(im)%matrix,error)
-
-       CALL cp_fm_release(tmp_re,error)
-       CALL cp_fm_release(tmp_im,error)
-
-    END DO
-
-    CALL calc_update_rho(qs_env,error)
-
-    CALL timestop(handle)
-  END SUBROUTINE propagate_etrs
-
-
+   END SUBROUTINE compute_propagator_matrix  
 
 ! *****************************************************************************
 !> \brief computes t*S_inv*H, if needed t*Sinv*B
@@ -541,49 +431,35 @@ CONTAINS
     CALL cite_reference(Kolafa2004)
     IF(rtp%history%mos_or_H==2)THEN
        exp_hist=>rtp%history%exp_history
-       IF(naspc.GT.1)THEN
-          DO imat=1,nmat
-             DO iaspc=1,naspc
-                IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
-                IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
-                     binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+       DO imat=1,nmat
+          DO iaspc=1,naspc
+             alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
 
-                ihist=MOD(rtp%istep-iaspc,aspc_order)+1
-                IF(iaspc==1)THEN
-                   CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
-                ELSE
-                   CALL cp_fm_scale_and_add(one,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
-                END IF
-             END DO
+             ihist=MOD(rtp%istep-iaspc,aspc_order)+1
+             IF(iaspc==1)THEN
+                CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
+             ELSE
+                CALL cp_fm_scale_and_add(one,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
+             END IF
           END DO
-       ELSE IF(naspc==1)THEN
-          DO imat=1,nmat
-             CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,one,exp_hist(imat,1)%matrix,error)
-          END DO
-       END IF
+       END DO
     END IF
 
-    IF(rtp%history%mos_or_H==1.AND.naspc.GT.1)THEN
+    IF(rtp%history%mos_or_H==1)THEN !.AND.naspc.GT.1)THEN
        mo_hist=>rtp%history%mo_history
-       IF(naspc.GT.1)THEN
-          DO imat=1,nmat
-             DO iaspc=1,naspc
-                IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
-                IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
-                     binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
-                ihist=MOD(rtp%istep-iaspc,aspc_order)+1
-                IF(iaspc==1)THEN
-                   CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
-                ELSE
-                   CALL cp_fm_scale_and_add(one,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
-                END IF
-             END DO
+       DO imat=1,nmat
+          DO iaspc=1,naspc
+             alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+             ihist=MOD(rtp%istep-iaspc,aspc_order)+1
+             IF(iaspc==1)THEN
+                CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
+             ELSE
+                CALL cp_fm_scale_and_add(one,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
+             END IF
           END DO
-       ELSE IF(naspc==1)THEN
-          DO imat=1,nmat
-             CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,one,mo_hist(imat,1)%matrix,error)
-          END DO
-       END IF
+       END DO
 
 
        mo_hist=>rtp%history%mo_history
@@ -667,10 +543,10 @@ CONTAINS
 
 
 
-  SUBROUTINE put_data_to_history(qs_env,mos,exp_H,s_mat,ihist,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE put_data_to_history(rtp,mos,exp_H,s_mat,ihist,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mos, exp_H
+      POINTER                                :: mos, exp_H
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: s_mat
     INTEGER                                  :: ihist
@@ -680,33 +556,27 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    TYPE(rt_prop_type), POINTER              :: rtp
 
-    CALL get_qs_env(qs_env,&
-         rtp=rtp,&
-         error=error)
-
-
-    IF(PRESENT(exp_H))THEN
+    IF(rtp%history%mos_or_H==2)THEN
        DO i=1,SIZE(exp_H)
           CALL cp_fm_to_fm(exp_H(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
        END DO
     END IF
 
-   IF(PRESENT(mos))THEN
-      DO i=1,SIZE(mos)
-         CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
-      END DO
-   END IF
+    IF(rtp%history%mos_or_H==1)THEN
+       DO i=1,SIZE(mos)
+          CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
+       END DO
 
-   IF(PRESENT(s_mat))THEN
-       IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
-          ! (future struct:check)
-          CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
+       IF(PRESENT(s_mat))THEN
+          IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
+             ! (future struct:check)
+             CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
+          END IF
+          ALLOCATE(rtp%history%s_history(ihist)%matrix)
+          CALL cp_dbcsr_init(rtp%history%s_history(ihist)%matrix,error=error)
+          CALL cp_dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
        END IF
-       ALLOCATE(rtp%history%s_history(ihist)%matrix)
-       CALL cp_dbcsr_init(rtp%history%s_history(ihist)%matrix,error=error)
-       CALL cp_dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
     END IF
 
   END SUBROUTINE put_data_to_history

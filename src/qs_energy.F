@@ -207,10 +207,7 @@ CONTAINS
              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
              CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
           END DO
-          IF(rtp%history%mos_or_H==2)&
-               CALL  put_data_to_history(qs_env,exp_H=exp_H_new,ihist=ihist,error=error)
-          IF(rtp%history%mos_or_H==1)&
-               CALL  put_data_to_history(qs_env,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
+          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter=delta_iter,error=error)
        rtp%energy_old=rtp%energy_new

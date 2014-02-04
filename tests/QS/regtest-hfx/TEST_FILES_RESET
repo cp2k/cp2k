@@ -352,3 +352,6 @@ H2O-hfx-emd-restart.inp
 4H2O-mix-disk-ram.inp
 #  
 4H2O-mix-disk-ram-on-the-fly.inp
+# refactoring minor changes in numerics
+H2O-hfx-emd.inp
+H2O-hfx-emd-restart.inp

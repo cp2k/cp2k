@@ -323,10 +323,7 @@ CONTAINS
              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
              CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
           END DO
-          IF(rtp%history%mos_or_H==2)&
-             CALL  put_data_to_history(qs_env,exp_H=exp_H_new,ihist=ihist,error=error)
-          IF(rtp%history%mos_or_H==1)&
-             CALL put_data_to_history(qs_env,mos=mos_new,ihist=ihist,error=error)
+          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,ihist=ihist,error=error)
           CALL external_control(should_stop,"MD",globenv=globenv,error=error)
           IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
           time_iter_stop=m_walltime()

@@ -22,7 +22,6 @@ MODULE rt_matrix_exp
                                              cp_cfm_type
   USE cp_fm_basic_linalg,              ONLY: cp_complex_fm_gemm,&
                                              cp_fm_gemm,&
-                                             cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_solve
   USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
@@ -133,7 +132,7 @@ CONTAINS
     ndim=im_matrix%matrix_struct%nrow_global
 
     square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
-    CALL cp_fm_scale(square_fac,im_matrix,error)
+!    CALL cp_fm_scale(square_fac,im_matrix,error)
     CALL cp_fm_create(T1,&
                        matrix_struct=im_matrix%matrix_struct,&
                        name="T1",&
@@ -162,13 +161,15 @@ CONTAINS
 
     DO i=1,nloop
        tmp=tmp*(REAL(i,dp)*2.0_dp-1.0_dp)
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T1,zero,&
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,square_fac,im_matrix,T1,zero,&
+!       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T1,zero,&
             T2,error)
        Tfac=1._dp/tmp
        IF(MOD(i,2)==0) Tfac=-Tfac
        CALL cp_fm_scale_and_add(one,Tres_im,Tfac,T2,error)
        tmp=tmp*REAL(i,dp)*2.0_dp
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T2,zero,&
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,square_fac,im_matrix,T2,zero,&
+!       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T2,zero,&
             T1,error)
        Tfac=1._dp/tmp
        IF(MOD(i,2)==1) Tfac=-Tfac
@@ -387,10 +388,10 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade,istep,error)
+  SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    INTEGER                                  :: nsquare, npade, istep
+    INTEGER                                  :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
@@ -556,9 +557,9 @@ CONTAINS
                       name="Tres",&
                       error=error)
 
-    DO i=1,ldim
-       local_data_im(:,i)=local_data_im(:,i)/square_fac
-    END DO
+!    DO i=1,ldim
+!       local_data_im(:,i)=local_data_im(:,i)/square_fac
+!    END DO
 
     CALL cp_fm_to_fm(im_part,T2,error)
 
@@ -566,8 +567,8 @@ CONTAINS
     CALL cp_cfm_set_all(Dpq,zero,one,error)
 
     DO i=1,ldim
-       Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*CMPLX(0.0_dp,local_data_im(:,i),dp)
-       Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*CMPLX(0.0_dp,local_data_im(:,i),dp)
+       Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*square_fac*CMPLX(0.0_dp,local_data_im(:,i),dp)
+       Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*square_fac*CMPLX(0.0_dp,local_data_im(:,i),dp)
     END DO
 
 
@@ -579,7 +580,7 @@ CONTAINS
           my_fac=(-1.0_dp)**j
           IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
           scaleD=my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,T2,rzero,Tres,error)
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres,error)
 
           DO k=1,ldim
              Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
@@ -590,7 +591,7 @@ CONTAINS
           i=2*j+1
           IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
           scaleD=-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,Tres,rzero,T2,error)
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,Tres,rzero,T2,error)
 
           DO k=1,ldim
              Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(0.0_dp, T2%local_data(:,k),dp)

@@ -51,6 +51,7 @@ MODULE rt_propagation_types
  TYPE rt_prop_type
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: exp_H_old
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: exp_H_new
+    TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: propagator_matrix
     TYPE(cp_fm_type),POINTER                                   :: S_inv
     TYPE(cp_fm_type),POINTER                                   :: B_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: C_mat
@@ -135,6 +136,8 @@ CONTAINS
          template_fmstruct=ao_mo_fmstruct, error=error)
 
 
+    ALLOCATE(rtp%propagator_matrix(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(rtp%exp_H_old(2*SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(rtp%exp_H_new(2*SIZE(mos)),stat=stat)
@@ -147,6 +150,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(mos)
        DO j=1,2
+          NULLIFY(rtp%propagator_matrix(2*(i-1)+j)%matrix)
           NULLIFY(rtp%mos_old(2*(i-1)+j)%matrix)
           NULLIFY(rtp%mos_new(2*(i-1)+j)%matrix)
           NULLIFY(rtp%exp_H_old(2*(i-1)+j)%matrix)
@@ -171,6 +175,10 @@ CONTAINS
           CALL cp_fm_create(rtp%exp_H_new(2*(i-1)+j)%matrix,&
                matrix_struct=ao_ao_fmstruct,&
                name="exp_H_new"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
+               error=error)
+          CALL cp_fm_create(rtp%propagator_matrix(2*(i-1)+j)%matrix,&
+               matrix_struct=ao_ao_fmstruct,&
+               name="prop_mat"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                error=error)
        END DO
     END DO
@@ -234,7 +242,7 @@ CONTAINS
 
 
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,mos_new,mos_old,mos_next,&
-                     S_inv,B_mat,C_mat,&
+                     S_inv,B_mat,C_mat,propagator_matrix,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -243,7 +251,8 @@ CONTAINS
                                                 mos_new, mos_old, mos_next
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: S_inv, B_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: C_mat, S_der
+      OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
+                                                S_der
     REAL(dp), OPTIONAL                       :: dt
     INTEGER, OPTIONAL                        :: nsteps
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -263,6 +272,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rtp),cp_failure_level,routineP,error,failure)
     IF (PRESENT(exp_H_old))exp_H_old=>rtp%exp_H_old
     IF (PRESENT(exp_H_new))exp_H_new=>rtp%exp_H_new
+    IF (PRESENT(propagator_matrix))propagator_matrix=>rtp%propagator_matrix
 
     IF (PRESENT(mos_old))mos_old=>rtp%mos_old
     IF (PRESENT(mos_new))mos_new=>rtp%mos_new
@@ -289,6 +299,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL cp_fm_vect_dealloc(rtp%exp_H_old,error)
+    CALL cp_fm_vect_dealloc(rtp%propagator_matrix,error)
     CALL cp_fm_vect_dealloc(rtp%exp_H_new,error)
     CALL cp_fm_vect_dealloc(rtp%mos_old,error)
     CALL cp_fm_vect_dealloc(rtp%mos_new,error)

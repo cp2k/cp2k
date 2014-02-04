@@ -15,7 +15,8 @@ MODULE rt_propagation_output
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -268,6 +269,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrixv_s
     TYPE(cp_dbcsr_type), POINTER             :: matrix_s
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new
     TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &
                                                 tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: work, work1, work2
@@ -278,12 +281,15 @@ CONTAINS
    CALL timeset(routineN,handle)
 
    CALL get_qs_env(qs_env=qs_env,matrix_s=matrixv_s,rtp=rtp,error=error)
-
+   CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
    matrix_s=>matrixv_s(1)%matrix
 
    nspin=SIZE(delta_mos)/2
    max_alpha=0.0_dp
 
+   DO i=1,SIZE(mos_new)
+      CALL cp_fm_scale_and_add(-1.0_dp,delta_mos(i)%matrix,1.0_dp,mos_new(i)%matrix,error)
+   END DO
 
    DO ispin=1,nspin
       re=ispin*2-1
