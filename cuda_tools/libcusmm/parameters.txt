@@ -6,6 +6,36 @@
 # *****************************************************************************
 
 [
+
+ Kernel_dnt_largeDB(m=29, n=29, k=29, blockdim=128, tile_m=2, tile_n=4, w=4, v=13 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=29, k=16, blockdim=128, tile_m=4, tile_n=2, w=4, v=13 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=29, k=14, blockdim=128, tile_m=4, tile_n=2, w=4, v=13 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=16, k=29, blockdim=128, tile_m=2, tile_n=2, w=4, v=13 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=16, k=16, blockdim=128, tile_m=2, tile_n=2, w=4, v=8 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=16, k=14, blockdim=128, tile_m=2, tile_n=2, w=4, v=13 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=14, k=29, blockdim=128, tile_m=2, tile_n=2, w=4, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=14, k=16, blockdim=128, tile_m=4, tile_n=1, w=13, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=29, n=14, k=14, blockdim=128, tile_m=2, tile_n=2, w=12, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=29, k=29, blockdim=128, tile_m=2, tile_n=2, w=4, v=24 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=29, k=16, blockdim=128, tile_m=2, tile_n=2, w=12, v=24 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=29, k=14, blockdim=128, tile_m=2, tile_n=2, w=10, v=24 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=16, k=29, blockdim=96, tile_m=2, tile_n=2, w=6, v=10 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=16, k=16, blockdim=96, tile_m=2, tile_n=2, w=12, v=10 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=16, k=14, blockdim=96, tile_m=2, tile_n=2, w=10, v=12 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=14, k=29, blockdim=128, tile_m=2, tile_n=1, w=6, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=14, k=16, blockdim=96, tile_m=2, tile_n=2, w=13, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=16, n=14, k=14, blockdim=128, tile_m=2, tile_n=1, w=8, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=29, k=29, blockdim=128, tile_m=2, tile_n=2, w=4, v=24 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=29, k=16, blockdim=128, tile_m=2, tile_n=2, w=13, v=10 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=29, k=14, blockdim=128, tile_m=2, tile_n=2, w=13, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=16, k=29, blockdim=128, tile_m=2, tile_n=1, w=6, v=8 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=16, k=16, blockdim=128, tile_m=1, tile_n=2, w=6, v=8 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=16, k=14, blockdim=128, tile_m=2, tile_n=1, w=8, v=8 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=14, k=29, blockdim=96, tile_m=2, tile_n=2, w=6, v=14 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=14, k=16, blockdim=96, tile_m=4, tile_n=1, w=4, v=8 , grouping=16),
+ Kernel_dnt_largeDB(m=14, n=14, k=14, blockdim=96, tile_m=2, tile_n=2, w=4, v=14 , grouping=16),
+
+
  Kernel_dnt_largeDB(m=13, n=26, k=26, tile_m=1, tile_n=3, w=4, v=26, blockdim=128, grouping=16),
  Kernel_dnt_largeDB(m=26, n=13, k=26, tile_m=2, tile_n=2, w=3, v=13, blockdim=96,  grouping=16),
  Kernel_dnt_largeDB(m=26, n=26, k=26, tile_m=2, tile_n=3, w=4, v=10, blockdim=128, grouping=16),

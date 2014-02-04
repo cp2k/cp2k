@@ -21,6 +21,7 @@ def main():
     triples += combinations(13,24,5)  # non-blocked acetonitrile +TiO2-v2
     triples += combinations(13,24,54) # blocked-v1 acetonitrile +TiO2-v2
     triples += combinations(13,24,15) # blocked-v2 acetonitrile +TiO2-v2
+    triples += combinations(14,16,29) # RPA water
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
