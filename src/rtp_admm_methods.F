@@ -361,7 +361,7 @@ CONTAINS
       nmo = admm_env%nmo(ispin)
       IF( nmo == 0 ) CYCLE
       !! Lambda = C^(T)*B*C
-      mos_new=>qs_env%rtp%mos_new
+      CALL get_rtp (rtp=rtp,mos_new=mos_new,error=error)
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, occupation_numbers=occ_num,nmo=nmo_mos)
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,&
            occupation_numbers=occ_num_aux)

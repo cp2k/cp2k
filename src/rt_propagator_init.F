@@ -97,7 +97,7 @@ CONTAINS
     CALL s_matrices_create (s_mat,rtp,error)
     CALL calc_SinvH(exp_H_new,qs_env,error)
     DO i=1,SIZE(exp_H_old)
-       CALL cp_fm_to_fm(exp_H_new(i)%matrix,rtp%exp_H_old(i)%matrix,error)
+       CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
     END DO
 
     ! use the fact that CN propagator is a first order pade approximation on the EM propagator
@@ -124,7 +124,7 @@ CONTAINS
        CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
        IF(rtp_control%propagator==do_etrs)THEN
           DO imat=1,SIZE(exp_H_new)
-             CALL cp_fm_to_fm(exp_H_new(imat)%matrix,rtp%exp_H_old(imat)%matrix,error)
+             CALL cp_fm_to_fm(exp_H_new(imat)%matrix,exp_H_old(imat)%matrix,error)
           END DO
        END IF
     END IF 

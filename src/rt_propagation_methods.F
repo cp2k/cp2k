@@ -84,7 +84,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief performes a single propagation step a(t+Dt)=U(t+Dt,t)*a(0)
-!>        and calculates the new exponential (at the moment for ETRS)
+!>        and calculates the new exponential
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -98,7 +98,6 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i
     LOGICAL                                  :: my_force
-    REAL(dp)                                 :: delta_iter
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -118,7 +117,7 @@ CONTAINS
     rtp_control=>qs_env%dft_control%rtp_control
 
     my_force=.NOT.rtp_control%fixed_ions
-    delta_iter=1.0_dp
+    rtp%delta_iter=1.0_dp
 
     ! keep temporary copy of the starting mos to check for convergence   
     ALLOCATE(delta_mos(SIZE(mos_new)))
@@ -180,7 +179,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ihist
-    REAL(KIND=dp)                            :: delta_iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -193,8 +191,8 @@ CONTAINS
                  mos_old=mos_old,mos_new=mos_new,error=error)   
  
     IF(rtp_control%sc_check_start.LT.rtp%iter)&
-        CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
-    rtp%converged=(delta_iter.LT.rtp_control%eps_ener)
+        CALL rt_convergence(qs_env,delta_mos,rtp%delta_iter,error)
+    rtp%converged=(rtp%delta_iter.LT.rtp_control%eps_ener)
 
     IF(rtp%converged)THEN
        DO i=1,SIZE(mos_new)

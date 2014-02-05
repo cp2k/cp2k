@@ -77,6 +77,8 @@ MODULE qs_moments
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE rt_propagation_types,            ONLY: get_rtp,&
+                                             rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -820,7 +822,7 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: opvec
+      POINTER                                :: mos_new, opvec
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: op_fm_set
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
@@ -833,6 +835,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rt_prop_type), POINTER              :: rtp
 
      failure = .FALSE.
      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1052,7 +1055,9 @@ CONTAINS
                 kvec(:) = twopi*cell%h_inv(i,:)
                 CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
                 IF(qs_env%run_rtp)THEN
-                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,qs_env%rtp%mos_new,error)
+                   CALL get_qs_env(qs_env,rtp=rtp,error=error)
+                   CALL get_rtp(rtp,mos_new=mos_new,error=error)
+                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
                 ELSE
                    CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
                 END IF
@@ -1083,7 +1088,9 @@ CONTAINS
                   kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
                   CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
                   IF(qs_env%run_rtp)THEN
-                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,qs_env%rtp%mos_new,error)
+                     CALL get_qs_env(qs_env,rtp=rtp,error=error)
+                     CALL get_rtp(rtp,mos_new=mos_new,error=error)
+                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
                   ELSE
                      CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
                   END IF

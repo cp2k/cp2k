@@ -257,8 +257,7 @@ CONTAINS
     INTEGER                                  :: aspc_order, handle, i_iter, &
                                                 i_step, max_iter, max_steps
     LOGICAL                                  :: failure, should_stop
-    REAL(Kind=dp)                            :: delta_iter, eps_ener, &
-                                                time_iter_start, &
+    REAL(Kind=dp)                            :: eps_ener, time_iter_start, &
                                                 time_iter_stop, used_time
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_energy_type), POINTER            :: energy
@@ -303,7 +302,7 @@ CONTAINS
 
           rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error=error)
+          CALL rt_prop_output(qs_env,real_time_propagation,rtp%delta_iter,error=error)
        END DO
 
        IF(rtp%converged)THEN
@@ -312,7 +311,7 @@ CONTAINS
           time_iter_stop=m_walltime()
           used_time= time_iter_stop - time_iter_start
           time_iter_start=time_iter_stop
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=delta_iter,used_time=used_time,error=error)
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=rtp%delta_iter,used_time=used_time,error=error)
           CALL rt_write_input_restart(force_env=force_env,error=error)
           IF (should_stop)EXIT
        ELSE

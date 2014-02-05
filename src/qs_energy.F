@@ -186,7 +186,7 @@ CONTAINS
        CALL propagation_step(qs_env, error)
        rtp%energy_new=qs_env%energy%total
 
-       CALL rt_prop_output(qs_env,ehrenfest,delta_iter=delta_iter,error=error)
+       CALL rt_prop_output(qs_env,ehrenfest,delta_iter=rtp%delta_iter,error=error)
        rtp%energy_old=rtp%energy_new
     END IF
     CALL timestop(handle)
