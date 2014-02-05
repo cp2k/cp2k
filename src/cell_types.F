@@ -472,7 +472,7 @@ CONTAINS
     END IF
 
     dim = COUNT(cell%perd == 1)
-    IF ((dim /= 3).AND.(.NOT.cell%orthorhombic)) THEN
+    IF ((dim = 1).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "Non-orthorhombic and not periodic")
     END IF

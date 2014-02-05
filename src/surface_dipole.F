@@ -17,6 +17,7 @@ MODULE surface_dipole
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -135,6 +136,9 @@ CONTAINS
               CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
                    routineP, " Dipole correction only for surface perpendicular to "//&
                    " one Cartesian axis",error, only_ionode=.TRUE.)
+!  not properly general, we assume that vectors A, B, and C are along x y and z respectively, 
+!  in the ortorhombic cell, but in principle it does not need to be this way, importan
+!  is that the cell angles are 90 degrees.
            END IF
        END IF
       ENDDO
@@ -185,6 +189,7 @@ CONTAINS
       rhoavsurf(ilow:iup) = dsurf*rhoavsurf(ilow:iup)
 
 
+      ! locate where the vacuum is, and set the reference point for the calculation of the dipole
       rhoavsurf(ilow:iup) = rhoavsurf(ilow:iup)/surfarea
       ilayer_min = ilow -1 + MINLOC(ABS(rhoavsurf(ilow:iup)),1)  
       rhoav_min = ABS(rhoavsurf(ilayer_min))
@@ -212,6 +217,7 @@ CONTAINS
      DEALLOCATE(rhoavsurf,stat=stat)
      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
+!    Calculation of the dipole potential as a function of the perpendicular coordinate
      CALL pw_zero(vdip_r%pw, error=error)
      vdip_fac = dip_hh*4.0_dp*pi
 
@@ -241,11 +247,13 @@ CONTAINS
 
      END DO
 
+!    Dipole correction contribution to the energy
      energy%surf_dipole = 0.5_dp * accurate_sum(vdip_r%pw%cr3d* wf_r%pw%cr3d)
      IF (wf_r%pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
          CALL mp_sum(energy%surf_dipole,wf_r%pw%pw_grid%para%group)
      END IF
 
+!    Add the dipole potential to the hartree potential on the realspace grid
      ks_env%v_hartree_rspace%pw%cr3d =  ks_env%v_hartree_rspace%pw%cr3d + vdip_r%pw%cr3d
 
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
