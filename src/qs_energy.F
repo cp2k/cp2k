@@ -13,8 +13,6 @@ MODULE qs_energy
   USE almo_scf,                        ONLY: almo_entry_scf
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_to_fm
   USE dm_ls_scf,                       ONLY: ls_scf
   USE f77_blas
   USE input_constants,                 ONLY: ehrenfest
@@ -30,11 +28,9 @@ MODULE qs_energy
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_scf,                          ONLY: scf
   USE rt_propagation_methods,          ONLY: propagation_step,&
-                                             put_data_to_history,&
                                              s_matrices_create
   USE rt_propagation_output,           ONLY: rt_prop_output
-  USE rt_propagation_types,            ONLY: get_rtp,&
-                                             rt_prop_type
+  USE rt_propagation_types,            ONLY: rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE rt_propagator_init,              ONLY: init_emd_propagators
   USE timings,                         ONLY: timeset,&
@@ -164,13 +160,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aspc_order, handle, i, ihist
+    INTEGER                                  :: aspc_order, handle
     REAL(Kind=dp)                            :: delta_iter, eps_ener
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new, exp_H_old, &
-                                                mos_new, mos_old
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
@@ -188,27 +181,11 @@ CONTAINS
        CALL s_matrices_create (s_mat,rtp,error)
        CALL calc_S_derivs(qs_env,error)
 
-       CALL get_rtp(rtp=rtp,&
-                 exp_H_old=exp_H_old,&
-                 exp_H_new=exp_H_new,&
-                 mos_old=mos_old,&
-                 mos_new=mos_new,&
-                 error=error)
-
        eps_ener=qs_env%dft_control%rtp_control%eps_ener
 
-       CALL propagation_step(qs_env,delta_iter, error)
+       CALL propagation_step(qs_env, error)
        rtp%energy_new=qs_env%energy%total
-       rtp%converged=(delta_iter.LT.eps_ener)
 
-       IF(rtp%converged)THEN
-          ihist=MOD(rtp%istep,aspc_order)+1
-          DO i=1,SIZE(mos_new)
-             CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
-             CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
-          END DO
-          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
-       END IF
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter=delta_iter,error=error)
        rtp%energy_old=rtp%energy_new
     END IF

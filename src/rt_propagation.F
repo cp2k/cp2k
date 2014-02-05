@@ -53,8 +53,7 @@ MODULE rt_propagation
   USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
                                              apply_delta_pulse_periodic
   USE rt_propagation_methods,          ONLY: calc_update_rho,&
-                                             propagation_step,&
-                                             put_data_to_history
+                                             propagation_step
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_create,&
@@ -229,12 +228,12 @@ CONTAINS
         CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
      END DO
 
-     qs_env%dft_control%rtp_control%initial_step=.TRUE.
+     rtp_control%initial_step=.TRUE.
 
      CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
           error=error)
 
-     qs_env%dft_control%rtp_control%initial_step=.FALSE.
+     rtp_control%initial_step=.FALSE.
      rtp%energy_old=energy%total
 
 
@@ -255,38 +254,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'run_propagation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aspc_order, handle, i, &
-                                                i_iter, i_step, ihist, &
-                                                max_iter, max_steps
+    INTEGER                                  :: aspc_order, handle, i_iter, &
+                                                i_step, max_iter, max_steps
     LOGICAL                                  :: failure, should_stop
     REAL(Kind=dp)                            :: delta_iter, eps_ener, &
                                                 time_iter_start, &
                                                 time_iter_stop, used_time
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new, exp_H_old, &
-                                                mos_new, mos_old
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     failure=.FALSE.
     should_stop=.FALSE.
     CALL timeset(routineN,handle)
     logger   => cp_error_get_logger(error)
+    rtp_control=>qs_env%dft_control%rtp_control
     max_steps=qs_env%rtp%nsteps
     max_iter=qs_env%dft_control%rtp_control%max_iter
     eps_ener=qs_env%dft_control%rtp_control%eps_ener
 
 
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,energy=energy,error=error)
-    aspc_order=qs_env%dft_control%rtp_control%aspc_order
-
-    CALL get_rtp(rtp=rtp,&
-                 exp_H_old=exp_H_old,&
-                 exp_H_new=exp_H_new,&
-                 mos_old=mos_old,&
-                 mos_new=mos_new,&
-                 error=error)
+    aspc_order=rtp_control%aspc_order
 
     rtp%energy_old=energy%total
     time_iter_start=m_walltime()
@@ -305,25 +295,18 @@ CONTAINS
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
        rtp%converged=.FALSE.
        DO i_iter=1,max_iter
-          IF(i_step==rtp%i_start+1.AND.i_iter==2.AND.qs_env%dft_control%rtp_control%hfx_redistribute)&
+          IF(i_step==rtp%i_start+1.AND.i_iter==2.AND.rtp_control%hfx_redistribute)&
               CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
           rtp%iter=i_iter
-          CALL propagation_step(qs_env,delta_iter, error)
-          rtp%energy_new=energy%total
-          rtp%converged=(delta_iter.LT.eps_ener)
 
+          CALL propagation_step(qs_env, error)
+
+          rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
           CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error=error)
-
        END DO
 
        IF(rtp%converged)THEN
-          ihist=MOD(rtp%istep,aspc_order)+1
-          DO i=1,SIZE(mos_new)
-             CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
-             CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
-          END DO
-          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,ihist=ihist,error=error)
           CALL external_control(should_stop,"MD",globenv=globenv,error=error)
           IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
           time_iter_stop=m_walltime()

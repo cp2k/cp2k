@@ -57,9 +57,8 @@ MODULE rt_propagation_methods
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE rt_make_propagators,             ONLY: propagate_em_exp,&
-                                             propagate_etrs_exp,&
-                                             propagate_arnoldi
+  USE rt_make_propagators,             ONLY: propagate_arnoldi,&
+                                             propagate_exp
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -89,10 +88,9 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE propagation_step(qs_env,delta_iter, error)
+  SUBROUTINE propagation_step(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(dp)                                 :: delta_iter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'propagation_step', &
@@ -100,6 +98,7 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i
     LOGICAL                                  :: my_force
+    REAL(dp)                                 :: delta_iter
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, exp_H_new, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -144,28 +143,76 @@ CONTAINS
  
     SELECT CASE(rtp_control%mat_exp)
     CASE( do_pade, do_taylor)
-       SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-       CASE(do_em)
-          CALL propagate_em_exp(rtp,rtp_control,error)
-       CASE(do_etrs)
-          CALL propagate_etrs_exp(rtp,rtp_control,error)
-       END SELECT
+       CALL propagate_exp(rtp,rtp_control,error)
     CASE(do_arnoldi)
        CALL propagate_arnoldi(rtp,rtp_control,error)
     END SELECT
     CALL calc_update_rho(qs_env,error)
 
-    IF(rtp_control%sc_check_start.LT.rtp%iter)&
-        CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
-
-    CALL cp_fm_vect_dealloc(delta_mos,error)
-
     IF(rtp_control%fixed_ions)my_force=.FALSE.
     CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=my_force,&
          error=error)
+
+    CALL step_finalize(qs_env,rtp_control,delta_mos,error)
+    CALL cp_fm_vect_dealloc(delta_mos,error)
+
     CALL timestop(handle)
 
   END SUBROUTINE propagation_step
+
+! *****************************************************************************
+!> \brief Performes all the stuff to finish the step:
+!>        convergence checks
+!>        compying stuff into right place for the next step 
+!>        updating the history for extrapolation 
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE step_finalize(qs_env,rtp_control,delta_mos,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rtp_control_type), POINTER          :: rtp_control
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: delta_mos
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ihist
+    REAL(KIND=dp)                            :: delta_iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: exp_H_new, exp_H_old, &
+                                                mos_new, mos_old
+    TYPE(rt_prop_type), POINTER              :: rtp
+
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
+    CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,&
+                 mos_old=mos_old,mos_new=mos_new,error=error)   
+ 
+    IF(rtp_control%sc_check_start.LT.rtp%iter)&
+        CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
+    rtp%converged=(delta_iter.LT.rtp_control%eps_ener)
+
+    IF(rtp%converged)THEN
+       DO i=1,SIZE(mos_new)
+          CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
+          IF(rtp_control%propagator==do_etrs)THEN
+              CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
+          ELSE
+              CALL calc_SinvH(exp_H_old,qs_env,error)
+          END IF
+       END DO
+       ihist=MOD(rtp%istep,rtp_control%aspc_order)+1
+       IF(rtp_control%fixed_ions)THEN
+          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,ihist=ihist,error=error)
+       ELSE
+          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
+       END IF
+    END IF
+
+  END SUBROUTINE step_finalize
 
 ! *****************************************************************************
 !> \brief computes the propagator matrix for EM/ETRS, RTP/EMD
@@ -196,11 +243,13 @@ CONTAINS
     SELECT CASE(qs_env%dft_control%rtp_control%propagator)
     ! HMMM, not really clean to put the matrix on the exp_H variable
     CASE(do_em)
-       IF(rtp%iter.NE.1) CALL calc_SinvH(exp_H_new,qs_env,error)
-       DO imat=1,SIZE(exp_H_new)
-          CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
-          CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
-       END DO
+       IF(rtp%iter.NE.1.OR.qs_env%dft_control%rtp_control%mat_exp==do_arnoldi) THEN
+          CALL calc_SinvH(exp_H_new,qs_env,error)
+          DO imat=1,SIZE(exp_H_new)
+             CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
+             CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
+          END DO
+       END IF
     CASE(do_etrs)
       IF(rtp%iter.NE.1.OR.qs_env%dft_control%rtp_control%mat_exp==do_arnoldi)THEN
           CALL calc_SinvH(exp_H_new,qs_env,error)
@@ -282,10 +331,6 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE calc_SinvH
 
-
-
-
-
 ! *****************************************************************************
 !> \brief calculates the needed overlaplike matrices
 !>        depending on the way the exponential is calculated, only S^-1 is needed
@@ -327,8 +372,6 @@ CONTAINS
     CALL cp_fm_release(tmp,error)
     CALL timestop(handle)
   END SUBROUTINE s_matrices_create
-
-
 
 ! *****************************************************************************
 !> \brief calculates the density from the complex MOs and passes the density to
