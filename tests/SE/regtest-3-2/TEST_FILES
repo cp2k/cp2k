@@ -5,7 +5,7 @@ N3-rp_colvar.inp   11 1E-13
 Periclase.inp                    11     1e-13
 # dumped KDSO
 H2O-MNDO-KDSOd.inp  3
-LM-KSDO.inp         3
+LM-KSDO.inp                       3     2e-14
 LM-KSDO-D.inp                     3     3e-14
 # Multipole with NONE MAX_EXPANSION
 SiO2.inp                          3     2e-11
