@@ -1,0 +1,155 @@
+@SET DPATH ..
+@SET WRKDIR ${DPATH}/regtest-slab
+@SET INPDIR ${DPATH}/regtest-slab
+##@SET DPATH /home/pci/marcella/data
+@SET PROJECT hbn3_1h2o_ff_pyz
+@SET RESFILE hbn3_1h2o_ff_pyz
+@SET XYZ ${INPDIR}/hbn3x_1h2o_pyz.xyz
+
+@SET RUN  ENERGY_FORCE
+@SET TIME  80000
+
+@SET RESTART 0
+@SET HESSIAN 0
+@SET PROPERTIES 0
+@SET GUESS ATOMIC
+
+@SET EPSSCF 5.E-4
+@SET FORCE  5.E-4
+
+&GLOBAL
+  PROJECT ${PROJECT}
+  PRINT_LEVEL  LOW
+  RUN_TYPE ${RUN}
+  FLUSH_SHOULD_FLUSH T
+  PREFERRED_DIAG_LIBRARY  ELPA
+  WALLTIME  ${TIME}
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &PRINT
+    &FORCES ON
+      &EACH
+        QS_SCF 0
+      &END
+      FILENAME =${PROJECT}.forces
+      ADD_LAST NUMERIC
+    &END
+
+    &DISTRIBUTION
+    &END
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME   ${DPATH}/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME   ${DPATH}/GTH_POTENTIALS
+    RESTART_FILE_NAME  ${WRKDIR}/${RESFILE}-RESTART.wfn
+    &MGRID
+      NGRIDS 5
+      CUTOFF 200
+#      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GPW
+      EXTRAPOLATION  PS
+      EXTRAPOLATION_ORDER  4
+      MAP_CONSISTENT
+    &END QS
+
+
+
+    &SCF
+      SCF_GUESS  ${GUESS}
+      EPS_SCF ${EPSSCF}
+      MAX_SCF 4
+
+      &OT
+        MINIMIZER CG
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        LINE_SEARCH 2PNT
+      &END OT
+      &OUTER_SCF  OFF
+        MAX_SCF 10
+        EPS_SCF ${EPSSCF}
+      &END OUTER_SCF
+
+      &PRINT
+        &RESTART
+          &EACH
+              QS_SCF 50
+          &END
+          ADD_LAST NUMERIC
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+        &END
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_SMOOTH_RHO NN50
+        XC_DERIV NN50_SMOOTH
+      &END
+#      &VDW_POTENTIAL
+#       POTENTIAL_TYPE NON_LOCAL
+#        &NON_LOCAL
+#          TYPE RVV10
+#          VERBOSE_OUTPUT
+#          KERNEL_FILE_NAME ${DPATH}/rVV10_kernel_table.dat
+#        &END NON_LOCAL
+#      &END VDW_POTENTIAL
+    &END XC
+
+    &PRINT
+#       &MULLIKEN
+#          FILENAME =${PROJECT}.mulliken
+#       &END
+#       &tot_density_cube
+#         &EACH
+#          QS_SCF 0
+#         &END
+#         ADD_LAST NUMERIC
+#       &END
+       &V_HARTREE_CUBE
+         FILENAME =${PROJECT}_espot.cube
+       &END
+       &MOMENTS
+       &END
+    &END PRINT
+  &END DFT
+      
+
+  &SUBSYS
+    &CELL
+ A  0.00  7.50000      0.00000 
+ B  0.00  3.75000      6.49518 
+ C  12.0    0.00000      0.00000  
+    &END CELL
+
+    &TOPOLOGY
+      COORD_FILE_NAME ${XYZ}
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+
+    &KIND B
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q3
+    &END
+    &KIND N
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q5
+    &END
+
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q1
+    &END
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q6
+    &END
+
+  &END SUBSYS
+&END FORCE_EVAL

@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+hbn3_1h2o_ff.inp     17     1e-04
+hbn3_1h2o_ff_pyz.inp 17     1e-04
+hbn3_1h2o_dipcor_ff.inp  17  1e-04
+hbn3_1h2o_dipcor_ff_pyz.inp  17   1e-04
+hbn3_1h2o_ff_pyz_2dps.inp  17    1e-04
