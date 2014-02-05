@@ -15,7 +15,7 @@
 void error(const char *msg)
 {   perror(msg);   }
 
-void open_socket_(int *psockfd, int* inet, int* port, char* host)  // the darn fortran passes an extra argument for the string length. here I just ignore it
+void open_socket(int *psockfd, int* inet, int* port, char* host)  // the darn fortran passes an extra argument for the string length. here I just ignore it
 {
    int sockfd, portno, n;
    struct hostent *server;
@@ -55,7 +55,7 @@ void open_socket_(int *psockfd, int* inet, int* port, char* host)  // the darn f
    *psockfd=sockfd;
 }
 
-void writebuffer_(int *psockfd, char *data, int* plen)
+void writebuffer(int *psockfd, char *data, int* plen)
 {
    int n;   
    int sockfd=*psockfd;
@@ -65,8 +65,13 @@ void writebuffer_(int *psockfd, char *data, int* plen)
    if (n < 0) error("ERROR writing to socket\n");
 }
 
+void writebuffer_i(int *psockfd, int *data, int* plen)
+{ int llen=(*plen)*4; writebuffer(psockfd, (char*) data, &llen); }
 
-int readbuffer_(int *psockfd, char *data, int* plen)
+void writebuffer_d(int *psockfd, double *data, int* plen)
+{ int llen=(*plen)*8; writebuffer(psockfd, (char*) data, &llen); }
+
+int readbuffer(int *psockfd, char *data, int* plen)
 {
    int n, nr;
    int sockfd=*psockfd;
@@ -80,6 +85,12 @@ int readbuffer_(int *psockfd, char *data, int* plen)
 
    return n;
 }
+
+int readbuffer_i(int *psockfd, int *data, int* plen)
+{ int llen=(*plen)*4; return readbuffer(psockfd, (char*) data, &llen); }
+
+int readbuffer_d(int *psockfd, double *data, int* plen)
+{ int llen=(*plen)*8; return readbuffer(psockfd, (char*) data, &llen); }
 
 int check_reg(const char *path) {
        struct stat sb;
@@ -97,7 +108,7 @@ int slock_(int *node, int *ionode)
   }
 }
 
-int swait_(int *usec, int *node, int *ionode)
+int swait(int *usec, int *node, int *ionode)
 {
  //  fprintf(stderr, "swait %d %d %d %d\n", *node, *ionode, check_reg(".fs_sync"), ((*node)==(*ionode)) );
    if ((*node)==(*ionode))

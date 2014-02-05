@@ -37,15 +37,52 @@ MODULE ipi_driver
 
   PUBLIC :: run_driver
 
+
   INTERFACE
-  SUBROUTINE usleep(useconds) bind(C)
-  ! integer(c_int) function usleep(useconds) bind(C)
-  USE iso_c_binding
-    INTEGER(c_int32_t), value                :: useconds
+    SUBROUTINE open_socket(psockfd, inet, port, host) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      INTEGER (KIND=C_INT) :: inet
+      INTEGER (KIND=C_INT) :: port
+      CHARACTER (KIND=C_CHAR), DIMENSION(*) :: host
+    END SUBROUTINE open_socket
+    SUBROUTINE writebuffer(psockfd, pdata, plen) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      CHARACTER (KIND=C_CHAR), DIMENSION(*) :: pdata
+      INTEGER (KIND=C_INT) :: plen
+    END SUBROUTINE writebuffer       
+    SUBROUTINE writebuffer_i(psockfd, pdata, plen) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      INTEGER (KIND=C_INT) :: pdata
+      INTEGER (KIND=C_INT) :: plen
+    END SUBROUTINE writebuffer_i
+    SUBROUTINE writebuffer_d(psockfd, pdata, plen) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      REAL (KIND=C_DOUBLE) :: pdata
+      INTEGER (KIND=C_INT) :: plen
+    END SUBROUTINE writebuffer_d       
 
-! end function
-
-  END SUBROUTINE
+    INTEGER (KIND=C_INT) FUNCTION readbuffer(psockfd, pdata, plen) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      CHARACTER (KIND=C_CHAR), DIMENSION(*) :: pdata
+      INTEGER (KIND=C_INT) :: plen
+    END FUNCTION readbuffer 
+    INTEGER (KIND=C_INT) FUNCTION readbuffer_i(psockfd, pdata, plen) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      INTEGER (KIND=C_INT) :: pdata
+      INTEGER (KIND=C_INT) :: plen
+    END FUNCTION readbuffer_i
+    INTEGER (KIND=C_INT) FUNCTION readbuffer_d(psockfd, pdata, plen) BIND(C)
+      USE ISO_C_BINDING
+      INTEGER (KIND=C_INT) :: psockfd
+      REAL (KIND=C_DOUBLE) :: pdata
+      INTEGER (KIND=C_INT) :: plen
+    END FUNCTION readbuffer_d
   END INTERFACE
 
   CONTAINS
@@ -68,8 +105,8 @@ MODULE ipi_driver
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
     CHARACTER*1024                           :: host
-    INTEGER                                  :: drv_port, idir, ii, inet, ip, &
-                                                nat, nread, port, readbuffer, &
+    INTEGER                                  :: drv_port, i_drv_unix, idir, ii, inet, ip, &
+                                                nat, nread, port, &
                                                 slock, socket, swait, uwait
     LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
                                                 ionode = .FALSE., should_stop
@@ -100,11 +137,13 @@ MODULE ipi_driver
     ! opens the socket
     socket=0    
     inet=1
+    i_drv_unix = 1   ! a bit convoluted. socket.c uses a different convention...
+    IF (drv_unix) i_drv_unix = 0 
     IF (ionode) THEN
        WRITE(*,*) "@ i-PI DRIVER BEING LOADED"
        WRITE(*,*) "@ INPUT DATA: ", TRIM(drv_hostname), drv_port, drv_unix                          
        c_hostname=TRIM(drv_hostname)//ACHAR(0)
-       CALL open_socket(socket, .NOT. drv_unix, drv_port, c_hostname) 
+       CALL open_socket(socket,i_drv_unix, drv_port, c_hostname) 
     ENDIF    
     
     !now we have a socket, so we can initialize the CP2K environments. 
@@ -150,9 +189,9 @@ MODULE ipi_driver
          CALL mp_sync(default_para_env%group)
       ELSE IF (TRIM(header) == "POSDATA") THEN              
          IF (ionode) THEN        
-            nread=readbuffer(socket, cellh, 9*8)
-            nread=readbuffer(socket, cellih, 9*8)
-            nread=readbuffer(socket, nat, 4)
+            nread=readbuffer_d(socket, cellh(1,1), 9)
+            nread=readbuffer_d(socket, cellih(1,1), 9)
+            nread=readbuffer_i(socket, nat, 1)
             cellh=TRANSPOSE(cellh)
             cellih=TRANSPOSE(cellih)
          ENDIF
@@ -160,7 +199,7 @@ MODULE ipi_driver
          CALL mp_bcast(cellih,default_para_env%source, default_para_env%group)
          CALL mp_bcast(nat,default_para_env%source, default_para_env%group)
          IF (.not.ALLOCATED(combuf)) ALLOCATE(combuf(3*nat))
-         IF (ionode) nread=readbuffer(socket, combuf, nat*3*8)
+         IF (ionode) nread=readbuffer_d(socket, combuf(1), nat*3)
          CALL mp_bcast(combuf,default_para_env%source, default_para_env%group)
          
          CALL force_env_get(force_env,subsys=subsys,error=error)
@@ -200,17 +239,17 @@ MODULE ipi_driver
          IF (ionode) WRITE(*,*) " @ DRIVER MODE: Returning v,forces,stress "
          IF (ionode) THEN     
             CALL writebuffer(socket,"FORCEREADY  ",MSGLEN)            
-            CALL writebuffer(socket,pot,8)
-            CALL writebuffer(socket,nat,4)            
-            CALL writebuffer(socket,combuf,3*nat*8)
-            CALL writebuffer(socket,vir,9*8)
+            CALL writebuffer_d(socket,pot,1)
+            CALL writebuffer_i(socket,nat,1)            
+            CALL writebuffer_d(socket,combuf(1),3*nat)
+            CALL writebuffer_d(socket,vir(1,1),9)
 
             ! i-pi can also receive an arbitrary string, that will be printed out to the "extra" 
             ! trajectory file. this is useful if you want to return additional information, e.g.
             ! atomic charges, wannier centres, etc. one must return the number of characters, then
             ! the string. here we just send back zero characters.            
             nat=0
-            CALL writebuffer(socket,nat,4)  ! writes out zero for the length of the "extra" field (not implemented yet!)
+            CALL writebuffer_i(socket,nat,1)  ! writes out zero for the length of the "extra" field (not implemented yet!)
          ENDIF
          hasdata=.FALSE.
       ELSE 
