@@ -69,6 +69,7 @@ MODULE rt_propagation_types
     INTEGER                                     :: nsteps,istep,i_start
     INTEGER                                     :: iter
     LOGICAL                                     :: converged
+    LOGICAL                                     :: matrix_update
     TYPE(rtp_history_type),POINTER              :: history
  END TYPE rt_prop_type
 
@@ -234,6 +235,7 @@ CONTAINS
     ALLOCATE(rtp%orders(2,SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rtp_control%converged=.FALSE.
+    rtp%matrix_update=.TRUE.
     rtp%istep=0
     rtp%iter=0
     CALL cp_fm_struct_release(ao_ao_fmstruct,error)

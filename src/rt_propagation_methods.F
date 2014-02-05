@@ -100,7 +100,7 @@ CONTAINS
     LOGICAL                                  :: my_force
     REAL(dp)                                 :: delta_iter
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: delta_mos, exp_H_new, mos_new
+      POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -114,12 +114,13 @@ CONTAINS
          ks_env=ks_env,&
          rtp=rtp,&
          error=error)
-    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new, mos_new=mos_new, error=error)
+    CALL get_rtp(rtp=rtp, mos_new=mos_new, error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
     my_force=.NOT.rtp_control%fixed_ions
     delta_iter=1.0_dp
 
+    ! keep temporary copy of the starting mos to check for convergence   
     ALLOCATE(delta_mos(SIZE(mos_new)))
     DO i=1,SIZE(mos_new)
        CALL cp_fm_create(delta_mos(i)%matrix,&
@@ -163,7 +164,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performes all the stuff to finish the step:
 !>        convergence checks
-!>        compying stuff into right place for the next step 
+!>        copying stuff into right place for the next step 
 !>        updating the history for extrapolation 
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
@@ -234,31 +235,24 @@ CONTAINS
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 propagator_matrix
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_ks=matrix_ks,error=error)
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,exp_H_old=exp_H_old,&
                  propagator_matrix=propagator_matrix,dt=dt,error=error)
+    rtp_control=>qs_env%dft_control%rtp_control
 
     prefac=-0.5_dp*dt
-    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-    ! HMMM, not really clean to put the matrix on the exp_H variable
-    CASE(do_em)
-       IF(rtp%iter.NE.1.OR.qs_env%dft_control%rtp_control%mat_exp==do_arnoldi) THEN
-          CALL calc_SinvH(exp_H_new,qs_env,error)
-          DO imat=1,SIZE(exp_H_new)
-             CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
-             CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
-          END DO
-       END IF
-    CASE(do_etrs)
-      IF(rtp%iter.NE.1.OR.qs_env%dft_control%rtp_control%mat_exp==do_arnoldi)THEN
-          CALL calc_SinvH(exp_H_new,qs_env,error)
-          DO imat=1,SIZE(exp_H_new)
-             CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
-          END DO
-      END IF
-       
-    END SELECT
+    rtp%matrix_update=(rtp%iter.NE.1).OR. (rtp%history%mos_or_H==1) .OR.&
+                      (rtp_control%mat_exp==do_arnoldi)
+    IF(rtp%matrix_update) THEN
+       CALL calc_SinvH(exp_H_new,qs_env,error)
+       DO imat=1,SIZE(exp_H_new)
+          CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
+          IF(rtp_control%propagator==do_em)&
+             CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
+       END DO
+    END IF
 
    END SUBROUTINE compute_propagator_matrix  
 

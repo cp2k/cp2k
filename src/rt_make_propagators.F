@@ -74,8 +74,8 @@ CONTAINS
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix, mos_old=mos_old, mos_new=mos_new,&
                  mos_next=mos_next,exp_H_new=exp_H_new,exp_H_old=exp_H_old,error=error)
 
-    ! Not great structure currently but its better to properly handle reuse
-    IF(rtp%iter.NE.1)THEN
+    ! Only compute exponential if a new propagator matrix is available
+    IF(rtp%matrix_update)THEN
        CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
     END IF
 
