@@ -1361,6 +1361,8 @@ MODULE rpa_ri_gpw
                           error=error)
 
       ! update G matrix with the new value of omega
+      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+      !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_G,virtual,homo,omega)
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
@@ -1403,6 +1405,9 @@ MODULE rpa_ri_gpw
                             col_indices=col_indices,&
                             error=error)
         ! update G matrix with the new value of omega
+        !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+        !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
+        !$OMP                    Eigenval_beta,fm_mat_G_beta,virtual_beta,homo_beta,omega)
         DO jjB=1, ncol_local
           j_global=col_indices(jjB)
           DO iiB=1, nrow_local
@@ -1447,6 +1452,8 @@ MODULE rpa_ri_gpw
 
       ! calcualte the trace of Q and add 1 on the diagonal
       trace_Qomega=0.0_dp
+      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+      !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,fm_mat_Q,dimen_RI)
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
@@ -1472,6 +1479,8 @@ MODULE rpa_ri_gpw
                           error=error)
 
       Q_log=0.0_dp
+      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+      !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
