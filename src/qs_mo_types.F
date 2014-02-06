@@ -249,42 +249,45 @@ CONTAINS
        END IF
     END DO
 
-    nelec_a=accurate_sum(occ_a(:))
-    nelec_b=accurate_sum(occ_b(:))
-    DO i =1,nmo_a
-     IF (occ_a(i) < 1.0_dp) THEN
-       lfomo_a=i
-       EXIT
-     END IF
+    nelec_a = accurate_sum(occ_a(:))
+    nelec_b = accurate_sum(occ_b(:))
+
+    DO i=1,nmo_a
+       IF (occ_a(i) < 1.0_dp) THEN
+          lfomo_a = i
+          EXIT
+       END IF
     END DO
-    DO i =1,nmo_b
-     IF (occ_b(i) < 1.0_dp) THEN
-       lfomo_b=i
-       EXIT
-     END IF
+    DO i=1,nmo_b
+       IF (occ_b(i) < 1.0_dp) THEN
+          lfomo_b = i
+          EXIT
+       END IF
     END DO
-    DO i = nmo_a,lfomo_a,-1
-      IF (occ_a(i)  > smear%eps_fermi_dirac) THEN
-       homo_a=i
-       EXIT
-     END IF
+    homo_a = lfomo_a - 1
+    DO i=nmo_a,lfomo_a,-1
+       IF (occ_a(i) > smear%eps_fermi_dirac) THEN
+          homo_a = i
+          EXIT
+       END IF
     END DO
-    DO i = nmo_b,lfomo_b,-1
-      IF (occ_b(i)  > smear%eps_fermi_dirac) THEN
-       homo_b=i
-       EXIT
-     END IF
+    homo_b = lfomo_b - 1
+    DO i=nmo_b,lfomo_b,-1
+       IF (occ_b(i) > smear%eps_fermi_dirac) THEN
+          homo_b = i
+          EXIT
+       END IF
     END DO
 
     CALL set_mo_set(mo_set=mo_array(1)%mo_set,kTS=kTS/2.0_dp,mu=mu,n_el_f=nelec_a,&
-         lfomo=lfomo_a,homo=homo_a,uniform_occupation=.FALSE., error=error)
+         lfomo=lfomo_a,homo=homo_a,uniform_occupation=.FALSE.,error=error)
     CALL set_mo_set(mo_set=mo_array(2)%mo_set,kTS=kTS/2.0_dp,mu=mu,n_el_f=nelec_b,&
-         lfomo=lfomo_b,homo=homo_b,uniform_occupation=.FALSE., error=error)
-
+         lfomo=lfomo_b,homo=homo_b,uniform_occupation=.FALSE.,error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE set_mo_occupation_3
+
 ! *****************************************************************************
 !> \brief   Prepare an occupation of alpha and beta MOs following an Aufbau
 !>          principle, i.e. allowing a change in multiplicity.
