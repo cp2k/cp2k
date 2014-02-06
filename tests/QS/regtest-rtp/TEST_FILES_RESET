@@ -124,7 +124,7 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 wfn_mix_loc-1.inp
 wfn_mix_loc-1.inp
-# atomic code: unrestricted calculations 
+# atomic code unrestricted calculations 
 wfn_mix_1.inp
 # Numerics 
 wfn_mix_1.inp
@@ -269,3 +269,11 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 #  
 wfn_mix_1.inp
+# byg fix for TAYLOR nsquare
+H2plus-emd-1.inp                               
+H2plus-emd.inp                                 
+H2-emd_EM.inp                                  
+H2-emd_restart.inp                             
+H2-emd_restart-1.inp                           
+H2-rtp-efield.inp                              
+H2-emd-efield.inp                              

@@ -256,6 +256,7 @@ CONTAINS
     CALL cp_cfm_set_all(Tres,zero,one,error)
     CALL cp_cfm_set_all(T2,zero,one,error)
     Tfac=one
+    
     DO i=1,ntaylor
        tmp=tmp*REAL(i,dp)
        CALL cp_cfm_gemm("N","N",ndim,ndim,ndim,one,T1,T2,zero,&
@@ -347,7 +348,7 @@ CONTAINS
     ELSE IF(method==1)THEN
        q=0
        eval=norm
-       DO  iscale=0,20
+       DO  iscale=0,6
           new_scale=.FALSE.
           IF(iscale.GE.1)eval=norm/(2.0_dp**REAL(iscale,dp))
           DO p=1,20
@@ -355,14 +356,14 @@ CONTAINS
              N=1.0_dp
              DO i=1,p
                 scaleN=1.0_dp/fac(i)
-                N=N+scaleN*(eval**i)
+                N=N+scaleN*(eval**REAL(i,dp))
              END DO
-             IF(ABS((EXP(norm)-N**(2.0_dp**iscale))/MAX(1.0_dp,EXP(norm))).LE.eps_exp)THEN
+             IF(ABS((EXP(norm)-N**(2.0_dp**REAL(iscale,dp)))/MAX(1.0_dp,EXP(norm))).LE.eps_exp)THEN
                 IF(do_emd)THEN
-                   cost=iscale+q
+                   cost=iscale+p
                    prev_cost=orders(1)+orders(2)
                 ELSE
-                   cost=iscale+CEILING(REAL(q,dp)/3.0_dp)
+                   cost=iscale+CEILING(REAL(p,dp)/3.0_dp)
                    prev_cost=orders(1)+CEILING(REAL(orders(2),dp)/3.0_dp)
                 END IF
                 IF(cost.LT.prev_cost)THEN
