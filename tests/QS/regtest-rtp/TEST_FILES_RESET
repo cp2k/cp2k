@@ -276,4 +276,6 @@ H2-emd_EM.inp
 H2-emd_restart.inp                             
 H2-emd_restart-1.inp                           
 H2-rtp-efield.inp                              
-H2-emd-efield.inp                              
+H2-emd-efield.inp                             
+#file escaped reset
+H2-emd.inp 
