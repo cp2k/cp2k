@@ -34,7 +34,7 @@ TOOLDIR               = $(OBJDIR)/tools
 TOOLSRC               = $(CP2KHOME)/tools
 SRCDIR                = $(CP2KHOME)/src
 LIBCUSMM_DIR          = $(CP2KHOME)/cuda_tools/libcusmm
-SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(LIBCUSMM_DIR):$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(SRCDIR)/machine
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/metadyn_tools:$(CP2KHOME)/cuda_tools:$(LIBCUSMM_DIR):$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(SRCDIR)/machine
 MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                  = $(EXEDIR)/cp2k.$(VERSION)
@@ -60,7 +60,7 @@ LIB4_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
 LIB_CP2K_ARCHIVE      = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SVN_ENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
 GIT_HEAD              = $(wildcard $(CP2KHOME)/../.git/HEAD*)
-FESOBJECTDEFS         = $(TOOLSRC)/metadyn/OBJECTDEFS
+FESOBJECTDEFS         = $(SRCDIR)/metadyn_tools/OBJECTDEFS
 DOXYGENDIR            = $(DOCDIR)/doxygen
 DBCSR_TEST_PROG       = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
 DBCSR_PERF_PROG       = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
@@ -111,7 +111,7 @@ build: dirs deptool libcusmm
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 fes: dirs deptool
-	+$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
+	+$(MAKE) -C $(SRCDIR)/metadyn_tools/  -f $(MAKEFILE) fes.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) HACKLIBDEP=yes VERSION=$(VERSION) $(FES) 
 
 dirs:
