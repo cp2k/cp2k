@@ -5,6 +5,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_str)',
 'alloc_check' :'',
 'alloc_value' :'',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'i4',
@@ -13,6 +14,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_i4)',
 'alloc_check' :'',
 'alloc_value' :'',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'i8',
@@ -21,6 +23,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_i8)',
 'alloc_check' :'',
 'alloc_value' :'',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'r4',
@@ -29,6 +32,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_r4)',
 'alloc_check' :'',
 'alloc_value' :'',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'r8',
@@ -37,6 +41,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_r8)',
 'alloc_check' :'',
 'alloc_value' :'',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'i4_1d',
@@ -45,6 +50,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_i4_1d(SIZE(value)))',
 'alloc_check' :'IF(ASSOCIATED(value)) CALL mp_abort("swarm_message_get_i4_1d: value already associated")',
 'alloc_value' :'ALLOCATE(value(SIZE(curr_entry%value_i4_1d)))',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'i8_1d',
@@ -53,6 +59,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_i8_1d(SIZE(value)))',
 'alloc_check' :'IF(ASSOCIATED(value)) CALL mp_abort("swarm_message_get_i8_1d: value already associated")',
 'alloc_value' :'ALLOCATE(value(SIZE(curr_entry%value_i8_1d)))',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'r4_1d',
@@ -61,6 +68,7 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_r4_1d(SIZE(value)))',
 'alloc_check' :'IF(ASSOCIATED(value)) CALL mp_abort("swarm_message_get_r4_1d: value already associated")',
 'alloc_value' :'ALLOCATE(value(SIZE(curr_entry%value_r4_1d)))',
+'ext'         :'.f90',
 },
 
 {'nametype'   :'r8_1d',
@@ -69,5 +77,6 @@
 'alloc_entry' :'ALLOCATE(new_entry%value_r8_1d(SIZE(value)))',
 'alloc_check' :'IF(ASSOCIATED(value)) CALL mp_abort("swarm_message_get_r8_1d: value already associated")',
 'alloc_value' :'ALLOCATE(value(SIZE(curr_entry%value_r8_1d)))',
+'ext'         :'.f90',
 },
 ]

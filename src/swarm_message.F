@@ -821,15 +821,15 @@ MODULE swarm_message
   END FUNCTION iarr2str
 
 
-#include "swarm_message_str.F"
-#include "swarm_message_i4.F"
-#include "swarm_message_i8.F"
-#include "swarm_message_r4.F"
-#include "swarm_message_r8.F"
-#include "swarm_message_i4_1d.F"
-#include "swarm_message_i8_1d.F"
-#include "swarm_message_r4_1d.F"
-#include "swarm_message_r8_1d.F"
+#include "swarm_message_str.f90"
+#include "swarm_message_i4.f90"
+#include "swarm_message_i8.f90"
+#include "swarm_message_r4.f90"
+#include "swarm_message_r8.f90"
+#include "swarm_message_i4_1d.f90"
+#include "swarm_message_i8_1d.f90"
+#include "swarm_message_r4_1d.f90"
+#include "swarm_message_r8_1d.f90"
 
 
 END MODULE swarm_message
