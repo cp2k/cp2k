@@ -19,11 +19,11 @@
 PROGRAM graph
 
   USE graph_methods,                   ONLY: fes_compute_low,&
+                                             fes_cube_write,&
                                              fes_min,&
                                              fes_only_write,&
                                              fes_path,&
-                                             fes_write,&
-                                             fes_cube_write
+                                             fes_write
   USE graph_utils,                     ONLY: get_val_res,&
                                              mep_input_data_type
   USE kinds,                           ONLY: default_string_length,&

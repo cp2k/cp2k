@@ -38,24 +38,29 @@
 ! *****************************************************************************
 PROGRAM cp2k
 
-  USE cp_files,        ONLY: init_preconnection_list
-  USE cp2k_info,       ONLY: print_cp2k_license,&
-                             cp2k_version,&
-                             id_cp2k_version, get_runtime_info, &
-                             compile_revision
-  USE cp2k_runs,       ONLY: write_cp2k_html_manual, &
-                             write_xml_file, run_input
-  USE input_constants, ONLY: id_development_version
-  USE machine,         ONLY: m_iargc,m_getarg, default_output_unit
-  USE message_passing, ONLY: mp_sync, mp_abort, mp_max
-  USE kinds,           ONLY: default_path_length,&
-                             default_string_length
-  USE f77_interface,   ONLY: init_cp2k, finalize_cp2k, &
-                             check_input, default_para_env, &
-                             init_f77_default
+  USE cp2k_info,                       ONLY: compile_revision,&
+                                             cp2k_version,&
+                                             id_cp2k_version,&
+                                             print_cp2k_license
+  USE cp2k_runs,                       ONLY: run_input,&
+                                             write_cp2k_html_manual,&
+                                             write_xml_file
   USE f77_blas
-  USE string_utilities, ONLY: string_to_ascii
+  USE f77_interface,                   ONLY: check_input,&
+                                             default_para_env,&
+                                             finalize_cp2k,&
+                                             init_cp2k,&
+                                             init_f77_default
+  USE input_constants,                 ONLY: id_development_version
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_getarg,&
+                                             m_iargc
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_max
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 #if defined(__USE_PAT)
 #include "pat_apif.h"
