@@ -103,8 +103,7 @@ CONTAINS
                                                 nsgfb, rbs
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(nexp_max)             :: nct
-    LOGICAL                                  :: failure, found, lpotextended, &
-                                                new_atom_pair
+    LOGICAL                                  :: failure, found, new_atom_pair
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -234,7 +233,7 @@ CONTAINS
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b,&                 
 !$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &                  
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &                       
-!$OMP          atomic_kind, gth_potential, cexp_ppl, lpotextended, &                                  
+!$OMP          atomic_kind, gth_potential, &                                  
 !$OMP          radius, alpha, nct, imol, jmol, kmol,&                            
 !$OMP          npol, ngau, cval, ccval, ap_iterator, rac, dac, rbc, dbc, &                             
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &                                   

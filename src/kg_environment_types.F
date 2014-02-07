@@ -122,6 +122,8 @@ CONTAINS
 
     IF (ALLOCATED(kg_env%atom_to_molecule)) DEALLOCATE(kg_env%atom_to_molecule) 
 
+    IF (ASSOCIATED(kg_env%tnadd_mat)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat,error)
+
     DEALLOCATE(kg_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
