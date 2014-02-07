@@ -76,6 +76,7 @@ MODULE qs_scf_post_gpw
   USE lapack,                          ONLY: lapack_sgesv
   USE mathconstants,                   ONLY: pi,&
                                              twopi
+  USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE moments_utils,                   ONLY: get_reference_point
@@ -2472,73 +2473,89 @@ CONTAINS
                      TRIM(filename)
              END IF
 
+             xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+             nkind = SIZE(atomic_kind_set)
              IF (unit_nr>0) THEN
-                xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
                 WRITE(unit_nr,*) "Atomic (core) densities"
                 WRITE(unit_nr,*) "Unit cell"
                 WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(1,1),cell%hmat(1,2),cell%hmat(1,3)
                 WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(2,1),cell%hmat(2,2),cell%hmat(2,3)
                 WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(3,1),cell%hmat(3,2),cell%hmat(3,3)
-                ! calculate atomic density and core density
-                nkind = SIZE(atomic_kind_set)
                 WRITE(unit_nr,*) "Atomic types"
                 WRITE(unit_nr,*) nkind
-                ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind),stat=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                DO ikind=1,nkind
-                  atomic_kind => atomic_kind_set(ikind)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,name=name,element_symbol=element_symbol)
+             END IF
+             ! calculate atomic density and core density
+             ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind),stat=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             DO ikind=1,nkind
+               atomic_kind => atomic_kind_set(ikind)
+               CALL get_atomic_kind(atomic_kind=atomic_kind,name=name,element_symbol=element_symbol)
+               CALL calculate_atomic_density(ppdens(:,:,ikind),atomic_kind,ngto,iunit=output_unit,&
+                    confine=.TRUE.,error=error)
+               CALL calculate_atomic_density(aedens(:,:,ikind),atomic_kind,ngto,iunit=output_unit,&
+                    allelectron=.TRUE.,confine=.TRUE.,error=error)
+               ccdens(:,1,ikind) = aedens(:,1,ikind)
+               ccdens(:,2,ikind) = 0._dp
+               CALL project_function_a(ccdens(1:ngto,2,ikind),ccdens(1:ngto,1,ikind),&
+                    ppdens(1:ngto,2,ikind),ppdens(1:ngto,1,ikind),0,error)
+               ccdens(:,2,ikind) = aedens(:,2,ikind) - ccdens(:,2,ikind)
+               IF (unit_nr>0) THEN
                   WRITE(unit_nr,FMT="(I6,A10,A20)") ikind,TRIM(element_symbol),TRIM(name)
                   WRITE(unit_nr,FMT="(I6)") ngto
-                  CALL calculate_atomic_density(ppdens(:,:,ikind),atomic_kind,ngto,iunit=output_unit,&
-                       confine=.TRUE.,error=error)
-                  CALL calculate_atomic_density(aedens(:,:,ikind),atomic_kind,ngto,iunit=output_unit,&
-                       allelectron=.TRUE.,confine=.TRUE.,error=error)
                   WRITE(unit_nr,*) "   Total density"
                   WRITE(unit_nr,FMT="(2G24.12)") (aedens(i,1,ikind),aedens(i,2,ikind),i=1,ngto)
-                  ccdens(:,1,ikind) = aedens(:,1,ikind)
-                  ccdens(:,2,ikind) = 0._dp
-                  CALL project_function_a(ccdens(1:ngto,2,ikind),ccdens(1:ngto,1,ikind),&
-                       ppdens(1:ngto,2,ikind),ppdens(1:ngto,1,ikind),0,error)
-                  ccdens(:,2,ikind) = aedens(:,2,ikind) - ccdens(:,2,ikind)
                   WRITE(unit_nr,*) "    Core density"
                   WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
-                  NULLIFY(atomic_kind)
-                END DO
-             END IF
+               END IF
+               NULLIFY(atomic_kind)
+             END DO
 
              IF (dft_control%qs_control%gapw) THEN
                 CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set,error=error)
 
                 IF (unit_nr>0) THEN
                    WRITE(unit_nr,*) "Coordinates and GAPW density"
-                   np = particles%n_els
-                   DO iat=1,np
-                      CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind,&
-                                           grid_atom=grid_atom)
-                      rho_atom => rho_atom_set(iat)
+                END IF
+                np = particles%n_els
+                DO iat=1,np
+                   CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind,&
+                                        grid_atom=grid_atom)
+                   rho_atom => rho_atom_set(iat)
+                   IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
                       nr = SIZE(rho_atom%rho_rad_h(1)%r_coef,1)
                       niso = SIZE(rho_atom%rho_rad_h(1)%r_coef,2)
+                   ELSE
+                      nr = 0
+                      niso = 0
+                   ENDIF
+                   CALL mp_sum(nr,para_env%group)
+                   CALL mp_sum(niso,para_env%group)
 
-                      ALLOCATE(bfun(nr,niso),stat=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      bfun = 0._dp
-                      DO ispin = 1,dft_control%nspins
+                   ALLOCATE(bfun(nr,niso),stat=istat)
+                   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                   bfun = 0._dp
+                   DO ispin = 1,dft_control%nspins
+                      IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
                          bfun = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
-                      END DO
-                      ccdens(:,1,ikind) = ppdens(:,1,ikind)
-                      ccdens(:,2,ikind) = 0._dp
+                      END IF
+                   END DO
+                   CALL mp_sum(bfun,para_env%group)
+                   ccdens(:,1,ikind) = ppdens(:,1,ikind)
+                   ccdens(:,2,ikind) = 0._dp
+                   IF (unit_nr>0) THEN
                       WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
-                      DO iso=1,niso
-                         l = indso(1,iso)
-                         CALL project_function_b(ccdens(:,2,ikind),ccdens(:,1,ikind),bfun(:,iso),grid_atom,l,error)
+                   END IF
+                   DO iso=1,niso
+                      l = indso(1,iso)
+                      CALL project_function_b(ccdens(:,2,ikind),ccdens(:,1,ikind),bfun(:,iso),grid_atom,l,error)
+                      IF (unit_nr>0) THEN
                          WRITE(unit_nr,FMT="(3I6)") iso,l,ngto
                          WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
-                      END DO
-                      DEALLOCATE(bfun,stat=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                      END IF
                    END DO
-                END IF
+                   DEALLOCATE(bfun,stat=istat)
+                   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                END DO
              ELSE
                 IF (unit_nr>0) THEN
                    WRITE(unit_nr,*) "Coordinates"
@@ -2550,10 +2567,8 @@ CONTAINS
                 END IF
              END IF
 
-             IF (unit_nr>0) THEN
-                DEALLOCATE(ppdens,aedens,ccdens,stat=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-             END IF
+             DEALLOCATE(ppdens,aedens,ccdens,stat=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                "DFT%PRINT%E_DENSITY_CUBE",&
