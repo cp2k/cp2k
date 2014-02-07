@@ -596,13 +596,3 @@ CONTAINS
   END SUBROUTINE test_heap
 
 END MODULE min_heap
-
-#ifdef TESTING_STANDALONE
-PROGRAM test_min_heap
-
-  USE min_heap
-
-  LOGICAL :: error
-  CALL test_heap (20, error=error)
-END PROGRAM test_min_heap
-#endif
