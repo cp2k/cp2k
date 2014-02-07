@@ -24,9 +24,6 @@ LIB3_OBJECTS =\
  dbcsr_datatype.o\
  dbcsr_dist_operations.o\
  dbcsr_error_handling.o\
- dbcsr_example_1.o\
- dbcsr_example_2.o\
- dbcsr_example_3.o\
  dbcsr_index_operations.o\
  dbcsr_io.o\
  dbcsr_iterator_operations.o\
