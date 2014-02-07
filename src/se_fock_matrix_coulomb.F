@@ -45,15 +45,16 @@ MODULE se_fock_matrix_coulomb
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE input_constants,                 ONLY: &
-       do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
-       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_multipole_charge, do_multipole_dipole, &
-       do_multipole_none, do_multipole_quadrupole, do_se_IS_slater
+       do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
+       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
+       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
+       do_multipole_quadrupole, do_se_IS_slater
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE pw_poisson_types,                ONLY: do_ewald_ewald
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
