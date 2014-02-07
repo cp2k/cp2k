@@ -1,6 +1,6 @@
-#include "collocate_fast.F"
+#include "collocate_fast.f90"
 
-#include "integrate_fast.F"
+#include "integrate_fast.f90"
 
 ! *****************************************************************************
   SUBROUTINE collocate_gf_npbc(grid,xdat,ydat,zdat,bo1,bo2,zlb,zub,ylb,yub,xlb,xub)
