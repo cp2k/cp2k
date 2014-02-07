@@ -6,7 +6,8 @@
 ! *****************************************************************************
 MODULE atom_energy
   USE atom_electronic_structure,       ONLY: calculate_atom
-  USE atom_fit,                        ONLY: atom_fit_density
+  USE atom_fit,                        ONLY: atom_fit_density,&
+                                             atom_fit_kgpot
   USE atom_operators,                  ONLY: atom_int_release,&
                                              atom_int_setup,&
                                              atom_ppint_release,&
@@ -80,7 +81,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, maxl, mb, &
-      method, mo, n, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
+      method, mo, n, n_meth, n_rep, nder, num_gau, num_gto, num_pol, reltyp, &
+      zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: dm, do_zmp, doread, eri_c, &
@@ -408,9 +410,19 @@ CONTAINS
           IF (iw>0) THEN
             CALL section_vals_val_get(atom_section,"PRINT%FIT_DENSITY%NUM_GTO", i_val=num_gto, error=error)
             powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-            CALL atom_fit_density(atom_info(in,im)%atom,0,num_gto,iw,powell_section=powell_section,error=error)
+            CALL atom_fit_density(atom_info(in,im)%atom,num_gto,0,iw,powell_section=powell_section,error=error)
           END IF
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
+
+          ! Optimize a local potential for the non-additive kinetic energy term in KG
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_KGPOT",extension=".log",error=error)
+          IF (iw>0) THEN
+            CALL section_vals_val_get(atom_section,"PRINT%FIT_KGPOT%NUM_GAUSSIAN", i_val=num_gau, error=error)
+            CALL section_vals_val_get(atom_section,"PRINT%FIT_KGPOT%NUM_POLYNOM", i_val=num_pol, error=error)
+            powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
+            CALL atom_fit_kgpot(atom_info(in,im)%atom,num_gau,num_pol,iw,powell_section=powell_section,error=error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_KGPOT",error=error)
 
           ! generate a response basis
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%RESPONSE_BASIS",extension=".log",error=error)

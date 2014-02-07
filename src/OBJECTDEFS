@@ -363,6 +363,7 @@ OBJECTS_GENERIC =\
  kg_environment.o\
  kg_environment_types.o\
  kg_min_heap.o\
+ kg_tnadd_mat.o\
  kg_vertex_coloring_methods.o\
  kinds.o\
  lapack.o\

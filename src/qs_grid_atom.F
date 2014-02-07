@@ -29,9 +29,8 @@ MODULE qs_grid_atom
      INTEGER                         :: nr, ng_sphere
      REAL(dp), DIMENSION(:), POINTER :: rad, rad2,&
           wr, wa,&
-          cos_theta, sin_theta,&
-          usin_theta, cos_phi, sin_phi,&
-          theta, cotan_phi, phi
+          azi, cos_azi, sin_azi, cotan_azi,&  
+          pol, cos_pol, sin_pol, usin_pol
      REAL(dp), DIMENSION(:,:), &
           POINTER :: rad2l,oorad2l,weight
 
@@ -75,14 +74,14 @@ CONTAINS
     NULLIFY (grid_atom%wr)
     NULLIFY (grid_atom%wa)
     NULLIFY (grid_atom%weight)
-    NULLIFY (grid_atom%cos_theta)
-    NULLIFY (grid_atom%sin_theta)
-    NULLIFY (grid_atom%usin_theta)
-    NULLIFY (grid_atom%cos_phi)
-    NULLIFY (grid_atom%sin_phi)
-    NULLIFY (grid_atom%cotan_phi)
-    NULLIFY (grid_atom%theta)
-    NULLIFY (grid_atom%phi)
+    NULLIFY (grid_atom%azi)
+    NULLIFY (grid_atom%cos_azi)
+    NULLIFY (grid_atom%sin_azi)
+    NULLIFY (grid_atom%cotan_azi)
+    NULLIFY (grid_atom%pol)
+    NULLIFY (grid_atom%cos_pol)
+    NULLIFY (grid_atom%sin_pol)
+    NULLIFY (grid_atom%usin_pol)
     NULLIFY (grid_atom%rad2l)
     NULLIFY (grid_atom%oorad2l)
 
@@ -132,43 +131,43 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%cos_theta)) THEN
-          DEALLOCATE (grid_atom%cos_theta,STAT=stat)
+       IF (ASSOCIATED(grid_atom%azi)) THEN
+          DEALLOCATE (grid_atom%azi,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%sin_theta)) THEN
-          DEALLOCATE (grid_atom%sin_theta,STAT=stat)
+       IF (ASSOCIATED(grid_atom%cos_azi)) THEN
+          DEALLOCATE (grid_atom%cos_azi,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%usin_theta)) THEN
-          DEALLOCATE (grid_atom%usin_theta,STAT=stat)
+       IF (ASSOCIATED(grid_atom%sin_azi)) THEN
+          DEALLOCATE (grid_atom%sin_azi,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%cos_phi)) THEN
-          DEALLOCATE (grid_atom%cos_phi,STAT=stat)
+       IF (ASSOCIATED(grid_atom%cotan_azi)) THEN
+          DEALLOCATE (grid_atom%cotan_azi,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%sin_phi)) THEN
-          DEALLOCATE (grid_atom%sin_phi,STAT=stat)
+       IF (ASSOCIATED(grid_atom%pol)) THEN
+          DEALLOCATE (grid_atom%pol,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%cotan_phi)) THEN
-          DEALLOCATE (grid_atom%cotan_phi,STAT=stat)
+       IF (ASSOCIATED(grid_atom%cos_pol)) THEN
+          DEALLOCATE (grid_atom%cos_pol,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%theta)) THEN
-          DEALLOCATE (grid_atom%theta,STAT=stat)
+       IF (ASSOCIATED(grid_atom%sin_pol)) THEN
+          DEALLOCATE (grid_atom%sin_pol,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       IF (ASSOCIATED(grid_atom%phi)) THEN
-          DEALLOCATE (grid_atom%phi,STAT=stat)
+       IF (ASSOCIATED(grid_atom%usin_pol)) THEN
+          DEALLOCATE (grid_atom%usin_pol,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
@@ -201,7 +200,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ia, ir, l
-    REAL(dp)                                 :: cosia, phi
+    REAL(dp)                                 :: cosia, pol
     REAL(dp), DIMENSION(:), POINTER          :: rad, rad2, wr
 
     CALL timeset(routineN,handle)
@@ -216,14 +215,14 @@ CONTAINS
        CALL reallocate(grid_atom%wr,1,nr)
        CALL reallocate(grid_atom%wa,1,na)
        CALL reallocate(grid_atom%weight,1,na,1,nr)
-       CALL reallocate(grid_atom%cos_theta,1,na)
-       CALL reallocate(grid_atom%sin_theta,1,na)
-       CALL reallocate(grid_atom%usin_theta,1,na)
-       CALL reallocate(grid_atom%cos_phi,1,na)
-       CALL reallocate(grid_atom%sin_phi,1,na)
-       CALL reallocate(grid_atom%cotan_phi,1,na)
-       CALL reallocate(grid_atom%theta,1,na)
-       CALL reallocate(grid_atom%phi,1,na)
+       CALL reallocate(grid_atom%azi,1,na)
+       CALL reallocate(grid_atom%cos_azi,1,na)
+       CALL reallocate(grid_atom%sin_azi,1,na)
+       CALL reallocate(grid_atom%cotan_azi,1,na)
+       CALL reallocate(grid_atom%pol,1,na)
+       CALL reallocate(grid_atom%cos_pol,1,na)
+       CALL reallocate(grid_atom%sin_pol,1,na)
+       CALL reallocate(grid_atom%usin_pol,1,na)
        CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)
        CALL reallocate(grid_atom%oorad2l,1,nr,0,llmax+1)
 
@@ -251,31 +250,30 @@ CONTAINS
 
           DO ia = 1,na
              cosia = lebedev_grid(ll)%r(3,ia)
-             grid_atom%cos_phi(ia)   =   cosia
+             grid_atom%cos_pol(ia) = cosia
              IF ( ABS(lebedev_grid(ll)%r(2,ia)) < EPSILON(1.0_dp) .AND. &
                   ABS(lebedev_grid(ll)%r(1,ia)) < EPSILON(1.0_dp) ) THEN
-                grid_atom%theta(ia)     =  0.0_dp
+                grid_atom%azi(ia) = 0.0_dp
              ELSE
-             grid_atom%theta(ia)     =  &
-                  ATAN2( lebedev_grid(ll)%r(2,ia) , lebedev_grid(ll)%r(1,ia) )
+                grid_atom%azi(ia) = ATAN2( lebedev_grid(ll)%r(2,ia) , lebedev_grid(ll)%r(1,ia) )
              END IF
-             grid_atom%cos_theta(ia) = COS( grid_atom%theta(ia) )
-             phi =  ACOS(cosia)
-             IF( grid_atom%sin_phi(ia) < 0.0_dp ) phi = - phi
-             grid_atom%phi(ia) = phi
-             grid_atom%sin_phi(ia)  = SIN(grid_atom%phi(ia))
-             IF(ABS(grid_atom%sin_phi(ia)) > EPSILON(1.0_dp)) THEN
-                grid_atom%cotan_phi(ia) = &
-                     grid_atom%cos_phi(ia)/grid_atom%sin_phi(ia)
+             grid_atom%cos_azi(ia) = COS( grid_atom%azi(ia) )
+             pol =  ACOS(cosia)
+             IF( grid_atom%sin_pol(ia) < 0.0_dp ) pol = - pol
+             grid_atom%pol(ia) = pol
+             grid_atom%sin_pol(ia)  = SIN(grid_atom%pol(ia))
+             IF(ABS(grid_atom%sin_azi(ia)) > EPSILON(1.0_dp)) THEN
+                grid_atom%cotan_azi(ia) = &
+                     grid_atom%cos_azi(ia)/grid_atom%sin_azi(ia)
              ELSE
-                grid_atom%cotan_phi(ia) = 0.0_dp
+                grid_atom%cotan_azi(ia) = 0.0_dp
              END IF
 
-             grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) )
-             IF(ABS(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
-                grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
+             grid_atom%sin_pol(ia) = SIN( grid_atom%pol(ia) )
+             IF(ABS(grid_atom%sin_pol(ia)) > EPSILON(1.0_dp)) THEN
+                grid_atom%usin_pol(ia)  = 1.0_dp/grid_atom%sin_pol(ia)
              ELSE
-                grid_atom%usin_theta(ia) = 1.0_dp
+                grid_atom%usin_pol(ia) = 1.0_dp
              END IF
 
           ENDDO

@@ -96,12 +96,16 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
+                                             kg_tnadd_atomic,&
                                              rel_none,&
                                              rel_trans_atom,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
+  USE kg_environment_types,            ONLY: kg_environment_type
+  USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
   USE kinds,                           ONLY: dp
   USE lri_environment_methods,         ONLY: build_lri_matrices
   USE lri_environment_types,           ONLY: lri_environment_type
@@ -156,7 +160,7 @@ CONTAINS
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
     LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
-      lripaw, ofdft, ppl_present, use_virial
+      kgpot, lripaw, ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -164,7 +168,9 @@ CONTAINS
       matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_aux_fit, &
@@ -214,6 +220,12 @@ CONTAINS
     ofdft = qs_env%dft_control%qs_control%ofgpw
     ! is this a LRI method calculation
     lripaw = qs_env%dft_control%qs_control%lripaw
+    ! is this a KG method calculation using atomic TNADD potentials
+    IF (qs_env%dft_control%qs_control%do_kg) THEN
+       kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
+    ELSE
+       kgpot = .FALSE.
+    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -434,6 +446,13 @@ CONTAINS
     IF(lripaw) THEN
        CALL get_qs_env(qs_env=qs_env,lri_env=lri_env,error=error)
        CALL build_lri_matrices(lri_env,qs_env,error)
+    END IF
+
+    ! *** KG atomic potentials for nonadditive kinetic energy
+    IF (kgpot) THEN
+       CALL get_qs_env(qs_env=qs_env,kg_env=kg_env,dbcsr_dist=dbcsr_dist,error=error)
+       CALL build_tnadd_mat(kg_env, matrix_p, force, virial, calculate_forces, use_virial,&
+                    atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***

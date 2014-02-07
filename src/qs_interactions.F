@@ -76,8 +76,7 @@ CONTAINS
 !> \date    24.09.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_interaction_radii(qs_control,atomic_kind_set,&
-       error)
+  SUBROUTINE init_interaction_radii(qs_control,atomic_kind_set,error)
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(atomic_kind_type), DIMENSION(:), &

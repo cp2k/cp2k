@@ -37,7 +37,7 @@ MODULE qs_harmonics_atom
                                                dmax_iso_not0, &
                                                damax_iso_not0, &
                                                ngrid
-     REAL(dp), DIMENSION(:,:),    POINTER   :: a, slm
+     REAL(dp), DIMENSION(:,:),    POINTER   :: a, slm, dmslm
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: dslm, dslm_dxyz
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: my_CG, my_dCG
      REAL(dp), DIMENSION(:,:,:,:),  POINTER :: my_CG_dxyz
@@ -88,6 +88,7 @@ CONTAINS
     harmonics%ngrid=0
 
     NULLIFY(harmonics%slm)
+    NULLIFY(harmonics%dmslm)
     NULLIFY(harmonics%dslm)
     NULLIFY(harmonics%dslm_dxyz)
     NULLIFY(harmonics%slm_int)
@@ -119,6 +120,11 @@ CONTAINS
 
        IF(ASSOCIATED(harmonics%slm)) THEN
           DEALLOCATE (harmonics%slm,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
+       IF(ASSOCIATED(harmonics%dmslm)) THEN
+          DEALLOCATE (harmonics%dmslm,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
@@ -224,6 +230,7 @@ CONTAINS
     !   *** allocate and calculate the spherical harmonics LM for this grid ***
     !       and their derivatives
     CALL reallocate(harmonics%slm,1,na,1,max_s_harm)
+    CALL reallocate(harmonics%dmslm,1,na,1,max_s_harm)
     CALL reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
     CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
     CALL reallocate(harmonics%a,1,3,1,na)
@@ -398,8 +405,8 @@ CONTAINS
     END DO  ! iso1
 
     ! Calculate the derivatives of the harmonics with respect of the 2 angles
-    ! the first angle is acos(lebedev_grid(ll)%r(3))
-    ! the second angle is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
+    ! the first angle (polar) is acos(lebedev_grid(ll)%r(3)) 
+    ! the second angle (azimutal) is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
     DO iso = 1,max_s_harm
 
        l = indso(1,iso)
@@ -407,7 +414,7 @@ CONTAINS
        l_r = REAL(l,dp)
        m_r = REAL(m,dp)
 
-       !  Derivative with respect to the polar angle
+       ! Derivative with respect to the azimuthal angle
        IF(m==0) THEN
           harmonics%dslm(2,1:na,iso) = 0.0_dp
        ELSE
@@ -415,7 +422,7 @@ CONTAINS
           harmonics%dslm(2,1:na,iso) = - m_r * harmonics%slm(1:na,iso_mm)
        END IF
 
-       ! Derivative with respect to the azimuthal angle
+       !  Derivative with respect to the polar angle
        IF(m > 0) THEN
 
           DO ia = 1,na
@@ -471,7 +478,7 @@ CONTAINS
 
     END DO
 
-    ! expansion coefficients of product of theta derivatives (dslm(1...)) in
+    ! expansion coefficients of product of polar angle derivatives (dslm(1...)) in
     ! spherical harmonics (used for tau functionals)
     CALL reallocate(harmonics%my_dCG,1,maxs,1,maxs,1,max_s_harm)
     DO is1=1,maxs

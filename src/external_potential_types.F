@@ -50,6 +50,7 @@ MODULE external_potential_types
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE periodic_table,                  ONLY: ptable
+  USE qs_util,                         ONLY: exp_radius
   USE string_utilities,                ONLY: remove_word,&
                                              uppercase
   USE termination,                     ONLY: stop_program
@@ -95,6 +96,21 @@ MODULE external_potential_types
                                                  qmmm_corr_radius, qmmm_radius
 
   END TYPE fist_potential_type
+
+! *****************************************************************************
+! local potential type
+! V(r) = SUM_i exp(0.5*(r/rci)**2) * ( C1i + C2i (r/rci)**2 + C3i (r/rci)**4 ...)
+! alpha = 0.5/rci**2
+  TYPE local_potential_type
+     !PRIVATE
+     CHARACTER(LEN=default_string_length)       :: name
+     CHARACTER(LEN=default_string_length),&
+          DIMENSION(4)                          :: description
+     INTEGER                                    :: ngau, npol
+     REAL(KIND = dp)                            :: radius
+     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha
+     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cval
+  END TYPE local_potential_type
 
   ! Define the GTH potential type
 
@@ -156,6 +172,10 @@ MODULE external_potential_types
      TYPE(gth_potential_type), POINTER          :: gth_potential
   END TYPE gth_potential_p_type
 
+  TYPE local_potential_p_type
+     TYPE(local_potential_type), POINTER        :: local_potential
+  END TYPE local_potential_p_type
+
 ! *****************************************************************************
 
   ! Public subroutines
@@ -172,25 +192,30 @@ MODULE external_potential_types
 
   PUBLIC :: all_potential_type,&
             fist_potential_type,&
+            local_potential_type,&
             gth_potential_type
   PUBLIC :: all_potential_p_type,&
+            local_potential_p_type,&
             gth_potential_p_type
 
   INTERFACE allocate_potential
      MODULE PROCEDURE allocate_all_potential,&
                       allocate_fist_potential,&
+                      allocate_local_potential,&
                       allocate_gth_potential
   END INTERFACE
 
   INTERFACE deallocate_potential
      MODULE PROCEDURE deallocate_all_potential,&
                       deallocate_fist_potential,&
+                      deallocate_local_potential,&
                       deallocate_gth_potential
   END INTERFACE
 
   INTERFACE get_potential
      MODULE PROCEDURE get_all_potential,&
                       get_fist_potential,&
+                      get_local_potential,&
                       get_gth_potential
   END INTERFACE
 
@@ -201,17 +226,20 @@ MODULE external_potential_types
 
   INTERFACE read_potential
      MODULE PROCEDURE read_all_potential,&
+                      read_local_potential,&
                       read_gth_potential
   END INTERFACE
 
   INTERFACE set_potential
      MODULE PROCEDURE set_all_potential,&
                       set_fist_potential,&
+                      set_local_potential,&
                       set_gth_potential
   END INTERFACE
 
   INTERFACE write_potential
      MODULE PROCEDURE write_all_potential,&
+                      write_local_potential,&
                       write_gth_potential
   END INTERFACE
 
@@ -277,6 +305,38 @@ CONTAINS
     potential%description(1) = "Effective charge and inducible dipole potential"
 
   END SUBROUTINE allocate_fist_potential
+
+! *****************************************************************************
+!> \brief   Allocate an atomic local potential data set.
+!> \author  JGH
+!> \date    24.01.2014
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE allocate_local_potential(potential,error)
+    TYPE(local_potential_type), POINTER      :: potential
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential,error)
+
+    ALLOCATE (potential,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    NULLIFY (potential%alpha)
+    NULLIFY (potential%cval)
+
+    potential%description(1) = "Local short-range pseudopotential"
+    potential%ngau = 0
+    potential%npol = 0
+    potential%radius = 0.0_dp
+
+  END SUBROUTINE allocate_local_potential
 
 ! *****************************************************************************
 !> \brief   Allocate an atomic GTH potential data set.
@@ -381,6 +441,47 @@ CONTAINS
     END IF
 
   END SUBROUTINE deallocate_fist_potential
+
+! *****************************************************************************
+!> \brief   Deallocate an atomic local potential data set.
+!> \author  JGH
+!> \date    24.01.2014
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE deallocate_local_potential(potential,error)
+    TYPE(local_potential_type), POINTER      :: potential
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(potential)) THEN
+
+       IF (ASSOCIATED(potential%alpha)) THEN
+          DEALLOCATE (potential%alpha,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(potential%cval)) THEN
+          DEALLOCATE (potential%cval,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+       DEALLOCATE (potential,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ELSE
+
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
+
+    END IF
+
+  END SUBROUTINE deallocate_local_potential
 
 ! *****************************************************************************
 !> \brief   Deallocate an atomic GTH potential data set.
@@ -543,6 +644,44 @@ CONTAINS
     END IF
 
   END SUBROUTINE get_fist_potential
+
+! *****************************************************************************
+!> \brief   Get attributes of an atomic local potential data set.
+!> \author  JGH
+!> \date    24.01.2014
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE get_local_potential(potential,name,ngau,npol,alpha,cval,radius)
+    TYPE(local_potential_type), POINTER      :: potential
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngau, npol
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cval
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: radius
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_local_potential', &
+      routineP = moduleN//':'//routineN
+
+    IF (ASSOCIATED(potential)) THEN
+
+       IF (PRESENT(name)) name = potential%name
+       IF (PRESENT(ngau)) ngau = potential%ngau
+       IF (PRESENT(npol)) npol = potential%npol
+       IF (PRESENT(alpha)) alpha => potential%alpha
+       IF (PRESENT(cval)) cval => potential%cval
+       IF (PRESENT(radius)) radius = potential%radius
+
+    ELSE
+
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
+
+    END IF
+
+  END SUBROUTINE get_local_potential
 
 ! *****************************************************************************
 !> \brief   Get attributes of a GTH potential data set.
@@ -1069,6 +1208,176 @@ CONTAINS
        CALL parser_release(parser,error=error)
     END IF
   END SUBROUTINE read_all_potential
+
+! *****************************************************************************
+!> \brief   Read an atomic local potential data set.
+!> \author  JGH
+!> \date    24.12.2014
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE read_local_potential(element_symbol,potential_name,potential,&
+       para_env, dft_section, potential_section, error)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
+    TYPE(local_potential_type), POINTER      :: potential
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: dft_section, potential_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_local_potential', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: eps_tpot = 1.e-10_dp
+
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=5*default_string_length)   :: line_att
+    CHARACTER(len=default_path_length)       :: potential_file_name
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    CHARACTER(LEN=LEN(potential_name))       :: apname
+    CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    INTEGER                                  :: igau, ipol, irep, l, ngau, &
+                                                npol, strlen1, strlen2
+    LOGICAL                                  :: failure, found, is_ok, match, &
+                                                read_from_input
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
+
+    line2 = ""
+    symbol2 = ""
+    apname2 = ""
+    NULLIFY(parser)
+    failure = .FALSE.
+
+    potential%name = potential_name
+    read_from_input = .FALSE.
+    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    IF (.NOT.read_from_input) THEN
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
+            error=error)
+       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+    END IF
+
+    !   *** Search for the requested potential in the potential file   ***
+    !   *** until the potential is found or the end of file is reached ***
+
+    apname = potential_name
+    symbol = element_symbol
+    irep   = 0
+    search_loop: DO
+       IF (read_from_input) THEN
+          NULLIFY(list, val)
+          found = .TRUE.
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+       ELSE
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+       END IF
+       IF (found) THEN
+          CALL uppercase(symbol)
+          CALL uppercase(apname)
+
+          IF (read_from_input) THEN
+             match = .TRUE.
+          ELSE
+             ! Check both the element symbol and the atomic potential name
+             match = .FALSE.
+             CALL uppercase(line)
+             line2 = " "//line//" "
+             symbol2 = " "//TRIM(symbol)//" "
+             apname2 = " "//TRIM(apname)//" "
+             strlen1 = LEN_TRIM(symbol2) + 1
+             strlen2 = LEN_TRIM(apname2) + 1
+
+             IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+                  (INDEX(line2,apname2(:strlen2)) > 0)) match = .TRUE.
+          END IF
+          IF (match) THEN
+
+             ! Read ngau and npol
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                  "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*) ngau, npol
+                CALL remove_word(line_att)
+             ELSE
+                CALL parser_get_object(parser,ngau,newline=.TRUE.,error=error)
+                CALL parser_get_object(parser,npol,error=error)
+                irep = irep + 1
+                WRITE(line_att,'(2(1X,I0))') ngau, npol
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)
+             END IF
+
+             CALL reallocate(alpha,1,ngau)
+             CALL reallocate(cval,1,ngau,1,npol)
+             DO igau=1,ngau
+                IF (read_from_input) THEN
+                   is_ok=cp_sll_val_next(list,val,error=error)
+                   IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                     "Error reading the Potential from input file!!")
+                   CALL val_get(val,c_val=line_att,error=error)
+                   READ(line_att,*) alpha(igau),(cval(igau,ipol),ipol=1,npol)
+                ELSE
+                   CALL parser_get_object(parser,alpha(igau),newline=.TRUE.,error=error)
+                   DO ipol=1,npol
+                      CALL parser_get_object(parser,cval(igau,ipol),newline=.FALSE.,error=error)
+                   END DO
+                   irep = irep + 1
+                   WRITE(line_att,'(8(E24.16))') alpha(igau),(cval(igau,ipol),ipol=1,npol)
+                   CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                        c_val=TRIM(line_att), error=error)
+                END IF
+             END DO
+             alpha = 1.0_dp/(2.0_dp*alpha**2)
+
+             potential%ngau  = ngau
+             potential%npol  = npol
+
+             potential%alpha => alpha
+             potential%cval  => cval
+
+             potential%radius =0.0_dp
+             DO igau=1,ngau
+                DO ipol=1,npol
+                   l = 2*(ipol - 1)
+                   potential%radius = MAX(potential%radius,&
+                           exp_radius(l,alpha(igau),eps_tpot,cval(igau,ipol)))
+                END DO
+             END DO
+
+             EXIT search_loop
+          END IF
+       ELSE
+          ! Stop program, if the end of file is reached
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "The requested local atomic potential <"//&
+                            TRIM(potential_name)//&
+                            "> was not found in the potential file <"//&
+                            TRIM(potential_file_name)//">")
+       END IF
+    END DO search_loop
+
+    IF (.NOT.read_from_input) THEN
+       ! Dump the potential info in the potential section
+       IF (match) THEN
+          irep = irep + 1
+          WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+          irep = irep + 1
+          WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+       END IF
+       CALL parser_release(parser,error=error)
+    END IF
+
+  END SUBROUTINE read_local_potential
 
 ! *****************************************************************************
 !> \brief   Read an atomic GTH potential data set.
@@ -1747,6 +2056,42 @@ CONTAINS
   END SUBROUTINE set_all_potential
 
 ! *****************************************************************************
+!> \brief   Set the attributes of an atomic local potential data set.
+!> \author  JGH
+!> \date    24.01.2014
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE set_local_potential(potential,name,alpha,cval,radius)
+
+    TYPE(local_potential_type), POINTER      :: potential
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: name
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cval
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: radius
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_local_potential', &
+      routineP = moduleN//':'//routineN
+
+    IF (ASSOCIATED(potential)) THEN
+
+       IF (PRESENT(name)) potential%name = name
+       IF (PRESENT(alpha)) potential%alpha => alpha
+       IF (PRESENT(cval)) potential%cval => cval
+       IF (PRESENT(radius)) potential%radius = radius
+
+    ELSE
+
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated")
+
+    END IF
+
+  END SUBROUTINE set_local_potential
+
+! *****************************************************************************
 !> \brief   Set the attributes of an effective charge and inducible point
 !>          dipole potential data set.
 !> \author  Toon.Verstraelen@gmail.com
@@ -1878,6 +2223,33 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_all_potential
+
+! *****************************************************************************
+  SUBROUTINE write_local_potential(potential,output_unit,error)
+
+    ! Write an atomic local potential data set to the output unit.
+
+    ! - Creation (24.01.2014,JGH)
+
+    TYPE(local_potential_type), POINTER      :: potential
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: igau, ipol
+
+    IF (output_unit > 0.AND.ASSOCIATED(potential)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
+            "Potential information for",ADJUSTR(TRIM(potential%name))
+       WRITE (UNIT=output_unit,FMT="(T8,A,T41,A40)")&
+            "Description: ",TRIM(potential%description(1))
+       DO igau=1,potential%ngau
+          WRITE (UNIT=output_unit,FMT="(T8,A,F12.6,T50,A,4(T68,I2,F10.4))")&
+            "Exponent: ",potential%alpha(igau),&
+            "Coefficients: ",(2*ipol-2,potential%cval(igau,ipol),ipol=1,potential%npol)
+       END DO
+    END IF
+
+  END SUBROUTINE write_local_potential
 
 ! *****************************************************************************
   SUBROUTINE write_gth_potential(potential,output_unit,error)

@@ -4547,6 +4547,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="TNADD_METHOD",&
+            description="Algorithm to use for the calculation of the nonadditive kinetic energy.",&
+            usage="TNADD_METHOD ATOMIC",&
+            default_i_val=kg_tnadd_embed,&
+            enum_c_vals=s2a( "EMBEDDING", "ATOMIC"),&
+            enum_desc=s2a("Use full embedding potential (see Iannuzzi et al)",&
+                          "Use sum of atomic model potentials"),&
+            enum_i_vals=(/kg_tnadd_embed, kg_tnadd_atomic /),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_create(subsection, name="PRINT",&
             description="Print section",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
@@ -4571,6 +4583,16 @@ CONTAINS
             name="SAB_ORB_MOLECULAR",&
             description="Activates the printing of the orbital "//&
             "orbital neighbor lists for molecular subsets.",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="SAC_KIN",&
+            description="Activates the printing of the orbital "//&
+            "atomic potential neighbor list.",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)

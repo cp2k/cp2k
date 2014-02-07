@@ -29,6 +29,8 @@ MODULE qs_energy_utils
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
+  USE input_constants,                 ONLY: kg_tnadd_atomic,&
+                                             kg_tnadd_embed
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_environment,                  ONLY: kg_build_neighborlist,&
@@ -187,10 +189,7 @@ CONTAINS
       qs_env%kg_env%molecule_set => molecule_set
 
       ! build the (new) full neighborlist
-      CALL kg_build_neighborlist(qs_env%kg_env, qs_env, qs_env%kg_env%sab_orb_full, error=error)
-
-      ! allocate the subset list
-      IF (.NOT.ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE(qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
+      CALL kg_build_neighborlist(qs_env%kg_env, qs_env, sab_orb=qs_env%kg_env%sab_orb_full, error=error)
 
       IF (.NOT.ALLOCATED(qs_env%kg_env%atom_to_molecule)) THEN
         ALLOCATE(qs_env%kg_env%atom_to_molecule(natom))
@@ -198,16 +197,24 @@ CONTAINS
         ! get the mapping from atoms to molecules
         CALL molecule_of_atom(molecule_set, atom_to_mol=qs_env%kg_env%atom_to_molecule, error=error)
       END IF
+      
+      IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
+         ! allocate the subset list
+         IF (.NOT.ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE(qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
 
-      CALL kg_build_subsets(qs_env%kg_env, qs_env%para_env, error)
+         CALL kg_build_subsets(qs_env%kg_env, qs_env%para_env, error)
 
-      DO isubset=1,qs_env%kg_env%nsubsets
-
-        ! build the (new) molecular neighborlist of the current subset
-        CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
-                                   qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
-                                   subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset, error=error)
-      END DO
+         DO isubset=1,qs_env%kg_env%nsubsets
+           ! build the (new) molecular neighborlist of the current subset
+           CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
+                                      sab_orb=qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
+                                      subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset, error=error)
+         END DO
+      ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_atomic) THEN
+         ! build the A-C list for the nonadditive kinetic energy potential
+         CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
+                                    sac_kin=qs_env%kg_env%sac_kin, error=error)
+      END IF
 
     END IF
     CALL timestop(handle)

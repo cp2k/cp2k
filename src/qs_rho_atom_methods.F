@@ -401,7 +401,7 @@ MODULE qs_rho_atom_methods
 
                        ENDDO  ! iso
 
-                       !Expansion for tau functionals (theta term)
+                       !Expansion for tau functionals (polar angle term)
                        !We ignore the contributions iso > max_iso_not0 (should be dmax_iso_not0)
 
                        DO iso = 1,max_iso_not0!dbmax_iso_not0_local
@@ -410,10 +410,6 @@ MODULE qs_rho_atom_methods
                              iso1 = dbcg_list(1,icg,iso)
                              iso2 = dbcg_list(2,icg,iso)
 
-                             !DO iso = 1,max_iso_not0
-                             !  DO icg = 1,harmonics%ndcg(iso,iset1,iset2)
-                             !    iso1 = harmonics%ind_dcg_a(icg,iso,iset1,iset2)
-                             !    iso2 = harmonics%ind_dcg_b(icg,iso,iset1,iset2)
                              l = indso(1,iso1) + indso(1,iso2)
                              CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                              IF(.NOT.failure) THEN
@@ -764,13 +760,12 @@ MODULE qs_rho_atom_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'init_rho_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ia, ikind, il, ir, iso, iso1, iso2, istat, l1, l1l2, &
-      l2, la, lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, &
-      max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, natom, &
-      nkind, nr, nspins, quadrature
+    INTEGER :: handle, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, la, &
+      lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, &
+      max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, natom, nkind, nr, &
+      nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
-    REAL(dp)                                 :: cosia, phi
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -898,44 +893,6 @@ MODULE qs_rho_atom_methods
 !     *** calculate the radial grid ***
       CALL create_grid_atom(grid_atom,nr,na,llmax,ll,quadrature)
 
-      grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
-      DO ir = 1,nr
-        DO ia= 1,na
-          grid_atom%weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
-        END DO
-      END DO
-
-      DO ia = 1,na
-        cosia = lebedev_grid(ll)%r(3,ia)
-        grid_atom%cos_phi(ia)   =   cosia
-        IF ( ABS(lebedev_grid(ll)%r(2,ia)) < EPSILON(1.0_dp) .AND. &
-              ABS(lebedev_grid(ll)%r(1,ia)) < EPSILON(1.0_dp) ) THEN
-          grid_atom%theta(ia)     =  0.0_dp
-        ELSE
-          grid_atom%theta(ia)     =  &
-               ATAN2( lebedev_grid(ll)%r(2,ia) , lebedev_grid(ll)%r(1,ia) )
-        END IF
-        grid_atom%cos_theta(ia) = COS( grid_atom%theta(ia) )
-        phi =  ACOS(cosia)
-        IF( grid_atom%sin_phi(ia) < 0.0_dp ) phi = - phi
-        grid_atom%phi(ia) = phi
-        grid_atom%sin_phi(ia)  = SIN(grid_atom%phi(ia))
-        IF(ABS(grid_atom%sin_phi(ia)) > EPSILON(1.0_dp)) THEN
-          grid_atom%cotan_phi(ia) = &
-                grid_atom%cos_phi(ia)/grid_atom%sin_phi(ia)
-        ELSE
-          grid_atom%cotan_phi(ia) = 0.0_dp
-        END IF
-
-        grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) )
-        IF(ABS(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
-          grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
-        ELSE
-          grid_atom%usin_theta(ia) = 1.0_dp
-        END IF
-
-      ENDDO
-
 !     *** calculate the spherical harmonics on the grid ***
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -944,9 +901,9 @@ MODULE qs_rho_atom_methods
       maxs=nsoset(maxl)
       CALL create_harmonics_atom(harmonics,&
                    my_CG,na,llmax,maxs,max_s_harm,ll,grid_atom%wa,&
-                   grid_atom%phi,grid_atom%cos_phi,&
-                   grid_atom%theta,grid_atom%cos_theta,&
-                   grid_atom%cotan_phi,error)
+                   grid_atom%azi,grid_atom%cos_azi,&
+                   grid_atom%pol,grid_atom%cos_pol,&
+                   grid_atom%cotan_azi,error)
       CALL get_maxl_CG(harmonics,orb_basis_set,my_CG,llmax,max_s_harm,error)
 
     END DO

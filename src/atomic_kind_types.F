@@ -36,8 +36,8 @@ MODULE atomic_kind_types
   USE external_potential_types,        ONLY: &
        all_potential_type, allocate_potential, deallocate_potential, &
        fist_potential_type, get_potential, gth_potential_type, &
-       init_potential, read_potential, set_default_all_potential, &
-       set_potential, write_potential
+       init_potential, local_potential_type, read_potential, &
+       set_default_all_potential, set_potential, write_potential
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_fist, do_method_am1, do_method_dftb, do_method_mndo, &
@@ -121,6 +121,7 @@ MODULE atomic_kind_types
 ! *****************************************************************************
   TYPE atomic_kind_type
      TYPE(all_potential_type), POINTER      :: all_potential
+     TYPE(local_potential_type), POINTER    :: tnadd_potential
      TYPE(fist_potential_type), POINTER     :: fist_potential
      TYPE(gth_potential_type), POINTER      :: gth_potential
      TYPE(semi_empirical_type), POINTER     :: se_parameter
@@ -230,6 +231,7 @@ CONTAINS
 
     DO ikind=1,nkind
        NULLIFY (atomic_kind_set(ikind)%all_potential)
+       NULLIFY (atomic_kind_set(ikind)%tnadd_potential)
        NULLIFY (atomic_kind_set(ikind)%fist_potential)
        NULLIFY (atomic_kind_set(ikind)%gth_potential)
        NULLIFY (atomic_kind_set(ikind)%se_parameter)
@@ -309,6 +311,9 @@ CONTAINS
        DO ikind=1,nkind
           IF (ASSOCIATED(atomic_kind_set(ikind)%all_potential)) THEN
              CALL deallocate_potential(atomic_kind_set(ikind)%all_potential,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%tnadd_potential)) THEN
+             CALL deallocate_potential(atomic_kind_set(ikind)%tnadd_potential,error)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%fist_potential)) THEN
              CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential,error)
@@ -422,7 +427,7 @@ CONTAINS
 !> \brief Get attributes of an atomic kind.
 !> \author MK (02.01.2002)
 ! *****************************************************************************
-  SUBROUTINE get_atomic_kind(atomic_kind, all_potential, fist_potential,&
+  SUBROUTINE get_atomic_kind(atomic_kind, all_potential, tnadd_potential, fist_potential,&
        gth_potential, se_parameter, scp_se_parameter, dftb_parameter, scptb_parameter, &
        aux_basis_set, ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, geminal_basis_set, &
        lri_basis_set, &
@@ -441,6 +446,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
       POINTER                                :: all_potential
+    TYPE(local_potential_type), OPTIONAL, &
+      POINTER                                :: tnadd_potential
     TYPE(fist_potential_type), OPTIONAL, &
       POINTER                                :: fist_potential
     TYPE(gth_potential_type), OPTIONAL, &
@@ -537,6 +544,7 @@ CONTAINS
 
        IF (PRESENT(softb)) softb_local = softb
        IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
+       IF (PRESENT(tnadd_potential)) tnadd_potential => atomic_kind%tnadd_potential
        IF (PRESENT(fist_potential)) fist_potential => atomic_kind%fist_potential
        IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
        IF (PRESENT(se_parameter))  se_parameter => atomic_kind%se_parameter
@@ -884,11 +892,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,&
        maxco,maxco_proj,maxgtop,maxgtops,maxlgto,maxlprj,&
-       maxlppl,maxlppnl,maxnset,maxpgf,&
+       maxlppl,maxlppnl,maxpol,maxnset,maxpgf,&
        maxppnl,maxsgf,maxsgf_set,maxshell,&
        natom,nelectron,ncgf,ncgf_aux, ncgf_ri_aux,&
        npgf,nset,nsgf,nshell,&
-       all_potential_present,fist_potential_present,&
+       all_potential_present,tnadd_potential_present,fist_potential_present,&
        gth_potential_present,paw_atom_present,&
        qm_atom_present,shell_present, shell_adiabatic,&
        shell_check_distance, dft_plus_u_atom_present,&
@@ -901,13 +909,13 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
-      maxgtop, maxgtops, maxlgto, maxlprj, maxlppl, maxlppnl, maxnset, &
-      maxpgf, maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, ncgf, &
-      ncgf_aux, ncgf_ri_aux, npgf, nset, nsgf, nshell
+      maxgtop, maxgtops, maxlgto, maxlprj, maxlppl, maxlppnl, maxpol, &
+      maxnset, maxpgf, maxppnl, maxsgf, maxsgf_set, maxshell, natom, &
+      nelectron, ncgf, ncgf_aux, ncgf_ri_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
-      fist_potential_present, gth_potential_present, paw_atom_present, &
-      qm_atom_present, shell_present, shell_adiabatic, shell_check_distance, &
-      dft_plus_u_atom_present, damping_present
+      tnadd_potential_present, fist_potential_present, gth_potential_present, &
+      paw_atom_present, qm_atom_present, shell_present, shell_adiabatic, &
+      shell_check_distance, dft_plus_u_atom_present, damping_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -937,6 +945,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, &
       lri_basis_set, orb_basis_set, ri_aux_basis_set, scp_basis_set, &
       soft_basis_set
+    TYPE(local_potential_type), POINTER      :: tnadd_potential
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(shell_kind_type), POINTER           :: shell
@@ -959,6 +968,7 @@ CONTAINS
        IF (PRESENT(maxlgto)) maxlgto = -1
        IF (PRESENT(maxlppl)) maxlppl = -1
        IF (PRESENT(maxlppnl)) maxlppnl = -1
+       IF (PRESENT(maxpol)) maxpol = -1
        IF (PRESENT(maxlprj)) maxlprj = -1
        IF (PRESENT(maxnset)) maxnset = 0
        IF (PRESENT(maxpgf)) maxpgf = 0
@@ -976,6 +986,7 @@ CONTAINS
        IF (PRESENT(nsgf)) nsgf = 0
        IF (PRESENT(nshell)) nshell = 0
        IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
+       IF (PRESENT(tnadd_potential_present)) tnadd_potential_present = .FALSE.
        IF (PRESENT(fist_potential_present)) fist_potential_present = .FALSE.
        IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
        IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
@@ -998,6 +1009,7 @@ CONTAINS
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                all_potential=all_potential,&
+               tnadd_potential=tnadd_potential,&
                fist_potential=fist_potential,&
                gth_potential=gth_potential,&
                aux_basis_set=aux_basis_set,&
@@ -1029,6 +1041,10 @@ CONTAINS
           IF (PRESENT(maxlppnl).AND.ASSOCIATED(gth_potential)) THEN
              CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
              maxlppnl = MAX(maxlppnl,imax)
+          END IF
+          IF (PRESENT(maxpol).AND.ASSOCIATED(tnadd_potential)) THEN
+             CALL get_potential(potential=tnadd_potential,npol=n)
+             maxpol = MAX(maxpol,2*(n - 1))
           END IF
           IF (PRESENT(maxcgf)) THEN
              IF (ASSOCIATED(aux_basis_set)) THEN
@@ -1572,6 +1588,11 @@ CONTAINS
                 all_potential_present = .TRUE.
              END IF
           END IF
+          IF (PRESENT(tnadd_potential_present)) THEN
+             IF (ASSOCIATED(tnadd_potential)) THEN
+                tnadd_potential_present = .TRUE.
+             END IF
+          END IF
           IF (PRESENT(fist_potential_present)) THEN
              IF (ASSOCIATED(fist_potential)) THEN
                 fist_potential_present = .TRUE.
@@ -1873,20 +1894,21 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-      aux_fit_basis_set_name, geminal_basis_set_name, keyword, &
-      lri_basis_set_name, orb_basis_set_name, potential_name, potential_type, &
-      ri_aux_basis_set_name
+      aux_fit_basis_set_name, geminal_basis_set_name, keyword, kgpot_name, &
+      kgpot_type, lri_basis_set_name, orb_basis_set_name, potential_name, &
+      potential_type, ri_aux_basis_set_name
     INTEGER                                  :: handle, i, i_rep, ipos, j, &
                                                 k_rep, l, m, n_rep, naux, &
                                                 ngauss, norb, norbitals, &
                                                 stat, z
     INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf, orbitals
     LOGICAL :: check, explicit, explicit_basis, explicit_geminal, &
-      explicit_potential, failure, section_enabled, subsection_enabled
+      explicit_kgpot, explicit_potential, failure, section_enabled, &
+      subsection_enabled
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(section_vals_type), POINTER :: basis_section, bs_section, &
       dft_plus_u_section, dft_section, enforce_occupation_section, &
-      geminal_section, potential_section, spin_section
+      geminal_section, kgpot_section, potential_section, spin_section
 
     CALL timeset(routineN,handle)
 
@@ -1898,6 +1920,8 @@ CONTAINS
     orb_basis_set_name = ""
     potential_name = ""
     potential_type = ""
+    kgpot_name = ""
+    kgpot_type = ""
     z = -1
     atomic_kind%mass=-1.0_dp
     zeff_correction = 0.0_dp
@@ -2022,6 +2046,8 @@ CONTAINS
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="POTENTIAL",c_val=potential_name,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="KG_POTENTIAL",c_val=kgpot_name,error=error)
        ! assign atom dependent defaults, only H special case
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,n_rep_val=i,&
             keyword_name="HARD_EXP_RADIUS",error=error)
@@ -2270,6 +2296,13 @@ CONTAINS
        CALL section_vals_get(potential_section, explicit=explicit_potential,error=error)
     END IF
 
+    explicit_kgpot = .FALSE.
+    IF (k_rep>0) THEN
+       kgpot_section  => section_vals_get_subs_vals(kind_section,"KG_POTENTIAL",&
+            i_rep_section=k_rep,can_return_null=.TRUE.,error=error)
+       CALL section_vals_get(kgpot_section, explicit=explicit_kgpot,error=error)
+    END IF
+
     explicit_geminal = .FALSE.
     IF (k_rep>0) THEN
        geminal_section  => section_vals_get_subs_vals(kind_section,"GEMINAL",i_rep_section=k_rep,&
@@ -2453,6 +2486,32 @@ CONTAINS
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "No potential type was defined for the "//&
                   "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+          END IF
+          ! Allocate and initialise the potential data set structure
+          IF ((kgpot_name /= '').OR.explicit_kgpot) THEN
+             ipos = INDEX(kgpot_name,"-")
+             IF (ipos > 1) THEN
+                kgpot_type = kgpot_name(:ipos-1)
+             ELSE
+                kgpot_type = kgpot_name
+             END IF
+             CALL uppercase(kgpot_type)
+
+             SELECT CASE (TRIM(kgpot_type))
+             CASE ("TNADD")
+                CALL allocate_potential(atomic_kind%tnadd_potential,error)
+                CALL read_potential(atomic_kind%element_symbol,kgpot_name,&
+                     atomic_kind%tnadd_potential,para_env,&
+                     dft_section,kgpot_section,error)
+             CASE ("NONE")
+                NULLIFY(atomic_kind%tnadd_potential)
+             CASE DEFAULT
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                     "An invalid kg_potential type <"//&
+                     TRIM(potential_name)//"> was specified "//&
+                     "for the atomic kind <"//&
+                     TRIM(atomic_kind%name),para_env)
+             END SELECT
           END IF
        END IF
     END SELECT
@@ -2766,6 +2825,7 @@ CONTAINS
           ! Potentials
           CALL write_potential(atomic_kind%all_potential,output_unit,error)
           CALL write_potential(atomic_kind%gth_potential,output_unit,error)
+          CALL write_potential(atomic_kind%tnadd_potential,output_unit,error)
           IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
              WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
                "A DFT+U correction is applied to atoms of this atomic kind:",&

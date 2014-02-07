@@ -30,6 +30,7 @@ MODULE qs_environment_methods
   USE f77_blas
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
+                                             kg_tnadd_embed,&
                                              use_aux_fit_basis_set
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -423,27 +424,31 @@ SUBROUTINE qs_create_task_list(qs_env, error)
     IF (dft_control%qs_control%do_kg) THEN
       soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
 
-      IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
-        DO isub=1,qs_env%kg_env%nsubsets
-          IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
-            CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
-        END DO
-      ELSE
-        ALLOCATE(qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
-      END IF
+      IF(qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
 
-      DO isub=1, qs_env%kg_env%nsubsets
+         IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
+           DO isub=1,qs_env%kg_env%nsubsets
+             IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
+               CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
+           END DO
+         ELSE
+           ALLOCATE(qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
+         END IF
 
-        CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
+         DO isub=1, qs_env%kg_env%nsubsets
 
-        ! generate the subset task list from the neighborlist
-        CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
-             reorder_rs_grid_ranks=.FALSE., soft_valid = soft_valid, &
-             skip_load_balance_distributed=skip_load_balance_distributed, &
-             sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb, &
-             error=error)
+           CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
 
-      END DO
+           ! generate the subset task list from the neighborlist
+           CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
+                reorder_rs_grid_ranks=.FALSE., soft_valid = soft_valid, &
+                skip_load_balance_distributed=skip_load_balance_distributed, &
+                sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb, &
+                error=error)
+
+         END DO
+
+       END IF
 
     END IF
 

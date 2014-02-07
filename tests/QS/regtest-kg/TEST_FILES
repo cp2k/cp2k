@@ -9,3 +9,5 @@ H2-libxc-ot.inp 11
 H2-libxc-diag.inp 11
 geo-phase-1.inp                  11     5e-07
 geo-phase-2.inp 0
+H2_KG-1.inp                      11     7e-07
+H2_KG-2.inp                      11     7e-07

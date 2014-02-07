@@ -946,6 +946,9 @@ MODULE input_constants
   ! kg coloring parameters
   INTEGER, PARAMETER, PUBLIC               :: kg_color_dsatur=0,&
                                               kg_color_greedy=1
+  ! kg kinetic energy embedding potential
+  INTEGER, PARAMETER, PUBLIC               :: kg_tnadd_embed =100,&
+                                              kg_tnadd_atomic=200
 
   ! swarm parameters
   INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt=1

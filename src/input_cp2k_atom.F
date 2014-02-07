@@ -248,6 +248,26 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"FIT_KGPOT",&
+            description="Fit an approximation to the non-additive kinetic energy potential used in KG",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL keyword_create(keyword, name="NUM_GAUSSIAN",&
+            description="Number of Gaussian terms for the fit",&
+            usage="NUM_GAUSSIAN integer ",type_of_var=integer_t,&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="NUM_POLYNOM",&
+            description="Number of terms in the polynomial expansion",&
+            usage="NUM_POLYNOM integer ",type_of_var=integer_t,&
+            default_i_val=4,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"RESPONSE_BASIS",&
             description="Calculate a response basis set contraction scheme",&
             print_level=high_print_level,filename="__STD_OUT__",&

@@ -11,8 +11,12 @@
 ! *****************************************************************************
 MODULE kg_correction
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
+  USE input_constants,                 ONLY: kg_tnadd_atomic,&
+                                             kg_tnadd_embed
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -46,6 +50,7 @@ CONTAINS
 !> \brief Calculates the subsystem Hohenberg-Kohn kinetic energy and the forces
 !> \par History
 !>       2012.06 created [Martin Haeufel]
+!>       2014.01 added atomic potential option [JGH]
 !> \author Martin Haeufel and Florian Schiffmann
 ! *****************************************************************************
   SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, &
@@ -60,6 +65,40 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(kg_environment_type), POINTER       :: kg_env
+
+    kg_env => qs_env%kg_env
+
+    IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
+
+       CALL kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, &
+                          v_tau_rspace, ekin_mol, calc_force, error)
+
+    ELSE IF (kg_env%tnadd_method == kg_tnadd_atomic) THEN
+
+       CALL kg_ekin_atomic(qs_env, ks_matrix, ekin_mol, error)
+
+    ELSE
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE kg_ekin_subset
+
+  SUBROUTINE kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, &
+       v_tau_rspace, ekin_mol, calc_force, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    LOGICAL, INTENT(in), OPTIONAL            :: gapw, gapw_xc
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    REAL(KIND=dp), INTENT(out)               :: ekin_mol
+    LOGICAL                                  :: calc_force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, isub, natom, &
@@ -175,6 +214,44 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE kg_ekin_subset
+  END SUBROUTINE kg_ekin_embed
+
+  SUBROUTINE kg_ekin_atomic(qs_env, ks_matrix, ekin_mol, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    REAL(KIND=dp), INTENT(out)               :: ekin_mol
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_atomic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: density_matrix, tnadd_matrix
+    TYPE(kg_environment_type), POINTER       :: kg_env
+
+    CALL timeset(routineN, handle)
+
+    kg_env => qs_env%kg_env
+
+    nspins = SIZE(ks_matrix)
+    ! get the density matrix
+    density_matrix => qs_env%rho%rho_ao
+    ! get the tnadd matrix
+    tnadd_matrix => qs_env%kg_env%tnadd_mat
+
+    ekin_mol = 0.0_dp
+    DO ispin=1,nspins
+       CALL cp_dbcsr_trace(tnadd_matrix(1)%matrix,density_matrix(ispin)%matrix,ekin_mol,error=error)
+       CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, tnadd_matrix(1)%matrix, &
+                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
+    END DO
+    ! definition is inverted (see qs_ks_methods)
+    ekin_mol = -ekin_mol
+
+    CALL timestop(handle)
+
+  END SUBROUTINE kg_ekin_atomic
 
 END MODULE kg_correction

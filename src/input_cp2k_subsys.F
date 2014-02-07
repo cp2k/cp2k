@@ -874,13 +874,47 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)",&
+            description="CP2K Pseudo Potential Standard Format (GTH, ALL)",&
             repeats=.TRUE.,type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
 
   END SUBROUTINE create_potential_section
+
+! *****************************************************************************
+!> \brief Creates the &KG_POTENTIAL section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE create_kgpot_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_kgpot_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="kg_potential",&
+            description="Section used to specify KG Potentials.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="CP2K KG TNADD Potential Standard Format (TNADD)",&
+            repeats=.TRUE.,type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_kgpot_section
 
 ! *****************************************************************************
 !> \brief Creates the &BASIS section
@@ -1296,6 +1330,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="KG_POTENTIAL",&
+            variants=(/ "KG_POT" /),&
+            description="The name of the non-additive atomic kinetic energy potential.",&
+            usage="KG_POTENTIAL <TNADD-POTENTIAL-NAME>", default_c_val="NONE", n_var=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
             description="The region where the hard density is supposed to be confined"//&
                         "(GAPW)(in Bohr, default is 1.2 for H and 1.512 otherwise)",&
@@ -1419,6 +1461,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_potential_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_kgpot_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
