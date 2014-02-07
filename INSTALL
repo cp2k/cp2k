@@ -272,6 +272,7 @@ How to compile CP2K code
      -D__USE_PAT            - craypat profiling (?)
      -D__HMD                - ?
      -D__HPM                - ?
+     -D_USE_GA              - Global Arrays Toolkit ?
 
  3e) The `I'm feeling lucky' version of building will try to guess what
      architecture you're on.

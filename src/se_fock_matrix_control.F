@@ -10,16 +10,12 @@
 ! *****************************************************************************
 MODULE se_fock_matrix_control
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-#ifdef _USE_GA
-  USE se_fock_matrix_ga,               ONLY: build_se_fock_matrix
-#else
-  USE se_fock_matrix_mpi,              ONLY: build_se_fock_matrix
-#endif
+  USE se_fock_matrix_ga,               ONLY: build_se_fock_matrix_ga
+  USE se_fock_matrix_mpi,              ONLY: build_se_fock_matrix_mpi
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -57,8 +53,15 @@ CONTAINS
     INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
-    CALL build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
-                               calculate_forces,just_energy,error)
+
+#ifdef _USE_GA
+    CALL build_se_fock_matrix_ga(ks_env,qs_env,ks_matrix,rho,energy,&
+       calculate_forces,just_energy,error)
+#else
+    CALL build_se_fock_matrix_mpi(ks_env,qs_env,ks_matrix,rho,energy,&
+       calculate_forces,just_energy,error)
+#endif
+
     CALL timestop(handle)
 
   END SUBROUTINE build_se_fock_matrix_control

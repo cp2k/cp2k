@@ -66,7 +66,7 @@ MODULE se_fock_matrix_ga
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   LOGICAL, PARAMETER, PRIVATE          :: debug_energy_coulomb_lr = .FALSE.
 
-  PUBLIC :: build_se_fock_matrix
+  PUBLIC :: build_se_fock_matrix_ga
 
 CONTAINS
 
@@ -76,7 +76,7 @@ CONTAINS
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
+  SUBROUTINE build_se_fock_matrix_ga (ks_env,qs_env,ks_matrix,rho,energy,&
        calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -88,7 +88,7 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix_ga', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, natom, &
@@ -286,7 +286,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE build_se_fock_matrix
+  END SUBROUTINE build_se_fock_matrix_ga
 
 END MODULE se_fock_matrix_ga
 

@@ -97,7 +97,21 @@ MODULE se_fock_matrix_coulomb_ga
   PUBLIC :: build_fock_matrix_coulomb, build_fock_matrix_coulomb_lr,&
             build_fock_matrix_coul_lr_r3
 
+
 CONTAINS
+
+! *****************************************************************************
+!> \brief A mockup for the ga_zero routine from the Global Arrays Toolkit.
+!> \author Ole Schuett
+! *****************************************************************************
+#ifndef _USE_GA 
+  SUBROUTINE  ga_zero (g_a)
+    INTEGER                                  :: g_a
+
+    STOP "se_fock_matrix_coulomb_ga: Compiled without _USE_GA."
+  END SUBROUTINE  ga_zero
+#endif
+
 
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
@@ -251,7 +265,11 @@ CONTAINS
          hi ( 1 ) = 2
          hi ( 2 ) = nbin + 1
          ld = 2
+#ifdef _USE_GA
          CALL nga_get ( ga_env % g_pair_list, lo, hi, pairs, ld )
+#else
+         STOP "se_fock_matrix_coulomb_ga: Compiled without _USE_GA."
+#endif
          ibin = pairs ( 1 )
          jbin = pairs ( 2 )
 !         CALL se_ga_get_nbin ( ga_env % g_cnt, nbin )
