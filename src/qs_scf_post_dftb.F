@@ -62,7 +62,7 @@ CONTAINS
   SUBROUTINE scf_post_calculation_dftb(dft_section, scf_env, qs_env, error)
 
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -97,8 +97,8 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+!    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+!    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     ! Here we start with data that needs a postprocessing...
     IF (.NOT. failure) THEN

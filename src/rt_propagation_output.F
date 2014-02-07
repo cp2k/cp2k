@@ -42,6 +42,7 @@ MODULE rt_propagation_output
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_available_results
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -382,7 +383,7 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
 
@@ -391,8 +392,12 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     CALL get_qs_env(qs_env,input=input,error=error)
-
-    CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    IF(qs_env%dft_control%qs_control%dftb)THEN
+       CALL scf_post_calculation_dftb(dft_section, qs_env=qs_env, error=error) 
+    ELSE
+       CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
+    END IF
     CALL timestop(handle)
 
   END SUBROUTINE make_moment

@@ -97,7 +97,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order, handle, i
-    LOGICAL                                  :: my_force
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -116,7 +115,6 @@ CONTAINS
     CALL get_rtp(rtp=rtp, mos_new=mos_new, error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
-    my_force=.NOT.rtp_control%fixed_ions
     rtp%delta_iter=1.0_dp
 
     ! keep temporary copy of the starting mos to check for convergence   
@@ -149,8 +147,7 @@ CONTAINS
     END SELECT
     CALL calc_update_rho(qs_env,error)
 
-    IF(rtp_control%fixed_ions)my_force=.FALSE.
-    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=my_force,&
+    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
          error=error)
 
     CALL step_finalize(qs_env,rtp_control,delta_mos,error)
@@ -312,6 +309,7 @@ CONTAINS
     END DO
     IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
        CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
+
        CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(1)%matrix,error)
        CALL cp_fm_to_fm(exp_H(1)%matrix,SinvB,error)
        IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(exp_H(1)%matrix,exp_H(3)%matrix,error)

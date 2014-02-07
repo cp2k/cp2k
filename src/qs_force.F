@@ -303,28 +303,26 @@ CONTAINS
        END IF
 
        ! Compute grid-based forces
-       IF (.NOT.qs_env%run_rtp) THEN
+       CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                                qs_env=qs_env,&
+                                calculate_forces=.TRUE.,error=error)
+
+       IF(ASSOCIATED(qs_env%mp2_env)) THEN
+         ! with MP2 we have to recalculate the SCF energy with the
+         ! correct density
+         DO ispin=1, qs_env%dft_control%nspins
+           CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, qs_env%matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
+         END DO
+         CALL qs_rho_update_rho(qs_env%rho, qs_env=qs_env, error=error)
+         CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
+                               s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
+                               error=error)
          CALL qs_ks_update_qs_env(ks_env=ks_env,&
                                   qs_env=qs_env,&
-                                  calculate_forces=.TRUE.,error=error)
-
-         IF(ASSOCIATED(qs_env%mp2_env)) THEN
-           ! with MP2 we have to recalculate the SCF energy with the
-           ! correct density
-           DO ispin=1, qs_env%dft_control%nspins
-             CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, qs_env%matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
-           END DO
-           CALL qs_rho_update_rho(qs_env%rho, qs_env=qs_env, error=error)
-           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
-                                 s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
-                                 error=error)
-           CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                                    qs_env=qs_env,&
-                                    just_energy=.TRUE.,error=error)
-           energy%total = energy%total + energy%mp2
-           ! deallocate mp2_W 
-           CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_w_mp2,error=error)
-         END IF
+                                  just_energy=.TRUE.,error=error)
+         energy%total = energy%total + energy%mp2
+         ! deallocate mp2_W 
+         CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_w_mp2,error=error)
        END IF
 
        ! Add forces resulting from wavefunction fitting

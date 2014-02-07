@@ -389,8 +389,10 @@ CONTAINS
     CASE(use_scf_wfn)
        qs_env%sim_time=0.0_dp
        qs_env%sim_step=0
+       ! force calculation for EMD has to be done in the EMD framework
+       ! see above in init_emd_run
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-            consistent_energies=.TRUE.,error=error)
+                                        consistent_energies=.TRUE.,error=error)
        qs_env%run_rtp=.TRUE.
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
