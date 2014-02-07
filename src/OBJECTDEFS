@@ -695,6 +695,7 @@ OBJECTS_GENERIC =\
  scptb_utils.o\
  se_core_core.o\
  se_core_matrix.o\
+ se_fock_matrix.o\
  se_fock_matrix_control.o\
  se_fock_matrix_coulomb.o\
  se_fock_matrix_coulomb_ga.o\
