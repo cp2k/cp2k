@@ -1,7 +1,5 @@
 #!/bin/sh
 rm -rf cp2k_input.xml CP2K_INPUT.html index.html index_javascript.html references.html units.html generate_manual_howto.html CP2K_INPUT/
-export FORT_C_NAME=g95
-export LD_LIBRARY_PATH=/local/openmpi-1.5.4-${FORT_C_NAME}/lib/:$LD_LIBRARY_PATH
 ../../exe/Linux-x86-64-${FORT_C_NAME}/cp2k.popt --xml
 ./xml2htm
-scp -r toggle_folding.js cp2k_input.xsl cp2k_input.xml CP2K_INPUT.html html_tables.html index.html references.html units.html generate_manual_howto.html favicon.png CP2K_INPUT/ ${CP2KORG}public_html/manual/trunk
+scp -r cp2k.vim toggle_folding.js cp2k_input.xsl cp2k_input.xml CP2K_INPUT.html html_tables.html index.html references.html units.html generate_manual_howto.html favicon.png CP2K_INPUT/ ${CP2KORG}public_html/manual/trunk

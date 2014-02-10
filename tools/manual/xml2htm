@@ -1,22 +1,7 @@
 #!/bin/sh
-# Provide path to saxon package
-export SAXON=/usr/share/java/saxon8.jar
-if [[ -n $1 ]]; then
-
-  # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
-  # saxon -o index.html cp2k_input.xml cp2k_input_javascript.xsl
-
-  # Java version from http://sourceforge.net/projects/saxon
-  # For Saxon 9 HE syntax has changed, use -o:index.html
-  java -jar $SAXON -o index.html cp2k_input.xml cp2k_input_$1.xsl add_edit_links=no
-
-else
-
-  # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
-  # saxon -o index.html cp2k_input.xml cp2k_input.xsl
-
-  # Java version from http://sourceforge.net/projects/saxon
-  # For Saxon 9 HE syntax has changed, use -o:index.html
-  java -jar $SAXON -o index.html cp2k_input.xml cp2k_input.xsl add_edit_links=no
-
-fi
+# Provide path to saxon
+# Java version from http://sourceforge.net/projects/saxon
+export SAXON=~/bin/saxon9he.jar
+java -jar $SAXON -o:index.html cp2k_input.xml cp2k_input.xsl add_edit_links=yes
+# Update the CP2K syntax file for the (g)vim editor
+java -jar $SAXON -o:cp2k.vim cp2k_input.xml ../input_editing/vim/vim.xsl
