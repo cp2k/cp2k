@@ -1,20 +1,29 @@
-#
-# gfortran arch file, recommended to use gfortran >= 4.6
-# building libraries (fftw3, libint, libxc, scalapack, smm) is needed to use this arch file, mkl is assumed but can be replaced by standard blas/lapack/scalapack (see pdbg)
-# ssmp is intended for production runs with an OMP threaded executable
-#
-CC       = cc
-CPP      = 
-
-FC       = gfortran
-LD       = gfortran
-
-AR       = ar -r
-
-CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__HAS_smm_dnn -D__LIBXC2
-FCFLAGS  = -fopenmp -O3 -march=native -ffast-math -g -ffree-form $(DFLAGS)
-LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libsmm/lib/  -L/opt/intel/composerxe-2011.3.174/mkl/lib/intel64  -L/data/vjoost/libxc-2.0.1/install/lib
-LIBS     = -lsmm_dnn -lderiv -lint -lstdc++ -lfftw3 -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lxc
+CC         = cc
+CPP        =
+FC         = gfortran
+LD         = gfortran
+AR         = ar -r
+ACML_INC   = $(ACMLPATH)/include
+ACML_LIB   = $(ACMLPATH)/lib
+FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu/include
+FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu/lib64
+LIBINT_INC = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/lib64
+LIBXC_INC  = $(GCC_DIR)/libxc/2.0.1-gnu/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/2.0.1-gnu/lib64
+DFLAGS     = -D__GFORTRAN -D__FFTACML -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2\
+             -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
+CPPFLAGS   = 
+FCFLAGS    = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none\
+             -fopenmp -ftree-vectorize -funroll-loops\
+             -mtune=native\
+             -I$(ACML_INC) -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+LDFLAGS    = $(FCFLAGS) -static-libgfortran
+LIBS       = $(ACML_LIB)/libacml.a\
+             $(FFTW_LIB)/libfftw3.a\
+             $(FFTW_LIB)/libfftw3_threads.a\
+             $(LIBXC_LIB)/libxc.a\
+             $(LIBINT_LIB)/libderiv.a\
+             $(LIBINT_LIB)/libint.a
 
 OBJECTS_ARCHITECTURE = machine_gfortran.o
