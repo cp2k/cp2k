@@ -1,17 +1,26 @@
-CC       = cc
-CPP      = 
-FC       = g95 
-LD       = g95
-AR       = ar -r
-DFLAGS   = -D__G95 -D__FFTSG -D__FFTW3 -D__LIBINT
-CPPFLAGS = 
-FCFLAGS  = $(DFLAGS) -I$(G95_INC) -ffree-form -O2 -ffast-math -march=opteron -cpp -g
-LDFLAGS  = $(FCFLAGS)
-LIBS     = $(G95_LIB)/liblapack.a \
-           $(G95_LIB)/libgoto.a \
-           $(G95_LIB)/libderiv.a \
-           $(G95_LIB)/libint.a \
-           $(G95_LIB)/libfftw3.a \
-           -lstdc++ -lpthread
+CC         = cc
+CPP        =
+FC         = g95
+LD         = g95
+AR         = ar -r
+FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-generic/include
+FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-generic/lib64
+LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-generic/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-generic/lib64
+LIBXC_INC  = $(GCC_DIR)/libxc/2.0.1-g95/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/2.0.1-g95/lib64
+DFLAGS     = -D__G95 -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2\
+             -D__HAS_NO_ISO_C_BINDING -D__HAS_NO_PROCEDURE_POINTER_CALLS
+FCFLAGS    = $(DFLAGS) -O2 -cpp -fbounds-check -ffast-math -ffree-form\
+             -ffree-line-length-huge -fno-second-underscore -ftrace=full -g\
+             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+LDFLAGS    = $(FCFLAGS)
+LIBS       = $(LIBPATH)/liblapack-g95.a\
+             $(LIBPATH)/libblas-g95.a\
+             $(FFTW_LIB)/libfftw3.a\
+             $(LIBXC_LIB)/libxc.a\
+             $(LIBINT_LIB)/libint_cpp_wrapper.o\
+             $(LIBINT_LIB)/libderiv.a\
+             $(LIBINT_LIB)/libint.a
 
 OBJECTS_ARCHITECTURE = machine_g95.o
