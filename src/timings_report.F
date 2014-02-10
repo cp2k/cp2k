@@ -251,7 +251,7 @@ MODULE timings_report
           r_report_j => list_get(reports, j)
           ! average stack depth
           asd = REAL(r_report_j%sum_stackdepth, KIND=dp) / &
-                REAL(MAX(1,r_report_j%sum_total_calls), KIND=dp)
+                REAL(MAX(1_int_8,r_report_j%sum_total_calls), KIND=dp)
           WRITE (UNIT=iw,FMT=fmt) &
               ADJUSTL(r_report_j%routineN(1:31)),&
               r_report_j%max_total_calls,&
