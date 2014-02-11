@@ -687,8 +687,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_march_section', &
       routineP = moduleN//':'//routineN
-    CHARACTER(len=32), PARAMETER :: has = "", &
-      hasnot = " (not available in this binary)"
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
