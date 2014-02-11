@@ -31,11 +31,10 @@ MODULE input_cp2k
        cudadrv_priority_buffers, cudadrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, has_blas, &
-       has_cuda, has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
-       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
-       mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm, &
-       multrec_limit
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
+       mm_driver_smm, mm_name_blas, mm_name_cuda, mm_name_matmul, &
+       mm_name_plasma, mm_name_smm, multrec_limit
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -825,11 +824,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section', &
       routineP = moduleN//':'//routineN
-    CHARACTER(len=32), PARAMETER             :: has = "", &
-                                                hasnot = " (not available)"
 
-    CHARACTER(len=64)                        :: a_blas, a_cuda, a_plasma, &
-                                                a_smm
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
@@ -841,29 +836,9 @@ CONTAINS
          description="Configuration options for the DBCSR library.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
-    !
-    IF (has_blas) THEN
-       a_blas = has
-    ELSE
-       a_blas = hasnot
-    ENDIF
-    IF (has_smm_gemm) THEN
-       a_smm = has
-    ELSE
-       a_smm = " (only BLAS wrapper available in this binary)"
-    ENDIF
-    IF (has_plasma) THEN
-       a_plasma = has
-    ELSE
-       a_plasma = hasnot
-    ENDIF
-    IF (has_cuda) THEN
-       a_cuda = has
-    ELSE
-       a_cuda = hasnot
-    ENDIF
-    !
-    NULLIFY(keyword)
+
+    NULLIFY (keyword)
+
     CALL keyword_create(keyword, name="subcommunicators",&
          description="Use MPI subcommunicators for transfers "// &
          "that are limited to process grid rows and columns.",&
@@ -901,24 +876,17 @@ CONTAINS
          "for matrix block multiplications.",&
          usage="mm_driver blas",&
          default_i_val=dbcsr_get_conf_mm_driver(),&
-         enum_c_vals=s2a(mm_name_blas,&
-         mm_name_matmul,&
-         mm_name_smm,&
-         mm_name_plasma,&
-         mm_name_cuda),&
-         enum_i_vals=(/&
-         mm_driver_blas,&
-         mm_driver_matmul,&
-         mm_driver_smm,&
-         mm_driver_plasma,&
-         mm_driver_cuda/),&
-         enum_desc=s2a(&
-         TRIM("BLAS"//a_blas),&
-         TRIM("Fortran MATMUL"),&
-         TRIM("libsmm: a library for small matrix multiplies"//a_smm),&
-         TRIM("PLASMA"//a_plasma),&
-         TRIM("CUDA"//a_cuda)&
-         ),&
+         enum_c_vals=s2a(mm_name_blas,mm_name_matmul,mm_name_smm,&
+                         mm_name_plasma,mm_name_cuda),&
+         enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,&
+                       mm_driver_plasma,mm_driver_cuda/),&
+         enum_desc=s2a("BLAS (requires the BLAS library at link time)",&
+                       "Fortran MATMUL",&
+                       "Library optimised for Small Matrix Multiplies "//&
+                       "(requires the SMM library at link time)",&
+                       "PLASMA (requires the PLASMA library at link time)",&
+                       "CUDA (requires the CUDA library at link time "//&
+                       "and GPU support at run time)"),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
