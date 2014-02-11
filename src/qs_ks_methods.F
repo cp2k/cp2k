@@ -53,16 +53,12 @@ MODULE qs_ks_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_symmetric
-
   USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-
-                                             cp_print_key_unit_nr
+                                             cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_symmetric
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -70,17 +66,15 @@ MODULE qs_ks_methods
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hfx_admm_utils,                  ONLY: admm_density_matrix,&
                                              hfx_ks_matrix
-  USE input_constants,                 ONLY: &
-       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
-       sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
+  USE input_constants,                 ONLY: do_ppl_grid
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_correction,                   ONLY: kg_ekin_subset
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -102,13 +96,11 @@ MODULE qs_ks_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
-                                             pw_release,&
-                                             pw_type
+                                             pw_release
   USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                              calculate_image_pot,&
                                              integrate_potential_devga_rspace
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
@@ -116,12 +108,10 @@ MODULE qs_ks_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_force_types,                  ONLY: qs_force_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                              integrate_rho_nlcc,&
-                                             integrate_v_core_rspace,&
-                                             integrate_v_rspace
+                                             integrate_v_core_rspace
   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
                                              qs_ks_mulliken_restraint,&
                                              qs_ks_s2_restraint
@@ -130,10 +120,10 @@ MODULE qs_ks_methods
                                              qmmm_modify_hartree_pot
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
-  USE qs_ks_utils,                     ONLY: low_spin_roks,&
-       sic_explicit_orbitals, calc_v_sic_rspace, print_densities,&
-       print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, ep_v_core,&
-       calculate_zmp_potential
+  USE qs_ks_utils,                     ONLY: &
+       calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, &
+       ep_v_core, low_spin_roks, print_densities, print_detailed_energy, &
+       sic_explicit_orbitals, sum_up_and_integrate
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -143,17 +133,12 @@ MODULE qs_ks_methods
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE rtp_admm_methods,                ONLY: rtp_admm_density_matrix,&
                                              rtp_admm_merge_ks_matrix
-  USE scp_energy_types,                ONLY: scp_energy_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
   USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
   USE surface_dipole,                  ONLY: calc_dipsurf_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE xc,                              ONLY: xc_exc_calc,&
-                                             xc_vxc_pw_create1
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

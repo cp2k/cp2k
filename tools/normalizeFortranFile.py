@@ -39,7 +39,7 @@ def readFortranLine(infile):
             comments=line
             break
         coreAtt=m.group("core")
-        joinedLine+=coreAtt
+        joinedLine = joinedLine.rstrip("\n") + coreAtt
         if coreAtt and not coreAtt.isspace(): continuation=0
         if m.group("continue"): continuation=1
         if m.group("comment"):
@@ -49,7 +49,7 @@ def readFortranLine(infile):
                 comments=m.group("comment")
         if not continuation: break
     return (joinedLine,comments,lines)
-    
+
 def parseRoutine(inFile):
     """Parses a routine"""
     startRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?:subroutine|function)",re.IGNORECASE)
@@ -248,7 +248,7 @@ def enforceDeclDependecies(declarations):
         if declarations[idecl]['parameters']:
             typeParam+=" "+declarations[idecl]['parameters']
         typeParam=typeParam.lower()
-        
+
         ivar=0
         while ivar<len(declarations[idecl]['vars']):
             moved=0
@@ -311,7 +311,7 @@ def sortDeclarations(declarations):
 
     declarations.sort(lambda x,y:cmp(x['normalizedType'].lower(),
                                   y['normalizedType'].lower()))
-    
+
     for i in range(len(declarations)-1,0,-1):
         if (declarations[i]['normalizedType'].lower()==
             declarations[i-1]['normalizedType'].lower()):
@@ -330,7 +330,7 @@ def writeRoutine(routine, outFile):
     outFile.writelines(routine["core"])
     outFile.writelines(routine["end"])
     outFile.writelines(routine["postRoutine"])
-    
+
 def writeInCols(dLine,indentCol,maxCol,indentAtt,file):
     """writes out the strings (trying not to cut them) in dLine up to maxCol
     indenting each newline with indentCol.
@@ -375,7 +375,7 @@ def writeCompactDeclaration(declaration,file):
         file.writelines(d['istart'])
         writeRoutine(d['iroutine'],file)
         file.writelines(d['iend'])
-    else:            
+    else:
         dLine=[]
         if len(d['vars'])>0:
             dLine.append("    "+d['type'])
@@ -412,7 +412,7 @@ def writeExtendedDeclaration(declaration,file):
         file.writelines(d['istart'])
         writeRoutine(d['iroutine'],file)
         file.writelines(d['iend'])
-    else:            
+    else:
         dLine=[]
         dLine.append("    "+d['type'])
         if d['parameters']: # do not drop empty parameter lists?
@@ -426,7 +426,7 @@ def writeExtendedDeclaration(declaration,file):
         file.write(" "*(44-indentAtt))
         file.write(" :: ")
         indentAtt=48
-        
+
         dLine=[]
         for var in d['vars'][:-1]:
             dLine.append(var+", ")
@@ -460,7 +460,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             return
     commentToRemoveRe=re.compile(r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",re.IGNORECASE)
     nullifyRe=re.compile(r" *nullify *\(([^()]+)\) *\n?",re.IGNORECASE|re.MULTILINE)
-    
+
     if not routine['kind']: return
     if (routine['core']):
         if re.match(" *type *[a-zA-Z_]+ *$",routine['core'][0],re.IGNORECASE):
@@ -491,7 +491,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
                 paramDecl.append(d)
             else:
                 decls.append(d)
-        
+
         sortDeclarations(paramDecl)
         sortDeclarations(decls)
         has_routinen=0
@@ -560,7 +560,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             aDecl=argDecl[:-1]
         else:
             aDecl=argDecl
-        
+
         # try to have arg/param/local, but checks for dependencies arg/param and param/local
         argDecl.extend(paramDecl)
         enforceDeclDependecies(argDecl)
@@ -615,7 +615,7 @@ def rmNullify(var,strings):
     var=var.lower()
     nullifyRe=re.compile(r" *nullify *\(", re.IGNORECASE)
     nullify2Re=re.compile(r"(?P<nullif> *nullify *\()(?P<vars>[^()!&]+)\)",re.IGNORECASE)
-    
+
     for i in xrange(len(strings)-1,-1,-1):
         line=strings[i]
         comments=[]
@@ -692,14 +692,14 @@ def parseUse(inFile):
             if comments:
                 print "jline",jline,"lines",lines
             useAtt={'module':m.group('module'),'comments':[]}
-            
+
             if m.group('only'):
                 useAtt['only']=map(string.strip,
                                    string.split(m.group('imports'),','))
             else:
                 useAtt['renames']=map(string.strip,
                                       string.split(m.group('imports'),','))
-		if useAtt['renames']==[""]: del useAtt['renames']
+                if useAtt['renames']==[""]: del useAtt['renames']
             if comments : useAtt['comments'].append(comments)
             # add use to modules
             modules.append(useAtt)
@@ -712,7 +712,7 @@ def parseUse(inFile):
                 preComments.append(("".join(lines)))
             elif comments:
                 modules[-1]['comments'].append(comments)
-        
+
     return {'modules':modules,'preComments':preComments,'commonUses':commonUses,
             'postLine':"".join(lines),'origLines':origLines[:-1]}
 
