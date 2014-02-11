@@ -1,0 +1,9 @@
+cublas.o      : cublas.cu memory_cuda.h
+error_cuda.o  : error_cuda.cu
+memory_cuda.o : memory_cuda.cu error_cuda.h
+device_cuda.o : device_cuda.cu error_cuda.h
+fft_cuda_z.o  : fft_cuda_z.cu fft_cuda_internal.h memory_cuda.h error_cuda.h
+pw_cuda_z.o   : pw_cuda_z.cu memory_cuda.h fft_cuda.h error_cuda.h
+ma_cuda_prop.o: ma_cuda_prop.cu
+cuda_nvtx_cu.o: cuda_nvtx_cu.cu
+

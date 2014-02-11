@@ -1,0 +1,10 @@
+LIBNV_OBJECTS = \
+cuda_nvtx_cu.o \
+error_cuda.o \
+memory_cuda.o \
+device_cuda.o \
+fft_cuda_z.o \
+pw_cuda_z.o \
+cublas.o \
+ma_cuda_prop.o
+

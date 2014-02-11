@@ -1,0 +1,8 @@
+dbcsr_cuda_calc.o     : dbcsr_cuda.h dbcsr_cuda_calc.cu
+dbcsr_cuda_trans.o    : dbcsr_cuda.h dbcsr_cuda_trans.cu libcusmm/libcusmm.h
+dbcsr_cuda_dev.o      : dbcsr_cuda.h dbcsr_cuda_dev.cu
+dbcsr_cuda_mem.o      : dbcsr_cuda.h dbcsr_cuda_mem.cu
+dbcsr_cuda_timing.o   : dbcsr_cuda.h dbcsr_cuda_timing.cu
+dbcsr_cuda_event_cu.o : dbcsr_cuda.h dbcsr_cuda_event_cu.cu
+dbcsr_cuda_stream_cu.o: dbcsr_cuda.h dbcsr_cuda_stream_cu.cu
+
