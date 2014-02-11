@@ -226,23 +226,22 @@ CONTAINS
     CALL neighbor_list_iterator_create(nl_iterator,sab_orb, nthread=nthread)
 
 !$OMP PARALLEL &
-!$OMP DEFAULT (NONE) &                                                                                      
-!$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial,&                             
-!$OMP          matrix_kg, matrix_p,virial, atomic_kind_set, particle_set, sab_orb, sac_kin, &                  
-!$OMP          nthread, ncoset, nkind, &                    
-!$OMP          atom_of_kind, ldsab,  maxnset, maxder, &                                                       
-!$OMP          maxlgto, nder, maxco) &                                                                        
-!$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, atom_a, &                   
-!$OMP          atom_b, first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a,&                                    
-!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b,&                 
-!$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &                  
-!$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &                       
-!$OMP          atomic_kind, gth_potential, &                                  
-!$OMP          radius, alpha, nct, imol, jmol, kmol,&                            
-!$OMP          npol, ngau, cval, ccval, ap_iterator, rac, dac, rbc, dbc, &                             
-!$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &                                   
-!$OMP          f0, failure, katom, ppl_work, atom_c,&                                                        
-!$OMP          error, stat, ldai)                 
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial,&
+!$OMP          matrix_kg, matrix_p,virial, atomic_kind_set, particle_set, sab_orb, sac_kin, &
+!$OMP          nthread, ncoset, nkind, &
+!$OMP          atom_of_kind, ldsab,  maxnset, maxder, &
+!$OMP          maxlgto, nder, maxco, atom_to_molecule) &
+!$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, atom_a, &
+!$OMP          atom_b, first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
+!$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &
+!$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
+!$OMP          atomic_kind, radius, alpha, nct, imol, jmol, kmol,&
+!$OMP          npol, ngau, cval, ccval, ap_iterator, rac, dac, rbc, dbc, &
+!$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
+!$OMP          f0, failure, katom, ppl_work, atom_c,&
+!$OMP          error, stat, ldai,tnadd_potential)
 
         mepos=0
 !$      mepos=omp_get_thread_num()
@@ -262,7 +261,7 @@ CONTAINS
        ALLOCATE (ppl_fwork(ldai,ldai,maxder),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-      
+
     last_iatom = 0
     last_jatom = 0
     DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
@@ -356,7 +355,7 @@ CONTAINS
                               p_block(sgfb,sgfa),SIZE(p_block,1),&
                               0.0_dp,work(1,1),SIZE(work,1))
                       END IF
-                      
+
                       CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
                            1.0_dp,work(1,1),SIZE(work,1),&
                            sphi_b(1,sgfb),SIZE(sphi_b,1),&
@@ -458,12 +457,12 @@ CONTAINS
                            rab,dab,rac,dac,rbc,dbc,hab(:,:,iset,jset),ppl_work,&
                            error=error)
                    END IF
-                END DO  
-             END DO  
-          END DO   
+                END DO
+             END DO
+          END DO
           DEALLOCATE(ccval,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END DO      
+       END DO
 
        ! *** Contract integrals
        DO iset=1,nseta
@@ -493,14 +492,14 @@ CONTAINS
 !$OMP END CRITICAL(h_block_critical)
 
           END DO
-       END DO  
-    END DO  
+       END DO
+    END DO
 
     CALL neighbor_list_iterator_release(ap_iterator)
-        
+
     DEALLOCATE(hab,work,ppl_work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        
+
     IF (calculate_forces) THEN
        DEALLOCATE(pab,ppl_fwork,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
