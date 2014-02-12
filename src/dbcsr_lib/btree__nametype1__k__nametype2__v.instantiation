@@ -2,16 +2,6 @@
     {'nametype1':'i8',
      'type1':'INTEGER(KIND=keyt)',
      'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
-     'nametype2':'i4',
-     'type2':'INTEGER(KIND=valt)',
-     'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5)',
-     'defaultFormatType1':'I12',
-     'defaultFormatType2':'I6',
-     'accessorType2':''
-     },
-    {'nametype1':'i8',
-     'type1':'INTEGER(KIND=keyt)',
-     'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
      'nametype2':'sp2d',
      'type2':'TYPE(sp2d)',
      'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);\n'\
