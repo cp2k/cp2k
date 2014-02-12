@@ -22,5 +22,4 @@ LIBS     = /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/libint_cpp_wrapper
 #
 LIBS     = /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/libint_cpp_wrapper.o /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/lib/libderiv.a /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/lib/libint.a /home/u1/vondele/scalapack/lib/libscalapack.a /home/u1/vondele/scalapack/lib/blacsF77.a /home/u1/vondele/scalapack/lib/blacs.a /home/u1/vondele/scalapack/lib/libreflapack.a /home/u1/vondele/scalapack/lib/libf77blas.a /home/u1/vondele/scalapack/lib/libatlas.a  -lstdc++ -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o
 

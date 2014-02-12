@@ -9,4 +9,3 @@ FCFLAGS  = -C -D__DEC -D__FFTSG -D__FFTW -automatic -g -u -fpe0 -synchronous_exc
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/fftw/tc2k/lib
 LIBS     = -ldxml -lfftw
 
-OBJECTS_ARCHITECTURE = machine_dec.o

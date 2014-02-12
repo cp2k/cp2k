@@ -21,4 +21,3 @@ LIBS     = /users/teo/lib/64/liblapack_nag.a \
 	   -lstdc++ -lpthread
 
 
-OBJECTS_ARCHITECTURE = machine_nag.o

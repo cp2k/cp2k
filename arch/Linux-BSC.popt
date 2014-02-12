@@ -18,7 +18,6 @@ LIBS     = -lscalapack /gpfs/apps/SCALAPACK/lib64/blacsF77init_MPI-PPC-0.a\
            /gpfs/apps/SCALAPACK/lib64/blacs_MPI-PPC-0.a -lmpich -lgm -lpthread\
            -llapack -Wl,-Bstatic -lblas -lmass_64 -Wl,-Bdynamic -lessl
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 
 ### To speed up compilation time ###
 mc_moves.o: mc_moves.f90

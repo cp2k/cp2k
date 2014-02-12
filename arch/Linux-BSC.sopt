@@ -13,7 +13,6 @@ LDFLAGS  = $(FCFLAGS) -L/gpfs/apps/LAPACK/lib64 -L/usr/lib64\
            -L/gpfs/apps/DEV/cpp/xlmass/4.3/lib64 -L/gpfs/apps/BLAS/blas-1.0.0/64/lib
 LIBS     = -llapack -Wl,-Bstatic -lblas -lmass_64 -Wl,-Bdynamic -lessl
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 
 ### To speed up compilation time ###
 mc_moves.o: mc_moves.f90

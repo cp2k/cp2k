@@ -12,7 +12,6 @@
 !>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
 ! *****************************************************************************
-MODULE machine_nag
   USE f77_blas
   USE f90_unix
   USE f90_unix_dir
@@ -313,7 +312,6 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_nag
 
 #else
 
@@ -323,7 +321,6 @@ END MODULE machine_nag
 !>      - print_memory changed (24.09.2002,MK)
 !>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
-MODULE machine_nag
   USE f77_blas
   USE kinds,                           ONLY: dp, int_8
 
@@ -500,6 +497,5 @@ END SUBROUTINE m_getarg
 
   END SUBROUTINE m_mov
 
-END MODULE machine_nag
 
 #endif

@@ -21,4 +21,3 @@ LIBS     = /project/cray/alazzaro/libsmm/intel_avx/libsmm_dnn.a -lfftw3 -lfftw3_
 	   ${MKL_LIB}/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
 	   ${MKL_LIB}/libmkl_core.a ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a -Wl,--end-group
 
-OBJECTS_ARCHITECTURE = machine_intel.o

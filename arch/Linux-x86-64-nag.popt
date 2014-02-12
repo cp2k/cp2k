@@ -16,4 +16,3 @@ LIBS     = $(NAG_LIB)/libscalapack.a \
            -lpthread
 
 
-OBJECTS_ARCHITECTURE = machine_nag.o

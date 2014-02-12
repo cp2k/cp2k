@@ -19,4 +19,3 @@ NVFLAGS  = $(DFLAGS) -O3 -arch sm_35
 LIBS     = /project/cray/alazzaro/libsmm/gfortran_xk7/libsmm_dnn.a -lfftw3 -lfftw3_threads \
 	   -lcudart -lrt
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

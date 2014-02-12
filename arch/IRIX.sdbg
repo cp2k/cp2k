@@ -10,4 +10,3 @@ FCFLAGS  = -C -D__IRIX -D__FFTSG -D__FFTW -D__FFTSGI -automatic -g\
 LDFLAGS  = $(FCFLAGS) -L/usr/local/lib
 LIBS     = -lfftw -lcomplib.sgimath
 
-OBJECTS_ARCHITECTURE = machine_irix.o

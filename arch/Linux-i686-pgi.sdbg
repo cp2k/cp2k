@@ -10,4 +10,3 @@ FCFLAGS  = $(DFLAGS) -Mbounds -g
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

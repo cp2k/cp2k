@@ -10,4 +10,3 @@ LDFLAGS  = $(FCFLAGS)
 LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Xlinker -Wl,-Y -Wl,-Xlinker -Wl,10
 RANLIB   = ranlib
 
-OBJECTS_ARCHITECTURE = machine_nag.o

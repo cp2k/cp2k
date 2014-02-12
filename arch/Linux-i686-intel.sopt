@@ -16,4 +16,3 @@ FCFLAGS  = $(DFLAGS) -O3 -Vaxlib
 LDFLAGS  = $(FCFLAGS) -L/usr/local/intel/mkl60/lib/32/ -L/home/jv244/lib
 LIBS     = /usr/local/intel/mkl60/lib/32/libmkl_lapack.a /usr/local/intel/mkl60/lib/32/libmkl_ia32.a -lguide -lfftw
 
-OBJECTS_ARCHITECTURE = machine_intel.o

@@ -25,4 +25,3 @@ LIBS     = $(MKLPATH)/libmkl_lapack.a\
            $(MKLPATH)/libguide.a\
            -lpthread
 
-OBJECTS_ARCHITECTURE = machine_intel.o

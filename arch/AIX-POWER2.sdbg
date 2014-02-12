@@ -13,4 +13,3 @@ LDFLAGS  = $(FCFLAGS) -L/home/vondele/lapack/ \
            -bmaxdata:0x40000000 -bnoquiet
 LIBS     = -llapack -lesslp2 -lhmd
 
-OBJECTS_ARCHITECTURE = machine_aix.o

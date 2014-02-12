@@ -11,4 +11,3 @@ LDFLAGS  = $(FCFLAGS) -L/home/pool30/qs/lib -L/home/users/aps/lib/fftw/lib\
            -bmaxdata:0x80000000 -bnoquiet
 LIBS     = -lmass -llapack -lesslp2 -lfftw-double -lhm
 
-OBJECTS_ARCHITECTURE = machine_aix.o

@@ -9,4 +9,3 @@ FCFLAGS  = -g -en -N11 -YEXT_SFX=_ -YEXT_NAMES=LCS
 LDFLAGS  = $(FCFLAGS) -L/Applications/Absoft/lib -X -Y -X 10
 LIBS     = -llapack -lblas -lU77
 
-OBJECTS_ARCHITECTURE = machine_absoft.o

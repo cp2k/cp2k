@@ -20,4 +20,3 @@ LIBS     = $(NAG_LIB)/libscalapack.a \
 
 
 
-OBJECTS_ARCHITECTURE = machine_nag.o

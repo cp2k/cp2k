@@ -28,7 +28,6 @@ LDFLAGS  = -O2
 LIBS     = ${MLIB_LDFLAGS}
 
 
-OBJECTS_ARCHITECTURE = machine_intel.o
 
 glob_matching.o: glob_matching.F
 	$(FC) -c $(FCFLAGS2) $<

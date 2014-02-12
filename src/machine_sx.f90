@@ -7,14 +7,12 @@
 !> \par History
 !>      - m_flush added (12.06.2002,MK)
 !>      - print_memory changed (24.09.2002,MK)
-!> \author APSI & JGH
+!> \author SM
 ! *****************************************************************************
-MODULE machine_absoft
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             int_8,&
-                                             sp
+                                             int_8
 
   IMPLICIT NONE
 
@@ -49,6 +47,7 @@ CONTAINS
 
 ! returns if a process is running on the local machine
 ! 1 if yes and 0 if not
+
 INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     INTEGER           ::   id, ios
     CHARACTER(len=80) ::   filename, tmp
@@ -96,11 +95,9 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    REAL(sp)                                 :: d, etime, tarray(2)
+    INTEGER                                  :: mclock
 
-  EXTERNAL etime
-  d=ETIME(tarray)
-  ct = REAL(tarray(1),KIND=dp)
+  ct = mclock()*0.01_dp
 END FUNCTION m_cputime
 
 ! *****************************************************************************
@@ -112,7 +109,9 @@ END FUNCTION m_cputime
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-    CALL flush(lunit)
+    INTEGER                                  :: istat
+
+    CALL flush(lunit,istat)
 
   END SUBROUTINE m_flush
 
@@ -148,21 +147,20 @@ END SUBROUTINE m_hostnm
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
 
-    CHARACTER(len=255)                       :: dir
     INTEGER                                  :: getcwd, ierror
 
-  ierror = getcwd(dir)
-  curdir = dir
+  ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
 ! *****************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
     INTEGER, INTENT(OUT)                     :: ierror
 
-! ierror = chdir(dir)
+    INTEGER                                  :: chdir
 
-    STOP
+    ierror = chdir(dir)
 END SUBROUTINE m_chdir
+
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
@@ -192,4 +190,3 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_absoft

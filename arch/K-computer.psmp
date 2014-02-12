@@ -20,4 +20,3 @@ FCFLAGS  = -Kvisimpact,array_private,auto,ilfunc,ocl,NOFLTLD \
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib 
 LIBS     = $(FCFLAGS) -SSL2BLAMP -SCALAPACK -Ntl_trt
 
-OBJECTS_ARCHITECTURE = machine_intel.o

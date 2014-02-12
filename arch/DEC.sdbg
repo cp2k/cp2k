@@ -9,4 +9,3 @@ FCFLAGS  = -C -D__DEC -D__FFTSG -D__FFTW -automatic -g -u
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib
 LIBS     = -ldxml -lfftw-double
 
-OBJECTS_ARCHITECTURE = machine_dec.o

@@ -21,4 +21,3 @@ FCFLAGS  = -O3 -xarch=v9b -dalign -fsimple=2 -fns -openmp
 LDFLAGS  = $(FCFLAGS) -openmp
 LIBS     = $(LIBDIRS) -xlic_lib=sunperf -lfftw -larpack_SUN 
 
-OBJECTS_ARCHITECTURE = machine_sun.o

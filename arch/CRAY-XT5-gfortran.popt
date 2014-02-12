@@ -10,5 +10,4 @@ FCFLAGS  = -g -O2 -ffast-math -funroll-loops -ftree-vectorize -march=native -ffr
 LDFLAGS  = $(FCFLAGS)
 LIBS     = /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/libint_cpp_wrapper.o /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/lib/libderiv.a /home/u1/vondele/cp2k/tools/hfx_tools/libint_tools/lib/libint.a /home/u1/vondele/scalapack/lib/libscalapack.a /home/u1/vondele/scalapack/lib/blacsF77.a /home/u1/vondele/scalapack/lib/blacs.a  /opt/acml/4.2.0/gfortran64/lib/libacml.a -lstdc++
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o
 

@@ -15,4 +15,3 @@ FCFLAGS  = -O2 -qarch=450d  -qtune=450  -I/sp/LIB/BGP/fftw-3.1.2/include
 LDFLAGS  = $(FCFLAGS) -O2  -qarch=450d -qtune=450  -qnosave  --allow-multiple-definition
 LIBS     = -L/sp/LIB/BGP/  -L/sp/LIB/BGP/fftw-3.1.2/lib -lmass -lscalapack -lblacsF77init -lblacs -llapack -lesslbg -lfftw3  --allow-multiple-definition 
 
-OBJECTS_ARCHITECTURE = machine_aix.o

@@ -9,9 +9,9 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-MODULE machine_pgi
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_8
 
   IMPLICIT NONE
@@ -19,8 +19,8 @@ MODULE machine_pgi
   PRIVATE
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg,&
-            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
             m_procrun
 
 CONTAINS
@@ -95,8 +95,11 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    CALL CPU_TIME(ct)
+    INTEGER                                  :: mclock
+
+  ct = mclock()*0.01_dp
 END FUNCTION m_cputime
+
 ! *****************************************************************************
 !> \brief   Flush the output to a logical unit.
 !> \author  MK
@@ -104,10 +107,11 @@ END FUNCTION m_cputime
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE m_flush(lunit)
-
     INTEGER, INTENT(IN)                      :: lunit
 
-    CALL flush(lunit)
+    INTEGER                                  :: istat
+
+    CALL flush(lunit,istat)
 
   END SUBROUTINE m_flush
 
@@ -124,7 +128,10 @@ END FUNCTION m_cputime
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
+    CHARACTER(LEN=2*default_string_length+4) :: cmd
+
+    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+    CALL system(cmd)
 
   END SUBROUTINE m_mov
 
@@ -153,6 +160,7 @@ SUBROUTINE m_chdir(dir,ierror)
 
     ierror = chdir(dir)
 END SUBROUTINE m_chdir
+
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
@@ -182,4 +190,3 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_pgi

@@ -9,4 +9,3 @@ FCFLAGS  = -O0 -g   -cpp -ftrace=full -fbounds-check
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = /Volumes/Big/Users/joost/LAPACK_g95/lapack_g95_opt.a /Volumes/Big/Users/joost/LAPACK_g95/blas_g95_opt.a
 
-OBJECTS_ARCHITECTURE = machine_g95.o

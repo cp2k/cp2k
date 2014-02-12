@@ -21,9 +21,6 @@ FCFLAGS += -C -d -g -qarch=pwr3 -qfullpath\
 # flags for the linker
 LDFLAGS += -bnoquiet
 
-# machine dependent functions are in the following file
-OBJECTS_ARCHITECTURE = machine_aix.o
-
 #
 # *** required libraries ***
 #

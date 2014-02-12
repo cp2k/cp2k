@@ -16,4 +16,3 @@ FCFLAGS  = -O2 -fopenmp -ffast-math -funroll-loops -ftree-vectorize -march=nativ
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas -lfftw3
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

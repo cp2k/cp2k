@@ -10,7 +10,6 @@ FCFLAGS2 = -target=catamount -O1
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
-OBJECTS_ARCHITECTURE = machine_xt3.o
 
 qs_oce_methods.o: qs_oce_methods.F
 	$(FC) -c $(FCFLAGS2) $<

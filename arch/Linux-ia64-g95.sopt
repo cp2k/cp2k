@@ -9,4 +9,3 @@ FCFLAGS  = -cpp -O3  -ffast-math
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = /a3k/userinfm/cmptskz5/test/LAPACK_g95/lapack_g95_opt.a /a3k/userinfm/cmptskz5/test/LAPACK_g95/blas_g95_opt.a
 
-OBJECTS_ARCHITECTURE = machine_g95.o

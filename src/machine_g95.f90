@@ -7,20 +7,23 @@
 !> \par History
 !>      - m_flush added (12.06.2002,MK)
 !>      - print_memory changed (24.09.2002,MK)
+!>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
 ! *****************************************************************************
-MODULE machine_xt5
-
+  USE ISO_C_BINDING,                   ONLY: C_INT64_T
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 
   IMPLICIT NONE
 
+  INTEGER(KIND=C_INT64_T), bind(C, name='_g95_total_alloc') :: total_memory
+
   PRIVATE
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg,&
-            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory,m_mov, m_memory_details, &
             m_procrun
 
 CONTAINS
@@ -30,7 +33,7 @@ FUNCTION m_loc_r(a) RESULT(res)
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
-  res=-1
+    res=LOC(a)
 END FUNCTION m_loc_r
 
 ! *****************************************************************************
@@ -39,7 +42,7 @@ FUNCTION m_loc_c(a) RESULT(res)
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
-  res=-1
+    res=LOC(a)
 END FUNCTION m_loc_c
 
 ! can be used to get a nice core
@@ -48,13 +51,14 @@ SUBROUTINE m_abort()
    CALL abort()
 END SUBROUTINE m_abort
 
+! the number of arguments of the fortran program
 ! *****************************************************************************
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
 
-    INTEGER, EXTERNAL                        :: iargc
+    INTEGER                                  :: iargc
 
-  ic = iargc()
+    ic = iargc()
 END FUNCTION m_iargc
 
 !!  cpu time in seconds
@@ -62,28 +66,15 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-#if defined(__parallel)
-    REAL(KIND=dp), EXTERNAL                  :: MPI_WTIME
-
-    ct = MPI_WTIME()
-#else
-    INTEGER                                  :: mclock
-
-    ct = mclock()*0.01_dp
-#endif
+    CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 
-! *****************************************************************************
-!> \brief   Flush the output to a logical unit.
-!> \author  MK
-!> \date    14.10.1999
-!> \version 1.0
+! flush a given unit
 ! *****************************************************************************
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
     CALL flush(lunit)
-
   END SUBROUTINE m_flush
 
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
@@ -97,7 +88,7 @@ END FUNCTION m_cputime
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
-      m_memory=0
+      m_memory=total_memory
 #else
       CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
@@ -155,7 +146,6 @@ END FUNCTION m_cputime
      MemLikelyFree=0
      meminfo=""
 
-#ifndef __NO_STATM_ACCESS
      OPEN(UNIT=8123,file="/proc/meminfo",ACCESS="STREAM",ERR=901)
      i=0
      DO
@@ -182,7 +172,7 @@ END FUNCTION m_cputime
         INTEGER(int_8) FUNCTION get_field_value_in_bytes(field)
            CHARACTER(LEN=*) :: field
            INTEGER :: start
-           INTEGER(KIND=int_8) :: value
+           INTEGER(KIND=8) :: value
            get_field_value_in_bytes=0
            start=INDEX(meminfo,field)
            IF (start.NE.0) THEN
@@ -195,8 +185,6 @@ END FUNCTION m_cputime
               ENDIF
            ENDIF
         END FUNCTION
-#endif
-
   END SUBROUTINE m_memory_details
 
 ! returns if a process is running on the local machine
@@ -207,7 +195,20 @@ INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     CHARACTER(len=80) ::   filename, tmp
     CHARACTER(len=8)  ::   id_s
 
-    run_on = 0
+    WRITE(id_s,'(I8)') id
+
+    id_s = ADJUSTL(id_s)
+
+    tmp = "/proc/" // TRIM(id_s) // "/stat"
+    filename = TRIM(tmp)
+
+    OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
+    IF (ios /= 0) THEN
+        run_on = 0
+    ELSE
+       run_on = 1
+       CLOSE(87)
+    ENDIF
 
 END FUNCTION m_procrun
 
@@ -217,7 +218,7 @@ END FUNCTION m_procrun
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
+    CALL rename(TRIM(source),TRIM(TARGET))
 
   END SUBROUTINE m_mov
 
@@ -227,16 +228,18 @@ SUBROUTINE m_hostnm(hname)
 
     INTEGER                                  :: hostnm, ierror
 
-  ierror = hostnm(hname)
+    ierror=hostnm(hname)
 END SUBROUTINE m_hostnm
+
 ! *****************************************************************************
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
 
     INTEGER                                  :: getcwd, ierror
 
-  ierror = getcwd(curdir)
+    ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
+
 ! *****************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
@@ -246,33 +249,38 @@ SUBROUTINE m_chdir(dir,ierror)
 
     ierror = chdir(dir)
 END SUBROUTINE m_chdir
+
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
-  CALL getlog(user)
+    CALL getlog(user)
 END SUBROUTINE m_getlog
+
 ! *****************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
 
     INTEGER                                  :: getuid
 
-  uid = getuid()
+    uid = getuid()
 END SUBROUTINE m_getuid
+
 ! *****************************************************************************
 SUBROUTINE m_getpid(pid)
     INTEGER, INTENT(OUT)                     :: pid
 
     INTEGER                                  :: getpid
 
-  pid = getpid()
+    pid = getpid()
 END SUBROUTINE m_getpid
+
 ! *****************************************************************************
 SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
     CHARACTER(len=*), INTENT(OUT)            :: arg
 
-  CALL getarg(i,arg)
+    CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_xt5
+
+

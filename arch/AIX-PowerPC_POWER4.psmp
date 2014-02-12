@@ -12,4 +12,3 @@ LDFLAGS  = $(FCFLAGS) -L/usr/local/lib -L/apps/mass/lib -bnoquiet\
 LIBS     = -lscalapack -lblacsF77init -lblacs\
            -llapack -lesslsmp -lmass -lhm
 
-OBJECTS_ARCHITECTURE = machine_aix.o

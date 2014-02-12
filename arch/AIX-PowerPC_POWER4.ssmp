@@ -10,4 +10,3 @@ LDFLAGS  = $(FCFLAGS) -L/usr/local/lib -L/apps/mass/lib -bnoquiet\
            -bmaxdata:0x80000000 -bmaxstack:0x80000000
 LIBS     = -llapack_IBM64_r -lesslsmp -lmass -lhm
 
-OBJECTS_ARCHITECTURE = machine_aix.o

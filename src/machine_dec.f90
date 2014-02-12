@@ -9,7 +9,6 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-MODULE machine_sun
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -48,7 +47,6 @@ CONTAINS
 
 ! returns if a process is running on the local machine
 ! 1 if yes and 0 if not
-
 INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     INTEGER           ::   id, ios
     CHARACTER(len=80) ::   filename, tmp
@@ -57,7 +55,6 @@ INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     run_on = 0
 
 END FUNCTION m_procrun
-
 
 ! *****************************************************************************
 FUNCTION m_loc_r(a) RESULT(res)
@@ -96,14 +93,9 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    REAL                                     :: cto
+    REAL(KIND=4)                             :: etime, timearray( 2 )
 
-! REAL ( KIND = 4 ) :: etime, timearray ( 2 )
-! ct = REAL ( etime ( timearray ),KIND=dp)
-! ct = REAL ( timearray (1),KIND=dp)
-
-  CALL cpu_time(cto)
-  ct = cto
+  ct = REAL ( etime ( timearray ),KIND=dp)
 END FUNCTION m_cputime
 
 ! *****************************************************************************
@@ -112,11 +104,10 @@ END FUNCTION m_cputime
 !> \date    14.10.1999
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE m_flush(lunit)
+SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-! there seems to be a problem with calling flush too often (MD) ....
-! CALL flush(lunit)
+    CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
@@ -194,4 +185,3 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_sun

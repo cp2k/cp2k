@@ -12,4 +12,3 @@ LIBS     = -llapack440 -lmassv -lblas440 -lscalapack \
            -lb-d -lscalapack \
            /home/ikuo/LIB.BGL/blacs_MPI-BGL-0.a
 
-OBJECTS_ARCHITECTURE = machine_aix.o

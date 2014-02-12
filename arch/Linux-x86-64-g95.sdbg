@@ -24,4 +24,3 @@ LIBS       = $(LIBPATH)/liblapack-g95.a\
              $(LIBINT_LIB)/libderiv.a\
              $(LIBINT_LIB)/libint.a
 
-OBJECTS_ARCHITECTURE = machine_g95.o

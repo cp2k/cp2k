@@ -12,4 +12,3 @@ LDFLAGS  = $(FCFLAGS)
 LIBS     = -lscalapack_linux -lmpiblacs_f77init_linux -lmpiblacs_linux \
            -lmpiblacs_f77init_linux -llapack -lblas -L/home/fawzi/lib
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

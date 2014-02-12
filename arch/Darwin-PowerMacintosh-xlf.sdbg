@@ -11,4 +11,3 @@ LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10
 RANLIB   = ranlib
 POST_PROC= sed -n "/^\#pragma/!p"
 
-OBJECTS_ARCHITECTURE = machine_aix.o

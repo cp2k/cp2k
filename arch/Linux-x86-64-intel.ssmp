@@ -25,4 +25,3 @@ LIBS     = $(INTEL_LIB)/libacml.a\
            $(INTEL_LIB)/libacml_mv.a \
            $(INTEL_LIB)/libfftw3.a
 
-OBJECTS_ARCHITECTURE = machine_intel.o

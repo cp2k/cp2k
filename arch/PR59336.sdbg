@@ -13,4 +13,3 @@ FCFLAGS  = -fno-prefetch-loop-arrays -O3 -march=native -funroll-loops -ffast-mat
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -llapack -lblas
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

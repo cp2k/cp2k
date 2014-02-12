@@ -16,4 +16,3 @@ LIBS     = $(NAG_LIB)/libacml.a \
            $(NAG_LIB)/libacml_mv.a \
            $(NAG_LIB)/libfftw3.a
 
-OBJECTS_ARCHITECTURE = machine_nag.o

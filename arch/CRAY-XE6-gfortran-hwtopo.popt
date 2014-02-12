@@ -15,4 +15,3 @@ FCFLAGS  = -O3 -march=bdver1 -ffree-form -ftree-vectorize $(DFLAGS) -ffree-line-
 LDFLAGS  = $(FCFLAGS)
 LIBS     = 
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

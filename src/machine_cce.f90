@@ -4,27 +4,19 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \par History
-!>      - m_flush added (12.06.2002,MK)
-!>      - print_memory changed (24.09.2002,MK)
-!>      - adapted for g95 (29.05.2003,JVdV)
-!> \author APSI & JGH
+!> \brief currently for testing the cray compiler environment
 ! *****************************************************************************
-MODULE machine_g95
-  USE ISO_C_BINDING,                   ONLY: C_INT64_T
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 
   IMPLICIT NONE
 
-  INTEGER(KIND=C_INT64_T), bind(C, name='_g95_total_alloc') :: total_memory
-
   PRIVATE
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory,m_mov, m_memory_details, &
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
             m_procrun
 
 CONTAINS
@@ -34,7 +26,7 @@ FUNCTION m_loc_r(a) RESULT(res)
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
-    res=LOC(a)
+    res=INT(LOC(a))
 END FUNCTION m_loc_r
 
 ! *****************************************************************************
@@ -43,7 +35,7 @@ FUNCTION m_loc_c(a) RESULT(res)
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
-    res=LOC(a)
+    res=INT(LOC(a))
 END FUNCTION m_loc_c
 
 ! can be used to get a nice core
@@ -57,9 +49,9 @@ END SUBROUTINE m_abort
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
 
-    INTEGER                                  :: iargc
+    INTEGER, EXTERNAL                        :: iargc
 
-    ic = iargc()
+  ic = iargc()
 END FUNCTION m_iargc
 
 !!  cpu time in seconds
@@ -75,21 +67,20 @@ END FUNCTION m_cputime
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-    CALL flush(lunit)
+    flush(lunit)
   END SUBROUTINE m_flush
 
-! returns the total amount of memory [bytes] in use, if known, zero otherwise
-! *****************************************************************************
   FUNCTION m_memory()
 
       INTEGER(KIND=int_8)                      :: m_memory
+      INTEGER(KIND=int_8)                      :: m1,m2,m3
 
       !
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
-      m_memory=total_memory
+      m_memory=0
 #else
       CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
@@ -113,15 +104,26 @@ END FUNCTION m_cputime
       ENDDO
 999   CLOSE(121245)
       DATA(I:80)=""
-      READ(DATA,*,IOSTAT=iostat) m_memory
+      ! m1 = total
+      ! m2 = resident
+      ! m3 = shared
+      READ(DATA,*,IOSTAT=iostat) m1,m2,m3
       IF (iostat.NE.0) THEN
          m_memory=0
       ELSE
+         m_memory=m1
+#if defined(__STATM_TOTAL)
+         m_memory=m1
+#endif
+#if defined(__STATM_RESIDENT)
+         m_memory=m2
+#endif
          m_memory=m_memory*getpagesize()
       ENDIF
 #endif
 
   END FUNCTION m_memory
+
 
 ! *** get more detailed memory info, all units are bytes.
 ! *** the only 'useful' option is MemLikelyFree which is an estimate of remaining memory
@@ -145,6 +147,7 @@ END FUNCTION m_cputime
      Slab=0
      SReclaimable=0
      MemLikelyFree=0
+#ifndef __CCE
      meminfo=""
 
      OPEN(UNIT=8123,file="/proc/meminfo",ACCESS="STREAM",ERR=901)
@@ -186,30 +189,17 @@ END FUNCTION m_cputime
               ENDIF
            ENDIF
         END FUNCTION
+#endif
   END SUBROUTINE m_memory_details
 
 ! returns if a process is running on the local machine
 ! 1 if yes and 0 if not
-
 INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     INTEGER           ::   id, ios
     CHARACTER(len=80) ::   filename, tmp
     CHARACTER(len=8)  ::   id_s
 
-    WRITE(id_s,'(I8)') id
-
-    id_s = ADJUSTL(id_s)
-
-    tmp = "/proc/" // TRIM(id_s) // "/stat"
-    filename = TRIM(tmp)
-
-    OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
-    IF (ios /= 0) THEN
-        run_on = 0
-    ELSE
-       run_on = 1
-       CLOSE(87)
-    ENDIF
+    run_on = 0
 
 END FUNCTION m_procrun
 
@@ -219,9 +209,10 @@ END FUNCTION m_procrun
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    CALL rename(TRIM(source),TRIM(TARGET))
+    INTEGER                                  :: stat
 
-  END SUBROUTINE m_mov
+    call rename(source,TARGET)
+END SUBROUTINE m_mov
 
 ! *****************************************************************************
 SUBROUTINE m_hostnm(hname)
@@ -229,7 +220,7 @@ SUBROUTINE m_hostnm(hname)
 
     INTEGER                                  :: hostnm, ierror
 
-    ierror=hostnm(hname)
+  ierror = hostnm(hname)
 END SUBROUTINE m_hostnm
 
 ! *****************************************************************************
@@ -238,7 +229,7 @@ SUBROUTINE m_getcwd(curdir)
 
     INTEGER                                  :: getcwd, ierror
 
-    ierror = getcwd(curdir)
+  ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
 
 ! *****************************************************************************
@@ -255,16 +246,23 @@ END SUBROUTINE m_chdir
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
-    CALL getlog(user)
+    INTEGER                                  :: ierr,ilen
+    ! this is needed to load a statically linked binary on some architectures.
+#if defined(__HAS_NO_GETLOG)
+    user="root ;-)"
+#else
+    CALL pxfgetlogin(user,ilen,ierr)
+#endif
+
 END SUBROUTINE m_getlog
 
 ! *****************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
 
-    INTEGER                                  :: getuid
+    INTEGER                                  :: ierr
 
-    uid = getuid()
+    call pxfgetuid(uid,ierr)
 END SUBROUTINE m_getuid
 
 ! *****************************************************************************
@@ -283,6 +281,4 @@ SUBROUTINE m_getarg(i,arg)
 
     CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-
-END MODULE machine_g95
 

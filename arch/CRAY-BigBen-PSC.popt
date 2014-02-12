@@ -21,7 +21,6 @@ FCFLAGS2 = -tp=amd64 -pc=64 -target=catamount -O1 -Mnoframe -Mcache_align
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -L$(FFTW_LIB) -lfftw3 -lqk_pgf90 -lqk_pgftnrtl 
 
-OBJECTS_ARCHITECTURE = machine_xt3.o 
 
 qs_oce_methods.o: qs_oce_methods.F
 	$(FC) -c $(FCFLAGS2) $<

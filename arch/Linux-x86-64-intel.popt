@@ -30,7 +30,6 @@ LIBS     = $(INTEL_LIB)/libscalapack.a \
            $(INTEL_LIB)/libacml_mv.a \
            $(INTEL_LIB)/libfftw3.a
 
-OBJECTS_ARCHITECTURE = machine_intel.o
 
 
 graphcon.o: graphcon.F

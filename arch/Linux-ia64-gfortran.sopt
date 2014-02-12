@@ -19,4 +19,3 @@ LIBS     = $(MKL_LIB)\
            /deisa/rzg/home/rzg0ethz/rzg00kra/lrz/libint-1.1.2-default-intel/lib/libint_cpp_wrapper.o\
            -lderiv -lint
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

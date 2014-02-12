@@ -9,7 +9,6 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author MK
 ! *****************************************************************************
-MODULE machine_intel
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -287,4 +286,3 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_intel

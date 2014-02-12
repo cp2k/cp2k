@@ -11,4 +11,3 @@ FCFLAGS  = -target=catamount -O0 -g
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
-OBJECTS_ARCHITECTURE = machine_xt3.o

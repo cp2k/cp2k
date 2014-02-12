@@ -14,5 +14,4 @@ NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_20
 LIBS	=-lcudart -lrt \
 	-lpthread
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o
 

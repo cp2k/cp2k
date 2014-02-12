@@ -9,7 +9,6 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-MODULE machine_xt3
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -95,17 +94,8 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-#if defined(__parallel)
-    REAL(KIND=dp), EXTERNAL                  :: MPI_WTIME
-
-    ct = MPI_WTIME()
-#else
-    INTEGER                                  :: mclock
-
-    ct = mclock()*0.01_dp
-#endif
+    CALL CPU_TIME(ct)
 END FUNCTION m_cputime
-
 ! *****************************************************************************
 !> \brief   Flush the output to a logical unit.
 !> \author  MK
@@ -113,6 +103,7 @@ END FUNCTION m_cputime
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE m_flush(lunit)
+
     INTEGER, INTENT(IN)                      :: lunit
 
     CALL flush(lunit)
@@ -122,25 +113,15 @@ END FUNCTION m_cputime
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
-#if defined(__parallel)
-    INTEGER(KIND=int_8) m_memory
-    INTEGER(KIND=int_8) total_free, largest_free, total_used
-    INTEGER             fragments, i, heap_info
-    i = heap_info(fragments, total_free, largest_free, total_used)
-    m_memory=total_used
-#else
-    INTEGER(KIND=int_8) m_memory
-    m_memory=0
-#endif
+    INTEGER(KIND=int_8)                      :: m_memory
 
+    m_memory=0
   END FUNCTION m_memory
 
 ! *****************************************************************************
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
-
-!cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
 
     CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
 
@@ -200,4 +181,3 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-END MODULE machine_xt3

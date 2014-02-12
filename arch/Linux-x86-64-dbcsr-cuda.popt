@@ -23,4 +23,3 @@ LIBS     = -L/apps/eiger/Cuda-3.2/cuda/lib64\
 	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libatlas.a\
            -lcudart -lrt
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

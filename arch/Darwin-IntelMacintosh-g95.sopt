@@ -10,7 +10,6 @@ FCFLAGS2 = -cpp -O0   -ffast-math
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10
 
-OBJECTS_ARCHITECTURE = machine_g95.o
 
 particle_types.o: particle_types.F
 	$(FC) -c $(FCFLAGS2) $<

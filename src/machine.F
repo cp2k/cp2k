@@ -11,101 +11,14 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine
+  USE kinds,                           ONLY: dp,&
+                                             int_8
+  USE machine_internal,                ONLY: &
+       m_abort, m_chdir, m_cputime, m_flush_internal=>m_flush, m_getarg, &
+       m_getcwd, m_getlog, m_getpid, m_getuid, m_hostnm, m_iargc, m_loc_c, &
+       m_loc_r, m_memory, m_memory_details, m_mov, m_procrun
 
-  !$ USE OMP_LIB
-  USE  kinds,  ONLY        : dp, int_8
-#if defined ( __AIX )
-  USE machine_aix, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __IRIX )
-  USE machine_irix, ONLY   : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __G95 )
-  USE machine_g95, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __GFORTRAN )
-  USE machine_gfortran, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_procrun, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __CCE )
-  USE machine_cce, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __INTEL )
-  USE machine_intel, ONLY  : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-! must be before __PGI because pgf90 defines __PGI
-#elif defined ( __XT3 )
-  USE machine_xt3, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __XT5 )
-  USE machine_xt5, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __PGI )
-  USE machine_pgi, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __T3E )
-  USE machine_t3e, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __DEC )
-  USE machine_dec, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __ABSOFT )
-  USE machine_absoft, ONLY : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __SUN )
-  USE machine_sun, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __NAG )
-  USE machine_nag, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#elif defined ( __SX )
-  USE machine_sx, ONLY    : &
-       m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
-       m_procrun
-#endif
+ !$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -131,6 +44,8 @@ MODULE machine
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
 
 CONTAINS
+
+
 ! *****************************************************************************
 !> \brief flushes units if the &GLOBAL flag is set accordingly
 !> \note
@@ -204,6 +119,8 @@ END FUNCTION m_walltime
 FUNCTION m_energy() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
+    wt = 0.0 ! fallback default
+
 #if defined(__CRAY_PM_ENERGY)
    wt = read_energy("/sys/cray/pm_counters/energy")
 #elif defined(__CRAY_PM_ACCEL_ENERGY)
@@ -211,8 +128,6 @@ FUNCTION m_energy() RESULT (wt)
 #elif defined(__CRAY_PM_FAKE_ENERGY)
    ! reads from the current working dir
    wt = read_energy("energy")
-#else
-   wt = 0.0
 #endif
 END FUNCTION m_energy
 

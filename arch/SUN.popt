@@ -12,6 +12,5 @@ FCFLAGS  = -O2 -xarch=v9b -dalign -fsimple=2 -fns -D__FFTSG -D__SUN -D__FFTW -D_
 LDFLAGS  = $(FCFLAGS)
 LIBS     =  -xlic_lib=sunperf -lmpi /home/local/vondele/ARPACK/parpack_MPI-SUN.a /home/local/vondele/ARPACK/libarpack_SUN.a  /home/local/vondele/SCALAPACK/libscalapack.a  /home/local/vondele/BLACS/LIB/blacsF77init_MPI-SUN4SOL2-0.a  /home/local/vondele/BLACS/LIB/blacs_MPI-SUN4SOL2-0.a  /home/local/vondele/BLACS/LIB/blacsF77init_MPI-SUN4SOL2-0.a -L/home/local/vondele/fftw-2.1.3/lib -lfftw 
 
-OBJECTS_ARCHITECTURE = machine_sun.o
 
 

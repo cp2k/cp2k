@@ -9,4 +9,3 @@ FCFLAGS  = -g -en
 LDFLAGS  = $(FCFLAGS) -L/usr/absoft/lib
 LIBS     = -llapack -lblas -lU77
 
-OBJECTS_ARCHITECTURE = machine_absoft.o

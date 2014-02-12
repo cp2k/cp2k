@@ -10,7 +10,6 @@ FCFLAGS1 = $(DFLAGS) -e m -F -ra -O1
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -L/cray/css/u0/roberto/CP2K/libs/libint-cce/lib -lderiv -lint 
 
-OBJECTS_ARCHITECTURE = machine_cce.o
 
 MODDEPS = no
 

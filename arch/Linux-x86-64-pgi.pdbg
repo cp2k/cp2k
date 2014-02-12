@@ -22,4 +22,3 @@ LIBS     = -lpgc -lpgmp -lacml \
            -lfmpich -lmpich \
 	       -lfftw
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

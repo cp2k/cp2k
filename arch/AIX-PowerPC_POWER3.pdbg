@@ -13,4 +13,3 @@ LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/32 -bmaxdata:0x40000000 -bnoquiet
 LIBS     = -lscalapack -lblacsF77init -lblacs\
            -llapack3 -lessl -lhmd
 
-OBJECTS_ARCHITECTURE = machine_aix.o

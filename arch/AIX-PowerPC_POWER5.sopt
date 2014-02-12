@@ -11,7 +11,6 @@ LDFLAGS  = $(FCFLAGS) -L/afs/caspur.it/user/s/simonem/LAPACK -bnoquiet\
            -bmaxdata:0x80000000 -bmaxstack:0x80000000
 LIBS     = -llapack_pwr5 -lessl -lmass -lhm
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 
 pint_types.o: pint_types.F
 	$(FC) -c $(FCFLAGS2) $<

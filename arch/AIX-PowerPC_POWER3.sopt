@@ -9,4 +9,3 @@ FCFLAGS  = -O2 -qarch=pwr3 -qcache=auto -qmaxmem=-1 -qtune=pwr3
 LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/32 -bmaxdata:0x80000000 -bnoquiet
 LIBS     = -llapack3 -lessl -lmass
 
-OBJECTS_ARCHITECTURE = machine_aix.o

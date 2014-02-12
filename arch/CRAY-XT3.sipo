@@ -12,4 +12,3 @@ FCFLAGS  = -target=catamount -O4 -Mscalarsse -Mvect=sse -Mcache_align -Mipa=fast
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
-OBJECTS_ARCHITECTURE = machine_xt3.o

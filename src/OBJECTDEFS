@@ -381,6 +381,7 @@ OBJECTS_GENERIC =\
  lri_environment_methods.o\
  lri_environment_types.o\
  machine.o\
+ machine_internal.o\
  manybody_eam.o\
  manybody_potential.o\
  manybody_siepmann.o\

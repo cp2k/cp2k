@@ -9,5 +9,4 @@ FCFLAGS  = -O0 -g -march=native -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o
 

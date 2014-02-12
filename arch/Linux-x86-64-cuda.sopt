@@ -37,4 +37,3 @@ LIBS     = -L$(MKLPATH)\
            /usr/lib64/libfftw3f.so.3\
            -lpthread
 
-OBJECTS_ARCHITECTURE = machine_intel.o

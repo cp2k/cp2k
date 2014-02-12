@@ -19,4 +19,3 @@ LIBS     = /project/cray/alazzaro/libsmm/gfortran_avx/libsmm_dnn.a -lfftw3 -lfft
 	   ${MKL_LIB}/libmkl_gf_lp64.a ${MKL_LIB}/libmkl_sequential.a \
 	   ${MKL_LIB}/libmkl_core.a ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a -Wl,--end-group -ldl
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

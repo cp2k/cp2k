@@ -11,4 +11,3 @@ LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas
 
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

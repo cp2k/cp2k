@@ -10,4 +10,3 @@ FCFLAGS  = -D__DEC -D__FFTSG -D__FFTW -O5 -ansi_alias -ansi_args\
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/fftw/tc2k/lib
 LIBS     = -llapack -lblas -ldxml -lfftw 
 
-OBJECTS_ARCHITECTURE = machine_dec.o

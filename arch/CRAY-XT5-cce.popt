@@ -21,7 +21,6 @@ FCFLAGS2 = $(DFLAGS) -e m -O 1 -h cpu=istanbul
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -L/users/ibethune/libint/lib -lderiv -lint -lstdc++
 
-OBJECTS_ARCHITECTURE = machine_cce.o
 MODDEPS = no
 
 pw_grids.o: pw_grids.F

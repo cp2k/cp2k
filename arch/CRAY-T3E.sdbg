@@ -18,4 +18,3 @@ FCFLAGS  = $(DFLAGS) -F -Racps -eIin -g -m2
 LDFLAGS  = $(FCFLAGS)
 LIBS     = 
 
-OBJECTS_ARCHITECTURE = machine_t3e.o

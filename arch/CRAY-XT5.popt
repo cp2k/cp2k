@@ -14,7 +14,6 @@ FCFLAGS2 = -target=linux -march=barcelona -O2 -OPT:Ofast -OPT:early_intrinsics=O
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lsci -L$(FFTW_DIR) -lfftw3
 
-OBJECTS_ARCHITECTURE = machine_xt5.o
 MODDEPS = no
 
 hfx_contract_block.o: hfx_contract_block.F

@@ -9,7 +9,6 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-MODULE machine_t3e
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -188,4 +187,3 @@ SUBROUTINE m_getarg(i,arg)
 
   CALL pxfgetarg(i,arg,ilen,ierror)
 END SUBROUTINE m_getarg
-END MODULE machine_t3e

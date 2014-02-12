@@ -16,4 +16,3 @@ LIBS     =  \
   -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64  -lmkl_sequential -lmkl_core \
   -lderiv -lint -lfftw3 -lxc -L$(ELPA_LIB) -lelpa
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

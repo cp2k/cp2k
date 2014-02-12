@@ -14,4 +14,3 @@ LDFLAGS  = $(FCFLAGS) -L/opt/intel/mkl/8.1/lib/32 -L/opt/intel/LAPACK -L/home/jv
 LIBS     = -latlas-ifc -lguide -lfftw
 #LIBS     = -lmkl_lapack -lmkl_ia32
 
-OBJECTS_ARCHITECTURE = machine_intel.o

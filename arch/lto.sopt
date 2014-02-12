@@ -16,4 +16,3 @@ FCFLAGS  = -O2 -g -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

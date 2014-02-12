@@ -15,4 +15,3 @@ LIBS     = -lscalapack -lfftw3 -lblacsCinit -lblacsF77init -lblacs -llapack /opt
           
          
 
-OBJECTS_ARCHITECTURE = machine_aix.o

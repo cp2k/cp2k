@@ -10,4 +10,3 @@ LDFLAGS  = $(FCFLAGS)
 LIBS     = /home/jv244/SCALAPACK/libscalapack.a /home/jv244/BLACS/LIB/blacsF77init_MPI-LINUX-0.a /home/jv244/BLACS/LIB/blacs_MPI-LINUX-0.a /home/jv244/LAPACK_T1/lapack_LINUX.a /home/jv244/LAPACK_T1/blas_LINUX.a -lg2c
 
 
-OBJECTS_ARCHITECTURE = machine_nag.o

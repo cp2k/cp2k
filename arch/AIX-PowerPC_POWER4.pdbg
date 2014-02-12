@@ -12,4 +12,3 @@ LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/32 -L/apps/mass/lib -bnoquiet
 LIBS     = -lscalapack -lpessl -lblacsF77init -lblacs\
            -llapack3 -lessl -lmass -lhmd
 
-OBJECTS_ARCHITECTURE = machine_aix.o

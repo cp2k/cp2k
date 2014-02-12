@@ -17,4 +17,3 @@ FCFLAGS  = -fastsse -tp amd64
 LDFLAGS  = $(FCFLAGS) -Mmpi -Mscalapack
 LIBS     = -lacml -ldfftw
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

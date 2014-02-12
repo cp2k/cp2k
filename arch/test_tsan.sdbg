@@ -16,4 +16,3 @@ FCFLAGS  = -gdwarf-3 -fPIE -pie -fsanitize=thread -fno-omit-frame-pointer  -fope
 LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/sanitize/install/lib/ 
 LIBS     = -llapack -lblas -lderiv -lint -lstdc++
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

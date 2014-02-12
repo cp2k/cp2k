@@ -9,5 +9,4 @@ FCFLAGS  = -fopenmp -ffast-math -funroll-loops -ftree-vectorize -ffree-form -O2 
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10 -lgcc_eh
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o
 

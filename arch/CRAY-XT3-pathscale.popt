@@ -17,4 +17,3 @@ FCFLAGS  = -target=catamount -O3 -freeform -intrinsic=PGI
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml -L$(CSCSFFTW)/lib -lfftw3
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

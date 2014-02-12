@@ -49,7 +49,6 @@ LIBS     = -L$(MKLPATH)\
            /usr/local/lib/libfftw3f.a\
            -lpthread
 
-OBJECTS_ARCHITECTURE = machine_intel.o
 
 cuda_cublas.o: cuda_cublas.F
 	$(CPP) $(CPPFLAGSCU) $< > cuda_cublas.f90

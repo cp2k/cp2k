@@ -17,5 +17,4 @@ LIBS     = -lscalapack\
 CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 

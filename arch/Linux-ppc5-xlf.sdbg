@@ -14,7 +14,6 @@ LDFLAGS  = $(FCFLAGS) -L/sp/fd/teo/libs/BGP_FEN/lapack-3.2.1/
 LIBS     = -llapack_BGP-FEN -lessl /opt/ibmcmp/xlmass/5.0/lib64/libmass_64.a
 CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 
 ### To speed up compilation time ###
 cp2k_runs.o: cp2k_runs.F

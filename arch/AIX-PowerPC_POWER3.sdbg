@@ -11,4 +11,3 @@ FCFLAGS  = -C -g -qarch=pwr3 -qfullpath\
 LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/32 -bmaxdata:0x40000000 -bnoquiet
 LIBS     = -llapack3 -lessl -lhmd
 
-OBJECTS_ARCHITECTURE = machine_aix.o

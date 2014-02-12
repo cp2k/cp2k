@@ -30,4 +30,3 @@ LIBS     = -L$(SCALAPACK_LIB) $(SCALAPACK_LIBS) \
            -L$(HWLOC_LIB) $(HWLOC_LIBS) \
            -lpthread
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

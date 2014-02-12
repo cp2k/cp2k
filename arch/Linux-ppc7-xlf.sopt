@@ -12,5 +12,4 @@ LDFLAGS  = $(FCFLAGS) -L/sp/LIB/LINUX64/
 LIBS     = -llapack330_pwr7_64 -lessl -L/opt/ibmcmp/xlmass/6.1/lib64/ -lmass_64
 CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 

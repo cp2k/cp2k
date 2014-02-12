@@ -22,4 +22,3 @@ LIBS     = -lmkl -lm -lpthread -lguide -openmp
 #If you want to use BLACS and SCALAPACK use the libraries below
 #LIBS     = -lmkl -lmkl_blacs_openmpi_lp64 -lmkl_scalapack_lp64 -lm -lpthread -lguide -openmp
 
-OBJECTS_ARCHITECTURE = machine_intel.o

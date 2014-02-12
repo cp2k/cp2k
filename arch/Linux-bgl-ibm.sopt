@@ -10,4 +10,3 @@ FCFLAGS  = -O2 -qarch=440 -qmaxmem=-1 -qtune=440 -qalias=noaryovrlp
 LDFLAGS  = $(FCFLAGS) -L/bgl/local/lib
 LIBS     = -llapack440 -lmassv -lblas440
 
-OBJECTS_ARCHITECTURE = machine_aix.o

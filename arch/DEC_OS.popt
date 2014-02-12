@@ -9,4 +9,3 @@ FCFLAGS  = -D__DEC -D__FFTSG -D__FFTW -D__parallel -D__BLACS -D__SCALAPACK -O5 -
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/fftw/tc2k/lib -L/usr/local/BLACS/LIB -L/usr/local/SCALAPACK
 LIBS     = -lblacsF77init_MPI-ALPHA-1 -lblacs_MPI-ALPHA-1 -ltools_ALPHA -lscalapack_ALPHA -lpblas_ALPHA -lredist_ALPHA -llapack -lblas -ldxml -lfftw 
 
-OBJECTS_ARCHITECTURE = machine_dec.o

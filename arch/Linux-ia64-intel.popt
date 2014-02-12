@@ -22,7 +22,6 @@ LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib -L/apps/intel_mkl_61/mkl61/lib/64
 LIBS     = -lscalapack -lblacsF77init -lblacs\
            -lmkl_lapack -lmkl -lguide
 
-OBJECTS_ARCHITECTURE = machine_intel.o
 ##For compiler 11.0 one may want to try the following flags:
 #CFLAGS  = -O2 -i-static -heap-arrays 64 -free -fpp -unroll
 ##Linking of MKL for older Intel versions before the new one-pack composers

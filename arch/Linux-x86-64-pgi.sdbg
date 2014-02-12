@@ -15,4 +15,3 @@ LDFLAGS  = $(FCFLAGS) \
 LIBS     = -lfftw -lpgmp -lpgc -lacml 
 #LIBS	= -llapack_x86-64 -lblas_x86-64
 
-OBJECTS_ARCHITECTURE = machine_pgi.o

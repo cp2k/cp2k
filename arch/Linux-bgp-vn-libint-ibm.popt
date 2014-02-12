@@ -18,4 +18,3 @@ LIBS     = -L/sp/LIB/BGP  -L/sp/LIB/BGP/fftw-3.1.2/lib  \
 	   /bgsys/drivers/ppcfloor/gnu-linux/powerpc-bgp-linux/lib/libstdc++.a \
 	   --allow-multiple-definition
 
-OBJECTS_ARCHITECTURE = machine_aix.o

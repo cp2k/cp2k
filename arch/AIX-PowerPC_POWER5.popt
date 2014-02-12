@@ -16,7 +16,6 @@ LDFLAGS  = $(FCFLAGS) -L$(LAPACK) -L$(SCALAPACK) -L$(FFTW3) \
 	   -bnoquiet -bmaxdata:0x800000000  -bmaxstack:0x80000000
 LIBS     = -lscalapack -lblacssmp -llapack_pwr5 -lpesslsmp -lesslsmp -lfftw3 -lmass -lhm 
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 
 pint_types.o: pint_types.F
 	$(FC) -c $(FCFLAGS2) $<

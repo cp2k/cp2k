@@ -22,4 +22,3 @@ FCFLAGS2   -f4 -Cvopt -ftrace\
 LDFLAGS  = -ftrace
 LIBS     = -llapack -lblas -lscalapack
 
-OBJECTS_ARCHITECTURE = machine_sx.o

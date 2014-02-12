@@ -9,4 +9,3 @@ FCFLAGS  = -O0 -g
 LDFLAGS  = $(FCFLAGS) -L/bgl/local/lib
 LIBS     = -llapack440 -lmassv -lblas440
 
-OBJECTS_ARCHITECTURE = machine_aix.o

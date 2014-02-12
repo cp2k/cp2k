@@ -19,4 +19,3 @@ FCFLAGS  = -O1 -fstrict-aliasing -fbacktrace -g -fbounds-check -ffree-form -fdum
 LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libxc-2.0.1/install/lib
 LIBS     = -lderiv -lint -lstdc++ -lfftw3 -llapack -lblas -lxc
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o
