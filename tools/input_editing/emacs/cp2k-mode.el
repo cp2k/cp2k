@@ -9,7 +9,7 @@
    '("^[ \t]*\\(&\\(END[ \t]*\\)?\\(\\sw+\\)\\)"
      (1 font-lock-function-name-face))
    ;; keywords
-   '("^[ \t]*\\<\\([^&@$]\\sw*\\)\\>"
+   '("^[ \t]*\\<\\([^&@$0-9]\\sw+\\)[ \t]+\\(\\sw+\\)?"
      (1 font-lock-keyword-face))
    ;; preprocessor type 1
    '("^[ \t]*\\(@\\(\\(I\\(F\\|NCLUDE\\)\\)\\|ENDIF\\)\\)"
