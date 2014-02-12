@@ -23,6 +23,7 @@
 !>      http://www.scripps.edu/~cdputnam/software/bibutils/ by Chris Putnam
 !> \par History
 !>      08.2007 [Joost VandeVondele] Created
+!>      01.2014 [Lianheng Tong] Added Kantorovich2008, Kantorovich2008a
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE bibliography
@@ -40,29 +41,35 @@ MODULE bibliography
   PUBLIC :: add_all_references ! f77_interface only
 
   ! all reference keys
-  INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
-             Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
-             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
-             VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, &
-             Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999,&
-             Frigo2005, Nose1984a, Nose1984b, Brelaz1979, Bussi2007,Genovese2006,&
-             Genovese2007,Evans1983,Minary2003,Byrd1995,&
-             VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,&
-             Perdew2008,Lee1988,&
-             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
-             Essmann1995,Ewald1921,Darden1993, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b,&
-             Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
-             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
-             Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
-             Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
-             Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
-             VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
-             Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
-             Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
-             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996, &
-             Goedecker2004,Khaliullin2013,Hutter2014,Bengtsson1999
+  INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003,       &
+       Laino2005, Laino2006, Goedecker1996, Hartwigsen1998, Krack2005, &
+       Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005,   &
+       Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,          &
+       VandeVondele2005b, Perdew1981, Avezac2005, Porezag1995,         &
+       Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999,          &
+       Frigo2005, Nose1984a, Nose1984b, Brelaz1979, Bussi2007,         &
+       Genovese2006, Genovese2007, Evans1983, Minary2003, Byrd1995,    &
+       VandeVondele2007, Ortiz1994, Becke1988, Perdew1996, Zhang1998,  &
+       Perdew2008, Lee1988, Heyd2006, Vydrov2006, Heyd2003, Heyd2004,  &
+       Vosko1980, Aguado2003, Essmann1995, Ewald1921, Darden1993,      &
+       Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000,    &
+       Dudarev1997, Dudarev1998, Dewar1977, Dewar1985, Rocha2006,      &
+       Stewart1989, Thiel1992, Repasky2002, Stewart2007, Weber2008,    &
+       Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1,    &
+       Jonsson2000_2, Wales2004, Stewart1982, E2002, Laino2008,        &
+       Blochl1995, Tao2003, VandeVondele2006, Hu2007, Grimme2006,      &
+       Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007,    &
+       VandenCic2006, Becke1997, Foiles1986, Ricci2003, Kolafa2004,    &
+       Kuhne2007, Kunert2003, Ceriotti2009, ceriotti2009b, Guidon2009, &
+       BarducBus2008, Grimme2010, Guidon2010, Marques2012, Jones2011,  &
+       Bernstein2009, Bernstein2012, Dick1958, Mitchell1993,           &
+       Devynck2012, VandeVondele2012, Niklasson2003, Shao2003,         &
+       VandeVondele2002, Dion2004, Romanperez2009, DelBen2012,         &
+       Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000,             &
+       Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013,    &
+       Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
+       Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
+       Kantorovich2008a
 
 CONTAINS
 
@@ -2218,7 +2225,7 @@ CONTAINS
             "DI 10.1021/jp013346k",&
             "UT WOS:000173256700030",&
             "ER"),&
-            DOI="10.1021/jp013346k") 
+            DOI="10.1021/jp013346k")
 
     CALL add_reference(key=Dion2004, ISI_record=s2a(&
          "PT J",&
@@ -2559,6 +2566,42 @@ CONTAINS
          "UT WOS:000328646100002",&
          "ER"),&
          DOI="10.1002/wcms.1159")
+
+    CALL add_reference(key=Kantorovich2008, ISI_record=s2a(&
+         "PT J",&
+         "AU Kantorovich, L",&
+         "AF Kantorovich, Lev",&
+         "TI Generalized Langevin equation for solids. I. ",&
+         "   Rigorous derivation and main properties",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 1098-0121",&
+         "PD SEP",&
+         "PY 2008",&
+         "VL 78",&
+         "IS 9",&
+         "AR 094304",&
+         "DI 10.1103/PhysRevB.78.094304",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.78.094304")
+
+    CALL add_reference(key=Kantorovich2008a, ISI_record=s2a(&
+         "PT J",&
+         "AU Kantorovich, L",&
+         "   Rompotis, N",&
+         "AF Kantorovich, Lev",&
+         "   Rompotis, N",&
+         "TI Generalized Langevin equation for solids. II. ",&
+         "   Stochastic boundary conditions for nonequilibrium molecular dynamics simulations",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 1098-0121",&
+         "PD SEP",&
+         "PY 2008",&
+         "VL 78",&
+         "IS 9",&
+         "AR 094305",&
+         "DI 10.1103/PhysRevB.78.094305",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.78.094305")
 
   END SUBROUTINE add_all_references
 

@@ -18,6 +18,7 @@
 !>                                       a temporary type)
 !>      Teodoro Laino [tlaino] 02.2008 - Splitting integrator module and keeping in
 !>                                       integrator only the INTEGRATORS
+!>      Lianheng Tong [LT]     12.2013 - Added regions to Langevin MD
 !> \author CJM
 ! *****************************************************************************
 MODULE integrator
@@ -86,6 +87,8 @@ MODULE integrator
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
+  USE thermal_region_types,            ONLY: thermal_region_type,&
+                                             thermal_regions_type
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
                                              apply_thermostat_particles,&
                                              apply_thermostat_shells
@@ -110,8 +113,13 @@ CONTAINS
 !> \brief Langevin integrator for particle positions & momenta (Brownian dynamics)
 !> \par Literature
 !>      - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
+!>      - For langevin regions:
+!>        - L. Kantorovich, Phys. Rev. B 78, 094304 (2008)
+!>        - L. Kantorovich and N. Rompotis, Phys. Rev. B 78, 094305 (2008)
 !> \par History
-!>      - Created (01.07.2005,MK)
+!>   - Created (01.07.2005,MK)
+!>   - Added support for only performing Langevin MD on a region of atoms
+!>     (01.12.2013, LT)
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE langevin(md_env,error)
@@ -122,11 +130,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'langevin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
-      nparticle_kind, nparticle_local, nshell, stat
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, &
+      ireg, nparticle, nparticle_kind, nparticle_local, nshell, stat
     LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: do_langevin
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
-                                                gam, mass, sigma
+                                                gam, mass, reg_temp, sigma
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: var_w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel, w
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -151,16 +161,19 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(simpar_type), POINTER               :: simpar
+    TYPE(thermal_region_type), POINTER       :: thermal_region
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
 
-    NULLIFY (cell, para_env, gci, force_env)
-    NULLIFY (atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
-    NULLIFY (molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
+    NULLIFY(cell, para_env, gci, force_env)
+    NULLIFY(atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
+    NULLIFY(molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
+    NULLIFY(thermal_region, thermal_regions)
 
     CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
-         para_env=para_env, error=error)
+         para_env=para_env, thermal_regions=thermal_regions, error=error)
 
     dt = simpar%dt
     gam = simpar%gamma+simpar%shadow_gamma
@@ -194,6 +207,36 @@ CONTAINS
     particle_set => particles%els
     molecule_set => molecules%els
 
+    ! Setup the langevin regions information
+    ALLOCATE(do_langevin(nparticle), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (simpar%do_thermal_region) THEN
+       DO iparticle = 1, nparticle
+          do_langevin(iparticle) = thermal_regions%do_langevin(iparticle)
+       END DO
+    ELSE
+       do_langevin(1:nparticle) = .TRUE.
+    END IF
+
+    ! Allocate the temperature dependent variance (var_w) of the
+    ! random variable for each atom. It may be different for different
+    ! atoms because of the possiblity of Langevin regions, and var_w
+    ! for each region should depend on the temperature defined in the
+    ! region
+    ALLOCATE(var_w(nparticle), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    var_w(1:nparticle) = simpar%var_w
+    IF (simpar%do_thermal_region) THEN
+       DO ireg = 1, thermal_regions%nregions
+          thermal_region => thermal_regions%thermal_region(ireg)
+          DO iparticle_reg = 1, thermal_region%npart
+             iparticle = thermal_region%part_index(iparticle_reg)
+             reg_temp = thermal_region%temp_expected
+             var_w(iparticle) = 2.0_dp*reg_temp*simpar%dt*(simpar%gamma + simpar%noisy_gamma)
+          END DO
+       END DO
+    END IF
+
     ! Allocate work storage
     ALLOCATE (pos(3,nparticle),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -215,16 +258,21 @@ CONTAINS
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
        nparticle_local = local_particles%n_el(iparticle_kind)
-       sigma = simpar%var_w*mass
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          rng_stream => local_particles%local_particle_set(iparticle_kind)%&
-               &rng(iparticle_local)%stream
-          w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
-          w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
-          w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          IF (do_langevin(iparticle)) THEN
+             sigma = var_w(iparticle)*mass
+             rng_stream => local_particles%local_particle_set(iparticle_kind)%&
+                  &rng(iparticle_local)%stream
+             w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+             w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+             w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          END IF
        END DO
     END DO
+
+    DEALLOCATE(var_w,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Apply fix atom constraint
     CALL fix_atom_control(force_env,error,w)
@@ -243,12 +291,20 @@ CONTAINS
        c3 = dm/c2
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel(:,iparticle) = particle_set(iparticle)%v(:) +&
-               c3*particle_set(iparticle)%f(:)
-          pos(:,iparticle) = particle_set(iparticle)%r(:) +&
-               c1*particle_set(iparticle)%v(:) +&
-               c*dm*(dt*particle_set(iparticle)%f(:) +&
-               w(:,iparticle))
+          IF (do_langevin(iparticle)) THEN
+             vel(:,iparticle) = particle_set(iparticle)%v(:) +&
+                  c3*particle_set(iparticle)%f(:)
+             pos(:,iparticle) = particle_set(iparticle)%r(:) +&
+                  c1*particle_set(iparticle)%v(:) +&
+                  c*dm*(dt*particle_set(iparticle)%f(:) +&
+                  w(:,iparticle))
+          ELSE
+             vel(:,iparticle) = particle_set(iparticle)%v(:) +&
+                  dm*particle_set(iparticle)%f(:)
+             pos(:,iparticle) = particle_set(iparticle)%r(:) +&
+                  dt*particle_set(iparticle)%v(:) +&
+                  dm*dt*particle_set(iparticle)%f(:)
+          END IF
        END DO
     END DO
 
@@ -266,7 +322,7 @@ CONTAINS
     ! Broadcast the new particle positions
     CALL update_particle_set(particle_set,para_env%group,pos=pos,error=error)
 
-    DEALLOCATE (pos,STAT=stat)
+    DEALLOCATE(pos,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Update forces
@@ -284,12 +340,18 @@ CONTAINS
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel(1,iparticle) = vel(1,iparticle) + c3*particle_set(iparticle)%f(1)
-          vel(2,iparticle) = vel(2,iparticle) + c3*particle_set(iparticle)%f(2)
-          vel(3,iparticle) = vel(3,iparticle) + c3*particle_set(iparticle)%f(3)
-          vel(1,iparticle) = c4*vel(1,iparticle) + c2*w(1,iparticle)/mass
-          vel(2,iparticle) = c4*vel(2,iparticle) + c2*w(2,iparticle)/mass
-          vel(3,iparticle) = c4*vel(3,iparticle) + c2*w(3,iparticle)/mass
+          IF (do_langevin(iparticle)) THEN
+             vel(1,iparticle) = vel(1,iparticle) + c3*particle_set(iparticle)%f(1)
+             vel(2,iparticle) = vel(2,iparticle) + c3*particle_set(iparticle)%f(2)
+             vel(3,iparticle) = vel(3,iparticle) + c3*particle_set(iparticle)%f(3)
+             vel(1,iparticle) = c4*vel(1,iparticle) + c2*w(1,iparticle)/mass
+             vel(2,iparticle) = c4*vel(2,iparticle) + c2*w(2,iparticle)/mass
+             vel(3,iparticle) = c4*vel(3,iparticle) + c2*w(3,iparticle)/mass
+          ELSE
+             vel(1,iparticle) = vel(1,iparticle) + dm*particle_set(iparticle)%f(1)
+             vel(2,iparticle) = vel(2,iparticle) + dm*particle_set(iparticle)%f(2)
+             vel(3,iparticle) = vel(3,iparticle) + dm*particle_set(iparticle)%f(3)
+          END IF
        END DO
     END DO
 
@@ -303,10 +365,13 @@ CONTAINS
     ! Broadcast the new particle velocities
     CALL update_particle_set(particle_set,para_env%group,vel=vel,error=error)
 
-    DEALLOCATE (vel,STAT=stat)
+    DEALLOCATE(vel,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DEALLOCATE (w,STAT=stat)
+    DEALLOCATE(w,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(do_langevin,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Update virial
@@ -321,8 +386,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief nve integrator for particle positions & momenta
 !> \par History
-!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nve ( md_env, globenv, error)
@@ -544,7 +609,7 @@ CONTAINS
 !>         - Zhang F. , JCP 106, 6102 (1997)
 !>         - Minary P. et al, JCP 118, 2510 (2003)
 !> \par History
-!>      - Created [2004-07]
+!>   - Created [2004-07]
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE isokin ( md_env, error )
@@ -669,8 +734,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief nvt adiabatic integrator for particle positions & momenta
 !> \par History
-!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nvt_adiabatic ( md_env, globenv, error)
@@ -898,8 +963,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief nvt integrator for particle positions & momenta
 !> \par History
-!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nvt ( md_env, globenv, error)
@@ -1513,8 +1578,8 @@ CONTAINS
 !> \note
 !>     it can be used to compute some properties on already available trajectories
 !> \par History
-!>      - 04.2005 created [Joost VandeVondele]
-!>      - modified to make it more general [MI]
+!>   - 04.2005 created [Joost VandeVondele]
+!>   - modified to make it more general [MI]
 ! *****************************************************************************
   SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
@@ -2699,4 +2764,3 @@ CPSourceFileRef,&
   END SUBROUTINE nve_respa
 
 END MODULE integrator
-
