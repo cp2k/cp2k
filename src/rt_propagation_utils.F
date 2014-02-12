@@ -44,6 +44,7 @@ MODULE  rt_propagation_utils
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -166,8 +167,12 @@ MODULE  rt_propagation_utils
          error=error)
 
     ! calculate the overlap derivative matrices
+    IF(qs_env%dft_control%qs_control%dftb)THEN
+      CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
+    ELSE
     CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
          basis_set_id_a=use_orb_basis_set,basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
+    END IF
 
     ! here we have the S derivativs needed, lets calculate the B and C matrix
     CALL cp_fm_create(tmp_mat,&
@@ -210,6 +215,7 @@ MODULE  rt_propagation_utils
 
        CALL copy_dbcsr_to_fm(s_derivs(m+1)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
+
        DO icol_local=1,ncol_local
           DO irow_local=1,nrow_local
              irow_global=row_indices(irow_local)
@@ -231,6 +237,7 @@ MODULE  rt_propagation_utils
 
 
     !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
+    ! I think this one tries to sort the derivatives (only 6 different but 9 in reality) but I forgot exactly how
     c_map_mat=0
     n=0
     DO j=1,3

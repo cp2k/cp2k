@@ -668,6 +668,7 @@ CONTAINS
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&
+                  iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

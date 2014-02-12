@@ -353,7 +353,7 @@ CONTAINS
                NULLIFY(dsblock)
                CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                     row=iatom,col=jatom,block=dsblock,found=found)
-               fi = -gmij*SUM(pblock*dsblock)
+               fi = -2.0_dp*gmij*SUM(pblock*dsblock)
                force(ikind)%rho_elec(i,atom_i) = force(ikind)%rho_elec(i,atom_i) + fi
                force(jkind)%rho_elec(i,atom_j) = force(jkind)%rho_elec(i,atom_j) - fi
                fij(i) = fi
