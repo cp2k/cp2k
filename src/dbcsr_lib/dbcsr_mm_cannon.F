@@ -3690,9 +3690,9 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE enumerate_blk_sizes
 
 
-#include "dbcsr_mm_cannon_d.F"
-#include "dbcsr_mm_cannon_z.F"
-#include "dbcsr_mm_cannon_s.F"
-#include "dbcsr_mm_cannon_c.F"
+#include "dbcsr_mm_cannon_d.f90"
+#include "dbcsr_mm_cannon_z.f90"
+#include "dbcsr_mm_cannon_s.f90"
+#include "dbcsr_mm_cannon_c.f90"
 
 END MODULE dbcsr_mm_cannon

@@ -2230,11 +2230,11 @@ CONTAINS
 #endif
   END SUBROUTINE mp_file_read_at_all_ch
 
-#include "dbcsr_message_passing_i.F"
-#include "dbcsr_message_passing_l.F"
-#include "dbcsr_message_passing_r.F"
-#include "dbcsr_message_passing_d.F"
-#include "dbcsr_message_passing_c.F"
-#include "dbcsr_message_passing_z.F"
+#include "dbcsr_message_passing_i.f90"
+#include "dbcsr_message_passing_l.f90"
+#include "dbcsr_message_passing_r.f90"
+#include "dbcsr_message_passing_d.f90"
+#include "dbcsr_message_passing_c.f90"
+#include "dbcsr_message_passing_z.f90"
 
 END MODULE dbcsr_message_passing

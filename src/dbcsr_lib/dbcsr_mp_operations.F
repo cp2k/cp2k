@@ -504,9 +504,9 @@ CONTAINS
   END SUBROUTINE dbcsr_allgatherv
 
 
-#include "dbcsr_mp_operations_d.F"
-#include "dbcsr_mp_operations_z.F"
-#include "dbcsr_mp_operations_s.F"
-#include "dbcsr_mp_operations_c.F"
+#include "dbcsr_mp_operations_d.f90"
+#include "dbcsr_mp_operations_z.f90"
+#include "dbcsr_mp_operations_s.f90"
+#include "dbcsr_mp_operations_c.f90"
 
 END MODULE dbcsr_mp_operations

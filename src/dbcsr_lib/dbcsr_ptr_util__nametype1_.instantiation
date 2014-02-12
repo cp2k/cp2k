@@ -1,32 +1,24 @@
-[
-{
-        'nametype1': 'i',
-        'type1':     'integer(kind=int_4)',
-        'zero1':     '0'
-},
-{
-        'nametype1': 'l',
-        'type1':     'integer(kind=int_8)',
-        'zero1':     '0'
-},
-{
-        'nametype1': 'd',
-        'type1':     'real(kind=real_8)',
-        'zero1':     '0.0_real_8'
-},
-{
-        'nametype1': 's',
-        'type1':     'real(kind=real_4)',
-        'zero1':     '0.0_real_4'
-},
-{
-        'nametype1': 'z',
-        'type1':     'complex(kind=real_8)',
-        'zero1':     'CMPLX(0.0, 0.0, real_8)'
-},
-{
-        'nametype1': 'c',
-        'type1':     'complex(kind=real_4)',
-        'zero1':     'CMPLX(0.0, 0.0, real_4)'
-},
-]
+[{'ext': '.f90',
+  'nametype1': 'i',
+  'type1': 'integer(kind=int_4)',
+  'zero1': '0'},
+ {'ext': '.f90',
+  'nametype1': 'l',
+  'type1': 'integer(kind=int_8)',
+  'zero1': '0'},
+ {'ext': '.f90',
+  'nametype1': 'd',
+  'type1': 'real(kind=real_8)',
+  'zero1': '0.0_real_8'},
+ {'ext': '.f90',
+  'nametype1': 's',
+  'type1': 'real(kind=real_4)',
+  'zero1': '0.0_real_4'},
+ {'ext': '.f90',
+  'nametype1': 'z',
+  'type1': 'complex(kind=real_8)',
+  'zero1': 'CMPLX(0.0, 0.0, real_8)'},
+ {'ext': '.f90',
+  'nametype1': 'c',
+  'type1': 'complex(kind=real_4)',
+  'zero1': 'CMPLX(0.0, 0.0, real_4)'}]

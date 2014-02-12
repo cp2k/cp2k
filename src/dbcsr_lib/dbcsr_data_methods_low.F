@@ -1544,8 +1544,8 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 ! *****************************************************************************
-#include "dbcsr_data_methods_low_d.F"
-#include "dbcsr_data_methods_low_z.F"
-#include "dbcsr_data_methods_low_s.F"
-#include "dbcsr_data_methods_low_c.F"
+#include "dbcsr_data_methods_low_d.f90"
+#include "dbcsr_data_methods_low_z.f90"
+#include "dbcsr_data_methods_low_s.f90"
+#include "dbcsr_data_methods_low_c.f90"
 END MODULE dbcsr_data_methods_low

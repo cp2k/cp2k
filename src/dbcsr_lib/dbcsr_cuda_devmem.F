@@ -518,11 +518,11 @@ CONTAINS
 #endif
 
 
-#include "dbcsr_cuda_devmem_i4.F"
-#include "dbcsr_cuda_devmem_i8.F"
-#include "dbcsr_cuda_devmem_r4.F"
-#include "dbcsr_cuda_devmem_r8.F"
-#include "dbcsr_cuda_devmem_c4.F"
-#include "dbcsr_cuda_devmem_c8.F"
+#include "dbcsr_cuda_devmem_i4.f90"
+#include "dbcsr_cuda_devmem_i8.f90"
+#include "dbcsr_cuda_devmem_r4.f90"
+#include "dbcsr_cuda_devmem_r8.f90"
+#include "dbcsr_cuda_devmem_c4.f90"
+#include "dbcsr_cuda_devmem_c8.f90"
 
 END MODULE dbcsr_cuda_devmem

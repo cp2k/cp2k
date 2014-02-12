@@ -3758,9 +3758,9 @@ CONTAINS
 
 
 
-#include "dbcsr_operations_low_d.F"
-#include "dbcsr_operations_low_z.F"
-#include "dbcsr_operations_low_s.F"
-#include "dbcsr_operations_low_c.F"
+#include "dbcsr_operations_low_d.f90"
+#include "dbcsr_operations_low_z.f90"
+#include "dbcsr_operations_low_s.f90"
+#include "dbcsr_operations_low_c.f90"
 
 END MODULE dbcsr_operations_low

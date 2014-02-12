@@ -183,11 +183,11 @@ MODULE dbcsr_ptr_util
     narea2 = new_area
   END FUNCTION pointer_view_a
 
-#include "dbcsr_ptr_util_i.F"
-#include "dbcsr_ptr_util_l.F"
-#include "dbcsr_ptr_util_d.F"
-#include "dbcsr_ptr_util_z.F"
-#include "dbcsr_ptr_util_s.F"
-#include "dbcsr_ptr_util_c.F"
+#include "dbcsr_ptr_util_i.f90"
+#include "dbcsr_ptr_util_l.f90"
+#include "dbcsr_ptr_util_d.f90"
+#include "dbcsr_ptr_util_z.f90"
+#include "dbcsr_ptr_util_s.f90"
+#include "dbcsr_ptr_util_c.f90"
 
 END MODULE dbcsr_ptr_util

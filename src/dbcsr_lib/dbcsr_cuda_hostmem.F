@@ -102,12 +102,12 @@ MODULE dbcsr_cuda_hostmem
 
 CONTAINS
 
-#include "dbcsr_cuda_hostmem_i.F"
-#include "dbcsr_cuda_hostmem_l.F"
-#include "dbcsr_cuda_hostmem_r.F"
-#include "dbcsr_cuda_hostmem_d.F"
-#include "dbcsr_cuda_hostmem_c.F"
-#include "dbcsr_cuda_hostmem_z.F"
+#include "dbcsr_cuda_hostmem_i.f90"
+#include "dbcsr_cuda_hostmem_l.f90"
+#include "dbcsr_cuda_hostmem_r.f90"
+#include "dbcsr_cuda_hostmem_d.f90"
+#include "dbcsr_cuda_hostmem_c.f90"
+#include "dbcsr_cuda_hostmem_z.f90"
 
 
 ! *****************************************************************************

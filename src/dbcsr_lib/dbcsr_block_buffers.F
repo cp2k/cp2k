@@ -661,9 +661,9 @@ CONTAINS
   END SUBROUTINE dbcsr_buffers_set_p_2d_any
 
 
-#include "dbcsr_block_buffers_d.F"
-#include "dbcsr_block_buffers_z.F"
-#include "dbcsr_block_buffers_s.F"
-#include "dbcsr_block_buffers_c.F"
+#include "dbcsr_block_buffers_d.f90"
+#include "dbcsr_block_buffers_z.f90"
+#include "dbcsr_block_buffers_s.f90"
+#include "dbcsr_block_buffers_c.f90"
 
 END MODULE dbcsr_block_buffers
