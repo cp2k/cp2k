@@ -1,9 +1,0 @@
-LIB5_OBJECTS =\
- elpa1.o\
- tum_utils.o\
- elpa_qrkernels.o\
- elpa_pdlarfb.o\
- elpa_pdgeqrf.o\
- elpa2.o\
- elpa2_kernels_real.o\
- elpa2_kernels_complex.o
