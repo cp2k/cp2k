@@ -1840,7 +1840,7 @@ MODULE dbcsr_mm_cannon
     LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
 
     INTEGER :: data_type, error_handler, error_handler2, &
-      error_handler3, error_handler4, flop_metronome, grp, i, ithread, &
+      error_handler3, error_handler4, grp, i, ithread, &
       left_col_image, left_col_mult, left_col_nimages, left_data_recv_size, &
       left_data_send_size, left_dst_icol, left_dst_irow, left_dst_p, &
       left_dst_pcol, left_dst_prow, left_dst_vcol, left_dst_vrow, &
@@ -1869,7 +1869,8 @@ MODULE dbcsr_mm_cannon
       right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
       right_src_vrow, row, size_guess, stat, threads_finished, &
       threads_finished_read, v_k, v_ki
-    INTEGER(KIND=int_8)                      :: flop_single, flop_total
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total, &
+                                                flop_metronome
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
                                                 right_sizes
