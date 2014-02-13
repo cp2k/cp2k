@@ -26,6 +26,7 @@ MODULE dbcsr_mm_cannon
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
+                                             dbcsr_block_copy,&
                                              dbcsr_block_transpose
   USE dbcsr_config,                    ONLY: default_resize_factor,&
                                              mm_async,&
@@ -1131,11 +1132,11 @@ MODULE dbcsr_mm_cannon
 
     CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, data_p, &
-      data_type, dst_p, error_handler, error_handler2, i, icol, irow, &
+      data_type, dst_p, error_handler, error_handler2, i, &
       ithread, j, mp_group, ncol_images, nrow_images, nsymmetries, nthreads, &
       numproc, nze, pcol, prev_blk_p, prev_dst_p, prow, row, row_img, &
       row_size, sd_pos, sm_pos, src_p, stored_blk_p, stored_col, stored_row, &
-      symmetry_i, t, vcol, vrow
+      symmetry_i, t, tr_col_size, tr_row_size, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
@@ -1274,6 +1275,7 @@ MODULE dbcsr_mm_cannon
 !$omp          prev_dst_p, dst_p, same_dst_p, &
 !$omp          row, col, blk, symmetry_i, stored_row, stored_col, &
 !$omp          row_size, col_size, &
+!$omp          tr_row_size, tr_col_size, &
 !$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
 !$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
 !$omp          lsmp, lsdp, t) &
@@ -1480,9 +1482,11 @@ MODULE dbcsr_mm_cannon
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
              stored_row = row ; stored_col = col; tr = blk_p .LT. 0
+             tr_row_size = col_size; tr_col_size = row_size
           ELSE
              IF (row .EQ. col) CYCLE
              stored_row = col ; stored_col = row; tr = blk_p .GT. 0
+             tr_row_size = row_size; tr_col_size = col_size
           ENDIF
           ! Where do we send this block?
           row_img = 1
@@ -1508,83 +1512,46 @@ MODULE dbcsr_mm_cannon
           lsmp(dst_p) = lsmp(dst_p) + metalen
           send_meta(sm_pos) = stored_row
           IF (.NOT. same_dst_p ) THEN
-           nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-           sd_pos = lsdp(dst_p)
-           lsdp(dst_p) = lsdp(dst_p) + nze
-           IF ( symmetry_i .GT. 1 ) THEN
-              ! transpose variant
-             SELECT CASE (send_data_area%d%data_type)
-              CASE (dbcsr_type_real_4)
-                CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%r_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE (dbcsr_type_real_8)
-                CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%r_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE (dbcsr_type_complex_4)
-                CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%c_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE (dbcsr_type_complex_8)
-                CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%c_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE default
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                   routineN, "Invalid data type.",__LINE__,error)
-             END SELECT
-           ELSE   ! normal variant
-             SELECT CASE (send_data_area%d%data_type)
-              CASE (dbcsr_type_real_4)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_sp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%r_sp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_sp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%r_sp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-              CASE (dbcsr_type_real_8)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_dp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%r_dp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_dp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%r_dp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-              CASE (dbcsr_type_complex_4)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_sp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%c_sp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_sp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%c_sp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-              CASE (dbcsr_type_complex_8)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_dp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%c_dp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_dp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%c_dp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-               CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                   routineN, "Invalid data type.",__LINE__,error)
-              END SELECT
-           ENDIF
+             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+             sd_pos = lsdp(dst_p)
+             lsdp(dst_p) = lsdp(dst_p) + nze
+             IF ( tr )  THEN
+                SELECT CASE (send_data_area%d%data_type)
+                 CASE (dbcsr_type_real_4)
+                     CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_sp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE (dbcsr_type_real_8)
+                     CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_dp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE (dbcsr_type_complex_4)
+                     CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_sp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE (dbcsr_type_complex_8)
+                     CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_dp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE default
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                      routineN, "Invalid data type.",__LINE__,error)
+                END SELECT
+             ELSE
+                SELECT CASE (send_data_area%d%data_type)
+                 CASE (dbcsr_type_real_4)
+                     CALL dbcsr_block_copy(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_sp(bp:bp+nze-1), row_size, col_size)
+                 CASE (dbcsr_type_real_8)
+                     CALL dbcsr_block_copy(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_dp(bp:bp+nze-1), row_size, col_size)
+                 CASE (dbcsr_type_complex_4)
+                     CALL dbcsr_block_copy(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_sp(bp:bp+nze-1), row_size, col_size)
+                 CASE (dbcsr_type_complex_8)
+                     CALL dbcsr_block_copy(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_dp(bp:bp+nze-1), row_size, col_size)
+                 CASE default
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                      routineN, "Invalid data type.",__LINE__,error)
+                END SELECT
+             END IF
              IF (PRESENT (scale_value)) THEN
                 CALL dbcsr_block_scale (send_data_area, scale=scale_value,&
                      row_size=nze, col_size=1, lb=sd_pos, error=error)
