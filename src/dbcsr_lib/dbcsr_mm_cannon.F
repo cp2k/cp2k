@@ -1127,7 +1127,7 @@ MODULE dbcsr_mm_cannon
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_images', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 5
+    INTEGER, PARAMETER                       :: metalen = 5
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     CHARACTER                                :: predist_type, predist_type_fwd
@@ -1839,7 +1839,7 @@ MODULE dbcsr_mm_cannon
       iright = 2, M_L = 2, M_P = 1, M_R = 3, RC_C = 2, RC_R = 1
     LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
 
-    INTEGER :: data_size, data_type, error_handler, error_handler2, &
+    INTEGER :: data_type, error_handler, error_handler2, &
       error_handler3, error_handler4, flop_metronome, grp, i, ithread, &
       left_col_image, left_col_mult, left_col_nimages, left_data_recv_size, &
       left_data_send_size, left_dst_icol, left_dst_irow, left_dst_p, &
@@ -1869,7 +1869,7 @@ MODULE dbcsr_mm_cannon
       right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
       right_src_vrow, row, size_guess, stat, threads_finished, &
       threads_finished_read, v_k, v_ki
-    INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
                                                 right_sizes
@@ -2235,7 +2235,7 @@ MODULE dbcsr_mm_cannon
     !!
     ithread = 0
 !$omp parallel default(none) &
-!$omp          private (i, size_guess, size8, &
+!$omp          private (i, size_guess, &
 !$omp                   left_fill, right_fill, ithread) &
 !$omp          shared (product_matrix, left_max_nze, right_max_nze) &
 !$omp          shared (left_set, right_set, &
@@ -3182,7 +3182,7 @@ MODULE dbcsr_mm_cannon
     N = nf-ni+1
     IF (M > N) THEN
        half = M/2
-       CALL rec_split (nele, a, tmp, 1, nlow, mi, mf, half)
+       CALL rec_split (nele, a, tmp, 1, nlow, mi, half)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
@@ -3193,7 +3193,7 @@ MODULE dbcsr_mm_cannon
        ENDIF
     ELSE
        half = N/2
-       CALL rec_split (nele, a, tmp, 2, nlow, ni, nf, half)
+       CALL rec_split (nele, a, tmp, 2, nlow, ni, half)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
@@ -3206,13 +3206,13 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE rec_sort_index
 
 
-  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, mf, half)
+  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half)
     INTEGER, INTENT(IN)                      :: nele
     INTEGER, DIMENSION(3, nele), INTENT(IN)  :: a
     INTEGER, DIMENSION(3, nele), INTENT(OUT) :: split
     INTEGER, INTENT(IN)                      :: row_or_col
     INTEGER, INTENT(OUT)                     :: nlow
-    INTEGER, INTENT(IN)                      :: mi, mf, half
+    INTEGER, INTENT(IN)                      :: mi, half
 
     INTEGER                                  :: el, half_m, p_high, p_low
 
@@ -3382,7 +3382,7 @@ MODULE dbcsr_mm_cannon
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: data_type, error_handle, &
-                                                nblks, nrows, row
+                                                nblks, nrows
     INTEGER, DIMENSION(1), TARGET            :: tmp
     INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows
 
