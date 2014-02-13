@@ -51,7 +51,7 @@ MODULE machine_internal
 #include "machine_sx.f90"
 
 #else
-#error "Missing machine-type (e.g. -D__GFORTRAN)."
+Error: Missing machine-TYPE (e.g. -D__GFORTRAN).
 #endif
 
 END MODULE machine_internal
