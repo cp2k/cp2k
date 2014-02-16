@@ -1803,7 +1803,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: grid_2d
     LOGICAL                                  :: force_blocksize, row_major, &
                                                 transa_p, transb_p
-    REAL(KIND=dp)                            :: t1, t2
+    REAL(KIND=dp)                            :: t1, t2, t3, t4
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
                                                 fmstruct_c
@@ -1888,7 +1888,7 @@ CONTAINS
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
                                 nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize, error=error)
        CALL cp_fm_struct_get(fmstruct_b,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
-       IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix B ',nrow_global," by ",ncol_global, &
+       IF (iw>0) WRITE(iw,'(T2,A,I9,A,I9,A,I5,A,I5)') 'matrix B ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        NULLIFY (fmstruct_c)
@@ -1898,7 +1898,7 @@ CONTAINS
                                 nrow_global=nrow_global, ncol_global=ncol_global, &
                                 nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize, error=error)
        CALL cp_fm_struct_get(fmstruct_c,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
-       IF (iw>0) WRITE(iw,'(T2,A,I7,A,I7,A,I5,A,I5)') 'matrix C ',nrow_global," by ",ncol_global, &
+       IF (iw>0) WRITE(iw,'(T2,A,I9,A,I9,A,I5,A,I5)') 'matrix C ',nrow_global," by ",ncol_global, &
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        NULLIFY (matrix_a)
@@ -1916,9 +1916,13 @@ CONTAINS
 
        t1=m_walltime()
        DO i_loop=1,N_loop
-
+          t3=m_walltime()
           CALL cp_fm_gemm(transa,transb,k,n,m,1.0_dp,matrix_a,matrix_b,0.0_dp,matrix_c,error=error)
-
+          t4=m_walltime()
+          IF (iw>0) THEN
+             WRITE(iw,'(T2,A,T50,F12.6)')     "cp_fm_gemm timing: ",(t4-t3)
+             CALL m_flush(iw)
+          ENDIF
        ENDDO
        t2=m_walltime()
 
