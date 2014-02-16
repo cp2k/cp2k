@@ -778,8 +778,9 @@ CONTAINS
 
     CALL release_dbcsr_array(curvy_data%matrix_dp,error)
     CALL release_dbcsr_array(curvy_data%matrix_p,error)
+
     IF(ALLOCATED(curvy_data%matrix_psave))THEN
-       DO i=1,SIZE(curvy_data%matrix_p)
+       DO i=1,SIZE(curvy_data%matrix_psave,1)
           DO j=1,3
              CALL cp_dbcsr_release(curvy_data%matrix_psave(i,j),error)  
           END DO
@@ -787,7 +788,7 @@ CONTAINS
        DEALLOCATE(curvy_data%matrix_psave)
     END IF
     IF(ALLOCATED(curvy_data%matrix_BCH))THEN
-       DO i=1,SIZE(curvy_data%matrix_p)
+       DO i=1,SIZE(curvy_data%matrix_BCH,1)
           DO j=1,7
              CALL cp_dbcsr_release(curvy_data%matrix_BCH(i,j),error)  
           END DO
