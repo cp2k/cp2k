@@ -38,6 +38,7 @@ cd ${cp2kdir}/cp2k
 # If ChangeLog does not exist for the first time, it is created 
 if [[ ! -s ${dir_last}/ChangeLog ]]  
 then
+mkdir -p ${dir_last}
 ${cp2kdir}/cp2k/tools/svn2cl/svn2cl.sh -i -o ${dir_last}/ChangeLog 
 fi
 
