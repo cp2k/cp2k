@@ -308,8 +308,13 @@ CONTAINS
              ! no spin polarization allowed
              CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
              CALL pw_env_get(pw_env,vdw_pw_pool=vdw_pw_pool,error=error)
-             CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
+             IF(my_just_energy) THEN
+                CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
+                  cell,vdw_pw_pool,xc_pw_pool,error=error)
+             ELSE
+                CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
                   cell,vdw_pw_pool,xc_pw_pool,virial=virial,error=error)
+             END IF
           END IF
 
           !! Apply rescaling to the potential if requested
