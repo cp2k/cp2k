@@ -29,6 +29,8 @@ PROGRAM dbcsr_test_driver
                                              mp_world_init
   USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
                                              dbcsr_mp_release
+  USE dbcsr_operations,                ONLY: dbcsr_init_lib,&
+                                             dbcsr_finalize_lib
   USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
@@ -40,12 +42,12 @@ PROGRAM dbcsr_test_driver
 
 
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-       prow, pcol, ionode, narg, error_handler
+       prow, pcol, io_unit, narg, error_handler
   INTEGER, DIMENSION(2)                    :: npdims, myploc
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
   TYPE(dbcsr_error_type)                   :: error
-  CHARACTER(len=default_string_length)     :: operation, args(100)
+  CHARACTER(len=default_string_length)     :: args(100)
 
 
   CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply'
@@ -53,61 +55,60 @@ PROGRAM dbcsr_test_driver
 
   !***************************************************************************************
 
-  CALL dbcsr_error_set(routineN, error_handler, error)
+  !
+  ! initialize libdbcsr errors
+  CALL dbcsr_error_set (routineN, error_handler, error)
 
   !
   ! initialize mpi
-  CALL mp_world_init(mp_comm)
+  CALL mp_world_init (mp_comm)
 
-  !
-  !
+  ! setup the mp environment
   npdims(:) = 0
   CALL mp_cart_create (mp_comm, 2, npdims, myploc, group)
-
-  !
-  !
   CALL mp_environ (numnodes, mynode, group)
-
-  !
-  !
-  ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
+  ALLOCATE(pgrid(0:npdims(1)-1,0:npdims(2)-1))
   DO prow = 0, npdims(1)-1
      DO pcol = 0, npdims(2)-1
         CALL mp_cart_rank (group, (/ prow, pcol /), pgrid(prow, pcol))
      ENDDO
   ENDDO
-
-  !
-  ! setup the mp enviroment
   CALL dbcsr_mp_new (mp_env, pgrid, group, mynode, numnodes,&
        myprow=myploc(1), mypcol=myploc(2))
   DEALLOCATE(pgrid)
 
   !
-  ! set parameters
-  ionode = 0
-  IF(mynode.EQ.0) ionode = 6
+  ! set standard output parameters
+  io_unit = 0
+  IF (mynode.EQ.0) io_unit = 6
 
   !
-  ! read args
-  IF(mynode.eq.0) CALL dbcsr_test_read_args(narg, args)
-  CALL mp_bcast(narg, 0, group)
-  CALL mp_bcast(args, 0, group)
+  ! read and distribute input args
+  IF (mynode.eq.0) CALL dbcsr_test_read_args (narg, args)
+  CALL mp_bcast (narg, 0, group)
+  CALL mp_bcast (args, 0, group)
+  CALL dbcsr_assert (narg.GE.1, dbcsr_fatal_level, dbcsr_wrong_args_error, &
+     routineN, "nargs not correct", __LINE__, error)
 
-  CALL dbcsr_assert( narg.GE.1 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
-       routineN, "nargs not correct", __LINE__, error )
   !
-  ! Select the operation
+  ! initialize libdbcsr
+  CALL dbcsr_init_lib (group=mp_comm, error=error)
+
+  !
+  ! select the operation
   SELECT CASE(args(1))
-     !CASE()
-  CASE('dbcsr_add')
-     CALL dbcsr_test_adds( group, mp_env, npdims, ionode, narg, args, error=error)
-  CASE('dbcsr_multiply')
-     CALL dbcsr_test_multiplies( group, mp_env, npdims, ionode, narg, args, error=error)
-  CASE DEFAULT
-     CALL dbcsr_assert( .FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-          routineN, "operation not found", __LINE__, error )
+    CASE('dbcsr_add')
+       CALL dbcsr_test_adds (group, mp_env, npdims, io_unit, narg, args, error=error)
+    CASE('dbcsr_multiply')
+       CALL dbcsr_test_multiplies (group, mp_env, npdims, io_unit, narg, args, error=error)
+    CASE DEFAULT
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
+          routineN, "operation not found", __LINE__, error)
   END SELECT
+
+  !
+  ! finalize libdbcsr
+  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
 
   !
   ! clean mp enviroment
@@ -115,9 +116,10 @@ PROGRAM dbcsr_test_driver
 
   !
   ! finalize mpi
-  CALL mp_world_finalize()
+  CALL mp_world_finalize ()
 
-
-  CALL dbcsr_error_stop(error_handler, error)
+  !
+  ! finalize libdbcsr errors
+  CALL dbcsr_error_stop (error_handler, error)
 
 END PROGRAM dbcsr_test_driver
