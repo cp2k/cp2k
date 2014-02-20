@@ -81,12 +81,12 @@ MODULE dbcsr_test_multiply
 
 CONTAINS
 
-  SUBROUTINE dbcsr_test_multiplies( group, mp_env, npdims, ionode, narg, args, error)
+  SUBROUTINE dbcsr_test_multiplies (group, mp_env, npdims, io_unit, narg, args, error)
 
     INTEGER                                  :: group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(2), INTENT(in)        :: npdims
-    INTEGER                                  :: ionode, narg
+    INTEGER                                  :: io_unit, narg
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(IN)                             :: args
     TYPE(dbcsr_error_type)                   :: error
@@ -105,17 +105,17 @@ CONTAINS
 !
 ! parsing
 
-    CALL dbcsr_assert( narg.GE.21 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
-         routineN, "narg not correct", __LINE__, error )
+    CALL dbcsr_assert (narg.GE.21 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
+         routineN, "narg not correct", __LINE__, error)
 
-     matrix_sizes(1) = atoi(args( 2))
-     matrix_sizes(2) = atoi(args( 3))
-     matrix_sizes(3) = atoi(args( 4))
-     sparsities(1)   = ator(args( 5))
-     sparsities(2)   = ator(args( 6))
-     sparsities(3)   = ator(args( 7))
-     alpha(1)        = ator(args( 8))
-     alpha(2)        = ator(args( 9))
+     matrix_sizes(1) = atoi(args(2))
+     matrix_sizes(2) = atoi(args(3))
+     matrix_sizes(3) = atoi(args(4))
+     sparsities(1)   = ator(args(5))
+     sparsities(2)   = ator(args(6))
+     sparsities(3)   = ator(args(7))
+     alpha(1)        = ator(args(8))
+     alpha(2)        = ator(args(9))
      beta(1)         = ator(args(10))
      beta(2)         = ator(args(11))
      limits(1)       = atoi(args(12))
@@ -129,13 +129,13 @@ CONTAINS
      nblk_to_read    = atoi(args(20))
      kblk_to_read    = atoi(args(21))
 
-     CALL dbcsr_assert( narg.GE.21+2*(mblk_to_read+nblk_to_read+kblk_to_read) , &
+     CALL dbcsr_assert (narg.GE.21+2*(mblk_to_read+nblk_to_read+kblk_to_read) , &
           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "narg not correct", &
-          __LINE__, error )
+          __LINE__, error)
 
      ALLOCATE(bs_m(2*mblk_to_read), bs_n(2*nblk_to_read), bs_k(2*kblk_to_read), STAT=istat)
      CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-          routineN, "allocattion problem",__LINE__,error)
+          routineN, "allocattion problem", __LINE__, error)
 
      i = 21
      DO iblk = 1,mblk_to_read
@@ -143,35 +143,35 @@ CONTAINS
         bs_m(2*(iblk-1)+1) = atoi(args(i))
         i = i + 1
         bs_m(2*(iblk-1)+2) = atoi(args(i))
-     ENDDO
+     END DO
      DO iblk = 1,nblk_to_read
         i = i + 1
         bs_n(2*(iblk-1)+1) = atoi(args(i))
         i = i + 1
         bs_n(2*(iblk-1)+2) = atoi(args(i))
-     ENDDO
+     END DO
      DO iblk = 1,kblk_to_read
         i = i + 1
         bs_k(2*(iblk-1)+1) = atoi(args(i))
         i = i + 1
         bs_k(2*(iblk-1)+2) = atoi(args(i))
-     ENDDO
+     END DO
 
      !
      ! do checks here
 
      !
      ! if the limits are not specified (i.e 0), we set them here
-     IF(limits(1).EQ.0) limits(1) = 1
-     IF(limits(2).EQ.0) limits(2) = matrix_sizes(1)
-     IF(limits(3).EQ.0) limits(3) = 1
-     IF(limits(4).EQ.0) limits(4) = matrix_sizes(2)
-     IF(limits(5).EQ.0) limits(5) = 1
-     IF(limits(6).EQ.0) limits(6) = matrix_sizes(3)
+     IF (limits(1).EQ.0) limits(1) = 1
+     IF (limits(2).EQ.0) limits(2) = matrix_sizes(1)
+     IF (limits(3).EQ.0) limits(3) = 1
+     IF (limits(4).EQ.0) limits(4) = matrix_sizes(2)
+     IF (limits(5).EQ.0) limits(5) = 1
+     IF (limits(6).EQ.0) limits(6) = matrix_sizes(3)
 
      !
      ! lets go !
-     CALL dbcsr_test_multiply_low( group, mp_env, npdims, ionode, matrix_sizes, &
+     CALL dbcsr_test_multiply_low (group, mp_env, npdims, io_unit, matrix_sizes, &
           bs_m, bs_n, bs_k, sparsities, &
           alpha, beta, limits, retain_sparsity, error=error)
 
@@ -216,23 +216,19 @@ CONTAINS
     CHARACTER, DIMENSION(3), PARAMETER :: trans = (/dbcsr_no_transpose, &
       dbcsr_transpose, dbcsr_conjugate_transpose/)
     CHARACTER, DIMENSION(3, 12), PARAMETER :: symmetries = RESHAPE((/&
-      dbcsr_type_no_symmetry       , dbcsr_type_no_symmetry       , &
-      dbcsr_type_no_symmetry  ,dbcsr_type_symmetric    , &
-      dbcsr_type_no_symmetry       , dbcsr_type_no_symmetry  ,&
-      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry       , &
-      dbcsr_type_no_symmetry  ,dbcsr_type_no_symmetry       , &
-      dbcsr_type_symmetric    , dbcsr_type_no_symmetry  ,dbcsr_type_symmetric &
-      , dbcsr_type_symmetric    , dbcsr_type_no_symmetry  ,&
-      dbcsr_type_antisymmetric, dbcsr_type_symmetric    , &
-      dbcsr_type_no_symmetry  ,dbcsr_type_no_symmetry       , &
-      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry  ,dbcsr_type_symmetric &
-      , dbcsr_type_antisymmetric, dbcsr_type_no_symmetry  ,&
-      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric, &
-      dbcsr_type_no_symmetry  ,dbcsr_type_no_symmetry       , &
-      dbcsr_type_no_symmetry       , dbcsr_type_symmetric,dbcsr_type_symmetric&
-      , dbcsr_type_symmetric    , dbcsr_type_symmetric,&
-      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric,dbcsr_type_symmetric&
-      /), (/3,12/) )
+      dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, &
+      dbcsr_type_symmetric,     dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, &
+      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, &
+      dbcsr_type_no_symmetry,   dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
+      dbcsr_type_symmetric,     dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
+      dbcsr_type_antisymmetric, dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
+      dbcsr_type_no_symmetry,   dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+      dbcsr_type_symmetric,     dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+      dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry,   dbcsr_type_symmetric, &
+      dbcsr_type_symmetric,     dbcsr_type_symmetric,     dbcsr_type_symmetric, &
+      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric, dbcsr_type_symmetric &
+      /), (/3,12/))
     INTEGER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
       dbcsr_type_real_8, dbcsr_type_complex_4, dbcsr_type_complex_8/)
 
@@ -241,7 +237,7 @@ CONTAINS
     INTEGER                                  :: a_c, a_r, a_tr, b_c, b_r, &
                                                 b_tr, c_c, c_r, &
                                                 error_handler, isymm, itype, &
-                                                mynode, n_tr, numnodes, TYPE
+                                                mynode, numnodes, TYPE
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes
     LOGICAL                                  :: do_complex
     TYPE(array_i1d_obj)                      :: my_sizes_k, my_sizes_m, &
@@ -254,7 +250,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set (routineN, error_handler, error)
 
     !
     ! print
@@ -270,7 +266,7 @@ CONTAINS
        WRITE(io_unit,*) 'bs_m',bs_m
        WRITE(io_unit,*) 'bs_n',bs_n
        WRITE(io_unit,*) 'bs_k',bs_k
-    ENDIF
+    END IF
     !
     !
     ! loop over symmetry
@@ -279,9 +275,9 @@ CONTAINS
        b_symm = symmetries(2, isymm)
        c_symm = symmetries(3, isymm)
 
-       IF( a_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(3) ) CYCLE
-       IF( b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3) ) CYCLE
-       IF( c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2) ) CYCLE
+       IF (a_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(3)) CYCLE
+       IF (b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3)) CYCLE
+       IF (c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2)) CYCLE
 
        !
        ! loop over types
@@ -292,43 +288,42 @@ CONTAINS
 
           SELECT CASE (TYPE)
           CASE (dbcsr_type_real_4)
-             alpha = dbcsr_scalar (REAL(alpha_in(1), real_4))
-             beta  = dbcsr_scalar (REAL( beta_in(1), real_4))
+             alpha = dbcsr_scalar(REAL(alpha_in(1), real_4))
+             beta  = dbcsr_scalar(REAL(beta_in(1), real_4))
           CASE (dbcsr_type_real_8)
-             alpha = dbcsr_scalar (REAL(alpha_in(1), real_8))
-             beta  = dbcsr_scalar (REAL( beta_in(1), real_8))
+             alpha = dbcsr_scalar(REAL(alpha_in(1), real_8))
+             beta  = dbcsr_scalar(REAL(beta_in(1), real_8))
           CASE (dbcsr_type_complex_4)
-             alpha = dbcsr_scalar (CMPLX(alpha_in(1), alpha_in(2), real_4))
-             beta  = dbcsr_scalar (CMPLX( beta_in(1),  beta_in(2), real_4))
+             alpha = dbcsr_scalar(CMPLX(alpha_in(1), alpha_in(2), real_4))
+             beta  = dbcsr_scalar(CMPLX(beta_in(1),  beta_in(2), real_4))
           CASE (dbcsr_type_complex_8)
-             alpha = dbcsr_scalar (CMPLX(alpha_in(1), alpha_in(2), real_8))
-             beta  = dbcsr_scalar (CMPLX( beta_in(1),  beta_in(2), real_8))
+             alpha = dbcsr_scalar(CMPLX(alpha_in(1), alpha_in(2), real_8))
+             beta  = dbcsr_scalar(CMPLX(beta_in(1),  beta_in(2), real_8))
           END SELECT
 
           !
           ! loop over transpositions
-          n_tr = 3
-          DO a_tr = 1,n_tr
-          DO b_tr = 1,n_tr
+          DO a_tr = 1,SIZE(trans)
+          DO b_tr = 1,SIZE(trans)
              transa = trans(a_tr)
              transb = trans(b_tr)
 
              !
              ! if C has a symmetry, we need special transpositions
-             IF( c_symm.NE.dbcsr_type_no_symmetry ) THEN
-                IF(.NOT.(transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_transpose.OR.&
-                         transa.EQ.dbcsr_transpose.AND.transb.EQ.dbcsr_no_transpose.OR.&
-                         transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_conjugate_transpose.AND.&
-                         .NOT.do_complex.OR.&
-                         transa.EQ.dbcsr_conjugate_transpose.AND.transb.EQ.dbcsr_no_transpose.AND.&
-                         .NOT.do_complex)) CYCLE
-             ENDIF
+             IF (c_symm.NE.dbcsr_type_no_symmetry) THEN
+                IF (.NOT.(transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_transpose.OR.&
+                          transa.EQ.dbcsr_transpose.AND.transb.EQ.dbcsr_no_transpose.OR.&
+                          transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_conjugate_transpose.AND.&
+                          .NOT.do_complex.OR.&
+                          transa.EQ.dbcsr_conjugate_transpose.AND.transb.EQ.dbcsr_no_transpose.AND.&
+                          .NOT.do_complex)) CYCLE
+             END IF
              !
              ! if C has symmetry and special limits
-             IF( c_symm.NE.dbcsr_type_no_symmetry ) THEN
-                IF(limits(1).NE.1.OR.limits(2).NE.matrix_sizes(1).OR.&
+             IF (c_symm.NE.dbcsr_type_no_symmetry) THEN
+                IF (limits(1).NE.1.OR.limits(2).NE.matrix_sizes(1).OR.&
                    limits(3).NE.1.OR.limits(4).NE.matrix_sizes(2)) CYCLE
-             ENDIF
+             END IF
 
              !
              ! Create the row/column block sizes.
@@ -338,34 +333,46 @@ CONTAINS
 
              !
              ! if we have symmetry the row and column block sizes hae to match
-             IF  (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
-                  b_symm.NE.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m; my_sizes_n = sizes_m; my_sizes_k = sizes_m
-             ELSEIF((c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
-                     b_symm.NE.dbcsr_type_no_symmetry).OR.&
-                    (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
-                     b_symm.NE.dbcsr_type_no_symmetry).OR.&
-                    (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
-                     b_symm.EQ.dbcsr_type_no_symmetry)) THEN
-                my_sizes_m = sizes_m; my_sizes_n = sizes_m; my_sizes_k = sizes_m
-             ELSEIF(c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
-                    b_symm.NE.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m; my_sizes_n = sizes_n; my_sizes_k = sizes_n
-             ELSEIF(c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
-                    b_symm.EQ.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m; my_sizes_n = sizes_n; my_sizes_k = sizes_m
-             ELSEIF(c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
-                    b_symm.EQ.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m; my_sizes_n = sizes_m; my_sizes_k = sizes_k
-             ELSEIF(c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
-                    b_symm.EQ.dbcsr_type_no_symmetry)THEN
-                my_sizes_m = sizes_m; my_sizes_n = sizes_n; my_sizes_k = sizes_k
+             IF (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
+                 b_symm.NE.dbcsr_type_no_symmetry) THEN
+                my_sizes_m = sizes_m
+                my_sizes_n = sizes_m
+                my_sizes_k = sizes_m
+             ELSE IF ((c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
+                       b_symm.NE.dbcsr_type_no_symmetry).OR.&
+                      (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
+                       b_symm.NE.dbcsr_type_no_symmetry).OR.&
+                      (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
+                       b_symm.EQ.dbcsr_type_no_symmetry)) THEN
+                my_sizes_m = sizes_m
+                my_sizes_n = sizes_m
+                my_sizes_k = sizes_m
+             ELSE IF (c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
+                      b_symm.NE.dbcsr_type_no_symmetry) THEN
+                my_sizes_m = sizes_m
+                my_sizes_n = sizes_n
+                my_sizes_k = sizes_n
+             ELSE IF (c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
+                      b_symm.EQ.dbcsr_type_no_symmetry) THEN
+                my_sizes_m = sizes_m
+                my_sizes_n = sizes_n
+                my_sizes_k = sizes_m
+             ELSE IF (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
+                      b_symm.EQ.dbcsr_type_no_symmetry) THEN
+                my_sizes_m = sizes_m
+                my_sizes_n = sizes_m
+                my_sizes_k = sizes_k
+             ELSE IF (c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
+                      b_symm.EQ.dbcsr_type_no_symmetry)THEN
+                my_sizes_m = sizes_m
+                my_sizes_n = sizes_n
+                my_sizes_k = sizes_k
              ELSE
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-                     routineN, " something wrong here... ",__LINE__,error)
-             ENDIF
+                CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+                     routineN, " something wrong here... ", __LINE__, error)
+             END IF
 
-             IF(.FALSE.) THEN
+             IF (.FALSE.) THEN
                 blk_sizes => array_data(my_sizes_m)
                 WRITE(*,*) 'sizes_m',blk_sizes
                 WRITE(*,*) 'sum(sizes_m)',SUM(blk_sizes),' matrix_sizes(1)',matrix_sizes(1)
@@ -375,7 +382,7 @@ CONTAINS
                 blk_sizes => array_data(my_sizes_k)
                 WRITE(*,*) 'sizes_k',blk_sizes
                 WRITE(*,*) 'sum(sizes_k)',SUM(blk_sizes),' matrix_sizes(3)',matrix_sizes(3)
-             ENDIF
+             END IF
 
              !
              ! Create the undistributed matrices.
@@ -391,7 +398,7 @@ CONTAINS
                 CALL dbcsr_make_random_matrix (matrix_a, my_sizes_m, my_sizes_k, "Matrix A",&
                      sparsities(1),&
                      mp_group, data_type=TYPE, symmetry=a_symm, error=error)
-             ENDIF
+             END IF
              IF (transb.NE.dbcsr_no_transpose) THEN
                 CALL dbcsr_make_random_matrix (matrix_b, my_sizes_n, my_sizes_k, "Matrix B",&
                      sparsities(2),&
@@ -400,7 +407,7 @@ CONTAINS
                 CALL dbcsr_make_random_matrix (matrix_b, my_sizes_k, my_sizes_n, "Matrix B",&
                      sparsities(2),&
                      mp_group, data_type=TYPE, symmetry=b_symm, error=error)
-             ENDIF
+             END IF
 
              CALL array_release (sizes_m)
              CALL array_release (sizes_n)
@@ -408,32 +415,35 @@ CONTAINS
 
              !
              ! if C has a symmetry, we build it accordingly, i.e. C=A*A and C=A*(-A)
-             IF( c_symm.NE.dbcsr_type_no_symmetry ) THEN
-                CALL dbcsr_copy(matrix_b, matrix_a, error=error)
+             IF (c_symm.NE.dbcsr_type_no_symmetry) THEN
+                CALL dbcsr_copy (matrix_b, matrix_a, error=error)
                 !print*, a_symm,b_symm,dbcsr_get_matrix_type(matrix_a),dbcsr_get_matrix_type(matrix_b)
-                IF( c_symm.EQ.dbcsr_type_antisymmetric ) THEN
-                   CALL dbcsr_scale(matrix_b, &
+                IF (c_symm.EQ.dbcsr_type_antisymmetric) THEN
+                   CALL dbcsr_scale (matrix_b, &
                         alpha_scalar=dbcsr_scalar_negative(&
                                 dbcsr_scalar_one(TYPE)), error=error)
-                ENDIF
-             ENDIF
+                END IF
+             END IF
 
              !
              ! convert the dbcsr matrices to denses
-             a_r = dbcsr_nfullrows_total(matrix_a); a_c = dbcsr_nfullcols_total(matrix_a)
-             b_r = dbcsr_nfullrows_total(matrix_b); b_c = dbcsr_nfullcols_total(matrix_b)
-             c_r = dbcsr_nfullrows_total(matrix_c); c_c = dbcsr_nfullcols_total(matrix_c)
-             CALL dbcsr_data_init ( data_a )
-             CALL dbcsr_data_init ( data_b )
-             CALL dbcsr_data_init ( data_c )
-             CALL dbcsr_data_init ( data_c_dbcsr )
-             CALL dbcsr_data_new ( data_a, dbcsr_type_1d_to_2d(TYPE), data_size=a_r, data_size2=a_c )
-             CALL dbcsr_data_new ( data_b, dbcsr_type_1d_to_2d(TYPE), data_size=b_r, data_size2=b_c )
-             CALL dbcsr_data_new ( data_c, dbcsr_type_1d_to_2d(TYPE), data_size=c_r, data_size2=c_c )
-             CALL dbcsr_data_new ( data_c_dbcsr, dbcsr_type_1d_to_2d(TYPE), data_size=c_r, data_size2=c_c )
-             CALL dbcsr_to_dense_local ( matrix_a, data_a, error=error )
-             CALL dbcsr_to_dense_local ( matrix_b, data_b, error=error )
-             CALL dbcsr_to_dense_local ( matrix_c, data_c, error=error )
+             a_r = dbcsr_nfullrows_total(matrix_a)
+             a_c = dbcsr_nfullcols_total(matrix_a)
+             b_r = dbcsr_nfullrows_total(matrix_b)
+             b_c = dbcsr_nfullcols_total(matrix_b)
+             c_r = dbcsr_nfullrows_total(matrix_c)
+             c_c = dbcsr_nfullcols_total(matrix_c)
+             CALL dbcsr_data_init (data_a)
+             CALL dbcsr_data_init (data_b)
+             CALL dbcsr_data_init (data_c)
+             CALL dbcsr_data_init (data_c_dbcsr)
+             CALL dbcsr_data_new (data_a, dbcsr_type_1d_to_2d(TYPE), data_size=a_r, data_size2=a_c)
+             CALL dbcsr_data_new (data_b, dbcsr_type_1d_to_2d(TYPE), data_size=b_r, data_size2=b_c)
+             CALL dbcsr_data_new (data_c, dbcsr_type_1d_to_2d(TYPE), data_size=c_r, data_size2=c_c)
+             CALL dbcsr_data_new (data_c_dbcsr, dbcsr_type_1d_to_2d(TYPE), data_size=c_r, data_size2=c_c)
+             CALL dbcsr_to_dense_local (matrix_a, data_a, error=error)
+             CALL dbcsr_to_dense_local (matrix_b, data_b, error=error)
+             CALL dbcsr_to_dense_local (matrix_c, data_c, error=error)
 
              !
              ! Prepare test parameters
@@ -449,19 +459,19 @@ CONTAINS
              CALL dbcsr_release (matrix_a)
              CALL dbcsr_release (matrix_b)
              CALL dbcsr_release (matrix_c)
-             CALL dbcsr_data_release( data_a )
-             CALL dbcsr_data_release( data_b )
-             CALL dbcsr_data_release( data_c )
-             CALL dbcsr_data_release( data_c_dbcsr )
+             CALL dbcsr_data_release (data_a)
+             CALL dbcsr_data_release (data_b)
+             CALL dbcsr_data_release (data_c)
+             CALL dbcsr_data_release (data_c_dbcsr)
 
-          ENDDO
-          ENDDO
+          END DO
+          END DO
 
-       ENDDO ! itype
+       END DO ! itype
 
-    ENDDO !isymm
+    END DO !isymm
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop (error_handler, error)
 
   END SUBROUTINE dbcsr_test_multiply_low
 
@@ -499,7 +509,7 @@ CONTAINS
       routineN = 'test_multiply', routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c_a, c_b, c_c, error_handler, &
-                                                r_a, r_b, r_c, test
+                                                r_a, r_b, r_c
     INTEGER, DIMENSION(:), POINTER           :: blk_offsets
     LOGICAL                                  :: success
     REAL(real_8)                             :: occ_a, occ_b, occ_c_in, &
@@ -512,30 +522,30 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set (routineN, error_handler, error)
 
     IF (debug_mod .AND. io_unit .GT. 0) THEN
        WRITE(io_unit, *) REPEAT("*",70)
        WRITE(io_unit, *) " -- TESTING dbcsr_multiply (",transa,", ",transb,&
-            ", ",dbcsr_get_data_type( m_a ),&
-            ", ",dbcsr_get_matrix_type( m_a ),&
-            ", ",dbcsr_get_matrix_type( m_b ),&
-            ", ",dbcsr_get_matrix_type( m_c ),&
+            ", ",dbcsr_get_data_type(m_a),&
+            ", ",dbcsr_get_matrix_type(m_a),&
+            ", ",dbcsr_get_matrix_type(m_b),&
+            ", ",dbcsr_get_matrix_type(m_c),&
             ") ............... !"
        WRITE(io_unit, *) REPEAT("*",70)
-    ENDIF
+    END IF
 
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
     CALL dbcsr_init (m_c)
 
     ! Row & column distributions
-    CALL dbcsr_random_dist (row_dist_a, dbcsr_nblkrows_total (matrix_a), npdims(1))
-    CALL dbcsr_random_dist (col_dist_a, dbcsr_nblkcols_total (matrix_a), npdims(2))
-    CALL dbcsr_random_dist (row_dist_b, dbcsr_nblkrows_total (matrix_b), npdims(1))
-    CALL dbcsr_random_dist (col_dist_b, dbcsr_nblkcols_total (matrix_b), npdims(2))
-    CALL dbcsr_random_dist (row_dist_c, dbcsr_nblkrows_total (matrix_c), npdims(1))
-    CALL dbcsr_random_dist (col_dist_c, dbcsr_nblkcols_total (matrix_c), npdims(2))
+    CALL dbcsr_random_dist (row_dist_a, dbcsr_nblkrows_total(matrix_a), npdims(1))
+    CALL dbcsr_random_dist (col_dist_a, dbcsr_nblkcols_total(matrix_a), npdims(2))
+    CALL dbcsr_random_dist (row_dist_b, dbcsr_nblkrows_total(matrix_b), npdims(1))
+    CALL dbcsr_random_dist (col_dist_b, dbcsr_nblkcols_total(matrix_b), npdims(2))
+    CALL dbcsr_random_dist (row_dist_c, dbcsr_nblkrows_total(matrix_c), npdims(1))
+    CALL dbcsr_random_dist (col_dist_c, dbcsr_nblkcols_total(matrix_c), npdims(2))
     CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
     CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
@@ -547,46 +557,46 @@ CONTAINS
     CALL array_release (col_dist_c)
     ! Redistribute the matrices
     ! A
-    CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name (matrix_a)),&
+    CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name(matrix_a)),&
          dist_a, dbcsr_get_matrix_type(matrix_a),&
-         dbcsr_row_block_sizes (matrix_a),&
-         dbcsr_col_block_sizes (matrix_a),&
-         data_type=dbcsr_get_data_type (matrix_a),&
+         dbcsr_row_block_sizes(matrix_a),&
+         dbcsr_col_block_sizes(matrix_a),&
+         data_type=dbcsr_get_data_type(matrix_a),&
          error=error)
     CALL dbcsr_distribution_release (dist_a)
     CALL dbcsr_redistribute (matrix_a, m_a, error=error)
     ! B
-    CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
+    CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name(matrix_b)),&
          dist_b, dbcsr_get_matrix_type(matrix_b),&
-         dbcsr_row_block_sizes (matrix_b),&
-         dbcsr_col_block_sizes (matrix_b),&
-         data_type=dbcsr_get_data_type (matrix_b),&
+         dbcsr_row_block_sizes(matrix_b),&
+         dbcsr_col_block_sizes(matrix_b),&
+         data_type=dbcsr_get_data_type(matrix_b),&
          error=error)
     CALL dbcsr_distribution_release (dist_b)
     CALL dbcsr_redistribute (matrix_b, m_b, error=error)
     ! C
-    CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name (matrix_c)),&
+    CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name(matrix_c)),&
          dist_c, dbcsr_get_matrix_type(matrix_c),&
-         dbcsr_row_block_sizes (matrix_c),&
-         dbcsr_col_block_sizes (matrix_c),&
-         data_type=dbcsr_get_data_type (matrix_c),&
+         dbcsr_row_block_sizes(matrix_c),&
+         dbcsr_col_block_sizes(matrix_c),&
+         data_type=dbcsr_get_data_type(matrix_c),&
          error=error)
     CALL dbcsr_distribution_release (dist_c)
     CALL dbcsr_redistribute (matrix_c, m_c, error=error)
 
-    IF(.FALSE.) THEN
+    IF (.FALSE.) THEN
        blk_offsets => array_data(dbcsr_row_block_offsets(matrix_c))
        WRITE(*,*) 'row_block_offsets(matrix_c)',blk_offsets
        blk_offsets => array_data(dbcsr_col_block_offsets(matrix_c))
        WRITE(*,*) 'col_block_offsets(matrix_c)',blk_offsets
-    ENDIF
+    END IF
 
-    IF(.FALSE.) THEN
-       CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_in_', error=error)
-       CALL dbcsr_print(m_a, matlab_format=.FALSE., variable_name='a_', error=error)
-       CALL dbcsr_print(m_b, matlab_format=.FALSE., variable_name='b_', error=error)
-       CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
-    ENDIF
+    IF (.FALSE.) THEN
+       CALL dbcsr_print (m_c, matlab_format=.FALSE., variable_name='c_in_', error=error)
+       CALL dbcsr_print (m_a, matlab_format=.FALSE., variable_name='a_', error=error)
+       CALL dbcsr_print (m_b, matlab_format=.FALSE., variable_name='b_', error=error)
+       CALL dbcsr_print (m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
+    END IF
 
     occ_a    = dbcsr_get_occupation(m_a)
     occ_b    = dbcsr_get_occupation(m_b)
@@ -594,7 +604,7 @@ CONTAINS
 
     !
     ! Perform multiply
-    IF (ALL (limits==0)) THEN
+    IF (ALL(limits==0)) THEN
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, " limits shouldnt be 0 ",__LINE__,error)
     ELSE
@@ -607,58 +617,58 @@ CONTAINS
             first_k = limits(5),&
             last_k = limits(6),&
             retain_sparsity=retain_sparsity, error=error)
-    ENDIF
+    END IF
 
     occ_c_out = dbcsr_get_occupation(m_c)
 
-    IF(.FALSE.) THEN
+    IF (.FALSE.) THEN
        PRINT*,'retain_sparsity',retain_sparsity,occ_a,occ_b,occ_c_in,occ_c_out
-       CALL dbcsr_print(m_a, matlab_format=.TRUE., variable_name='a_', error=error)
-       CALL dbcsr_print(m_b, matlab_format=.TRUE., variable_name='b_', error=error)
-       CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
-    ENDIF
+       CALL dbcsr_print (m_a, matlab_format=.TRUE., variable_name='a_', error=error)
+       CALL dbcsr_print (m_b, matlab_format=.TRUE., variable_name='b_', error=error)
+       CALL dbcsr_print (m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
+    END IF
 
-    CALL dbcsr_replicate_all( m_c, error=error )
-    CALL dbcsr_to_dense_local( m_c, data_c_dbcsr, error=error)
-    CALL dbcsr_check_multiply( m_c, data_c_dbcsr, data_a, data_b, data_c, &
+    CALL dbcsr_replicate_all (m_c, error=error)
+    CALL dbcsr_to_dense_local (m_c, data_c_dbcsr, error=error)
+    CALL dbcsr_check_multiply (m_c, data_c_dbcsr, data_a, data_b, data_c, &
          transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
-         success, error=error )
+         success, error=error)
 
-    r_a = dbcsr_nfullrows_total( m_a )
-    c_a = dbcsr_nfullcols_total( m_a )
-    r_b = dbcsr_nfullrows_total( m_b )
-    c_b = dbcsr_nfullcols_total( m_b )
-    r_c = dbcsr_nfullrows_total( m_c )
-    c_c = dbcsr_nfullcols_total( m_c )
+    r_a = dbcsr_nfullrows_total(m_a)
+    c_a = dbcsr_nfullcols_total(m_a)
+    r_b = dbcsr_nfullrows_total(m_b)
+    c_b = dbcsr_nfullcols_total(m_b)
+    r_c = dbcsr_nfullrows_total(m_c)
+    c_c = dbcsr_nfullcols_total(m_c)
     IF (io_unit .GT. 0) THEN
        IF (success) THEN
           WRITE(io_unit, *) REPEAT("*",70)
           WRITE(io_unit, *) " -- TESTING dbcsr_multiply (",transa,", ",transb,&
-               ", ",dbcsr_get_data_type( m_a ),&
-               ", ",dbcsr_get_matrix_type( m_a ),&
-               ", ",dbcsr_get_matrix_type( m_b ),&
-               ", ",dbcsr_get_matrix_type( m_c ),&
+               ", ",dbcsr_get_data_type(m_a),&
+               ", ",dbcsr_get_matrix_type(m_a),&
+               ", ",dbcsr_get_matrix_type(m_b),&
+               ", ",dbcsr_get_matrix_type(m_c),&
                ") ............... PASSED !"
           WRITE(io_unit, *) REPEAT("*",70)
        ELSE
           WRITE(io_unit, *) REPEAT("*",70)
           WRITE(io_unit, *) " -- TESTING dbcsr_multiply (",transa,", ",transb,&
-               ", ",dbcsr_get_data_type( m_a ),&
-               ", ",dbcsr_get_matrix_type( m_a ),&
-               ", ",dbcsr_get_matrix_type( m_b ),&
-               ", ",dbcsr_get_matrix_type( m_c ),&
+               ", ",dbcsr_get_data_type(m_a),&
+               ", ",dbcsr_get_matrix_type(m_a),&
+               ", ",dbcsr_get_matrix_type(m_b),&
+               ", ",dbcsr_get_matrix_type(m_c),&
                ") ... FAILED !"
           WRITE(io_unit, *) REPEAT("*",70)
           !CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
           !     routineN, 'for the moment, we stop', __LINE__, error)
-       ENDIF
-    ENDIF
+       END IF
+    END IF
 
     CALL dbcsr_release (m_a)
     CALL dbcsr_release (m_b)
     CALL dbcsr_release (m_c)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop (error_handler, error)
 
   END SUBROUTINE test_multiply
 
@@ -675,7 +685,7 @@ CONTAINS
 !> \param[inout] error                  dbcsr error
 !>
 ! *****************************************************************************
-  SUBROUTINE dbcsr_check_multiply(matrix_c, dense_c_dbcsr, dense_a, dense_b, dense_c,&
+  SUBROUTINE dbcsr_check_multiply (matrix_c, dense_c_dbcsr, dense_a, dense_b, dense_c,&
        transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
        success, error)
 
@@ -706,7 +716,7 @@ CONTAINS
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: work
     REAL(real_8), EXTERNAL                   :: dlamch, dlange, zlange
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set (routineN, error_handler, error)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
@@ -732,7 +742,7 @@ CONTAINS
     c_row = limits(1); c_col = limits(3)
     !
     !
-    IF(transA == dbcsr_no_transpose) THEN
+    IF (transA == dbcsr_no_transpose) THEN
        a_m = m
        a_n = k
     ELSE
@@ -741,8 +751,8 @@ CONTAINS
        i = a_row
        a_row = a_col
        a_col = i
-    ENDIF
-    IF(transB == dbcsr_no_transpose) THEN
+    END IF
+    IF (transB == dbcsr_no_transpose) THEN
        b_m = k
        b_n = n
     ELSE
@@ -751,28 +761,28 @@ CONTAINS
        i = b_row
        b_row = b_col
        b_col = i
-    ENDIF
+    END IF
     !
     ! set the size of the work array
-    lwork = MAXVAL( (/ lda, ldb, ldc /) )
+    lwork = MAXVAL((/lda, ldb, ldc/))
     !
     !
     SELECT CASE (dense_a%d%data_type)
     CASE (dbcsr_type_real_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocation problem",__LINE__,error)
        eps          = dlamch('eps')
        a_norm       = dlange(norm, a_m, a_n, dense_a%d%r2_dp(a_row,a_col), lda, work)
        b_norm       = dlange(norm, b_m, b_n, dense_b%d%r2_dp(b_row,b_col), ldb, work)
        c_norm_in    = dlange(norm, c_row_size, c_col_size, dense_c%d%r2_dp(1,1), ldc, work)
        c_norm_dbcsr = dlange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%r2_dp(1,1), ldc, work)
        !
-       CALL dgemm(transa, transb, m, n, k, alpha%r_dp, dense_a%d%r2_dp(a_row,a_col), lda, &
+       CALL dgemm (transa, transb, m, n, k, alpha%r_dp, dense_a%d%r2_dp(a_row,a_col), lda, &
             dense_b%d%r2_dp(b_row,b_col), ldb, beta%r_dp, dense_c%d%r2_dp(c_row,c_col), ldc)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_c, dense_c, error=error)
+       IF (retain_sparsity) CALL dbcsr_impose_sparsity (matrix_c, dense_c, error=error)
        !
        c_norm_out   = dlange(norm, m, n, dense_c%d%r2_dp(c_row,c_col), ldc, work)
        !
@@ -783,56 +793,56 @@ CONTAINS
        residual     = dlange(norm, c_row_size, c_col_size, dense_c%d%r2_dp(1,1), ldc, work)
        DEALLOCATE(work, STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+            routineN, "deallocation problem",__LINE__,error)
     CASE (dbcsr_type_real_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
-       eps          = slamch('eps')
+            routineN, "allocation problem",__LINE__,error)
+       eps          = REAL(slamch('eps'),real_8)
        a_norm       = slange(norm, a_m, a_n, dense_a%d%r2_sp(a_row,a_col), lda, work_sp)
        b_norm       = slange(norm, b_m, b_n, dense_b%d%r2_sp(b_row,b_col), ldb, work_sp)
        c_norm_in    = slange(norm, c_row_size, c_col_size, dense_c%d%r2_sp(1,1), ldc, work_sp)
        c_norm_dbcsr = slange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%r2_sp(1,1), ldc, work_sp)
        !
 
-       IF(.FALSE.) THEN
-       !IF(io_unit .GT. 0) THEN
+       IF (.FALSE.) THEN
+       !IF (io_unit .GT. 0) THEN
           DO j=1,SIZE(dense_a%d%r2_sp,2)
-          DO i=1,SIZE(dense_a%d%r2_sp,1)
-             WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'a(',i,',',j,')=',dense_a%d%r2_sp(i,j),';'
-          ENDDO
-          ENDDO
+             DO i=1,SIZE(dense_a%d%r2_sp,1)
+                WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'a(',i,',',j,')=',dense_a%d%r2_sp(i,j),';'
+             END DO
+          END DO
           DO j=1,SIZE(dense_b%d%r2_sp,2)
-          DO i=1,SIZE(dense_b%d%r2_sp,1)
-             WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'b(',i,',',j,')=',dense_b%d%r2_sp(i,j),';'
-          ENDDO
-          ENDDO
+             DO i=1,SIZE(dense_b%d%r2_sp,1)
+                WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'b(',i,',',j,')=',dense_b%d%r2_sp(i,j),';'
+             END DO
+          END DO
           DO j=1,SIZE(dense_c%d%r2_sp,2)
-          DO i=1,SIZE(dense_c%d%r2_sp,1)
-             WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_in(',i,',',j,')=',dense_c%d%r2_sp(i,j),';'
-          ENDDO
-          ENDDO
-       ENDIF
+             DO i=1,SIZE(dense_c%d%r2_sp,1)
+                WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_in(',i,',',j,')=',dense_c%d%r2_sp(i,j),';'
+             END DO
+          END DO
+       END IF
 
-       CALL sgemm(transa, transb, m, n, k, alpha%r_sp, dense_a%d%r2_sp(a_row,a_col), lda, &
+       CALL sgemm (transa, transb, m, n, k, alpha%r_sp, dense_a%d%r2_sp(a_row,a_col), lda, &
             dense_b%d%r2_sp(b_row,b_col), ldb, beta%r_sp, dense_c%d%r2_sp(c_row,c_col), ldc)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_c, dense_c, error=error)
+       IF (retain_sparsity) CALL dbcsr_impose_sparsity (matrix_c, dense_c, error=error)
 
-       IF(.FALSE.) THEN
-       !IF(io_unit .GT. 0) THEN
+       IF (.FALSE.) THEN
+       !IF (io_unit .GT. 0) THEN
           DO j=1,SIZE(dense_c%d%r2_sp,2)
-          DO i=1,SIZE(dense_c%d%r2_sp,1)
-             WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_out(',i,',',j,')=',dense_c%d%r2_sp(i,j),';'
-          ENDDO
-          ENDDO
+             DO i=1,SIZE(dense_c%d%r2_sp,1)
+                WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_out(',i,',',j,')=',dense_c%d%r2_sp(i,j),';'
+             END DO
+          END DO
           DO j=1,SIZE(dense_c_dbcsr%d%r2_sp,2)
-          DO i=1,SIZE(dense_c_dbcsr%d%r2_sp,1)
-             WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_dbcsr(',i,',',j,')=',dense_c_dbcsr%d%r2_sp(i,j),';'
-          ENDDO
-          ENDDO
-       ENDIF
+             DO i=1,SIZE(dense_c_dbcsr%d%r2_sp,1)
+                WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_dbcsr(',i,',',j,')=',dense_c_dbcsr%d%r2_sp(i,j),';'
+             END DO
+          END DO
+       END IF
        !
        c_norm_out   = slange(norm, m, n, dense_c%d%r2_sp(c_row,c_col), ldc, work_sp)
        !
@@ -843,22 +853,22 @@ CONTAINS
        residual     = REAL(slange(norm, c_row_size, c_col_size, dense_c%d%r2_sp(1,1), ldc, work_sp),real_8)
        DEALLOCATE(work_sp, STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+            routineN, "deallocation problem",__LINE__,error)
     CASE (dbcsr_type_complex_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocation problem",__LINE__,error)
        eps          = dlamch('eps')
        a_norm       = zlange(norm, a_m, a_n, dense_a%d%c2_dp(a_row,a_col), lda, work)
        b_norm       = zlange(norm, b_m, b_n, dense_b%d%c2_dp(b_row,b_col), ldb, work)
        c_norm_in    = zlange(norm, c_row_size, c_col_size, dense_c%d%c2_dp(1,1), ldc, work)
        c_norm_dbcsr = zlange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%c2_dp(1,1), ldc, work)
        !
-       CALL zgemm(transa, transb, m, n, k, alpha%c_dp, dense_a%d%c2_dp(a_row,a_col), lda, &
+       CALL zgemm (transa, transb, m, n, k, alpha%c_dp, dense_a%d%c2_dp(a_row,a_col), lda, &
             dense_b%d%c2_dp(b_row,b_col), ldb, beta%c_dp, dense_c%d%c2_dp(c_row,c_col), ldc)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_c, dense_c, error=error)
+       IF (retain_sparsity) CALL dbcsr_impose_sparsity (matrix_c, dense_c, error=error)
        !
        c_norm_out   = zlange(norm, m, n, dense_c%d%c2_dp(c_row,c_col), ldc, work)
        !
@@ -869,22 +879,22 @@ CONTAINS
        residual     = zlange(norm, c_row_size, c_col_size, dense_c%d%c2_dp(1,1), ldc, work)
        DEALLOCATE(work, STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+            routineN, "deallocation problem",__LINE__,error)
     CASE (dbcsr_type_complex_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocation problem",__LINE__,error)
        eps          = REAL(slamch('eps'),real_8)
        a_norm       = clange(norm, a_m, a_n, dense_a%d%c2_sp(a_row,a_col), lda, work_sp)
        b_norm       = clange(norm, b_m, b_n, dense_b%d%c2_sp(b_row,b_col), ldb, work_sp)
        c_norm_in    = clange(norm, c_row_size, c_col_size, dense_c%d%c2_sp(1,1), ldc, work_sp)
        c_norm_dbcsr = clange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%c2_sp(1,1), ldc, work_sp)
        !
-       CALL cgemm(transa, transb, m, n, k, alpha%c_sp, dense_a%d%c2_sp(a_row,a_col), lda, &
+       CALL cgemm (transa, transb, m, n, k, alpha%c_sp, dense_a%d%c2_sp(a_row,a_col), lda, &
             dense_b%d%c2_sp(b_row,b_col), ldb, beta%c_sp, dense_c%d%c2_sp(c_row,c_col), ldc)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_c, dense_c, error=error)
+       IF (retain_sparsity) CALL dbcsr_impose_sparsity (matrix_c, dense_c, error=error)
        !
        c_norm_out   = clange(norm, m, n, dense_c%d%c2_sp(c_row,c_col), ldc, work_sp)
        !
@@ -895,25 +905,25 @@ CONTAINS
        residual     = clange(norm, c_row_size, c_col_size, dense_c%d%c2_sp(1,1), ldc, work_sp)
        DEALLOCATE(work_sp, STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+            routineN, "deallocation problem",__LINE__,error)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect or 1-D data type", __LINE__, error )
+            routineN, "Incorrect or 1-D data type", __LINE__, error)
     END SELECT
 
-    IF(mynode.EQ.0) THEN
-       IF(residual / ((a_norm + b_norm + c_norm_in) * REAL(n,real_8) * eps).GT.10.0_real_8) THEN
+    IF (mynode.EQ.0) THEN
+       IF (residual / ((a_norm + b_norm + c_norm_in) * REAL(n,real_8) * eps).GT.10.0_real_8) THEN
           success = .FALSE.
        ELSE
           success = .TRUE.
-       ENDIF
-    ENDIF
+       END IF
+    END IF
     !
     ! syncronize the result...
-    CALL mp_bcast(success, 0, mp_group)
+    CALL mp_bcast (success, 0, mp_group)
     !
     ! printing
-    IF(io_unit .GT. 0) THEN
+    IF (io_unit .GT. 0) THEN
        WRITE(io_unit,'(3(A,E12.5))') ' residual ',residual,', a_norm ',a_norm,', b_norm ',b_norm
        WRITE(io_unit,'(3(A,E12.5))') ' c_norm_in ',c_norm_in,', c_norm_out ',c_norm_out,&
             ', c_norm_dbcsr ',c_norm_dbcsr
@@ -922,15 +932,15 @@ CONTAINS
             residual / ((a_norm + b_norm + c_norm_in) * n * eps)
        !
        ! check for nan or inf here
-       IF(success) THEN
+       IF (success) THEN
           WRITE(io_unit,'(A)') ' The solution is CORRECT !'
        ELSE
           WRITE(io_unit,'(A)') ' The solution is suspicious !'
-       ENDIF
+       END IF
 
-    ENDIF
+    END IF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop (error_handler, error)
 
   END SUBROUTINE dbcsr_check_multiply
 

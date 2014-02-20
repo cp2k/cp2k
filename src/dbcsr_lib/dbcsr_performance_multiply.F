@@ -74,12 +74,12 @@ MODULE dbcsr_performance_multiply
 
 CONTAINS
 
-  SUBROUTINE dbcsr_perf_multiply( group, mp_env, npdims, ionode, narg, args, error)
+  SUBROUTINE dbcsr_perf_multiply( group, mp_env, npdims, io_unit, narg, args, error)
 
     INTEGER                                  :: group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(2), INTENT(in)        :: npdims
-    INTEGER                                  :: ionode, narg
+    INTEGER                                  :: io_unit, narg
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(IN)                             :: args
     TYPE(dbcsr_error_type)                   :: error
@@ -185,7 +185,7 @@ CONTAINS
 
      !
      ! lets go !
-     CALL dbcsr_perf_multiply_low( group, mp_env, npdims, ionode, matrix_sizes, &
+     CALL dbcsr_perf_multiply_low( group, mp_env, npdims, io_unit, matrix_sizes, &
           bs_m, bs_n, bs_k, sparsities, trans, symmetries, TYPE, &
           alpha, beta, limits, retain_sparsity, nrep, error=error)
 
@@ -240,8 +240,6 @@ CONTAINS
     TYPE(array_i1d_obj) :: col_dist_a, col_dist_b, col_dist_c, my_sizes_k, &
       my_sizes_m, my_sizes_n, row_dist_a, row_dist_b, row_dist_c, sizes_k, &
       sizes_m, sizes_n
-    TYPE(dbcsr_data_obj)                     :: data_a, data_b, data_c, &
-                                                data_c_dbcsr
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
     TYPE(dbcsr_scalar_type)                  :: alpha, beta
@@ -431,9 +429,8 @@ CONTAINS
 
     !
     ! Prepare test parameters
-    CALL perf_multiply (mp_group, mp_env, npdims, io_unit,&
+    CALL perf_multiply (mp_group, mp_env, io_unit,&
          matrix_a, matrix_b, matrix_c, &
-         data_a, data_b, data_c, data_c_dbcsr, &
          transa, transb,&
          alpha, beta,&
          limits, retain_sparsity, &
@@ -460,18 +457,14 @@ CONTAINS
 !> \param[in] matrix_a, matrix_b, matrix_c    matrices to multiply
 !> \param[in] io_unit           which unit to write to, if not negative
 ! *****************************************************************************
-  SUBROUTINE perf_multiply (mp_group, mp_env, npdims, io_unit,&
+  SUBROUTINE perf_multiply (mp_group, mp_env, io_unit,&
        matrix_a, matrix_b, matrix_c,&
-       data_a, data_b, data_c, data_c_dbcsr, &
        transa, transb, alpha, beta, limits, retain_sparsity,&
        nrep, error)
     INTEGER, INTENT(IN)                      :: mp_group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    INTEGER, DIMENSION(2), INTENT(in)        :: npdims
     INTEGER, INTENT(IN)                      :: io_unit
     TYPE(dbcsr_obj), INTENT(in)              :: matrix_a, matrix_b, matrix_c
-    TYPE(dbcsr_data_obj)                     :: data_a, data_b, data_c, &
-                                                data_c_dbcsr
     CHARACTER, INTENT(in)                    :: transa, transb
     TYPE(dbcsr_scalar_type), INTENT(in)      :: alpha, beta
     INTEGER, DIMENSION(6), INTENT(in)        :: limits
@@ -485,7 +478,7 @@ CONTAINS
     INTEGER                                  :: c_a, c_b, c_c, error_handler, &
                                                 irep, istat, mynode, &
                                                 nthreads, numnodes, r_a, r_b, &
-                                                r_c, test
+                                                r_c
     INTEGER(int_8)                           :: flop
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: flop_sum
