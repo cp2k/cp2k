@@ -104,7 +104,8 @@ CONTAINS
     IF(rtp_control%propagator==do_cn)THEN
        rtp%orders=1; rtp_control%mat_exp=do_pade; rtp_control%propagator=do_em
     ELSE
-       CALL get_maxabs_eigval(rtp,qs_env,error)
+       IF(rtp_control%mat_exp==do_pade.OR.rtp_control%mat_exp==do_taylor)&
+          CALL get_maxabs_eigval(rtp,qs_env,error)
     END IF
 
     ! Here is a special case as we have a two step process. Therefore it is worth to compute the 
