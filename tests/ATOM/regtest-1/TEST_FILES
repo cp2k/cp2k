@@ -1,108 +1,108 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
-# e.g.  #      35 compares the last total energy in the file
+# e.g.  #                    35      1e-12 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # tests ATOMIC code
-Ac.inp  35
-Ag.inp  35
-Al.inp  35
-Am.inp  35
-Ar.inp  35
-As.inp                           35     2e-14
-At.inp  35
-Au.inp  35
-Ba.inp  35
-Be.inp  35
-Bi.inp  35
-B.inp                            35     6e-13
-Bk.inp  35
-Br.inp  35
-Ca.inp  35
-Cd.inp  35
-Ce.inp  35
-Cf.inp  35
-C.inp  35
-Cl.inp  35
-Cm.inp  35
-Co.inp  35
-Cr.inp  35
-Cs.inp  35
-Cu.inp  35
-Dy.inp  35
-Er.inp  35
-Es.inp  35
-Eu.inp  35
-Fe.inp  35
-F.inp  35
-Fm.inp  35
-Fr.inp  35
-Ga.inp  35
-Gd.inp  35
-Ge.inp  35
-He.inp  35
-Hf.inp  35
-Hg.inp  35
-H.inp  35
-Ho.inp  35
-I.inp  35
-In.inp  35
-Ir.inp  35
-K.inp  35
-Kr.inp  35
-La.inp  35
-Li.inp  35
-Lr.inp  35
-Lu.inp  35
-Md.inp  35
-Mg.inp  35
-Mn.inp  35
-Mo.inp  35
-Na.inp  35
-Nb.inp  35
-Nd.inp  35
-Ne.inp  35
-Ni.inp  35
-N.inp  35
-No.inp  35
-Np.inp  35
-O.inp  35
-Os.inp  35
-Pa.inp  35
-Pb.inp  35
-Pd.inp  35
-P.inp  35
-Pm.inp  35
-Po.inp  35
-Pr.inp  35
-Pt.inp  35
-Pu.inp  35
-Ra.inp  35
-Rb.inp  35
-Re.inp  35
-Rh.inp  35
-Rn.inp  35
-Ru.inp  35
-Sb.inp  35
-Sc.inp  35
-Se.inp  35
-Si.inp  35
-S.inp  35
-Sm.inp  35
-Sn.inp  35
-Sr.inp  35
-Ta.inp  35
-Tb.inp  35
-Tc.inp  35
-Te.inp  35
-Th.inp  35
-Ti.inp  35
-Tl.inp  35
-Tm.inp  35
-U.inp  35
-V.inp  35
-W.inp  35
-Xe.inp  35
-Yb.inp  35
-Y.inp  35
-Zn.inp  35
-Zr.inp  35
+Ac.inp                35      1e-12
+Ag.inp                35      1e-12
+Al.inp                35      1e-12
+Am.inp                35      1e-12
+Ar.inp                35      1e-12
+As.inp                35      1e-12 
+At.inp                35      1e-12
+Au.inp                35      1e-12
+Ba.inp                35      1e-12
+Be.inp                35      1e-12
+Bi.inp                35      1e-12
+B.inp                 35      1e-12
+Bk.inp                35      1e-12
+Br.inp                35      1e-12
+Ca.inp                35      1e-12
+Cd.inp                35      1e-12
+Ce.inp                35      1e-12
+Cf.inp                35      1e-12
+C.inp                 35      1e-12
+Cl.inp                35      1e-12
+Cm.inp                35      1e-12
+Co.inp                35      1e-12
+Cr.inp                35      1e-12
+Cs.inp                35      1e-12
+Cu.inp                35      1e-12
+Dy.inp                35      1e-12
+Er.inp                35      1e-12
+Es.inp                35      1e-12
+Eu.inp                35      1e-12
+Fe.inp                35      1e-12
+F.inp                 35      1e-12
+Fm.inp                35      1e-12
+Fr.inp                35      1e-12
+Ga.inp                35      1e-12
+Gd.inp                35      1e-12
+Ge.inp                35      1e-12
+He.inp                35      1e-12
+Hf.inp                35      1e-12
+Hg.inp                35      1e-12
+H.inp                 35      1e-12
+Ho.inp                35      1e-12
+I.inp                 35      1e-12
+In.inp                35      1e-12
+Ir.inp                35      1e-12
+K.inp                 35      1e-12
+Kr.inp                35      1e-12
+La.inp                35      1e-12
+Li.inp                35      1e-12
+Lr.inp                35      1e-12
+Lu.inp                35      1e-12
+Md.inp                35      1e-12
+Mg.inp                35      1e-12
+Mn.inp                35      1e-12
+Mo.inp                35      1e-12
+Na.inp                35      1e-12
+Nb.inp                35      1e-12
+Nd.inp                35      1e-12
+Ne.inp                35      1e-12
+Ni.inp                35      1e-12
+N.inp                 35      1e-12
+No.inp                35      1e-12
+Np.inp                35      1e-12
+O.inp                 35      1e-12
+Os.inp                35      1e-12
+Pa.inp                35      1e-12
+Pb.inp                35      1e-12
+Pd.inp                35      1e-12
+P.inp                 35      1e-12
+Pm.inp                35      1e-12
+Po.inp                35      1e-12
+Pr.inp                35      1e-12
+Pt.inp                35      1e-12
+Pu.inp                35      1e-12
+Ra.inp                35      1e-12
+Rb.inp                35      1e-12
+Re.inp                35      1e-12
+Rh.inp                35      1e-12
+Rn.inp                35      1e-12
+Ru.inp                35      1e-12
+Sb.inp                35      1e-12
+Sc.inp                35      1e-12
+Se.inp                35      1e-12
+Si.inp                35      1e-12
+S.inp                 35      1e-12
+Sm.inp                35      1e-12
+Sn.inp                35      1e-12
+Sr.inp                35      1e-12
+Ta.inp                35      1e-12
+Tb.inp                35      1e-12
+Tc.inp                35      1e-12
+Te.inp                35      1e-12
+Th.inp                35      1e-12
+Ti.inp                35      1e-12
+Tl.inp                35      1e-12
+Tm.inp                35      1e-12
+U.inp                 35      1e-12
+V.inp                 35      1e-12
+W.inp                 35      1e-12
+Xe.inp                35      1e-12
+Yb.inp                35      1e-12
+Y.inp                 35      1e-12
+Zn.inp                35      1e-12
+Zr.inp                35      1e-12

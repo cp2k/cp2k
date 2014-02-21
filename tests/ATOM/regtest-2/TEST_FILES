@@ -4,41 +4,41 @@
 # e.g.  #      46 compares final value of Powell optimization
 #      for details see cp2k/tools/do_regtest
 # tests ATOMIC code LSD version
-H.inp  35
-He_1.inp  35
-He_2.inp  35
-He_3.inp  35
-He_4.inp  35
-He_5.inp  35
-F_1.inp  35
-F_2.inp  35
-F_3.inp  35
-F_4.inp  35
-F_5.inp  35
-U.inp  35
-Ru.inp  46
-Ru_basis.inp  35
+H.inp  35   1e-12
+He_1.inp  35   1e-12
+He_2.inp  35   1e-12
+He_3.inp  35   1e-12
+He_4.inp  35   1e-12
+He_5.inp  35   1e-12
+F_1.inp  35   1e-12
+F_2.inp  35   1e-12
+F_3.inp  35   1e-12
+F_4.inp  35   1e-12
+F_5.inp  35   1e-12
+U.inp  35   1e-12
+Ru.inp  46   1e-12
+Ru_basis.inp  35   1e-12
 #
-atom_1.inp 35
-atom_2.inp 35
-atom_3.inp 35
-atom_4.inp 35
-atom_5.inp 35
-atom_c1.inp 35
-atom_c2.inp 35
-atom_c3.inp 35
-atom_c4.inp 35
-atom_c5.inp 35
+atom_1.inp 35   1e-12
+atom_2.inp 35   1e-12
+atom_3.inp 35   1e-12
+atom_4.inp 35   1e-12
+atom_5.inp 35   1e-12
+atom_c1.inp 35   1e-12
+atom_c2.inp 35   1e-12
+atom_c3.inp 35   1e-12
+atom_c4.inp 35   1e-12
+atom_c5.inp 35   1e-12
 #
-slater_0.inp 35
-slater_1.inp 35
+slater_0.inp 35   1e-12
+slater_1.inp 35   1e-12
 slater_2.inp                     35     7e-13
-slater_3.inp 35
-slater_4.inp 35
-slater_5.inp 46
+slater_3.inp 35   1e-12
+slater_4.inp 35   1e-12
+slater_5.inp 46   1e-12
 slater_6.inp                     46     2e-10
-slater_7.inp 46
-slater_8.inp 46
-slater_9.inp 46
+slater_7.inp 46   1e-12
+slater_8.inp 46   1e-12
+slater_9.inp 46   1e-12
 #
-Hg.inp 35
+Hg.inp 35   1e-12

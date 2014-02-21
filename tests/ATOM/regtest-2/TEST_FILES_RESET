@@ -26,3 +26,39 @@ U.inp  35
 # New default eps_eigenvalue
 H.inp  35
 U.inp  35
+# new diagonalization routine
+H.inp  
+He_1.inp  
+He_2.inp 
+He_3.inp
+He_4.inp  
+He_5.inp 
+F_1.inp 
+F_2.inp
+F_3.inp  
+F_4.inp 
+F_5.inp
+U.inp 
+Ru.inp 
+Ru_basis.inp 
+atom_1.inp 
+atom_2.inp
+atom_3.inp 
+atom_4.inp
+atom_5.inp 
+atom_c1.inp 
+atom_c2.inp
+atom_c3.inp 
+atom_c4.inp
+atom_c5.inp 
+slater_0.inp 
+slater_1.inp
+slater_2.inp 
+slater_3.inp
+slater_4.inp 
+slater_5.inp
+slater_6.inp
+slater_7.inp 
+slater_8.inp
+slater_9.inp 
+Hg.inp 

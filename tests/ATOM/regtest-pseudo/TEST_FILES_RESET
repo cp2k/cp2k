@@ -1,2 +1,8 @@
 #
 O_KG.inp
+# new diagonalization routine
+C-HF-q4.inp
+H-B3LYP-q1.inp 
+O-B97-q6.inp 
+O-PBE0-q6.inp
+O_KG.inp 

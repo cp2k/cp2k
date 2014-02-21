@@ -1295,6 +1295,12 @@ CONTAINS
              END DO
           END DO
        ENDDO
+       DO k1=1,nsgf
+          DO k2=k1,nsgf
+             rtmat(k1,k2) = 0.5_dp*(rtmat(k1,k2) + rtmat(k2,k1))
+             rtmat(k2,k1) = rtmat(k1,k2)
+          END DO
+       END DO
 
        ! clean up
        CALL atom_int_release(integrals,error)
