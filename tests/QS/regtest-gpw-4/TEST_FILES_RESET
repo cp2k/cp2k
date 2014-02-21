@@ -1085,3 +1085,5 @@ h2o-otdiag.inp
 h2o-otdiag-lsd.inp
 #  
 H2-geo-4.inp
+# numerics
+Cu.inp
