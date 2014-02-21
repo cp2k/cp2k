@@ -1,8 +1,8 @@
-# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013
+# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013-2014
 # note that MKL FFTW can't be used but that the version from fftw.org is needed for thread safety.
 # note that thread_alert.o is needed to avoid problems with thread pinning (intel uses N+1 threads for a N-threaded OMP run).
 # Program environments:
-# - module load PrgEnv-intel ; module load fftw
+# - module load PrgEnv-intel ; module swap intel intel/13.1.0.146 ; module load fftw
 
 CC       = cc
 CPP      = 
@@ -10,15 +10,14 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn -D__ELPA
+DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -openmp -pad -opt-prefetch -mavx -vec-report2 -warn -funroll-loops -fpp -free \
-           -nogen-interfaces -openmp-threadprivate=compat
-LDFLAGS  = $(FCFLAGS) -static /project/cray/alazzaro/intel_affinity_cray/thread_alert.o
-MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
-LIBS     = /project/cray/alazzaro/libsmm/intel_avx/libsmm_dnn.a \
-           -lfftw3 -lfftw3_threads \
-           -Wl,--start-group \
-	   ${MKL_LIB}/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
-	   ${MKL_LIB}/libmkl_core.a -Wl,--end-group
+FCFLAGS  = $(DFLAGS) -O2 -openmp -openmp-threadprivate=compat \
+	   -pad -opt-prefetch -mavx -funroll-loops -fpp -free \
+           -nogen-interfaces \
+	   -I${INTEL_PATH}/mkl/include
+LDFLAGS  = $(FCFLAGS) /project/cray/alazzaro/intel_affinity_cray/thread_alert.o
+LIBS     = /project/cray/alazzaro/libsmm/intel_daint_libsci_new/libsmm_dnn_cray.intel.libsci.a \
+           -lfftw3 -lfftw3_threads
+
 

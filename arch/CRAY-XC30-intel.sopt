@@ -1,7 +1,7 @@
-# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013
+# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013-2014
 # Program environments:
 # note that MKL FFTW can't be used but that the version from fftw.org is needed for thread safety.
-# - module load PrgEnv-intel ; module load fftw
+# - module load PrgEnv-intel ; module swap intel intel/13.1.0.146 ; module load fftw
 
 CC       = cc
 CPP      = 
@@ -9,14 +9,12 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn -D__ELPA
+DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -pad -opt-prefetch -mavx -vec-report2 -warn -funroll-loops -fpp -free \
+FCFLAGS  = $(DFLAGS) -O2 -pad -opt-prefetch -mavx -funroll-loops -fpp -free \
 	   -nogen-interfaces
-LDFLAGS  = $(FCFLAGS) -static
-MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
-LIBS     = /project/cray/alazzaro/libsmm/intel_avx/libsmm_dnn.a -lfftw3 \
-           -Wl,--start-group \
-	   ${MKL_LIB}/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
-	   ${MKL_LIB}/libmkl_core.a -Wl,--end-group
+LDFLAGS  = $(FCFLAGS)
+LIBS     = /project/cray/alazzaro/libsmm/intel_daint_libsci_new/libsmm_dnn_cray.intel.libsci.a \
+	   -lfftw3
+
 
