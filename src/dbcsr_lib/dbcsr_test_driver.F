@@ -32,7 +32,8 @@ PROGRAM dbcsr_test_driver
   USE dbcsr_operations,                ONLY: dbcsr_init_lib,&
                                              dbcsr_finalize_lib
   USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
-  USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
+  USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args,&
+                                             dbcsr_default_config
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
 
@@ -93,6 +94,7 @@ PROGRAM dbcsr_test_driver
   !
   ! initialize libdbcsr
   CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_default_config (error=error)
 
   !
   ! select the operation
