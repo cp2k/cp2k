@@ -13,7 +13,7 @@ CPPFLAGS =
 DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_smm_dnn -D__ELPA
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -openmp -pad -opt-prefetch -mavx -vec-report2 -warn -funroll-loops -fpp -free \
-           -nogen-interfaces 
+           -nogen-interfaces -openmp-threadprivate=compat
 LDFLAGS  = $(FCFLAGS) -static-intel /project/cray/alazzaro/intel_affinity_cray/thread_alert.o -Wl,-Map,load.map
 MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
 LIBS     = /project/cray/alazzaro/libsmm/intel_avx/libsmm_dnn.a -lfftw3 -lfftw3_threads \

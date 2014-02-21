@@ -14,8 +14,8 @@
 #
 CC       = cc
 CPP      = 
-FC       = ifort -FR -openmp -O0 
-LD       = ifort -FR -openmp -O0 
+FC       = ifort -FR -openmp -openmp-threadprivate=compat
+LD       = ifort -FR -openmp -openmp-threadprivate=compat
 AR       = ar -r
 DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3
 CPPFLAGS = -C -traditional $(DFLAGS) -I$(INTEL_INC)

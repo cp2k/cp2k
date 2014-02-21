@@ -15,8 +15,8 @@
 #
 CC       = cc
 CPP      = 
-FC       = mpif90 -openmp
-LD       = mpif90 -openmp
+FC       = mpif90 -openmp -openmp-threadprivate=compat
+LD       = mpif90 -openmp -openmp-threadprivate=compat
 AR       = ar -r
 DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK -D__FFTW3
 CPPFLAGS = 
