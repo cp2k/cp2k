@@ -209,7 +209,7 @@ CONTAINS
 ! a C interface to a global variable in MKL that sets
 ! the number of threads which can concurrently execute
 ! an FFT
-#if defined (__INTEL) && !defined(__HAS_NO_ISO_C_BINDING)
+#if defined (__INTEL) && defined (__FFTW3) && !defined(__HAS_NO_ISO_C_BINDING)
 !$    include "mkl.fi"
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .GE. 110100
@@ -250,19 +250,16 @@ CONTAINS
        ! Check if we have a real FFTW3 library, or are using MKL wrappers
 
 !$     IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
-!$        mkl_is_safe = .TRUE.
-#if defined (__INTEL) && !defined (__HAS_NO_ISO_C_BINDING)
+! If we are not using the Intel compiler, there is no way to tell which
+! MKL version is in use, so fail safe...
+!$        mkl_is_safe = .FALSE.
+#if defined (__INTEL) && defined (__FFTW3) && !defined (__HAS_NO_ISO_C_BINDING)
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .GE. 110100
 !$        mkl_dft_number_of_user_threads=omp_get_max_threads() 
-!DEC$ ELSE
-!$        mkl_is_safe = .FALSE.
+!$        mkl_is_safe = .TRUE.
 !DEC$ ENDIF
 !DEC$ ENDIF
-#else
-          ! If we are not using the Intel compiler, there is no way to tell which
-          ! MKL version is in use, so fail safe...
-!$        mkl_is_safe = .FALSE.
 #endif
 !$        IF (.NOT.mkl_is_safe) THEN
 !$           CALL stop_program(routineN,moduleN,__LINE__,&
