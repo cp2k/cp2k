@@ -46,7 +46,8 @@ How to compile CP2K code
      GotoBLAS is yet a faster BLAS alternative:
          http://www.tacc.utexas.edu/resources/software/ (GotoBLAS)
      If compiling with OpenMP support then it is recommended to use a
-     non-threaded version of BLAS.
+     non-threaded version of BLAS.  In particular if compiling with MKL
+     and using OpenMP you must define __MKL to ensure the code is thread-safe.
 
  2d) MPI (version 2) and SCALAPACK are needed for parallel code.
      (Use the latest versions available and download all patches!)
@@ -189,6 +190,7 @@ How to compile CP2K code
      -D__FFTW3: FFTW version 3
      -D__PW_CUDA: CUDA FFT and associated gather/scatter on the GPU
      various compilers/architectures needing their own machine_* file
+     -D__MKL: link the MKL library for linear algebra and/or FFT
      -D__NAG
      -D__AIX
      -D__ABSOFT
