@@ -36,20 +36,23 @@ nthreads_min = 1
 nthreads_max = 1
 nthreads_stride = 1
 mpirun = "mpiexec -np "
-openmp = "OMP_NUM_THREADS="
+openmp = "export OMP_NUM_THREADS="
 exe = "../dbcsr_test_driver"
+use_mpi = 0
+use_omp = 0
 
 # parsing
 try:
     (optlist, args) = getopt.getopt(sys.argv[1:],"n:t:m:e:",["nnodes=","nthreads=","mpirun=","exe="])
     for o, a in optlist:
         if o in ("-n", "--nnodes"):
-            nodes=tuple((int(d) for d in a.split()))
-            if len(nodes) != 3:
-                raise Exception("The nnodes (min,max,stride) argument must have an associated string of 3 integers (you have %d)." % len(nodes))
-            nnodes_min = nodes[0]
-            nnodes_max = nodes[1]
-            nnodes_stride = nodes[2]
+           nodes=tuple((int(d) for d in a.split()))
+           if len(nodes) != 3:
+               raise Exception("The nnodes (min,max,stride) argument must have an associated string of 3 integers (you have %d)." % len(nodes))
+           nnodes_min = nodes[0]
+           nnodes_max = nodes[1]
+           nnodes_stride = nodes[2]
+           use_mpi = 1
         elif o in ("-t", "--nthreads"):
            threads=tuple((int(d) for d in a.split()))
            if len(threads) != 3:
@@ -57,8 +60,10 @@ try:
            nthreads_min = threads[0]
            nthreads_max = threads[1]
            nthreads_stride = threads[2]
+           use_omp = 1
         elif o in ("-m", "--mpirun"):
            mpirun = a
+           use_mpi = 1
         elif o in ("-e", "--exe"):
            exe = a
         else:
@@ -76,10 +81,22 @@ try:
 except IOError:
      f = sys.stdout
 
+executable = " -e \"" + str(exe) + "\""
+nodes_triplett = " -n \"" + str(nnodes_min) + " " + str(nnodes_max) + " " + str(nnodes_stride) + "\""
+threads_triplett = " -t \"" + str(nthreads_min) + " " + str(nthreads_max) + " " + str(nthreads_stride) + "\""
 
 # Let's go !
 print " "
 print "  ----------------------- Testing DBCSR Routines ----------------------"
+print " "
+if use_mpi == 1 and use_omp == 1:
+   print "  -- Effective testing command: python dbcsr_testing.py" + nodes_triplett + threads_triplett + executable
+elif use_mpi == 1 and use_omp == 0:
+   print "  -- Effective testing command: python dbcsr_testing.py" + nodes_triplett + executable
+elif use_mpi == 0 and use_omp == 1:
+   print "  -- Effective testing command: python dbcsr_testing.py" + threads_triplett + executable
+else:
+   print "  -- Effective testing command: python dbcsr_testing.py" + executable
 print " "
 print "  -- Min Number of nodes =", nnodes_min
 print "  -- Max Number of nodes =", nnodes_max
@@ -114,7 +131,10 @@ for nnodes in range(nnodes_min, nnodes_max+1, nnodes_stride):
             sys.stdout.flush()
             #
             #
-            test1 = local_popen( openmp + str(nthreads) + ";" + mpirun + str(nnodes) + " " + exe + " < " + root + "/" + file)
+            if use_mpi == 1:
+               test1 = local_popen( openmp + str(nthreads) + ";" + mpirun + str(nnodes) + " " + exe + " < " + root + "/" + file )
+            else:
+               test1 = local_popen( openmp + str(nthreads) + ";" + " " + exe + " < " + root + "/" + file )
             for line in test1.readlines():
                f.write(str(line))
                if "TESTING" in line : 

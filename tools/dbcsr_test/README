@@ -1,33 +1,53 @@
 DBCSR Testing and Performance
 
+(C) 2011-2014 Valéry Weber, Urban Borštnik, Andreas Gloess and CP2K developers group.
 (C) 2010-2011 Valéry Weber, Urban Borštnik, and CP2K developers group.
 Licensed under the GNU Public Licence v2 and v3.
 
 Testing:
+========
 
 * The dbcsr_testing.py script runs several tests of the addition and
   multiplication operations.  Tests are described in .par files in this
   directory or its subdirectories.
 
-* Building: compile CP2K as usual but use the dbcsr_test target, i.e.,
-cd $CP2K_HOME/src
-make -j -f ../makefiles/Makefile ARCH=Linux-x86-64-gfortran VERSION=psmp dbcsr_test
+* Building: compile libdbcsr as usual but use the 'tester' target, i.e.:
 
-* Running, example:
-  python dbcsr_testing.py -n "n1 n2 ns" -t "t1 t2 ts" -e "../../exe/Linux-x86-64-gfortran/dbcsr_test_driver.psmp"
-  to test all combinations of node counts from n1 to n2 with stride ns
-  and thread counts from t1 to t2 with stride ts.
+  user@host:/dir> cd $LIBDBCSR_HOME
+  user@host:/dir> make -j ARCH=Linux-x86-64-gfortran VERSION=psmp tester
+
+* Running, examples:
+
+  a) To test all combinations of node counts from [n1] to [n2] with stride [ns]:
+
+  user@host:/dir> cd $LIBDBCSR_HOME/tests
+  user@host:/dir> python dbcsr_testing.py -n "[n1] [n2] [ns]" -e "../../exe/Linux-x86-64-gfortran/dbcsr_test_driver.popt" 2>&1 | tee test.log
+
+  b) To test all combinations of node counts from [n1] to [n2] with stride [ns]
+  and thread counts from [t1] to [t2] with stride [ts]:
+
+  user@host:/dir> cd $LIBDBCSR_HOME/tests
+  user@host:/dir> python dbcsr_testing.py -n "[n1] [n2] [ns]" -t "[t1] [t2] [ts]" -e "../../exe/Linux-x86-64-gfortran/dbcsr_test_driver.psmp" 2>&1 | tee test.log
 
 
 Performance:
+============
 
-* Building: compile CP2K as usual but use the dbcsr_test target, i.e.,
-cd $CP2K_HOME/src
-make -j -f ../makefiles/Makefile ARCH=Linux-x86-64-gfortran VERSION=psmp dbcsr_test
+* Building: compile libdbcsr as usual but use the 'perf' target, i.e.:
 
-* Running:
+  user@host:/dir> cd $LIBDBCSR_HOME
+  user@host:/dir> make -j ARCH=Linux-x86-64-gfortran VERSION=psmp perf
+
+* Running, examples:
 
   Modify the perf/test.perf input file and pass it as standard input
-  to the executable generated above, e.g.,
-mpiexec -np 4096 ../../exe/Linux-x86-64-gfortran/dbcsr_performance_driver < perf/test.perf
+  to the executable generated above, e.g.:
+
+  a) To test pure MPI performance test using [n] nodes:
+
+  user@host:/dir> mpiexec -np [n] ../../exe/Linux-x86-64-gfortran/dbcsr_performance_driver.popt < perf/test.perf 2>&1 | tee perf.log
+
+  b) To test hybrid MPI/OpenMP performance test using [n] nodes, each spanning [t] threads:
+
+  user@host:/dir> export OMP_NUM_THREADS=[t]; mpiexec -np [n] ../../exe/Linux-x86-64-gfortran/dbcsr_performance_driver.psmp < perf/test.perf 2>&1 | tee perf.log
 
