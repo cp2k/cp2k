@@ -216,19 +216,21 @@ CONTAINS
     CHARACTER, DIMENSION(3), PARAMETER :: trans = (/dbcsr_no_transpose, &
       dbcsr_transpose, dbcsr_conjugate_transpose/)
     CHARACTER, DIMENSION(3, 12), PARAMETER :: symmetries = RESHAPE((/&
-      dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, &
-      dbcsr_type_symmetric,     dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, &
-      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, &
-      dbcsr_type_no_symmetry,   dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
-      dbcsr_type_symmetric,     dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
-      dbcsr_type_antisymmetric, dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
-      dbcsr_type_no_symmetry,   dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-      dbcsr_type_symmetric,     dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-      dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry,   dbcsr_type_symmetric, &
-      dbcsr_type_symmetric,     dbcsr_type_symmetric,     dbcsr_type_symmetric, &
-      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric, dbcsr_type_symmetric &
-      /), (/3,12/))
+      dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry,   &
+      dbcsr_type_no_symmetry, dbcsr_type_symmetric,     dbcsr_type_no_symmetry&
+      ,   dbcsr_type_no_symmetry, dbcsr_type_antisymmetric, &
+      dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry, dbcsr_type_no_symmetry&
+      ,   dbcsr_type_symmetric,     dbcsr_type_no_symmetry, &
+      dbcsr_type_symmetric,     dbcsr_type_symmetric,     &
+      dbcsr_type_no_symmetry, dbcsr_type_antisymmetric, dbcsr_type_symmetric, &
+      dbcsr_type_no_symmetry, dbcsr_type_no_symmetry,   &
+      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, &
+      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+      dbcsr_type_antisymmetric, dbcsr_type_antisymmetric, &
+      dbcsr_type_no_symmetry, dbcsr_type_no_symmetry,   dbcsr_type_no_symmetry&
+      ,   dbcsr_type_symmetric, dbcsr_type_symmetric,     dbcsr_type_symmetric&
+      ,     dbcsr_type_symmetric, dbcsr_type_antisymmetric, &
+      dbcsr_type_antisymmetric, dbcsr_type_symmetric /), (/3,12/))
     INTEGER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
       dbcsr_type_real_8, dbcsr_type_complex_4, dbcsr_type_complex_8/)
 

@@ -31,8 +31,7 @@ MODULE atom_operators
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
        do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, do_zoramp_atom
   USE kinds,                           ONLY: dp
-  USE lapack,                          ONLY: lapack_sgesv,&
-                                             lapack_ssyev
+  USE lapack,                          ONLY: lapack_sgesv
   USE mathconstants,                   ONLY: gamma1,&
                                              sqrt2
   USE mathlib,                         ONLY: jacobi

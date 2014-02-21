@@ -53,11 +53,10 @@ MODULE dbcsr_performance_multiply
                                              dbcsr_make_random_matrix
   USE dbcsr_transformations,           ONLY: dbcsr_redistribute
   USE dbcsr_types,                     ONLY: &
-       dbcsr_conjugate_transpose, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_obj, dbcsr_scalar_type, &
-       dbcsr_transpose, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8
+       dbcsr_conjugate_transpose, dbcsr_distribution_obj, dbcsr_mp_obj, &
+       dbcsr_no_transpose, dbcsr_obj, dbcsr_scalar_type, dbcsr_transpose, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
