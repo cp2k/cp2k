@@ -27,32 +27,15 @@ MODULE dbcsr_test_methods
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
-  USE dbcsr_config,                    ONLY: multrec_limit,&
-                                             cudadrv_priority_streams,&
-                                             cudadrv_priority_buffers,&
-                                             cudadrv_posterior_streams,&
-                                             cudadrv_posterior_buffers,&
-                                             cudadrv_min_flop_process,&
-                                             cudadrv_min_flop_sort,&
-                                             cudadrv_do_inhomogenous,&
-                                             cudadrv_avoid_after_busy,&
-                                             cudadrv_binning_nbins,&
-                                             cudadrv_binning_binsize,&
-                                             dbcsr_get_conf_subcomm,&
-                                             dbcsr_get_conf_combtypes,&
-                                             dbcsr_get_conf_mpi_mem,&
-                                             dbcsr_get_conf_mm_driver,&
-                                             dbcsr_get_conf_max_ele_block,&
-                                             dbcsr_get_conf_use_comm_thread,&
-                                             dbcsr_set_conf_subcomm,&
-                                             dbcsr_set_conf_combtypes,&
-                                             dbcsr_set_conf_mpi_mem,&
-                                             dbcsr_set_conf_mm_driver,&
-                                             dbcsr_set_conf_max_ele_block,&
-                                             dbcsr_set_conf_mm_stacksize,&
-                                             dbcsr_set_conf_nstacks,&
-                                             dbcsr_set_conf_use_comm_thread,&
-                                             dbcsr_set_conf_comm_thread_load
+  USE dbcsr_config,                    ONLY: &
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
@@ -142,11 +125,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_default_config', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                     :: error_handler, comm_thread_load,&
-                                   max_ele_block, mm_driver, mm_ss
-    INTEGER, DIMENSION(3)       :: nstacks
-    LOGICAL                     :: use_subcomms, use_combtypes,&
-                                   use_mpi_mem, use_comm_thread
+    INTEGER                                  :: comm_thread_load, &
+                                                error_handler, max_ele_block, &
+                                                mm_driver, mm_ss
+    INTEGER, DIMENSION(3)                    :: nstacks
+    LOGICAL                                  :: use_combtypes, &
+                                                use_comm_thread, use_mpi_mem, &
+                                                use_subcomms
 
     CALL dbcsr_error_set (routineN, error_handler, error=error)
 
