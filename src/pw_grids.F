@@ -1455,6 +1455,7 @@ CONTAINS
     INTEGER                                  :: gpt, handle, i, ip, l, lby, &
                                                 lbz, ll, m, mm, n, &
                                                 n_upperlimit, nn
+    INTEGER(KIND=int_8)                      :: gpt_global
     INTEGER, DIMENSION(2, 3)                 :: bol, bounds
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: length, length_x, length_y, &
@@ -1625,8 +1626,9 @@ CONTAINS
     ! Check the number of g-vectors for grid
     CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,error,failure)
     IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-       CALL mp_sum ( gpt, pw_grid % para % group )
-       CPPrecondition(pw_grid % ngpts_cut == gpt,cp_failure_level,routineP,error,failure)
+       gpt_global = gpt
+       CALL mp_sum ( gpt_global, pw_grid % para % group )
+       CPPrecondition(pw_grid % ngpts_cut == gpt_global,cp_failure_level,routineP,error,failure)
     ENDIF
 
     pw_grid % have_g0 = .FALSE.
