@@ -4285,7 +4285,7 @@ CONTAINS
        CALL keyword_create(keyword, name="CHOLESKY",&
             description="If the cholesky method should be used for computing "//&
             "the inverse of S, and in this case calling which Lapack routines",&
-            usage="CHOLESKY REDUCE", default_i_val=cholesky_reduce,&
+            usage="CHOLESKY REDUCE", default_i_val=cholesky_restore,&
             enum_c_vals=s2a("OFF","REDUCE","RESTORE","INVERSE"),&
             enum_desc=s2a("The cholesky algorithm is not used","Reduce is called",&
             "Reduce is replaced by two restore",&
