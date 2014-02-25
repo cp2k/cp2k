@@ -24,7 +24,7 @@ test_ub2.inp             11
 mfi.inp                   2
 # Intermolecular constraints
 water_3_dist_inter.inp    2
-water_3_dist_inter2.inp   2
+water_3_dist_inter2.inp   2             1e-11
 water_3_dist_mix.inp      2
 # Intermolecular restraints
 H2O-constr_1_ext.inp      2
