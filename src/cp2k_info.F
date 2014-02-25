@@ -35,7 +35,8 @@ MODULE cp2k_info
 #if defined(__RELEASE_VERSION)
   INTEGER, PARAMETER          :: id_cp2k_version = id_release_version     ! (Uncomment for release     version)
 #else
-  INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
+! INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
+  INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
 #endif
 
 #if defined(__COMPILE_REVISION)
@@ -87,7 +88,7 @@ CONTAINS
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2008, 2009, 2010, 2011  CP2K developers group               !'
-     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013              CP2K developers group               !'
+     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013, 2014        CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!   This program is free software; you can redistribute it and/or modify      !'
      WRITE(iunit,'(T2,A)') '!   it under the terms of the GNU General Public License as published by      !'

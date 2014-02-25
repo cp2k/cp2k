@@ -2,4 +2,4 @@
 rm -rf cp2k_input.xml CP2K_INPUT.html index.html index_javascript.html references.html units.html generate_manual_howto.html CP2K_INPUT/
 ../../exe/Linux-x86-64-${FORT_C_NAME}/cp2k.popt --xml
 ./xml2htm
-scp -r cp2k.vim toggle_folding.js cp2k_input.xsl cp2k_input.xml CP2K_INPUT.html html_tables.html index.html references.html units.html generate_manual_howto.html favicon.png CP2K_INPUT/ ${CP2KORG}public_html/manual/trunk
+scp -r cp2k.vim toggle_folding.js cp2k_input.xsl cp2k_input.xml CP2K_INPUT.html html_tables.html index.html references.html units.html generate_manual_howto.html favicon.png CP2K_INPUT/ ${CP2KORG}public_html/manual/cp2k-2_5-branch
