@@ -798,7 +798,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
-    INTEGER(KIND=int_4)                                  :: res
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -807,9 +806,8 @@
     msglen = 1
 #if defined(__parallel)
     t_start = m_walltime ( )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
@@ -832,7 +830,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -842,12 +839,8 @@
     t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
@@ -871,7 +864,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, m1, m2, msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -881,14 +873,8 @@
     t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
-    m1 = SIZE(msg,1)
-    m2 = SIZE(msg,2)
-    ALLOCATE (res(m1,m2),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
@@ -912,8 +898,6 @@
 
     INTEGER                                  :: handle, ierr, m1, m2, m3, &
                                                 msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, : )
-
     ierr = 0
 #if defined(__mp_timeset__)
     CALL timeset(routineN,handle)
@@ -922,15 +906,8 @@
     t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
-    m1 = SIZE(msg,1)
-    m2 = SIZE(msg,2)
-    m3 = SIZE(msg,3)
-    ALLOCATE (res(m1,m2,m3),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
@@ -954,7 +931,6 @@
 
     INTEGER                                  :: handle, ierr, m1, m2, m3, m4, &
                                                 msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, :, : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -964,16 +940,8 @@
     t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
-    m1 = SIZE(msg,1)
-    m2 = SIZE(msg,2)
-    m3 = SIZE(msg,3)
-    m4 = SIZE(msg,4)
-    ALLOCATE (res(m1,m2,m3,m4),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
@@ -997,7 +965,6 @@
 
     INTEGER                                  :: handle, ierr, m1, m2, m3, m4, m5, &
                                                 msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, :, :, : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1007,17 +974,8 @@
     t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
-    m1 = SIZE(msg,1)
-    m2 = SIZE(msg,2)
-    m3 = SIZE(msg,3)
-    m4 = SIZE(msg,4)
-    m5 = SIZE(msg,5)
-    ALLOCATE (res(m1,m2,m3,m4,m5),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
@@ -1041,7 +999,6 @@
 
     INTEGER                                  :: handle, ierr, m1, m2, m3, m4, m5, m6, &
                                                 msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, :, :, :, : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1051,18 +1008,8 @@
     t_start = m_walltime ( )
     msglen = SIZE(msg)
     IF (msglen>0) THEN
-    m1 = SIZE(msg,1)
-    m2 = SIZE(msg,2)
-    m3 = SIZE(msg,3)
-    m4 = SIZE(msg,4)
-    m5 = SIZE(msg,5)
-    m6 = SIZE(msg,6)
-    ALLOCATE (res(m1,m2,m3,m4,m5,m6),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
@@ -1186,7 +1133,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
-    INTEGER(KIND=int_4)                                  :: res
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1195,9 +1141,8 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = 1
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
@@ -1221,7 +1166,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1230,12 +1174,8 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
@@ -1261,7 +1201,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
-    INTEGER(KIND=int_4)                                  :: res
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1270,9 +1209,8 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = 1
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
@@ -1298,7 +1236,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
-    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( : )
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1307,12 +1244,9 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
