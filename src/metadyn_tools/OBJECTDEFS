@@ -1,5 +1,6 @@
 FESOBJ= \
  machine.o\
+ machine_internal.o\
  memory_utilities.o\
  periodic_table.o\
  string_utilities.o\
