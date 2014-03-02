@@ -46,6 +46,9 @@ MODULE pw_env_methods
   USE kinds,                           ONLY: dp
   USE lgrid_types,                     ONLY: lgrid_create,&
                                              lgrid_release
+  USE ps_wavelet_types,                ONLY: WAVELET0D,&
+                                             WAVELET2D,&
+                                             WAVELET3D
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_info,                    ONLY: pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
@@ -58,9 +61,14 @@ MODULE pw_env_methods
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
   USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
-  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+  USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
+                                             pw_poisson_create,&
                                              pw_poisson_mt,&
-                                             pw_poisson_parameter_type
+                                             pw_poisson_multipole,&
+                                             pw_poisson_none,&
+                                             pw_poisson_parameter_type,&
+                                             pw_poisson_periodic,&
+                                             pw_poisson_wavelet
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
@@ -80,6 +88,7 @@ MODULE pw_env_methods
                                              rs_grid_print,&
                                              rs_grid_release,&
                                              rs_grid_release_descriptor
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -163,6 +172,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
+    CHARACTER(LEN=3)                         :: string
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
       igrid_level, iounit, ncommensurate, ngrid_level, stat, &
       xc_deriv_method_id, xc_smooth_method_id
@@ -522,7 +532,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
          CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=cell%hmat,pw_pools=pw_env%pw_pools,&
           parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
-    ENDIF
+    END IF
+
 !
 !
 !    determine the maximum radii for mapped gaussians, needed to
@@ -581,22 +592,78 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      ! (but don't yet allocate the lgrid, in case we don't need it)
      CALL lgrid_create(pw_env%lgrid, pw_env%rs_descs, error)
 
-!
-!    Print grid information
-!
+     ! Print grid information
+
      logger => cp_error_get_logger(error)
      iounit = cp_print_key_unit_nr(logger,print_section,'',&
-          extension='.Log',error=error)
-     should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-          print_section,'',error=error),cp_p_file)
-
-     IF ( should_output ) THEN
+                                   extension='.Log',error=error)
+     IF (iounit > 0) THEN
+       SELECT CASE (poisson_params%solver)
+       CASE(pw_poisson_periodic)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+         "POISSON| Solver","PERIODIC"
+       CASE(pw_poisson_analytic)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","ANALYTIC"
+       CASE(pw_poisson_mt)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver",ADJUSTR("Martyna-Tuckerman (MT)")
+         WRITE (UNIT=iounit,FMT="(T2,A,T71,F10.3,/,T2,A,T71,F10.1)")&
+          "POISSON| MT| Alpha",poisson_params%mt_alpha,&
+          "POISSON| MT| Relative cutoff",poisson_params%mt_rel_cutoff
+       CASE(pw_poisson_multipole)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","MULTIPOLE (Bloechl)"
+       CASE(pw_poisson_wavelet)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","WAVELET"
+         WRITE (UNIT=iounit,FMT="(T2,A,T71,I10)")&
+          "POISSON| Wavelet| Scaling function",poisson_params%wavelet_scf_type
+         SELECT CASE (poisson_params%wavelet_method)
+         CASE (WAVELET0D)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","NONE"
+         CASE (WAVELET2D)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","XZ"
+         CASE (WAVELET3D)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","XYZ"
+         CASE DEFAULT
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                             "Invalid periodicity for wavelet solver selected",&
+                             para_env)
+         END SELECT
+       CASE(pw_poisson_none)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","NONE"
+       CASE default
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Invalid Poisson solver selected",&
+                           para_env)
+       END SELECT
+       IF (poisson_params%solver /= pw_poisson_wavelet) THEN
+         IF (SUM(poisson_params%periodic(1:3)) == 0) THEN
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","NONE"
+         ELSE
+           string = ""
+           IF (poisson_params%periodic(1) == 1) string = TRIM(string)//"X"
+           IF (poisson_params%periodic(2) == 1) string = TRIM(string)//"Y"
+           IF (poisson_params%periodic(3) == 1) string = TRIM(string)//"Z"
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity",string
+         END IF
+       END IF
+     END IF
+     should_output = BTEST(cp_print_key_should_output(logger%iter_info,&
+                           print_section,'',error=error),cp_p_file)
+     IF (should_output) THEN
        DO igrid_level=1,ngrid_level
           CALL rs_grid_print(rs_grids(igrid_level)%rs_grid,iounit,error=error)
        END DO
      END IF
-     CALL cp_print_key_finished_output(iounit,logger,print_section,&
-         "",error=error)
+     CALL cp_print_key_finished_output(iounit,logger,print_section,"",error=error)
 
   END IF
 

@@ -696,27 +696,27 @@ CONTAINS
     IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
        IF (info >= 0 ) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
-               " PW_GRID: Information for grid number ", pw_grid %id_nr
-          WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
+               " PW_GRID| Information for grid number ", pw_grid %id_nr
+          WRITE ( info, '(" PW_GRID| Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
           IF ( pw_grid % spherical ) THEN
-             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: ","YES"
-             WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID| spherical cutoff: ","YES"
+             WRITE ( info, '(A,T71,I10)' ) " PW_GRID| Grid points within cutoff", &
                   pw_grid % ngpts_cut
           ELSE
-             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: "," NO"
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID| spherical cutoff: "," NO"
           END IF
           DO i = 1, 3
-             WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
+             WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID|   Bounds ", &
                   i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
                   "Points:",pw_grid % npts ( I )
           END DO
           WRITE ( info, '(A,G12.4,T50,A,T67,F14.4)' ) &
-               " PW_GRID: Volume element (a.u.^3)", &
+               " PW_GRID| Volume element (a.u.^3)", &
                pw_grid % dvol," Volume (a.u.^3) :",pw_grid % vol
           IF ( pw_grid % grid_span == HALFSPACE ) THEN
-             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","HALFSPACE"
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID| Grid span","HALFSPACE"
           ELSE
-             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID| Grid span","FULLSPACE"
           END IF
        END IF
     ELSE
@@ -739,45 +739,45 @@ CONTAINS
 
        IF ( pw_grid % para % group_head .AND. info>=0) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
-               " PW_GRID: Information for grid number ", pw_grid %id_nr
+               " PW_GRID| Information for grid number ", pw_grid %id_nr
           WRITE ( info, '(A,T60,I10,A)' ) &
-               " PW_GRID: Grid distributed over ", pw_grid % para % group_size, &
+               " PW_GRID| Grid distributed over ", pw_grid % para % group_size, &
                " processors"
           WRITE ( info, '(A,T71,2I5)' ) &
-               " PW_GRID: Real space group dimensions ", pw_grid % para % rs_dims
+               " PW_GRID| Real space group dimensions ", pw_grid % para % rs_dims
           IF ( pw_grid % para % blocked ) THEN
-             WRITE ( info, '(A,T78,A)' ) " PW_GRID: the grid is blocked: ","YES"
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID| the grid is blocked: ","YES"
           ELSE
-             WRITE ( info, '(A,T78,A)' ) " PW_GRID: the grid is blocked: "," NO"
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID| the grid is blocked: "," NO"
           END IF
-          WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
+          WRITE ( info, '(" PW_GRID| Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
           IF ( pw_grid % spherical ) THEN
-             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: ","YES"
-             WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID| spherical cutoff: ","YES"
+             WRITE ( info, '(A,T71,I10)' ) " PW_GRID| Grid points within cutoff", &
                   pw_grid % ngpts_cut
           ELSE
-             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: "," NO"
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID| spherical cutoff: "," NO"
           END IF
           DO i = 1, 3
-             WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
+             WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID|   Bounds ", &
                   i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
                   "Points:",pw_grid % npts ( I )
           END DO
           WRITE ( info, '(A,G12.4,T50,A,T67,F14.4)' ) &
-               " PW_GRID: Volume element (a.u.^3)", &
+               " PW_GRID| Volume element (a.u.^3)", &
                pw_grid % dvol," Volume (a.u.^3) :",pw_grid % vol
           IF ( pw_grid % grid_span == HALFSPACE ) THEN
-             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","HALFSPACE"
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID| Grid span","HALFSPACE"
           ELSE
-             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID| Grid span","FULLSPACE"
           END IF
-          WRITE ( info, '(A,T48,A)' ) " PW_GRID:   Distribution", &
+          WRITE ( info, '(A,T48,A)' ) " PW_GRID|   Distribution", &
                "  Average         Max         Min"
-          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Vectors", &
+          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID|   G-Vectors", &
                rv ( 1, 1 ), NINT ( rv ( 1, 2 ) ), NINT ( rv ( 1, 3 ) )
-          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Rays   ", &
+          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID|   G-Rays   ", &
                rv ( 3, 1 ), NINT ( rv ( 3, 2 ) ), NINT ( rv ( 3, 3 ) )
-          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   Real Space Points", &
+          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID|   Real Space Points", &
                rv ( 2, 1 ), NINT ( rv ( 2, 2 ) ), NINT ( rv ( 2, 3 ) )
        END IF ! group head
     END IF ! local

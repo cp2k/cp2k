@@ -594,24 +594,24 @@ CONTAINS
     IF ( rs % desc % parallel ) THEN
        IF ( iounit>0) THEN
           WRITE ( iounit, '(/,A,T71,I10)' ) &
-               " RS_GRID: Information for grid number ", rs % desc % grid_id
+               " RS_GRID| Information for grid number ", rs % desc % grid_id
           DO i = 1, 3
-             WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
+             WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID|   Bounds ", &
                   i, rs % desc % lb ( i ), rs % desc % ub ( i ), "Points:", rs % desc % npts ( i )
           END DO
           IF ( .NOT. rs % desc % distributed ) THEN
-             WRITE ( iounit, '(A)' ) " RS_GRID: Real space fully replicated"
+             WRITE ( iounit, '(A)' ) " RS_GRID| Real space fully replicated"
              WRITE ( iounit, '(A,T71,I10)' ) &
-                  " RS_GRID: Group size ", rs % desc % group_dim (2)
+                  " RS_GRID| Group size ", rs % desc % group_dim (2)
           ELSE
              DO dir = 1,3
                 IF ( rs % desc % perd (dir) /= 1 ) THEN
                    WRITE ( iounit, '(A,T71,I3,A)' ) &
-                        " RS_GRID: Real space distribution over ", rs % desc % group_dim ( dir ), " groups"
+                        " RS_GRID| Real space distribution over ", rs % desc % group_dim ( dir ), " groups"
                    WRITE ( iounit, '(A,T71,I10)' ) &
-                        " RS_GRID: Real space distribution along direction ", dir
+                        " RS_GRID| Real space distribution along direction ", dir
                    WRITE ( iounit, '(A,T71,I10)' ) &
-                        " RS_GRID: Border size ", rs % desc % border
+                        " RS_GRID| Border size ", rs % desc % border
                 END IF
              END DO
           END IF
@@ -629,9 +629,9 @@ CONTAINS
                 CALL mp_min ( nn, rs % desc % group )
                 pp ( 3 ) = REAL ( nn, KIND=dp )
                 IF ( iounit > 0) THEN
-                   WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
+                   WRITE ( iounit, '(A,T48,A)' ) " RS_GRID|   Distribution", &
                         "  Average         Max         Min"
-                   WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID:   Planes   ", &
+                   WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID|   Planes   ", &
                         pp ( 1 ), NINT ( pp ( 2 ) ), NINT ( pp ( 3 ) )
                 END IF
              END IF
@@ -641,9 +641,9 @@ CONTAINS
     ELSE
        IF (iounit>0) THEN
          WRITE ( iounit, '(/,A,T71,I10)' ) &
-              " RS_GRID: Information for grid number ", rs % desc % grid_id
+              " RS_GRID| Information for grid number ", rs % desc % grid_id
          DO i = 1, 3
-            WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
+            WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID|   Bounds ", &
                  i, rs % desc % lb ( i ), rs % desc % ub ( i ), "Points:", rs % desc % npts ( i )
          END DO
 !         WRITE ( iounit, '(/)' )

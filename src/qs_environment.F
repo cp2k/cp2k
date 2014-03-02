@@ -688,7 +688,8 @@ CONTAINS
          (dft_control%qs_control%method == "OFGPW") ) THEN
        IF( all_potential_present ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "all-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ")
+               "all-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ",&
+               para_env)
        END IF
     END IF
 
@@ -1055,13 +1056,13 @@ CONTAINS
 
     IF ((dft_control%nspins < 1).OR.(dft_control%nspins > 2)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            "nspins should be 1 or 2 for the time being...")
+            "nspins should be 1 or 2 for the time being ...",para_env)
     END IF
 
     IF ((MODULO(nelectron,2) /= 0).AND.(dft_control%nspins == 1)) THEN
        IF ( .NOT. dft_control%qs_control%ofgpw .AND.  .NOT. dft_control%smear) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "Use the LSD option for an odd number of electrons.")
+               "Use the LSD option for an odd number of electrons",para_env)
        END IF
     END IF
 
@@ -1069,13 +1070,13 @@ CONTAINS
     IF (dft_control%do_xas_calculation) THEN
        IF (dft_control%nspins == 1) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "Use the LSD option for XAS with transition potential.")
+               "Use the LSD option for XAS with transition potential",para_env)
        END IF
        IF (dft_control%xas_control%xas_restart.AND.&
            scf_control%density_guess/= restart_guess) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Restart of XAS orbitals possible only if the GS orbitals"//&
-               " are also read from restart file.")
+               " are also read from restart file.",para_env)
        END IF
     END IF
 
@@ -1097,13 +1098,13 @@ CONTAINS
        ELSE
           IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: try to use a different multiplicity.")
+                  "LSD: try to use a different multiplicity",para_env)
           END IF
           nelectron_spin(1) = (nelectron + multiplicity - 1)/2
           nelectron_spin(2) = (nelectron - multiplicity + 1)/2
           IF (nelectron_spin(2) < 0) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: too few electrons for this multiplicity.")
+                  "LSD: too few electrons for this multiplicity",para_env)
           END IF
           maxocc=MAXVAL(nelectron_spin)
           n_mo(1) = MIN(nelectron_spin(1),1)
@@ -1129,7 +1130,7 @@ CONTAINS
           ! need additional user input
           IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: try to use a different multiplicity.")
+                  "LSD: try to use a different multiplicity",para_env)
           END IF
 
           nelectron_spin(1) = (nelectron + multiplicity - 1)/2
@@ -1137,7 +1138,7 @@ CONTAINS
 
           IF (nelectron_spin(2) < 0) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: too few electrons for this multiplicity.")
+                  "LSD: too few electrons for this multiplicity",para_env)
           END IF
 
           n_mo(1) = nelectron_spin(1)
@@ -1184,7 +1185,7 @@ CONTAINS
     IF (scf_control%smear%do_smear) THEN
       IF (scf_control%added_mos(1) == 0) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Extra MOs (ADDED_MOS) are required for smearing")
+                          "Extra MOs (ADDED_MOS) are required for smearing",para_env)
       END IF
     END IF
 
@@ -1208,7 +1209,7 @@ CONTAINS
        IF (scf_control%smear%do_smear) THEN
          CALL stop_program(routineN,moduleN,__LINE__,&
                            "The options ROKS and SMEAR are not compatible. "//&
-                           "Try UKS instead of ROKS")
+                           "Try UKS instead of ROKS",para_env)
        END IF
     END IF
 
