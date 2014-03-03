@@ -21,6 +21,7 @@ MODULE qs_ks_methods
                                              admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
   USE array_types,                     ONLY: array_i1d_obj
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
@@ -75,6 +76,10 @@ MODULE qs_ks_methods
   USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE lri_environment_types,           ONLY: lri_density_type,&
+                                             lri_environment_type,&
+                                             lri_kind_type
+  USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
   USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -111,7 +116,8 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                              integrate_rho_nlcc,&
-                                             integrate_v_core_rspace
+                                             integrate_v_core_rspace,&
+                                             integrate_v_rspace_one_center
   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
                                              qs_ks_mulliken_restraint,&
                                              qs_ks_s2_restraint
@@ -287,11 +293,10 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
       failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
-      my_print, uniform_occupation, use_virial
+      my_print, use_virial
     REAL(KIND=dp)                            :: ecore_ppl, ee_ener, ekin_mol, &
                                                 mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
@@ -299,10 +304,6 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_p, &
                                                 matrix_p_aux_fit, matrix_s, &
                                                 mo_derivs, my_rho
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs_aux_fit, &
-                                                mo_derivs_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -331,9 +332,8 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, becke, cell, dft_control, ep_qs_env, logger, &
-         mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, &
-         mo_derivs_aux_fit, mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, &
-         my_rho_xc, rho_struct, occupation_numbers, para_env, pw_env, &
+         mo_array, mo_coeff, mo_coeff_aux_fit, mo_derivs, mos_aux_fit, my_rho, &
+         my_rho_xc, rho_struct, para_env, pw_env, &
          virial, vppl_rspace)
     NULLIFY(adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section)
     NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
@@ -615,7 +615,6 @@ CONTAINS
          CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
               just_energy=just_energy_xc, error=error)
-         
          IF (qs_env%requires_matrix_vxc) THEN
             CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
          ENDIF
@@ -791,68 +790,8 @@ CONTAINS
        ! from this routine, notice that this part of the calculation in not linear scaling
        ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
-
-          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
-
-          IF(dft_control%do_admm) THEN !fm->dbcsr
-             NULLIFY(mo_derivs_tmp)!fm->dbcsr
-             ALLOCATE(mo_derivs_tmp(SIZE(mo_derivs)))
-             DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
-                CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)!fm->dbcsr
-                NULLIFY(mo_derivs_tmp(ispin)%matrix)
-                CALL cp_fm_create(mo_derivs_tmp(ispin)%matrix,mo_coeff%matrix_struct,error=error)!fm->dbcsr
-             ENDDO!fm->dbcsr
-          ENDIF!fm->dbcsr
-
-
-          DO ispin=1,SIZE(mo_derivs)
-
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
-                  mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers )
-             CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
-                   0.0_dp,mo_derivs(ispin)%matrix, error=error)
-
-             IF( dft_control%do_admm) THEN
-               CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
-                    mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
-               CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-
-               CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,&
-                    mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
-               CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
-                    mo_coeff, mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, &
-                    qs_env%matrix_ks_aux_fit, error=error)
-               CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)!fm->dbcsr
-             END IF
-
-             IF (dft_control%restricted) THEN
-                 ! only the first mo_set are actual variables, but we still need both
-                 CPPrecondition(ispin==1, cp_failure_level, routineP, error, failure)
-                 CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP, error, failure)
-                 ! use a temporary array with the same size as the first spin for the second spin
-
-                 ! uniform_occupation is needed for this case, otherwise we can no
-                 ! reconstruct things in ot, since we irreversibly sum
-                 CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
-                 CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,&
-                      uniform_occupation=uniform_occupation)
-                 CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
-
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
-                 CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
-                            1.0_dp, mo_derivs(1)%matrix, error=error)
-             ENDIF
-
-          ENDDO
-
-          IF(dft_control%do_admm) THEN !fm->dbcsr
-             DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
-                CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
-             ENDDO!fm->dbcsr
-             DEALLOCATE(mo_derivs_tmp)!fm->dbcsr
-          ENDIF!fm->dbcsr
-
+           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+           CALL calc_mo_derivatives(qs_env,ks_matrix,mo_derivs,error)
        ENDIF
 
        ! deal with low spin roks
@@ -890,7 +829,7 @@ CONTAINS
             energy%ee + energy%ee_core+&
             energy%exc_aux_fit+&
             energy%image_charge
-
+       
        !Print detailed energy
        IF(my_print) THEN
          CALL print_detailed_energy(qs_env,dft_control,input,energy,mulliken_order_p,error=error)
@@ -901,6 +840,198 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
+
+! *****************************************************************************
+!> \brief calculation of the LRIGPW KS matrix
+!> \param ks_env the ks_env that holds all the temporary objects that
+!>        the calculation of the LRI KS matrix needs
+!> \param qs_env the qs_env to update
+!> \param ks the KS matrix that is created
+!> \param rho the density, must be up to date
+!> \param energy the place where energies are stored
+!> \param just_energy if true updates the energies but not the
+!>        ks matrix. Defaults to false
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
+!> \par History
+!>      01.2014 created
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE lri_build_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,&
+             just_energy,print_active,error)
+
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_energy_type), POINTER            :: energy
+    LOGICAL, INTENT(in)                      :: just_energy
+    LOGICAL, INTENT(in), OPTIONAL            :: print_active
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_build_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure, just_energy_xc, &
+                                                my_print
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, mo_derivs
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(lri_density_type), POINTER          :: lri_density
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_kind_type), DIMENSION(:), &
+      POINTER                                :: lri_v_int
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
+                                                v_hartree_gspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: my_rho_xc
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+    NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env,&
+            pw_env, xc_section)
+    NULLIFY(auxbas_pw_pool, matrix_h, poisson_env, pw_pools, v_rspace_new, &
+         v_tau_rspace)
+    NULLIFY(atomic_kind_set, lri_env, lri_density, lri_v_int)
+
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    my_print = .TRUE.
+    IF(PRESENT(print_active)) my_print = print_active
+
+    CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         dft_control=dft_control,&
+         matrix_h=matrix_h,&
+         lri_env=lri_env,&
+         lri_density=lri_density,&
+         pw_env=pw_env,&
+         para_env=para_env,&
+         input=input,&
+         error=error)
+
+    nspins=dft_control%nspins
+    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+
+    ! gets the tmp grids
+    IF (.NOT. failure) THEN
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                       pw_pools=pw_pools, poisson_env=poisson_env,error=error)
+    END IF
+
+    IF (.NOT. failure) THEN
+
+       ! *** calculate the hartree potential on the LRI pw density ***
+       CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 v_hartree_gspace%pw, &
+                                 use_data=COMPLEXDATA1D,&
+                                 in_space=RECIPROCALSPACE,&
+                                 error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 rho_tot_gspace%pw,&
+                                 use_data=COMPLEXDATA1D,&
+                                 in_space=RECIPROCALSPACE,&
+                                 error=error)
+
+       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error=error)
+
+       IF(my_print) THEN
+         CALL print_densities(qs_env, rho, my_rho_xc, error=error)
+       END IF
+
+       CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
+                             v_hartree_gspace%pw,error=error)
+
+       IF (.NOT. just_energy) THEN
+          CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
+          CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol,&
+               error=error)
+       END IF
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
+
+       ! core contribution
+       IF (.NOT. just_energy) THEN
+             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
+             DO ispin=1,nspins
+                CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
+                                   name=cp_dbcsr_name(ks_matrix(ispin)%matrix),error=error)
+             END DO
+       END IF
+
+      ! exchange-correlation
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      just_energy_xc=just_energy
+
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+           vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+           just_energy=just_energy_xc, error=error)
+
+      ! sum v_hartree + v_xc
+      IF (ASSOCIATED(v_rspace_new)) THEN
+        DO ispin=1,nspins
+         v_rspace_new(ispin)%pw%cr3d  =&
+                  v_rspace_new(ispin)%pw%pw_grid%dvol * v_rspace_new(ispin)%pw%cr3d + &
+                  ks_env%v_hartree_rspace%pw%cr3d 
+        ENDDO
+      ENDIF
+      ! NO TAU YET
+ 
+      !do integration and build matrix
+      IF (.NOT. just_energy) THEN
+       DO ispin=1,nspins
+          lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+          CALL integrate_v_rspace_one_center(v_rspace_new(ispin),qs_env,&
+               lri_v_int,error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
+               error=error)
+          CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin)%matrix,&
+               atomic_kind_set, para_env, error)
+       ENDDO
+       DEALLOCATE(v_rspace_new,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      
+      ! Right now we can compute the orbital derivative here, as it depends currently only on the available
+      ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
+      ! from this routine, notice that this part of the calculation in not linear scaling
+      ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
+      IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
+         CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+         CALL calc_mo_derivatives(qs_env,ks_matrix,mo_derivs,error)
+      ENDIF
+
+      energy%total = energy%core_overlap + energy%core_self + &
+            energy%core + energy%hartree + &
+            energy%hartree_1c + &
+            energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
+            energy%qmmm_el + energy%mulliken + &
+            SUM(energy%ddapc_restraint) + energy%s2_restraint +&
+            energy%becke + energy%dft_plus_u + energy%kTS + &
+            energy%efield +energy%efield_core+&
+            energy%ee + energy%ee_core+&
+            energy%exc_aux_fit+&
+            energy%image_charge
+
+    END IF ! failure
+
+    CALL timestop(handle)
+
+  END SUBROUTINE lri_build_ks_matrix
 
 ! *****************************************************************************
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density, error)
@@ -952,6 +1083,106 @@ CONTAINS
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1, error=error)
 
   END SUBROUTINE calc_rho_tot_gspace
+
+! *****************************************************************************
+!> \brief compute MO derivatives
+!> \param ks_env the ks_env that old all the temporary objects that
+!>        the calculation of the KS matrix needs
+!> \param qs_env the qs_env to update
+!> \par History
+!>      01.2014 created, transferred from qs_ks_build_kohn_sham_matrix in
+!>      separate subroutine
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE calc_mo_derivatives(qs_env,ks_matrix,mo_derivs,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, mo_derivs
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mo_derivatives', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin
+    LOGICAL                                  :: failure, uniform_occupation
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs_aux_fit, &
+                                                mo_derivs_tmp
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array, mos_aux_fit
+
+    failure=.FALSE.
+    NULLIFY(dft_control, mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, &
+            mo_derivs_aux_fit, mo_derivs_tmp, mos_aux_fit,&
+            occupation_numbers)
+
+
+    CALL get_qs_env(qs_env,dft_control=dft_control,mos=mo_array,error=error)
+
+    IF(dft_control%do_admm) THEN !fm->dbcsr
+       NULLIFY(mo_derivs_tmp)!fm->dbcsr
+       ALLOCATE(mo_derivs_tmp(SIZE(mo_derivs)))
+       DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)!fm->dbcsr
+          NULLIFY(mo_derivs_tmp(ispin)%matrix)
+          CALL cp_fm_create(mo_derivs_tmp(ispin)%matrix,mo_coeff%matrix_struct,error=error)!fm->dbcsr
+       ENDDO!fm->dbcsr
+    ENDIF!fm->dbcsr
+
+
+    DO ispin=1,SIZE(mo_derivs)
+
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
+            mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers )
+       CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
+             0.0_dp,mo_derivs(ispin)%matrix, error=error)
+
+       IF( dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
+              mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
+         CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+
+         CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,&
+              mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
+         CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
+              mo_coeff, mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, &
+              qs_env%matrix_ks_aux_fit, error=error)
+         CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)!fm->dbcsr
+       END IF
+
+       IF (dft_control%restricted) THEN
+           ! only the first mo_set are actual variables, but we still need both
+           CPPrecondition(ispin==1, cp_failure_level, routineP, error, failure)
+           CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP, error, failure)
+           ! use a temporary array with the same size as the first spin for the second spin
+
+           ! uniform_occupation is needed for this case, otherwise we can no
+           ! reconstruct things in ot, since we irreversibly sum
+           CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+           CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+           CALL get_mo_set(mo_set=mo_array(2)%mo_set,&
+                uniform_occupation=uniform_occupation)
+           CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+
+           CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
+           CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
+                      1.0_dp, mo_derivs(1)%matrix, error=error)
+       ENDIF
+
+    ENDDO
+
+    IF(dft_control%do_admm) THEN !fm->dbcsr
+       DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
+          CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
+       ENDDO!fm->dbcsr
+       DEALLOCATE(mo_derivs_tmp)!fm->dbcsr
+    ENDIF!fm->dbcsr
+
+  END SUBROUTINE calc_mo_derivatives
 
 ! *****************************************************************************
 !> \brief updates the Kohn Sham matrix of the given qs_env (facility method)
@@ -1066,6 +1297,10 @@ CONTAINS
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
                   print_active=print_active,rho_xc=rho_xc,error=error)
+          ELSEIF (dft_control%qs_control%lrigpw) THEN
+            CALL lri_build_ks_matrix(ks_env,qs_env,ks_matrix=matrix_ks,& 
+                 rho=rho,energy=energy,just_energy=energy_only,&
+                 print_active=print_active,error=error)
           ELSE
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&

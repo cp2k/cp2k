@@ -42,7 +42,7 @@ MODULE qs_neighbor_lists
                                              get_potential,&
                                              gth_potential_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_method_lripaw,&
+  USE input_constants,                 ONLY: do_method_lrigpw,&
                                              do_se_IS_slater,&
                                              vdw_pairpot_dftd3,&
                                              xc_vdw_fun_pairpot
@@ -339,7 +339,7 @@ CONTAINS
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, stat, zat
     LOGICAL :: all_potential_present, almo, dftb, failure, &
-      gth_potential_present, lripaw, mic, molecule_only, nddo, paw_atom, &
+      gth_potential_present, lrigpw, mic, molecule_only, nddo, paw_atom, &
       paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
@@ -362,7 +362,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
                                                 aux_fit_basis_set, &
-                                                orb_basis_set, prj_basis_set
+                                                orb_basis_set
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom2d
     TYPE(molecule_type), DIMENSION(:), &
@@ -370,7 +370,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_all, &
       sab_almo, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, &
       sab_core, sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, &
-      sac_ppl, sap_oce, sap_ppnl, sip_list, soo_list
+      sac_ppl, sap_oce, sap_ppnl, soo_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -404,7 +404,6 @@ CONTAINS
     NULLIFY (sab_aux_fit_vs_orb)
     NULLIFY (sab_scp)
     NULLIFY (soo_list)
-    NULLIFY (sip_list)
     NULLIFY (sab_almo)
 
     neighbor_list_section => section_vals_get_subs_vals(force_env_section,"DFT%PRINT%NEIGHBOR_LISTS",error=error)
@@ -448,7 +447,7 @@ CONTAINS
     dftb = qs_env%dft_control%qs_control%dftb
     scptb = qs_env%dft_control%qs_control%scptb
     almo = qs_env%dft_control%qs_control%do_almo_scf
-    lripaw = (qs_env%dft_control%qs_control%method_id == do_method_lripaw)
+    lrigpw = (qs_env%dft_control%qs_control%method_id == do_method_lrigpw)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -564,15 +563,7 @@ CONTAINS
        IF (paw_atom_present) THEN
           IF (paw_atom) THEN
              oce_present(ikind) = .TRUE.
-             IF(lripaw) THEN
-                prj_basis_set => qs_env%lri_env%proj_basis(ikind)%gto_basis_set
-                IF (ASSOCIATED(prj_basis_set)) THEN
-                   CALL get_gto_basis_set(gto_basis_set=prj_basis_set,&
-                                          kind_radius=oce_radius(ikind))
-                END IF
-             ELSE
-                CALL get_paw_proj_set(paw_proj_set=paw_proj,rcprj=oce_radius(ikind))
-             END IF
+             CALL get_paw_proj_set(paw_proj_set=paw_proj,rcprj=oce_radius(ikind))
           ELSE
              oce_present(ikind) = .FALSE.
           END IF
@@ -671,7 +662,7 @@ CONTAINS
     END IF
 
 
-    IF (paw_atom_present .AND. .NOT.(lripaw)) THEN
+    IF (paw_atom_present) THEN
        ! Build orbital-GAPW projector overlap list
        IF (ANY(oce_present)) THEN
           CALL pair_radius_setup(orb_present,oce_present,orb_radius,oce_radius,pair_radius,error)
@@ -819,7 +810,7 @@ CONTAINS
           CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
        END IF
     END IF
-    IF(lripaw) THEN
+    IF(lrigpw) THEN
        ! set neighborlists in lri_env environment
        CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
        soo_list => qs_env%lri_env%soo_list
@@ -828,20 +819,6 @@ CONTAINS
        qs_env%lri_env%soo_list => soo_list
        CALL write_neighbor_lists(soo_list,particle_set,cell,para_env,neighbor_list_section,&
             "/SOO_LIST","soo_list","ORBITAL ORBITAL (RI)",error)
-       IF (ANY(oce_present)) THEN
-          DO ikind = 1, nkind
-             c_radius(ikind) = 0._dp
-             CALL get_gto_basis_set(gto_basis_set=qs_env%lri_env%ri_basis_soft(ikind)%gto_basis_set,&
-                                    kind_radius=c_radius(ikind))
-          END DO
-          CALL pair_radius_setup(orb_present,oce_present,c_radius,oce_radius,pair_radius,error)
-          sip_list => qs_env%lri_env%sip_list
-          CALL build_neighbor_lists(sip_list,particle_set,atom2d,cell,pair_radius,&
-               symmetric=.FALSE.,subcells=subcells,name="sip_list",error=error)
-          qs_env%lri_env%sip_list => sip_list
-          CALL write_neighbor_lists(sip_list,particle_set,cell,para_env,neighbor_list_section,&
-               "/SIP_LIST","sip_list","RI_BASIS PAW-PRJ",error)
-       END IF
     END IF
 
     ! Build the neighbor lists for the ALMO delocalization

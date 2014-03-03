@@ -54,7 +54,8 @@ MODULE qs_integrate_potential
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
-  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
+                                             gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp,&
                                              use_aux_fit_basis_set,&
@@ -64,9 +65,11 @@ MODULE qs_integrate_potential
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE lri_environment_types,           ONLY: lri_kind_type
   USE mathconstants,                   ONLY: dfac,&
                                              pi
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: coset,&
                                              nco,&
                                              ncoset,&
@@ -91,14 +94,10 @@ MODULE qs_integrate_potential
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
-  USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_desc_p_type,&
-                                             realspace_grid_desc_type,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             rs_grid_release,&
-                                             rs_grid_retain,&
-                                             rs_pw_transfer
+  USE realspace_grid_types,            ONLY: &
+       pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, &
+       realspace_grid_p_type, realspace_grid_type, rs_grid_release, &
+       rs_grid_retain, rs_grid_zero, rs_pw_transfer
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scp_vector_type,&
                                              scptb_parameter_type
@@ -124,6 +123,7 @@ MODULE qs_integrate_potential
 ! *** Public subroutines ***
 
   PUBLIC :: integrate_v_rspace,&
+            integrate_v_rspace_one_center,&
             integrate_v_core_rspace,&
             integrate_ppl_rspace,&
             integrate_scp_rspace,&
@@ -879,6 +879,205 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE integrate_v_core_rspace
+
+! *****************************************************************************
+!> \brief computes integrals of product of v_rspace times a one-center function  
+!>        required for LRIGPW
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE integrate_v_rspace_one_center(v_rspace,qs_env,int_res,error)
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(lri_kind_type), DIMENSION(:), &
+      POINTER                                :: int_res
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'integrate_v_rspace_one_center', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, ipgf, iset, j, &
+      maxco, maxsgf_set, na1, natom, natom_of_kind, ncoa, nkind, npme, nseta, &
+      nsgfa, sgfa, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, la_max, &
+                                                la_min, npgfa, nsgf_seta
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
+    LOGICAL                                  :: distributed_grids, failure, &
+                                                map_consistent, parallel, &
+                                                use_virial
+    REAL(KIND=dp)                            :: eps_gvg_rspace, eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, rpgfa, sphi_a, work, zeta
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(gto_basis_set_type), POINTER        :: lri_basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_v
+    TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(virial_type), POINTER               :: virial
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(cell, cores,hab,input, interp_section,rs_descs,pw_env,para_env,&
+            dft_control,rs_v,virial)
+
+    failure = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,&
+                    input=input,error=error)
+
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_v, error=error)
+    DO i=1,SIZE(rs_v)
+      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
+      CALL rs_grid_zero(rs_v(i)%rs_grid)
+    END DO
+
+    gridlevel_info=>pw_env%gridlevel_info
+    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
+         error=error)
+    
+    CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         nkind=nkind,&
+         particle_set=particle_set,&
+         para_env=para_env,pw_env=pw_env,&
+         virial=virial,error=error)
+    
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+    IF (use_virial) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Virial not implemented for LRI method", &
+            error=error, error_level=cp_failure_level)
+    END IF
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent=dft_control%qs_control%map_consistent
+    IF (map_consistent) THEN
+       eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace 
+    ELSE
+       eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
+    ENDIF
+
+    DO ikind=1,nkind
+
+       atomic_kind => atomic_kind_set(ikind)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            natom=natom_of_kind,&
+            atom_list=atom_list,&
+            lri_basis_set=lri_basis_set)
+       CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
+            first_sgf=first_sgfa,&
+            lmax=la_max,&
+            lmin=la_min,&
+            maxco=maxco,&
+            maxsgf_set=maxsgf_set,&
+            npgf=npgfa,&
+            nset=nseta,&
+            nsgf=nsgfa,&  
+            nsgf_set=nsgf_seta,&
+            pgf_radius=rpgfa,&
+            set_radius=set_radius_a,&
+            sphi=sphi_a,&
+            zet=zeta)
+ 
+       CALL reallocate(hab,1,maxco,1,1)
+       CALL reallocate (cores, 1, natom_of_kind)
+       int_res(ikind)%v_int = 0.0_dp
+       hab = 0._dp
+       npme = 0
+       cores = 0
+
+       distributed_grids = .FALSE.
+       parallel = .FALSE.
+       DO igrid_level = 1, gridlevel_info%ngrid_levels
+          IF (rs_descs(igrid_level)%rs_desc%distributed) distributed_grids = .TRUE.
+          IF (rs_descs(igrid_level)%rs_desc%parallel) parallel = .TRUE.
+       ENDDO
+
+      DO iatom = 1, natom_of_kind
+         IF(parallel .AND. .NOT. distributed_grids) THEN
+            ! replicated realspace grid, split the atoms up between procs
+             IF (MODULO(iatom,para_env%num_pe) == para_env%mepos ) THEN
+                npme = npme + 1
+                cores (npme) = iatom
+             ENDIF
+         ELSE
+              npme = npme + 1
+              cores (npme) = iatom
+         ENDIF
+      END DO
+
+      DO j=1,npme
+
+        iatom = cores(j)
+        atom_a = atom_list(iatom)
+        ra(:) = pbc(particle_set(atom_a)%r,cell)
+
+        DO iset = 1,nseta
+           sgfa = first_sgfa(1,iset)
+           ncoa = npgfa(iset)*ncoset(la_max(iset))
+           hab(:,1)=0._dp
+           CALL reallocate(work,1,nsgf_seta(iset),1,1)
+           work =0.0_dp
+           
+           DO ipgf = 1,npgfa(iset)
+   
+              na1 = (ipgf-1)*ncoset(la_max(iset))
+              igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
+
+              CALL integrate_pgf_product_rspace(la_max=la_max(iset),&
+                   zeta=zeta(ipgf,iset),la_min=la_min(iset),&
+                   lb_max=0,zetb=0.0_dp,lb_min=0,&
+                   ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
+                   rsgrid=rs_v(igrid_level)%rs_grid ,cell=cell,&
+                   cube_info=pw_env%cube_info(igrid_level),&
+                   hab=hab,o1=na1,o2=0,&
+                   eps_gvg_rspace=eps_rho_rspace,calculate_forces=.FALSE.,&
+                   map_consistent=map_consistent,&
+                   error=error)
+
+           ENDDO
+           !contract hab here!!
+           CALL dgemm("T","N",nsgf_seta(iset),1,ncoa, 1.0_dp,sphi_a(1,sgfa),&
+                SIZE(sphi_a,1),hab(1,1),SIZE(hab,1), 0.0_dp,&
+                work(1,1),SIZE(work,1))
+
+           int_res(ikind)%v_int(iatom,sgfa:sgfa-1+nsgf_seta(iset))=work(1:nsgf_seta(iset),1)
+        ENDDO
+
+        DEALLOCATE (work, STAT=stat)
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      END DO
+
+      CALL mp_sum(int_res(ikind)%v_int,para_env%group)
+     
+      DEALLOCATE (cores,hab,STAT=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+
+    DO i=1,SIZE(rs_v)
+      CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
+    END DO
+ 
+    CALL timestop(handle)
+
+  END SUBROUTINE integrate_v_rspace_one_center
 
 ! *****************************************************************************
 !> \brief computes matrix elements corresponding to a given potential

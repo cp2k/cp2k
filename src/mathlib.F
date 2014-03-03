@@ -443,6 +443,8 @@ CONTAINS
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (work(lwork),STAT=info)
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    ipiv = 0
+    work  = 0._dp
     info = 0
     CALL dgetrf(n,n,a,n,ipiv,info)
     IF (info==0) THEN

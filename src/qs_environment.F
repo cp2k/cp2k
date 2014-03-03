@@ -100,24 +100,22 @@ MODULE qs_environment
   USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
-       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lripaw, &
+       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
        do_method_scptb, do_multipole_none, general_roks, rel_none, &
        rel_trans_atom, restart_guess, use_aux_fit_basis_set, &
-       vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_vdw_fun_none, &
-       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+       use_lri_basis_set, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_environment,                  ONLY: kg_env_create
   USE kinds,                           ONLY: dp
-  USE lri_environment_types,           ONLY: lri_atom_init,&
-                                             lri_basis_init,&
+  USE lri_environment_types,           ONLY: lri_basis_init,&
                                              lri_env_create,&
-                                             lri_environment_type,&
-                                             write_lripaw_basis_sets
+                                             lri_environment_type
   USE machine,                         ONLY: m_flush
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
@@ -412,7 +410,7 @@ CONTAINS
     IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
 
     ! lri env
-    IF (method_id == do_method_lripaw) THEN
+    IF (method_id == do_method_lrigpw) THEN
        NULLIFY(lri_env)
        CALL lri_env_create(lri_env,error)
        ! initialize the basic basis sets (orb and ri)
@@ -433,14 +431,7 @@ CONTAINS
              CALL copy_gto_basis_set(lri_basis_set,lri_env%ri_basis(ikind)%gto_basis_set,error)
           END IF
        END DO
-       ! initialize the secondary basis sets (ri_soft,paw,proj)
-       CALL lri_basis_init(lri_env,qs_env%dft_control%qs_control%lripaw_control,atomic_kind_set,error)
-       ! atomic grids
-       ALLOCATE(lri_env%atom(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL lri_atom_init(lri_env,qs_env%dft_control%qs_control%lripaw_control,atomic_kind_set,error)
-       ! Print the unnormalized basis set information (input data)
-       CALL write_lripaw_basis_sets(lri_env,atomic_kind_set,subsys_section,error)
+       CALL lri_basis_init(lri_env,atomic_kind_set,error)
        !
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF
@@ -490,9 +481,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, &
-      n_mo_add, natom, nelectron, output_unit
+    INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, &
+      maxlgto_lri, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, &
+      n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL :: all_potential_present, exfun, explicit, failure, harris_flag, &
       has_unit_metric, was_present
@@ -703,9 +694,11 @@ CONTAINS
        lmax_sphere = 2*maxlgto
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
-    IF(dft_control%qs_control%method == "LRIPAW") THEN
-      ! 4 is hard coded from lri_environment_types%build_projector_basis
-      lmax_sphere = MAX(lmax_sphere,4)
+    IF(dft_control%qs_control%method == "LRIGPW") THEN
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+            maxlgto=maxlgto_lri,basis_set_id=use_lri_basis_set)
+       !take maxlgto from lri basis if larger (usually) 
+       maxlgto = MAX(maxlgto,maxlgto_lri)
     END IF
     maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere) + 1
 
@@ -855,7 +848,7 @@ CONTAINS
           !       *** Allocate and Initialize the local coulomb term ***
           CALL init_coulomb_local(qs_env%hartree_local,natom,error=error)
        END IF
-    ELSE IF (dft_control%qs_control%method_id == do_method_lripaw) THEN
+    ELSE IF (dft_control%qs_control%method_id == do_method_lrigpw) THEN
        ! allocate local ri environment
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
        NULLIFY(se_store_int_env, se_nddo_mpole, se_nonbond_env)
@@ -929,7 +922,7 @@ CONTAINS
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
-        dft_control%qs_control%method_id == do_method_lripaw .OR. &
+        dft_control%qs_control%method_id == do_method_lrigpw .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1280,7 +1273,7 @@ CONTAINS
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
-        dft_control%qs_control%method_id == do_method_lripaw .OR. &
+        dft_control%qs_control%method_id == do_method_lrigpw .OR. &
         dft_control%qs_control%method_id == do_method_scptb .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       CALL write_dispersion(qs_env,error)

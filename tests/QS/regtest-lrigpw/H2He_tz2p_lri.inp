@@ -1,0 +1,60 @@
+&GLOBAL
+  PROJECT H2He_tz2p_lri
+  RUN_TYPE ENERGY
+  PRINT_LEVEL low
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+  CHARGE 0
+    BASIS_SET_FILE_NAME BASIS_LRI
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      NGRIDS 1
+      CUTOFF 280
+    &END MGRID
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
+    &QS
+      METHOD LRIGPW
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+      MAX_SCF 3
+      EPS_SCF 1.0E-6
+    &DIAGONALIZATION
+    &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+ H     0.000000     0.000000     0.000000
+ H     0.000000     0.000000     1.008000
+He     1.212436     0.000000     0.700000
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET adf_tz2p_basis
+      POTENTIAL GTH-PADE-q1
+      LRI_BASIS_SET adf_tz2p_fit_basis 
+    &END KIND
+    &KIND He
+      BASIS_SET adf_tz2p_basis
+      POTENTIAL GTH-PADE-q2
+      LRI_BASIS_SET adf_tz2p_fit_basis
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

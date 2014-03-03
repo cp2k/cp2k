@@ -18,6 +18,8 @@ OBJECTS_GENERIC =\
  ai_oneelectron.o\
  ai_os_rr.o\
  ai_overlap3.o\
+ ai_overlap3_debug.o\
+ ai_overlap_debug.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_spin_orbit.o\
@@ -380,6 +382,7 @@ OBJECTS_GENERIC =\
  list_timerenv.o\
  lri_environment_methods.o\
  lri_environment_types.o\
+ lri_ks_methods.o\
  machine.o\
  machine_internal.o\
  manybody_eam.o\

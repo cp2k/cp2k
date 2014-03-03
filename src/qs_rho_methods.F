@@ -10,6 +10,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_rho_methods
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
@@ -23,12 +24,16 @@ MODULE qs_rho_methods
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE lri_environment_methods,         ONLY: calculate_lri_densities
+  USE lri_environment_types,           ONLY: lri_density_type,&
+                                             lri_environment_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -48,6 +53,7 @@ MODULE qs_rho_methods
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
   USE task_list_types,                 ONLY: task_list_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -361,7 +367,12 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: dum
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(lri_density_type), POINTER          :: lri_density
+    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(task_list_type), POINTER            :: task_list
 
@@ -370,12 +381,16 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     failure=.FALSE.
 
     NULLIFY(dft_control,rho_xc)
+    NULLIFY(lri_env, lri_density, para_env, atomic_kind_set)
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-      CALL get_qs_env(qs_env,dft_control=dft_control, task_list=task_list, error=error)
+      CALL get_qs_env(qs_env,dft_control=dft_control, task_list=task_list,&
+                      lri_density=lri_density, lri_env=lri_env,&
+                      atomic_kind_set=atomic_kind_set,  para_env=para_env,&
+                      error=error)
       IF (PRESENT(task_list_external)) task_list => task_list_external 
 
       nspins=dft_control%nspins
@@ -389,6 +404,11 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
         !
       ELSEIF(dft_control%qs_control%scptb) THEN
         !
+      ELSEIF(dft_control%qs_control%lrigpw) THEN
+        CALL calculate_lri_densities(lri_env,lri_density,qs_env,rho_struct%rho_ao,&
+                                     lri_rho_struct=rho_struct,&
+                                     atomic_kind_set=atomic_kind_set,&
+                                     para_env=para_env,error=error)
       ELSE
         DO ispin=1,nspins
            CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
@@ -417,6 +437,10 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
       ! if needed compute also the kinetic energy density
       IF (dft_control%use_kinetic_energy_density) THEN
+         IF(dft_control%qs_control%lrigpw) THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+             "LRIGPW not implemented for meta-GGAs")
+         ENDIF
          DO ispin=1,nspins
             CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
             CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&

@@ -222,7 +222,7 @@ MODULE input_constants
                                               do_method_gapw=1,&
                                               do_method_gapw_xc=2,&
                                               do_method_gpw=3,&
-                                              do_method_lripaw=4,&
+                                              do_method_lrigpw=4,&
                                               do_method_mndo=7,&
                                               do_method_am1=8,&
                                               do_method_pm3=9,&

@@ -64,6 +64,7 @@ MODULE qs_collocate_density
                                              spline3_pbc_interp,&
                                              use_aux_basis_set,&
                                              use_aux_fit_basis_set,&
+                                             use_lri_basis_set,&
                                              use_orb_basis_set,&
                                              use_ri_aux_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -74,6 +75,8 @@ MODULE qs_collocate_density
                                              int_8
   USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                              lgrid_type
+  USE lri_environment_types,           ONLY: lri_environment_type,&
+                                             lri_kind_type
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              pi,&
@@ -143,6 +146,7 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_ppl_grid,&
             calculate_rho_core,&
+            calculate_lri_rho_elec,&
             calculate_rho_single_gaussian,&
             calculate_rho_metal,&
             calculate_rho_resp_single,&
@@ -870,6 +874,219 @@ CONTAINS
   END SUBROUTINE collocate_atomic_charge_density
 
 ! *****************************************************************************
+!> \brief Collocates the fitted lri density on a grid.
+!> \par History
+!>      04.2013
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, lri_env,&
+                                    lri_coef, total_rho, error)
+
+    TYPE(pw_p_type), INTENT(INOUT)           :: lri_rho_g, lri_rho_r
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_kind_type), DIMENSION(:), &
+      POINTER                                :: lri_coef
+    REAL(KIND=dp), INTENT(OUT)               :: total_rho
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, first_sgf, handle, iatom, ierr, igrid_level, ikind, &
+      ipgf, iset, j, m1, maxco, n, na1, natom, ncoa, nkind, npme, nseta, sgfa
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, la_max, &
+                                                la_min, npgfa, nsgfa
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
+    LOGICAL                                  :: distributed_grids, failure, &
+                                                map_consistent, parallel
+    REAL(KIND=dp)                            :: eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: aci
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(gto_basis_set_type), POINTER        :: lri_basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
+
+    NULLIFY(aci, atomic_kind, atomic_kind_set, atom_list, cell, cores, cube_info,&
+            dft_control, first_sgfa, gridlevel_info, la_max, la_min, lri_basis_set,&
+            logger, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, pab, para_env,&
+            particle_set, pw_env, pw_pools, rs_descs, rs_rho, sphi_a, work, zeta)
+            
+    CALL timeset(routineN,handle)
+    
+    logger => cp_error_get_logger(error)
+
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+                    cell=cell, particle_set=particle_set, &
+                    para_env=para_env, pw_env=pw_env,&
+                    dft_control=dft_control, error=error)
+
+    cube_info => pw_env%cube_info
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent = dft_control%qs_control%map_consistent
+    gridlevel_info=>pw_env%gridlevel_info
+
+    ! *** set up the pw multi-grids *** !
+    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
+    CALL pw_env_get(pw_env=pw_env, rs_descs=rs_descs, rs_grids=rs_rho, &
+                    pw_pools=pw_pools, error=error)
+
+    CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
+                             use_data=REALDATA3D,&
+                             in_space=REALSPACE, &
+                             error=error)
+
+    CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
+                             use_data=COMPLEXDATA1D,&
+                             in_space=RECIPROCALSPACE,&
+                             error=error)
+
+    ! *** set up the rs multi-grids *** !
+    DO igrid_level = 1,gridlevel_info%ngrid_levels
+      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+      CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    END DO
+
+    !take maxco from the LRI basis set!
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,basis_set_id=use_lri_basis_set)
+
+    ALLOCATE (pab(maxco,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",maxco*dp_size)
+    nkind = SIZE(atomic_kind_set)
+    DO ikind = 1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind, lri_basis_set=lri_basis_set, natom=natom, &
+                           atom_list=atom_list)
+      
+      !Take the lri basis set here!
+      CALL get_gto_basis_set(gto_basis_set=lri_basis_set, lmax=la_max,&
+                             lmin=la_min, zet=zeta, nset=nseta, npgf=npgfa,&
+                             sphi=sphi_a, first_sgf=first_sgfa, nsgf_set=nsgfa)
+
+      CALL reallocate (cores, 1, natom)
+      npme = 0
+      cores = 0
+      
+      distributed_grids = .FALSE.
+      parallel = .FALSE.
+      DO igrid_level = 1, gridlevel_info%ngrid_levels
+         IF (rs_descs(igrid_level)%rs_desc%distributed) distributed_grids = .TRUE.
+         IF (rs_descs(igrid_level)%rs_desc%parallel) parallel = .TRUE.
+      ENDDO
+
+      DO iatom = 1, natom
+         IF(parallel .AND. .NOT. distributed_grids) THEN
+           ! replicated realspace grid, split the atoms up between procs
+            IF (MODULO(iatom,para_env%num_pe) == para_env%mepos ) THEN
+               npme = npme + 1
+               cores (npme) = iatom
+            ENDIF
+         ELSE
+              npme = npme + 1
+              cores (npme) = iatom
+         ENDIF
+      END DO
+
+      DO j = 1,npme
+         iatom = cores(j)
+         atom_a=atom_list(iatom)
+         ra(:) = pbc(particle_set(atom_a)%r, cell)
+         aci => lri_coef(ikind)%acoef(iatom,:) 
+
+         DO iset = 1,nseta
+           sgfa = first_sgfa(1,iset)
+           ncoa = npgfa(iset)*ncoset(la_max(iset))
+           m1=sgfa+nsgfa(iset)-1
+           CALL reallocate (work,1,nsgfa(iset),1,1)
+           work(1:nsgfa(iset),1)=aci(sgfa:m1)
+           pab = 0._dp
+ 
+           CALL dgemm("N","N",ncoa,1,nsgfa(iset),1.0_dp,lri_basis_set%sphi(1,sgfa),&
+                SIZE(lri_basis_set%sphi,1),work(1,1),SIZE(work,1),0.0_dp,pab(1,1),SIZE(pab,1))
+          
+           DO ipgf = 1,npgfa(iset)
+             na1 = (ipgf-1)*ncoset(la_max(iset))
+             igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
+
+             CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
+                                               la_min=la_min(iset),&
+                                               lb_max=0, zetb=0.0_dp, lb_min=0,&
+                                               ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
+                                               scale=1._dp, pab=pab, o1=na1, o2=0,&     
+                                               rsgrid=rs_rho(igrid_level)%rs_grid,cell=cell,&
+                                               cube_info=cube_info(igrid_level),&
+                                               eps_rho_rspace=eps_rho_rspace,&
+                                               ga_gb_function=FUNC_AB, &
+                                               map_consistent=map_consistent,&
+                                               error=error)
+           END DO
+         END DO
+
+         DEALLOCATE (work,STAT=ierr)
+         IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+
+      END DO
+    END DO
+
+    DEALLOCATE (pab,STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+
+    DEALLOCATE (cores,STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
+    
+
+    CALL pw_zero(lri_rho_g%pw,error=error)
+    CALL pw_zero(lri_rho_r%pw,error=error)
+
+    DO igrid_level = 1,gridlevel_info%ngrid_levels
+       CALL pw_zero(mgrid_rspace(igrid_level)%pw,error=error)
+       CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
+                          pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw, error=error)
+       CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
+    END DO
+
+    DO igrid_level=1, gridlevel_info%ngrid_levels
+      CALL pw_zero(mgrid_gspace(igrid_level)%pw,error=error)
+      CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
+                                 mgrid_gspace(igrid_level)%pw,error=error)
+      CALL pw_axpy(mgrid_gspace(igrid_level)%pw, lri_rho_g%pw,&
+           error=error)
+    END DO
+    CALL pw_transfer(lri_rho_g%pw,lri_rho_r%pw,error=error)
+    total_rho = pw_integrate_function(lri_rho_r%pw,isign=-1,error=error)
+
+    ! *** give back the multi-grids *** !
+    CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace, error=error)
+    CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace, error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_lri_rho_elec  
+
+! *****************************************************************************
 !> \brief computes the density of the core charges on the grid
 ! *****************************************************************************
   SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,only_nopaw,error)
@@ -1007,6 +1224,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_core
+
 ! *****************************************************************************
 !> \brief collocate a single gaussian on the grid
 !> \par History
@@ -1364,9 +1582,6 @@ SUBROUTINE calculate_rho_resp_all(rho_resp,coeff,natom,eta,qs_env,error)
   IF(npme.GT.0)THEN
    DO j=1,npme
     iatom = cores(j)
-   ! atom_a = particle_set(iatom)%atom_index
-    !atom_a = iatom
-    !ra(:) = pbc(particle_set(atom_a)%r,cell)
     ra(:) = pbc(particle_set(iatom)%r,cell)
     subpatch_pattern=0
     CALL collocate_pgf_product_rspace(0,eta,&

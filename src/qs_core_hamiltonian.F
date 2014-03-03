@@ -160,7 +160,7 @@ CONTAINS
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
     LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
-      kgpot, lripaw, ofdft, ppl_present, use_virial
+      kgpot, lrigpw, ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -219,7 +219,7 @@ CONTAINS
     ! is this a orbital-free method calculation
     ofdft = qs_env%dft_control%qs_control%ofgpw
     ! is this a LRI method calculation
-    lripaw = qs_env%dft_control%qs_control%lripaw
+    lrigpw = qs_env%dft_control%qs_control%lrigpw
     ! is this a KG method calculation using atomic TNADD potentials
     IF (qs_env%dft_control%qs_control%do_kg) THEN
        kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
@@ -442,8 +442,8 @@ CONTAINS
               sap_oce,eps_fit,error)
     END IF
 
-    ! *** LRI and PAW matrices
-    IF(lripaw) THEN
+    ! *** LRIGPW  matrices
+    IF(lrigpw) THEN
        CALL get_qs_env(qs_env=qs_env,lri_env=lri_env,error=error)
        CALL build_lri_matrices(lri_env,qs_env,error)
     END IF

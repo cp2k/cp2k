@@ -747,7 +747,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
        ! the orb_basis_set and the aux_fit_basis_set.
        ! Seemingly others (e.g. gapw soft basis set) are not needed?
-       DO ibasis_set_type=1,4
+       DO ibasis_set_type=1,5
           DO ikind=1,nkind
             atomic_kind => atomic_kind_set(ikind)
 
@@ -784,6 +784,9 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              CASE (4)
                CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                     ri_aux_basis_set=orb_basis_set)
+             CASE (5)
+               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                    lri_basis_set=orb_basis_set)
              END SELECT
 
              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -807,11 +810,15 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                 CASE (4)
                   CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                        ri_aux_basis_set=orb_basis_set)
+                CASE (5)
+                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                    lri_basis_set=orb_basis_set)
                 END SELECT
 
                 IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                        npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
+
                 DO iset=1,nseta
                 DO ipgf=1,npgfa(iset)
                 DO ishell=1,nshella(iset)
