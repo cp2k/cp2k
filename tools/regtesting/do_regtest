@@ -345,6 +345,15 @@ else
    touch ${lockfile}
 fi
 
+if (( maxtasks < numprocs*OMP_NUM_THREADS )); then
+   echo "ERROR: maxtasks should be greater or equal numprocs*OMP_NUM_THREADS"
+   echo "       maxtasks        = ${maxtasks}"
+   echo "       numprocs        = ${numprocs}"
+   echo "       OMP_NUM_THREADS = ${OMP_NUM_THREADS}"
+   rm -rf ${dir_out}
+   end_test 8 ${lockfile}
+fi
+
 # Start testing
 echo "*************************** testing started ******************************"
 echo " started on " `date`
