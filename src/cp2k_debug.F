@@ -302,8 +302,8 @@ CONTAINS
              DO ip=1,np
                 err(1:3) = 0.0_dp
                 DO k=1,3
-                   IF (ABS(numer_forces(ip,k)) >= eps_no_error_check) THEN
-                      err(k) = 100_dp*(analyt_forces(ip,k) - numer_forces(ip,k))/numer_forces(ip,k)
+                   IF (ABS(analyt_forces(ip,k)) >= eps_no_error_check) THEN
+                      err(k) = 100_dp*(numer_forces(ip,k) - analyt_forces(ip,k))/analyt_forces(ip,k)
                       WRITE (UNIT=iw,FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)")&
                        "DEBUG|",ip,ACHAR(119+k),numer_forces(ip,k),analyt_forces(ip,k),&
                        analyt_forces(ip,k) - numer_forces(ip,k),err(k)
