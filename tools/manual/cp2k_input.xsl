@@ -212,7 +212,7 @@
    ul.noscript {display: none}
   </style>
  </noscript>
- <script language="javascript" type="text/javascript" src="./toggle_folding.js"></script>
+ <script language="javascript" type="text/javascript" src="{$root}toggle_folding.js"></script>
 </xsl:template>
 
 <xsl:template name="header">
