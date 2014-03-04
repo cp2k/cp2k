@@ -28,7 +28,7 @@ MODULE string_utilities
 
   INTEGER, PARAMETER :: maxlen_entity_name = 10
   CHARACTER(LEN=maxlen_entity_name), DIMENSION(252), PARAMETER :: html_entity_table =&
-   (/"&quot;    ","&#34;     ","&amp;     ","&#38;     ","&apos;    ","&#39;     ","&lt;      ","&#60;     ",&
+   (/"&quot;    ","&#34;     ","&amp;     ","&#38;&#38;","&apos;    ","&#39;     ","&lt;      ","&#38;&#60;",&
      "&gt;      ","&#62;     ","&nbsp;    ","&#160;    ","&copy;    ","&#169;    ","&deg;     ","&#176;    ",&
      "&plusmn;  ","&#177;    ","&sup2;    ","&#178;    ","&sup3;    ","&#179;    ","&middot;  ","&#183;    ",&
      "&sup1;    ","&#185;    ","&Auml;    ","&#196;    ","&Aring;   ","&#197;    ","&Ccedil;  ","&#199;    ",&
