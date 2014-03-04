@@ -275,70 +275,56 @@ CONTAINS
             error=error)
        ! apply the greens function
        ng = SIZE ( pw_grid % gsq )
-       SELECT CASE(poisson_env%used_grid)
-       CASE(use_gs_grid)
-          SELECT CASE ( poisson_env%green_fft%method )
-          CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
-             CALL pw_transfer ( density, rhog , error=error)
-             IF (PRESENT(ehartree).AND..NOT.PRESENT(vhartree)) THEN
-                CALL pw_pool_create_pw ( pw_pool,tmpg, use_data=COMPLEXDATA1D,&
-                     in_space = RECIPROCALSPACE, error=error)
-                CALL pw_copy(rhog,tmpg, error=error)
+       SELECT CASE (poisson_env%used_grid)
+       CASE (use_gs_grid)
+          SELECT CASE (poisson_env%green_fft%method)
+          CASE (PERIODIC3D,ANALYTIC2D,ANALYTIC1D,ANALYTIC0D,MT2D,MT1D,MT0D,MULTIPOLE0D)
+             CALL pw_transfer(density,rhog,error=error)
+             IF (PRESENT(ehartree).AND.(.NOT.PRESENT(vhartree))) THEN
+                CALL pw_pool_create_pw(pw_pool,tmpg,use_data=COMPLEXDATA1D,&
+                                       in_space=RECIPROCALSPACE,error=error)
+                CALL pw_copy(rhog,tmpg,error=error)
              END IF
-
              DO ig=1,ng
-                rhog%cc(ig) = rhog%cc(ig) *  poisson_env%green_fft%influence_fn%cc(ig)
-             ENDDO
-
-             IF ( PRESENT ( vhartree ) ) THEN
-                CALL pw_transfer ( rhog, vhartree , error=error)
-                IF ( PRESENT ( ehartree ) ) THEN
-                   ehartree = 0.5_dp * pw_integral_ab ( density , vhartree , error=error)
+                rhog%cc(ig) = rhog%cc(ig)*poisson_env%green_fft%influence_fn%cc(ig)
+             END DO
+             IF (PRESENT(vhartree)) THEN
+                CALL pw_transfer(rhog,vhartree,error=error)
+                IF (PRESENT(ehartree)) THEN
+                   ehartree = 0.5_dp*pw_integral_ab(density,vhartree,error=error)
                 END IF
              ELSE IF (PRESENT(ehartree)) THEN
-                ehartree=0.5_dp*pw_integral_ab(rhog,tmpg, error=error)
+                ehartree = 0.5_dp*pw_integral_ab(rhog,tmpg,error=error)
                 CALL pw_pool_give_back_pw(pw_pool,tmpg,error=error)
              END IF
           CASE DEFAULT
-             CALL cp_unimplemented_error(routineP,"unknown poisson method"//&
-                  cp_to_string(poisson_env%green_fft%method),error)
+             CALL cp_unimplemented_error(routineP,"unknown poisson method "//&
+                                         cp_to_string(poisson_env%green_fft%method),error)
           END SELECT
-       CASE(use_rs_grid)
-          CALL pw_transfer ( density, rhog , error=error)
-          ! point pw
-          pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
-          pw_grid => pw_pool % pw_grid
-          IF ( PRESENT ( vhartree ) ) THEN
+       CASE (use_rs_grid)
+          IF (PRESENT(vhartree)) THEN
              CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
              CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
-                  cp_failure_level,routineP,&
-                  "vhartree has a different grid than the poisson solver",error,failure)
+                            cp_failure_level,routineP,&
+                            "vhartree has a different grid than the poisson solver",error,failure)
           END IF
-
-          IF (PRESENT(ehartree).AND..NOT.PRESENT(vhartree)) THEN
-             CALL pw_pool_create_pw ( pw_pool,tmpg, use_data=COMPLEXDATA1D,&
-                  in_space = RECIPROCALSPACE, error=error)
-             CALL pw_transfer(density,tmpg, error=error)
-          END IF
-
-          ! density in R space
-          CALL pw_pool_create_pw ( pw_pool,rhor, use_data=REALDATA3D,in_space = REALSPACE,&
-               error=error)
-          CALL pw_transfer(density,rhor, error=error)
-          CALL cp2k_distribution_to_z_slices(rhor ,poisson_env%wavelet, rhor%pw_grid, error)
+          CALL pw_pool_create_pw(pw_pool,rhor,use_data=REALDATA3D,in_space=REALSPACE,error=error)
+          CALL pw_transfer(density,rhor,error=error)
+          CALL cp2k_distribution_to_z_slices(rhor,poisson_env%wavelet,rhor%pw_grid,error)
           CALL ps_wavelet_solve(poisson_env%wavelet,rhor%pw_grid,ehartree,error)
-
-          CALL z_slices_to_cp2k_distribution(rhor ,poisson_env% wavelet,rhor% pw_grid, error)
-          IF ( PRESENT ( vhartree ) ) THEN
-             CALL pw_transfer(rhor,vhartree, error=error)
-             IF ( PRESENT ( ehartree ) ) THEN
-                ehartree = 0.5_dp * pw_integral_ab ( density , vhartree , error=error)
+          CALL z_slices_to_cp2k_distribution(rhor,poisson_env% wavelet,rhor%pw_grid,error)
+          IF (PRESENT(vhartree)) THEN
+             CALL pw_transfer(rhor,vhartree,error=error)
+             IF (PRESENT(ehartree)) THEN
+                ehartree = 0.5_dp*pw_integral_ab(density,vhartree,error=error)
              END IF
           ELSE IF (PRESENT(ehartree)) THEN
-             ehartree=0.5_dp*pw_integral_ab(rhog,tmpg, error=error)
-             CALL pw_pool_give_back_pw(pw_pool, tmpg, error=error)
+             ehartree = 0.5_dp*pw_integral_ab(density,rhor,error=error)
           END IF
-          CALL pw_pool_give_back_pw (pw_pool, rhor, error=error )
+          IF (PRESENT(h_stress).OR.PRESENT(dvhartree)) THEN
+             CALL pw_transfer(rhor,rhog,error=error)
+          END IF
+          CALL pw_pool_give_back_pw(pw_pool,rhor,error=error)
        END SELECT
 
        ! do we need to calculate the derivative of the potential?
