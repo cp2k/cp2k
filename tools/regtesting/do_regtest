@@ -94,7 +94,7 @@
 # - cp2k_version: sopt,sdbg,popt....
 # - dir_triplet: the result of tools/get_arch_name, where the executable can be found
 # - cp2k_dir: normally cp2k
-# - maxtasks: how many instances of cp2k should run simultaneously (~> #CPUs)
+# - maxtasks: Maximum number of CP2K threads to execute concurrently (== total number of CPU cores to be used for regtesting)
 # - emptycheck: useful for automatic testers, no testing if nothing changed in SVN (YES|NO)
 # - leakcheck: if using g95, set this variable to "YES" in order to get memory leak checking
 #
