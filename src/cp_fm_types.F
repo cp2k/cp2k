@@ -401,10 +401,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, matrix_size, n
+    INTEGER                                  :: handle, i, matrix_size, n
     LOGICAL                                  :: failure
 
-! -------------------------------------------------------------------------
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -423,6 +423,8 @@ CPSourceFileRef,&
          CALL cp_fm_set_element(matrix,i,i,beta,error=error)
       END DO
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_set_all
 
