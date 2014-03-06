@@ -863,7 +863,8 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_cm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, m1, m2, msglen
+    INTEGER                                  :: handle, ierr, m1, m2, msglen, step
+    INTEGER, PARAMETER :: max_msg=2**25
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -871,11 +872,15 @@
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
-    msglen = SIZE(msg)
-    IF (msglen>0) THEN
-    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_COMPLEX,MPI_SUM,gid,ierr)
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    END IF
+    ! chunk up the call so that message sizes are limited, to avoid overflows in mpich triggered in large rpa calcs
+    step=MAX(1,SIZE(msg,2)/MAX(1,SIZE(msg)/max_msg))
+    DO m1=LBOUND(msg,2),UBOUND(msg,2), step
+       msglen = SIZE(msg,1)*(MIN(UBOUND(msg,2),m1+step-1)-m1+1)
+       IF (msglen>0) THEN
+          CALL mpi_allreduce(MPI_IN_PLACE,msg(LBOUND(msg,1),m1),msglen,MPI_COMPLEX,MPI_SUM,gid,ierr)
+          IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+       END IF
+    ENDDO
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*(2*real_4_size))
 #endif
