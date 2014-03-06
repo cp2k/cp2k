@@ -1,4 +1,5 @@
 OBJECTS_GENERIC =\
+ rt_hfx_utils.o\
  admm_methods.o\
  admm_types.o\
  admm_utils.o\

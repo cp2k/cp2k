@@ -1093,7 +1093,7 @@ MODULE mp2
     energy%ex=0.0_dp
 
     DO irep = 1,n_rep_hf
-      CALL integrate_four_center(qs_env, matrix_ks, energy, rho, hfx_sections,&
+      CALL integrate_four_center(qs_env, matrix_ks, energy, rho%rho_ao, hfx_sections,&
                                  para_env, .TRUE., irep, .TRUE.,&
                                  ispin=1, error=error, do_exx=.TRUE.)
     END DO

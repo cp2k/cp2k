@@ -15,6 +15,7 @@ MODULE hfx_derivatives
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -22,6 +23,7 @@ MODULE hfx_derivatives
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: get_full_density
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
@@ -63,7 +65,6 @@ MODULE hfx_derivatives
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -103,11 +104,12 @@ MODULE hfx_derivatives
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE derivatives_four_center(qs_env,rho, hfx_section, para_env, &
+  SUBROUTINE derivatives_four_center(qs_env,rho_ao, hfx_section, para_env, &
                                      irep, use_virial, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: irep
@@ -254,7 +256,7 @@ MODULE hfx_derivatives
     LOGICAL                                  :: treat_forces_in_core
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
 
-    TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: rho_ao, rho_ao_mp2
+    TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: rho_ao_mp2
     INTEGER::ii
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work_virial, ede_work2_virial,&
                                                 ede_primitives_tmp_virial
@@ -265,13 +267,13 @@ MODULE hfx_derivatives
     INTEGER                                  :: k,j
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     LOGICAL                                  :: do_print_load_balance_info
-    LOGICAL                                  :: with_mp2_density
+    LOGICAL                                  :: with_mp2_density, is_anti_symmetric
 
     with_mp2_density=.FALSE.
     IF(ASSOCIATED(qs_env%mp2_env)) with_mp2_density=.TRUE.
 
-    rho_ao=>rho%rho_ao
     IF(with_mp2_density) rho_ao_mp2=>qs_env%matrix_p_mp2
+    is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
                     cell=cell, error=error)
@@ -510,7 +512,8 @@ MODULE hfx_derivatives
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
                           shm_block_offset, natom, &
-                          kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
+                          kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
+                          antisymmetric=is_anti_symmetric,error=error)
     ! for now only closed shell case
     IF(with_mp2_density) THEN
       NULLIFY(full_density_mp2)
@@ -518,7 +521,8 @@ MODULE hfx_derivatives
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_mp2, rho_ao_mp2(1)%matrix, shm_number_of_p_entries,&
                             shm_block_offset, natom, &
-                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
+                            antisymmetric=is_anti_symmetric,error=error)
     END IF
 
     IF(nspins == 2) THEN
@@ -526,7 +530,8 @@ MODULE hfx_derivatives
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
                             shm_block_offset, natom, &
-                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
+                            antisymmetric=is_anti_symmetric,error=error)
     END IF
     CALL timestop(handle_getP)
 
@@ -1666,7 +1671,6 @@ MODULE hfx_derivatives
     IF( actual_x_data%memory_parameter%recalc_forces ) THEN
       actual_x_data%memory_parameter%recalc_forces = .FALSE.
     END IF
-
 
 !$OMP BARRIER
 !$OMP MASTER

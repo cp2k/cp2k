@@ -76,8 +76,8 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
-                              block_offset, natom,  kind_of, &
-                              basis_parameter, get_max_vals_spin, rho_beta, error)
+                              block_offset, natom,  kind_of, basis_parameter,&
+                              get_max_vals_spin, rho_beta, antisymmetric, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:), POINTER          :: full_density
@@ -85,6 +85,7 @@ MODULE hfx_communication
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
+    LOGICAL, INTENT(IN)                      :: antisymmetric
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -104,6 +105,7 @@ MODULE hfx_communication
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
                                                 sparse_block_beta
+    REAL(dp)                                 :: symmfac
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
@@ -117,8 +119,11 @@ MODULE hfx_communication
     i=1
     CALL cp_dbcsr_iterator_start(iter, rho, shared=.FALSE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
-
+      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      ! the resulting vector will eb only the upper triangle.
+      ! in case of antisymmetry take care to change signs if a lower block gets copied
+      symmfac=1.0_dp
+      IF(antisymmetric.AND.iatom>jatom)symmfac=-1.0_dp
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
       nsgfa => basis_parameter(ikind)%nsgf
@@ -149,7 +154,7 @@ MODULE hfx_communication
             DO jset = 1,nsetb
               DO pa1 = pa+1, pa + nsgfa(iset)
                 DO pb1 = pb+1, pb + nsgfb(jset)
-                  sendbuffer(i) = sparse_block(pa1,pb1)
+                  sendbuffer(i) = sparse_block(pa1,pb1)*symmfac
                   i = i + 1
                 END DO
               END DO
@@ -211,7 +216,7 @@ MODULE hfx_communication
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
                                   block_offset, natom, kind_of, basis_parameter, &
-                                  off_diag_fac, error)
+                                  off_diag_fac, diag_fac, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:)                   :: full_ks
@@ -222,6 +227,7 @@ MODULE hfx_communication
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
+    REAL(dp), INTENT(IN), OPTIONAL           :: diag_fac
     REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -233,14 +239,15 @@ MODULE hfx_communication
       pa1, pb, pb1, req(2), source
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: my_fac
+    REAL(dp)                                 :: my_fac, myd_fac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    my_fac = 1.0_dp
+    my_fac = 1.0_dp; myd_fac=1.0_dp
     IF( PRESENT( off_diag_fac ) ) my_fac = off_diag_fac
+    IF( PRESENT( diag_fac ) ) myd_fac = diag_fac
 
     ALLOCATE(sendbuffer(number_of_p_entries), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -292,7 +299,7 @@ MODULE hfx_communication
             DO pa1 = pa+1,pa + nsgfa(iset)
               DO pb1 = pb+1,pb + nsgfb(jset)
                 IF(iatom == jatom .AND. pa1==pb1) THEN
-                  sparse_block(pa1,pb1) = sendbuffer(i) + sparse_block(pa1,pb1)
+                  sparse_block(pa1,pb1) = sendbuffer(i)*myd_fac + sparse_block(pa1,pb1)
                 ELSE
                   sparse_block(pa1,pb1) = sendbuffer(i)*my_fac + sparse_block(pa1,pb1)
                 END IF
@@ -538,6 +545,8 @@ MODULE hfx_communication
 
     DO ibuf=0,number_of_p_blocks*para_env%num_pe*3-3,3
        itask=buffer_out(ibuf+3)
+       ! buffer_out can be 0 if buffer_in contained less elements than the max number of atom pairs
+       ! is_assoc_atomic_block is a map for atom pairs to a processor (assumes symmetry, i,j on the ame as j,i)
        IF (itask.NE.0) THEN
            iatom=buffer_out(ibuf+1)
            jatom=buffer_out(ibuf+2)

@@ -56,6 +56,7 @@ MODULE qs_ks_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -773,13 +774,13 @@ CONTAINS
            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
            IF(.NOT.qs_env%run_rtp)THEN
-           CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
-                matrix_p_aux_fit, matrix_p, error)
+              CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
+                   mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                   matrix_p_aux_fit, matrix_p, error)
            ELSE
-                CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
-                matrix_p_aux_fit, matrix_p, error)
+              CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
+                   mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                   matrix_p_aux_fit, matrix_p, error)
 
            END IF
          END DO

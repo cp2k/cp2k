@@ -27,7 +27,9 @@ MODULE dbcsr_transformations
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_copy,&
-                                             dbcsr_data_set
+                                             dbcsr_data_set,&
+                                             dbcsr_block_conjg,&
+                                             dbcsr_block_real_neg
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
        dbcsr_data_get_memory_type, dbcsr_data_get_size, dbcsr_data_get_type, &
@@ -308,7 +310,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Duplicates data in symmetric matrix to make it normal (w.r.t. data
-!>        structure
+!>        structure. Can handle symmetric/antisymmetric/hermitian/skewhermitian
+!>        matrices
 !> \param[in] sm              input symmetric matrix
 !> \param[out] desm           desymmetrized matrix
 !> \param[in] transpose_data  (optional) make all data blocks be non-transposed
@@ -479,6 +482,15 @@ CONTAINS
                   src_tr=blk_p .LT. 0,&
                   src_r_lb=1, src_c_lb=1,&
                   src_offset = ABS(blk_p)-1)
+             IF(tr)THEN
+               IF(sm%m%negate_real)THEN
+                  CALL dbcsr_block_real_neg(dst=send_data,row_size=row_size,&
+                                            col_size=col_size,lb=sdp(dst_p), error=error ) 
+               END IF
+               IF(sm%m%negate_imaginary)&
+                  CALL dbcsr_block_conjg(dst=send_data,row_size=row_size,&
+                                            col_size=col_size,lb=sdp(dst_p), error=error )
+             END IF
           ELSE
              CALL dbcsr_data_copy (send_data, (/ sdp(dst_p) /), (/ nze /),&
                   sm%m%data_area, (/ ABS(blk_p) /), (/ nze /), error=error)

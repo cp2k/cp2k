@@ -75,9 +75,7 @@ CONTAINS
                  mos_next=mos_next,exp_H_new=exp_H_new,exp_H_old=exp_H_old,error=error)
 
     ! Only compute exponential if a new propagator matrix is available
-    IF(rtp%matrix_update)THEN
-       CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
-    END IF
+    CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
 
     DO i=1,SIZE(mos_new)/2
        re=2*i-1
@@ -138,7 +136,7 @@ CONTAINS
     ! except for the first step the further propagated mos_next 
     ! must be copied on mos_old so that we have the half propagated mos 
     ! ready on mos_old and only need to perform the second half propagatioon
-    IF(rtp_control%propagator==do_etrs.AND.rtp%iter==1.AND.rtp%istep.NE.1)THEN
+    IF(rtp_control%propagator==do_etrs.AND.rtp%iter==1)THEN
        DO i=1,SIZE(mos_new)
           CALL cp_fm_to_fm(mos_next(i)%matrix,mos_old(i)%matrix,error)
        END DO
@@ -146,7 +144,7 @@ CONTAINS
     DO ispin=1,nspin
        re=ispin*2-1
        im=ispin*2
-       IF(rtp_control%fixed_ions)THEN
+       IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
           CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                eps_arnoldi,Him=propagator_matrix(im)%matrix,&
                mos_next=mos_next(re:im),error=error)
@@ -156,22 +154,13 @@ CONTAINS
                Him=propagator_matrix(im)%matrix,mos_next=mos_next(re:im),error=error)
        END IF
     END DO
-    ! In the very first step ETRS performs twice the update with the initial H
-    ! therefore mos next need to be the new mos in the next step the half
-    ! propagated mos must be in mos_old so mos_new comes onto mos_old
-    IF(rtp_control%propagator==do_etrs.AND.rtp%iter==1.AND.rtp%istep==1)THEN
-       DO i=1,SIZE(mos_new)
-          CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
-          CALL cp_fm_to_fm(mos_next(i)%matrix,mos_new(i)%matrix,error)
-       END DO
-    END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE propagate_arnoldi
 
 ! *****************************************************************************
-!> \brief decides which type of exponential has to eb computed
+!> \brief decides which type of exponential has to be computed
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -185,7 +174,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_exponential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: im, ispin, re
+    INTEGER                                  :: im, ispin, re,j 
 
    DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1
@@ -194,7 +183,7 @@ CONTAINS
        SELECT CASE(rtp_control%mat_exp)
 
        CASE(do_taylor)
-          IF(rtp_control%fixed_ions)THEN
+          IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
              CALL taylor_only_imaginary(propagator(re:im),propagator_matrix(im)%matrix,&
                                         rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
@@ -202,7 +191,7 @@ CONTAINS
                                       rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           END IF
        CASE(do_pade)
-          IF(rtp_control%fixed_ions)THEN
+          IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
              CALL exp_pade_only_imaginary(propagator(re:im),propagator_matrix(im)%matrix,&
                                           rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE

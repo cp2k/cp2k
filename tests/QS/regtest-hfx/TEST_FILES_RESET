@@ -355,3 +355,6 @@ H2O-hfx-emd-restart.inp
 # refactoring minor changes in numerics
 H2O-hfx-emd.inp
 H2O-hfx-emd-restart.inp
+# correct RTP for hfx
+H2O-hfx-emd.inp
+H2O-hfx-emd-restart.inp

@@ -212,7 +212,7 @@ MODULE  rt_propagation_utils
     CALL cp_fm_set_all(B_mat,0.0_dp,0.0_dp,error)
 
     DO m=1,3
-
+       CALL cp_fm_set_all(rtp%S_der(m)%matrix,0.0_dp,0.0_dp,error)
        CALL copy_dbcsr_to_fm(s_derivs(m+1)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
 
@@ -223,6 +223,7 @@ MODULE  rt_propagation_utils
              icol_global=col_indices(icol_local)
              icol_atom=col_atom_index(icol_local)
              !signs are right, since s_derivs is <d/dR alpha|beta>
+             IF(irow_atom== icol_atom) CYCLE
              IF (irow_global>icol_global) THEN
                 scale=1.0_dp
              ELSE
@@ -236,8 +237,8 @@ MODULE  rt_propagation_utils
     END DO
 
 
+
     !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
-    ! I think this one tries to sort the derivatives (only 6 different but 9 in reality) but I forgot exactly how
     c_map_mat=0
     n=0
     DO j=1,3
@@ -353,7 +354,7 @@ MODULE  rt_propagation_utils
             id_nr,dft_control%multiplicity,dft_section, error)
     END SELECT
 
-
+! Can't quite see how things end up on mo array in case of rt_restart???
     DO ispin=1,nspin
        CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
             p_rmpv(ispin)%matrix,error=error)
@@ -428,14 +429,14 @@ MODULE  rt_propagation_utils
                                                 row_atom_index
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha
+    REAL(KIND=dp)                            :: alpha, cforce(2,3)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: C_mat, mos_new, S_der, SinvH
+      POINTER                                :: C_mat, mos_new, S_der, SinvH, SinvB
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: B_mat, S_inv, SinvB, tmp_mat, &
+    TYPE(cp_fm_type), POINTER                :: B_mat, S_inv, tmp_mat, &
                                                 tmp_mat1, tmp_mat2, tmp_mat3, &
                                                 tmp_mo1, tmp_mo2
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -529,9 +530,9 @@ MODULE  rt_propagation_utils
        CALL cp_fm_create(tmp_mo1,tmp_fm_struct,error=error)
        CALL cp_fm_create(tmp_mo2,tmp_fm_struct,error=error)
        CALL cp_fm_struct_release(tmp_fm_struct,error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(im)%matrix,SinvB,0.0_dp,tmp_mo1,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(im)%matrix,SinvB(ispin)%matrix,0.0_dp,tmp_mo1,error=error)
        CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(re)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo1,error=error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,-alpha,mos_new(re)%matrix,SinvB,0.0_dp,tmp_mo2,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,-alpha,mos_new(re)%matrix,SinvB(ispin)%matrix,0.0_dp,tmp_mo2,error=error)
        CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(im)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo2,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(re)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(im)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
@@ -559,13 +560,14 @@ MODULE  rt_propagation_utils
                 force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
                      tmp_mat%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)-&
                      local_data(irow_local,icol_local)* C_mat(i)%matrix%local_data(irow_local,icol_local)
-
                 ikind=kind_of(irow_atom)
                 kind_atom=atom_of_kind(irow_atom)
 
                 force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
                      tmp_mat1%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)+ &
                      local_data(irow_local,icol_local)* tmp_mat3%local_data(irow_local,icol_local)
+                cforce(kind_atom,i)=cforce(kind_atom,i)+local_data(irow_local,icol_local)* &
+                                     tmp_mat3%local_data(irow_local,icol_local)
              END DO
           END DO
        END DO

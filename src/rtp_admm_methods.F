@@ -21,7 +21,8 @@ MODULE rtp_admm_methods
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_data_size, &
        cp_dbcsr_get_data_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_get_matrix_type,&
+       cp_dbcsr_desymmetrize, cp_dbcsr_set, cp_dbcsr_init, cp_dbcsr_create, cp_dbcsr_release
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
@@ -41,11 +42,13 @@ MODULE rtp_admm_methods
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
+                                             cp_fm_get_info,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric,&
+                                             dbcsr_type_no_symmetry
   USE input_constants,                 ONLY: do_admm_block_density_matrix,&
                                              do_admm_purify_cauchy,&
                                              do_admm_purify_none,&
@@ -155,6 +158,7 @@ CONTAINS
        matrix_p => qs_env%rho%rho_ao
        CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mos_aux_fit(ispin)%mo_set,&
                                        matrix_p_aux_fit(ispin)%matrix,&
+                                       rtp%rtp_hfx%matrix_p_admm_im(ispin)%matrix,&
                                        ispin,nspins,error)
        CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
             rho=qs_env%rho_aux_fit%rho_r(ispin),&
@@ -174,12 +178,12 @@ CONTAINS
   END SUBROUTINE rtp_admm_density_matrix
 
   SUBROUTINE rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mo_set, density_matrix_aux,&
-                                           ispin, nspins, error)
+                                   density_matrix_aux_im, ispin, nspins, error)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux,density_matrix_aux_im
     INTEGER                                  :: ispin, nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -195,8 +199,7 @@ CONTAINS
 
     SELECT CASE(admm_env%purification_method)
     CASE(do_admm_purify_none)
-       CALL calculate_rtp_admm_density(mo_set,&
-            density_matrix_aux,&
+       CALL calculate_rtp_admm_density(density_matrix_aux,density_matrix_aux_im,&
             rtp_coeff_aux_fit,ispin,error)
     CASE(do_admm_purify_cauchy)
        CALL rtp_purify_dm_cauchy(admm_env,rtp_coeff_aux_fit,mo_set,density_matrix_aux , ispin, error)
@@ -387,11 +390,10 @@ CONTAINS
   END SUBROUTINE rtp_fit_mo_coeffs_none
 
 
-  SUBROUTINE calculate_rtp_admm_density(mo_set, density_matrix_aux,&
+  SUBROUTINE calculate_rtp_admm_density(density_matrix_aux,density_matrix_aux_im,&
                                    rtp_coeff_aux_fit,ispin, error)
 
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux,density_matrix_aux_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     INTEGER                                  :: ispin
@@ -401,31 +403,41 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, im_part, re_part
+    INTEGER                                  :: handle, im, re, ncol
     TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
+    REAL(KIND=dp)                            :: alpha
 
     CALL timeset(routineN,handle)
 
-    ALLOCATE(tmp_rho_im, tmp_rho_re)
-    CALL cp_dbcsr_init(tmp_rho_re,error=error)
-    CALL cp_dbcsr_init(tmp_rho_im,error=error)
-    CALL cp_dbcsr_copy(tmp_rho_re,density_matrix_aux,"tmp_tho_rts_re",error=error)
-    CALL cp_dbcsr_copy(tmp_rho_im,density_matrix_aux,"tmp_tho_rts_im",error=error)
+    re=2*ispin-1 ; im =2*ispin
+    alpha=3.0_dp-REAL(SIZE(rtp_coeff_aux_fit)/2,dp)
+    CALL cp_dbcsr_set(density_matrix_aux,0.0_dp,error=error)
+    CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix,ncol_global=ncol,error=error)
+    CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux,&
+                            matrix_v=rtp_coeff_aux_fit(re)%matrix,&
+                            matrix_g=rtp_coeff_aux_fit(re)%matrix,&
+                            ncol=ncol,&
+                            alpha=alpha,error=error)
+    ! It is actually complex conjugate but i*i=-1 therfore it must be added
+    CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux,&
+                     matrix_v=rtp_coeff_aux_fit(im)%matrix,&
+                     matrix_g=rtp_coeff_aux_fit(im)%matrix,&
+                     ncol=ncol,&
+                     alpha=alpha,error=error)
 
-    re_part=2*ispin-1
-    im_part=2*ispin
-    CALL cp_fm_to_fm(rtp_coeff_aux_fit(im_part)%matrix,mo_set%mo_coeff,error)
-    CALL calculate_density_matrix(mo_set,tmp_rho_im,error=error)
-    CALL cp_fm_to_fm(rtp_coeff_aux_fit(re_part)%matrix,mo_set%mo_coeff,error)
-    CALL calculate_density_matrix(mo_set,tmp_rho_re,error=error)
-
-    CALL cp_dbcsr_add(density_matrix_aux,tmp_rho_re,&
-         alpha_scalar=zero,beta_scalar=one,error=error)
-    CALL cp_dbcsr_add(density_matrix_aux,tmp_rho_im,&
-         alpha_scalar=one,beta_scalar=one,error=error)
-
-    CALL cp_dbcsr_deallocate_matrix(tmp_rho_re,error)
-    CALL cp_dbcsr_deallocate_matrix(tmp_rho_im,error)
+!   compute the imaginary part of the dm
+    CALL cp_dbcsr_set(density_matrix_aux_im,0.0_dp,error=error)
+    CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im,&
+                            matrix_v=rtp_coeff_aux_fit(im)%matrix,&
+                            matrix_g=rtp_coeff_aux_fit(re)%matrix,&
+                            ncol=ncol,&
+                            alpha=alpha,error=error)
+    alpha=-alpha
+    CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im,&
+                     matrix_v=rtp_coeff_aux_fit(re)%matrix,&
+                     matrix_g=rtp_coeff_aux_fit(im)%matrix,&
+                     ncol=ncol,&
+                     alpha=alpha,error=error)
 
     CALL timestop(handle)
 
@@ -520,51 +532,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE rtp_purify_dm_cauchy
-  SUBROUTINE calculate_dm_mo_no_diag(admm_env,mo_set,density_matrix,ispin,error)
-    TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_dbcsr_type), POINTER             :: density_matrix
-    INTEGER                                  :: ispin
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_mo_no_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nao_aux_fit, nmo
-    REAL(KIND=dp)                            :: alpha
-
-    CALL timeset(routineN,handle)
-
-
-    CALL cp_dbcsr_set(density_matrix,0.0_dp,error=error)
-    nao_aux_fit = admm_env%nao_aux_fit
-    nmo = admm_env%nmo(ispin)
-    CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, error=error)
-    CALL cp_fm_column_scale(admm_env%work_aux_nmo(ispin)%matrix,mo_set%occupation_numbers(1:mo_set%homo))
-
-    CALL cp_fm_gemm('N','N',nao_aux_fit,nmo,nmo,&
-                    1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_nmo2(ispin)%matrix,error)
-
-    IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
-      alpha=1.0_dp
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                              matrix_v=admm_env%C_hat(ispin)%matrix,&
-                              matrix_g=admm_env%work_aux_nmo2(ispin)%matrix,&
-                              ncol=mo_set%homo,&
-                              alpha=alpha,error=error)
-    ELSE
-      alpha=1.0_dp
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                              matrix_v=admm_env%C_hat(ispin)%matrix,&
-                              matrix_g=admm_env%work_aux_nmo2(ispin)%matrix,&
-                              ncol=mo_set%homo,&
-                              alpha=alpha,error=error)
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calculate_dm_mo_no_diag
   FUNCTION Heaviside(x)
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: Heaviside
@@ -606,9 +574,12 @@ CONTAINS
 
     SELECT CASE(admm_env%purification_method)
     CASE(do_admm_purify_none)
-       CALL rt_merge_ks_matrix_none(ispin, admm_env, mo_set, mo_coeff,&
-            mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, &
-            matrix_s, matrix_p_aux_fit, error)
+       CALL rt_merge_ks_matrix_none(ispin, admm_env, &
+            matrix_ks, matrix_ks_aux_fit, &
+            error)
+       CALL rt_merge_ks_matrix_none(ispin, admm_env, &
+            rtp%rtp_hfx%matrix_ks_im, rtp%rtp_hfx%matrix_ks_admm_im, &
+            error)
     CASE(do_admm_purify_cauchy)
        CALL get_rtp (rtp=rtp,mos_new=mos_new,error=error)
         CALL rt_merge_ks_matrix_cauchy(ispin,mos_new, admm_env, mo_set, mo_coeff,&
@@ -774,15 +745,12 @@ CONTAINS
 
 
 
-  SUBROUTINE rt_merge_ks_matrix_none(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
-                                  matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_p_aux_fit, error)
+  SUBROUTINE rt_merge_ks_matrix_none(ispin, admm_env,  &
+                                  matrix_ks, matrix_ks_aux_fit,  error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s, matrix_p_aux_fit
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_merge_ks_matrix_none', &
@@ -793,6 +761,7 @@ CONTAINS
     INTEGER, SAVE                            :: counter = 0
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
+    TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
 
     failure = .FALSE.
 
@@ -802,9 +771,13 @@ CONTAINS
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
     nmo = admm_env%nmo(ispin)
+    CALL cp_dbcsr_init (matrix_ks_nosym, error)
+    CALL cp_dbcsr_create (matrix_ks_nosym, template=matrix_ks_aux_fit(ispin)%matrix,&
+                 matrix_type=dbcsr_type_no_symmetry, error=error)
+    CALL cp_dbcsr_set(matrix_ks_nosym,0.0_dp,error)
+    CALL cp_dbcsr_desymmetrize(matrix_ks_aux_fit(ispin)%matrix,matrix_ks_nosym,error)
 
-    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
-    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks_nosym,admm_env%K(ispin)%matrix,error)
 
     !! K*A
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
@@ -820,7 +793,8 @@ CONTAINS
     ALLOCATE(matrix_k_tilde)
     CALL cp_dbcsr_init (matrix_k_tilde, error)
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), cp_dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix),&
+         cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
          cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
          cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
@@ -833,6 +807,7 @@ CONTAINS
     CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)
 
     CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde,error)
+    CALL cp_dbcsr_release(matrix_ks_nosym,error)
 
     CALL timestop(handle)
 

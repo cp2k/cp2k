@@ -302,11 +302,11 @@ CONTAINS
           CALL external_e_potential(qs_env,error)
        END IF
 
-       ! Compute grid-based forces
-       CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                                qs_env=qs_env,&
-                                calculate_forces=.TRUE.,error=error)
-
+          ! Compute grid-based forces
+          CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                                   qs_env=qs_env,&
+                                   calculate_forces=.TRUE.,error=error)
+   
        IF(ASSOCIATED(qs_env%mp2_env)) THEN
          ! with MP2 we have to recalculate the SCF energy with the
          ! correct density

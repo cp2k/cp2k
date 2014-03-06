@@ -19,10 +19,15 @@ MODULE rt_propagation_methods
   USE cp_control_types,                ONLY: rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
-                                             cp_dbcsr_init
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_release,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_desymmetrize
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_sm_fm_multiply
+                                             cp_dbcsr_sm_fm_multiply,&
+                                             cp_dbcsr_plus_fm_fm_t
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -34,6 +39,7 @@ MODULE rt_propagation_methods
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -41,6 +47,8 @@ MODULE rt_propagation_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_no_symmetry
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_em,&
                                              do_etrs,&
@@ -61,7 +69,9 @@ MODULE rt_propagation_methods
                                              propagate_exp
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
-                                             rt_prop_type
+                                             rt_prop_type,&
+                                             rtp_hfx_type,&
+                                             get_rtp_hfx
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -119,6 +129,13 @@ CONTAINS
 
     ! keep temporary copy of the starting mos to check for convergence   
     ALLOCATE(delta_mos(SIZE(mos_new)))
+    IF(rtp%iter==1)THEN
+       aspc_order=rtp_control%aspc_order
+       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
+       CALL calc_update_rho(qs_env,error)
+       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+            error=error)
+    END IF
     DO i=1,SIZE(mos_new)
        CALL cp_fm_create(delta_mos(i)%matrix,&
             matrix_struct=mos_new(i)%matrix%matrix_struct,&
@@ -126,16 +143,6 @@ CONTAINS
             error=error)
        CALL cp_fm_to_fm(mos_new(i)%matrix,delta_mos(i)%matrix,error)
     END DO
-
-    IF(rtp%iter==1)THEN
-       aspc_order=rtp_control%aspc_order
-       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
-       IF(rtp%history%mos_or_H==1)THEN
-          CALL calc_update_rho(qs_env,error)
-          CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-               error=error)
-       END IF
-    END IF
 
     CALL compute_propagator_matrix(qs_env,error)
  
@@ -147,8 +154,6 @@ CONTAINS
     END SELECT
     CALL calc_update_rho(qs_env,error)
 
-    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-         error=error)
 
     CALL step_finalize(qs_env,rtp_control,delta_mos,error)
     CALL cp_fm_vect_dealloc(delta_mos,error)
@@ -202,9 +207,9 @@ CONTAINS
        END DO
        ihist=MOD(rtp%istep,rtp_control%aspc_order)+1
        IF(rtp_control%fixed_ions)THEN
-          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,ihist=ihist,error=error)
+          CALL  put_data_to_history(rtp,mos=mos_new,ihist=ihist,error=error)
        ELSE
-          CALL  put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
+          CALL  put_data_to_history(rtp,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
     END IF
 
@@ -236,18 +241,13 @@ CONTAINS
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,exp_H_old=exp_H_old,&
                  propagator_matrix=propagator_matrix,dt=dt,error=error)
     rtp_control=>qs_env%dft_control%rtp_control
-
     prefac=-0.5_dp*dt
-    rtp%matrix_update=(rtp%iter.NE.1).OR. (rtp%history%mos_or_H==1) .OR.&
-                      (rtp_control%mat_exp==do_arnoldi)
-    IF(rtp%matrix_update) THEN
-       CALL calc_SinvH(exp_H_new,qs_env,error)
-       DO imat=1,SIZE(exp_H_new)
-          CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
-          IF(rtp_control%propagator==do_em)&
-             CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
-       END DO
-    END IF
+    CALL calc_SinvH(exp_H_new,qs_env,error)
+    DO imat=1,SIZE(exp_H_new)
+       CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
+       IF(rtp_control%propagator==do_em)&
+          CALL cp_fm_scale_and_add(1.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_old(imat)%matrix,error)
+    END DO
 
    END SUBROUTINE compute_propagator_matrix  
 
@@ -271,9 +271,10 @@ CONTAINS
     REAL(dp)                                 :: t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
+    TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: SinvH
-    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
+      POINTER                                :: SinvH, SinvB
+    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, &
                                                 tmp_mat_H
     TYPE(rt_prop_type), POINTER              :: rtp
 
@@ -282,24 +283,24 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
-
+      
     CALL cp_fm_create(H_fm,&
          matrix_struct=exp_H(1)%matrix%matrix_struct,&
          name="RTP_H_FM",&
          error=error)
-    CALL cp_fm_create(tmp_mat_H,&
-         matrix_struct=exp_H(1)%matrix%matrix_struct,&
-         name="RTP_H_FM",&
-         error=error)
-    ndim=H_fm%matrix_struct%nrow_global
 
+    ndim=H_fm%matrix_struct%nrow_global
+   
+    CALL cp_dbcsr_init (matrix_ks_nosym, error=error)
+    CALL cp_dbcsr_create (matrix_ks_nosym, template=matrix_ks(1)%matrix,&
+                 matrix_type=dbcsr_type_no_symmetry, error=error)
     DO ispin=1,SIZE(matrix_ks)
 
+       CALL cp_dbcsr_set(matrix_ks_nosym,0.0_dp,error)
        re=ispin*2-1
        im=ispin*2
-
-       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
-       CALL cp_fm_upper_to_full(H_fm,exp_H(im)%matrix,error)
+       CALL cp_dbcsr_desymmetrize (matrix_ks(ispin)%matrix,matrix_ks_nosym,error)
+       CALL copy_dbcsr_to_fm(matrix_ks_nosym,H_fm,error=error)
        CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(im)%matrix,error)
 
        IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
@@ -307,16 +308,37 @@ CONTAINS
           CALL cp_fm_to_fm(exp_H(im)%matrix,SinvH(ispin)%matrix,error)
        END IF
     END DO
-    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions.OR.rtp%do_hfx)THEN
        CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
+       IF(rtp%do_hfx)THEN
+          DO ispin=1,SIZE(matrix_ks)
+           
+             CALL cp_dbcsr_set(matrix_ks_nosym,0.0_dp,error)
+             CALL cp_dbcsr_desymmetrize (rtp%rtp_hfx%matrix_ks_im(ispin)%matrix, matrix_ks_nosym,&
+                     error=error)
+             
+             CALL copy_dbcsr_to_fm(matrix_ks_nosym,H_fm,error=error)
 
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(1)%matrix,error)
-       CALL cp_fm_to_fm(exp_H(1)%matrix,SinvB,error)
-       IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(exp_H(1)%matrix,exp_H(3)%matrix,error)
+             ! take care of the EMD case and add the velocity scaled S_derivative
+             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)&
+                CALL cp_fm_scale_and_add(1.0_dp,H_fm,-1.0_dp,B_mat,error)
+              
+             CALL cp_fm_gemm("N","N",ndim,ndim,ndim,-one,rtp%S_inv,H_fm,zero,exp_H(2*ispin-1)%matrix,error)
+             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)&
+                CALL cp_fm_to_fm(exp_H(2*ispin-1)%matrix,SinvB(ispin)%matrix,error)
+          END DO
+       ELSE
+          ! in case of pure EMD its only needed once as B is the same for both spins
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(1)%matrix,error)
+          CALL cp_fm_to_fm(exp_H(1)%matrix,SinvB(1)%matrix,error)
+
+          IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(exp_H(1)%matrix,exp_H(3)%matrix,error)
+          IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(SinvB(1)%matrix,SinvB(2)%matrix,error)
+       END IF
     END IF
 
     CALL cp_fm_release(H_fm,error)
-    CALL cp_fm_release(tmp_mat_H,error)
+    CALL cp_dbcsr_release(matrix_ks_nosym,error)
 
     CALL timestop(handle)
   END SUBROUTINE calc_SinvH
@@ -346,19 +368,19 @@ CONTAINS
 
     failure=.FALSE.
 
-       CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
+    CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
 
-       CALL cp_fm_create(tmp,&
-            matrix_struct=S_inv%matrix_struct,&
-            name="tmp_mat",&
-            error=error)
-       ndim=S_inv%matrix_struct%nrow_global
+    CALL cp_fm_create(tmp,&
+         matrix_struct=S_inv%matrix_struct,&
+         name="tmp_mat",&
+         error=error)
+    ndim=S_inv%matrix_struct%nrow_global
 
-
-       CALL copy_dbcsr_to_fm(s_mat(1)%matrix,S_inv,error=error)
-       CALL cp_fm_cholesky_decompose(S_inv,error=error)
-       CALL cp_fm_cholesky_invert(S_inv,error=error)
-       CALL cp_fm_upper_to_full(S_inv,tmp,error=error)
+    CALL copy_dbcsr_to_fm(s_mat(1)%matrix,S_inv,error=error)
+    CALL cp_fm_upper_to_full(S_inv,tmp,error=error)
+    CALL cp_fm_cholesky_decompose(S_inv,error=error)
+    CALL cp_fm_cholesky_invert(S_inv,error=error)
+    CALL cp_fm_upper_to_full(S_inv,tmp,error=error)
     CALL cp_fm_release(tmp,error)
     CALL timestop(handle)
   END SUBROUTINE s_matrices_create
@@ -379,51 +401,91 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, re
-    TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
+    INTEGER                                  :: handle, i, im, re, ncol
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos_new
-    TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
+    REAL(KIND=dp)                            :: alpha
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (rho,ks_env,mos,rtp,tmp_rho_im, tmp_rho_re)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)
-    CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-
-    ALLOCATE(tmp_rho_im, tmp_rho_re)
-    CALL cp_dbcsr_init(tmp_rho_re,error=error)
-    CALL cp_dbcsr_init(tmp_rho_im,error=error)
-    CALL cp_dbcsr_copy(tmp_rho_re,rho%rho_ao(1)%matrix,"tmp_tho_rts_re",error=error)
-    CALL cp_dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
-
-    DO i=1,SIZE(mos)
-       re=2*i-1
-       im=2*i
-       CALL cp_fm_to_fm(mos_new(im)%matrix,mos(i)%mo_set%mo_coeff,error)
-       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_im,error=error)
-       CALL cp_fm_to_fm(mos_new(re)%matrix,mos(i)%mo_set%mo_coeff,error)
-       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error=error)
-
-       CALL cp_dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_re,&
-            alpha_scalar=zero,beta_scalar=one,error=error)
-       CALL cp_dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_im,&
-            alpha_scalar=one,beta_scalar=one,error=error)
+    NULLIFY (rho,ks_env,mos,rtp)
+    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,rtp=rtp,error=error)
+    CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
+    DO i=1,SIZE(mos)/2
+       re=2*i-1 ; im =2*i
+       alpha=3.0_dp-REAL(SIZE(mos)/2,dp)
+       CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
+       CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
+                               matrix_v=mos(re)%matrix,&
+                               matrix_g=mos(re)%matrix,&
+                               ncol=ncol,&
+                               alpha=alpha,error=error)
+       ! It is actually complex conjugate but i*i=-1 therfore it must be added
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
+                        matrix_v=mos(im)%matrix,&
+                        matrix_g=mos(im)%matrix,&
+                        ncol=ncol,&
+                        alpha=alpha,error=error)
     END DO
 
     CALL qs_rho_update_rho(rho, qs_env, error=error)
-    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-    CALL cp_dbcsr_deallocate_matrix(tmp_rho_re,error)
-    CALL cp_dbcsr_deallocate_matrix(tmp_rho_im,error)
+    IF(rtp%do_hfx)THEN
+       CALL calculate_P_imaginary(rtp,qs_env%dft_control%do_admm,error)
+    END IF
+
+    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE calc_update_rho
+
+  SUBROUTINE calculate_P_imaginary(rtp,do_admm,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
+    LOGICAL                                  :: do_admm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
+      routineP = moduleN//':'//routineN
+ 
+    INTEGER                                  :: re, im , i, ncol
+    TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p_im
+    TYPE(rtp_hfx_type),POINTER               :: rtp_hfx
+    REAL(KIND=dp)                            :: alpha
+
+
+    CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_p_im=matrix_p_im,error=error)
+
+    DO i=1,SIZE(mos)/2
+       re=2*i-1 ; im =2*i
+       alpha=3.0_dp-REAL(SIZE(matrix_p_im),dp)
+       CALL cp_dbcsr_set(matrix_p_im(i)%matrix,0.0_dp,error=error)
+       CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix,&
+                               matrix_v=mos(im)%matrix,&
+                               matrix_g=mos(re)%matrix,&
+                               ncol=ncol,&
+                               alpha=alpha,error=error)
+       ! It is actually complex conjugate not only transposed
+       alpha=-alpha
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix,&
+                        matrix_v=mos(re)%matrix,&
+                        matrix_g=mos(im)%matrix,&
+                        ncol=ncol,&
+                        alpha=alpha,error=error)
+       
+       
+    END DO
+  
+  END SUBROUTINE calculate_P_imaginary
 
   SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -462,113 +524,94 @@ CONTAINS
 
     naspc=MIN(rtp%istep,aspc_order)
     CALL cite_reference(Kolafa2004)
-    IF(rtp%history%mos_or_H==2)THEN
-       exp_hist=>rtp%history%exp_history
-       DO imat=1,nmat
-          DO iaspc=1,naspc
-             alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
-                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
 
-             ihist=MOD(rtp%istep-iaspc,aspc_order)+1
-             IF(iaspc==1)THEN
-                CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
-             ELSE
-                CALL cp_fm_scale_and_add(one,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
-             END IF
-          END DO
+    mo_hist=>rtp%history%mo_history
+    DO imat=1,nmat
+       DO iaspc=1,naspc
+          alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+               binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+          ihist=MOD(rtp%istep-iaspc,aspc_order)+1
+          IF(iaspc==1)THEN
+             CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
+          ELSE
+             CALL cp_fm_scale_and_add(one,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
+          END IF
        END DO
-    END IF
-
-    IF(rtp%history%mos_or_H==1)THEN !.AND.naspc.GT.1)THEN
-       mo_hist=>rtp%history%mo_history
-       DO imat=1,nmat
-          DO iaspc=1,naspc
-             alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
-                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
-             ihist=MOD(rtp%istep-iaspc,aspc_order)+1
-             IF(iaspc==1)THEN
-                CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
-             ELSE
-                CALL cp_fm_scale_and_add(one,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
-             END IF
-          END DO
-       END DO
+    END DO
 
 
-       mo_hist=>rtp%history%mo_history
-       s_hist=>rtp%history%s_history
-       DO i=1,SIZE(mos_new)/2
-          NULLIFY (matrix_struct,matrix_struct_new,csc,fm_tmp,fm_tmp1,fm_tmp2,cfm_tmp,cfm_tmp1)
+    mo_hist=>rtp%history%mo_history
+    s_hist=>rtp%history%s_history
+    DO i=1,SIZE(mos_new)/2
+       NULLIFY (matrix_struct,matrix_struct_new,csc,fm_tmp,fm_tmp1,fm_tmp2,cfm_tmp,cfm_tmp1)
 
 
-          CALL cp_fm_struct_double(matrix_struct,&
-                                mos_new(2*i)%matrix%matrix_struct,&
-                                mos_new(2*i)%matrix%matrix_struct%context,&
-                                .TRUE.,.FALSE.,error)
+       CALL cp_fm_struct_double(matrix_struct,&
+                             mos_new(2*i)%matrix%matrix_struct,&
+                             mos_new(2*i)%matrix%matrix_struct%context,&
+                             .TRUE.,.FALSE.,error)
 
-          CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
-          CALL cp_fm_create(fm_tmp1,matrix_struct,error=error)
-          CALL cp_fm_create(fm_tmp2,mos_new(2*i)%matrix%matrix_struct,error=error)
-          CALL cp_cfm_create(cfm_tmp,mos_new(2*i)%matrix%matrix_struct,error=error)
-          CALL cp_cfm_create(cfm_tmp1,mos_new(2*i)%matrix%matrix_struct,error=error)
+       CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
+       CALL cp_fm_create(fm_tmp1,matrix_struct,error=error)
+       CALL cp_fm_create(fm_tmp2,mos_new(2*i)%matrix%matrix_struct,error=error)
+       CALL cp_cfm_create(cfm_tmp,mos_new(2*i)%matrix%matrix_struct,error=error)
+       CALL cp_cfm_create(cfm_tmp1,mos_new(2*i)%matrix%matrix_struct,error=error)
 
-          CALL cp_fm_get_info(fm_tmp,&
-                              ncol_global=kdbl,&
-                              error=error)
+       CALL cp_fm_get_info(fm_tmp,&
+                           ncol_global=kdbl,&
+                           error=error)
 
-          CALL cp_fm_get_info(mos_new(2*i)%matrix,&
-                              nrow_global=n,&
-                              ncol_global=k,&
-                              ncol_local=ncol_local,&
-                              error=error)
+       CALL cp_fm_get_info(mos_new(2*i)%matrix,&
+                           nrow_global=n,&
+                           ncol_global=k,&
+                           ncol_local=ncol_local,&
+                           error=error)
 
-          CALL cp_fm_struct_create(matrix_struct_new,&
-                                   template_fmstruct=matrix_struct,&
-                                   nrow_global=k,&
-                                   ncol_global=k,error=error)
-          CALL cp_cfm_create(csc,matrix_struct_new,error=error)
+       CALL cp_fm_struct_create(matrix_struct_new,&
+                                template_fmstruct=matrix_struct,&
+                                nrow_global=k,&
+                                ncol_global=k,error=error)
+       CALL cp_cfm_create(csc,matrix_struct_new,error=error)
 
 
-          CALL cp_fm_struct_release(matrix_struct_new,error=error)
-          CALL cp_fm_struct_release(matrix_struct,error=error)
+       CALL cp_fm_struct_release(matrix_struct_new,error=error)
+       CALL cp_fm_struct_release(matrix_struct,error=error)
 
-          ! first the most recent
+       ! first the most recent
 
 
 ! reorthogonalize vectors
 
-             DO icol_local=1,ncol_local
-                fm_tmp%local_data(:,icol_local)=mos_new(2*i-1)%matrix%local_data(:,icol_local)
-                fm_tmp%local_data(:,icol_local+ncol_local)=mos_new(2*i)%matrix%local_data(:,icol_local)
-             END DO
+       DO icol_local=1,ncol_local
+          fm_tmp%local_data(:,icol_local)=mos_new(2*i-1)%matrix%local_data(:,icol_local)
+          fm_tmp%local_data(:,icol_local+ncol_local)=mos_new(2*i)%matrix%local_data(:,icol_local)
+       END DO
 
-             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
 
-             DO icol_local=1,ncol_local
-                cfm_tmp%local_data(:,icol_local)=CMPLX(fm_tmp1%local_data(:,icol_local),&
-                     fm_tmp1%local_data(:,icol_local+ncol_local),dp)
-                cfm_tmp1%local_data(:,icol_local)=CMPLX(mos_new(2*i-1)%matrix%local_data(:,icol_local),&
-                     mos_new(2*i)%matrix%local_data(:,icol_local),dp)
-             END DO
-             CALL cp_cfm_gemm('C','N',k,k,n,cone,cfm_tmp1,cfm_tmp,czero,csc,error=error)
-             CALL cp_cfm_cholesky_decompose(csc,error=error)
-             CALL cp_cfm_triangular_multiply(csc,cfm_tmp1,n_cols=k,side='R',invert_tr=.TRUE.,error=error)
-             DO icol_local=1,ncol_local
-                mos_new(2*i-1)%matrix%local_data(:,icol_local)=REAL(cfm_tmp1%local_data(:,icol_local),dp)
-                mos_new(2*i)%matrix%local_data(:,icol_local)=AIMAG(cfm_tmp1%local_data(:,icol_local))
-             END DO
+       DO icol_local=1,ncol_local
+          cfm_tmp%local_data(:,icol_local)=CMPLX(fm_tmp1%local_data(:,icol_local),&
+               fm_tmp1%local_data(:,icol_local+ncol_local),dp)
+          cfm_tmp1%local_data(:,icol_local)=CMPLX(mos_new(2*i-1)%matrix%local_data(:,icol_local),&
+               mos_new(2*i)%matrix%local_data(:,icol_local),dp)
+       END DO
+       CALL cp_cfm_gemm('C','N',k,k,n,cone,cfm_tmp1,cfm_tmp,czero,csc,error=error)
+       CALL cp_cfm_cholesky_decompose(csc,error=error)
+       CALL cp_cfm_triangular_multiply(csc,cfm_tmp1,n_cols=k,side='R',invert_tr=.TRUE.,error=error)
+       DO icol_local=1,ncol_local
+          mos_new(2*i-1)%matrix%local_data(:,icol_local)=REAL(cfm_tmp1%local_data(:,icol_local),dp)
+          mos_new(2*i)%matrix%local_data(:,icol_local)=AIMAG(cfm_tmp1%local_data(:,icol_local))
+       END DO
 
 ! deallocate work matrices
-             CALL cp_cfm_release(csc,error=error)
-             CALL cp_fm_release(fm_tmp,error=error)
-             CALL cp_fm_release(fm_tmp,error)
-             CALL cp_fm_release(fm_tmp1,error)
-             CALL cp_fm_release(fm_tmp2,error)
-             CALL cp_cfm_release(cfm_tmp,error)
-             CALL cp_cfm_release(cfm_tmp1,error)
-          END DO
-
-       END IF
+          CALL cp_cfm_release(csc,error=error)
+          CALL cp_fm_release(fm_tmp,error=error)
+          CALL cp_fm_release(fm_tmp,error)
+          CALL cp_fm_release(fm_tmp1,error)
+          CALL cp_fm_release(fm_tmp2,error)
+          CALL cp_cfm_release(cfm_tmp,error)
+          CALL cp_cfm_release(cfm_tmp1,error)
+       END DO
 
     CALL timestop(handle)
 
@@ -576,7 +619,7 @@ CONTAINS
 
 
 
-  SUBROUTINE put_data_to_history(rtp,mos,exp_H,s_mat,ihist,error)
+  SUBROUTINE put_data_to_history(rtp,mos,s_mat,ihist,error)
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos, exp_H
@@ -590,26 +633,18 @@ CONTAINS
 
     INTEGER                                  :: i
 
-    IF(rtp%history%mos_or_H==2)THEN
-       DO i=1,SIZE(exp_H)
-          CALL cp_fm_to_fm(exp_H(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
-       END DO
-    END IF
+    DO i=1,SIZE(mos)
+       CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
+    END DO
 
-    IF(rtp%history%mos_or_H==1)THEN
-       DO i=1,SIZE(mos)
-          CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
-       END DO
-
-       IF(PRESENT(s_mat))THEN
-          IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
-             ! (future struct:check)
-             CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
-          END IF
-          ALLOCATE(rtp%history%s_history(ihist)%matrix)
-          CALL cp_dbcsr_init(rtp%history%s_history(ihist)%matrix,error=error)
-          CALL cp_dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
+    IF(PRESENT(s_mat))THEN
+       IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
+          ! (future struct:check)
+          CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
        END IF
+       ALLOCATE(rtp%history%s_history(ihist)%matrix)
+       CALL cp_dbcsr_init(rtp%history%s_history(ihist)%matrix,error=error)
+       CALL cp_dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
     END IF
 
   END SUBROUTINE put_data_to_history

@@ -839,7 +839,7 @@ MODULE mp2_cphf
     ! save old EX energy
     ex_energy=energy%ex
     DO irep=1, n_rep_hf
-      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work, hfx_sections,&
+      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work%rho_ao, hfx_sections,&
                                  para_env, my_recalc_hfx_integrals, irep, .TRUE.,&
                                  ispin=1, error=error)
     END DO

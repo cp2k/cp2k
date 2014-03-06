@@ -12,6 +12,7 @@ MODULE rt_propagation
   USE cp_control_types,                ONLY: rtp_control_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
@@ -33,7 +34,8 @@ MODULE rt_propagation
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_val_set
+                                             section_vals_val_set,&
+                                             section_vals_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md_environment_types,            ONLY: md_environment_type
@@ -42,6 +44,7 @@ MODULE rt_propagation
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
@@ -60,6 +63,7 @@ MODULE rt_propagation
                                              rt_prop_type,&
                                              rtp_history_create
   USE rt_propagation_utils,            ONLY: get_restart_wfn
+  USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
   USE rt_propagator_init,              ONLY: init_propagators
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -98,7 +102,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(section_vals_type), POINTER         :: md_section, motion_section
+    TYPE(section_vals_type), POINTER         :: md_section, motion_section,hfx_sections
 
     failure=.FALSE.
     NULLIFY(qs_env,rtp_control)
@@ -120,10 +124,21 @@ CONTAINS
     ! Reads the simulation parameters from the input
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
     md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
+    hfx_sections => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%DFT%XC%HF",error=error)
     CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt,error=error)
     CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=qs_env%rtp%i_start,error=error)
     CALL section_vals_val_get(md_section,"STEPS",i_val=rtp%nsteps,error=error)
-
+    CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
+ 
+    ! Hmm, not really like to initialize with the structure of S but I reckon it is
+    ! done everywhere like this
+    IF(rtp%do_hfx)THEN
+       ALLOCATE(rtp%rtp_hfx)
+       NULLIFY(rtp%rtp_hfx%matrix_p_im,rtp%rtp_hfx%matrix_ks_im,&
+               rtp%rtp_hfx%matrix_p_admm_im,rtp%rtp_hfx%matrix_ks_admm_im)
+       CALL rtp_hfx_rebuild(qs_env,error)
+    END IF
+    
     IF(rtp_control%fixed_ions)THEN
        CALL init_propagation_run(qs_env,error)
        CALL run_propagation(qs_env,force_env,globenv,error)
@@ -162,6 +177,8 @@ CONTAINS
 
     IF(rtp_control%initial_wfn==use_scf_wfn)THEN
       IF (rtp_control%apply_delta_pulse) THEN
+         IF(qs_env%dft_control%qs_control%dftb)&
+            CALL build_dftb_overlap(qs_env,1,qs_env%matrix_s,error)
          IF (rtp_control%periodic) THEN
            CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
          ELSE
@@ -229,7 +246,6 @@ CONTAINS
      END DO
 
      rtp_control%initial_step=.TRUE.
-
      CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
           error=error)
 
@@ -299,6 +315,8 @@ CONTAINS
           rtp%iter=i_iter
 
           CALL propagation_step(qs_env, error)
+          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+                                   error=error)
 
           rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
@@ -389,10 +407,8 @@ CONTAINS
     CASE(use_scf_wfn)
        qs_env%sim_time=0.0_dp
        qs_env%sim_step=0
-       ! force calculation for EMD has to be done in the EMD framework
-       ! see above in init_emd_run
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                                        consistent_energies=.TRUE.,error=error)
+            consistent_energies=.TRUE.,error=error)
        qs_env%run_rtp=.TRUE.
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -435,6 +451,7 @@ CONTAINS
 
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
        CALL get_restart_wfn(qs_env,error)
+
 
        qs_env%run_rtp=.TRUE.
     END SELECT

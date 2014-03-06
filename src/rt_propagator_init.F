@@ -34,7 +34,8 @@ MODULE rt_propagator_init
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE rt_make_propagators,             ONLY: compute_exponential
+  USE rt_make_propagators,             ONLY: compute_exponential,&
+                                             propagate_arnoldi
   USE rt_matrix_exp,                   ONLY: backtransform_matrix,&
                                              get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
@@ -78,7 +79,8 @@ CONTAINS
       POINTER                                :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
-                                                mos_old, propagator_matrix
+                                                mos_old, mos_new, mos_next,&
+                                                propagator_matrix
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
@@ -108,29 +110,40 @@ CONTAINS
           CALL get_maxabs_eigval(rtp,qs_env,error)
     END IF
 
-    ! Here is a special case as we have a two step process. Therefore it is worth to compute the 
-    ! expoenetial and reuse it
-    IF(rtp_control%mat_exp.NE.do_arnoldi)THEN
-       ! We have no clue yet about next H so we use initial H for t and t+dt
-       ! Due to different nature of the propagator the prefactor has to be adopted
-       SELECT CASE(rtp_control%propagator)
-       CASE(do_etrs)
-         prefac=-0.5_dp*dt
-       CASE(do_em)
-         prefac=-1.0_dp*dt
-       END SELECT 
-       DO imat=1,SIZE(exp_H_new)
-           CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
-       END DO
-       CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
-       IF(rtp_control%propagator==do_etrs)THEN
+    ! We have no clue yet about next H so we use initial H for t and t+dt
+    ! Due to different nature of the propagator the prefactor has to be adopted
+
+    SELECT CASE(rtp_control%propagator)
+    CASE(do_etrs)
+      prefac=-0.5_dp*dt
+    CASE(do_em)
+      prefac=-1.0_dp*dt
+    END SELECT 
+    DO imat=1,SIZE(exp_H_new)
+        CALL cp_fm_scale_and_add(0.0_dp,propagator_matrix(imat)%matrix,prefac,exp_H_new(imat)%matrix,error)
+    END DO
+
+    ! For ETRS this bit could be avoided but it drastically simplifies the workflow afterwards.
+    ! If we compute the half propagated mos/exponential already here, we ensure everything is done
+    ! with the correct S matrix and all information as during RTP/EMD are computed.
+    ! Therefore we might accept to compute an unnesscesary expoenential but understand the code afterwards
+    IF(rtp_control%propagator==do_etrs)THEN
+       IF(rtp_control%mat_exp==do_arnoldi)THEN
+          rtp%iter=0
+          CALL propagate_arnoldi(rtp,rtp_control,error)
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_next=mos_next,error=error)
+          DO imat=1,SIZE(mos_new)
+             CALL cp_fm_to_fm(mos_new(imat)%matrix,mos_next(imat)%matrix,error)
+          END DO
+       ELSE
+          CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error)
           DO imat=1,SIZE(exp_H_new)
              CALL cp_fm_to_fm(exp_H_new(imat)%matrix,exp_H_old(imat)%matrix,error)
           END DO
        END IF
     END IF 
 
-    CALL put_data_to_history(rtp,exp_H=exp_H_new,mos=mos_old,s_mat=s_mat,ihist=1,error=error)
+    CALL put_data_to_history(rtp,mos=mos_old,s_mat=s_mat,ihist=1,error=error)
 
   END SUBROUTINE init_propagators
 
