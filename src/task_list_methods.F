@@ -798,7 +798,7 @@ CONTAINS
                                                 iflux, ilocal, k, maxdest, &
                                                 Ncpu, Nflux
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: flux_connections
-    LOGICAL                                  :: solution_ok, solution_optimal
+    LOGICAL                                  :: solution_optimal
     REAL(KIND=dp)                            :: average, load_shift, &
                                                 max_load_shift, tolerance
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: load, optimized_flux, &
@@ -813,7 +813,6 @@ CONTAINS
      ALLOCATE (load(0:Ncpu-1))
      load=0.0_dp
      ALLOCATE (optimized_load(0:Ncpu-1))
-
 
      ! figure out the number of fluxes
      ! we assume that the global_list is symmetric
@@ -855,7 +854,6 @@ CONTAINS
         ENDDO
      ENDDO
 
-     solution_ok=.TRUE.
      solution_optimal=.FALSE.
      optimized_flux=0.0_dp
 
@@ -1111,7 +1109,6 @@ CONTAINS
 
        DO itask=itask_start,itask_stop
 
-
           dest=decode_rank(tasks(1,itask), SIZE(rs_descs)) ! notice that dest can be changed
           CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
           ! Only proceed with tasks which are on this grid level
@@ -1251,7 +1248,6 @@ CONTAINS
     INTEGER                                  :: handle, i, icpu, j, maxcount, &
                                                 ncpu, stat, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
-    INTEGER, DIMENSION(3)                    :: coord
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1274,7 +1270,6 @@ CONTAINS
     maxcount=1
     DO icpu=0,ncpu-1
        sublist(1)=icpu
-       coord=rs_descs(grid_level)%rs_desc%rank2coord(:,icpu)
        sublist(2)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/-1,0,0/))
        sublist(3)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/+1,0,0/))
        sublist(4)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,-1,0/))
