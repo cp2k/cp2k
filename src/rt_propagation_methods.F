@@ -17,17 +17,16 @@ MODULE rt_propagation_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_release,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_desymmetrize
+                                             cp_dbcsr_desymmetrize,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_release,&
+                                             cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_sm_fm_multiply,&
-                                             cp_dbcsr_plus_fm_fm_t
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -39,7 +38,6 @@ MODULE rt_propagation_methods
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -47,8 +45,7 @@ MODULE rt_propagation_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry
+  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_em,&
                                              do_etrs,&
@@ -61,17 +58,15 @@ MODULE rt_propagation_methods
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
-  USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                              propagate_exp
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
+                                             get_rtp_hfx,&
                                              rt_prop_type,&
-                                             rtp_hfx_type,&
-                                             get_rtp_hfx
+                                             rtp_hfx_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -273,9 +268,8 @@ CONTAINS
       POINTER                                :: matrix_ks
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: SinvH, SinvB
-    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, &
-                                                tmp_mat_H
+      POINTER                                :: SinvB, SinvH
+    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
@@ -401,13 +395,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, re, ncol
+    INTEGER                                  :: handle, i, im, ncol, re
+    REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
-    REAL(KIND=dp)                            :: alpha
 
     CALL timeset(routineN,handle)
 
@@ -451,17 +445,16 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
       routineP = moduleN//':'//routineN
- 
-    INTEGER                                  :: re, im , i, ncol
-    TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+
+    INTEGER                                  :: i, im, ncol, re
+    REAL(KIND=dp)                            :: alpha
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p_im
-    TYPE(rtp_hfx_type),POINTER               :: rtp_hfx
-    REAL(KIND=dp)                            :: alpha
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(rtp_hfx_type), POINTER              :: rtp_hfx
 
-
+    CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
     CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_p_im=matrix_p_im,error=error)
 
     DO i=1,SIZE(mos)/2
@@ -509,13 +502,12 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, mos_new
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: exp_hist, mo_hist
+      POINTER                                :: mo_hist
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
 
     CALL timeset(routineN,handle)
-    NULLIFY(exp_hist)
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,mos_new=mos_new,error=error)
     nmat=SIZE(rtp%exp_H_new)
     CALL get_qs_env(qs_env,&
@@ -622,7 +614,7 @@ CONTAINS
   SUBROUTINE put_data_to_history(rtp,mos,s_mat,ihist,error)
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos, exp_H
+      POINTER                                :: mos
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: s_mat
     INTEGER                                  :: ihist
