@@ -1433,20 +1433,20 @@ MODULE hfx_derivatives
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
-                                               atomic_offset_ad, atomic_offset_ac)
+                                               atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
                   CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                full_density_mp2, pbd_buf_mp2, pbc_buf_mp2, pad_buf_mp2, pac_buf_mp2, &
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
-                                               atomic_offset_ad, atomic_offset_ac)
+                                               atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
                 ELSE
                   CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                full_density, pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
-                                               atomic_offset_ad, atomic_offset_ac)
+                                               atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
                 END IF
                 IF( nspins == 2 ) THEN
                   CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -1454,7 +1454,7 @@ MODULE hfx_derivatives
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
-                                               atomic_offset_ad, atomic_offset_ac)
+                                               atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
                 END IF
                 IF( spherical_estimate*pmax_entry >= eps_schwarz ) THEN
                   DO coord = 1,12
@@ -1975,7 +1975,7 @@ MODULE hfx_derivatives
                                      iatom, jatom, katom, latom, &
                                      iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                      offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
-                                     atomic_offset_ad, atomic_offset_ac)
+                                     atomic_offset_ad, atomic_offset_ac,anti_symmetric)
 
     INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
     REAL(dp), DIMENSION(:), INTENT(IN)       :: density
@@ -1984,6 +1984,7 @@ MODULE hfx_derivatives
                                                 iset, jset, kset, lset
     INTEGER, DIMENSION(:, :), POINTER        :: offset_bd_set, offset_bc_set, &
                                                 offset_ad_set, offset_ac_set
+    LOGICAL                                  :: anti_symmetric
     INTEGER, INTENT(IN)                      :: atomic_offset_bd, &
                                                 atomic_offset_bc, &
                                                 atomic_offset_ad, &
@@ -1992,14 +1993,17 @@ MODULE hfx_derivatives
     INTEGER                                  :: i, j, ma, mb, mc, md, &
                                                 offset_ac, offset_ad, &
                                                 offset_bc, offset_bd
+    REAL(dp)                                 :: fac
 
+    fac=1.0_dp
+    IF(anti_symmetric)fac=-1.0_dp
     IF( jatom >= latom ) THEN
       i = 1
       offset_bd = offset_bd_set(jset,lset) + atomic_offset_bd - 1
       j = offset_bd
       DO md=1,md_max
         DO mb=1,mb_max
-          pbd(i) = density(j)
+          pbd(i) = density(j)*fac
           i = i + 1
           j = j + 1
         END DO
@@ -2022,7 +2026,7 @@ MODULE hfx_derivatives
       j = offset_bc
       DO mc=1,mc_max
         DO mb=1,mb_max
-          pbc(i) = density(j)
+          pbc(i) = density(j)*fac
           i = i + 1
           j = j + 1
         END DO
@@ -2045,7 +2049,7 @@ MODULE hfx_derivatives
       j = offset_ad
       DO md=1,md_max
         DO ma=1,ma_max
-          pad(i) = density(j)
+          pad(i) = density(j)*fac
           i = i + 1
           j = j + 1
         END DO
@@ -2068,7 +2072,7 @@ MODULE hfx_derivatives
       j = offset_ac
       DO mc=1,mc_max
         DO ma=1,ma_max
-          pac(i) = density(j)
+          pac(i) = density(j)*fac
           i = i + 1
           j = j + 1
         END DO

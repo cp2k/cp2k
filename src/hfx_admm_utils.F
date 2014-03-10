@@ -47,7 +47,6 @@ MODULE hfx_admm_utils
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -58,8 +57,6 @@ MODULE hfx_admm_utils
   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
   USE qs_energy_types,                 ONLY: qs_energy_type
-  USE rt_propagation_types,            ONLY: rt_prop_type,&
-                                             get_rtp_hfx
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -67,8 +64,10 @@ MODULE hfx_admm_utils
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type,& 
-                                             qs_rho_get           
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
+  USE rt_propagation_types,            ONLY: get_rtp_hfx,&
+                                             rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -205,15 +204,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, irep, ispin, &
-                                                n_rep_hf, nspins, stat, mspin
-    LOGICAL                                  :: do_adiabatic_rescaling, &
-                                                do_hfx_ri, failure, &
-                                                hfx_treat_lsd_in_core, &
-                                                use_virial,&
-                                                distribute_fock_matrix
+                                                mspin, n_rep_hf, nspins, stat
+    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, do_hfx_ri, &
+      failure, hfx_treat_lsd_in_core, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h
+      POINTER                                :: matrix_h, matrix_ks_orb, &
+                                                rho_ao_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -221,14 +218,12 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_rho_type), POINTER               :: rho_orb
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_ri_section, hfx_sections, &
                                                 input
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_orb, rho_ao_orb
-    TYPE(rt_prop_type),POINTER               :: rtp
-    TYPE(qs_rho_type), POINTER               :: rho_orb
 
     CALL timeset(routineN, handle)
 
@@ -350,10 +345,10 @@ CONTAINS
                                            ispin=ispin, error=error)
              END DO
    
- !            IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
- !               CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
- !                                            para_env, irep, use_virial, error=error)
- !            END IF
+             IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
+                CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+                                             para_env, irep, use_virial, error=error)
+             END IF
    
              !! If required, the calculation of the forces will be done later with adiabatic rescaling
              IF( do_adiabatic_rescaling ) hf_energy(irep) = energy%ex
