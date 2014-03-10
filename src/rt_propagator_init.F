@@ -79,7 +79,7 @@ CONTAINS
       POINTER                                :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
-                                                mos_old, mos_new, mos_next,&
+                                                mos_new, mos_next, mos_old, &
                                                 propagator_matrix
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -104,7 +104,7 @@ CONTAINS
 
     ! use the fact that CN propagator is a first order pade approximation on the EM propagator
     IF(rtp_control%propagator==do_cn)THEN
-       rtp%orders=1; rtp_control%mat_exp=do_pade; rtp_control%propagator=do_em
+       rtp%orders(1,:)=0;rtp%orders(2,:)=1; rtp_control%mat_exp=do_pade; rtp_control%propagator=do_em
     ELSE
        IF(rtp_control%mat_exp==do_pade.OR.rtp_control%mat_exp==do_taylor)&
           CALL get_maxabs_eigval(rtp,qs_env,error)
