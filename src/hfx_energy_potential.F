@@ -408,6 +408,7 @@ MODULE hfx_energy_potential
 !$OMP                                  radii_pgf,&
 !$OMP                                  nkind,&
 !$OMP                                  ispin,&
+!$OMP                                  is_anti_symmetric,&
 !$OMP                                  shm_atomic_block_offset,&
 !$OMP                                  shm_set_offset,&
 !$OMP                                  shm_block_offset,&

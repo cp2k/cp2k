@@ -356,6 +356,7 @@ MODULE hfx_derivatives
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
 !$OMP                                  nkind,&
+!$OMP                                  is_anti_symmetric,&
 !$OMP                                  radii_pgf,&
 !$OMP                                  shm_atomic_block_offset,&
 !$OMP                                  shm_set_offset,&
