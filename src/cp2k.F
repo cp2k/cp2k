@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief starts the program
+!> \brief Main program of CP2K
 !> \par Copyright
 !>    CP2K: A general program to perform molecular dynamics simulations
 !>    Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group
