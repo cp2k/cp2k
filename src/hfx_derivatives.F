@@ -1985,11 +1985,11 @@ MODULE hfx_derivatives
                                                 iset, jset, kset, lset
     INTEGER, DIMENSION(:, :), POINTER        :: offset_bd_set, offset_bc_set, &
                                                 offset_ad_set, offset_ac_set
-    LOGICAL                                  :: anti_symmetric
     INTEGER, INTENT(IN)                      :: atomic_offset_bd, &
                                                 atomic_offset_bc, &
                                                 atomic_offset_ad, &
                                                 atomic_offset_ac
+    LOGICAL                                  :: anti_symmetric
 
     INTEGER                                  :: i, j, ma, mb, mc, md, &
                                                 offset_ac, offset_ad, &

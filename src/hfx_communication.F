@@ -85,12 +85,12 @@ MODULE hfx_communication
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
-    LOGICAL, INTENT(IN)                      :: antisymmetric
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     LOGICAL, INTENT(IN)                      :: get_max_vals_spin
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: rho_beta
+    LOGICAL, INTENT(IN)                      :: antisymmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
@@ -101,11 +101,11 @@ MODULE hfx_communication
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure, found
+    REAL(dp)                                 :: symmfac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
                                                 sparse_block_beta
-    REAL(dp)                                 :: symmfac
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
@@ -227,8 +227,7 @@ MODULE hfx_communication
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    REAL(dp), INTENT(IN), OPTIONAL           :: diag_fac
-    REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac
+    REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac, diag_fac
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &

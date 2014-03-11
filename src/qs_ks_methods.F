@@ -56,7 +56,6 @@ MODULE qs_ks_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
