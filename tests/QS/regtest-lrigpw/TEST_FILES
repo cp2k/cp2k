@@ -5,5 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 # LRIGPW
 H2He_tz2p_lri.inp 1
-H2_tz2p_lri_diag.inp 1
+H2_tz2p_lri_diag.inp              1     4e-12
 H2_tz2p_lri_ot.inp 1
