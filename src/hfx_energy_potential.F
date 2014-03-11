@@ -18,8 +18,8 @@ MODULE hfx_energy_potential
                                              guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace,&
-                                             cp_dbcsr_get_matrix_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
+                                             cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -27,10 +27,7 @@ MODULE hfx_energy_potential
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_norm_frobenius,&
-                                             dbcsr_type_antisymmetric
+  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                              get_atomic_block_maps,&
@@ -83,7 +80,6 @@ MODULE hfx_energy_potential
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -131,7 +127,8 @@ MODULE hfx_energy_potential
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)::rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: geometry_did_change
@@ -153,7 +150,7 @@ MODULE hfx_energy_potential
       i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
       ikind, iset, iw, j, jatom, jatom_block, jkind, jset, katom, &
       katom_block, kind_kind_idx, kkind, kset, l_max, latom, latom_block, &
-      lkind, lset, ma, max_am, max_pgf, idia
+      lkind, lset, ma, max_am, max_pgf
     INTEGER :: max_set, mb, my_bin_size, n_threads, natom, nbits, ncob, &
       ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, pa, &
       sgfb, stat, swap_id, unit_id
@@ -1678,8 +1675,8 @@ MODULE hfx_energy_potential
                   END IF
                 END IF
 !!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
-!               CALL print_integrals(iatom,jatom,katom,latom,shm_set_offset,shm_atomic_block_offset,primitive_integrals,&
-!                                    iset, jset, kset, lset,nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset))
+!               CALL print_integrals(iatom,jatom,katom,latom,shm_set_offset,shm_atomic_block_offset,&
+!                                    iset, jset, kset, lset,nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),primitive_integrals)
 !!!  DEBUG END
                 IF(.NOT.is_anti_symmetric)THEN
                   !! Update Kohn-Sham matrix
@@ -2414,12 +2411,11 @@ MODULE hfx_energy_potential
                                                 atomic_offset_bc, &
                                                 atomic_offset_ad, &
                                                 atomic_offset_ac
+    LOGICAL                                  :: anti_symmetric
 
     INTEGER                                  :: i, j, ma, mb, mc, md, &
                                                 offset_ac, offset_ad, &
                                                 offset_bc, offset_bd
-    LOGICAL                                  :: anti_symmetric
-    REAL(dp)                                 :: matfac
 
     IF( jatom >= latom ) THEN
       i = 1
@@ -2633,14 +2629,11 @@ MODULE hfx_energy_potential
                                                 atomic_offset_bc, &
                                                 atomic_offset_ad, &
                                                 atomic_offset_ac
+    LOGICAL                                  :: anti_symmetric
 
     INTEGER                                  :: i, j, ma, mb, mc, md, &
                                                 offset_ac, offset_ad, &
-                                                offset_bc, offset_bd, &
-                                                offset_ca, offset_da, &
-                                                offset_cb, offset_db
-    LOGICAL                                  :: anti_symmetric
-    REAL(dp)                                 :: matfac,ks_old(13)
+                                                offset_bc, offset_bd
 
     IF( jatom >=  latom ) THEN
       i = 1
@@ -2833,14 +2826,16 @@ MODULE hfx_energy_potential
  
   END SUBROUTINE update_fock_matrix_as
 
-  SUBROUTINE print_integrals(i,j,k,l,set_offsets,atom_offsets,prim,iset,jset,kset,lset,ma_max,mb_max,mc_max,md_max)
-    INTEGER                                  :: i,j,k,l,iset,jset,kset,lset,ma_max,mb_max,mc_max,md_max
-    INTEGER, DIMENSION(:,:,:,:), POINTER     :: set_offsets
-    INTEGER, DIMENSION(:,:), POINTER         :: atom_offsets
+  SUBROUTINE print_integrals(i,j,k,l,set_offsets,atom_offsets,iset,jset,kset,lset,ma_max,mb_max,mc_max,md_max,prim)
+    INTEGER                                  :: i, j, k, l
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: set_offsets
+    INTEGER, DIMENSION(:, :), POINTER        :: atom_offsets
+    INTEGER                                  :: iset, jset, kset, lset, &
+                                                ma_max, mb_max, mc_max, md_max
     REAL(dp), DIMENSION(ma_max*mb_max*mc_max&
       *md_max), INTENT(IN)                   :: prim
 
-    INTEGER                                  :: iint,ma,mb,mc,md
+    INTEGER                                  :: iint, ma, mb, mc, md
 
     iint=0
     DO md = 1,md_max
