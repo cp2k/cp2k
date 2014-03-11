@@ -12,7 +12,6 @@ MODULE rt_propagation
   USE cp_control_types,                ONLY: rtp_control_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
@@ -31,20 +30,20 @@ MODULE rt_propagation
                                              use_rt_restart,&
                                              use_scf_wfn
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_get
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md_environment_types,            ONLY: md_environment_type
+  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
@@ -55,6 +54,7 @@ MODULE rt_propagation
                                              mo_set_p_type
   USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
                                              apply_delta_pulse_periodic
+  USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
   USE rt_propagation_methods,          ONLY: calc_update_rho,&
                                              propagation_step
   USE rt_propagation_output,           ONLY: rt_prop_output
@@ -63,7 +63,6 @@ MODULE rt_propagation
                                              rt_prop_type,&
                                              rtp_history_create
   USE rt_propagation_utils,            ONLY: get_restart_wfn
-  USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
   USE rt_propagator_init,              ONLY: init_propagators
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -102,7 +101,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(section_vals_type), POINTER         :: md_section, motion_section,hfx_sections
+    TYPE(section_vals_type), POINTER         :: hfx_sections, md_section, &
+                                                motion_section
 
     failure=.FALSE.
     NULLIFY(qs_env,rtp_control)

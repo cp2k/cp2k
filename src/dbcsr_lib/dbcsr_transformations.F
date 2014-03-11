@@ -23,13 +23,13 @@ MODULE dbcsr_transformations
                                              dbcsr_access_stop,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block
-  USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
+  USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
+                                             dbcsr_block_partial_copy,&
+                                             dbcsr_block_real_neg,&
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_copy,&
-                                             dbcsr_data_set,&
-                                             dbcsr_block_conjg,&
-                                             dbcsr_block_real_neg
+                                             dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
        dbcsr_data_get_memory_type, dbcsr_data_get_size, dbcsr_data_get_type, &
@@ -352,14 +352,14 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Input matrix is invalid.",__LINE__,error)
-    CALL dbcsr_assert (dbcsr_valid_index (desm),&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Target matrix must be created.",__LINE__,error)
-    CALL dbcsr_assert ("NOT", dbcsr_has_symmetry (desm),&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Target matrix must not be symmetric.",__LINE__,error)
     CALL dbcsr_access_flush (sm, error=error)
     CALL dbcsr_access_flush (desm, error=error)
+    IF(dbcsr_valid_index (desm)) THEN
+       CALL dbcsr_release(desm)
+       CALL dbcsr_init(desm)
+    ENDIF
+    CALL dbcsr_create(desm, sm, matrix_type="N",error=error)
+
     IF (PRESENT (untransposed_data)) THEN
        make_untr = untransposed_data
     ELSE

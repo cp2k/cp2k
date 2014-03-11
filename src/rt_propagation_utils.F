@@ -434,7 +434,8 @@ MODULE  rt_propagation_utils
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: C_mat, mos_new, S_der, SinvH, SinvB
+      POINTER                                :: C_mat, mos_new, S_der, SinvB, &
+                                                SinvH
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: B_mat, S_inv, tmp_mat, &
                                                 tmp_mat1, tmp_mat2, tmp_mat3, &

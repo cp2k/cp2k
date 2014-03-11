@@ -174,7 +174,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_exponential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: im, ispin, re,j 
+    INTEGER                                  :: im, ispin, re
 
    DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1

@@ -19,18 +19,18 @@ MODULE rtp_admm_methods
                                              dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_data_size, &
-       cp_dbcsr_get_data_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_get_matrix_type,&
-       cp_dbcsr_desymmetrize, cp_dbcsr_set, cp_dbcsr_init, cp_dbcsr_create, cp_dbcsr_release
+       cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_plus_fm_fm_t
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_schur_product,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -39,16 +39,16 @@ MODULE rtp_admm_methods
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_fm_get_info,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric,&
-                                             dbcsr_type_no_symmetry
+  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
+                                             dbcsr_type_symmetric
   USE input_constants,                 ONLY: do_admm_block_density_matrix,&
                                              do_admm_purify_cauchy,&
                                              do_admm_purify_none,&
@@ -63,7 +63,6 @@ MODULE rtp_admm_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -183,7 +182,8 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux,density_matrix_aux_im
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux, &
+                                                density_matrix_aux_im
     INTEGER                                  :: ispin, nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -393,7 +393,8 @@ CONTAINS
   SUBROUTINE calculate_rtp_admm_density(density_matrix_aux,density_matrix_aux_im,&
                                    rtp_coeff_aux_fit,ispin, error)
 
-    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux,density_matrix_aux_im
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux, &
+                                                density_matrix_aux_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     INTEGER                                  :: ispin
@@ -403,8 +404,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, im, re, ncol
-    TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
+    INTEGER                                  :: handle, im, ncol, re
     REAL(KIND=dp)                            :: alpha
 
     CALL timeset(routineN,handle)
@@ -760,8 +760,8 @@ CONTAINS
                                                 nmo
     INTEGER, SAVE                            :: counter = 0
     LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
 
     failure = .FALSE.
 

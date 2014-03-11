@@ -20,8 +20,6 @@ MODULE rt_propagation_types
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
-                                             cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -35,7 +33,6 @@ MODULE rt_propagation_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
   USE input_constants,                 ONLY: do_taylor
   USE kinds,                           ONLY: dp
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -280,7 +277,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: exp_H_old, exp_H_new
     TYPE(rtp_mos_type), OPTIONAL, POINTER    :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next, admm_mos
+      OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: S_inv, B_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
@@ -288,7 +285,7 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: dt
     INTEGER, OPTIONAL                        :: nsteps
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: SinvH,SinvB
+      OPTIONAL, POINTER                      :: SinvH, SinvB, admm_mos
     TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -373,9 +370,9 @@ CONTAINS
                             matrix_p_admm_im,matrix_ks_admm_im,error)
     TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_im, matrix_ks_im
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_admm_im, matrix_ks_admm_im
+      OPTIONAL, POINTER                      :: matrix_p_im, matrix_ks_im, &
+                                                matrix_p_admm_im, &
+                                                matrix_ks_admm_im
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp_hfx', &
@@ -392,9 +389,9 @@ CONTAINS
                         matrix_p_admm_im,matrix_ks_admm_im,error)
     TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_im, matrix_ks_im
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_admm_im, matrix_ks_admm_im
+      OPTIONAL, POINTER                      :: matrix_p_im, matrix_ks_im, &
+                                                matrix_p_admm_im, &
+                                                matrix_ks_admm_im
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_rtp_hfx', &

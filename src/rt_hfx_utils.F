@@ -13,9 +13,7 @@
 MODULE rt_hfx_utils
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_col_block_sizes,&
-                                             cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_create,&
                                              cp_dbcsr_distribution,&
                                              cp_dbcsr_init,&
@@ -26,38 +24,12 @@ MODULE rt_hfx_utils
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
   USE f77_blas
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_release
-  USE qs_collocate_density,            ONLY: calculate_drho_elec,&
-                                             calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_local_rho_types,              ONLY: local_rho_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
-                                             qs_rho_type
-  USE rt_propagation_types,            ONLY: get_rtp,&
-                                             rt_prop_create,&
-                                             rt_prop_type,&
-                                             rtp_hfx_type,&
-                                             get_rtp_hfx,&
-                                             set_rtp_hfx
-  USE task_list_types,                 ONLY: task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-
+  USE rt_propagation_types,            ONLY: rt_prop_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -77,15 +49,15 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_hfx_rebuild', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_hfx_rebuild', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_p, matrix_ks
+      POINTER                                :: matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,rtp=rtp,error=error)
     IF(dft_control%do_admm)THEN
@@ -109,25 +81,19 @@ CONTAINS
 
   SUBROUTINE rebuild_matrices(matrix_p,matrix_ks,sab_orb,matrix_s,nspins,error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-    POINTER                                  :: matrix_s, matrix_p, matrix_ks
-    TYPE(qs_environment_type), POINTER       :: qs_env
+      POINTER                                :: matrix_p, matrix_ks
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: handle, i, my_basis_set_id, &
-                                                nspins, stat
-    LOGICAL                                  :: failure, my_gapw_xc, &
-                                                my_rebuild_ao, &
-                                                my_rebuild_grids
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
+    INTEGER                                  :: i
 
     IF (ASSOCIATED(matrix_p)) THEN
        CALL cp_dbcsr_deallocate_matrix_set(matrix_p,error=error)
