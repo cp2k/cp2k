@@ -20,7 +20,7 @@ multipole_dipole.dbg_st.inp          42
 multipole_quadrupole.dbg_st.inp   42     7e-03
 # charge array
 water_charge_no_array.inp             2
-water_charge_array.inp                2
+water_charge_array.inp            2     5e-12
 water_charge_no_array_ewald.inp    2     5e-12
 water_charge_array_ewald.inp      2     1e-11
 water_charge_no_array_pme.inp     2     5e-12

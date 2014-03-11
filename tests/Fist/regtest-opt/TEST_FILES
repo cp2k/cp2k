@@ -42,7 +42,7 @@ mc_cs_geo_opt_lbfgs.inp 11
 # Cell symmetry constraint
 cell_sym_cubic.inp               11     1e-10
 cell_sym_hexagonal.inp           11     4e-09
-cell_sym_monoclinic.inp          11     1e-09
+cell_sym_monoclinic.inp          11     3e-09
 cell_sym_none.inp                11     4e-09
 cell_sym_orthorhombic.inp 11 1E-11
 cell_sym_rhombohedral.inp 11 1E-13
