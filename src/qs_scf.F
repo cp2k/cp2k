@@ -62,7 +62,8 @@ MODULE qs_scf
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_postprocessing
-  USE input_constants,                 ONLY: history_guess,&
+  USE input_constants,                 ONLY: do_method_mndo,&
+                                             history_guess,&
                                              ot_precond_full_all,&
                                              ot_precond_full_single,&
                                              ot_precond_full_single_inverse,&
@@ -320,6 +321,10 @@ CONTAINS
     ! **** SCP
     IF ( scp_nddo ) THEN
        CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
+       IF (dft_control%qs_control%method_id.EQ.do_method_mndo) THEN
+          ! this combination is buggy since revision 12141
+          CALL stop_program(routineN,moduleN,__LINE__,"Not Yet Implemented (buggy since rev12141)")
+       ENDIF
     END IF
 
     harris_flag = qs_env%use_harris
