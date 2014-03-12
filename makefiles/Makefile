@@ -34,7 +34,7 @@ TOOLDIR               = $(OBJDIR)/tools
 TOOLSRC               = $(CP2KHOME)/tools
 SRCDIR                = $(CP2KHOME)/src
 LIBCUSMM_DIR          = $(SRCDIR)/dbcsr/cuda/libcusmm
-SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch:$(SRCDIR)/dbcsr:$(SRCDIR)/dbcsr/cuda:$(SRCDIR)/fft:$(SRCDIR)/metadyn_tools:$(SRCDIR)/cuda:$(LIBCUSMM_DIR):$(SRCDIR)/machine
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/grid:$(SRCDIR)/arch:$(SRCDIR)/dbcsr:$(SRCDIR)/dbcsr/cuda:$(SRCDIR)/fft:$(SRCDIR)/metadyn_tools:$(SRCDIR)/cuda:$(LIBCUSMM_DIR):$(SRCDIR)/machine
 MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                  = $(EXEDIR)/cp2k.$(VERSION)
@@ -44,7 +44,7 @@ EXEDIR                = $(MAINEXEDIR)/$(ARCH)
 LIBDIR                = $(MAINLIBDIR)/$(ARCH)
 OBJDIR                = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS            = $(SRCDIR)/OBJECTDEFS
-LIB1_OBJECTDEFS       = $(SRCDIR)/lib/OBJECTDEFS
+LIB1_OBJECTDEFS       = $(SRCDIR)/grid/OBJECTDEFS
 LIB2_OBJECTDEFS       = $(SRCDIR)/dbcsr/OBJECTDEFS
 LIB2CUDA_OBJECTDEFS   = $(SRCDIR)/dbcsr/cuda/OBJECTDEFS
 LIB2CUDA_DEPENDENCIES = $(SRCDIR)/dbcsr/cuda/DEPENDENCIES
@@ -127,7 +127,7 @@ realpretty: prettyclean pretty
 
 pretty: dirs
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
-	+$(MAKE) -C $(SRCDIR)/lib       -f $(MAKEFILE) _pretty_lib1
+	+$(MAKE) -C $(SRCDIR)/grid  -f $(MAKEFILE) _pretty_lib1
 	+$(MAKE) -C $(SRCDIR)/fft   -f $(MAKEFILE) _pretty_lib2
 	+$(MAKE) -C $(SRCDIR)/dbcsr -f $(MAKEFILE) _pretty_lib3
 	+$(MAKE) -C $(SRCDIR)/arch  -f $(MAKEFILE) _pretty_lib4
@@ -554,7 +554,7 @@ doxygen: doxygen/clean
 	@mkdir -p $(DOXYGENDIR)/html
 	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html 
 	{ cd $(SRCDIR) ; cp *.f90 *.h $(DOXYGENDIR) ; for f in $(OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
-	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/grid ; for f in $(LIB1_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/fft ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/dbcsr ; for f in $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/arch ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
