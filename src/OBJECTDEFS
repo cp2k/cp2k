@@ -58,10 +58,8 @@ OBJECTS_GENERIC =\
  barostat_types.o\
  barostat_utils.o\
  basis_set_types.o\
- bessel_lib.o\
  beta_gamma_psi.o\
  bfgs_optimizer.o\
- bibliography.o\
  block_p_types.o\
  bsse.o\
  cell_opt.o\
@@ -71,7 +69,6 @@ OBJECTS_GENERIC =\
  cg_optimizer.o\
  cg_test.o\
  cg_utils.o\
- c_mpi_calls.o\
  colvar_methods.o\
  colvar_types.o\
  colvar_utils.o\
@@ -88,107 +85,40 @@ OBJECTS_GENERIC =\
  cp2k_debug.o\
  cp2k_info.o\
  cp2k_runs.o\
- cp_array_i4_sort.o\
- cp_array_i8_sort.o\
- cp_array_i_sort.o\
- cp_array_i_utils.o\
- cp_array_logical_utils.o\
- cp_array_r_sort.o\
- cp_array_r_utils.o\
- cp_array_utils.o\
- cp_blacs_calls.o\
- cp_blacs_env.o\
- cp_cfm_basic_linalg.o\
- cp_cfm_diag.o\
- cp_cfm_types.o\
  cp_control_types.o\
  cp_control_utils.o\
- cp_dbcsr_cholesky.o\
  cp_dbcsr_cp2k_link.o\
- cp_dbcsr_diag.o\
- cp_dbcsr_interface.o\
- cp_dbcsr_methods.o\
- cp_dbcsr_operations.o\
  cp_dbcsr_output.o\
- cp_dbcsr_types.o\
- cp_dbcsr_util.o\
  cp_ddapc_forces.o\
  cp_ddapc_methods.o\
  cp_ddapc.o\
  cp_ddapc_types.o\
  cp_ddapc_util.o\
- cp_error_handling.o\
  cp_external_control.o\
- cp_files.o\
- cp_fm_basic_linalg.o\
- cp_fm_cholesky.o\
- cp_fm_diag.o\
- cp_fm_pool_types.o\
- cp_fm_struct.o\
- cp_fm_types.o\
- cp_fm_vect.o\
- cp_iter_types.o\
  cp_lbfgs_geo.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_gopt.o\
- cp_linked_list_3d_r.o\
- cp_linked_list_char.o\
- cp_linked_list_fm.o\
- cp_linked_list_int.o\
- cp_linked_list_logical.o\
- cp_linked_list_pw.o\
- cp_linked_list_real.o\
- cp_linked_list_rs.o\
  cp_linked_list_val.o\
  cp_linked_list_xc_deriv.o\
- cp_log_handling.o\
  cp_ma_interface.o\
  cpot_types.o\
  cp_output_handling.o\
- cp_para_env.o\
- cp_para_types.o\
- cp_parser_buffer_types.o\
- cp_parser_ilist_methods.o\
- cp_parser_ilist_types.o\
- cp_parser_inpp_methods.o\
- cp_parser_inpp_types.o\
- cp_parser_methods.o\
- cp_parser_status_types.o\
- cp_parser_types.o\
  cp_realspace_grid_cube.o\
  cp_realspace_grid_init.o\
- cp_result_methods.o\
- cp_result_types.o\
  cp_spline_utils.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
  cp_symmetry.o\
- cp_units.o\
  csvr_system_dynamics.o\
  csvr_system_init.o\
  csvr_system_mapping.o\
  csvr_system_types.o\
  csvr_system_utils.o\
- cube_utils.o\
- cuda_cublas.o\
- cuda_device.o\
- cuda_memory.o\
- cuda_profiling.o\
- d3_poly.o\
  damping_dipole_types.o\
- dbcsr_tests.o\
  dft_plus_u.o\
- dg_rho0_types.o\
- dgs.o\
- dg_types.o\
- dict_i4tuple_callstat.o\
- dict.o\
- dict_str_i4.o\
  dimer_methods.o\
  dimer_types.o\
  dimer_utils.o\
- distribution_1d_types.o\
- distribution_2d_types.o\
  distribution_methods.o\
  distribution_optimize.o\
  dkh_main.o\
@@ -199,7 +129,6 @@ OBJECTS_GENERIC =\
  dm_ls_scf_qs.o\
  dm_ls_scf_types.o\
  efield_utils.o\
- eigenvalueproblems.o\
  eip_environment.o\
  eip_environment_types.o\
  eip_main.o\
@@ -209,7 +138,6 @@ OBJECTS_GENERIC =\
  ep_qs_methods.o\
  ep_qs_types.o\
  ep_types.o\
- erf_fn.o\
  et_coupling.o\
  et_coupling_types.o\
  ewald_environment_types.o\
@@ -226,17 +154,10 @@ OBJECTS_GENERIC =\
  extended_system_types.o\
  external_potential_methods.o\
  external_potential_types.o\
- f77_blas_extra.o\
- f77_blas_generic.o\
- f77_blas_netlib.o\
- f77_blas.o\
- f77_blas_poison.o\
  f77_interface.o\
  f77_int_low.o\
  farming_methods.o\
  farming_types.o\
- fermi_utils.o\
- fft_tools.o\
  fist_energy_types.o\
  fist_environment.o\
  fist_environment_types.o\
@@ -258,13 +179,11 @@ OBJECTS_GENERIC =\
  force_fields.o\
  force_fields_util.o\
  force_field_types.o\
- fparser.o\
  fp_methods.o\
  fp_types.o\
  free_energy_methods.o\
  free_energy_types.o\
  ga_environment_types.o\
- gamma.o\
  gauss_colloc.o\
  gaussian_gridlevels.o\
  geo_opt.o\
@@ -279,7 +198,6 @@ OBJECTS_GENERIC =\
  gle_system_dynamics.o\
  gle_system_types.o\
  global_types.o\
- glob_matching.o\
  gopt_f77_methods.o\
  gopt_f_methods.o\
  gopt_f_types.o\
@@ -361,37 +279,21 @@ OBJECTS_GENERIC =\
  ipi_driver.o\
  iterate_matrix.o\
  k290.o\
- kahan_sum.o\
  kg_correction.o\
  kg_environment.o\
  kg_environment_types.o\
  kg_min_heap.o\
  kg_tnadd_mat.o\
  kg_vertex_coloring_methods.o\
- kinds.o\
- lapack.o\
- lazy.o\
- lebedev.o\
- lgrid_types.o\
  library_tests.o\
  libxc_funcs_m.o\
- linear_systems.o\
- list_callstackentry.o\
- list.o\
- list_routinereport.o\
- list_routinestat.o\
- list_timerenv.o\
  lri_environment_methods.o\
  lri_environment_types.o\
  lri_ks_methods.o\
- machine.o\
- machine_internal.o\
  manybody_eam.o\
  manybody_potential.o\
  manybody_siepmann.o\
  manybody_tersoff.o\
- mathconstants.o\
- mathlib.o\
  mc_control.o\
  mc_coordinates.o\
  mc_ensembles.o\
@@ -411,8 +313,6 @@ OBJECTS_GENERIC =\
  md_run.o\
  md_util.o\
  md_vel_utils.o\
- memory_utilities.o\
- message_passing.o\
  metadynamics.o\
  metadynamics_types.o\
  metadynamics_utils.o\
@@ -447,7 +347,6 @@ OBJECTS_GENERIC =\
  mp2_ri_libint.o\
  mp2_setup.o\
  mp2_types.o\
- mt_util.o\
  mulliken.o\
  multipole_types.o\
  neb_io.o\
@@ -469,12 +368,9 @@ OBJECTS_GENERIC =\
  pair_potential.o\
  pair_potential_types.o\
  pair_potential_util.o\
- parallel_rng_types.o\
  particle_list_types.o\
  particle_types.o\
  paw_proj_set_types.o\
- periodic_table.o\
- physcon.o\
  pilaenv_hack.o\
  pint_gle.o\
  pint_io.o\
@@ -487,29 +383,11 @@ OBJECTS_GENERIC =\
  pme.o\
  pme_tools.o\
  population_analyses.o\
- powell.o\
  preconditioner.o\
  preconditioner_types.o\
- ps_wavelet_base.o\
- ps_wavelet_fft3d.o\
- ps_wavelet_kernel.o\
- ps_wavelet_scaling_function.o\
- ps_wavelet_methods.o\
- ps_wavelet_types.o\
- ps_wavelet_util.o\
  pw_env_methods.o\
  pw_env_types.o\
- pw_grid_info.o\
- pw_grids.o\
- pw_grid_types.o\
- pw_methods_cuda.o\
- pw_methods.o\
- pw_poisson_methods.o\
  pw_poisson_read_input.o\
- pw_poisson_types.o\
- pw_pool_types.o\
- pw_spline_utils.o\
- pw_types.o\
  qmmm_elpot.o\
  qmmm_ff_fist.o\
  qmmm_force_mixing.o\
@@ -657,9 +535,6 @@ OBJECTS_GENERIC =\
  qs_vxc.o\
  qs_wf_history_methods.o\
  qs_wf_history_types.o\
- realspace_grid_cube.o\
- realspace_grid_types.o\
- reference_manager.o\
  reftraj_types.o\
  reftraj_util.o\
  rel_control_types.o\
@@ -731,7 +606,6 @@ OBJECTS_GENERIC =\
  simpar_methods.o\
  simpar_types.o\
  soft_basis_set.o\
- spherical_harmonics.o\
  splines_methods.o\
  splines_types.o\
  spme.o\
@@ -739,10 +613,6 @@ OBJECTS_GENERIC =\
  statistical_methods.o\
  stm_images.o\
  sto_ng.o\
- string_table.o\
- string_utilities.o\
- structure_factors.o\
- structure_factor_types.o\
  subcell_types.o\
  surface_dipole.o\
  swarm_input.o\
@@ -756,17 +626,12 @@ OBJECTS_GENERIC =\
  task_list_methods.o\
  task_list_types.o\
  t_c_g0.o\
- termination.o\
  thermal_region_types.o\
  thermal_region_utils.o\
  thermostat_mapping.o\
  thermostat_methods.o\
  thermostat_types.o\
  thermostat_utils.o\
- timings_base_type.o\
- timings.o\
- timings_report.o\
- timings_types.o\
  tmc_analysis.o\
  tmc_analysis_types.o\
  tmc_calculations.o\
@@ -805,8 +670,6 @@ OBJECTS_GENERIC =\
  topology_util.o\
  topology_xtl.o\
  topology_xyz.o\
- t_sh_p_s_c.o\
- util.o\
  velocity_verlet_control.o\
  vibrational_analysis.o\
  virial_methods.o\
@@ -861,5 +724,4 @@ OBJECTS_GENERIC =\
  xc_xlda_hole_t_c_lr.o\
  xc_xpbe_hole_t_c_lr.o\
  xc_xwpbe.o\
- xml_parser.o\
  xray_diffraction.o
