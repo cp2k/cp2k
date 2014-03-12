@@ -99,7 +99,7 @@ MODULE cp_dbcsr_interface
                                              timestop
 
   !$ USE OMP_LIB
-#include "cp_common_uses.f90"
+#include "common/cp_common_uses.f90"
 #define CHECKUSAGE CALL cp_assert(.FALSE.,cp_fatal_level,cp_unimplemented_error_nr,routineN,"OBS")
 #define BUFFERME ! buffering code
 

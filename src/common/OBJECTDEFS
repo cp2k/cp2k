@@ -15,13 +15,6 @@ LIB5_OBJECTS =\
  cp_cfm_basic_linalg.o\
  cp_cfm_diag.o\
  cp_cfm_types.o\
- cp_dbcsr_cholesky.o\
- cp_dbcsr_diag.o\
- cp_dbcsr_interface.o\
- cp_dbcsr_methods.o\
- cp_dbcsr_operations.o\
- cp_dbcsr_types.o\
- cp_dbcsr_util.o\
  cp_error_handling.o\
  cp_files.o\
  cp_fm_basic_linalg.o\
@@ -56,11 +49,9 @@ LIB5_OBJECTS =\
  cp_units.o\
  cube_utils.o\
  cuda_cublas.o\
- cuda_device.o\
  cuda_memory.o\
  cuda_profiling.o\
  d3_poly.o\
- dbcsr_tests.o\
  dg_rho0_types.o\
  dgs.o\
  dg_types.o\
@@ -93,8 +84,8 @@ LIB5_OBJECTS =\
  list_routinereport.o\
  list_routinestat.o\
  list_timerenv.o\
- machine.o\
  machine_internal.o\
+ machine.o\
  mathconstants.o\
  mathlib.o\
  memory_utilities.o\
@@ -107,8 +98,8 @@ LIB5_OBJECTS =\
  ps_wavelet_base.o\
  ps_wavelet_fft3d.o\
  ps_wavelet_kernel.o\
- ps_wavelet_scaling_function.o\
  ps_wavelet_methods.o\
+ ps_wavelet_scaling_function.o\
  ps_wavelet_types.o\
  ps_wavelet_util.o\
  pw_grid_info.o\

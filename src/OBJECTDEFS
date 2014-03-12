@@ -1,5 +1,4 @@
 OBJECTS_GENERIC =\
- rt_hfx_utils.o\
  admm_methods.o\
  admm_types.o\
  admm_utils.o\
@@ -18,8 +17,8 @@ OBJECTS_GENERIC =\
  ai_onecenter.o\
  ai_oneelectron.o\
  ai_os_rr.o\
- ai_overlap3.o\
  ai_overlap3_debug.o\
+ ai_overlap3.o\
  ai_overlap_debug.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
@@ -87,8 +86,15 @@ OBJECTS_GENERIC =\
  cp2k_runs.o\
  cp_control_types.o\
  cp_control_utils.o\
+ cp_dbcsr_cholesky.o\
  cp_dbcsr_cp2k_link.o\
+ cp_dbcsr_diag.o\
+ cp_dbcsr_interface.o\
+ cp_dbcsr_methods.o\
+ cp_dbcsr_operations.o\
  cp_dbcsr_output.o\
+ cp_dbcsr_types.o\
+ cp_dbcsr_util.o\
  cp_ddapc_forces.o\
  cp_ddapc_methods.o\
  cp_ddapc.o\
@@ -114,7 +120,9 @@ OBJECTS_GENERIC =\
  csvr_system_mapping.o\
  csvr_system_types.o\
  csvr_system_utils.o\
+ cuda_device.o\
  damping_dipole_types.o\
+ dbcsr_tests.o\
  dft_plus_u.o\
  dimer_methods.o\
  dimer_types.o\
@@ -546,6 +554,7 @@ OBJECTS_GENERIC =\
  rpa_communication.o \
  rpa_ri_gpw.o\
  rt_delta_pulse.o\
+ rt_hfx_utils.o\
  rt_make_propagators.o\
  rt_matrix_exp.o\
  rtp_admm_methods.o\

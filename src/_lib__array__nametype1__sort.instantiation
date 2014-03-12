@@ -33,7 +33,7 @@
 'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
 
 
-{'lib':'dbcsr_lib/dbcsr',
+{'lib':'dbcsr/dbcsr',
 'libname':'dbcsr',
 'nametype1':'i4',
 'type1':'integer(kind=int_4)',
@@ -41,7 +41,7 @@
 'lessQ':'CP_I_LESS_Q',
 'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
 
-{'lib':'dbcsr_lib/dbcsr',
+{'lib':'dbcsr/dbcsr',
 'libname':'dbcsr',
 'nametype1':'i8',
 'type1':'integer(kind=int_8)',

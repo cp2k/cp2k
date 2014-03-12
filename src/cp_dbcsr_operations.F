@@ -90,7 +90,7 @@ MODULE cp_dbcsr_operations
                                              timestop
 
   !$ USE OMP_LIB
-#include "cp_common_uses.f90"
+#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

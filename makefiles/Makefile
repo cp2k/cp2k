@@ -290,7 +290,7 @@ ifeq ($(HACKDEP),yes)
 	echo $(ALL_SOURCE_FILES) | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
    ifeq ($(MC),)
-	time $(TOOLDIR)/makedepf90 -I $(SRCDIRS) $(MODSTRING) -free $(ALL_SOURCE_FILES) > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
+	$(TOOLDIR)/makedepf90 -I $(SRCDIRS) $(MODSTRING) -free $(ALL_SOURCE_FILES) > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
    else
 # if MC is defined, it is our 'module compiler' which generates the .mod file from the source file
 # it is useful in a two-stage compile. Therefore we split the dependency in two parts the .o and the .mod.
