@@ -34,7 +34,7 @@ TOOLDIR               = $(OBJDIR)/tools
 TOOLSRC               = $(CP2KHOME)/tools
 SRCDIR                = $(CP2KHOME)/src
 LIBCUSMM_DIR          = $(SRCDIR)/dbcsr_lib/cuda/libcusmm
-SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/dbcsr_lib/cuda:$(SRCDIR)/fft_lib:$(SRCDIR)/metadyn_tools:$(SRCDIR)/cuda:$(LIBCUSMM_DIR):$(SRCDIR)/machine
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/dbcsr_lib/cuda:$(SRCDIR)/fft_lib:$(SRCDIR)/metadyn_tools:$(SRCDIR)/cuda:$(LIBCUSMM_DIR):$(SRCDIR)/machine
 MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                  = $(EXEDIR)/cp2k.$(VERSION)
@@ -49,7 +49,7 @@ LIB2_OBJECTDEFS       = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
 LIB2CUDA_OBJECTDEFS   = $(SRCDIR)/dbcsr_lib/cuda/OBJECTDEFS
 LIB2CUDA_DEPENDENCIES = $(SRCDIR)/dbcsr_lib/cuda/DEPENDENCIES
 LIB3_OBJECTDEFS       = $(SRCDIR)/fft_lib/OBJECTDEFS
-LIB4_OBJECTDEFS       = $(SRCDIR)/arch_lib/OBJECTDEFS
+LIB4_OBJECTDEFS       = $(SRCDIR)/arch/OBJECTDEFS
 LIBNVOBJECTDEFS       = $(SRCDIR)/cuda/NVOBJECTDEFS
 LIBMA_OBJECTDEFS      = $(SRCDIR)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES  = $(SRCDIR)/cuda/LIBCUDA_DEPENDENCIES
@@ -130,7 +130,7 @@ pretty: dirs
 	+$(MAKE) -C $(SRCDIR)/lib       -f $(MAKEFILE) _pretty_lib1
 	+$(MAKE) -C $(SRCDIR)/fft_lib   -f $(MAKEFILE) _pretty_lib2
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
-	+$(MAKE) -C $(SRCDIR)/arch_lib  -f $(MAKEFILE) _pretty_lib4
+	+$(MAKE) -C $(SRCDIR)/arch  -f $(MAKEFILE) _pretty_lib4
 
 deptool: dirs
 	+$(MAKE) LDFLAGS=$(MAKDEPF90_LDFLAGS) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
@@ -285,7 +285,7 @@ ifeq ($(HACKDEP),yes)
 	echo $(ALL_SOURCE_FILES) | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
    ifeq ($(MC),)
-	$(TOOLDIR)/makedepf90 -I $(SRCDIRS) $(MODSTRING) -free $(ALL_SOURCE_FILES) > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
+	time $(TOOLDIR)/makedepf90 -I $(SRCDIRS) $(MODSTRING) -free $(ALL_SOURCE_FILES) > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
    else
 # if MC is defined, it is our 'module compiler' which generates the .mod file from the source file
 # it is useful in a two-stage compile. Therefore we split the dependency in two parts the .o and the .mod.
@@ -557,7 +557,7 @@ doxygen: doxygen/clean
 	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/fft_lib ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/dbcsr_lib ; for f in $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
-	{ cd $(SRCDIR)/arch_lib ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/arch ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOCDIR) ; sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/" Doxyfile.template >Doxyfile ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
