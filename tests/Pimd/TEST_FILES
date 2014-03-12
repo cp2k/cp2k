@@ -11,6 +11,6 @@ he32_only_restart.inp                 40
 water-in-helium.inp               9     3e-14
 water-in-helium-restart.inp       9     6e-14
 w512_pint_nose.inp                9     3e-14
-w512_pint_gle.inp                      9 1E-13
+w512_pint_gle.inp                 9     3e-13
 centroid_velocity_init.inp             9
 he32_density.inp                      40

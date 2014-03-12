@@ -13,4 +13,4 @@ CO_xastpfh.inp                    1     6e-14
 c8_pmix_gapw_all.inp              1     3e-04
 c8_pmix_gapw_all_xashh.inp        1     1e-04
 c8_broy_gapw_all.inp              1     2e-14
-c8_broy_gapw_all_xashh.inp        1     1e-11
+c8_broy_gapw_all_xashh.inp        1     2e-11
