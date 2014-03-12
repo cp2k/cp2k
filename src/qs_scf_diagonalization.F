@@ -96,7 +96,7 @@ MODULE qs_scf_diagonalization
                                              timestop
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: find_excited_core_orbital
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

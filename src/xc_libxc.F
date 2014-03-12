@@ -61,7 +61,7 @@ This version of CP2K ONLY works with libxc version 2.0.1
   USE xc_f90_types_m
   USE xc_f90_lib_m
 
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

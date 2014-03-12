@@ -42,7 +42,7 @@ MODULE atom_xc
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -59,7 +59,7 @@ MODULE lebedev
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

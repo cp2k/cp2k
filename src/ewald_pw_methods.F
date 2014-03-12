@@ -42,7 +42,7 @@ MODULE ewald_pw_methods
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

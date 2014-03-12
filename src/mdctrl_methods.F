@@ -17,7 +17,7 @@ MODULE mdctrl_methods
   USE md_environment_types,            ONLY: md_environment_type
   USE mdctrl_types,                    ONLY: mdctrl_type
   USE message_passing,                 ONLY: mp_abort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
  PUBLIC :: mdctrl_callback
 

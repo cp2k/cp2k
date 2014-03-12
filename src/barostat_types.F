@@ -28,7 +28,7 @@ MODULE barostat_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE simpar_types,                    ONLY: simpar_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

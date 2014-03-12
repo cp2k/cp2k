@@ -18,7 +18,7 @@ MODULE pint_normalmode
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE pint_types,                      ONLY: normalmode_env_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

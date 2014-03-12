@@ -111,7 +111,7 @@ MODULE qs_scf_initialization
                                              timestop
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

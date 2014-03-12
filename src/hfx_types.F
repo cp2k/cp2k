@@ -62,7 +62,7 @@ MODULE hfx_types
   USE t_c_g0,                          ONLY: free
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -30,7 +30,7 @@ MODULE cp_dbcsr_util
                                              rng_stream_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

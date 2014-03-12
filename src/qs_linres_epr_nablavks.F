@@ -80,7 +80,7 @@ MODULE qs_linres_epr_nablavks
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: get_limit
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

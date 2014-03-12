@@ -58,7 +58,7 @@ MODULE optbas_fenv_manipulation
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

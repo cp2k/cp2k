@@ -18,7 +18,7 @@ MODULE realspace_grid_cube
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

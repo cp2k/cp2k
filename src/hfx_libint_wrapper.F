@@ -31,7 +31,7 @@ MODULE hfx_libint_wrapper
   USE orbital_pointers
 
   USE f77_blas
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

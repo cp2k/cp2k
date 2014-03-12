@@ -23,7 +23,7 @@ MODULE input_cp2k_eip
                                              section_type
   USE input_val_types,                 ONLY: enum_t
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

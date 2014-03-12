@@ -24,7 +24,7 @@ MODULE cp_result_methods
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

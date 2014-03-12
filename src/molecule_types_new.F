@@ -28,7 +28,7 @@ MODULE molecule_types_new
                                              vsite_constraint_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

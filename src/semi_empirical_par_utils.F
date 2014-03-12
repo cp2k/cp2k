@@ -24,7 +24,7 @@ MODULE semi_empirical_par_utils
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

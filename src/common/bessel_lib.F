@@ -17,7 +17,7 @@ MODULE bessel_lib
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              pi
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

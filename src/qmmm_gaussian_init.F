@@ -35,7 +35,7 @@ MODULE qmmm_gaussian_init
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qs_util,                         ONLY: exp_radius
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

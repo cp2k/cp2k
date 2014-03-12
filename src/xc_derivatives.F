@@ -116,7 +116,7 @@ MODULE xc_derivatives
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
                                              xwpbe_lsd_info
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

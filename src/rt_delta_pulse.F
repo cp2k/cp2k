@@ -53,7 +53,7 @@ MODULE rt_delta_pulse
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -48,7 +48,7 @@ MODULE dbcsr_tests
                                              m_walltime
 
   !$ USE OMP_LIB
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -16,7 +16,7 @@
 MODULE cp_blacs_calls
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'

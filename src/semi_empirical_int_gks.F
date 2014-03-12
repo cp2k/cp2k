@@ -35,7 +35,7 @@ MODULE semi_empirical_int_gks
                                              se_taper_type,&
                                              semi_empirical_type,&
                                              setup_se_int_control_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

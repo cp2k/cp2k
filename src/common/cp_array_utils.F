@@ -15,7 +15,7 @@ MODULE cp_array_utils
   USE cp_array_logical_utils
   USE cp_array_r_utils
   USE f77_blas
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

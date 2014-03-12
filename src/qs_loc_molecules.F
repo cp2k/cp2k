@@ -35,7 +35,7 @@ MODULE qs_loc_molecules
   USE physcon,                         ONLY: debye
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

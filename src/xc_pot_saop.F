@@ -95,7 +95,7 @@ MODULE xc_pot_saop
                                              xc_rho_set_update
   USE xc_xbecke88,                     ONLY: xb88_lda_info,&
                                              xb88_lsd_info
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -24,7 +24,7 @@ MODULE scptb_parameters
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
   USE scptb_types,                     ONLY: scptb_parameter_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

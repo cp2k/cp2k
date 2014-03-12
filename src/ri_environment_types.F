@@ -14,7 +14,7 @@ MODULE ri_environment_types
   USE message_passing,                 ONLY: mp_sum
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
                                              semi_empirical_si_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

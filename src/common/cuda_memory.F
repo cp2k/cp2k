@@ -13,7 +13,7 @@
 MODULE cuda_memory
 
   USE f77_blas
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

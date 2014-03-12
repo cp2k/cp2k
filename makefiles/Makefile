@@ -232,7 +232,7 @@ endif
 
 # Define the whole bunch of libraries needed
 ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB5_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIB2CUDA_ARCHIVE) $(LIBCUSMM_ARCHIVE)
-ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
+ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.f90 cp2k.F cp2k_shell.F)
 
 #
 # some practical variables for the build
@@ -306,7 +306,7 @@ endif
 fes.dep: $(FESOBJS:.o=.F) 
 	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
 
-plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h src-plumed/metadyn.h cp2k.F 
+plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.f90 src-plumed/metadyn.h cp2k.F 
 
 #ifeq ($(HACKDEP),yes)
 #	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/plumed.dep

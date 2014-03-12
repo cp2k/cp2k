@@ -62,7 +62,7 @@ MODULE qs_rho_atom_methods
   USE util,                            ONLY: get_limit
   USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

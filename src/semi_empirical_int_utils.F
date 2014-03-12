@@ -24,7 +24,7 @@ MODULE semi_empirical_int_utils
                                              se_int_screen_type,&
                                              se_taper_type,&
                                              semi_empirical_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 #include "semi_empirical_int_debug.h"

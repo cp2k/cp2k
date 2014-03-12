@@ -23,7 +23,7 @@ MODULE qs_rho0_types
                                              stop_program
   USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

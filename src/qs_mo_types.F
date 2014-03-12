@@ -72,7 +72,7 @@ MODULE qs_mo_types
   USE util,                            ONLY: sort
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              xas_environment_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

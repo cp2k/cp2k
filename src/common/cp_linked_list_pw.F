@@ -50,7 +50,7 @@ MODULE cp_linked_list_pw
   USE pw_methods,                      ONLY: pw_write
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -52,7 +52,7 @@ MODULE ai_overlap3
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

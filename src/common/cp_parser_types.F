@@ -41,7 +41,7 @@ MODULE cp_parser_types
                                              max_line_length
   USE message_passing,                 ONLY: MPI_COMM_SELF
   USE string_utilities,                ONLY: compress
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

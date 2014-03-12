@@ -39,7 +39,7 @@ MODULE constraint_fxd
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

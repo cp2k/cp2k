@@ -36,7 +36,7 @@ MODULE qs_ks_apply_restraints
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE s_square_methods,                ONLY: s2_restraint
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

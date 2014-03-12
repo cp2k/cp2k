@@ -21,7 +21,7 @@ MODULE string_table
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              int_8
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

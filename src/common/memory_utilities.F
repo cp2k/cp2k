@@ -21,7 +21,7 @@ MODULE memory_utilities
                                              int_8_size,&
                                              int_size
   USE termination
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -42,7 +42,7 @@ MODULE eip_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_type,&
                                              zero_virial
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

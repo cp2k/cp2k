@@ -45,7 +45,7 @@ MODULE atom_kind_orbitals
                                              create_grid_atom,&
                                              grid_atom_type
   USE rel_control_types,               ONLY: rel_control_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

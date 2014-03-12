@@ -29,7 +29,7 @@ MODULE neb_opt_utils
                                              reorient_images
   USE particle_types,                  ONLY: particle_type
   USE replica_types,                   ONLY: replica_env_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -18,7 +18,7 @@ MODULE glbopt_callback
   USE md_ener_types,                   ONLY: md_ener_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

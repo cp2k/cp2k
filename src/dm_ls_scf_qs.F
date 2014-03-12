@@ -78,7 +78,7 @@ MODULE dm_ls_scf_qs
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -35,7 +35,7 @@ MODULE qs_energy
   USE rt_propagator_init,              ONLY: init_emd_propagators
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

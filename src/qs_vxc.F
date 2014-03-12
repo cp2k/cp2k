@@ -54,7 +54,7 @@ MODULE qs_vxc
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

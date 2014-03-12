@@ -22,7 +22,7 @@ MODULE dg_rho0_types
                                              pw_p_type,&
                                              pw_release
   USE termination,                     ONLY: stop_program
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

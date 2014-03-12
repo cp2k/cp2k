@@ -42,7 +42,7 @@ MODULE qs_tddfpt_module
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -22,7 +22,7 @@ MODULE pair_potential_util
   USE physcon,                         ONLY: bohr,&
                                              evolt
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

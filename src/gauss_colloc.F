@@ -19,7 +19,7 @@ MODULE gauss_colloc
   USE lgrid_types,                     ONLY: lgrid_type
 
   !$ USE OMP_LIB
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
 IMPLICIT NONE
 PRIVATE

@@ -44,7 +44,7 @@ MODULE pw_poisson_types
                                              RECIPROCALSPACE,&
                                              pw_release,&
                                              pw_type
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

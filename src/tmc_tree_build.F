@@ -76,7 +76,7 @@ MODULE tmc_tree_build
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_env_type,&
                                              tmc_param_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

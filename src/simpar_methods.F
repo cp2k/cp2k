@@ -39,7 +39,7 @@ MODULE simpar_methods
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE simpar_types,                    ONLY: simpar_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

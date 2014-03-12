@@ -88,7 +88,7 @@ MODULE qmmm_main
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain
   USE wiener_process,                  ONLY: copy_wiener_process
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

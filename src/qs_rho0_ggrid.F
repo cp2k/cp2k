@@ -69,7 +69,7 @@ MODULE qs_rho0_ggrid
                                              timestop
   USE util,                            ONLY: get_limit
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

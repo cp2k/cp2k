@@ -52,7 +52,7 @@ MODULE topology_coordinate_util
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -59,7 +59,7 @@ PROGRAM cp2k
                                              m_iargc
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 #if defined(__USE_PAT)

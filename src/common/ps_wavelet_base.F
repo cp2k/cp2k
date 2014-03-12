@@ -15,7 +15,7 @@ MODULE ps_wavelet_base
                                              fftstp
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

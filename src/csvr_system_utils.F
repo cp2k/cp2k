@@ -14,7 +14,7 @@ MODULE csvr_system_utils
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
  

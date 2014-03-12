@@ -161,7 +161,7 @@ MODULE qs_scf_post_gpw
   USE wannier_states_types,            ONLY: wannier_centres_type
   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                              xray_diffraction_spectrum
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

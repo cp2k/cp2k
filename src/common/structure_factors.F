@@ -15,7 +15,7 @@ MODULE structure_factors
   USE mathconstants,                   ONLY: twopi
   USE structure_factor_types,          ONLY: structure_factor_type
   USE termination,                     ONLY: stop_memory
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

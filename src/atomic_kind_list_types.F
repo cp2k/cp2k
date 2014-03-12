@@ -36,7 +36,7 @@ MODULE atomic_kind_list_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set
   USE f77_blas
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

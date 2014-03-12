@@ -63,7 +63,7 @@ MODULE tmc_analysis
                                              write_subtree_elem_unformated
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_param_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

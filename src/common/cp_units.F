@@ -37,7 +37,7 @@ MODULE cp_units
   USE string_utilities,                ONLY: compress,&
                                              s2a,&
                                              uppercase
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

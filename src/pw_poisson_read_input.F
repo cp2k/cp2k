@@ -34,7 +34,7 @@ MODULE pw_poisson_read_input
                                              pw_poisson_parameter_type,&
                                              pw_poisson_periodic,&
                                              pw_poisson_wavelet
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

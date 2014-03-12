@@ -13,7 +13,7 @@ MODULE cp_realspace_grid_cube
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_types,                        ONLY: pw_type
   USE realspace_grid_cube,             ONLY: pw_to_cube
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

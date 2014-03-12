@@ -27,7 +27,7 @@ MODULE ipi_driver
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"                                               
+#include "./common/cp_common_uses.f90"                                               
 
   IMPLICIT NONE
   

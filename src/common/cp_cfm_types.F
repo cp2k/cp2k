@@ -21,7 +21,7 @@ MODULE cp_cfm_types
   USE message_passing,                 ONLY: cp2k_is_parallel
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

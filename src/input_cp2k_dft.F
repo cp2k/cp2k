@@ -57,7 +57,7 @@ MODULE input_cp2k_dft
                                              precond_spl3_aint,&
                                              precond_spl3_aint2
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -53,7 +53,7 @@ MODULE cell_types
   USE termination,                     ONLY: stop_program
 
   USE, INTRINSIC ::  ISO_C_BINDING,    ONLY: C_PTR, C_F_POINTER
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

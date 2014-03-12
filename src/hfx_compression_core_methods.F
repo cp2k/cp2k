@@ -13,7 +13,7 @@ MODULE hfx_compression_core_methods
 
   USE f77_blas
   USE kinds,                           ONLY: int_8
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   ! masks the corresponding number of bits from the right

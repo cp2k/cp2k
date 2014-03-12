@@ -54,7 +54,7 @@ MODULE scp_environment
                                              se_param_set_default
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

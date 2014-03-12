@@ -38,7 +38,7 @@ MODULE topology_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

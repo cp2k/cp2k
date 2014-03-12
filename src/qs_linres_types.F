@@ -30,7 +30,7 @@ MODULE qs_linres_types
   USE realspace_grid_types,            ONLY: realspace_grid_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

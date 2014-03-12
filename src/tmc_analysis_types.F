@@ -17,7 +17,7 @@ MODULE tmc_analysis_types
                                              dp
   USE tmc_tree_types,                  ONLY: tree_type
   USE tmc_types,                       ONLY: tmc_atom_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

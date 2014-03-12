@@ -51,7 +51,7 @@ MODULE cp_subsys_methods
                                              init_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: check_subsys_element
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

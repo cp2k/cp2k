@@ -15,7 +15,7 @@ MODULE qs_period_efield_types
 
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -50,7 +50,7 @@ MODULE cp2k_debug
                                              virial_set,&
                                              virial_type,&
                                              zero_virial
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

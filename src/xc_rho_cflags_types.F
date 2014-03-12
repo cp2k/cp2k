@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE xc_rho_cflags_types
   USE f77_blas
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

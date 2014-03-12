@@ -30,7 +30,7 @@ MODULE rt_hfx_utils
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE rt_propagation_types,            ONLY: rt_prop_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

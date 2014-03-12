@@ -47,7 +47,7 @@ MODULE cp_linked_list_val
   USE f77_blas
   USE input_val_types,                 ONLY: val_p_type,&
                                              val_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

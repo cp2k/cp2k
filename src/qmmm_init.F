@@ -60,7 +60,7 @@ MODULE qmmm_init
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: qs_environment_type
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

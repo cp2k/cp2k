@@ -10,7 +10,7 @@ MODULE damping_dipole_types
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

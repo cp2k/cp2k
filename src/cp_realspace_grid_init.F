@@ -18,7 +18,7 @@ MODULE cp_realspace_grid_init
   USE realspace_grid_types,            ONLY: realspace_grid_input_type,&
                                              rsgrid_automatic,&
                                              rsgrid_replicated
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

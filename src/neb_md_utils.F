@@ -34,7 +34,7 @@ MODULE neb_md_utils
                                              update_particle_pos_or_vel
   USE physcon,                         ONLY: kelvin,&
                                              massunit
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

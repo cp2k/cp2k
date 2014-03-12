@@ -25,7 +25,7 @@
 ! *****************************************************************************
 MODULE xc_derivative_desc
   USE f77_blas
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

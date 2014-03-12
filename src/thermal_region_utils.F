@@ -43,7 +43,7 @@ MODULE thermal_region_utils
                                              release_thermal_regions,&
                                              thermal_region_type,&
                                              thermal_regions_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

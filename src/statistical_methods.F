@@ -18,7 +18,7 @@ MODULE statistical_methods
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

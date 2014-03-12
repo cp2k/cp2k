@@ -16,7 +16,7 @@ MODULE semi_empirical_int3_utils
   USE semi_empirical_int_arrays,       ONLY: clm_d,&
                                              indexb
   USE semi_empirical_types,            ONLY: semi_empirical_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

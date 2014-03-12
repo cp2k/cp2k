@@ -42,7 +42,7 @@
 MODULE cp_array_i_utils
   USE f77_blas
   USE machine,                         ONLY: m_flush
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

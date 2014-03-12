@@ -47,7 +47,7 @@ MODULE md_conserved_quantities
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: get_thermostat_energies
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

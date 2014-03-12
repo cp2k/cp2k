@@ -20,7 +20,7 @@ MODULE pint_gle
   USE pint_types,                      ONLY: pint_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

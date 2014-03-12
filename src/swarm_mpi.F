@@ -33,7 +33,7 @@ MODULE swarm_mpi
                                              swarm_message_mpi_recv,&
                                              swarm_message_mpi_send,&
                                              swarm_message_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

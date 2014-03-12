@@ -18,7 +18,7 @@ MODULE scp_nddo_utils
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -26,7 +26,7 @@ MODULE cp_blacs_env
   USE mathlib,                         ONLY: gcd
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_program
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

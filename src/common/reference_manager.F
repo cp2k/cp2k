@@ -25,7 +25,7 @@ MODULE reference_manager
   USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_max
   USE util,                            ONLY: sort
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

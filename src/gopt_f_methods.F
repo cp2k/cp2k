@@ -58,7 +58,7 @@ MODULE gopt_f_methods
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

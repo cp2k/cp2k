@@ -99,7 +99,7 @@ MODULE md_run
   USE virial_methods,                  ONLY: virial_evaluate
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              create_wiener_process_cv
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -40,7 +40,7 @@ MODULE qmmm_force_mixing
                                              force_mixing_label_buffer_list,&
                                              force_mixing_label_none,&
                                              force_mixing_label_termination
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -15,7 +15,7 @@ INTERFACE check_rotmat_der
      USE kinds,                           ONLY: dp
      USE semi_empirical_types,            ONLY: rotmat_type,&
                                                 semi_empirical_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
      IMPLICIT NONE
      TYPE(semi_empirical_type), POINTER       :: sepi, sepj
      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
@@ -41,7 +41,7 @@ INTERFACE check_dssss_nucint_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
@@ -69,7 +69,7 @@ INTERFACE check_dcore_nucint_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
@@ -97,7 +97,7 @@ INTERFACE check_drotnuc_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -128,7 +128,7 @@ INTERFACE check_dcorecore_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -159,7 +159,7 @@ INTERFACE rot_2el_2c_first_debug
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
@@ -188,7 +188,7 @@ INTERFACE check_dterep_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
@@ -215,7 +215,7 @@ INTERFACE check_rotint_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv

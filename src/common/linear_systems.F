@@ -23,7 +23,7 @@ MODULE linear_systems
                                              lapack_spotrf,&
                                              lapack_strtri
   USE termination,                     ONLY: stop_program
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

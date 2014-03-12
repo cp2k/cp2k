@@ -62,7 +62,7 @@ MODULE particle_types
                                              timestop
   USE util,                            ONLY: sort,&
                                              sort_unique
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

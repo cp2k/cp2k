@@ -14,7 +14,7 @@ MODULE thermal_region_types
 
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

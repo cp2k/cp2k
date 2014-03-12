@@ -24,7 +24,7 @@ MODULE csvr_system_types
                                              rng_stream_type
   USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

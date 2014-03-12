@@ -31,7 +31,7 @@ MODULE bibliography
   USE reference_manager,               ONLY: add_reference,&
                                              cite_reference
   USE string_utilities,                ONLY: s2a
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

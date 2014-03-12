@@ -196,7 +196,7 @@ MODULE qs_environment
                                              timestop
   USE topology,                        ONLY: topology_control
   USE xas_control,                     ONLY: write_xas_control
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

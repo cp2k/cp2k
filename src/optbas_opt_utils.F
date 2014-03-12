@@ -19,7 +19,7 @@ MODULE optbas_opt_utils
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

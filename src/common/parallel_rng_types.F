@@ -56,7 +56,7 @@ MODULE parallel_rng_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE string_utilities,                ONLY: compress
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

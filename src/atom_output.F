@@ -31,7 +31,7 @@ MODULE atom_output
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt
   USE xc_derivatives,                  ONLY: xc_functional_get_info
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

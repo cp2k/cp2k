@@ -18,7 +18,7 @@ MODULE helium_types
                                              int_8
   USE parallel_rng_types,              ONLY: rng_stream_type
   USE splines_types,                   ONLY: spline_data_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -36,7 +36,7 @@ MODULE semi_empirical_types
                                              taper_release,&
                                              taper_type
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

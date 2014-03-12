@@ -13,7 +13,7 @@ MODULE cp_lbfgs
                                              cite_reference
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

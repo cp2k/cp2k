@@ -18,7 +18,7 @@ MODULE splines_methods
                                              spline_data_type,&
                                              spline_factor_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

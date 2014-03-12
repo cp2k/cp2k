@@ -89,7 +89,7 @@ MODULE topology
                                              topology_set_atm_mass
   USE topology_xtl,                    ONLY: read_coordinate_xtl
   USE topology_xyz,                    ONLY: read_coordinate_xyz
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

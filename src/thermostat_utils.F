@@ -57,7 +57,7 @@ MODULE thermostat_utils
   USE thermostat_types,                ONLY: thermostat_info_type,&
                                              thermostat_type,&
                                              thermostats_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -21,7 +21,7 @@ MODULE eigenvalueproblems
                                              lapack_sgesvd,&
                                              lapack_ssyev
   USE termination,                     ONLY: stop_program
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

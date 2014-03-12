@@ -33,7 +33,7 @@ MODULE paw_proj_set_types
   USE qs_util,                         ONLY: exp_radius,&
                                              gauss_exponent
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

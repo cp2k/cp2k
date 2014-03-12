@@ -45,7 +45,7 @@
 ! *****************************************************************************
 MODULE cp_linked_list_int
   USE f77_blas
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

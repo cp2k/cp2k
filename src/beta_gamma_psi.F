@@ -8,7 +8,7 @@ MODULE beta_gamma_psi
  ! not tested in the case where dp would stand for single precision
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

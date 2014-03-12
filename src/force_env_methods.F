@@ -145,7 +145,7 @@ MODULE force_env_methods
   USE virial_types,                    ONLY: &
        cp_virial, sym_virial, virial_create, virial_p_type, virial_release, &
        virial_retain, virial_set, virial_type, zero_virial
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

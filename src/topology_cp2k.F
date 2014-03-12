@@ -34,7 +34,7 @@ MODULE topology_cp2k
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

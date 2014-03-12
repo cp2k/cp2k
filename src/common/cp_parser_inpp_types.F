@@ -15,7 +15,7 @@
 MODULE cp_parser_inpp_types
   USE f77_blas
   USE kinds,                           ONLY: default_path_length
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -45,7 +45,7 @@ MODULE rt_propagator_init
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

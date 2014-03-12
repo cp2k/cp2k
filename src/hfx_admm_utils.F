@@ -72,7 +72,7 @@ MODULE hfx_admm_utils
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE xc_adiabatic_utils,              ONLY: rescale_xc_potential
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

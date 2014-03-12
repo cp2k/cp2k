@@ -37,7 +37,7 @@ MODULE semi_empirical_utils
   USE semi_empirical_types,            ONLY: se_taper_type,&
                                              semi_empirical_type
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -43,7 +43,7 @@ MODULE replica_methods
                                              rep_env_write,&
                                              rep_envs_get_rep_env,&
                                              replica_env_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

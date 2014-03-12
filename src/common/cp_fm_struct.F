@@ -23,7 +23,7 @@ MODULE cp_fm_struct
                                              dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

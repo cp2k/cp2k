@@ -18,7 +18,7 @@ MODULE scp_diis_utils
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

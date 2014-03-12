@@ -43,7 +43,7 @@ MODULE qs_dftb_parameters
                                              get_dftb_atom_param,&
                                              set_dftb_atom_param
   USE string_utilities,                ONLY: uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

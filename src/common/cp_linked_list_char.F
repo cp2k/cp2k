@@ -46,7 +46,7 @@
 MODULE cp_linked_list_char
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -31,7 +31,7 @@ MODULE qmmm_per_elpot
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type
   USE qs_util,                         ONLY: exp_radius
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -94,7 +94,7 @@ MODULE colvar_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

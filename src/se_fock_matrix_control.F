@@ -18,7 +18,7 @@ MODULE se_fock_matrix_control
   USE se_fock_matrix_mpi,              ONLY: build_se_fock_matrix_mpi
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

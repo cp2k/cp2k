@@ -113,7 +113,7 @@ MODULE f77_interface
                                              timeset,&
                                              timestop
   USE timings_types,                   ONLY: timer_env_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

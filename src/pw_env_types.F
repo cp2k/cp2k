@@ -31,7 +31,7 @@ MODULE pw_env_types
                                              realspace_grid_type,&
                                              rs_grid_release,&
                                              rs_grid_release_descriptor
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

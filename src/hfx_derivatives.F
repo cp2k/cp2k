@@ -70,7 +70,7 @@ MODULE hfx_derivatives
                                              timestop
   USE util,                            ONLY: sort
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

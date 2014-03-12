@@ -45,7 +45,7 @@ MODULE atom_types
                                              grid_atom_type
   USE string_utilities,                ONLY: remove_word,&
                                              uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -11,7 +11,7 @@ MODULE atom_optimization
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgelss
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

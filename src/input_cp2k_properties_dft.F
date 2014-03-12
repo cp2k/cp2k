@@ -37,7 +37,7 @@ MODULE input_cp2k_properties_dft
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

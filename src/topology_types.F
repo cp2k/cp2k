@@ -26,7 +26,7 @@ MODULE topology_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -17,7 +17,7 @@ MODULE qs_force_types
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'

@@ -30,7 +30,7 @@ MODULE xas_env_types
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
   USE scf_control_types,               ONLY: smear_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

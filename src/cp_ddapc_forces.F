@@ -40,7 +40,7 @@ MODULE cp_ddapc_forces
   USE timings,                         ONLY: timeset,&
                                              timestop
 !NB for reducing results of calculations that use dq, which is now spread over nodes
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

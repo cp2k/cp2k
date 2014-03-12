@@ -23,7 +23,7 @@ MODULE distribution_2d_types
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

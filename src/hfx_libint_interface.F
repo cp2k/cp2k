@@ -37,7 +37,7 @@ MODULE hfx_libint_interface
   USE mathconstants
   USE orbital_pointers
   USE t_c_g0,                          ONLY: t_c_g0_n
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

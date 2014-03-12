@@ -19,7 +19,7 @@ MODULE dimer_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: random_numbers
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

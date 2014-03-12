@@ -17,7 +17,7 @@ INTERFACE
     USE ewald_pw_types,                  ONLY: ewald_pw_type
     USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
     USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -45,7 +45,7 @@ INTERFACE
     USE input_section_types,             ONLY: section_vals_type
     USE kinds,                           ONLY: dp
     USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -78,7 +78,7 @@ INTERFACE
     USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
     USE kinds,                           ONLY: dp
     USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env

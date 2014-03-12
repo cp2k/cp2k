@@ -31,7 +31,7 @@ MODULE qmmm_pw_grid
                                              pw_pool_type,&
                                              pw_pools_dealloc
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

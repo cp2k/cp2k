@@ -34,7 +34,7 @@ MODULE glbopt_mincrawl
   USE swarm_message,                   ONLY: swarm_message_add,&
                                              swarm_message_get,&
                                              swarm_message_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

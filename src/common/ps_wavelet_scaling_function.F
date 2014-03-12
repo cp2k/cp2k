@@ -10,7 +10,7 @@
 MODULE ps_wavelet_scaling_function
   USE kinds,                           ONLY: dp
   USE lazy,                            ONLY: lazy_arrays
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   PRIVATE
 

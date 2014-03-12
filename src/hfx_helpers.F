@@ -22,7 +22,7 @@ MODULE hfx_helpers
                                              int_8
   USE mathconstants
   USE message_passing,                 ONLY: mp_sum
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -34,7 +34,7 @@ MODULE qs_ks_qmmm_methods
                                              qs_ks_qmmm_release
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

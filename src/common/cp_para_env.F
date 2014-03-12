@@ -17,7 +17,7 @@ MODULE cp_para_env
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_comm_free,&
                                              mp_environ
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

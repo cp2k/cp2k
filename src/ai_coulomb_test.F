@@ -28,7 +28,7 @@ MODULE ai_coulomb_test
                                              nco,&
                                              ncoset
   USE physcon,                         ONLY: bohr
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

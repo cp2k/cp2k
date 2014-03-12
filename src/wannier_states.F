@@ -36,7 +36,7 @@ MODULE wannier_states
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
 !!!! this ones are needed to mapping
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

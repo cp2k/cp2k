@@ -18,7 +18,7 @@ MODULE mm_collocate_potential
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_type
   USE qs_util,                         ONLY: exp_radius
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -11,7 +11,7 @@
 MODULE mdctrl_types
 
   USE glbopt_types,                    ONLY: glbopt_mdctrl_data_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

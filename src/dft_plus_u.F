@@ -75,7 +75,7 @@ MODULE dft_plus_u
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

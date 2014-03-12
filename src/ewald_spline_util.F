@@ -43,7 +43,7 @@ MODULE ewald_spline_util
   USE timings,                         ONLY: timeset,&
                                              timestop
 !NB parallelization
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

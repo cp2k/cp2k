@@ -28,7 +28,7 @@ MODULE averages_types
   USE virial_types,                    ONLY: virial_create,&
                                              virial_release,&
                                              virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

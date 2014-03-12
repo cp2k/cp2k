@@ -45,7 +45,7 @@ MODULE integrator_utils
   USE thermostat_types,                ONLY: set_thermostats,&
                                              thermostats_type
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

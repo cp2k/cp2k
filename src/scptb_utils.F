@@ -38,7 +38,7 @@ MODULE scptb_utils
                                              xml_get,&
                                              xml_ok,&
                                              xml_open
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

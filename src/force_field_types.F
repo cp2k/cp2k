@@ -22,7 +22,7 @@ MODULE force_field_types
                                              pair_potential_p_type
   USE shell_potential_types,           ONLY: shell_p_release,&
                                              shell_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

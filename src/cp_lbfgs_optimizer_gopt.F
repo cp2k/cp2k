@@ -36,7 +36,7 @@ MODULE cp_lbfgs_optimizer_gopt
   USE message_passing,                 ONLY: mp_bcast
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

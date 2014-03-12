@@ -57,7 +57,7 @@ MODULE pw_grids
                                              timestop
   USE util,                            ONLY: get_limit,&
                                              sort
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

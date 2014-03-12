@@ -47,7 +47,7 @@ MODULE cp_fm_diag
   USE ELPA2
 #endif
 
-#include "../cp_common_uses.h"
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
 

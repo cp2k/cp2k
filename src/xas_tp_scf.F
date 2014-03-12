@@ -93,7 +93,7 @@ MODULE xas_tp_scf
                                              set_xas_env,&
                                              xas_environment_type
   USE xas_restart,                     ONLY: xas_write_restart
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

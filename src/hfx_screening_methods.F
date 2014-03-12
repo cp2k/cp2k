@@ -34,7 +34,7 @@ MODULE hfx_screening_methods
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

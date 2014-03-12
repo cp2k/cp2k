@@ -21,7 +21,7 @@ MODULE reftraj_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

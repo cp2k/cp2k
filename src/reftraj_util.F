@@ -54,7 +54,7 @@ MODULE reftraj_util
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE util,                            ONLY: get_limit
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
