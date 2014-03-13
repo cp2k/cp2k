@@ -42,8 +42,8 @@ MODULE mp2_laplace
 
   SUBROUTINE laplace_minimax_approx(Emp2,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
-                                    fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error,&
-                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,&
+                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                     fm_mat_Q_gemm_beta,fm_mat_Q_beta)
     REAL(KIND=dp)                            :: Emp2
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA
@@ -53,13 +53,13 @@ MODULE mp2_laplace
     INTEGER                                  :: num_integ_points, &
                                                 num_integ_group, &
                                                 color_rpa_group
-    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_G, &
-                                                fm_mat_Q_gemm, fm_mat_Q
+    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
+                                                fm_mat_Q
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
                                                 dimen_ia_beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mat_S_beta, fm_mat_G_beta, &
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mat_S_beta, &
                                                 fm_mat_Q_gemm_beta, &
                                                 fm_mat_Q_beta
 
@@ -77,9 +77,11 @@ MODULE mp2_laplace
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_size_source, &
                                                 local_size_source_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, my_open_shell
-    REAL(KIND=dp) :: actual_flop_rate, alpha, E_Range, Emax, Emax_beta, Emin, &
-      Emin_beta, laplace_transf, my_flop_rate, t_end, t_start, trace_XX
+    LOGICAL                                  :: failure, first_cycle, &
+                                                my_open_shell
+    REAL(KIND=dp) :: actual_flop_rate, alpha, alpha_old, E_Range, Emax, &
+      Emax_beta, Emin, Emin_beta, laplace_transf, my_flop_rate, t_end, &
+      t_start, trace_XX, w_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: aj, awj, wj
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_rec_beta, &
@@ -94,7 +96,6 @@ MODULE mp2_laplace
        PRESENT(dimen_ia_beta).AND.&
        PRESENT(Eigenval_beta).AND.&
        PRESENT(fm_mat_S_beta).AND.&
-       PRESENT(fm_mat_G_beta).AND.&
        PRESENT(fm_mat_Q_gemm_beta).AND.&
        PRESENT(fm_mat_Q_beta)) my_open_shell=.TRUE.
 
@@ -156,16 +157,27 @@ MODULE mp2_laplace
     END IF    
 
     Emp2=0.0_dp
+    first_cycle=.TRUE.
+    alpha_old=0.0_dp
+    w_old=0.0_dp
     my_num_dgemm_call=0
     my_flop_rate=0.0_dp
     DO jquad=1, num_integ_points
       IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
       
-      ! copy fm_mat_S into fm_mat_G
-      CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
+      !XXX ! copy fm_mat_S into fm_mat_G
+      !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
 
-      ! get info of fm_mat_G
-      CALL cp_fm_get_info(matrix=fm_mat_G,&
+      !XXX ! get info of fm_mat_G
+      !XXX CALL cp_fm_get_info(matrix=fm_mat_G,&
+      !XXX                     nrow_local=nrow_local,&
+      !XXX                     ncol_local=ncol_local,&
+      !XXX                     row_indices=row_indices,&
+      !XXX                     col_indices=col_indices,&
+      !XXX                     error=error)
+
+      ! get info of fm_mat_S
+      CALL cp_fm_get_info(matrix=fm_mat_S,&
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
@@ -173,24 +185,44 @@ MODULE mp2_laplace
                           error=error)
 
       ! update G matrix with the new value of w and a
-      DO jjB=1, ncol_local
-        j_global=col_indices(jjB)
-        DO iiB=1, nrow_local
-          i_global=row_indices(iiB)
+      IF(first_cycle) THEN
+        DO jjB=1, ncol_local
+          j_global=col_indices(jjB)
+          DO iiB=1, nrow_local
+            i_global=row_indices(iiB)
 
-          iocc=MAX(1,i_global-1)/virtual+1
-          avirt=i_global-(iocc-1)*virtual
+            iocc=MAX(1,i_global-1)/virtual+1
+            avirt=i_global-(iocc-1)*virtual
 
-          laplace_transf=SQRT(wj(jquad))*EXP(Eigenval(iocc)*aj(jquad))*EXP(-Eigenval(avirt+homo)*aj(jquad))
+            laplace_transf=SQRT(wj(jquad))*EXP(Eigenval(iocc)*aj(jquad))*EXP(-Eigenval(avirt+homo)*aj(jquad))
+            laplace_transf=SQRT(laplace_transf)
 
-          fm_mat_G%local_data(iiB,jjB)=fm_mat_G%local_data(iiB,jjB)*laplace_transf
+            fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*laplace_transf
 
+          END DO
         END DO
-      END DO
+      ELSE
+        DO jjB=1, ncol_local
+          j_global=col_indices(jjB)
+          DO iiB=1, nrow_local
+            i_global=row_indices(iiB)
+
+            iocc=MAX(1,i_global-1)/virtual+1
+            avirt=i_global-(iocc-1)*virtual
+
+            laplace_transf=SQRT(wj(jquad)/w_old)*&
+                           EXP(Eigenval(iocc)*(aj(jquad)-alpha_old))*EXP(-Eigenval(avirt+homo)*(aj(jquad)-alpha_old))
+            laplace_transf=SQRT(laplace_transf)
+
+            fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*laplace_transf
+
+          END DO
+        END DO
+      END IF
 
       t_start=m_walltime()
       CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=1.0_dp,&
-                      matrix_a=fm_mat_S,matrix_b=fm_mat_G,beta=0.0_dp,&
+                      matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
                       matrix_c=fm_mat_Q_gemm,error=error)
       t_end=m_walltime()
       actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -204,35 +236,65 @@ MODULE mp2_laplace
                            map_send_size,map_rec_size,local_size_source,para_env_RPA,error)
 
       IF(my_open_shell) THEN
+        !XXX  the same for the beta spin
+        !XXX ! copy fm_mat_S into fm_mat_G
+        !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
+        !XXX ! get info of fm_mat_G_beta
+        !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
+        !XXX                     nrow_local=nrow_local,&
+        !XXX                     ncol_local=ncol_local,&
+        !XXX                     row_indices=row_indices,&
+        !XXX                     col_indices=col_indices,&
+        !XXX                     error=error)
+
         ! the same for the beta spin
-        ! copy fm_mat_S into fm_mat_G
-        CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
-        ! get info of fm_mat_G_beta
-        CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
+        CALL cp_fm_get_info(matrix=fm_mat_S_beta,&
                             nrow_local=nrow_local,&
                             ncol_local=ncol_local,&
                             row_indices=row_indices,&
                             col_indices=col_indices,&
                             error=error)
         ! update G matrix with the new value of w and a
-        DO jjB=1, ncol_local
-          j_global=col_indices(jjB)
-          DO iiB=1, nrow_local
-            i_global=row_indices(iiB)
+        IF(first_cycle) THEN
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            DO iiB=1, nrow_local
+              i_global=row_indices(iiB)
 
-            iocc=MAX(1,i_global-1)/virtual_beta+1
-            avirt=i_global-(iocc-1)*virtual_beta
+              iocc=MAX(1,i_global-1)/virtual_beta+1
+              avirt=i_global-(iocc-1)*virtual_beta
 
-            laplace_transf=SQRT(wj(jquad))*EXP(Eigenval_beta(iocc)*aj(jquad))*EXP(-Eigenval_beta(avirt+homo_beta)*aj(jquad))
+              laplace_transf=SQRT(wj(jquad))*EXP(Eigenval_beta(iocc)*aj(jquad))*&
+                                             EXP(-Eigenval_beta(avirt+homo_beta)*aj(jquad))
+              laplace_transf=SQRT(laplace_transf)
 
-            fm_mat_G_beta%local_data(iiB,jjB)=fm_mat_G_beta%local_data(iiB,jjB)*laplace_transf
+              fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*laplace_transf
 
+            END DO
           END DO
-        END DO
+        ELSE
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            DO iiB=1, nrow_local
+              i_global=row_indices(iiB)
+
+              iocc=MAX(1,i_global-1)/virtual_beta+1
+              avirt=i_global-(iocc-1)*virtual_beta
+
+              laplace_transf=SQRT(wj(jquad)/w_old)*&
+                             EXP(Eigenval_beta(iocc)*(aj(jquad)-alpha_old))*&
+                             EXP(-Eigenval_beta(avirt+homo_beta)*(aj(jquad)-alpha_old))
+              laplace_transf=SQRT(laplace_transf)
+
+              fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*laplace_transf
+
+            END DO
+          END DO
+        END IF
 
         t_start=m_walltime()
         CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=1.0_dp,&
-                        matrix_a=fm_mat_S_beta,matrix_b=fm_mat_G_beta,beta=0.0_dp,&
+                        matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
                         matrix_c=fm_mat_Q_gemm_beta,error=error)
         t_end=m_walltime()
         actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -270,6 +332,11 @@ MODULE mp2_laplace
       END DO
 
       Emp2=Emp2-trace_XX
+
+      ! save alpha, w and reset the first_cycle flag
+      first_cycle=.FALSE.
+      alpha_old=aj(jquad)
+      w_old=wj(jquad)
     END DO
 
     CALL mp_sum(Emp2,para_env%group)

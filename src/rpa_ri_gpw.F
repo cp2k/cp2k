@@ -116,9 +116,10 @@ MODULE rpa_ri_gpw
       DIMENSION(:, :)                        :: BIb_C_2D, BIb_C_2D_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C_rec
-    TYPE(cp_fm_type), POINTER :: fm_mat_G, fm_mat_G_beta, fm_mat_Q, &
-      fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, fm_mat_S, &
-      fm_mat_S_beta
+    TYPE(cp_fm_type), POINTER                :: fm_mat_Q, fm_mat_Q_beta, &
+                                                fm_mat_Q_gemm, &
+                                                fm_mat_Q_gemm_beta, fm_mat_S, &
+                                                fm_mat_S_beta
     TYPE(cp_para_env_type), POINTER          :: para_env_RPA
 
     CALL timeset(routineN,handle)
@@ -462,7 +463,7 @@ MODULE rpa_ri_gpw
                           mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
                           sizes_ia,starts_ia,ends_ia,my_ia_size,my_ia_start,my_ia_end,&
                           sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
-                          para_env_RPA,fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error,error_sub)
+                          para_env_RPA,fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,error_sub)
 
     IF(my_open_shell) THEN
       ! the same for beta
@@ -471,22 +472,22 @@ MODULE rpa_ri_gpw
                             mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
                             sizes_ia_beta,starts_ia_beta,ends_ia_beta,my_ia_size_beta,my_ia_start_beta,my_ia_end_beta,&
                             sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
-                            para_env_RPA,fm_mat_S_beta,fm_mat_G_beta,fm_mat_Q_gemm_beta,fm_mat_Q_beta,error,error_sub,&
+                            para_env_RPA,fm_mat_S_beta,fm_mat_Q_gemm_beta,fm_mat_Q_beta,error,error_sub,&
                             .TRUE.,fm_mat_Q%matrix_struct%context)
 
       IF(do_ri_sos_laplace_mp2) THEN
         ! go with laplace MINIMAX MP2
         CALL laplace_minimax_approx(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
-                                    fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error,&
-                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,&
+                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                     fm_mat_Q_gemm_beta,fm_mat_Q_beta)
       ELSE
         ! go with clenshaw curtius quadrature
         CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                    num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error,&
-                                   homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,&
+                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                   homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                    fm_mat_Q_gemm_beta,fm_mat_Q_beta)
       END IF
     ELSE
@@ -494,12 +495,12 @@ MODULE rpa_ri_gpw
         ! go with laplace MINIMAX MP2
         CALL laplace_minimax_approx(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
-                                    fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error)
+                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error)
       ELSE
         ! go with clenshaw curtius quadrature
         CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                    num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error)
+                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error)
       END IF
     END IF
 
@@ -516,7 +517,7 @@ MODULE rpa_ri_gpw
     CALL cp_para_env_release(para_env_RPA,error=error_sub)
 
     CALL cp_fm_release(fm_mat_S,error=error)
-    CALL cp_fm_release(fm_mat_G,error=error)
+    !XXX CALL cp_fm_release(fm_mat_G,error=error)
     CALL cp_fm_release(fm_mat_Q_gemm,error=error)
     CALL cp_fm_release(fm_mat_Q,error=error)
     IF(my_open_shell) THEN
@@ -524,7 +525,7 @@ MODULE rpa_ri_gpw
       DEALLOCATE(starts_ia_beta)
       DEALLOCATE(ends_ia_beta)
       CALL cp_fm_release(fm_mat_S_beta,error=error)
-      CALL cp_fm_release(fm_mat_G_beta,error=error)
+      !XXX CALL cp_fm_release(fm_mat_G_beta,error=error)
       CALL cp_fm_release(fm_mat_Q_gemm_beta,error=error)
       CALL cp_fm_release(fm_mat_Q_beta,error=error)
     END IF
@@ -538,7 +539,7 @@ MODULE rpa_ri_gpw
                                 ext_row_block_size,ext_col_block_size,unit_nr,&
                                 sizes_ia,starts_ia,ends_ia,my_ia_size,my_ia_start,my_ia_end,&
                                 sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
-                                para_env_RPA,fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error,error_sub,beta_case,&
+                                para_env_RPA,fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,error_sub,beta_case,&
                                 blacs_env_ext)
 
     REAL(KIND=dp), ALLOCATABLE, &
@@ -556,8 +557,8 @@ MODULE rpa_ri_gpw
                                                 my_group_L_start, &
                                                 my_group_L_end
     TYPE(cp_para_env_type), POINTER          :: para_env_RPA
-    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_G, &
-                                                fm_mat_Q_gemm, fm_mat_Q
+    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
+                                                fm_mat_Q
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
     LOGICAL, OPTIONAL                        :: beta_case
     TYPE(cp_blacs_env_type), OPTIONAL, &
@@ -1195,10 +1196,11 @@ MODULE rpa_ri_gpw
     CALL cp_para_env_release(para_env_exchange,error=error_sub)
 
     ! create the twin matrix for the mat-mat-mul (mat_Q)
-    CALL cp_fm_create(fm_mat_G,fm_struct,name="fm_mat_G",error=error)
+    !XXX CALL cp_fm_create(fm_mat_G,fm_struct,name="fm_mat_G",error=error)
+    !XXX CALL cp_fm_set_all(matrix=fm_mat_G,alpha=0.0_dp,error=error)
+
     CALL cp_fm_struct_release(fm_struct,error=error)
     
-    CALL cp_fm_set_all(matrix=fm_mat_G,alpha=0.0_dp,error=error)
 
     ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
     NULLIFY(fm_mat_Q_gemm)
@@ -1240,8 +1242,8 @@ MODULE rpa_ri_gpw
 
     SUBROUTINE clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                      num_integ_points,num_integ_group,color_rpa_group,&
-                                     fm_mat_S,fm_mat_G,fm_mat_Q_gemm,fm_mat_Q,error,&
-                                     homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta,&
+                                     fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                     homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                      fm_mat_Q_gemm_beta,fm_mat_Q_beta)
     REAL(KIND=dp)                            :: Erpa
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA
@@ -1251,13 +1253,13 @@ MODULE rpa_ri_gpw
     INTEGER                                  :: num_integ_points, &
                                                 num_integ_group, &
                                                 color_rpa_group
-    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_G, &
-                                                fm_mat_Q_gemm, fm_mat_Q
+    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
+                                                fm_mat_Q
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
                                                 dimen_ia_beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mat_S_beta, fm_mat_G_beta, &
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mat_S_beta, &
                                                 fm_mat_Q_gemm_beta, &
                                                 fm_mat_Q_beta
 
@@ -1275,9 +1277,10 @@ MODULE rpa_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_size_source, &
                                                 local_size_source_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, my_open_shell
+    LOGICAL                                  :: failure, first_cycle, &
+                                                my_open_shell
     REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, eigen_diff, FComega, &
-      my_flop_rate, omega, t_end, t_start
+      my_flop_rate, omega, omega_old, t_end, t_start
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Q_log, tj, trace_Qomega, wj
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_rec_beta, &
@@ -1292,7 +1295,6 @@ MODULE rpa_ri_gpw
        PRESENT(dimen_ia_beta).AND.&
        PRESENT(Eigenval_beta).AND.&
        PRESENT(fm_mat_S_beta).AND.&
-       PRESENT(fm_mat_G_beta).AND.&
        PRESENT(fm_mat_Q_gemm_beta).AND.&
        PRESENT(fm_mat_Q_beta)) my_open_shell=.TRUE.
 
@@ -1318,13 +1320,13 @@ MODULE rpa_ri_gpw
     IF(my_open_shell) THEN
       CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                num_integ_points,num_integ_group,color_rpa_group,&
-                               tj,wj,fm_mat_S,fm_mat_G,error,&
-                               homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta)
+                               tj,wj,fm_mat_S,error,&
+                               homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta)
       alpha=2.0_dp
     ELSE
       CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                num_integ_points,num_integ_group,color_rpa_group,&
-                               tj,wj,fm_mat_S,fm_mat_G,error)
+                               tj,wj,fm_mat_S,error)
       alpha=4.0_dp
     END IF
 
@@ -1342,6 +1344,8 @@ MODULE rpa_ri_gpw
 
     Erpa=0.0_dp
     wj=wj*a_scaling
+    first_cycle=.TRUE.
+    omega_old=0.0_dp
     my_num_dgemm_call=0
     my_flop_rate=0.0_dp
     DO jquad=1, num_integ_points
@@ -1349,11 +1353,19 @@ MODULE rpa_ri_gpw
       
       omega=a_scaling/TAN(tj(jquad))
 
-      ! copy fm_mat_S into fm_mat_G
-      CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
+      !XXX ! copy fm_mat_S into fm_mat_G
+      !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
 
-      ! get info of fm_mat_G
-      CALL cp_fm_get_info(matrix=fm_mat_G,&
+      !XXX ! get info of fm_mat_G
+      !XXX CALL cp_fm_get_info(matrix=fm_mat_G,&
+      !XXX                     nrow_local=nrow_local,&
+      !XXX                     ncol_local=ncol_local,&
+      !XXX                     row_indices=row_indices,&
+      !XXX                     col_indices=col_indices,&
+      !XXX                     error=error)
+      
+      ! get info of fm_mat_S
+      CALL cp_fm_get_info(matrix=fm_mat_S,&
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
@@ -1361,26 +1373,51 @@ MODULE rpa_ri_gpw
                           error=error)
 
       ! update G matrix with the new value of omega
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-      !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_G,virtual,homo,omega)
-      DO jjB=1, ncol_local
-        j_global=col_indices(jjB)
-        DO iiB=1, nrow_local
-          i_global=row_indices(iiB)
+      IF(first_cycle) THEN
+        ! In this case just update the matrix (symmetric form) witrh 
+        ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
+        !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+        !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
+        DO jjB=1, ncol_local
+          j_global=col_indices(jjB)
+          DO iiB=1, nrow_local
+            i_global=row_indices(iiB)
 
-          iocc=MAX(1,i_global-1)/virtual+1
-          avirt=i_global-(iocc-1)*virtual
-          eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
+            iocc=MAX(1,i_global-1)/virtual+1
+            avirt=i_global-(iocc-1)*virtual
+            eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
 
-          fm_mat_G%local_data(iiB,jjB)=fm_mat_G%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2+omega**2)
+            fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
+                                         SQRT(eigen_diff/(eigen_diff**2+omega**2))
 
+          END DO
         END DO
-      END DO
+      ELSE
+        ! In this case the update has to remove the old omega component thus
+        ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
+        !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+        !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
+        !$OMP                    fm_mat_S,virtual,homo,omega,omega_old)
+        DO jjB=1, ncol_local
+          j_global=col_indices(jjB)
+          DO iiB=1, nrow_local
+            i_global=row_indices(iiB)
+
+            iocc=MAX(1,i_global-1)/virtual+1
+            avirt=i_global-(iocc-1)*virtual
+            eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
+
+            fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
+                                         SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+
+          END DO
+        END DO
+      END IF
 
       ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
       t_start=m_walltime()
       CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
-                      matrix_a=fm_mat_S,matrix_b=fm_mat_G,beta=0.0_dp,&
+                      matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
                       matrix_c=fm_mat_Q_gemm,error=error)
       t_end=m_walltime()
       actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -1395,36 +1432,66 @@ MODULE rpa_ri_gpw
 
       IF(my_open_shell) THEN
         ! the same for the beta spin
-        ! copy fm_mat_S into fm_mat_G
-        CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
-        ! get info of fm_mat_G_beta
-        CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
+        !XXX ! copy fm_mat_S into fm_mat_G
+        !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
+        !XXX ! get info of fm_mat_G_beta
+        !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
+        !XXX                     nrow_local=nrow_local,&
+        !XXX                     ncol_local=ncol_local,&
+        !XXX                     row_indices=row_indices,&
+        !XXX                     col_indices=col_indices,&
+        !XXX                     error=error)
+
+        ! get info of fm_mat_S_beta
+        CALL cp_fm_get_info(matrix=fm_mat_S_beta,&
                             nrow_local=nrow_local,&
                             ncol_local=ncol_local,&
                             row_indices=row_indices,&
                             col_indices=col_indices,&
                             error=error)
+
         ! update G matrix with the new value of omega
-        !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-        !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
-        !$OMP                    Eigenval_beta,fm_mat_G_beta,virtual_beta,homo_beta,omega)
-        DO jjB=1, ncol_local
-          j_global=col_indices(jjB)
-          DO iiB=1, nrow_local
-            i_global=row_indices(iiB)
+        IF(first_cycle) THEN
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
+          !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega)
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            DO iiB=1, nrow_local
+              i_global=row_indices(iiB)
 
-            iocc=MAX(1,i_global-1)/virtual_beta+1
-            avirt=i_global-(iocc-1)*virtual_beta
-            eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
+              iocc=MAX(1,i_global-1)/virtual_beta+1
+              avirt=i_global-(iocc-1)*virtual_beta
+              eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
 
-            fm_mat_G_beta%local_data(iiB,jjB)=fm_mat_G_beta%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2+omega**2)
+              fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
+                                                SQRT(eigen_diff/(eigen_diff**2+omega**2))
 
+            END DO
           END DO
-        END DO
+        ELSE
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
+          !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega,omega_old)
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            DO iiB=1, nrow_local
+              i_global=row_indices(iiB)
+
+              iocc=MAX(1,i_global-1)/virtual_beta+1
+              avirt=i_global-(iocc-1)*virtual_beta
+              eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
+
+              fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
+                                                SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+
+            END DO
+          END DO
+        END IF
 
         t_start=m_walltime()
         CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
-                        matrix_a=fm_mat_S_beta,matrix_b=fm_mat_G_beta,beta=0.0_dp,&
+                        matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
                         matrix_c=fm_mat_Q_gemm_beta,error=error)
         t_end=m_walltime()
         actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -1500,6 +1567,10 @@ MODULE rpa_ri_gpw
       END DO
 
       Erpa=Erpa+FComega*wj(jquad)
+
+      ! save omega and reset the first_cycle flag
+      first_cycle=.FALSE.
+      omega_old=omega
     END DO
 
     CALL mp_sum(Erpa,para_env%group)
@@ -1533,8 +1604,8 @@ MODULE rpa_ri_gpw
 
     SUBROUTINE  calc_scaling_factor(a_scaling_ext,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
-                                    tj_ext,wj_ext,fm_mat_S,fm_mat_G,error,&
-                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,fm_mat_G_beta)
+                                    tj_ext,wj_ext,fm_mat_S,error,&
+                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta)
     REAL(KIND=dp)                            :: a_scaling_ext
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA
     INTEGER                                  :: homo, virtual, dimen_RI, &
@@ -1544,12 +1615,12 @@ MODULE rpa_ri_gpw
                                                 num_integ_group, &
                                                 color_rpa_group
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tj_ext, wj_ext
-    TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_G
+    TYPE(cp_fm_type), POINTER                :: fm_mat_S
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
                                                 dimen_ia_beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mat_S_beta, fm_mat_G_beta
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mat_S_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor', &
       routineP = moduleN//':'//routineN
@@ -1581,8 +1652,7 @@ MODULE rpa_ri_gpw
        PRESENT(virtual_beta).AND.&
        PRESENT(dimen_ia_beta).AND.&
        PRESENT(Eigenval_beta).AND.&
-       PRESENT(fm_mat_S_beta).AND.&
-       PRESENT(fm_mat_G_beta)) my_open_shell=.TRUE.
+       PRESENT(fm_mat_S_beta)) my_open_shell=.TRUE.
 
     ZERO=0.0_dp
     ONE=1.0_dp
@@ -1609,9 +1679,9 @@ MODULE rpa_ri_gpw
 
     ! calculate the (ia|ia) RI integrals 
     ! ----------------------------------
-    ! 1) copy fm_mat_S into fm_mat_G (working array)
-    CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
-    CALL cp_fm_get_info(matrix=fm_mat_G,&
+    ! 1) get info fm_mat_S 
+    !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
+    CALL cp_fm_get_info(matrix=fm_mat_S,&
                         nrow_local=nrow_local,&
                         ncol_local=ncol_local,&
                         row_indices=row_indices,&
@@ -1626,7 +1696,7 @@ MODULE rpa_ri_gpw
     ! 2) perform the local multiplication SUM_K (ia|K)*(ia|K)
     DO jjB=1, ncol_local
       DO iiB=1, nrow_local
-       iaia_RI_dp(iiB)=iaia_RI_dp(iiB)+fm_mat_G%local_data(iiB,jjB)*fm_mat_G%local_data(iiB,jjB)
+       iaia_RI_dp(iiB)=iaia_RI_dp(iiB)+fm_mat_S%local_data(iiB,jjB)*fm_mat_S%local_data(iiB,jjB)
       END DO
     END DO
 
@@ -1646,7 +1716,7 @@ MODULE rpa_ri_gpw
     !         |___|___|___|___|             |_|
     !
    
-    color_row=fm_mat_G%matrix_struct%context%mepos(1)
+    color_row=fm_mat_S%matrix_struct%context%mepos(1)
     CALL mp_comm_split_direct(para_env_RPA%group,comm_row,color_row)
     NULLIFY(para_env_row)
     CALL cp_para_env_create(para_env_row,comm_row,error=error)
@@ -1693,7 +1763,7 @@ MODULE rpa_ri_gpw
     ! right_term_ref=accurate_sum((SQRT(M_ia)-D_ia-iaia_RI))/2.0_dp
 
     ! sum the result with the processes of the RPA_group having the same col
-    color_col=fm_mat_G%matrix_struct%context%mepos(2)
+    color_col=fm_mat_S%matrix_struct%context%mepos(2)
     CALL mp_comm_split_direct(para_env_RPA%group,comm_col,color_col)
     NULLIFY(para_env_col)
     CALL cp_para_env_create(para_env_col,comm_col,error=error)
@@ -1703,8 +1773,8 @@ MODULE rpa_ri_gpw
 
     ! In the open shell case do point 1-2-3 for the beta spin
     IF(my_open_shell) THEN
-      CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
-      CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
+      !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
+      CALL cp_fm_get_info(matrix=fm_mat_S_beta,&
                           nrow_local=nrow_local_beta,&
                           ncol_local=ncol_local_beta,&
                           row_indices=row_indices_beta,&
@@ -1717,11 +1787,11 @@ MODULE rpa_ri_gpw
 
       DO jjB=1, ncol_local_beta
         DO iiB=1, nrow_local_beta
-         iaia_RI_dp_beta(iiB)=iaia_RI_dp_beta(iiB)+fm_mat_G_beta%local_data(iiB,jjB)*fm_mat_G_beta%local_data(iiB,jjB)
+         iaia_RI_dp_beta(iiB)=iaia_RI_dp_beta(iiB)+fm_mat_S_beta%local_data(iiB,jjB)*fm_mat_S_beta%local_data(iiB,jjB)
         END DO
       END DO
 
-      color_row_beta=fm_mat_G_beta%matrix_struct%context%mepos(1)
+      color_row_beta=fm_mat_S_beta%matrix_struct%context%mepos(1)
       CALL mp_comm_split_direct(para_env_RPA%group,comm_row_beta,color_row_beta)
       NULLIFY(para_env_row_beta)
       CALL cp_para_env_create(para_env_row_beta,comm_row_beta,error=error)
@@ -1762,7 +1832,7 @@ MODULE rpa_ri_gpw
       right_term_ref_beta=right_term_ref_beta/TWO
 
       ! sum the result with the processes of the RPA_group having the same col
-      color_col_beta=fm_mat_G_beta%matrix_struct%context%mepos(2)
+      color_col_beta=fm_mat_S_beta%matrix_struct%context%mepos(2)
       CALL mp_comm_split_direct(para_env_RPA%group,comm_col_beta,color_col_beta)
       NULLIFY(para_env_col_beta)
       CALL cp_para_env_create(para_env_col_beta,comm_col_beta,error=error)
