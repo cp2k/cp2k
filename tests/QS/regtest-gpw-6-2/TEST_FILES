@@ -4,5 +4,5 @@ si8_noort_broy_wc_jacobi_ene1.inp   23     3e-07
 si8_noort_broy_wc_direct_ene.inp    23 1E-9
 #
 si8_lsd_broy_stm.inp              1     3e-14
-si8_lsd_broy_wc_ene.inp          23     2e-10
+si8_lsd_broy_wc_ene.inp          23     4e-10
 si8_lsd_broy_wc.inp              23     2e-09
