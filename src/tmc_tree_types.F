@@ -9,9 +9,9 @@
 !>                   parent element
 !>                      /      \
 !>      accepted (acc) /        \  not accepted (nacc)
-!>                    /          \  
+!>                    /          \
 !>                  child       child
-!>                   / \         / \ 
+!>                   / \         / \
 !>     
 !>      tree creation assuming acceptance (acc) AND rejectance (nacc) 
 !>        of configuration
