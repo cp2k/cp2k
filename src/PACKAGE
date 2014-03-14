@@ -1,0 +1,5 @@
+{
+"description": "Main package of CP2K",
+"archive" : "libcp2k",
+"requires": ("common", "arch", "cuda", "dbcsr", )
+}

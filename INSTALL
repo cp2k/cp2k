@@ -143,9 +143,10 @@ How to compile CP2K code
      * For specific architectures it can be better to install specifically 
        optimized kernels (see BG) and/or employ a higher optimization level to compile it.
 
- 2m) yacc is needed to compile the dependency generator, can be found as part of the bison package.
-     http://www.gnu.org/software/bison/
-     
+ 2m) python 2.x is needed to run the dependency generator.
+     On most system python is already installed.
+     For more information visit: http://www.python.org/
+
  3) To compile the code:
 
  3a) The location of compiler and libraries needs to be specified.  Examples

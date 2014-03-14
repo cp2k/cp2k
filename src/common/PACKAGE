@@ -1,0 +1,4 @@
+{
+"description": "Basic routines which are conceptually independent from CP2K",
+"requires": ("../fft", "../grid", "../cuda", )
+}
