@@ -304,6 +304,9 @@ endif
 $(LIBDIR)/%:
 	@echo "Updating archive $@"
 	@$(AR) $@ $?
+ifneq ($(RANLIB),)
+	@$(RANLIB) $@
+endif
 
 %.o: %.cu
 	$(NVCC) -c $(NVFLAGS) $<
