@@ -9,6 +9,7 @@ OUTDIR=$TMPDIR/$OUTNAME
 
 #echo "Create tempdir: " $OUTDIR
 mkdir $OUTDIR
+cp -a ../COPYRIGHT $OUTDIR
 
 mkdir $OUTDIR/src
 rsync -axq \
