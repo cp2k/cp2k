@@ -167,7 +167,7 @@ How to compile CP2K code
      e.g.
      > make -j N ARCH=Linux-x86-64-gfortran VERSION=sopt
      as a short-cut, you can build several version of the code at once
-     > make -j N ARCH=Linux-x86-64-gfortran sopt popt ssmp psmp
+     > make -j N ARCH=Linux-x86-64-gfortran VERSION="sopt popt ssmp psmp"
 
      An executable should appear in cp2k/exe/*
 
@@ -280,7 +280,7 @@ How to compile CP2K code
  3e) The `I'm feeling lucky' version of building will try to guess what
      architecture you're on.
      Just type
-     > make sopt
+     > make 
      and the script '~/cp2k/tools/get_arch_code' will try to guess your
      architecture.  You can set the 'FORT_C_NAME' to indicate the compiler
      part of the architecture string.
