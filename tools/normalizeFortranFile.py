@@ -12,7 +12,7 @@ varRe=re.compile(r" *(?P<var>[a-zA-Z_0-9]+) *(?P<rest>(?:\((?P<param>(?:[^()]+|\
 useParseRe=re.compile(
     r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
     flags=re.IGNORECASE)
-commonUsesRe=re.compile("^#include *\"cp_common_uses.h\"")
+commonUsesRe=re.compile("^#include *\"([^\"]*cp_common_uses.f90)\"")
 localNameRe=re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
 
 def readFortranLine(infile):
@@ -862,8 +862,6 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
     import os.path
     moduleRe=re.compile(r" *(?:module|program) +(?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
                         flags=re.IGNORECASE)
-    commonUsesIncludeFilepath=os.path.join(
-        os.path.split(os.path.abspath(inFile.name))[0],"cp_common_uses.h")
     coreLines=[]
     while 1:
         line=inFile.readline()
@@ -908,13 +906,15 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
             implicitUses=None
             if modulesDict['commonUses']:
                 try:
-                    f=file(commonUsesIncludeFilepath)
+                    inc_fn = commonUsesRe.match(modulesDict['commonUses']).group(1)
+                    inc_absfn = os.path.join(os.path.dirname(inFile.name), inc_fn)
+                    f=file(inc_absfn)
                     implicitUsesRaw=parseUse(f)
                     f.close()
                     implicitUses=prepareImplicitUses(implicitUsesRaw['modules'])
                 except:
                     print ("ERROR trying to parse use statements contained in common",
-                           "uses precompiler file ", commonUsesIncludeFilepath)
+                           "uses precompiler file ", inc_absfn)
                     raise
             cleanUse(modulesDict,rest,implicitUses=implicitUses,logFile=logFile)
             normalizeModules(modulesDict['modules'])
