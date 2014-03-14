@@ -46,12 +46,12 @@ EXE_NAMES = $(notdir $(ALL_EXE_FILES:.F=))
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp tdbg hdbg
 .PHONY : $(VERSION_TARGETS) $(EXE_NAMES) \
          dirs makedep default_target all \
-         pretty prettyclean doxygen/clean doxygen \
+         prettydir pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help
 
 
 # Discover files and directories ============================================
-ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify -printf "%p:")
+ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.F")
@@ -105,6 +105,11 @@ $(EXE_NAMES): dirs makedep
 all: dirs makedep
 	@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
+dirs:
+	@mkdir -p $(OBJDIR)
+	@mkdir -p $(LIBDIR)
+	@mkdir -p $(EXEDIR)
+
 else
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all, and perform actual build.
@@ -113,11 +118,6 @@ all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
 endif
 endif
 
-dirs:
-	@mkdir -p $(OBJDIR)
-	@mkdir -p $(LIBDIR)
-	@mkdir -p $(EXEDIR)
-	@mkdir -p $(PRETTYOBJDIR)
 
 #   extract help text from doxygen "\brief"-tag
 help:
@@ -180,7 +180,10 @@ OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 # Prettyfier stuff ==========================================================
 vpath %.pretty $(PRETTYOBJDIR)
 
-pretty: dirs $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
+prettydir:
+	@mkdir -p $(PRETTYOBJDIR)
+
+pretty: prettydir $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
 TOOL_HELP += "pretty : Reformat all source files in a pretty way."
 
 prettyclean:
