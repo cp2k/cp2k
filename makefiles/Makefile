@@ -43,8 +43,7 @@ EXE_NAMES = $(notdir $(ALL_EXE_FILES:.F=))
 
 
 # Declare PHONY targets =====================================================
-VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp tdbg hdbg
-.PHONY : $(VERSION_TARGETS) $(EXE_NAMES) \
+.PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
          prettydir pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help
@@ -81,18 +80,16 @@ default_target: all
 # stage 1: Call make recursively with each element in $(VERSION) as a target,
 #          The actual target is stored in ORIG_TARGET.
 #          Make can then parallelize over multiple versions targets.
-#          This stage can be skipped by calling a VERSION_TARGET directly.
-#          In this case the ORIG_TARGET is set to "default_target".
 ifeq ($(ONEVERSION),)
 ORIG_TARGET = default_target
 
 $(EXE_NAMES) all :
-	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) VERSION="" ORIG_TARGET=$@
+	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
 #          Call make recursively with $(ORIG_TARGET) as target.
-$(VERSION_TARGETS) :
-	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" ONEVERSION=$@
+$(VERSION) :
+	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION=$@
 
 else
 
