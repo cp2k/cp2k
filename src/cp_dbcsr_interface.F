@@ -32,9 +32,9 @@ MODULE cp_dbcsr_interface
                                              dbcsr_reserve_blocks
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
+                                             dbcsr_scalar_get_type,&
                                              dbcsr_scalar_get_value,&
                                              dbcsr_scalar_set_type,&
-                                             dbcsr_scalar_get_type,&
                                              dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates

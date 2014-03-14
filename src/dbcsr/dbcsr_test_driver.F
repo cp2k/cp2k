@@ -29,11 +29,11 @@ PROGRAM dbcsr_test_driver
                                              mp_world_init
   USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
                                              dbcsr_mp_release
-  USE dbcsr_operations,                ONLY: dbcsr_init_lib,&
-                                             dbcsr_finalize_lib
+  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
+                                             dbcsr_init_lib
   USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
-  USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args,&
-                                             dbcsr_default_config
+  USE dbcsr_test_methods,              ONLY: dbcsr_default_config,&
+                                             dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
 

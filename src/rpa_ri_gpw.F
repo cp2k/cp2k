@@ -24,7 +24,6 @@ MODULE rpa_ri_gpw
                                              cp_fm_indxg2p,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release

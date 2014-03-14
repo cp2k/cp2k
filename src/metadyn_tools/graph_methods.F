@@ -19,16 +19,18 @@
 MODULE graph_methods
 
   USE graph_utils,                     ONLY: derivative,&
+                                             get_val_res,&
                                              mep_input_data_type,&
                                              pbc,&
                                              point_no_pbc,&
                                              point_pbc
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-  USE physcon,                         ONLY: bohr, init_physcon
+  USE periodic_table,                  ONLY: nelem,&
+                                             ptable
+  USE physcon,                         ONLY: bohr,&
+                                             init_physcon
   USE string_utilities,                ONLY: uppercase
-  USE periodic_table,                  ONLY: ptable, nelem
-  USE graph_utils,                     ONLY: get_val_res
 
   IMPLICIT NONE
   PUBLIC :: fes_compute_low,&
@@ -106,8 +108,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: l_fes_int
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: array
 
-    INTEGER                                  :: dimval, i, id, is,&
-         & pnt, ind, it, itt, np
+    INTEGER                                  :: dimval, i, id, ind, is, it, &
+                                                itt, np, pnt
     REAL(KIND=dp)                            :: dvol, sum_fes
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xx
 
@@ -336,11 +338,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     INTEGER, INTENT(IN)                      :: ndw
     TYPE(mep_input_data_type), INTENT(IN)    :: mep_input_data
+    LOGICAL                                  :: l_int
 
     INTEGER                                  :: i, id, irep, iter, nf, &
                                                 nreplica, ns, pnt
     INTEGER, DIMENSION(:), POINTER           :: ipos
-    LOGICAL                                  :: converged, l_int
+    LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: avg1, avg2, diff, ene, &
                                                 norm_dx, xx0, yy0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: davg1, davg2, dxx, dyy, &
@@ -516,7 +519,6 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fes_cube_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
-    IMPLICIT NONE
     INTEGER, INTENT(IN)                      :: idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
@@ -527,18 +529,17 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: l_fes_int
     CHARACTER(LEN=80)                        :: file
 
-    INTEGER                                  ::  ix, iy, iz, i, ip, natoms, np, &
-         mesh(3), nspin, ind, id(3), iix, iiy, iiz, ii
-    INTEGER, DIMENSION(:), POINTER           :: izat
-
-    CHARACTER(LEN=5)                         :: label, labelp
     CHARACTER(LEN=120)                       :: line
-    
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: rho, rhot
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: xat
-    REAL(KIND=dp)                            :: cell(3,3), cm(3), rt(3),&
-         delta(3), dr(3), residual
-    
+    CHARACTER(LEN=5)                         :: label, labelp
+    INTEGER                                  :: i, id(3), ii, iix, iiy, iiz, &
+                                                ix, iy, iz, mesh(3), natoms, &
+                                                np
+    INTEGER, DIMENSION(:), POINTER           :: izat
+    REAL(KIND=dp)                            :: cell(3,3), delta(3), dr(3), &
+                                                residual, rt(3)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rho, rhot
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: xat
+
     CALL init_physcon
     IF (ndw .GT. 3) THEN
        WRITE(6,*) 
@@ -566,7 +567,7 @@ CONTAINS
        END DO
     END DO
 
-    IF (residual .gt. 1.0d-6) THEN
+    IF (residual .GT. 1.0d-6) THEN
        WRITE(6,*) 
        WRITE(6,*) 'ERROR: this progam can only handle orthogonal cells'
        WRITE(6,*) ' with vectors pointing in the X, Y and Z directions'
