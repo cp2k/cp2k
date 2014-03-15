@@ -3,7 +3,7 @@
 #set -x
 
 TMPDIR=`mktemp -d`
-REV=`./get_revision_number | sed -e "s/://"`
+REV=`./get_revision_number ../ | sed -e "s/://"`
 OUTNAME=libdbcsr_$REV
 OUTDIR=$TMPDIR/$OUTNAME
 
