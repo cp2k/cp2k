@@ -213,7 +213,8 @@ doxygen: doxygen/clean
 	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html
 	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
 	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
-	cd $(DOXYGENDIR); doxygen $(DOCDIR)/Doxyfile
+	@cat $(CP2KHOME)/doc/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
+	cd $(DOXYGENDIR); doxygen ./Doxyfile
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
