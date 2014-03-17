@@ -58,9 +58,10 @@ MODULE dbcsr_block_access
                                              real_4,&
                                              real_8
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_blk_column_size, dbcsr_blk_row_size, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
-       dbcsr_get_num_blocks, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
+       dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_distribution, &
+       dbcsr_distribution_mp, dbcsr_get_data_size_referenced, &
+       dbcsr_get_data_type, dbcsr_get_num_blocks, dbcsr_mp_mynode, &
+       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_use_mutable, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
                                              pointer_d_rank_remap2,&
@@ -92,7 +93,7 @@ MODULE dbcsr_block_access
             dbcsr_put_block, dbcsr_remove_block
 
   PUBLIC :: dbcsr_reserve_block2d, dbcsr_get_tmp_block2d, &
-            dbcsr_reserve_blocks
+            dbcsr_reserve_blocks, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks
 
 
   INTERFACE dbcsr_get_block
@@ -519,6 +520,105 @@ CONTAINS
     IF (careful_mod) CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_put_block_area
 
+! *****************************************************************************
+!> \brief Inserts all blocks of a dbcsr matrix to make it a full matrix.
+!>        Thus obviously not linear scaling.
+!> \param[in,out] matrix      Matrix into which blocks should be added.
+!> \param[in,out] error       Error
+! *****************************************************************************
+  SUBROUTINE dbcsr_reserve_all_blocks(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_all_blocks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_count, col, col_s, &
+                                                myrank, rank, row, row_s
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: columns, rows
+    LOGICAL                                  :: tr
+
+    myrank = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
+
+    blk_count=0
+    ! should be possible to loop only over the local blockrows/blockcols
+    DO row = 1, dbcsr_nblkrows_total(matrix)
+     DO col = 1, dbcsr_nblkcols_total(matrix)
+        tr = .FALSE.
+        row_s=row ; col_s=col
+        CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+        ! is that the correct condition for symmetric matrices ?
+        IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) blk_count=blk_count+1
+     ENDDO
+    ENDDO
+
+    ALLOCATE(rows(blk_count),columns(blk_count))
+
+    blk_count=0
+    DO row = 1, dbcsr_nblkrows_total(matrix)
+     DO col = 1, dbcsr_nblkcols_total(matrix)
+        tr = .FALSE.
+        row_s=row ; col_s=col
+        CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+        IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) THEN
+           blk_count=blk_count+1 
+           rows(blk_count)=row
+           columns(blk_count)=col
+        ENDIF
+     ENDDO
+    ENDDO
+
+    CALL dbcsr_reserve_blocks(matrix,rows,columns,error=error)
+
+  END SUBROUTINE dbcsr_reserve_all_blocks
+
+! *****************************************************************************
+!> \brief Inserts diagonal blocks of a dbcsr matrix to make it a matrix with at least all diagonal blocks present
+!> \param[in,out] matrix      Matrix into which blocks should be added.
+!> \param[in,out] error       Error
+! *****************************************************************************
+  SUBROUTINE dbcsr_reserve_diag_blocks(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_diag_blocks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_count, col, col_s, &
+                                                myrank, rank, row, row_s
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: columns, rows
+    LOGICAL                                  :: tr
+
+    myrank = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
+
+    blk_count=0
+    ! should be possible to loop only over the local blockrows/blockcols
+    DO row = 1, dbcsr_nblkrows_total(matrix)
+       col = row
+       tr = .FALSE.
+       row_s=row ; col_s=col
+       CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+       IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) blk_count=blk_count+1
+    ENDDO
+
+    ALLOCATE(rows(blk_count),columns(blk_count))
+
+    blk_count=0
+    DO row = 1, dbcsr_nblkrows_total(matrix)
+       col = row
+       tr = .FALSE.
+       row_s=row ; col_s=col
+       CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+       IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) THEN
+          blk_count=blk_count+1
+          rows(blk_count)=row
+          columns(blk_count)=col
+       ENDIF
+    ENDDO
+
+    CALL dbcsr_reserve_blocks(matrix,rows,columns,error=error)
+
+  END SUBROUTINE dbcsr_reserve_diag_blocks
 
 ! *****************************************************************************
 !> \brief Inserts block reservations into a matrix, avoiding the work matrix.

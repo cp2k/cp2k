@@ -28,8 +28,10 @@ MODULE cp_dbcsr_interface
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
+                                             dbcsr_reserve_all_blocks,&
                                              dbcsr_reserve_block2d,&
-                                             dbcsr_reserve_blocks
+                                             dbcsr_reserve_blocks,&
+                                             dbcsr_reserve_diag_blocks
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_type,&
@@ -179,6 +181,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_data_type
   PUBLIC :: cp_dbcsr_reserve_block2d
   PUBLIC :: cp_dbcsr_reserve_blocks
+  PUBLIC :: cp_dbcsr_reserve_all_blocks
+  PUBLIC :: cp_dbcsr_reserve_diag_blocks
   PUBLIC :: cp_dbcsr_complete_redistribute
   PUBLIC :: cp_dbcsr_gershgorin_norm
   PUBLIC :: cp_dbcsr_frobenius_norm
@@ -460,6 +464,29 @@ CONTAINS
          dbcsr_error)
   END SUBROUTINE cp_dbcsr_reserve_blocks
 
+  SUBROUTINE cp_dbcsr_reserve_all_blocks(matrix, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(cp_error_type)                      :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_all_blocks', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_reserve_all_blocks(matrix%matrix, dbcsr_error)
+  END SUBROUTINE cp_dbcsr_reserve_all_blocks
+
+  SUBROUTINE cp_dbcsr_reserve_diag_blocks(matrix, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(cp_error_type)                      :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_diag_blocks', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_reserve_diag_blocks(matrix%matrix, dbcsr_error)
+  END SUBROUTINE cp_dbcsr_reserve_diag_blocks
 
   PURE FUNCTION cp_dbcsr_get_data_type (matrix) RESULT (data_type)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix

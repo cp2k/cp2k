@@ -26,9 +26,9 @@ MODULE mp2_gpw
        cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
@@ -39,7 +39,6 @@ MODULE mp2_gpw
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_set_all,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
@@ -1542,8 +1541,7 @@ MODULE mp2_gpw
                                                 local_C_internal
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff, fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_mo_coeff_o, fm_mo_coeff_v
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff
     TYPE(dbcsr_distribution_obj)             :: dist
 
     CALL timeset(routineN,handle)
@@ -1715,15 +1713,7 @@ MODULE mp2_gpw
     CALL cp_dbcsr_distribution_release (dist)
     CALL array_release (col_blk_size)
     CALL array_release (col_dist)
-
-    ! a very ugly trick to create a dbcsr matrix with all blocks ...
-    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                             nrow_global=dimen,ncol_global=homo,error=error_sub)
-    CALL cp_fm_create(fm_mo_coeff_o, fm_struct_tmp,name="occ",error=error_sub)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-    CALL cp_fm_set_all(fm_mo_coeff_o,0.0_dp,error=error_sub)
-    CALL copy_fm_to_dbcsr(fm_mo_coeff_o,mo_coeff_o, error=error_sub)
-    CALL cp_fm_release(fm_mo_coeff_o, error=error_sub)
+    CALL cp_dbcsr_reserve_all_blocks(mo_coeff_o,error)
 
     ! accumulate data on mo_coeff_o starting from myself
     CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
@@ -1798,15 +1788,7 @@ MODULE mp2_gpw
     CALL cp_dbcsr_distribution_release (dist)
     CALL array_release (col_blk_size)
     CALL array_release (col_dist)
-
-    ! a very ugly trick to create a dbcsr matrix with all blocks ...
-    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                             nrow_global=dimen,ncol_global=virtual,error=error_sub)
-    CALL cp_fm_create(fm_mo_coeff_v, fm_struct_tmp,name="virt",error=error_sub)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-    CALL cp_fm_set_all(fm_mo_coeff_v,0.0_dp,error=error_sub)
-    CALL copy_fm_to_dbcsr(fm_mo_coeff_v,mo_coeff_v, error=error_sub)
-    CALL cp_fm_release(fm_mo_coeff_v, error=error_sub)
+    CALL cp_dbcsr_reserve_all_blocks(mo_coeff_v,error)
 
     ! accumulate data on mo_coeff_v starting from myself
     CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
