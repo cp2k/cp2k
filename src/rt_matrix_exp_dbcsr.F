@@ -376,7 +376,7 @@ END SUBROUTINE
     failure=.FALSE.
 
     !The divider that comes from the scaling and squaring procedure
-    square_fac=COMPLEX(1.0_dp/(2.0_dp**REAL(nsquare,dp)),0.0_dp)
+    square_fac=CMPLX(1.0_dp/(2.0_dp**REAL(nsquare,dp)),0.0_dp)
 
     !Allocate work matrices
     NULLIFY(T1)
