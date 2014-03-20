@@ -816,9 +816,9 @@ MODULE input_constants
                                               copy_fcoeff=2
   !real time propagation
   INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
-                                              do_diag=2,&
-                                              do_pade=3,&
-                                              do_arnoldi=4
+                                              do_pade=2,&
+                                              do_arnoldi=3,&
+                                              do_bch=4
 
   INTEGER, PARAMETER, PUBLIC               :: extr_mos=1,&
                                               extr_s_ks=2

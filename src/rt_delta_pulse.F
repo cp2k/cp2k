@@ -17,8 +17,10 @@ MODULE rt_delta_pulse
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_filter,&
                                              cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
@@ -94,10 +96,12 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: oo_c, oo_v, oo_vt
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: S_inv
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: eigenvectors, mat_ks, &
                                                 mat_tmp, momentum, oo_1, &
-                                                oo_2, S_chol, S_inv, virtuals
+                                                oo_2, S_chol, S_inv_fm, tmpS, &
+                                                virtuals
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -108,18 +112,21 @@ CONTAINS
     ! we need the overlap and ks matrix for a full diagionalization
     CALL get_qs_env(qs_env, cell=cell, mos=mos, rtp=rtp, matrix_s=matrix_s, matrix_ks=matrix_ks, error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
-    CALL cp_fm_get_info(S_inv,nrow_global=nrow_global,error=error)
-
-    CALL cp_fm_create(S_chol, matrix_struct=S_inv%matrix_struct, name="S_chol", error=error)
+    CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol", error=error)
+    CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm", error=error)
+    CALL cp_fm_create(tmpS, matrix_struct=rtp%ao_ao_fmstruct,error=error)
+    CALL copy_dbcsr_to_fm(S_inv,S_inv_fm,error=error)
+    CALL cp_fm_upper_to_full(S_inv_fm,tmpS,error=error)
+    CALL cp_fm_get_info(S_inv_fm,nrow_global=nrow_global,error=error) 
     CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_chol,error=error)
     CALL cp_fm_cholesky_decompose(S_chol,error=error)
     NULLIFY(mat_ks,eigenvectors,mat_tmp)
-    CALL cp_fm_create(mat_ks, matrix_struct=S_inv%matrix_struct, name="mat_ks", error=error)
-    CALL cp_fm_create(eigenvectors, matrix_struct=S_inv%matrix_struct, name="eigenvectors", error=error)
+    CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks", error=error)
+    CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors", error=error)
 
     DO ispin=1,SIZE(matrix_ks)
        ALLOCATE(eigenvalues(nrow_global))
-       CALL cp_fm_create(mat_tmp, matrix_struct=S_inv%matrix_struct, name="mat_tmp", error=error)
+       CALL cp_fm_create(mat_tmp, matrix_struct=S_inv_fm%matrix_struct, name="mat_tmp", error=error)
 
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,mat_ks,error=error)
        CALL cp_fm_cholesky_reduce(mat_ks,S_chol,error=error)
@@ -129,7 +136,7 @@ CONTAINS
        ! virtuals
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
        nvirt=nao-nmo
-       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv%matrix_struct%para_env, context=S_inv%matrix_struct%context,&
+       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
                                 nrow_global=nrow_global, ncol_global=nvirt, error=error)
        CALL cp_fm_create(virtuals, matrix_struct=fm_struct_tmp, name="virtuals", error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
@@ -138,7 +145,7 @@ CONTAINS
        ! occupied
        CALL cp_fm_to_fm(eigenvectors,mos_old(2*ispin-1)%matrix,nmo,1,1)
 
-       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv%matrix_struct%para_env, context=S_inv%matrix_struct%context,&
+       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
                                 nrow_global=nvirt, ncol_global=nmo, error=error)
        CALL cp_fm_create(momentum, matrix_struct=fm_struct_tmp, name="momentum", error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
@@ -185,7 +192,7 @@ CONTAINS
        CALL cp_fm_release(momentum, error=error)
 
        ! orthonormalize afterwards
-       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv%matrix_struct%para_env, context=S_inv%matrix_struct%context,&
+       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
                                 nrow_global=nmo, ncol_global=nmo, error=error)
        CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1", error=error)
        CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2", error=error)
@@ -246,6 +253,11 @@ CONTAINS
     CALL cp_fm_release(mat_ks, error=error)
     CALL cp_fm_release(eigenvectors, error=error)
 
+!***************************************************************
+!remove later
+    CALL cp_fm_release(S_inv_fm,error=error)
+    CALL cp_fm_release(tmpS,error=error)
+!**************************************************************
     CALL timestop(handle)
 
   END SUBROUTINE apply_delta_pulse_periodic
@@ -272,9 +284,10 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: oo_c, oo_v, oo_vt
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
+    TYPE(cp_dbcsr_type), POINTER             :: cosmat, S_inv, sinmat
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mat_S, oo_1, oo_2, S_inv, tmp
+    TYPE(cp_fm_type), POINTER                :: mat_S, oo_1, oo_2, S_inv_fm, &
+                                                tmp
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -286,14 +299,16 @@ CONTAINS
     CALL get_qs_env(qs_env, mos=mos, rtp=rtp, matrix_s=matrix_s, error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
 
-    CALL cp_fm_create(tmp, matrix_struct=S_inv%matrix_struct, name="tmp_mat", error=error)
+    CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat", error=error)
 
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_inv,error=error)
-    CALL cp_fm_cholesky_decompose(S_inv,error=error)
-    CALL cp_fm_cholesky_invert(S_inv,error=error)
-    CALL cp_fm_upper_to_full(S_inv,tmp,error=error)
+    CALL cp_fm_create(tmp,matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat", error=error)
 
-    CALL cp_fm_create(mat_S, matrix_struct=S_inv%matrix_struct, name="mat_S", error=error)
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_inv_fm,error=error)
+    CALL cp_fm_cholesky_decompose(S_inv_fm,error=error)
+    CALL cp_fm_cholesky_invert(S_inv_fm,error=error)
+    CALL cp_fm_upper_to_full(S_inv_fm,tmp,error=error)
+
+    CALL cp_fm_create(mat_S, matrix_struct=S_inv_fm%matrix_struct, name="mat_S", error=error)
     CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,mat_S,error=error)
     CALL cp_fm_upper_to_full(mat_S,tmp,error=error)
 
@@ -323,11 +338,11 @@ CONTAINS
        CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i-1)%matrix, ncol=nmo, error=error)
        CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_set%mo_coeff, mos_new(2*i)%matrix, ncol=nmo, error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv,mos_new(2*i-1)%matrix,0.0_dp,mos_old(2*i-1)%matrix,error=error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv,mos_new(2*i)%matrix,0.0_dp,mos_old(2*i)%matrix,error=error)
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i-1)%matrix,0.0_dp,mos_old(2*i-1)%matrix,error=error)
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i)%matrix,0.0_dp,mos_old(2*i)%matrix,error=error)
 
        ! in a finite basis, unfortunately, inv(S)*operator is not unitary, so orthonormalize afterwards
-       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv%matrix_struct%para_env, context=S_inv%matrix_struct%context,&
+       CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
                                 nrow_global=nmo, ncol_global=nmo, error=error)
        CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1", error=error)
        CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2", error=error)
@@ -386,6 +401,12 @@ CONTAINS
     CALL cp_dbcsr_deallocate_matrix(cosmat, error)
     CALL cp_dbcsr_deallocate_matrix(sinmat, error)
 
+!***************************************************************
+!remove later
+    CALL copy_fm_to_dbcsr(S_inv_fm,S_inv,error=error)
+    CALL cp_dbcsr_filter(S_inv,rtp%filter_eps,error=error)
+    CALL cp_fm_release(S_inv_fm,error=error)
+!**************************************************************
 
     CALL timestop(handle)
 

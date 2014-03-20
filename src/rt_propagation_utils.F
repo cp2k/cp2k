@@ -11,23 +11,25 @@
 MODULE  rt_propagation_utils
 
 
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_filter, cp_dbcsr_get_block, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_scale, cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_transpose,&
-                                             cp_fm_upper_to_full
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
+                                             cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
@@ -38,13 +40,10 @@ MODULE  rt_propagation_utils
                                              use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE mathconstants
   USE orbital_pointers,                ONLY: ncoset
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
-  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -56,6 +55,7 @@ MODULE  rt_propagation_utils
                                              read_rt_mos_from_restart
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -66,17 +66,14 @@ MODULE  rt_propagation_utils
   PRIVATE
 
   PUBLIC:: calc_S_derivs,&
-          get_restart_wfn,&
-          calculate_dp_imag,&
-          calc_c_mat_force
+           get_restart_wfn,&
+           calculate_dp_imag,&
+           calc_c_mat_force
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
-!***
 
   CONTAINS
-
-
 
 ! *****************************************************************************
 !> \brief Calculates dS/dR respectily the velocity weighted derivatves
@@ -87,35 +84,29 @@ MODULE  rt_propagation_utils
 !>
 !> \par History
 !>      02.2009 created [Manuel Guidon]
+!>      02.2014 switched to dbcsr matrices [Samuel Andermatt]
 !> \author Florian Schiffmann
 ! *****************************************************************************
   SUBROUTINE calc_S_derivs(qs_env,error)
-
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_S_derivs', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: handle, iatom, icol_atom, icol_global, icol_local, irow_atom, &
-      irow_global, irow_local, j, m, maxder, n, natom, ncol_local, nder, &
-      neighbor_list_id, nkind, nrow_local, nsgf, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
-                                                last_sgf
+    INTEGER                                  :: col_atom, handle, i, j, m, &
+                                                maxder, n, nder, &
+                                                neighbor_list_id, row_atom
     INTEGER, DIMENSION(6, 2)                 :: c_map_mat
-    INTEGER, DIMENSION(:), POINTER           :: col_atom_index, col_indices, &
-                                                row_atom_index, row_indices
     LOGICAL                                  :: failure, return_s_derivatives
-    REAL(KIND=dp)                            :: scale
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    REAL(dp), DIMENSION(:), POINTER          :: block_values
+    REAL(KIND=dp)                            :: one = 1.0_dp, zero = 0.0_dp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: s_derivs
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: C_mat, exp_H_new
-    TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
+      POINTER                                :: C_mat, S_der, s_derivs
+    TYPE(cp_dbcsr_type), POINTER             :: B_mat, tmp_mat, tmp_mat2
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
@@ -132,8 +123,8 @@ MODULE  rt_propagation_utils
     NULLIFY (atomic_kind_set)
     NULLIFY (force)
     NULLIFY (particle_set)
-    NULLIFY(rtp)
-    NULLIFY(s_derivs)
+    NULLIFY (rtp)
+    NULLIFY (s_derivs)
 
     CALL get_qs_env(qs_env=qs_env,&
                     rtp=rtp,&
@@ -144,101 +135,57 @@ MODULE  rt_propagation_utils
                     force=force,&
                     error=error)
 
-    CALL get_rtp(rtp=rtp,B_mat=B_mat,C_mat=C_mat,exp_H_new=exp_H_new,error=error)
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(particle_set)
-
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+    CALL get_rtp(rtp=rtp,B_mat=B_mat,C_mat=C_mat,S_der=S_der,error=error)
 
     nder = 2
     maxder = ncoset(nder)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-
-    ALLOCATE (first_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
-         error=error)
-
     ! calculate the overlap derivative matrices
-    IF(qs_env%dft_control%qs_control%dftb)THEN
-      CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
-    ELSE
     CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
          basis_set_id_a=use_orb_basis_set,basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
-    END IF
 
-    ! here we have the S derivativs needed, lets calculate the B and C matrix
-    CALL cp_fm_create(tmp_mat,&
-                 matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
-                 name="TMP",&
-                 error=error)
-    CALL cp_fm_create(tmp_mat2,&
-                 matrix_struct=Exp_H_new(1)%matrix%matrix_struct,&
-                 name="TMP2",&
-                 error=error)
-
-    CALL cp_fm_get_info(B_mat, nrow_local=nrow_local, ncol_local=ncol_local, &
-          row_indices=row_indices, col_indices=col_indices,&
-          nrow_global=irow_global,ncol_global=icol_global,&
-          local_data=local_data,error=error)
-    local_data=0._dp
-    ALLOCATE(row_atom_index(SIZE(row_indices)))
-    DO irow_local=1,nrow_local
-       irow_global=row_indices(irow_local)
-       DO iatom=1,natom
-          IF (first_sgf(iatom)<=irow_global .AND. irow_global <= last_sgf(iatom)) EXIT
-       ENDDO
-       row_atom_index(irow_local)=iatom
-    ENDDO
-
-    ALLOCATE(col_atom_index(SIZE(col_indices)))
-    DO icol_local=1,ncol_local
-       icol_global=col_indices(icol_local)
-       DO iatom=1,natom
-          IF (first_sgf(iatom)<=icol_global .AND. icol_global <= last_sgf(iatom)) EXIT
-       ENDDO
-       col_atom_index(icol_local)=iatom
-    ENDDO
-
-    !calculate scalar product v(Rb)*<alpha|d/dRb beta> (B_mat), and store the first derivatives
-
-    CALL cp_fm_set_all(B_mat,0.0_dp,0.0_dp,error)
-
+    NULLIFY(tmp_mat)
+    ALLOCATE(tmp_mat)
+    CALL cp_dbcsr_init(tmp_mat,error=error)
+    CALL cp_dbcsr_create(tmp_mat,template=C_mat(1)%matrix,error=error)
+    NULLIFY(tmp_mat2)
+    ALLOCATE(tmp_mat2)
+    CALL cp_dbcsr_init(tmp_mat2,error=error)
+    CALL cp_dbcsr_create(tmp_mat2,template=C_mat(1)%matrix,error=error)
     DO m=1,3
-       CALL cp_fm_set_all(rtp%S_der(m)%matrix,0.0_dp,0.0_dp,error)
-       CALL copy_dbcsr_to_fm(s_derivs(m+1)%matrix,tmp_mat2,error=error)
-       CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
-
-       DO icol_local=1,ncol_local
-          DO irow_local=1,nrow_local
-             irow_global=row_indices(irow_local)
-             irow_atom=row_atom_index(irow_local)
-             icol_global=col_indices(icol_local)
-             icol_atom=col_atom_index(icol_local)
-             !signs are right, since s_derivs is <d/dR alpha|beta>
-             IF(irow_atom== icol_atom) CYCLE
-             IF (irow_global>icol_global) THEN
-                scale=1.0_dp
-             ELSE
-                scale=-1.0_dp
-             ENDIF
-             local_data(irow_local,icol_local)=local_data(irow_local,icol_local)+&
-                  scale*(particle_set(icol_atom)%v(m))*tmp_mat2%local_data(irow_local,icol_local)
-             rtp%S_der(m)%matrix%local_data(irow_local,icol_local)=scale*tmp_mat2%local_data(irow_local,icol_local)
-          ENDDO
-       ENDDO
+       CALL cp_dbcsr_copy(tmp_mat,s_derivs(m+1)%matrix,error=error)
+       CALL cp_dbcsr_desymmetrize(tmp_mat,tmp_mat2,error=error)
+       CALL cp_dbcsr_copy(S_der(m)%matrix,tmp_mat2,error=error)
+       CALL cp_dbcsr_scale(S_der(m)%matrix,-one,error=error) 
+       CALL cp_dbcsr_filter(S_der(m)%matrix,rtp%filter_eps,error=error)
+       !The diagonal should be zero
+       CALL cp_dbcsr_iterator_start(iter, S_der(m)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+          IF(row_atom==col_atom) block_values=0
+       END DO
+       CALL cp_dbcsr_iterator_stop (iter) 
     END DO
 
 
+    !calculate scalar product v(Rb)*<alpha|d/dRb beta> (B_mat), and store the first derivatives
 
+     CALL cp_dbcsr_set(B_mat,zero,error=error)
+     DO m=1,3
+       CALL cp_dbcsr_copy(tmp_mat,s_derivs(m+1)%matrix,error=error)
+       CALL cp_dbcsr_desymmetrize(tmp_mat,tmp_mat2,error=error)
+       CALL cp_dbcsr_iterator_start(iter, tmp_mat2)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+          IF(row_atom==col_atom) block_values=0
+          block_values=-block_values*particle_set(col_atom)%v(m)
+       END DO
+       CALL cp_dbcsr_iterator_stop (iter) 
+       CALL cp_dbcsr_add(B_mat,tmp_mat2,one,one,error=error)
+    END DO
+    CALL cp_dbcsr_filter(B_mat,rtp%filter_eps,error=error)
     !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
+
     c_map_mat=0
     n=0
     DO j=1,3
@@ -250,49 +197,34 @@ MODULE  rt_propagation_utils
        END DO
     END DO
 
-    DO m=1,3
-       CALL cp_fm_set_all(C_mat(m)%matrix,0.0_dp,0.0_dp,error)
-    END DO
 
+    DO i=1,3
+       CALL cp_dbcsr_set(C_mat(i)%matrix,zero,error=error)
+    END DO
     DO m=1,6
-       CALL copy_dbcsr_to_fm(s_derivs(m+4)%matrix,tmp_mat2,error=error)
-       CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
+       CALL cp_dbcsr_copy(tmp_mat,s_derivs(m+4)%matrix,error=error)
+       CALL cp_dbcsr_desymmetrize(tmp_mat,tmp_mat2,error=error)
        DO j=1,2
           IF(c_map_mat(m,j)==0)CYCLE
-          CALL cp_fm_scale_and_add(1.0_dp,C_mat(c_map_mat(m,j))%matrix,-1.0_dp,tmp_mat2,error)
+          CALL cp_dbcsr_add(C_mat(c_map_mat(m,j))%matrix,tmp_mat2,one,-one,error)
        END DO
     END DO
+
     DO m=1,3
-       NULLIFY(local_data)
-       CALL cp_fm_get_info(C_mat(m)%matrix,local_data=local_data,error=error)
-       DO icol_local=1,ncol_local
-          DO irow_local=1,nrow_local
-             irow_global=row_indices(irow_local)
-             irow_atom=row_atom_index(irow_local)
-             icol_global=col_indices(icol_local)
-             icol_atom=col_atom_index(icol_local)
-
-             local_data(irow_local,icol_local)=local_data(irow_local,icol_local)*&
-                  particle_set(irow_atom)%v(m)
-          ENDDO
-       ENDDO
+       CALL cp_dbcsr_iterator_start(iter, C_mat(m)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+          block_values=block_values*particle_set(row_atom)%v(m)
+       END DO
+       CALL cp_dbcsr_iterator_stop (iter)
+       CALL cp_dbcsr_filter(C_mat(m)%matrix,rtp%filter_eps,error=error)
     END DO
+    CALL cp_dbcsr_deallocate_matrix_set(s_derivs,error=error)
 
-    CALL cp_fm_release(tmp_mat,error)
-    CALL cp_fm_release(tmp_mat2,error)
-    CALL cp_dbcsr_deallocate_matrix_set(s_derivs,error)
-    DEALLOCATE(row_atom_index,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(col_atom_index,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (first_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (last_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    CALL cp_dbcsr_deallocate_matrix(tmp_mat,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp_mat2,error=error)
     CALL timestop(handle)
-
-  END SUBROUTINE calc_S_derivs
+  END SUBROUTINE
 
 
 ! *****************************************************************************
@@ -354,7 +286,7 @@ MODULE  rt_propagation_utils
             id_nr,dft_control%multiplicity,dft_section, error)
     END SELECT
 
-! Can't quite see how things end up on mo array in case of rt_restart???
+
     DO ispin=1,nspin
        CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
             p_rmpv(ispin)%matrix,error=error)
@@ -410,6 +342,8 @@ MODULE  rt_propagation_utils
 ! *****************************************************************************
 !> \brief calculates the three additional force contributions needed in EMD
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
+!> \par History
+!>      02.2014 switched to dbcsr matrices [Samuel Andermatt]
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -421,187 +355,150 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol_atom, icol_global, icol_local, ikind, &
-      im, irow_atom, irow_global, irow_local, ispin, kind_atom, nao, natom, &
-      ncol_local, nmo, nrow_local, re, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, col_atom_index, &
-                                                first_sgf, kind_of, last_sgf, &
-                                                row_atom_index
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, cforce(2,3)
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    INTEGER                                  :: col_atom, handle, i, ikind, &
+                                                im, ispin, kind_atom, n, &
+                                                natom, re, row_atom, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    LOGICAL                                  :: failure, found
+    REAL(dp), DIMENSION(:), POINTER          :: block_values, block_values2
+    REAL(KIND=dp)                            :: one = 1.0_dp, zero = 0.0_dp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: C_mat, mos_new, S_der, SinvB, &
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: C_mat, rho_new, S_der, SinvB, &
                                                 SinvH
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: B_mat, S_inv, tmp_mat, &
-                                                tmp_mat1, tmp_mat2, tmp_mat3, &
-                                                tmp_mo1, tmp_mo2
+    TYPE(cp_dbcsr_type), POINTER             :: S_inv, tmp
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(rtp,particle_set,atomic_kind_set,mos)
+    NULLIFY(rtp,particle_set,atomic_kind_set)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,particle_set=particle_set,&
-                 atomic_kind_set=atomic_kind_set,mos=mos,force=force,error=error)
+                 atomic_kind_set=atomic_kind_set,force=force,error=error)
 
-    CALL get_rtp(rtp=rtp,C_mat=C_mat,mos_new=mos_new,error=error)
+    CALL get_rtp(rtp=rtp,C_mat=C_mat,S_der=S_der,S_inv=S_inv,&
+                 SinvH=SinvH,SinvB=SinvB,error=error)
 
     natom = SIZE(particle_set)
-    ALLOCATE (first_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
-         error=error)
-
-    CALL cp_fm_get_info(C_mat(1)%matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
-          row_indices=row_indices, col_indices=col_indices, &
-          error=error)
-
-    CALL cp_fm_create(tmp_mat,C_mat(1)%matrix%matrix_struct,error=error)
-    CALL cp_fm_create(tmp_mat1,C_mat(1)%matrix%matrix_struct,error=error)
-    CALL cp_fm_create(tmp_mat2,C_mat(1)%matrix%matrix_struct,error=error)
-    CALL cp_fm_create(tmp_mat3,C_mat(1)%matrix%matrix_struct,error=error)
-
     ALLOCATE (atom_of_kind(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(row_atom_index(SIZE(row_indices)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO irow_local=1,nrow_local
-       irow_global=row_indices(irow_local)
-       DO iatom=1,natom
-          IF (first_sgf(iatom)<=irow_global .AND. irow_global <= last_sgf(iatom)) EXIT
-       ENDDO
-       row_atom_index(irow_local)=iatom
-    ENDDO
-
-    ALLOCATE(col_atom_index(SIZE(col_indices)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO icol_local=1,ncol_local
-       icol_global=col_indices(icol_local)
-       DO iatom=1,natom
-          IF (first_sgf(iatom)<=icol_global .AND. icol_global <= last_sgf(iatom)) EXIT
-       ENDDO
-       col_atom_index(icol_local)=iatom
-    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
 
-    CALL cp_fm_create(dp_imag,&
-         matrix_struct=qs_env%rtp%B_mat%matrix_struct,&
-         name="dp_imag",&
-         error=error)
+    NULLIFY(tmp)
+    ALLOCATE(tmp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=SinvB(1)%matrix,error=error)
 
 
-    DO ispin=1,SIZE(mos)
+    IF(rtp%linear_scaling) THEN
+       CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+    ELSE
+       CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
+       CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+       CALL cp_fm_create(dp_imag,&
+       matrix_struct=rtp%ao_ao_fmstruct,&
+       name="dp_imag",&
+       error=error)
+       NULLIFY(rho_new)
+       CALL cp_dbcsr_allocate_matrix_set(rho_new,SIZE(mos_new),error=error)
+       DO i=1,SIZE(rho_new)
+          CALL cp_dbcsr_init_p(rho_new(i)%matrix,error=error)
+          CALL cp_dbcsr_create(rho_new(i)%matrix,template=C_mat(1)%matrix,error=error)
+       ENDDO
+    END IF
+
+
+    DO ispin=1,SIZE(SinvH)
        re=2*ispin-1
        im=2*ispin
-       CALL calculate_dp_imag(dp_imag,mos_new(re:im),mos(ispin)%mo_set,error)
+       IF(.NOT.rtp%linear_scaling) THEN
+           CALL calculate_dp_imag(dp_imag,mos_new(re:im),mos(ispin)%mo_set,error)
+           CALL copy_fm_to_dbcsr(dp_imag,rho_new(im)%matrix,error=error)
+           !TODO: get the matrix from the mo's without fixing the sparsity
+           CALL get_qs_env(qs_env=qs_env,rho=rho,error=error)
+           !CALL cp_dbcsr_print(rho_new(im)%matrix,matlab_format=.TRUE.,error=error)
+           CALL cp_dbcsr_copy(rho_new(re)%matrix,rho%rho_ao(ispin)%matrix,error=error)
+       END IF
 
-       alpha=mos(ispin)%mo_set%maxocc
-
-       ! calculate the W matrix analogue for EMD
-       ! calculate B_mat force
-
-       CALL get_rtp(rtp=rtp,B_mat=B_mat,S_der=S_der,S_inv=S_inv,SinvH=SinvH,SinvB=SinvB,mos_new=mos_new,error=error)
-       CALL cp_fm_get_info(mos_new(re)%matrix,nrow_global=nao,ncol_global=nmo,error=error)
-
-       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,ncol_global=nao,&
-            para_env=mos_new(re)%matrix%matrix_struct%para_env, &
-            context=mos_new(re)%matrix%matrix_struct%context,error=error)
-
-       CALL cp_fm_create(tmp_mo1,tmp_fm_struct,error=error)
-       CALL cp_fm_create(tmp_mo2,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(im)%matrix,SinvB(ispin)%matrix,0.0_dp,tmp_mo1,error=error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(re)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo1,error=error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,-alpha,mos_new(re)%matrix,SinvB(ispin)%matrix,0.0_dp,tmp_mo2,error=error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(im)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo2,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(re)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(im)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
-
-
-       CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
-
-       !C_mat forces
-
-       CALL cp_fm_transpose(dp_imag,tmp_mat2,error)
-       CALL cp_fm_get_info(tmp_mat2,local_data=local_data,error=error)
-
-       !This loop evaluates all forces, and puts them in the right place
+       CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&
+            filter_eps=rtp%filter_eps,error=error)
+       CALL cp_dbcsr_multiply("N","N",-one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,filter_eps=rtp%filter_eps,error=error)
        DO i=1,3
-          CALL cp_fm_transpose(C_mat(i)%matrix,tmp_mat3,error)
+          !Calculate the sum over the hadmard product
+          !S_der part
 
-          DO icol_local=1,ncol_local
-             DO irow_local=1,nrow_local
-
-                icol_atom=col_atom_index(icol_local)
-                irow_atom=row_atom_index(irow_local)
-                ikind=kind_of(icol_atom)
-                kind_atom=atom_of_kind(icol_atom)
-
+          CALL cp_dbcsr_iterator_start(iter, tmp)
+          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+             CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+             ALLOCATE(block_values2(SIZE(block_values)))
+             CALL cp_dbcsr_get_block(S_der(i)%matrix, row_atom, col_atom, block_values2, found=found)
+             IF(found) THEN
+                ikind=kind_of(col_atom)
+                kind_atom=atom_of_kind(col_atom)
+                !The block_values are in a vector format, so the dot_product is the sum over all elements of the hamand product, that I need
                 force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
-                     tmp_mat%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)-&
-                     local_data(irow_local,icol_local)* C_mat(i)%matrix%local_data(irow_local,icol_local)
-                ikind=kind_of(irow_atom)
-                kind_atom=atom_of_kind(irow_atom)
-
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
-                     tmp_mat1%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)+ &
-                     local_data(irow_local,icol_local)* tmp_mat3%local_data(irow_local,icol_local)
-                cforce(kind_atom,i)=cforce(kind_atom,i)+local_data(irow_local,icol_local)* &
-                                     tmp_mat3%local_data(irow_local,icol_local)
-             END DO
+                2*DOT_PRODUCT(block_values,block_values2)
+             ENDIF
+             DEALLOCATE(block_values2)
           END DO
+          CALL cp_dbcsr_iterator_stop (iter)
+
+          !C_mat part
+
+          CALL cp_dbcsr_iterator_start(iter, rho_new(im)%matrix)
+          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+             CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+             ALLOCATE(block_values2(SIZE(block_values)))
+             CALL cp_dbcsr_get_block(C_mat(i)%matrix,row_atom,col_atom,block_values2,found=found)
+             IF(found) THEN
+                ikind=kind_of(col_atom)
+                kind_atom=atom_of_kind(col_atom)
+                !The block_values are in a vector format, so the dot_product is the sum over all elements of the hamand product, that I need
+                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
+                2*DOT_PRODUCT(block_values,block_values2)
+             ENDIF
+             DEALLOCATE(block_values2)
+          END DO
+          CALL cp_dbcsr_iterator_stop (iter)
        END DO
 
-       ! recall QS forces, at this point have the other sign.
-       CALL cp_fm_release(tmp_mo1,error)
-       CALL cp_fm_release(tmp_mo2,error)
-
     END DO
+
     ! recall QS forces, at this point have the other sign.
     DO i=1,SIZE(force)
        force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)
+       !write(*,*) force(i)%ehrenfest(:,:)
     END DO
 
-    CALL cp_fm_release(tmp_mat,error)
-    CALL cp_fm_release(tmp_mat1,error)
-    CALL cp_fm_release(tmp_mat2,error)
-    CALL cp_fm_release(tmp_mat3,error)
-    CALL cp_fm_release(dp_imag,error)
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    IF(.NOT.rtp%linear_scaling) THEN
+       CALL cp_fm_release(dp_imag,error)
+       CALL cp_dbcsr_deallocate_matrix_set(rho_new,error)
+    ENDIF
 
-    DEALLOCATE(row_atom_index,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(col_atom_index,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (first_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (last_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (atom_of_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL timestop(handle)
-  END SUBROUTINE calc_c_mat_force
+  END SUBROUTINE
 
 END MODULE rt_propagation_utils

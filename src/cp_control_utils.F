@@ -1778,6 +1778,8 @@ CPSourceFileRef,&
       l_val=dft_control%rtp_control%apply_delta_pulse,error=error)
     CALL section_vals_val_get(rtp_section,"PERIODIC",&
       l_val=dft_control%rtp_control%periodic,error=error)
+    CALL section_vals_val_get(rtp_section,"DENSITY_PROPAGATION",&
+      l_val=dft_control%rtp_control%linear_scaling,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_SCALE",&
       r_val=dft_control%rtp_control%delta_pulse_scale,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_DIRECTION",&

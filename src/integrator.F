@@ -585,7 +585,7 @@ CONTAINS
           !  will be handled better in the next step of the implementation
           IF(i_iter==n_iter)&
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"EMD did not converge, either increase MAX_ITER"//&
+                 routineP,"EMD did not converge, either increase MAX_ITER "//&
                  "or use a smaller TIMESTEP",&
                  error,failure)
        END IF

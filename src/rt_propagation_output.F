@@ -12,8 +12,18 @@ MODULE rt_propagation_output
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_desymmetrize,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add
@@ -58,7 +68,8 @@ MODULE rt_propagation_output
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_output'
 
   PUBLIC :: rt_prop_output,&
-            rt_convergence
+            rt_convergence,&
+            rt_convergence_density
 
 CONTAINS
 
@@ -90,7 +101,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
          atomic_kind_set=atomic_kind_set,error=error)
-    CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+    IF(.NOT.rtp%linear_scaling) CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
@@ -135,9 +146,10 @@ CONTAINS
            "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
        END IF
     END IF
-    IF(rtp%converged)THEN
+    !TODO: For density propagation output the idempotency
+    IF(rtp%converged.AND.(.NOT.rtp%linear_scaling)) THEN
        CALL rt_calculate_orthonormality(output_unit,orthonormality,&
-        mos_new,matrix_s(1)%matrix,error)
+            mos_new,matrix_s(1)%matrix,error)
        IF(output_unit>0)&
             WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
             "Max deviation from orthonormalization:",orthonormality
@@ -154,8 +166,9 @@ CONTAINS
        CALL make_moment(qs_env,error)
        CALL write_available_results(qs_env=qs_env,error=error)
        dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-       CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
-
+       !TODO: make a restart for density propagation
+       IF (.NOT. rtp%linear_scaling)&
+          CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
     END IF
 
   END SUBROUTINE rt_prop_output
@@ -361,12 +374,87 @@ CONTAINS
       CALL cp_fm_struct_release(newstruct1,error=error)
 
    ENDDO
+
    CALL mp_max(max_alpha,delta_mos(1)%matrix%matrix_struct%para_env%group)
    delta_eps=SQRT(max_alpha)
 
    CALL timestop(handle)
 
  END SUBROUTINE rt_convergence
+
+! *****************************************************************************
+!> \brief computs the convergence criterium for RTP and EMD based on the density matrix
+!> \author Samuel Andermatt (02.14)
+! *****************************************************************************
+
+ SUBROUTINE rt_convergence_density(qs_env,delta_P,delta_eps,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: delta_P
+    REAL(dp)                                 :: delta_eps
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: col_atom, handle, i, ispin, &
+                                                row_atom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: alpha, max_alpha
+    REAL(dp), DIMENSION(:), POINTER          :: block_values
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_new
+    TYPE(cp_dbcsr_type), POINTER             :: tmp
+    TYPE(rt_prop_type), POINTER              :: rtp
+
+   CALL timeset(routineN,handle)
+
+   failure=.FALSE.
+
+   CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
+   CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+
+   DO i=1,SIZE(rho_new)
+      CALL cp_dbcsr_add(delta_P(i)%matrix,rho_new(i)%matrix,one,-one,error=error)
+   ENDDO
+   !get the maximum value of delta_P
+   DO i=1,SIZE(delta_P)
+      !square all entries of both matrices
+       CALL cp_dbcsr_iterator_start(iter, delta_P(i)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+          block_values=block_values*block_values
+       END DO
+       CALL cp_dbcsr_iterator_stop (iter)
+   END DO
+   NULLIFY(tmp)
+   ALLOCATE(tmp)
+   CALL cp_dbcsr_init(tmp,error=error)
+   CALL cp_dbcsr_create(tmp,template=delta_P(1)%matrix,matrix_type="N",error=error)
+   DO ispin=1,SIZE(delta_P)/2
+      CALL cp_dbcsr_desymmetrize(delta_P(2*ispin-1)%matrix,tmp,error=error)
+      CALL cp_dbcsr_add(delta_P(2*ispin)%matrix,tmp,one,one,error=error)
+   END DO
+   !the absolute values are now in the even entries of delta_P
+   max_alpha=zero
+   DO ispin=1,SIZE(delta_P)/2
+       CALL cp_dbcsr_iterator_start(iter, delta_P(2*ispin)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+          alpha=MAXVAL(block_values)
+          IF(alpha>max_alpha) max_alpha=alpha
+       END DO
+       CALL cp_dbcsr_iterator_stop (iter)
+   END DO
+   CALL mp_max(max_alpha,delta_P(1)%matrix%matrix%m%dist%d%mp_env%mp%mp_group)
+   delta_eps=SQRT(max_alpha)
+   CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+   CALL timestop(handle)
+
+ END SUBROUTINE rt_convergence_density
 
 ! *****************************************************************************
 !> \brief interface to qs_moments. Does only work for nonperiodic dipole

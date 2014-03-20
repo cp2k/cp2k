@@ -361,3 +361,6 @@ H2O-hfx-emd-restart.inp
 # fotgot to add density update
 H2O-hfx-emd.inp
 H2O-hfx-emd-restart.inp
+# switching to sparse linear algebra
+H2O-hfx-emd.inp
+H2O-hfx-emd-restart.inp

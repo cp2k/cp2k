@@ -63,7 +63,8 @@ MODULE rt_propagation
                                              rt_prop_type,&
                                              rtp_history_create
   USE rt_propagation_utils,            ONLY: get_restart_wfn
-  USE rt_propagator_init,              ONLY: init_propagators
+  USE rt_propagator_init,              ONLY: init_propagators,&
+                                             rt_initialize_rho_from_ks
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -101,7 +102,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(section_vals_type), POINTER         :: hfx_sections, md_section, &
+    TYPE(section_vals_type), POINTER         :: hfx_sections, input, &
+                                                ls_scf_section, md_section, &
                                                 motion_section
 
     failure=.FALSE.
@@ -111,15 +113,17 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
+
     ! Takes care that an initial wavefunction/density is available
     ! Can either be by performing an scf loop or reading a restart
     CALL rt_initial_guess(qs_env,force_env,rtp_control,error)
 
     ! Initializes the extrapolation
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,input=input,error=error)
     aspc_order=rtp_control%aspc_order
     extrapolate_H=(rtp_control%extrapolation==extr_s_ks)
-    CALL rtp_history_create(rtp,extrapolate_H,aspc_order,error)
+    CALL rtp_history_create(rtp,aspc_order,error=error)
+
 
     ! Reads the simulation parameters from the input
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
@@ -128,7 +132,15 @@ CONTAINS
     CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt,error=error)
     CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=qs_env%rtp%i_start,error=error)
     CALL section_vals_val_get(md_section,"STEPS",i_val=rtp%nsteps,error=error)
+
+    ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF",error=error)
+    CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=rtp%filter_eps,error=error)
+    CALL section_vals_val_get(ls_scf_section,"EPS_LANCZOS",r_val=rtp%lanzcos_threshold,error=error)
+    CALL section_vals_val_get(ls_scf_section,"MAX_ITER_LANCZOS",i_val=rtp%lanzcos_max_iter,error=error)
+    CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order,error=error)
     CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
+
+    IF(qs_env%rtp%linear_scaling) CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,error=error)
  
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this
@@ -138,8 +150,8 @@ CONTAINS
                rtp%rtp_hfx%matrix_p_admm_im,rtp%rtp_hfx%matrix_ks_admm_im)
        CALL rtp_hfx_rebuild(qs_env,error)
     END IF
-    
-    IF(rtp_control%fixed_ions)THEN
+
+    IF(rtp_control%fixed_ions) THEN
        CALL init_propagation_run(qs_env,error)
        CALL run_propagation(qs_env,force_env,globenv,error)
     ELSE
@@ -169,34 +181,36 @@ CONTAINS
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL get_qs_env(qs_env,&
-         mos=mos,&
          rtp=rtp,&
          error=error)
     rtp_control=>qs_env%dft_control%rtp_control
-    CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
 
-    IF(rtp_control%initial_wfn==use_scf_wfn)THEN
-      IF (rtp_control%apply_delta_pulse) THEN
-         IF(qs_env%dft_control%qs_control%dftb)&
-            CALL build_dftb_overlap(qs_env,1,qs_env%matrix_s,error)
-         IF (rtp_control%periodic) THEN
-           CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
+    IF(.NOT.rtp%linear_scaling) THEN
+       CALL get_qs_env(qs_env,mos=mos,error=error)
+       CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+       IF(rtp_control%initial_wfn==use_scf_wfn)THEN
+         IF (rtp_control%apply_delta_pulse) THEN
+            IF(qs_env%dft_control%qs_control%dftb)&
+               CALL build_dftb_overlap(qs_env,1,qs_env%matrix_s,error)
+            IF (rtp_control%periodic) THEN
+              CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
+            ELSE
+              CALL apply_delta_pulse(qs_env,mos_old,mos_new,error)
+            ENDIF
          ELSE
-           CALL apply_delta_pulse(qs_env,mos_old,mos_new,error)
+            DO i=1,SIZE(mos)
+                CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
+                CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
+            END DO
          ENDIF
-      ELSE
-         DO i=1,SIZE(mos)
-             CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
-             CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
-         END DO
-      ENDIF
+       END IF
+
+       DO i=1,SIZE(mos_old)
+          CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
+       END DO
+       CALL calc_update_rho(qs_env,error)
     END IF
-
-    DO i=1,SIZE(mos_old)
-       CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
-    END DO
-
-    CALL calc_update_rho(qs_env,error)
+  
     CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
                              error=error)
 
@@ -289,7 +303,6 @@ CONTAINS
     max_iter=qs_env%dft_control%rtp_control%max_iter
     eps_ener=qs_env%dft_control%rtp_control%eps_ener
 
-
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,energy=energy,error=error)
     aspc_order=rtp_control%aspc_order
 
@@ -299,30 +312,25 @@ CONTAINS
     CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
     DO i_step=rtp%i_start+1,max_steps
        qs_env%energy%efield_core=0.0_dp
-
        qs_env%sim_time=REAL(i_step,dp)*rtp%dt
        qs_env%sim_step=i_step
        rtp%istep=i_step-rtp%i_start
        CALL calculate_ecore_efield(qs_env,.FALSE.,error)
        CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
        CALL external_e_potential(qs_env,error=error)
-
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
        rtp%converged=.FALSE.
        DO i_iter=1,max_iter
           IF(i_step==rtp%i_start+1.AND.i_iter==2.AND.rtp_control%hfx_redistribute)&
               CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
           rtp%iter=i_iter
-
           CALL propagation_step(qs_env, error)
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-                                   error=error)
-
+               error=error)
           rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
           CALL rt_prop_output(qs_env,real_time_propagation,rtp%delta_iter,error=error)
        END DO
-
        IF(rtp%converged)THEN
           CALL external_control(should_stop,"MD",globenv=globenv,error=error)
           IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
@@ -331,7 +339,7 @@ CONTAINS
           time_iter_start=time_iter_stop
           CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=rtp%delta_iter,used_time=used_time,error=error)
           CALL rt_write_input_restart(force_env=force_env,error=error)
-          IF (should_stop)EXIT
+          IF (should_stop)  EXIT
        ELSE
           EXIT
        END IF
@@ -413,7 +421,8 @@ CONTAINS
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
+                           rtp_control%linear_scaling,error)
 
     CASE(use_restart_wfn,use_rt_restart)
        CALL qs_energies_init(qs_env, .FALSE. , error)
@@ -449,7 +458,8 @@ CONTAINS
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
+                           rtp_control%linear_scaling,error)
        CALL get_restart_wfn(qs_env,error)
 
 
