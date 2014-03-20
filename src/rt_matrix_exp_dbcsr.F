@@ -189,7 +189,7 @@ END SUBROUTINE
 SUBROUTINE cp_complex_dbcsr_gemm(transa, transb, alpha, A_re, A_im,&
            B_re, B_im, beta, C_re, C_im,&
            first_row, last_row, first_column, last_column, first_k, last_k,&
-           retain_sparsity, filter_eps, error, flop)
+           retain_sparsity, filter_eps, error)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: A_re, A_im, B_re, B_im
@@ -201,7 +201,6 @@ SUBROUTINE cp_complex_dbcsr_gemm(transa, transb, alpha, A_re, A_im,&
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_dbcsr_gemm', &
       routineP = moduleN//':'//routineN
