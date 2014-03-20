@@ -407,7 +407,7 @@ END SUBROUTINE
     !Fuse the input matrices to a single complex matrix
     CALL cp_dbcsr_copy(T3,re_part,error=error)
     CALL cp_dbcsr_copy(Tres,im_part,error=error) !will later on be set back to zero
-    CALL cp_dbcsr_scale(Tres,COMPLEX(0.0_dp,1.0_dp),error=error)
+    CALL cp_dbcsr_scale(Tres,CMPLX(0.0_dp,1.0_dp),error=error)
     CALL cp_dbcsr_add(T3,Tres,one,one,error=error)
 
     !Create the unit matrices
@@ -416,7 +416,7 @@ END SUBROUTINE
     CALL cp_dbcsr_set(Tres,zero,error=error)
     CALL cp_dbcsr_add_on_diag(Tres,1.0_dp,error=error)
 
-    tmp=COMPLEX(1.0_dp,0.0_dp)
+    tmp=CMPLX(1.0_dp,0.0_dp)
 
     DO i=1,ntaylor
        tmp=tmp*REAL(i,dp)
@@ -436,7 +436,7 @@ END SUBROUTINE
     END IF
 
     CALL cp_dbcsr_copy(exp_H(1)%matrix,Tres,keep_imaginary=.FALSE.,error=error)
-    CALL cp_dbcsr_scale(Tres,COMPLEX(0.0_dp,-1.0_dp),error=error)
+    CALL cp_dbcsr_scale(Tres,CMPLX(0.0_dp,-1.0_dp),error=error)
     CALL cp_dbcsr_copy(exp_H(2)%matrix,Tres,keep_imaginary=.FALSE.,error=error)
 
 
@@ -531,9 +531,9 @@ END SUBROUTINE
     CALL cp_dbcsr_set(T2,zero,error=error)
     CALL cp_dbcsr_copy(T2,re_part,error=error)
     CALL cp_dbcsr_copy(tmp,im_part,error=error)
-    CALL cp_dbcsr_scale(tmp,COMPLEX(0.0_dp,1.0_dp),error=error)
+    CALL cp_dbcsr_scale(tmp,CMPLX(0.0_dp,1.0_dp),error=error)
     CALL cp_dbcsr_add(T2,tmp,one,one,error=error)
-    CALL cp_dbcsr_scale(T2,COMPLEX(1/square_fac,0.0_dp),error=error)
+    CALL cp_dbcsr_scale(T2,CMPLX(1/square_fac,0.0_dp),error=error)
 
     CALL cp_dbcsr_copy(T1,T2,error=error)
 
@@ -594,7 +594,7 @@ END SUBROUTINE
     END IF
 
     CALL cp_dbcsr_copy(exp_H(1)%matrix,fin_p,keep_imaginary=.FALSE.,error=error)
-    CALL cp_dbcsr_scale(fin_p,COMPLEX(0.0_dp,-1.0_dp),error=error)
+    CALL cp_dbcsr_scale(fin_p,CMPLX(0.0_dp,-1.0_dp),error=error)
     CALL cp_dbcsr_copy(exp_H(2)%matrix,fin_p,keep_imaginary=.FALSE.,error=error)
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
@@ -690,7 +690,7 @@ END SUBROUTINE
     square_fac=1/(2.0_dp**REAL(nsquare,dp))
 
     CALL cp_dbcsr_copy(tmp,im_part,error=error)
-    CALL cp_dbcsr_scale(tmp,COMPLEX(0.0_dp,square_fac),error=error) !Why multiply with square_fac and not divide?
+    CALL cp_dbcsr_scale(tmp,CMPLX(0.0_dp,square_fac),error=error) !Why multiply with square_fac and not divide?
 
     CALL cp_dbcsr_add(Npq,tmp,one,one*0.5_dp,error=error)
     CALL cp_dbcsr_add(Dpq,tmp,one,-one*0.5_dp,error=error)
@@ -712,8 +712,8 @@ END SUBROUTINE
              scaleD=-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
              CALL cp_dbcsr_multiply("N","N",square_fac,im_part,Tres,rzero,T2,filter_eps=filter_eps,error=error)
              CALL cp_dbcsr_copy(tmp,T2,error=error) !This makes it a complex matrix so it can be added
-             CALL cp_dbcsr_add(Npq,tmp,one,scaleN*COMPLEX(0.0_dp,1.0_dp),error=error)
-             CALL cp_dbcsr_add(Dpq,tmp,one,scaleD*COMPLEX(0.0_dp,1.0_dp),error=error)
+             CALL cp_dbcsr_add(Npq,tmp,one,scaleN*CMPLX(0.0_dp,1.0_dp),error=error)
+             CALL cp_dbcsr_add(Dpq,tmp,one,scaleD*CMPLX(0.0_dp,1.0_dp),error=error)
           ENDIF
        END DO
     END IF
@@ -754,7 +754,7 @@ END SUBROUTINE
     END IF
 
     CALL cp_dbcsr_copy(exp_H(1)%matrix,fin_p,keep_imaginary=.FALSE.,error=error)
-    CALL cp_dbcsr_scale(fin_p,COMPLEX(0.0_dp,-1.0_dp),error=error)
+    CALL cp_dbcsr_scale(fin_p,CMPLX(0.0_dp,-1.0_dp),error=error)
     CALL cp_dbcsr_copy(exp_H(2)%matrix,fin_p,keep_imaginary=.FALSE.,error=error)
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
