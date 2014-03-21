@@ -422,7 +422,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,error)
+                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
 
     CASE(use_restart_wfn,use_rt_restart)
        CALL qs_energies_init(qs_env, .FALSE. , error)
@@ -459,7 +459,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,error)
+                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
        CALL get_restart_wfn(qs_env,error)
 
 

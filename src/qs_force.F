@@ -34,6 +34,7 @@ MODULE qs_force
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
+  USE rtp_admm_methods,                ONLY: rt_admm_force
   USE harris_env_types,                ONLY: harris_env_set,&
                                              harris_env_type
   USE harris_force,                    ONLY: harris_force_correction
@@ -248,6 +249,8 @@ CONTAINS
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
        CALL calc_c_mat_force(qs_env,dp_imag,error)
+       IF(qs_env%dft_control%do_admm)&
+          CALL rt_admm_force(qs_env,error)
     END IF
 
     IF (.NOT.has_unit_metric) THEN
@@ -326,8 +329,7 @@ CONTAINS
        END IF
 
        ! Add forces resulting from wavefunction fitting
-
-       IF (dft_control%do_admm ) THEN
+       IF (dft_control%do_admm.AND..NOT.qs_env%run_rtp ) THEN
           CALL get_qs_env(qs_env=qs_env,&
                matrix_s_aux_fit=matrix_s_aux_fit,&
                matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -337,7 +339,6 @@ CONTAINS
           DO ispin=1,nspin             
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
-
              ! if no purification we need to calculate the H matrix for forces
              IF (admm_env%purification_method==do_admm_purify_none) THEN
                 CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&

@@ -136,11 +136,11 @@ MODULE rt_propagation_types
 CONTAINS
 
 
-  SUBROUTINE rt_prop_create(rtp,mos,mpools,dft_control,template,linear_scaling,error)
+  SUBROUTINE rt_prop_create(rtp,mos,mpools,dft_control,template,linear_scaling,mos_aux,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: mos, mos_aux
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_dbcsr_type), POINTER             :: template
@@ -203,13 +203,17 @@ CONTAINS
             template_fmstruct=ao_mo_fmstruct, error=error)
        ALLOCATE(rtp%mos,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(rtp%mos%admm)
        ALLOCATE(rtp%mos%old(2*nspin),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(rtp%mos%new(2*nspin),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(rtp%mos%next(2*nspin),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(rtp%mos%admm)
+       IF(dft_control%do_admm)THEN
+          ALLOCATE(rtp%mos%admm(2*nspin),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        DO i=1,nspin
           DO j=1,2
              NULLIFY(rtp%mos%old(2*(i-1)+j)%matrix)
@@ -227,6 +231,13 @@ CONTAINS
                   matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
                   name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                   error=error)
+             IF(dft_control%do_admm)THEN
+                  NULLIFY(rtp%mos%admm(2*(i-1)+j)%matrix)
+                  CALL cp_fm_create(rtp%mos%admm(2*(i-1)+j)%matrix,&
+                     matrix_struct=mos_aux(i)%mo_set%mo_coeff%matrix_struct,&
+                     name="mos_admm"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
+                     error=error)
+             END IF
           END DO
        END DO
     END IF
