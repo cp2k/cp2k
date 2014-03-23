@@ -90,6 +90,7 @@ MODULE rpa_ri_gpw
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_ri_compute_en', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: occ_chunk = 128
 
     INTEGER :: a, best_integ_group_size, best_num_integ_point, &
       color_rpa_group, dimen_ia, dimen_ia_beta, handle, handle2, i, &
@@ -99,9 +100,10 @@ MODULE rpa_ri_gpw
       my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
       my_group_L_start, my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, &
       my_ia_size_beta, my_ia_start, my_ia_start_beta, ngroup, &
-      num_integ_group, num_integ_points, pos_integ_group, proc_receive, &
-      proc_send, proc_shift, rec_B_size, rec_B_virtual_end
-    INTEGER :: rec_B_virtual_start, stat, virtual, virtual_beta
+      num_integ_group, num_integ_points, occ_high, occ_low, pos_integ_group, &
+      proc_receive, proc_send, proc_shift, rec_B_size
+    INTEGER :: rec_B_virtual_end, rec_B_virtual_start, stat, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_ia, ends_ia_beta, &
                                                 sizes_ia, sizes_ia_beta, &
                                                 starts_ia, starts_ia_beta, &
@@ -341,8 +343,10 @@ MODULE rpa_ri_gpw
     ! reorder data
     ALLOCATE(BIb_C_2D(my_ia_size,my_group_L_size),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    BIb_C_2D=0.0_dp
 
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
+    !$OMP          SHARED(homo,my_B_size,virtual,my_B_virtual_start,my_ia_start,my_ia_end,BIb_C,BIb_C_2D,&
+    !$OMP          my_group_L_size)
     DO iiB=1, homo
       DO jjB=1, my_B_size
         ia_global=(iiB-1)*virtual+my_B_virtual_start+jjB-1
@@ -360,23 +364,30 @@ MODULE rpa_ri_gpw
       rec_B_virtual_end=ends_B_virtual(proc_receive)
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
-      ALLOCATE(BIb_C_rec(my_group_L_size,rec_B_size,homo),STAT=stat)
+      ! do this in chunks to avoid high memory overhead  for both BIb_C_rec and buffers in mp_sendrecv 
+      ! TODO: fix this more cleanly with a rewrite sending only needed data etc.
+      ! TODO: occ_chunk should presumably be precomputed so that messages are limited to e.g. 100Mb.
+      ALLOCATE(BIb_C_rec(my_group_L_size,rec_B_size,MIN(homo,occ_chunk)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      BIb_C_rec=0.0_dp
+
+      DO occ_low=1,homo,occ_chunk
+         occ_high=MIN(homo,occ_low+occ_chunk-1)
+         CALL  mp_sendrecv(BIb_C(:,:,occ_low:occ_high),proc_send,&
+                           BIb_C_rec(:,:,1:occ_high-occ_low+1),proc_receive,&
+                           para_env_sub%group)
+         !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
+         !$OMP          SHARED(occ_low,occ_high,rec_B_size,virtual,rec_B_virtual_start,my_ia_start,my_ia_end,BIb_C_rec,BIb_C_2D,&
+         !$OMP                 my_group_L_size)
+         DO iiB=occ_low, occ_high
+           DO jjB=1, rec_B_size
+             ia_global=(iiB-1)*virtual+rec_B_virtual_start+jjB-1
+             IF(ia_global>=my_ia_start.AND.ia_global<=my_ia_end) THEN
+               BIb_C_2D(ia_global-my_ia_start+1,1:my_group_L_size)=BIb_C_rec(1:my_group_L_size,jjB,iiB-occ_low+1)
+             END IF
+           END DO
+         END DO
+      ENDDO
       
-      CALL  mp_sendrecv(BIb_C,proc_send,&
-                        BIb_C_rec,proc_receive,&
-                        para_env_sub%group)
-
-      DO iiB=1, homo
-        DO jjB=1, rec_B_size
-          ia_global=(iiB-1)*virtual+rec_B_virtual_start+jjB-1
-          IF(ia_global>=my_ia_start.AND.ia_global<=my_ia_end) THEN
-            BIb_C_2D(ia_global-my_ia_start+1,1:my_group_L_size)=BIb_C_rec(1:my_group_L_size,jjB,iiB)
-          END IF
-        END DO
-      END DO
-
       DEALLOCATE(BIb_C_rec)
     END DO
 
@@ -412,8 +423,10 @@ MODULE rpa_ri_gpw
       ! reorder data
       ALLOCATE(BIb_C_2D_beta(my_ia_size_beta,my_group_L_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      BIb_C_2D_beta=0.0_dp
 
+     !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
+     !$OMP          SHARED(homo_beta,my_B_size_beta,virtual_beta,my_B_virtual_start_beta,&
+     !$OMP                 my_ia_start_beta,my_ia_end_beta,BIb_C_beta,BIb_C_2D_beta,my_group_L_size)
       DO iiB=1, homo_beta
         DO jjB=1, my_B_size_beta
           ia_global=(iiB-1)*virtual_beta+my_B_virtual_start_beta+jjB-1
@@ -431,22 +444,27 @@ MODULE rpa_ri_gpw
         rec_B_virtual_end=ends_B_virtual_beta(proc_receive)
         rec_B_virtual_start=starts_B_virtual_beta(proc_receive)
 
-        ALLOCATE(BIb_C_rec(my_group_L_size,rec_B_size,homo_beta),STAT=stat)
+        ALLOCATE(BIb_C_rec(my_group_L_size,rec_B_size,MIN(homo_beta,occ_chunk)),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-        BIb_C_rec=0.0_dp
 
-        CALL  mp_sendrecv(BIb_C_beta,proc_send,&
-                          BIb_C_rec,proc_receive,&
-                          para_env_sub%group)
+        DO occ_low=1,homo_beta,occ_chunk
+          occ_high=MIN(homo_beta,occ_low+occ_chunk-1)
+          CALL  mp_sendrecv(BIb_C_beta(:,:,occ_low:occ_high),proc_send,&
+                            BIb_C_rec(:,:,1:occ_high-occ_low+1),proc_receive,&
+                            para_env_sub%group)
 
-        DO iiB=1, homo_beta
-          DO jjB=1, rec_B_size
-            ia_global=(iiB-1)*virtual_beta+rec_B_virtual_start+jjB-1
-            IF(ia_global>=my_ia_start_beta.AND.ia_global<=my_ia_end_beta) THEN
-              BIb_C_2D_beta(ia_global-my_ia_start_beta+1,1:my_group_L_size)=BIb_C_rec(1:my_group_L_size,jjB,iiB)
-            END IF
+         !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
+         !$OMP          SHARED(occ_low,occ_high,rec_B_size,virtual_beta,rec_B_virtual_start,&
+         !$OMP                 my_ia_start_beta,my_ia_end_beta,BIb_C_rec,BIb_C_2D_beta,my_group_L_size)
+          DO iiB=occ_low, occ_high
+            DO jjB=1, rec_B_size
+              ia_global=(iiB-1)*virtual_beta+rec_B_virtual_start+jjB-1
+              IF(ia_global>=my_ia_start_beta.AND.ia_global<=my_ia_end_beta) THEN
+                BIb_C_2D_beta(ia_global-my_ia_start_beta+1,1:my_group_L_size)=BIb_C_rec(1:my_group_L_size,jjB,iiB-occ_low+1)
+              END IF
+            END DO
           END DO
-        END DO
+        ENDDO
 
         DEALLOCATE(BIb_C_rec)
       END DO
