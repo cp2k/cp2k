@@ -140,11 +140,13 @@ CONTAINS
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos, mos_aux
+      POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_dbcsr_type), POINTER             :: template
     LOGICAL                                  :: linear_scaling
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_aux
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_create', &

@@ -23,21 +23,18 @@ MODULE rtp_admm_methods
        cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
        cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
        cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set,cp_dbcsr_desymmetrize
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-                                             
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_upper_to_full,&
-                                             cp_complex_fm_gemm
+                                             cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
-USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
@@ -308,10 +305,8 @@ CONTAINS
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    INTEGER                                  :: handle, ispin, istat, &
-                                                nao_aux_fit, nao_orb, nmo, &
-                                                nmo_mos, nspins
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, ispin, nao_aux_fit, &
+                                                nao_orb, nmo, nmo_mos, nspins
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occ_num, occ_num_aux
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
@@ -580,9 +575,9 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: KS_aux_re, matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
-    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_admm
+    TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, matrix_ks_aux_fit=KS_aux_re, matrix_s_aux_fit=matrix_s_aux_fit,&
                      matrix_s_aux_fit_vs_orb= matrix_s_aux_fit_vs_orb , rtp=rtp, error=error)
@@ -609,9 +604,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_forces_none', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: im, ispin, nao, naux, nmo, re, i
+    INTEGER                                  :: im, ispin, nao, naux, nmo, re
     TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
-    TYPE(cp_dbcsr_type)                      :: tmp
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: tmp_aux_aux, tmp_aux_mo, &
                                                 tmp_aux_mo1, tmp_aux_nao

@@ -26,8 +26,7 @@ MODULE rt_matrix_exp_dbcsr
                                              cp_dbcsr_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_8
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac
   USE timings,                         ONLY: timeset,&
                                              timestop

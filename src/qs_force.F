@@ -34,7 +34,6 @@ MODULE qs_force
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE rtp_admm_methods,                ONLY: rt_admm_force
   USE harris_env_types,                ONLY: harris_env_set,&
                                              harris_env_type
   USE harris_force,                    ONLY: harris_force_correction
@@ -73,6 +72,7 @@ MODULE qs_force
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_utils,            ONLY: calc_c_mat_force
+  USE rtp_admm_methods,                ONLY: rt_admm_force
   USE scf_control_types,               ONLY: scf_control_type
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
