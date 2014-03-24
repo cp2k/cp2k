@@ -83,6 +83,9 @@ default_target: all
 ifeq ($(ONEVERSION),)
 ORIG_TARGET = default_target
 
+fes :
+	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
+
 $(EXE_NAMES) all :
 	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
