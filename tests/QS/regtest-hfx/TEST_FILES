@@ -17,5 +17,5 @@ H2O-hfx-emd-restart.inp  2 1E-11
 He-gemopt.inp         1
 H2O-hfx-atprop.inp    1
 H2O-hfx-ls-emd.inp    2
-H2O-hfx-ls-rtp.inp    2
-H2O-hfx-ls-rtp-bch.inp 2
+H2O-hfx-ls-rtp.inp    1
+H2O-hfx-ls-rtp-bch.inp 1
