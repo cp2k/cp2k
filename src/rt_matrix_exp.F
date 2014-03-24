@@ -1166,6 +1166,4 @@ CONTAINS
   END SUBROUTINE arnoldi
 
 
-
-
 END MODULE rt_matrix_exp

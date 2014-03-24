@@ -432,7 +432,6 @@ CONTAINS
        ALLOCATE(S_half)
        CALL cp_dbcsr_init(S_half,error=error)
        CALL cp_dbcsr_create(S_half,template=s_mat(1)%matrix,error=error)
-       CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error) 
        NULLIFY(S_minus_half)
        ALLOCATE(S_minus_half)
        CALL cp_dbcsr_init(S_minus_half,error=error)
@@ -442,6 +441,7 @@ CONTAINS
        CALL cp_dbcsr_multiply("N","N",one,S_minus_half,S_minus_half,zero,S_inv,&
             filter_eps=rtp%filter_eps,error=error)
        CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
+       CALL cp_dbcsr_deallocate_matrix(s_minus_half,error=error)
     ELSE
        CALL cp_dbcsr_copy(S_inv,s_mat(1)%matrix,error=error)
        CALL cp_dbcsr_cholesky_decompose(S_inv,para_env=rtp%ao_ao_fmstruct%para_env,&

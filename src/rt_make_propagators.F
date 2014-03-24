@@ -12,17 +12,14 @@
 MODULE rt_make_propagators
 
   USE cp_control_types,                ONLY: rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_transposed
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
@@ -33,13 +30,15 @@ MODULE rt_make_propagators
                                              do_pade,&
                                              do_taylor
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_max
+  USE message_passing,                 ONLY: mp_abort
   USE rt_matrix_exp,                   ONLY: arnoldi,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
                                              taylor_full_complex,&
                                              taylor_only_imaginary
-  USE rt_matrix_exp_dbcsr,             ONLY: cp_complex_dbcsr_gemm_3,&
+  USE rt_matrix_exp_dbcsr,             ONLY: bch_expansion_complex_propagator,&
+                                             bch_expansion_imaginary_propagator,&
+                                             cp_complex_dbcsr_gemm_3,&
                                              exp_pade_full_complex_dbcsr,&
                                              exp_pade_only_imaginary_dbcsr,&
                                              taylor_full_complex_dbcsr,&
@@ -62,8 +61,7 @@ MODULE rt_make_propagators
             compute_exponential,&
             compute_exponential_sparse,&
             propagate_exp_density,&
-            propagate_bch,&
-            bch_expansion_imaginary_propagator
+            propagate_bch
 
 
 CONTAINS
@@ -297,15 +295,19 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, im, ispin, re
+    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: propagator_matrix, rho_new, &
                                                 rho_next, rho_old
 
     CALL timeset(routineN,handle)
 
+    failure= .FALSE.
 
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix,rho_old=rho_old,rho_new=rho_new,&
          rho_next=rho_next,error=error)
+
+    IF(.NOT.rtp_control%fixed_ions) CALL mp_abort("bch not yet implemented for emd")
 
     DO ispin=1,SIZE(propagator_matrix)/2
        re=2*ispin-1
@@ -316,14 +318,24 @@ CONTAINS
           CALL cp_dbcsr_copy(rho_next(re)%matrix,rho_old(re)%matrix,error=error)
           CALL cp_dbcsr_copy(rho_next(im)%matrix,rho_old(im)%matrix,error=error)
           IF(rtp_control%propagator==do_etrs) THEN
-             CALL bch_expansion_imaginary_propagator(rtp,rtp_control,propagator_matrix(im)%matrix,&
-                  rho_next(re)%matrix,rho_next(im)%matrix,error=error)
+             IF(.NOT.rtp%do_hfx)THEN
+                CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix,&
+                     rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+             ELSE
+                CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+                     rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+             ENDIF
           END IF
        END IF
        CALL cp_dbcsr_copy(rho_new(re)%matrix,rho_next(re)%matrix,error=error)
        CALL cp_dbcsr_copy(rho_new(im)%matrix,rho_next(im)%matrix,error=error)
-       CALL bch_expansion_imaginary_propagator(rtp,rtp_control,propagator_matrix(im)%matrix,&
-            rho_new(re)%matrix,rho_new(im)%matrix,error=error)
+       IF(.NOT.rtp%do_hfx)THEN
+          CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix,&
+               rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+       ELSE
+          CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+               rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+       ENDIF
     END DO
 
     CALL timestop(handle)
@@ -447,123 +459,5 @@ CONTAINS
 
   END SUBROUTINE compute_exponential_sparse
 
-
-! *****************************************************************************
-!> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
-!> \author Samuel Andermatt (02.2014)
-! *****************************************************************************
-
-   SUBROUTINE bch_expansion_imaginary_propagator(rtp,rtp_control,propagator,density_re,density_im,error)
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(cp_dbcsr_type), POINTER             :: propagator, density_re, &
-                                                density_im
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'bch_expansion_imaginary_propagator', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: col, handle, i, row, stat
-    LOGICAL                                  :: convergence, failure
-    REAL(KIND=dp)                            :: alpha, max_alpha, prefac
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: block_values
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    NULLIFY(tmp)
-    ALLOCATE(tmp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(tmp,error=error)
-    CALL cp_dbcsr_create(tmp,template=propagator,error=error)
-    NULLIFY(tmp2)
-    ALLOCATE(tmp2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(tmp2,error=error)
-    CALL cp_dbcsr_create(tmp2,template=propagator,error=error)
-    NULLIFY(comm)
-    ALLOCATE(comm,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(comm,error=error)
-    CALL cp_dbcsr_create(comm,template=propagator,error=error)
-    NULLIFY(comm2)
-    ALLOCATE(comm2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(comm2,error=error)
-    CALL cp_dbcsr_create(comm2,template=propagator,error=error)
-
-    CALL cp_dbcsr_copy(tmp,density_re,error=error)
-    CALL cp_dbcsr_copy(tmp2,density_im,error=error)
-
-    convergence=.FALSE.
-    DO i=1,20
-       prefac=one/i
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp,zero,comm,&
-            filter_eps=rtp%filter_eps,error=error)
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp2,zero,comm2,&
-            filter_eps=rtp%filter_eps,error=error)
-       CALL cp_dbcsr_transposed(tmp,comm,error=error)
-       CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
-       SELECT CASE(MODULO(i,4)) !one has to take account of i and the fact that the imaginary part is antisymmetric
-       CASE(0)
-          CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
-       CASE(1)
-          CALL cp_dbcsr_add(comm,tmp,one,-one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,-one,-one,error=error)
-       CASE(2)
-          CALL cp_dbcsr_add(comm,tmp,-one,-one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,-one,one,error=error)
-       CASE(3)
-          CALL cp_dbcsr_add(comm,tmp,-one,one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,one,one,error=error)
-       END SELECT
-       IF(MODULO(i,2)==1) THEN
-          CALL cp_dbcsr_add(density_re,comm2,one,one,error=error)
-          CALL cp_dbcsr_add(density_im,comm,one,one,error=error)
-       ELSE
-          CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
-          CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
-       ENDIF
-       CALL cp_dbcsr_copy(tmp,comm,error=error)
-       CALL cp_dbcsr_copy(tmp2,comm2,error=error)
-       !check for convergence
-       max_alpha=zero
-       CALL cp_dbcsr_iterator_start(iter, comm)
-       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, block_values)
-         alpha=MAXVAL(ABS(block_values))
-         IF(alpha>max_alpha) max_alpha=alpha
-       END DO
-       CALL cp_dbcsr_iterator_stop (iter)
-       CALL cp_dbcsr_iterator_start(iter, comm2)
-       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, block_values)
-          alpha=MAXVAL(ABS(block_values))
-          IF(alpha>max_alpha) max_alpha=alpha
-       END DO
-       CALL cp_dbcsr_iterator_stop (iter)
-       CALL mp_max(max_alpha,comm%matrix%m%dist%d%mp_env%mp%mp_group)
-       IF(max_alpha<rtp_control%eps_exp) convergence = .TRUE.
-       IF(convergence) EXIT
-    ENDDO
-
-    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "BCH method did not converge"//&
-         CPSourceFileRef,&
-         only_ionode=.TRUE.)
-
-    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
-    CALL cp_dbcsr_deallocate_matrix(comm,error=error)
-    CALL cp_dbcsr_deallocate_matrix(comm2,error=error)
-
-    CALL timestop(handle)
-
-   END SUBROUTINE
 
 END MODULE rt_make_propagators

@@ -92,7 +92,6 @@ MODULE rt_propagation_types
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: exp_H_new
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: propagator_matrix
     TYPE(cp_dbcsr_type),POINTER                 :: S_inv
-    TYPE(cp_dbcsr_type),POINTER                 :: S_minus_half
     TYPE(cp_dbcsr_type),POINTER                 :: B_mat
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: C_mat
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: S_der
@@ -291,11 +290,6 @@ CONTAINS
           CALL cp_dbcsr_create(rtp%S_der(i)%matrix,template=template,matrix_type="N",error=error)
        END DO
     END IF
-    NULLIFY(rtp%S_minus_half)
-    IF(rtp%linear_scaling) THEN
-       CALL cp_dbcsr_init_p(rtp%S_minus_half,error=error)
-       CALL cp_dbcsr_create(rtp%S_minus_half,template=template,matrix_type="S",error=error)
-    ENDIF
     ALLOCATE(rtp%orders(2,nspin),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rtp_control%converged=.FALSE.
@@ -308,7 +302,7 @@ CONTAINS
 
 
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,rho_old,rho_next,rho_new,mos,mos_new,mos_old,mos_next,&
-                     S_inv,B_mat,C_mat,propagator_matrix,S_minus_half,&
+                     S_inv,B_mat,C_mat,propagator_matrix,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,rtp_hfx,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -320,10 +314,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_inv, B_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: C_mat, propagator_matrix
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_minus_half
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: S_der
+      OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
+                                                S_der
     REAL(dp), OPTIONAL                       :: dt
     INTEGER, OPTIONAL                        :: nsteps
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -355,7 +347,6 @@ CONTAINS
     IF (PRESENT(admm_mos))admm_mos=>rtp%mos%admm
 
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
-    IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
     IF(PRESENT(B_mat))B_mat=>rtp%B_mat
     IF(PRESENT(C_mat))C_mat=>rtp%C_mat
     IF(PRESENT(SinvH))SinvH=>rtp%SinvH
@@ -418,8 +409,6 @@ CONTAINS
          CALL cp_dbcsr_deallocate_matrix_set(rtp%SinvH,error)
     IF(ASSOCIATED(rtp%SinvB))&
          CALL cp_dbcsr_deallocate_matrix_set(rtp%SinvB,error)
-    IF(ASSOCIATED(rtp%S_minus_half))&
-         CALL cp_dbcsr_deallocate_matrix(rtp%S_minus_half,error)
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp,error)
     DEALLOCATE(rtp%orders,stat=stat)

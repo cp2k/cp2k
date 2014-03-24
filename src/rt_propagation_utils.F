@@ -433,7 +433,6 @@ MODULE  rt_propagation_utils
            CALL copy_fm_to_dbcsr(dp_imag,rho_new(im)%matrix,error=error)
            !TODO: get the matrix from the mo's without fixing the sparsity
            CALL get_qs_env(qs_env=qs_env,rho=rho,error=error)
-           !CALL cp_dbcsr_print(rho_new(im)%matrix,matlab_format=.TRUE.,error=error)
            CALL cp_dbcsr_copy(rho_new(re)%matrix,rho%rho_ao(ispin)%matrix,error=error)
        END IF
 
@@ -484,7 +483,6 @@ MODULE  rt_propagation_utils
     ! recall QS forces, at this point have the other sign.
     DO i=1,SIZE(force)
        force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)
-       !write(*,*) force(i)%ehrenfest(:,:)
     END DO
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)

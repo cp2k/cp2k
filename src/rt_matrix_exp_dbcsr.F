@@ -17,8 +17,8 @@ MODULE rt_matrix_exp_dbcsr
                                              cp_cfm_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_scale, &
-       cp_dbcsr_set
+       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_transposed
   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
                                              copy_dbcsr_to_cfm,&
                                              cp_dbcsr_deallocate_matrix
@@ -44,7 +44,9 @@ MODULE rt_matrix_exp_dbcsr
             exp_pade_full_complex_dbcsr,&
             exp_pade_only_imaginary_dbcsr,&
             cp_complex_dbcsr_gemm,&
-            cp_complex_dbcsr_gemm_3
+            cp_complex_dbcsr_gemm_3,&
+            bch_expansion_imaginary_propagator,&
+            bch_expansion_complex_propagator
 
 CONTAINS
 
@@ -909,5 +911,216 @@ END SUBROUTINE
 !
 !  END SUBROUTINE exp_pade_real_dbcsr
 
+! *****************************************************************************
+!> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
+!> \author Samuel Andermatt (02.2014)
+! *****************************************************************************
+
+   SUBROUTINE bch_expansion_imaginary_propagator(propagator,density_re,density_im,filter_eps,eps_exp,error)
+    TYPE(cp_dbcsr_type), POINTER             :: propagator, density_re, &
+                                                density_im
+    REAL(KIND=dp)                            :: filter_eps, eps_exp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'bch_expansion_imaginary_propagator', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: convergence, failure
+    REAL(KIND=dp)                            :: alpha, max_alpha, prefac
+    TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(tmp)
+    ALLOCATE(tmp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=propagator,error=error)
+    NULLIFY(tmp2)
+    ALLOCATE(tmp2,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp2,error=error)
+    CALL cp_dbcsr_create(tmp2,template=propagator,error=error)
+    NULLIFY(comm)
+    ALLOCATE(comm,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(comm,error=error)
+    CALL cp_dbcsr_create(comm,template=propagator,error=error)
+    NULLIFY(comm2)
+    ALLOCATE(comm2,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(comm2,error=error)
+    CALL cp_dbcsr_create(comm2,template=propagator,error=error)
+
+    CALL cp_dbcsr_copy(tmp,density_re,error=error)
+    CALL cp_dbcsr_copy(tmp2,density_im,error=error)
+
+    convergence=.FALSE.
+    DO i=1,20
+       prefac=one/i
+       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp,zero,comm,&
+            filter_eps=filter_eps,error=error)
+       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp2,zero,comm2,&
+            filter_eps=filter_eps,error=error)
+       CALL cp_dbcsr_transposed(tmp,comm,error=error)
+       CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
+       SELECT CASE(MODULO(i,4)) !one has to take account of i and the fact that the imaginary part is antisymmetric
+       CASE(0)
+          CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
+       CASE(1)
+          CALL cp_dbcsr_add(comm,tmp,one,-one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,-one,-one,error=error)
+       CASE(2)
+          CALL cp_dbcsr_add(comm,tmp,-one,-one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,-one,one,error=error)
+       CASE(3)
+          CALL cp_dbcsr_add(comm,tmp,-one,one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,one,one,error=error)
+       END SELECT
+       IF(MODULO(i,2)==1) THEN
+          CALL cp_dbcsr_add(density_re,comm2,one,one,error=error)
+          CALL cp_dbcsr_add(density_im,comm,one,one,error=error)
+       ELSE
+          CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
+          CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
+       ENDIF
+       CALL cp_dbcsr_copy(tmp,comm,error=error)
+       CALL cp_dbcsr_copy(tmp2,comm2,error=error)
+       !check for convergence
+       max_alpha=zero
+       alpha = cp_dbcsr_frobenius_norm(comm)
+       IF(alpha>max_alpha) max_alpha=alpha
+       alpha = cp_dbcsr_frobenius_norm(comm2)
+       IF(alpha>max_alpha) max_alpha=alpha
+       IF(max_alpha<eps_exp) convergence = .TRUE.
+       IF(convergence) EXIT
+    ENDDO
+
+    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
+         "BCH method did not converge"//&
+         CPSourceFileRef,&
+         only_ionode=.TRUE.)
+
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
+    CALL cp_dbcsr_deallocate_matrix(comm,error=error)
+    CALL cp_dbcsr_deallocate_matrix(comm2,error=error)
+
+    CALL timestop(handle)
+
+   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
+!> \author Samuel Andermatt (02.2014)
+! *****************************************************************************
+
+   SUBROUTINE bch_expansion_complex_propagator(propagator_re,propagator_im,density_re,density_im,filter_eps,eps_exp,error)
+    TYPE(cp_dbcsr_type), POINTER             :: propagator_re, propagator_im, &
+                                                density_re, density_im
+    REAL(KIND=dp)                            :: filter_eps, eps_exp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'bch_expansion_complex_propagator', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: convergence, failure
+    REAL(KIND=dp)                            :: alpha, max_alpha, prefac
+    TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(tmp)
+    ALLOCATE(tmp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=propagator_re,error=error)
+    NULLIFY(tmp2)
+    ALLOCATE(tmp2,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp2,error=error)
+    CALL cp_dbcsr_create(tmp2,template=propagator_re,error=error)
+    NULLIFY(comm)
+    ALLOCATE(comm,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(comm,error=error)
+    CALL cp_dbcsr_create(comm,template=propagator_re,error=error)
+    NULLIFY(comm2)
+    ALLOCATE(comm2,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(comm2,error=error)
+    CALL cp_dbcsr_create(comm2,template=propagator_re,error=error)
+
+    CALL cp_dbcsr_copy(tmp,density_re,error=error)
+    CALL cp_dbcsr_copy(tmp2,density_im,error=error)
+
+    convergence=.FALSE.
+    DO i=1,20
+       prefac=one/i
+       CALL cp_dbcsr_multiply("N","N",-prefac,propagator_re,tmp,zero,comm2,&
+            filter_eps=filter_eps,error=error)
+       CALL cp_dbcsr_multiply("N","N",prefac,propagator_re,tmp2,zero,comm,&
+            filter_eps=filter_eps,error=error)
+       CALL cp_dbcsr_multiply("N","N",prefac,propagator_im,tmp,zero,comm,&
+            filter_eps=filter_eps,error=error)
+       CALL cp_dbcsr_multiply("N","N",prefac,propagator_im,tmp2,zero,comm2,&
+            filter_eps=filter_eps,error=error)
+       CALL cp_dbcsr_transposed(tmp,comm,error=error)
+       CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
+       SELECT CASE(MODULO(i,4)) !one has to take account of i and the fact that the imaginary part is antisymmetric
+       CASE(0)
+          CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
+       CASE(1)
+          CALL cp_dbcsr_add(comm,tmp,one,-one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,-one,-one,error=error)
+       CASE(2)
+          CALL cp_dbcsr_add(comm,tmp,-one,-one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,-one,one,error=error)
+       CASE(3)
+          CALL cp_dbcsr_add(comm,tmp,-one,one,error=error)
+          CALL cp_dbcsr_add(comm2,tmp2,one,one,error=error)
+       END SELECT
+       IF(MODULO(i,2)==1) THEN
+          CALL cp_dbcsr_add(density_re,comm2,one,one,error=error)
+          CALL cp_dbcsr_add(density_im,comm,one,one,error=error)
+       ELSE
+          CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
+          CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
+       ENDIF
+       CALL cp_dbcsr_copy(tmp,comm,error=error)
+       CALL cp_dbcsr_copy(tmp2,comm2,error=error)
+       !check for convergence
+       max_alpha=zero
+       alpha = cp_dbcsr_frobenius_norm(comm)
+       IF(alpha>max_alpha) max_alpha=alpha
+       alpha = cp_dbcsr_frobenius_norm(comm2)
+       IF(alpha>max_alpha) max_alpha=alpha
+       IF(max_alpha<eps_exp) convergence = .TRUE.
+       IF(convergence) EXIT
+    ENDDO
+
+    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
+         "BCH method did not converge"//&
+         CPSourceFileRef,&
+         only_ionode=.TRUE.)
+
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
+    CALL cp_dbcsr_deallocate_matrix(comm,error=error)
+    CALL cp_dbcsr_deallocate_matrix(comm2,error=error)
+
+    CALL timestop(handle)
+
+   END SUBROUTINE
 
 END MODULE rt_matrix_exp_dbcsr

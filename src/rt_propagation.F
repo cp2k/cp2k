@@ -10,6 +10,8 @@
 
 MODULE rt_propagation
   USE cp_control_types,                ONLY: rtp_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -232,6 +234,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: i
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_new, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -246,18 +250,26 @@ CONTAINS
          energy=energy,&
          error=error)
      rtp_control=>qs_env%dft_control%rtp_control
-     CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
 
-     IF(rtp_control%initial_wfn==use_scf_wfn)THEN
-        DO i=1,SIZE(mos)
-            CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
-            CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
+     IF(rtp%linear_scaling) THEN 
+        CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)   
+        DO i=1,SIZE(rho_new)
+           CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
+        ENDDO 
+     ELSE
+        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+
+        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
+           DO i=1,SIZE(mos)
+               CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
+               CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
+           END DO
+        END IF
+
+        DO i=1,SIZE(mos_old)
+           CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
         END DO
-     END IF
-
-     DO i=1,SIZE(mos_old)
-        CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
-     END DO
+     ENDIF
 
      rtp_control%initial_step=.TRUE.
      CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
