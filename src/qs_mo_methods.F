@@ -984,6 +984,8 @@ CONTAINS
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
                                                 ks_aux(ispin)%matrix, error)
           END IF
+       ELSE
+          IF (output_unit>0) WRITE(output_unit,'(4(1X,1F16.8))') mo_eigenvalues
        END IF
        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
        IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &
