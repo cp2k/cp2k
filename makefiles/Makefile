@@ -34,10 +34,13 @@ MODDEPS = "lower"
 include $(CP2KHOME)/arch/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
+ifeq ($(NVCC),)
+DISCOVER_FLAGS = "--ignore-cuda-files"
+endif
 endif
 
 # Discover programs =========================================================
-ALL_EXE_FILES = $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR)))
+ALL_EXE_FILES = $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR) $(DISCOVER_FLAGS) ))
 EXE_NAMES = $(basename $(notdir $(ALL_EXE_FILES)))
 
 # Declare PHONY targets =====================================================

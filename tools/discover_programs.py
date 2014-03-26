@@ -10,11 +10,16 @@ re_main = re.compile(r"\sint\s+main\s*\(")
 
 #============================================================================
 def main():
-    if(len(sys.argv) < 2):
-        print("Usage: discover_programs.py <src-dir>")
+    if(len(sys.argv) not in (2,3)):
+        print("Usage: discover_programs.py <src-dir> [--ignore-cuda-files]")
         sys.exit(1)
 
     srcdir = sys.argv[1]
+
+    ignore_cu_files = False
+    if(len(sys.argv) > 2):
+        assert(sys.argv[2] == "--ignore-cuda-files")
+        ignore_cu_files = True
 
     programs = []
     for root, dirs, files in os.walk(srcdir):
@@ -29,9 +34,14 @@ def main():
                 if(is_fortran_program(abs_fn)):
                     programs.append(abs_fn)
 
-            elif(fn[-2:]==".c" or fn[-3:]==".cu"):
+            elif(fn[-2:] == ".c"):
                 if(has_main_function(abs_fn)):
                     programs.append(abs_fn)
+
+            elif(fn[-3:] == ".cu" and not ignore_cu_files):
+                if(has_main_function(abs_fn)):
+                    programs.append(abs_fn)
+
 
     print(" ".join(programs))
 
