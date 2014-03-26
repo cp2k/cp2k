@@ -11,8 +11,9 @@
 #include "cusmm_common.h"
 
 // optimized for 13x13x13 products
-template < int m,  int n,  int k, int M, int N, int grouping>
+template < int m,  int n,  int k, int M, int N, int blockdim, int grouping, int minblocks>
 __global__ void
+__launch_bounds__(blockdim, minblocks)
 cusmm_dnt_small(const int* __restrict__ param_stack, int  careful,  int nruns,
      double* a_data, double* b_data, double* c_data){
 

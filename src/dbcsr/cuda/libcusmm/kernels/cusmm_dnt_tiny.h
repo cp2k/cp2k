@@ -11,9 +11,10 @@
 #include "cusmm_common.h"
 
 // optimized for  that fit into shared memory
-template < int m,  int n,  int k, int splitThread, int grouping>
+template < int m,  int n,  int k, int splitThread, int blockdim, int grouping, int minblocks>
 __global__ void
-cusmm_dnt_tiny(const int* __restrict__ param_stack, int  careful,  int nruns,
+__launch_bounds__(blockdim, minblocks)
+cusmm_dnt_tiny(const int* __restrict__ param_stack, int careful, int nruns,
      double* a_data, double* b_data, double* c_data){
 
   const int mn = m * n;

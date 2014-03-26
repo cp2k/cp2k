@@ -15,13 +15,12 @@ from kernels.cusmm_dnt_tiny    import Kernel_dnt_tiny
 
 #===============================================================================
 def main():
-    triples  = combinations(5,13)     # amorph spiro-MeOTAD
-    triples += combinations(13,26)    # TiO2
-    triples += combinations(23)       # blocked H2O
-    triples += combinations(13,24,5)  # non-blocked acetonitrile +TiO2-v2
-    triples += combinations(13,24,54) # blocked-v1 acetonitrile +TiO2-v2
-    triples += combinations(13,24,15) # blocked-v2 acetonitrile +TiO2-v2
-    triples += combinations(14,16,29) # RPA water
+    triples  = combinations(23)                 # blocked H2O (benchmark)
+    triples += combinations(14,16,29)           # RPA water
+    triples += combinations(5, 16, 13, 24, 26)
+    triples += combinations(9, 16, 22)
+    triples += combinations(32)
+    triples += combinations(64)
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
@@ -35,7 +34,6 @@ def main():
 
     plan = make_plan(triples, param_fn)
     gen_library(plan)
-    gen_dependenciese(plan)
 
     print("Libcusmm: Generated %d kernels."%len(plan))
 
@@ -73,12 +71,13 @@ def gen_library(plan):
     output += "\n\n"
 
     for kern in plan.values():
-        output += kern.launcher_code() + "\n\n"
+        output += "static "+kern.launcher_code() + "\n\n"
 
     output += gen_process(plan)
     output += "\n\n"
     output += gen_transpose(plan)
-
+    output += "\n\n"
+    output += gen_list(plan)
     output += "//EOF\n"
     writefile("libcusmm.cu", output)
 
@@ -139,6 +138,21 @@ def gen_process(plan):
     output += "}\n"
     return(output)
 
+
+#===============================================================================
+def gen_list(plan):
+    output  = "void libcusmm_list_blocksizes_d(const int **list, int *length) {\n"
+    output += "static const int blocksizes_d[] = { \n"
+    for mnk in plan.keys():
+        output += " %d, %d, %d,\n"%mnk
+    output += "};\n\n"
+
+    output += "*list = blocksizes_d;\n"
+    output += "*length = %d;\n"%len(plan)
+    output += "}\n"
+
+    return(output)
+
 #===============================================================================
 def gen_transpose(plan):
     output  = "int libcusmm_transpose_d(int *trs_stack, int offset, int nblks,\n"
@@ -189,11 +203,6 @@ def gen_transpose(plan):
     output += "}\n"
     return(output)
 
-
-#===============================================================================
-def gen_dependenciese(plan):
-    output = "libcusmm.o : libcusmm.cu " +(" ".join(get_includes(plan))) + "\n"
-    writefile("LIBCUSMM_DEPENDENCIES", output)
 
 #===============================================================================
 def get_includes(plan):

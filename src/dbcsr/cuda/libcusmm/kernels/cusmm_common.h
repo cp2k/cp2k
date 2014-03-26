@@ -2,10 +2,11 @@
  *  CP2K: A general program to perform molecular dynamics simulations        *
  *  Copyright (C) 2000 - 2013 the CP2K developers group                      *
  *****************************************************************************/
-
 #ifndef CUSMM_COMMON_H
 #define CUSMM_COMMON_H
 
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 /******************************************************************************
  * There is no nativ support for atomicAdd on doubles in Cuda 5.0. However the*

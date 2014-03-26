@@ -9,3 +9,7 @@ int libcusmm_process_d(int *param_stack, int stack_size,
 
 int libcusmm_transpose_d(int *trs_stack, int offset, int nblks, double *buffer,
                          int m, int n, cudaStream_t * stream);
+
+void libcusmm_list_blocksizes_d(const int **list, int *length);
+
+//EOF

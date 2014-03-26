@@ -1,7 +1,20 @@
+/*****************************************************************************
+ *  CP2K: A general program to perform molecular dynamics simulations        *
+ *  Copyright (C) 2000 - 2014 the CP2K developers group                      *
+ *  Authors: Peter Messmer <pmessmer@nvidia.com>,                            *
+ *           Nikolay Markovskiy <nmarkovskiy@nvidia.com>                     *
+ *****************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda.h>
+#include "cusmm_common.h"
+
 #define PARAMS_IN_SMEM_OPT
 
-template < int m,  int n,  int k, int M, int N, int bsize, int v, int grouping>
+template < int m,  int n,  int k, int M, int N, int bsize, int grouping, int minblocks>
 __global__ void
+__launch_bounds__(bsize, minblocks)
 cusmm_dnt_medium(const int* __restrict__ param_stack, int  careful,  int nruns,
      double* a_data, double* b_data, double* c_data){
 
