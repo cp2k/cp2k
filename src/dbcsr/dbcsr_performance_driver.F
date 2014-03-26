@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief   Prerformance for DBCSR operations
+!> \brief   Performance tester for DBCSR operations
 !> \author  VW
 !> \date    2010
 !> \version 1.0
