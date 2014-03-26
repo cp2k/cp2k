@@ -37,10 +37,8 @@ OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 endif
 
 # Discover programs =========================================================
-# LC_ALL=en_US need to speedup grep. See: https://savannah.gnu.org/bugs/index.php?29391
-ALL_EXE_FILES = $(sort $(shell LC_ALL=en_US fgrep -lir --include=*.F --exclude-dir=preprettify "END PROGRAM" $(SRCDIR)))
-EXE_NAMES = $(notdir $(ALL_EXE_FILES:.F=))
-
+ALL_EXE_FILES = $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR)))
+EXE_NAMES = $(basename $(notdir $(ALL_EXE_FILES)))
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
@@ -66,10 +64,7 @@ ALL_SRC_FILES  = $(OBJ_SRC_FILES)
 ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90")
 ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.h")
 
-TMP1               = $(notdir $(OBJ_SRC_FILES))
-TMP2               = $(TMP1:.F=.o)
-TMP3               = $(TMP2:.c=.o)
-ALL_OBJECTS        = $(TMP3:.cu=.o)
+ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
 ALL_NONEXE_OBJECTS = $(filter-out $(ALL_EXE_OBJECTS), $(ALL_OBJECTS))
 
@@ -125,7 +120,7 @@ help:
 	@echo "all                         Builds all executables (default target)"
 	@for i in $(ALL_EXE_FILES); do \
 	basename  $$i | sed 's/^\(.*\)\..*/\1/' | awk '{printf "%-28s", $$1}'; \
-	grep "brief" $$i | head -n 1 |  sed 's/^\s*!.*\\brief\s*\(.*\)$$/\1/'; \
+	grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
 	done
 	@echo ""
 	@echo "===================== Tools ====================="

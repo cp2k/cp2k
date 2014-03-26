@@ -8,6 +8,7 @@ from os.path import dirname, basename, normpath
 # pre-compiled regular expressions
 re_module = re.compile(r"(?:^|\n)\s*module\s+(\w+)\s.*\n\s*end\s*module",re.DOTALL)
 re_program = re.compile(r"\n\s*end\s*program")
+re_main   = re.compile(r"\sint\s+main\s*\(")
 re_use    = re.compile(r"\n\s*use\s+(\w+)")
 re_incl1  = re.compile(r"\n\s*include\s+['\"](.+)['\"]")
 re_incl2  = re.compile(r"\n#include\s+['\"](.+)['\"]")
@@ -149,12 +150,19 @@ def parse_file(parsed_files, fn):
     # re.IGNORECASE is horribly expensive. Converting to lower-case upfront
     content_lower = content.lower()
 
-    mods   = re_module.findall(content_lower)
-    prog   = re_program.search(content_lower) != None
-    uses   = re_use.findall(content_lower)
-    incl1_iter = re_incl1.finditer(content_lower) # fortran includes
-    incls  = [ content[m.start(1):m.end(1)] for m in incl1_iter ]
-    incls += re_incl2.findall(content) #cpp includes, those are case-sensitiv
+    # all files are parsed for cpp includes
+    incls = re_incl2.findall(content) #cpp includes, those are case-sensitiv
+
+    mods=[]; uses=[]; prog=False;
+    if(fn[-2:]==".F" or fn[-4:]==".f90"):
+        mods += re_module.findall(content_lower)
+        prog  = re_program.search(content_lower) != None
+        uses += re_use.findall(content_lower)
+        incl1_iter = re_incl1.finditer(content_lower) # fortran includes
+        incls += [ content[m.start(1):m.end(1)] for m in incl1_iter ]
+
+    if(fn[-2:] == ".c" or fn[-3:]==".cu"):
+        prog = re_main.search(content) != None # C is case-sensitiv
 
     # exclude included files from outside the source tree
     def incl_fn(i):
