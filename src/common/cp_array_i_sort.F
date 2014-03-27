@@ -175,7 +175,6 @@ END SUBROUTINE cp_1d_i_sort_low
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_I_LESS_Q"
-!  lib = "cp"
 !  libname = "cp"
 !  nametype1 = "i"
 !  type1 = "integer"

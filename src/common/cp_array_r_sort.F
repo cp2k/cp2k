@@ -183,7 +183,6 @@ END SUBROUTINE cp_1d_r_sort_low
 !    "#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_R_LESS_Q"
-!  lib = "cp"
 !  libname = "cp"
 !  nametype1 = "r"
 !  type1 = "real(kind=dp)"

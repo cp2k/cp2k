@@ -183,7 +183,6 @@ END SUBROUTINE cp_1d_i8_sort_low
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_I_LESS_Q"
-!  lib = "cp"
 !  libname = "cp"
 !  nametype1 = "i8"
 !  type1 = "integer(kind=int_8)"
