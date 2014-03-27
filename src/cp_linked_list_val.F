@@ -47,7 +47,7 @@ MODULE cp_linked_list_val
   USE f77_blas
   USE input_val_types,                 ONLY: val_p_type,&
                                              val_type
-#include "./common/cp_common_uses.f90"
+#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1179,6 +1179,7 @@ END FUNCTION cp_sll_val_contains2
 !  USE = "USE input_val_types, only: val_type, val_p_type"
 !  array= = "=>"
 !  arrayEl = "%val"
+!  common_dir = "common"
 !  defines = 
 !    "#define CP_SLL_VAL_LESS_Q(el1,el2,error) el1%id_nr<el2%id_nr
 !     #define CP_SLL_VAL_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
@@ -1187,6 +1188,7 @@ END FUNCTION cp_sll_val_contains2
 !  lessQ = "CP_SLL_VAL_LESS_Q"
 !  nametype1 = "val"
 !  private_routines = ""
+!  template = "common/cp_linked_list__nametype1_.template"
 !  type1 = "type(val_type),pointer"
 !  type1arrayEl = "type(val_p_type)"
 !  type1in = "type(val_type),pointer"

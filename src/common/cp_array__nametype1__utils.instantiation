@@ -1,7 +1,7 @@
 [
 {'nametype1':'r',
 'type1':'real(kind=dp)',
-'USE':'',
+'USE':'USE kinds, only: dp',
 'defaultFormatType1':'"(es14.6)"',
 'lessQ':'CP_R_LESS_Q',
 'defines':"#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )\n"},

@@ -48,7 +48,7 @@ MODULE cp_linked_list_xc_deriv
   USE kinds,                           ONLY: dp
   USE xc_derivative_types,             ONLY: xc_derivative_p_type,&
                                              xc_derivative_type
-#include "./common/cp_common_uses.f90"
+#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1212,6 +1212,7 @@ END FUNCTION cp_sll_xc_deriv_contains2
 !     USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type"
 !  array= = "=>"
 !  arrayEl = "%deriv"
+!  common_dir = "common"
 !  defines = 
 !    "#define CP_SLL_DERIV_LESS_Q(el1,el2,error) cp_sll_deriv_less_q(el1,el2,error)
 !     #define CP_SLL_DERIV_EQUAL_Q(el1,el2,error) ( el1%desc == el2%desc )
@@ -1237,6 +1238,7 @@ END FUNCTION cp_sll_xc_deriv_contains2
 !           (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
 !     end function
 !     "
+!  template = "common/cp_linked_list__nametype1_.template"
 !  type1 = "type(xc_derivative_type),pointer"
 !  type1arrayEl = "type(xc_derivative_p_type)"
 !  type1in = "type(xc_derivative_type),pointer"

@@ -45,7 +45,7 @@
 ! *****************************************************************************
 MODULE cp_linked_list_int
   USE f77_blas
-#include "cp_common_uses.f90"
+#include "./cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1173,6 +1173,7 @@ END FUNCTION cp_sll_int_contains2
 !  USE = " "
 !  array= = "="
 !  arrayEl = ""
+!  common_dir = "."
 !  defines = 
 !    "#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
 !     #define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )

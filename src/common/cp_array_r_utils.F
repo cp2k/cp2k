@@ -364,7 +364,7 @@ END FUNCTION cp_1d_r_bsearch
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
 ! ARGS:
-!  USE = ""
+!  USE = "USE kinds, only: dp"
 !  defaultFormatType1 = ""(es14.6)""
 !  defines = 
 !    "#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )

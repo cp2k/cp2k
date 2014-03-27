@@ -50,7 +50,7 @@ MODULE cp_linked_list_pw
   USE pw_methods,                      ONLY: pw_write
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type
-#include "cp_common_uses.f90"
+#include "./cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1189,6 +1189,7 @@ END FUNCTION cp_sll_pw_contains2
 !     USE pw_methods, ONLY: pw_write"
 !  array= = "=>"
 !  arrayEl = "%pw"
+!  common_dir = "."
 !  defines = 
 !    "! less not much meaningful...
 !     #define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )

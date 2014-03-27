@@ -43,7 +43,7 @@
 ! *****************************************************************************
 MODULE cp_linked_list_[nametype1]
   USE f77_blas
-#include "./common/cp_common_uses.f90"
+#include "[common_dir]/cp_common_uses.f90"
   [USE]
   IMPLICIT NONE
   PRIVATE

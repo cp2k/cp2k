@@ -46,7 +46,7 @@
 MODULE cp_linked_list_char
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
-#include "cp_common_uses.f90"
+#include "./cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1202,6 +1202,7 @@ END FUNCTION cp_sll_char_contains2
 !  USE = "USE kinds, only: default_string_length"
 !  array= = "="
 !  arrayEl = ""
+!  common_dir = "."
 !  defines = 
 !    "#define CP_SLL_C_LESS_Q(el1,el2,error) ( el1 < el2 )
 !     #define CP_SLL_C_EQUAL_Q(el1,el2,error) ( el1 == el2 )

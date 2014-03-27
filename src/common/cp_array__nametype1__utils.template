@@ -40,10 +40,8 @@
 ! *****************************************************************************
 MODULE cp_array_[nametype1]_utils
   USE f77_blas
-  USE kinds, ONLY: dp
-  USE timings, ONLY: timeset, timestop
   USE machine, ONLY: m_flush
-#include "./common/cp_common_uses.f90"
+#include "cp_common_uses.f90"
   [USE]
   IMPLICIT NONE
   PRIVATE

@@ -46,7 +46,7 @@
 MODULE cp_linked_list_real
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.f90"
+#include "./cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1182,6 +1182,7 @@ END FUNCTION cp_sll_real_contains2
 !  USE = "USE kinds, only: dp"
 !  array= = "="
 !  arrayEl = ""
+!  common_dir = "."
 !  defines = 
 !    "#define CP_SLL_R_LESS_Q(el1,el2,error) ( el1 < el2 )
 !     #define CP_SLL_R_EQUAL_Q(el1,el2,error) ( el1 == el2 )
