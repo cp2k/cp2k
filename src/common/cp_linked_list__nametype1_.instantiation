@@ -114,32 +114,8 @@ USE pw_methods, ONLY: pw_write""",
  'equalQ':'CP_SLL_PW_EQUAL_Q',
  'write_el':'',
  'private_routines':''
-}
-,
-{
- 'nametype1':'fm',
- 'type1':'type(cp_fm_type),pointer',
- 'type1in':'type(cp_fm_type), pointer',
- 'type1out':'type(cp_fm_type), pointer',
- 'common_dir':'.',
- 'USE':
-"""USE kinds, only: dp
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type""",
- 'defines':
-"""! less not much meningful...
-#define CP_SLL_FM_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
-#define CP_SLL_FM_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )
-""",
- '=':'=>',
- 'type1arrayEl':'type(cp_fm_p_type)',
- 'array=':'=>',
- 'arrayEl':'%matrix',
- 'lessQ':'CP_SLL_FM_LESS_Q',
- 'equalQ':'CP_SLL_FM_EQUAL_Q',
- 'write_el':'',
- 'private_routines':''
-}
-,
+},
+
 {
  'nametype1':'rs',
  'type1':'type(realspace_grid_type),pointer',

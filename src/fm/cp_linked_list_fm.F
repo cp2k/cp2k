@@ -49,7 +49,7 @@ MODULE cp_linked_list_fm
                                              cp_fm_type
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "./cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1186,7 +1186,7 @@ END FUNCTION cp_sll_fm_contains2
 !     USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type"
 !  array= = "=>"
 !  arrayEl = "%matrix"
-!  common_dir = "."
+!  common_dir = "../common"
 !  defines = 
 !    "! less not much meningful...
 !     #define CP_SLL_FM_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
@@ -1196,6 +1196,7 @@ END FUNCTION cp_sll_fm_contains2
 !  lessQ = "CP_SLL_FM_LESS_Q"
 !  nametype1 = "fm"
 !  private_routines = ""
+!  template = "../common/cp_linked_list__nametype1_.template"
 !  type1 = "type(cp_fm_type),pointer"
 !  type1arrayEl = "type(cp_fm_p_type)"
 !  type1in = "type(cp_fm_type), pointer"
