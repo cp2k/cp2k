@@ -49,7 +49,6 @@ MODULE force_env_methods
                                              cp_subsys_p_type,&
                                              cp_subsys_retain,&
                                              cp_subsys_type
-  USE cpot_types,                      ONLY: cpot_calc
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_retain,&
                                              eip_environment_type
@@ -67,10 +66,9 @@ MODULE force_env_methods
                                              fist_environment_type
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
-       force_env_get, force_env_get_natom, force_env_get_pos, &
-       force_env_p_type, force_env_set, force_env_set_cell, force_env_type, &
-       use_eip_force, use_ep_force, use_fist_force, use_mixed_force, &
-       use_prog_name, use_qmmm, use_qs_force
+       force_env_get, force_env_get_natom, force_env_p_type, force_env_set, &
+       force_env_set_cell, force_env_type, use_eip_force, use_ep_force, &
+       use_fist_force, use_mixed_force, use_prog_name, use_qmmm, use_qs_force
   USE force_env_utils,                 ONLY: rescale_forces,&
                                              write_forces,&
                                              write_stress_tensor
@@ -187,8 +185,7 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: ateps = 1.0E-6_dp
 
     INTEGER                                  :: i, j, nat, ndigits, &
-                                                output_unit, print_forces, &
-                                                stat
+                                                output_unit, print_forces
     LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, &
       eval_ef, failure, linres_run, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
@@ -197,7 +194,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: grand_total_force, total_force
     REAL(KIND=dp), DIMENSION(3, 3)           :: atomic_stress_tensor, &
                                                 diff_stress_tensor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
     TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -314,16 +310,6 @@ CONTAINS
           CALL add_external_potential(force_env, error=error)
           ! Rescale forces if requested
           CALL rescale_forces(force_env, error=error)
-       END IF
-       IF (ASSOCIATED(force_env%cpot_env)) THEN
-          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-          nat=force_env_get_natom(force_env,error=error)
-          ALLOCATE(pos(3*nat),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          CALL force_env_get_pos(force_env, pos, 3*nat, error=error)
-          DEALLOCATE(pos,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
        END IF
 
        ! Print always Energy in the same format for all methods
@@ -733,7 +719,7 @@ CONTAINS
             force_env%meta_env, force_env%sub_force_env, &
             force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
             force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
-            force_env%root_section, force_env%cpot_env, force_env%atprop_env, force_env%results)
+            force_env%root_section, force_env%atprop_env, force_env%results)
        last_force_env_id=last_force_env_id+1
        force_env%id_nr=last_force_env_id
        force_env%ref_count=1

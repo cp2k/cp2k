@@ -26,8 +26,6 @@ MODULE force_env_types
                                              cp_subsys_release,&
                                              cp_subsys_type,&
                                              pack_subsys_particles
-  USE cpot_types,                      ONLY: cpot_release,&
-                                             cpot_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_release,&
                                              eip_environment_type
@@ -163,7 +161,6 @@ MODULE force_env_types
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
-     TYPE ( cpot_type), POINTER                          :: cpot_env
      TYPE ( atprop_type), POINTER                        :: atprop_env
      TYPE ( cp_result_type), POINTER                     :: results
   END TYPE force_env_type
@@ -273,7 +270,6 @@ CONTAINS
              CALL mixed_env_release(force_env%mixed_env,error=error)
           END SELECT
           CALL cp_result_release(results=force_env%results,error=error)
-          CALL cpot_release(force_env%cpot_env,error=error)
           CALL atprop_release(force_env%atprop_env,error=error)
           CALL globenv_release(force_env%globenv,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
