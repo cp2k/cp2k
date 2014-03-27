@@ -43,7 +43,7 @@ MODULE environment
        do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
        high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
-  USE input_cp2k,                      ONLY: create_global_section
+  USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&

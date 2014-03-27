@@ -32,7 +32,8 @@ MODULE mc_ge_moves
                                              force_env_release,&
                                              force_env_set_cell
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_release
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_release
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
@@ -450,7 +451,7 @@ CONTAINS
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
-                energy_check,r_old,old_energy,&
+                energy_check,r_old,old_energy,input_declaration,&
                 para_env,bias_energy_old,last_bias_energy,&
                 rng_stream,error)
 
@@ -466,6 +467,7 @@ CONTAINS
       INTENT(INOUT)                          :: r_old
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: old_energy
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: bias_energy_old, &
@@ -863,10 +865,10 @@ CONTAINS
       ALLOCATE(test_env(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
       "test_env",3*ins_atoms*dp_size)
-      CALL mc_create_force_env(test_env(insert_box)%force_env, para_env, &
-           dat_file(insert_box),error=error)
-      CALL mc_create_force_env(test_env(remove_box)%force_env, para_env, &
-           dat_file(remove_box),error=error)
+      CALL mc_create_force_env(test_env(insert_box)%force_env,input_declaration,&
+           para_env, dat_file(insert_box),error=error)
+      CALL mc_create_force_env(test_env(remove_box)%force_env,input_declaration,&
+           para_env, dat_file(remove_box),error=error)
 
 ! allocate an array we'll need
       ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
@@ -994,8 +996,8 @@ CONTAINS
               mc_input_file)
          test_env_bias(insert_box)%force_env => test_env(insert_box)%force_env
          NULLIFY(test_env(insert_box)%force_env)
-         CALL mc_create_force_env(test_env(insert_box)%force_env, para_env, &
-              dat_file(insert_box),error=error)
+         CALL mc_create_force_env(test_env(insert_box)%force_env, input_declaration, &
+              para_env, dat_file(insert_box),error=error)
 !         CALL section_vals_release(insert_env%root_section)
 
          CALL force_env_calc_energy_force(test_env(insert_box)%force_env,&
@@ -1011,8 +1013,8 @@ CONTAINS
                  mc_input_file)
              test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
             NULLIFY(test_env(remove_box)%force_env)
-            CALL mc_create_force_env(test_env(remove_box)%force_env, para_env, &
-                 dat_file(remove_box),error=error)
+            CALL mc_create_force_env(test_env(remove_box)%force_env,input_declaration,&
+                 para_env,dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
             bias_energy_new(remove_box)=0.0E0_dp
          ELSE
@@ -1022,8 +1024,8 @@ CONTAINS
                  mc_input_file)
             test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
             NULLIFY(test_env(remove_box)%force_env)
-            CALL mc_create_force_env(test_env(remove_box)%force_env, para_env, &
-                 dat_file(remove_box),error=error)
+            CALL mc_create_force_env(test_env(remove_box)%force_env,input_declaration,&
+                 para_env,dat_file(remove_box),error=error)
             CALL force_env_calc_energy_force(test_env(remove_box)%force_env,&
                  calc_force=.FALSE.,error=error)
             CALL force_env_get(test_env(remove_box)%force_env,&

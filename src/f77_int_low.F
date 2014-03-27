@@ -38,23 +38,39 @@ END SUBROUTINE cp_finalize_cp2k
 ! *****************************************************************************
 SUBROUTINE cp_create_fenv(new_env_id,input_file_path,output_file_path,&
      ierr)
-  USE f77_interface, ONLY: cfe => create_force_env
+  USE f77_interface,                   ONLY: create_force_env
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_type, section_release
+  USE cp_error_handling,               ONLY: cp_error_type
   IMPLICIT NONE
-  CHARACTER(len=*) :: input_file_path, output_file_path
-  INTEGER :: new_env_id, ierr
+  CHARACTER(len=*)                     :: input_file_path, output_file_path
+  INTEGER                              :: new_env_id, ierr
+  TYPE(cp_error_type)                  :: error
+  TYPE(section_type), POINTER          :: input_declaration
 
-  CALL cfe(new_env_id,input_file_path,output_file_path,ierr=ierr)
+  NULLIFY(input_declaration)
+  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_force_env(new_env_id,input_declaration,input_file_path,output_file_path,ierr=ierr)
+  CALL section_release(input_declaration,error=error)
 END SUBROUTINE cp_create_fenv
 
 ! *****************************************************************************
 SUBROUTINE cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
      mpi_comm,ierr)
-  USE f77_interface, ONLY: cfe => create_force_env
+  USE f77_interface,                   ONLY: create_force_env
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_type, section_release
+  USE cp_error_handling,               ONLY: cp_error_type
   IMPLICIT NONE
-  CHARACTER(len=*) :: input_file_path, output_file_path
-  INTEGER :: new_env_id, mpi_comm, ierr
+  CHARACTER(len=*)                     :: input_file_path, output_file_path
+  INTEGER                              :: new_env_id, mpi_comm, ierr
+  TYPE(cp_error_type)                  :: error
+  TYPE(section_type), POINTER          :: input_declaration
 
-  CALL cfe(new_env_id,input_file_path,output_file_path,mpi_comm,ierr=ierr)
+  NULLIFY(input_declaration)
+  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_force_env(new_env_id,input_declaration,input_file_path,output_file_path,mpi_comm,ierr=ierr)
+  CALL section_release(input_declaration,error=error)
 END SUBROUTINE cp_create_fenv_comm
 
 ! *****************************************************************************
@@ -195,23 +211,39 @@ END SUBROUTINE cp_calc_force
 
 ! *****************************************************************************
 SUBROUTINE cp_run_input(input_file_path,output_file_path,ierr)
-  USE cp2k_runs, ONLY: rin => run_input
+  USE cp2k_runs,                       ONLY: run_input
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_type, section_release
+  USE cp_error_handling,               ONLY: cp_error_type
   IMPLICIT NONE
-  CHARACTER(len=*) :: input_file_path, output_file_path
-  INTEGER :: ierr
+  CHARACTER(len=*)                     :: input_file_path, output_file_path
+  INTEGER                              :: ierr
+  TYPE(cp_error_type)                  :: error
+  TYPE(section_type), POINTER          :: input_declaration
 
-  CALL rin(input_file_path,output_file_path,ierr=ierr)
+  NULLIFY(input_declaration)
+  CALL create_cp2k_root_section(input_declaration, error)
+  CALL run_input(input_declaration,input_file_path,output_file_path,ierr=ierr)
+  CALL section_release(input_declaration,error=error)
 END SUBROUTINE cp_run_input
 
 ! *****************************************************************************
 RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
      mpi_comm,ierr)
-  USE cp2k_runs, ONLY: rin => run_input
+  USE cp2k_runs,                       ONLY: run_input
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_type, section_release
+  USE cp_error_handling,               ONLY: cp_error_type
   IMPLICIT NONE
   CHARACTER(len=*) :: input_file_path, output_file_path
   INTEGER :: mpi_comm, ierr
+  TYPE(cp_error_type)                  :: error
+  TYPE(section_type), POINTER          :: input_declaration
 
-  CALL rin(input_file_path,output_file_path,ierr,mpi_comm)
+  NULLIFY(input_declaration)
+  CALL create_cp2k_root_section(input_declaration, error)
+  CALL run_input(input_declaration,input_file_path,output_file_path,ierr,mpi_comm)
+  CALL section_release(input_declaration,error=error)
 END SUBROUTINE cp_run_input_comm
 
 ! *****************************************************************************
@@ -243,11 +275,19 @@ END SUBROUTINE cp_rep_calc_e_f
 
 ! *****************************************************************************
 RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
-  USE ep_methods, ONLY: epin => ep_env_init_low
+  USE ep_methods,                      ONLY: ep_env_init_low
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_type, section_release
+  USE cp_error_handling,               ONLY: cp_error_type
   IMPLICIT NONE
   INTEGER :: ep_env_id, ierr
+  TYPE(cp_error_type)                  :: error
+  TYPE(section_type), POINTER          :: input_declaration
 
-  CALL epin(ep_env_id, ierr)
+  NULLIFY(input_declaration)
+  CALL create_cp2k_root_section(input_declaration, error)
+  CALL ep_env_init_low(ep_env_id, input_declaration, ierr)
+  CALL section_release(input_declaration,error=error)
 END SUBROUTINE cp_ep_init
 
 ! *****************************************************************************

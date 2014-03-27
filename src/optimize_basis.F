@@ -18,9 +18,10 @@ MODULE optimize_basis
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
-  USE input_section_types,             ONLY: section_vals_release,&
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
@@ -68,7 +69,8 @@ CONTAINS
 !> \brief main entry point for methods aimed at optimizing basis sets
 !> \author Florian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE run_optimize_basis(root_section,para_env,error)
+  SUBROUTINE run_optimize_basis(input_declaration,root_section,para_env,error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -86,12 +88,12 @@ CONTAINS
 
     CALL optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
 
-    CALL driver_para_opt_basis(opt_bas,para_env,error)
+    CALL driver_para_opt_basis(opt_bas,input_declaration,para_env,error)
 
     CALL deallocate_basis_optimization_type(opt_bas)
-    CALL cp_error_dealloc_ref(error)  
+    CALL cp_error_dealloc_ref(error)
     CALL timestop(handle)
-     
+
 
   END SUBROUTINE run_optimize_basis
 
@@ -100,8 +102,9 @@ CONTAINS
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE driver_para_opt_basis(opt_bas,para_env,error)
+  SUBROUTINE driver_para_opt_basis(opt_bas,input_declaration,para_env,error)
     TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -119,8 +122,8 @@ CONTAINS
     CALL mp_comm_split(para_env%group, opt_group, n_groups_created, group_distribution_p,&
          n_subgroups=SIZE(opt_bas%group_partition),group_partition=opt_bas%group_partition)
     opt_bas%opt_id = group_distribution(para_env%mepos)+1
-    
-    CALL driver_optimization_para_low(opt_bas,para_env,opt_group,error)
+
+    CALL driver_optimization_para_low(opt_bas,input_declaration,para_env,opt_group,error)
 
     CALL mp_comm_free(opt_group)
     CALL timestop(handle)
@@ -133,8 +136,9 @@ CONTAINS
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE driver_optimization_para_low(opt_bas,para_env_top,mpi_comm_opt,top_error)
+  SUBROUTINE driver_optimization_para_low(opt_bas,input_declaration,para_env_top,mpi_comm_opt,top_error)
     TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env_top
     INTEGER                                  :: mpi_comm_opt
     TYPE(cp_error_type), INTENT(INOUT)       :: top_error
@@ -170,7 +174,7 @@ CONTAINS
          owns_group=.FALSE.,error=error)
 
 
-    CALL init_training_force_envs(opt_bas,f_env_id,matrix_s_inv,para_env,mpi_comm_opt,error)
+    CALL init_training_force_envs(opt_bas,f_env_id,input_declaration,matrix_s_inv,para_env,mpi_comm_opt,error)
  
     CALL init_free_vars(opt_bas,error)
     tot_time=0.0_dp
@@ -307,10 +311,11 @@ CONTAINS
 !>\author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE init_training_force_envs(opt_bas,f_env_id,matrix_s_inv,para_env,mpi_comm_opt,error)
+  SUBROUTINE init_training_force_envs(opt_bas,f_env_id,input_declaration,matrix_s_inv,para_env,mpi_comm_opt,error)
 
     TYPE(basis_optimization_type)            :: opt_bas
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_fm_p_type), DIMENSION(:)         :: matrix_S_inv
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: mpi_comm_opt
@@ -343,13 +348,15 @@ CONTAINS
        CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc),opt_bas,set_id,bas_id)
        CALL m_chdir(TRIM(opt_bas%training_dir(set_id)),ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-       input_file => create_cp2k_input_reading(opt_bas%training_input(set_id),&
-                                               initial_variables=empty_initial_variables, &
-                                               para_env=para_env,error=error)
+       input_file => read_input(input_declaration,&
+                                opt_bas%training_input(set_id),&
+                                initial_variables=empty_initial_variables, &
+                                para_env=para_env,error=error)
        CALL cp_error_check(error,failure)
 
        CALL modify_input_settings(opt_bas,bas_id,input_file,error)
        CALL create_force_env(f_env_id(icalc), &
+                             input_declaration=input_declaration,&
                              input_path=opt_bas%training_input(set_id),&
                              input=input_file, &
                              output_path="scrap_information", &

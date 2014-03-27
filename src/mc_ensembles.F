@@ -29,7 +29,8 @@ MODULE mc_ensembles
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_release,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_release,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -112,12 +113,13 @@ CONTAINS
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE mc_run_ensemble ( mc_env, para_env, globenv, nboxes, rng_stream, error)
+  SUBROUTINE mc_run_ensemble ( mc_env, para_env, globenv, input_declaration, nboxes, rng_stream, error)
 
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_type), POINTER              :: input_declaration
     INTEGER, INTENT(IN)                      :: nboxes
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -367,7 +369,7 @@ CONTAINS
           nchains_box=> nchains(:,ibox)
           CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                r_old(:,:,ibox),atom_names_box(:),nunits_tot(ibox),&
-               para_env,abc(:,ibox),nchains_box,mc_bias_file,&
+               para_env,abc(:,ibox),nchains_box,input_declaration,mc_bias_file,&
                ionode,error)
           IF(SUM(nchains(:,ibox)) .NE. 0) THEN
              CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
@@ -566,8 +568,8 @@ CONTAINS
 
                 CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      r_old(:,:,ibox),atom_names_box(:),nunits_tot(ibox),&
-                     para_env,abc(:,ibox),nchains_box,mc_bias_file,&
-                     ionode,error)
+                     para_env,abc(:,ibox),nchains_box,input_declaration,&
+                     mc_bias_file,ionode,error)
 
                 IF(SUM(nchains(:,ibox)) .NE. 0) THEN
                    CALL force_env_calc_energy_force(&
@@ -594,9 +596,8 @@ CONTAINS
           ENDIF
 
           CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
-               energy_check(:),r_old(:,:,:),old_energy(:),&
-               para_env,bias_energy(:),last_bias_energy(:),&
-               rng_stream,error)
+               energy_check(:),r_old(:,:,:),old_energy(:),input_declaration,&
+               para_env,bias_energy(:),last_bias_energy(:),rng_stream,error)
 
           ! the number of molecules may have changed, which deallocated the whole
           ! mc_molecule_info structure

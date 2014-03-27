@@ -20,6 +20,7 @@ MODULE cell_types
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k,&
                                              cp_units_rad
+  USE dbcsr_error_handling
   USE f77_blas
   USE input_constants,                 ONLY: &
        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
@@ -28,20 +29,15 @@ MODULE cell_types
        cell_sym_tetragonal_bc, cell_sym_triclinic, do_cell_cp2k, do_cell_xsc, &
        use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
        use_perd_y, use_perd_yz, use_perd_z
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
                                              keyword_type
-  USE input_section_types,             ONLY: section_get_keyword,&
-                                             section_release,&
-                                             section_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_val_unset
+  USE input_section_types,             ONLY: &
+       section_get_keyword, section_release, section_type, section_vals_get, &
+       section_vals_get_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set, section_vals_val_unset
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -53,6 +49,7 @@ MODULE cell_types
   USE termination,                     ONLY: stop_program
 
   USE, INTRINSIC ::  ISO_C_BINDING,    ONLY: C_PTR, C_F_POINTER
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -790,6 +787,44 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE read_cell
+
+! *****************************************************************************
+!> \brief utility function to ease the transition to the new input.
+!>      returns true if the new input was parsed
+!> \param input_file the parsed input file
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  FUNCTION parsed_cp2k_input(input_file,check_this_section,error) RESULT(res)
+    TYPE(section_vals_type), POINTER         :: input_file
+    LOGICAL, INTENT(IN), OPTIONAL            :: check_this_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'parsed_cp2k_input', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_check
+    TYPE(section_vals_type), POINTER         :: glob_section
+
+    failure=.FALSE.
+    my_check = .FALSE.
+    IF (PRESENT(check_this_section)) my_check = check_this_section
+    res=ASSOCIATED(input_file)
+    IF (res) THEN
+       CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          IF (.NOT.my_check) THEN
+             glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",&
+                  error=error)
+             CALL section_vals_get(glob_section,explicit=res,error=error)
+          ELSE
+             CALL section_vals_get(input_file,explicit=res,error=error)
+          END IF
+       END IF
+    END IF
+  END FUNCTION parsed_cp2k_input
 
 ! *****************************************************************************
 !> \brief   Setup of the multiple unit_cell

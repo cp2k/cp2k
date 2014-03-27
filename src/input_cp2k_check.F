@@ -26,12 +26,11 @@ MODULE input_cp2k_check
        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
        xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, &
        xc_funct_xwpbe, xc_none
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
-       section_release, section_type, section_vals_check_release, &
-       section_vals_create, section_vals_get, section_vals_get_subs_vals, &
+       section_type, section_vals_check_release, section_vals_create, &
+       section_vals_get, section_vals_get_subs_vals, &
        section_vals_get_subs_vals3, section_vals_release, &
        section_vals_remove_values, section_vals_set_subs_vals, &
        section_vals_type, section_vals_val_get, section_vals_val_set, &
@@ -64,7 +63,8 @@ CONTAINS
 !>      at the moment does nothing
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE check_cp2k_input(input_file,para_env,output_unit,error)
+  SUBROUTINE check_cp2k_input(input_declaration,input_file,para_env,output_unit,error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: output_unit
@@ -90,7 +90,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        ! ext_restart
        IF(PRESENT(output_unit)) &
-          CALL handle_ext_restart(input_file,para_env,output_unit,error)
+          CALL handle_ext_restart(input_declaration, input_file,para_env,output_unit,error)
 
        ! checks on force_eval section
        sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
@@ -265,7 +265,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE handle_ext_restart(input_file,para_env,output_unit,error)
+  SUBROUTINE handle_ext_restart(input_declaration, input_file,para_env,output_unit,error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -294,7 +295,6 @@ CONTAINS
     TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
-    TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, rep_sections, &
                                                 restart_file, section, &
                                                 section1, section2, &
@@ -313,11 +313,8 @@ CONTAINS
        IF (r_file_path/=" ") THEN
           CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
           ! parse the input
-          NULLIFY(input_structure, default_units)
-          CALL create_cp2k_root_section(input_structure,error=sub_error)
-          NULLIFY(restart_file)
-          CALL section_vals_create(restart_file,input_structure, error=sub_error)
-          CALL section_release(input_structure,error=sub_error)
+          NULLIFY(default_units,restart_file)
+          CALL section_vals_create(restart_file,input_declaration, error=sub_error)
           NULLIFY(cpparser)
           CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,error=sub_error)
           CALL cp_unit_set_create(default_units, "OUTPUT",error=sub_error)

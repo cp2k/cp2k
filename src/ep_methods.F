@@ -82,16 +82,12 @@ MODULE ep_methods
                                              ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
                                              wfi_use_prev_wf_method_nr
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
-  USE input_section_types,             ONLY: section_get_ivals,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_write
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
+  USE input_section_types,             ONLY: &
+       section_get_ivals, section_type, section_vals_get_subs_vals, &
+       section_vals_release, section_vals_retain, section_vals_type, &
+       section_vals_val_get, section_vals_val_set, section_vals_write
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -285,8 +281,9 @@ CONTAINS
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE ep_env_init_low(ep_env_id,ierr)
+  SUBROUTINE ep_env_init_low(ep_env_id,input_declaration,ierr)
     INTEGER, INTENT(in)                      :: ep_env_id
+    TYPE(section_type), POINTER              :: input_declaration
     INTEGER, INTENT(out)                     :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_init_low', &
@@ -357,7 +354,8 @@ CONTAINS
        CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
             i_val=do_ep,error=error)
 
-       CALL create_force_env(ep_env%f_env_id,TRIM(project_name)//"_mainQS.inp",&
+       CALL create_force_env(ep_env%f_env_id,input_declaration,&
+            TRIM(project_name)//"_mainQS.inp",&
             TRIM(project_name)//"_mainQS.out",para_env%group,ierr=ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        globenv => ep_env%globenv
@@ -437,8 +435,9 @@ CONTAINS
        CALL ep_force_create(ep_env%force,nat=nat,error=error)
        CALL section_vals_val_get(input,"FORCE_EVAL%EP%COMP_INPUT",&
             c_val=comp_path,error=error)
-       comp_input => create_cp2k_input_reading(comp_path, initial_variables=empty_initial_variables, &
-                                               para_env=para_env,error=error)
+       comp_input => read_input(input_declaration, comp_path, &
+                                initial_variables=empty_initial_variables, &
+                                para_env=para_env,error=error)
        CALL rep_env_create(ep_env%mol_envs, para_env=para_env, input=comp_input,&
             nrep=nmol, prep=1,keep_wf_history=.TRUE.,error=error)
        CALL cp_assert(ASSOCIATED(ep_env%mol_envs),cp_failure_level,&

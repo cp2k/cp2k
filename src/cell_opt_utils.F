@@ -25,7 +25,7 @@ MODULE cell_opt_utils
        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
        cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
        cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic
-  USE input_cp2k,                      ONLY: create_global_section
+  USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&

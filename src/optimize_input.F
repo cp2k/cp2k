@@ -23,7 +23,8 @@ MODULE optimize_input
                                              set_cell
   USE input_constants,                 ONLY: opt_force_matching
   USE input_cp2k_restarts,             ONLY: write_restart_header
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -101,7 +102,8 @@ CONTAINS
 !> \brief main entry point for methods aimed at optimizing parameters in a CP2K input file
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE run_optimize_input(root_section,para_env, error)
+  SUBROUTINE run_optimize_input(input_declaration, root_section, para_env, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -142,7 +144,7 @@ CONTAINS
     ! proceed to actual methods
     SELECT CASE(oi_env%method)
     CASE(opt_force_matching)
-      CALL force_matching(oi_env,root_section,para_env,error)
+      CALL force_matching(oi_env,input_declaration,root_section,para_env,error)
     CASE DEFAULT
       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -155,8 +157,9 @@ CONTAINS
 !> \brief optimizes parameters by force/energy matching results against reference values
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE force_matching(oi_env,root_section,para_env, error)
+  SUBROUTINE force_matching(oi_env,input_declaration,root_section,para_env, error)
     TYPE(oi_env_type)                        :: oi_env
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -326,7 +329,8 @@ CONTAINS
          ENDDO
 
          ierr=0
-         CALL create_force_env(new_env_id=new_env_id,input_path=input_path, output_path=output_path, &
+         CALL create_force_env(new_env_id=new_env_id, input_declaration=input_declaration,&
+                               input_path=input_path, output_path=output_path, &
                                mpi_comm=mpi_comm_slave,initial_variables=initial_variables,ierr=ierr)
 
          ! set to zero initialy, for easier mp_summing

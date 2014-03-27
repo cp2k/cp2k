@@ -52,6 +52,9 @@ PROGRAM cp2k
                                              init_cp2k,&
                                              init_f77_default
   USE input_constants,                 ONLY: id_development_version
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
   USE machine,                         ONLY: default_output_unit,&
@@ -74,7 +77,10 @@ PROGRAM cp2k
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive,has_mpi_mapping
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
+  TYPE(section_type), POINTER          :: input_declaration
   TYPE(cp_error_type)                  :: error
+
+  NULLIFY(input_declaration)
 
   ! output goes to the screen by default
   output_unit=default_output_unit
@@ -291,9 +297,11 @@ PROGRAM cp2k
           END IF
         END IF
 
+        CALL create_cp2k_root_section(input_declaration, error)
+
         IF (check) THEN
-           CALL check_input(input_file_name,output_file_name,echo_input=echo_input,&
-                permissive=permissive,ierr=ierr)
+           CALL check_input(input_declaration,input_file_name,output_file_name,&
+                echo_input=echo_input,permissive=permissive,ierr=ierr)
            IF (default_para_env%source==default_para_env%mepos) THEN
               IF (ierr==0) THEN
                 IF (.NOT. echo_input) THEN
@@ -309,12 +317,14 @@ PROGRAM cp2k
         ENDIF
 
         IF (run_it .OR. force_run) THEN
-           CALL run_input(input_file_name,output_file_name,ierr=ierr)
+           CALL run_input(input_declaration,input_file_name,output_file_name,ierr=ierr)
            CALL mp_max(ierr,default_para_env%group)
            IF (ierr.NE.0 .AND. default_para_env%source==default_para_env%mepos) THEN
               CALL mp_abort()
            ENDIF
         END IF
+
+        CALL section_release(input_declaration,error=error)
      ENDIF
   ELSE
      WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"

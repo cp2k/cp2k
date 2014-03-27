@@ -73,10 +73,10 @@ MODULE f77_interface
                                              do_mixed,&
                                              do_qmmm,&
                                              do_qs
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -619,9 +619,10 @@ CONTAINS
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 !> \author fawzi
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
+  RECURSIVE SUBROUTINE create_force_env(new_env_id,input_declaration,input_path,&
        output_path,mpi_comm,output_unit,owns_out_unit,input,ierr,work_dir, initial_variables)
     INTEGER, INTENT(out)                     :: new_env_id
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: input_path
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: output_path
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm, output_unit
@@ -719,9 +720,9 @@ CONTAINS
     IF (PRESENT(input)) input_file => input
     IF (.NOT.ASSOCIATED(input_file)) THEN
        IF (PRESENT(initial_variables)) THEN
-         input_file => create_cp2k_input_reading(input_path,initial_variables,para_env=para_env,error=error)
+         input_file => read_input(input_declaration, input_path,initial_variables,para_env=para_env,error=error)
        ELSE
-         input_file => create_cp2k_input_reading(input_path,empty_initial_variables,para_env=para_env,error=error)
+         input_file => read_input(input_declaration, input_path,empty_initial_variables,para_env=para_env,error=error)
        ENDIF
     ELSE
        CALL section_vals_retain(input_file,error=error)
@@ -738,7 +739,7 @@ CONTAINS
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,output_unit=unit_nr,error=error)
+       CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
        CALL cp_error_check(error,failure)
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1510,8 +1511,9 @@ CPSourceFileRef,&
 !> \param ierr error control, if different from 0 there was an error
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE check_input(input_file_path,output_file_path,&
+  SUBROUTINE check_input(input_declaration, input_file_path,output_file_path,&
        echo_input,mpi_comm,permissive,ierr)
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
     LOGICAL, INTENT(in), OPTIONAL            :: echo_input
@@ -1563,12 +1565,12 @@ CPSourceFileRef,&
     CALL cp_logger_release(logger)
     CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
 
-    input_file => create_cp2k_input_reading(input_file_path,initial_variables=empty_initial_variables, &
+    input_file => read_input(input_declaration, input_file_path,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
     IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,output_unit=unit_nr,error=error)
+       CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
        IF (my_permissive) CALL cp_error_reset(error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&

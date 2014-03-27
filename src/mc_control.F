@@ -29,10 +29,11 @@ MODULE mc_control
                                              globenv_release
   USE input_constants,                 ONLY: do_fist,&
                                              do_qs
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
   USE input_cp2k_check,                ONLY: check_cp2k_input
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -371,10 +372,11 @@ CONTAINS
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
+  SUBROUTINE mc_create_force_env ( force_env, input_declaration, para_env, input_file_name,&
        globenv_new, error )
 
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     TYPE(global_environment_type), &
@@ -397,13 +399,13 @@ CONTAINS
     CALL globenv_create(globenv, error=error)
 
     ! parse the input
-    root_section => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables,&
+    root_section => read_input(input_declaration, input_file_name,initial_variables=empty_initial_variables,&
                                               para_env=para_env,error=error)
     ! it has been a problem that the .dat file is written incorrectly...
     ! this will help check that
     CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
 
-    CALL check_cp2k_input(root_section,para_env=para_env,error=error)
+    CALL check_cp2k_input(input_declaration,root_section,para_env=para_env,error=error)
 
     CALL cp2k_read(root_section,para_env,globenv,error=error)
     force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
@@ -447,7 +449,7 @@ CONTAINS
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&
-       para_env, box_length,nchains,mc_input_file,ionode,error)
+       para_env, box_length,nchains,input_declaration,mc_input_file,ionode,error)
 
     TYPE(force_env_type), POINTER            :: bias_env
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: r
@@ -458,6 +460,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
     INTEGER, DIMENSION(:), POINTER           :: nchains
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -469,7 +472,7 @@ CONTAINS
          CALL mc_make_dat_file_new(r(:,:),atom_symbols,nunits_tot,&
          box_length(:),'bias_temp.dat',nchains(:),mc_input_file)
 
-    CALL mc_create_force_env(bias_env, para_env, 'bias_temp.dat',error=error)
+    CALL mc_create_force_env(bias_env,input_declaration, para_env, 'bias_temp.dat',error=error)
 
   END SUBROUTINE mc_create_bias_force_env
 

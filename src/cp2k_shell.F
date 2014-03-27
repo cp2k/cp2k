@@ -39,6 +39,9 @@ PROGRAM cp2k_shell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface
   USE input_constants,                 ONLY: id_development_version
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -74,6 +77,7 @@ PROGRAM cp2k_shell
 
   LOGICAL, SAVE                            :: did_init = .FALSE.
   INTEGER, SAVE                            :: eof_stat
+  TYPE(section_type), POINTER              :: input_declaration
 
   CHARACTER(LEN=default_string_length), DIMENSION(35) :: helpMsg
 
@@ -116,6 +120,9 @@ PROGRAM cp2k_shell
 
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
   IF (ierr/=0) CALL mp_abort('init_cp2k failure')
+
+  NULLIFY(input_declaration)
+  CALL create_cp2k_root_section(input_declaration, error)
 
   pos_fact=1.0_dp
   e_fact=1.0_dp
@@ -196,6 +203,7 @@ PROGRAM cp2k_shell
         CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
         IF (failure) GOTO 10
         CALL create_force_env(new_env_id=last_env_id,&
+             input_declaration=input_declaration,&
              input_path=cmdStr(shift:LEN_TRIM(cmdStr)),&
              output_path=cmdStr(shift:LEN_TRIM(cmdStr))//'.out',&
              owns_out_unit=.TRUE.,ierr=ierr)
@@ -213,6 +221,7 @@ PROGRAM cp2k_shell
         CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
         IF (failure) GOTO 10
         CALL create_force_env(new_env_id=last_env_id,&
+             input_declaration=input_declaration,&
              input_path=cmdStr(shift:LEN_TRIM(cmdStr)),&
              output_path=cmdStr(shift:LEN_TRIM(cmdStr))//'.out',&
              owns_out_unit=.TRUE.,ierr=ierr)
@@ -446,6 +455,9 @@ PROGRAM cp2k_shell
         failure=.FALSE.
      END IF
   END DO
+
+  CALL section_release(input_declaration,error=error)
+
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
   IF (ierr/=0) CALL mp_abort('finalize_cp2k failure')
 

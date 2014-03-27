@@ -15,7 +15,8 @@ MODULE swarm_worker
                                              glbopt_worker_init,&
                                              glbopt_worker_type
   USE input_constants,                 ONLY: swarm_do_glbopt
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
   USE swarm_message,                   ONLY: swarm_message_add,&
@@ -51,10 +52,11 @@ MODULE swarm_worker
 !> \brief Initializes a swarm worker
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_worker_init(worker, para_env, root_section,&
+   SUBROUTINE swarm_worker_init(worker, para_env, input_declaration, root_section,&
                  input_path, worker_id, error)
     TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     INTEGER, INTENT(in)                      :: worker_id
@@ -75,8 +77,8 @@ MODULE swarm_worker
     SELECT CASE(worker%behavior)
       CASE(swarm_do_glbopt)
          ALLOCATE(worker%glbopt)
-         CALL glbopt_worker_init(worker%glbopt, para_env, root_section,&
-                 input_path, worker_id, worker%iw, error)
+         CALL glbopt_worker_init(worker%glbopt, input_declaration, para_env,&
+                      root_section, input_path, worker_id, worker%iw, error)
       CASE DEFAULT
          STOP "swarm_worker_init: got unkown behavior"
     END SELECT

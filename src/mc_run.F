@@ -44,7 +44,8 @@ MODULE mc_run
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_type,&
@@ -103,10 +104,11 @@ CONTAINS
 !>      Designed for parallel.
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE do_mon_car ( force_env_1, globenv, input_file_name, error )
+  SUBROUTINE do_mon_car ( force_env_1, globenv, input_declaration, input_file_name, error )
 
     TYPE(force_env_type), POINTER            :: force_env_1
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(LEN=*)                         :: input_file_name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -171,7 +173,7 @@ CONTAINS
          nboxes=2
          CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",&
               c_val=box2_file,error=error)
-         CALL mc_create_force_env(force_env_2, para_env,&
+         CALL mc_create_force_env(force_env_2,input_declaration,para_env,&
               box2_file,globenv_new=globenv_2,error=error)
          CALL section_vals_release(force_env_2%root_section,error=error)
       END SELECT
@@ -263,7 +265,7 @@ CONTAINS
 ! release the old force env and make the new one
             CALL force_env_release(force_env(ibox)%force_env,error=error)
             CALL mc_create_force_env(force_env(ibox)%force_env, &
-                 para_env, dat_file,error=error)
+                 input_declaration,para_env, dat_file,error=error)
          ENDIF
 
       ENDDO
@@ -328,7 +330,7 @@ CONTAINS
       CASE("VIRIAL")
          CALL mc_compute_virial(mc_env,rng_stream,error)
       CASE DEFAULT
-         CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,rng_stream,error)
+         CALL mc_run_ensemble(mc_env,para_env,globenv,input_declaration,nboxes,rng_stream,error)
       END SELECT
 
 ! check to see if all the MC stuff ran correctly

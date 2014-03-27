@@ -78,11 +78,11 @@ MODULE cp2k_runs
        energy_force_run, energy_run, geo_opt_run, linear_response_run, &
        mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, &
        tree_mc_run, vib_anal
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             create_cp2k_root_section,&
-                                             create_global_section,&
-                                             empty_initial_variables
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
+  USE input_cp2k_global,               ONLY: create_global_section
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
@@ -156,8 +156,8 @@ CONTAINS
 !>      and able to fail safe
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,mpi_comm) RESULT(cp2k_run_OK)
-
+  RECURSIVE FUNCTION cp2k_run(input_declaration,input_file_name,output_unit,mpi_comm) RESULT(cp2k_run_OK)
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     INTEGER, INTENT(IN)                      :: output_unit, mpi_comm
     LOGICAL                                  :: cp2k_run_OK
@@ -177,7 +177,6 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 root_section
 
@@ -199,7 +198,7 @@ CONTAINS
     CALL cite_reference(Hutter2014)
 
     ! parse the input
-    input_file => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables, &
+    input_file => read_input(input_declaration,input_file_name,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
 
     ! put failure to true if this is what happened on parsing the input
@@ -216,13 +215,8 @@ CONTAINS
           CALL m_flush(unit_nr)
           matching_rank=0
           matching_string=""
-          NULLIFY(input_structure)
-          CALL cp_error_init(suberror,template_error=error)
-          CALL create_cp2k_root_section(input_structure,error=suberror)
-          CALL cp_error_dealloc_ref(suberror)
-          CALL section_typo_match(input_structure,unknown_string,location_string="", &
+          CALL section_typo_match(input_declaration,unknown_string,location_string="", &
                                   matching_rank=matching_rank,matching_string=matching_string,error=error)
-          CALL section_release(input_structure,error=error)
           DO I=1,SIZE(matching_rank,1)
              IF (matching_rank(i)>0) THEN
                  WRITE(unit_nr,'(T2,A)') TRIM(matching_string(I))
@@ -258,7 +252,7 @@ CONTAINS
        END IF
 
        IF (.NOT.failure) THEN
-          CALL check_cp2k_input(input_file,para_env=para_env,output_unit=output_unit,error=error)
+          CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=output_unit,error=error)
        END IF
        CALL cp_error_check(error,failure)
 
@@ -312,21 +306,23 @@ CONTAINS
              globenv%run_type_id = none_run
              CALL atom_code(root_section,suberror)
           CASE (do_optimize_input)
-             CALL run_optimize_input(root_section, para_env, suberror)
+             CALL run_optimize_input(input_declaration,root_section, para_env, suberror)
           CASE (do_swarm)
-             CALL run_swarm(root_section, para_env, globenv, input_file_name, suberror)
+             CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name, suberror)
           CASE (do_farming)
              ! Hack: DBCSR should be uninitialized when entering farming.
              ! But, we don't want to change the public f77_interface.
              ! TODO: refactor cp2k's startup code
              CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
-             CALL farming_run ( root_section, para_env, suberror )
+             CALL farming_run(input_declaration, root_section, para_env, suberror )
              CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
           CASE (do_opt_basis)
-             CALL run_optimize_basis ( root_section, para_env, suberror )
+             CALL run_optimize_basis (input_declaration, root_section, para_env, suberror)
              globenv%run_type_id = none_run
           CASE(do_cp2k)
-             CALL create_force_env(new_env_id,input_path=input_file_name,&
+             CALL create_force_env(new_env_id,&
+                  input_declaration=input_declaration,&
+                  input_path=input_file_name,&
                   output_path="__STD_OUT__",mpi_comm=para_env%group,&
                   output_unit=output_unit,&
                   owns_out_unit=.FALSE.,&
@@ -342,9 +338,9 @@ CONTAINS
           CASE (do_test)
              CALL lib_test(root_section,para_env,globenv,suberror)
           CASE (do_tree_mc) ! TMC entry point
-             CALL do_tmc ( root_section, para_env, globenv, error=suberror )
+             CALL do_tmc (input_declaration, root_section, para_env, globenv, error=suberror)
           CASE (do_tree_mc_ana)
-             CALL do_analyze_files(root_section, para_env, globenv, error=suberror )
+             CALL do_analyze_files(input_declaration, root_section, para_env, globenv, error=suberror )
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
@@ -388,7 +384,7 @@ CONTAINS
           CASE (cell_opt_run)
              CALL cp_cell_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
-             CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
+             CALL do_mon_car(force_env, globenv, input_declaration, input_file_name, error=suberror)
           CASE (do_tamc)
              CALL qs_tamc ( force_env, globenv, input_file_name, error=suberror )
           CASE (electronic_spectra_run)
@@ -496,7 +492,8 @@ CONTAINS
 !>      calling style creates a hard circular dependency
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE farming_run(root_section,para_env, error)
+  RECURSIVE SUBROUTINE farming_run(input_declaration,root_section,para_env, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -890,7 +887,7 @@ CONTAINS
          new_output_unit=-1
        ENDIF
 
-       run_OK=cp2k_run(TRIM(farming_env%Job(i)%input),new_output_unit,new_group)
+       run_OK=cp2k_run(input_declaration,TRIM(farming_env%Job(i)%input),new_output_unit,new_group)
 
        IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
@@ -1157,7 +1154,8 @@ CONTAINS
 !>      moved here because of circular dependencies
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE run_input(input_file_path,output_file_path,ierr,mpi_comm)
+  SUBROUTINE run_input(input_declaration,input_file_path,output_file_path,ierr,mpi_comm)
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
     INTEGER, INTENT(out)                     :: ierr
@@ -1190,7 +1188,7 @@ CONTAINS
     ELSE
        unit_nr=-1
     END IF
-    success=cp2k_run(input_file_path,unit_nr,para_env%group)
+    success=cp2k_run(input_declaration,input_file_path,unit_nr,para_env%group)
     IF (.NOT.success) THEN
        ierr=cp_failure_level
     ELSE

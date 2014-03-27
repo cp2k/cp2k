@@ -23,7 +23,8 @@ MODULE tmc_setup
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: tmc_ana_header,&
                                              tmc_header
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -94,7 +95,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE do_tmc ( root_section, para_env, globenv, error )
+  SUBROUTINE do_tmc (input_declaration, root_section, para_env, globenv, error )
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -229,6 +231,7 @@ CONTAINS
         ! energy worker
         IF(tmc_env%tmc_comp_set%group_nr.LE.tmc_env%tmc_comp_set%group_ener_nr) THEN
           CALL create_force_env(new_env_id=tmc_env%w_env%env_id_ener, &
+                  input_declaration=input_declaration,&
                   input_path=tmc_env%params%energy_inp_file, &
                   mpi_comm=tmc_env%tmc_comp_set%para_env_sub_group%group, &
                   output_path=TRIM(expand_file_name_int(file_name=tmc_energy_worker_out_file_name, &
@@ -243,6 +246,7 @@ CONTAINS
            (tmc_env%tmc_comp_set%group_cc_nr.EQ.0 .OR. &
            tmc_env%tmc_comp_set%group_nr.GT.tmc_env%tmc_comp_set%group_ener_nr))THEN
           CALL create_force_env(new_env_id=tmc_env%w_env%env_id_approx, &
+                  input_declaration=input_declaration, &
                   input_path=tmc_env%params%NMC_inp_file, &
                   mpi_comm=tmc_env%tmc_comp_set%para_env_sub_group%group, &
                   output_path=TRIM(expand_file_name_int(file_name=tmc_NMC_worker_out_file_name, &
@@ -336,7 +340,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE do_analyze_files(root_section, para_env, globenv, error)
+  SUBROUTINE do_analyze_files(input_declaration, root_section, para_env, globenv, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -389,9 +394,9 @@ CONTAINS
       CALL tmc_ana_header(output_unit)
 
       ! read the input and create the ana environments for each temp
-      CALL tmc_read_ana_files_input(input=root_section,ana_list=ana_list,&
-                                    elem=elem, tmc_env=tmc_env,&
-                                    error=error)
+      CALL tmc_read_ana_files_input(input_declaration=input_declaration,&
+                                    input=root_section,ana_list=ana_list,&
+                                    elem=elem, tmc_env=tmc_env,error=error)
       nr_dim = SIZE(elem%pos)
       ! we need a new tree element with all neccessay arrays, (e.g. dipoles could not be allocated already)
       CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
@@ -481,7 +486,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE tmc_read_ana_files_input(input, ana_list, elem, tmc_env, error)
+  SUBROUTINE tmc_read_ana_files_input(input_declaration, input, ana_list, elem, tmc_env, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: input
     TYPE(tmc_ana_list_type), DIMENSION(:), &
       POINTER                                :: ana_list
@@ -549,6 +555,7 @@ CONTAINS
 
     ! get init configuration (for sizes)
     CALL create_force_env(new_env_id=env_id, &
+           input_declaration=input_declaration,&
            input_path=tmc_env%params%energy_inp_file, &
            mpi_comm=tmc_env%tmc_comp_set%para_env_m_ana%group, &
            output_path="tmc_ana.out", ierr=ierr)

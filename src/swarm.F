@@ -11,7 +11,8 @@ MODULE swarm
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
   USE swarm_input
@@ -52,7 +53,8 @@ MODULE swarm
 !> \brief Central driver routine of the swarm framework, called by cp2k_runs.F
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE run_swarm(root_section, para_env, globenv, input_path, error)
+   SUBROUTINE run_swarm(input_declaration, root_section, para_env, globenv, input_path, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -78,11 +80,11 @@ MODULE swarm
 
     IF(n_workers==1 .AND. para_env%num_pe==1) THEN
        IF(iw > 0) WRITE(iw,"(A)") " SWARM| Running in single worker mode."
-       CALL swarm_serial_driver(root_section, input_path, para_env, globenv, error)
+       CALL swarm_serial_driver(input_declaration, root_section, input_path, para_env, globenv, error)
     ELSE
        IF(iw > 0) WRITE(iw,"(A)") " SWARM| Running in master / workers mode."
        !printkey iw passed on for output from swarm_mpi_init()
-       CALL swarm_parallel_driver(n_workers, root_section, input_path, para_env, globenv, iw, error)
+       CALL swarm_parallel_driver(n_workers, input_declaration, root_section, input_path, para_env, globenv, iw, error)
     ENDIF
 
     CALL timestop(handle)
@@ -93,7 +95,8 @@ MODULE swarm
 !> \brief Special driver for using only a single worker.
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_serial_driver(root_section, input_path, para_env, globenv, error)
+   SUBROUTINE swarm_serial_driver(input_declaration, root_section, input_path, para_env, globenv, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -107,8 +110,8 @@ MODULE swarm
     TYPE(swarm_worker_type)                  :: worker
 
       CALL swarm_master_init(master, para_env, globenv, root_section, input_path, n_workers=1, error=error)
-      CALL swarm_worker_init(worker, para_env, root_section, input_path, &
-                                  worker_id=1, error=error)
+      CALL swarm_worker_init(worker, para_env, input_declaration, root_section, &
+                             input_path, worker_id=1, error=error)
 
       CALL swarm_message_add(report, "worker_id", 1)
       CALL swarm_message_add(report, "status", "initial_hello")
@@ -134,8 +137,9 @@ MODULE swarm
 !> \brief Normal driver routine for parallelized runs.
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_parallel_driver(n_workers, root_section, input_path, para_env, globenv, iw, error)
+   SUBROUTINE swarm_parallel_driver(n_workers, input_declaration, root_section, input_path, para_env, globenv, iw, error)
     INTEGER, INTENT(IN)                      :: n_workers
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -149,7 +153,7 @@ MODULE swarm
      CALL swarm_mpi_init(swarm_mpi, para_env, root_section, n_workers, worker_id, iw, error=error)
 
      IF(ASSOCIATED(swarm_mpi%worker)) THEN
-        CALL swarm_parallel_worker_driver(swarm_mpi, n_workers, worker_id, root_section, input_path, error)
+        CALL swarm_parallel_worker_driver(swarm_mpi, input_declaration, n_workers, worker_id, root_section, input_path, error)
      ELSE
         CALL swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, input_path, globenv, error)
      END IF
@@ -163,8 +167,9 @@ MODULE swarm
 !> \brief Worker's driver routine for parallelized runs.
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_parallel_worker_driver(swarm_mpi, n_workers, worker_id, root_section, input_path, error)
+   SUBROUTINE swarm_parallel_worker_driver(swarm_mpi, input_declaration, n_workers, worker_id, root_section, input_path, error)
     TYPE(swarm_mpi_type), INTENT(IN)         :: swarm_mpi
+    TYPE(section_type), POINTER              :: input_declaration
     INTEGER, INTENT(IN)                      :: n_workers, worker_id
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
@@ -175,8 +180,8 @@ MODULE swarm
     TYPE(swarm_message_type)                 :: cmd, report
     TYPE(swarm_worker_type)                  :: worker
 
-     CALL swarm_worker_init(worker, swarm_mpi%worker,&
-                root_section, input_path, worker_id=worker_id, error=error)
+     CALL swarm_worker_init(worker, swarm_mpi%worker, input_declaration, &
+                 root_section, input_path, worker_id=worker_id, error=error)
 
      CALL swarm_message_add(report, "worker_id", worker_id)
      CALL swarm_message_add(report, "status", "initial_hello")

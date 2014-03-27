@@ -23,7 +23,8 @@ MODULE glbopt_worker
   USE geo_opt,                         ONLY: cp_geo_opt
   USE glbopt_types,                    ONLY: glbopt_mdctrl_data_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
@@ -76,9 +77,10 @@ MODULE glbopt_worker
 !> \brief Initializes worker for global optimization
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE glbopt_worker_init(worker, para_env, root_section,&
+   SUBROUTINE glbopt_worker_init(worker, input_declaration, para_env, root_section,&
                  input_path, worker_id, iw, error)
     TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
@@ -100,6 +102,7 @@ MODULE glbopt_worker
 
       ! ======= Create f_env =======
       CALL create_force_env(worker%f_env_id, &
+                            input_declaration=input_declaration,&
                             input_path=input_path, &
                             input=root_section, &
                             output_unit=worker%iw, &
