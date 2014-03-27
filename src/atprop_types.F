@@ -16,7 +16,6 @@ MODULE atprop_types
 
   IMPLICIT NONE
   PRIVATE
-#include "f77_int.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atprop_types'
 
