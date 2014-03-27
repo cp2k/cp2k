@@ -79,16 +79,17 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
     import os
     generatedFiles=[]
     try:
+      extension=".instantiation"
+      if not instantiationFile.endswith(extension):
+          logFile.write("ERROR input '"+ instantiationFile+"' is not a "+extension+" file!!\n")
+          raise
       input = open(instantiationFile,'r')
       subst = eval(input.read())
       errors=0
       for substitution in subst:
-        extension=".instantiation"
-        if not instantiationFile[-len(extension):]==extension :
-          logFile.write("ERROR input '"+ instantiationFile+"' is not a "+
-                        extension+" file!!\n")
-          break
-        inName= instantiationFile.replace(extension, ".template")
+        inName = instantiationFile.replace(extension, ".template")
+        if substitution.has_key("template"):
+            inName = substitution["template"]
         try: infile=open(inName,"r")
         except:
           logFile.write("ERROR opening template '"+inName+"'\n")
