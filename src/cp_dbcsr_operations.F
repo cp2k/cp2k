@@ -663,19 +663,21 @@ CONTAINS
   END SUBROUTINE match_col_sizes
 
   SUBROUTINE cp_dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&
-       alpha,error)
+       alpha,keep_sparsity,error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: sparse_matrix
     TYPE(cp_fm_type), POINTER                :: matrix_v
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
     INTEGER, INTENT(IN)                      :: ncol
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_plus_fm_fm_t_native', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k, nao, timing_handle
-    LOGICAL                                  :: check_product
+    LOGICAL                                  :: check_product, &
+                                                my_keep_sparsity
     REAL(KIND=dp)                            :: my_alpha, norm
     TYPE(array_i1d_obj)                      :: col_blk_size_left, &
                                                 col_dist_left
@@ -689,6 +691,10 @@ CONTAINS
     check_product = .FALSE.
 
     CALL timeset(routineN, timing_handle)
+
+    my_keep_sparsity=.TRUE.
+    IF(PRESENT(keep_sparsity)) my_keep_sparsity=keep_sparsity
+
     IF (ncol .GT. 0) THEN
        CALL cp_assert (cp_dbcsr_valid_index (sparse_matrix), cp_fatal_level,&
             cp_caller_error, routineN, "sparse_matrix must pre-exist", error)
@@ -742,13 +748,13 @@ CONTAINS
        IF(PRESENT (matrix_g)) THEN
           CALL cp_dbcsr_multiply("N", "T", my_alpha, mat_v, mat_g,&
                1.0_dp, sparse_matrix,&
-               retain_sparsity=.TRUE.,&
+               retain_sparsity=my_keep_sparsity,&
                last_k = ncol,&
                error=error)
        ELSE
           CALL cp_dbcsr_multiply("N", "T", my_alpha, mat_v, mat_v,&
                1.0_dp, sparse_matrix,&
-               retain_sparsity=.TRUE.,&
+               retain_sparsity=my_keep_sparsity,&
                last_k = ncol,&
                error=error)
        ENDIF
@@ -765,7 +771,7 @@ CONTAINS
           CALL cp_dbcsr_init(sparse_matrix2, error)
           CALL cp_dbcsr_copy(sparse_matrix2,sparse_matrix,error=error)
           CALL cp_dbcsr_scale(sparse_matrix2,alpha_scalar=0.0_dp,error=error)
-          CALL copy_fm_to_dbcsr(fm_matrix,sparse_matrix2,keep_sparsity=.TRUE., error=error)
+          CALL copy_fm_to_dbcsr(fm_matrix,sparse_matrix2,keep_sparsity=my_keep_sparsity, error=error)
           CALL cp_dbcsr_add(sparse_matrix2,sparse_matrix,alpha_scalar=1.0_dp,&
                beta_scalar=-1.0_dp,error=error)
           CALL cp_dbcsr_norm(sparse_matrix2,which_norm=dbcsr_norm_frobenius,&

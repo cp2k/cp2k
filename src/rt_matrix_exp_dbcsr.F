@@ -310,16 +310,18 @@ END SUBROUTINE
     !the inverse of the prefactor in the taylor series
     tmp=1.0_dp
     DO i=1,nloop
-       tmp=tmp*(REAL(i,dp)*2.0_dp-1.0_dp)
+       CALL cp_dbcsr_scale(T1,1/(REAL(i,dp)*2.0_dp-1.0_dp),error=error)
+       CALL cp_dbcsr_filter(T1,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,im_matrix,T1,zero,&
             T2,filter_eps=filter_eps,error=error)
-       Tfac=1.0_dp/tmp
+       Tfac=one
        IF(MOD(i,2)==0) Tfac=-Tfac
        CALL cp_dbcsr_add(Tres_im,T2,one,Tfac,error=error)
-       tmp=tmp*REAL(i,dp)*2.0_dp
+       CALL cp_dbcsr_scale(T2,1/(REAL(i,dp)*2.0_dp),error=error)
+       CALL cp_dbcsr_filter(T2,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,im_matrix,T2,zero,&
             T1,filter_eps=filter_eps,error=error)
-       Tfac=1.0_dp/tmp 
+       Tfac=one
        IF(MOD(i,2)==1) Tfac=-Tfac
        CALL cp_dbcsr_add(Tres_re,T1,one,Tfac,error=error)
     END DO
@@ -367,7 +369,7 @@ END SUBROUTINE
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    COMPLEX(KIND=dp)                         :: square_fac, Tfac, tmp
+    COMPLEX(KIND=dp)                         :: square_fac
     INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, T3, Tres
@@ -417,14 +419,12 @@ END SUBROUTINE
     CALL cp_dbcsr_set(Tres,zero,error=error)
     CALL cp_dbcsr_add_on_diag(Tres,1.0_dp,error=error)
 
-    tmp=CMPLX(1.0_dp,0.0_dp)
-
     DO i=1,ntaylor
-       tmp=tmp*REAL(i,dp)
+       CALL cp_dbcsr_scale(T1,one/REAL(i,dp),error=error)
+       CALL cp_dbcsr_filter(T1,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,T1,T3,&
             zero,T2,filter_eps=filter_eps,error=error)
-       Tfac=1.0_dp/tmp
-       CALL cp_dbcsr_add(Tres,T2,one,Tfac,error=error)
+       CALL cp_dbcsr_add(Tres,T2,one,one,error=error)
        CALL cp_dbcsr_copy(T1,T2,error=error)
     END DO
 
@@ -691,7 +691,7 @@ END SUBROUTINE
     square_fac=1/(2.0_dp**REAL(nsquare,dp))
 
     CALL cp_dbcsr_copy(tmp,im_part,error=error)
-    CALL cp_dbcsr_scale(tmp,CMPLX(0.0_dp,square_fac),error=error) !Why multiply with square_fac and not divide?
+    CALL cp_dbcsr_scale(tmp,CMPLX(0.0_dp,square_fac),error=error)
 
     CALL cp_dbcsr_add(Npq,tmp,one,one*0.5_dp,error=error)
     CALL cp_dbcsr_add(Dpq,tmp,one,-one*0.5_dp,error=error)
@@ -962,33 +962,16 @@ END SUBROUTINE
     convergence=.FALSE.
     DO i=1,20
        prefac=one/i
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp,zero,comm,&
+       CALL cp_dbcsr_multiply("N","N",-prefac,propagator,tmp2,zero,comm,&
             filter_eps=filter_eps,error=error)
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp2,zero,comm2,&
+       CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp,zero,comm2,&
             filter_eps=filter_eps,error=error)
        CALL cp_dbcsr_transposed(tmp,comm,error=error)
        CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
-       SELECT CASE(MODULO(i,4)) !one has to take account of i and the fact that the imaginary part is antisymmetric
-       CASE(0)
-          CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
-       CASE(1)
-          CALL cp_dbcsr_add(comm,tmp,one,-one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,-one,-one,error=error)
-       CASE(2)
-          CALL cp_dbcsr_add(comm,tmp,-one,-one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,-one,one,error=error)
-       CASE(3)
-          CALL cp_dbcsr_add(comm,tmp,-one,one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,one,one,error=error)
-       END SELECT
-       IF(MODULO(i,2)==1) THEN
-          CALL cp_dbcsr_add(density_re,comm2,one,one,error=error)
-          CALL cp_dbcsr_add(density_im,comm,one,one,error=error)
-       ELSE
-          CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
-          CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
-       ENDIF
+       CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
+       CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
+       CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
+       CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
        CALL cp_dbcsr_copy(tmp,comm,error=error)
        CALL cp_dbcsr_copy(tmp2,comm2,error=error)
        !check for convergence
@@ -1017,6 +1000,7 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
+!>         Works for a non unitary propagator, because the density matrix is hermitian
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
@@ -1064,39 +1048,17 @@ END SUBROUTINE
     CALL cp_dbcsr_copy(tmp2,density_im,error=error)
 
     convergence=.FALSE.
+
     DO i=1,20
        prefac=one/i
-       CALL cp_dbcsr_multiply("N","N",-prefac,propagator_re,tmp,zero,comm2,&
-            filter_eps=filter_eps,error=error)
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator_re,tmp2,zero,comm,&
-            filter_eps=filter_eps,error=error)
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator_im,tmp,zero,comm,&
-            filter_eps=filter_eps,error=error)
-       CALL cp_dbcsr_multiply("N","N",prefac,propagator_im,tmp2,zero,comm2,&
-            filter_eps=filter_eps,error=error)
+       CALL cp_complex_dbcsr_gemm_3("N", "N", prefac, propagator_re, propagator_im,&
+            tmp, tmp2, zero, comm, comm2, filter_eps=filter_eps, error=error)
        CALL cp_dbcsr_transposed(tmp,comm,error=error)
        CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
-       SELECT CASE(MODULO(i,4)) !one has to take account of i and the fact that the imaginary part is antisymmetric
-       CASE(0)
-          CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
-       CASE(1)
-          CALL cp_dbcsr_add(comm,tmp,one,-one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,-one,-one,error=error)
-       CASE(2)
-          CALL cp_dbcsr_add(comm,tmp,-one,-one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,-one,one,error=error)
-       CASE(3)
-          CALL cp_dbcsr_add(comm,tmp,-one,one,error=error)
-          CALL cp_dbcsr_add(comm2,tmp2,one,one,error=error)
-       END SELECT
-       IF(MODULO(i,2)==1) THEN
-          CALL cp_dbcsr_add(density_re,comm2,one,one,error=error)
-          CALL cp_dbcsr_add(density_im,comm,one,one,error=error)
-       ELSE
-          CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
-          CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
-       ENDIF
+       CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
+       CALL cp_dbcsr_add(comm2,tmp2,one,-one,error=error)
+       CALL cp_dbcsr_add(density_re,comm,one,one,error=error)
+       CALL cp_dbcsr_add(density_im,comm2,one,one,error=error)
        CALL cp_dbcsr_copy(tmp,comm,error=error)
        CALL cp_dbcsr_copy(tmp2,comm2,error=error)
        !check for convergence

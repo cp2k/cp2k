@@ -367,3 +367,8 @@ H2O-hfx-emd-restart.inp
 #wrong test type
 H2O-hfx-ls-rtp.inp
 H2O-hfx-ls-rtp-bch.inp
+#change in numerics due to performance optimisation
+H2O-hfx-ls-emd.inp 
+#sparsity of rho in emd section no longer fixed
+H2O-hfx-emd.inp
+H2O-hfx-emd-restart.inp

@@ -290,4 +290,5 @@ H2-emd_restart.inp
 H2-emd_restart-1.inp
 H2-emd-efield.inp
 H2O_excit_emd.inp
-
+#bugfix in bch/ETRS compatibility
+H2O-ls-rtp-bch.inp

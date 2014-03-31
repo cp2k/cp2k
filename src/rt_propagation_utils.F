@@ -23,13 +23,15 @@ MODULE  rt_propagation_utils
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_plus_fm_fm_t
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
@@ -55,7 +57,6 @@ MODULE  rt_propagation_utils
                                              read_rt_mos_from_restart
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -357,11 +358,13 @@ MODULE  rt_propagation_utils
 
     INTEGER                                  :: col_atom, handle, i, ikind, &
                                                 im, ispin, kind_atom, n, &
-                                                natom, re, row_atom, stat
+                                                natom, ncol, re, row_atom, &
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:), POINTER          :: block_values, block_values2
-    REAL(KIND=dp)                            :: one = 1.0_dp, zero = 0.0_dp
+    REAL(KIND=dp)                            :: alpha, one = 1.0_dp, &
+                                                zero = 0.0_dp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -377,7 +380,6 @@ MODULE  rt_propagation_utils
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
@@ -429,11 +431,18 @@ MODULE  rt_propagation_utils
        re=2*ispin-1
        im=2*ispin
        IF(.NOT.rtp%linear_scaling) THEN
-           CALL calculate_dp_imag(dp_imag,mos_new(re:im),mos(ispin)%mo_set,error)
-           CALL copy_fm_to_dbcsr(dp_imag,rho_new(im)%matrix,error=error)
-           !TODO: get the matrix from the mo's without fixing the sparsity
-           CALL get_qs_env(qs_env=qs_env,rho=rho,error=error)
-           CALL cp_dbcsr_copy(rho_new(re)%matrix,rho%rho_ao(ispin)%matrix,error=error)
+          CALL calculate_dp_imag(dp_imag,mos_new(re:im),mos(ispin)%mo_set,error)
+          CALL copy_fm_to_dbcsr(dp_imag,rho_new(im)%matrix,error=error)
+          alpha=3.0_dp-REAL(SIZE(rho_new)/2,dp)
+          CALL cp_dbcsr_set(rho_new(re)%matrix,0.0_dp,error=error)
+          CALL cp_fm_get_info(mos_new(re)%matrix,ncol_global=ncol,error=error)
+          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_new(re)%matrix,&
+               matrix_v=mos_new(re)%matrix,matrix_g=mos_new(re)%matrix,ncol=ncol,&
+               keep_sparsity=.FALSE.,alpha=alpha,error=error)
+          ! It is actually complex conjugate but i*i=-1 therfore it must be added
+          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_new(re)%matrix,&
+               matrix_v=mos_new(im)%matrix,matrix_g=mos_new(im)%matrix,ncol=ncol,&
+               keep_sparsity=.FALSE.,alpha=alpha,error=error)
        END IF
 
        CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&

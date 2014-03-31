@@ -33,6 +33,7 @@ MODULE rt_propagator_init
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE dm_ls_scf_methods,               ONLY: density_matrix_trs4
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
                                              do_cn,&
@@ -42,6 +43,7 @@ MODULE rt_propagator_init
                                              do_taylor
   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_abort
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -120,6 +122,8 @@ CONTAINS
     ! use the fact that CN propagator is a first order pade approximation on the EM propagator
     IF(rtp_control%propagator==do_cn)THEN
        rtp%orders(1,:)=0;rtp%orders(2,:)=1; rtp_control%mat_exp=do_pade; rtp_control%propagator=do_em
+    IF(rtp_control%mat_exp==do_pade.AND.rtp%linear_scaling)&
+       CALL mp_abort("linear_scaling currently does not support pade exponentials")
     ELSE IF(rtp_control%mat_exp==do_pade.OR.rtp_control%mat_exp==do_taylor) THEN
        IF(rtp%linear_scaling) THEN
           CALL get_maxabs_eigval_sparse(rtp,qs_env,error)
@@ -154,6 +158,9 @@ CONTAINS
              CALL cp_fm_to_fm(mos_new(imat)%matrix,mos_next(imat)%matrix,error)
           END DO
        ELSEIF(rtp_control%mat_exp==do_bch) THEN
+         DO imat=1,SIZE(exp_H_new)
+            CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
+         END DO
        ELSE
          IF(rtp%linear_scaling) THEN
             CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
@@ -356,6 +363,7 @@ CONTAINS
     scale=1.0_dp
     IF(qs_env%dft_control%rtp_control%propagator==do_etrs)scale=2.0_dp
     t=-t/scale
+    emd=(.NOT.qs_env%dft_control%rtp_control%fixed_ions)
 
     IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)method=1
     IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)method=2
@@ -431,32 +439,48 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: im, ispin, re
+    REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_old
+    TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL get_qs_env(qs_env,rho=rho,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
     CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
-    !WORK in progress
-    !TODO: some work is done twice here for rtp, I could remove that
-    !CALL s_matrices_create (matrix_s,rtp,error)
+    !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
+    NULLIFY(S_half)
+    ALLOCATE(S_half)
+    CALL cp_dbcsr_init(S_half,error=error)
+    CALL cp_dbcsr_create(S_half,template=matrix_s(1)%matrix,error=error)
+    NULLIFY(S_minus_half)
+    ALLOCATE(S_minus_half)
+    CALL cp_dbcsr_init(S_minus_half,error=error)
+    CALL cp_dbcsr_create(S_minus_half,template=matrix_s(1)%matrix,error=error)
+    CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
+         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
+    NULLIFY(tmp)
+    ALLOCATE(tmp)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
 
-    !CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
+    e_homo = 0
+    e_lumo = 0
+    e_mu = 0
 
-    !CALL cp_dbcsr_init(tmp)
-    !CALL cp_dbcsr_create(tmp,template=matrix_ks(ispin)%matrix,error=error)
 
     DO ispin=1,SIZE(matrix_ks)
        re=2*ispin-1
        im=2*ispin
-       !CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
-       !     qs_env%nelectron_total, rtp%filter_eps, e_lumo, e_mu, matrix_ks_deviation=tmp,
-       !     max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
+       CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
+            qs_env%nelectron_total, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
+            max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
        CALL cp_dbcsr_desymmetrize(rho%rho_ao(ispin)%matrix,rho_old(re)%matrix,error=error)
        CALL cp_dbcsr_set(rho_old(im)%matrix,zero,error=error)
     END DO
 
-    !CALL cp_dbcsr_release(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
+    CALL cp_dbcsr_deallocate_matrix(s_minus_half,error=error)
 
    END SUBROUTINE
 

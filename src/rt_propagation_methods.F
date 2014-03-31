@@ -333,22 +333,9 @@ CONTAINS
     DO ispin=1,SIZE(matrix_ks)
        re=ispin*2-1
        im=ispin*2
-!       IF(rtp%do_bch) THEN
-!          CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
-!          NULLIFY(tmp)
-!          ALLOCATE(tmp)
-!          CALL cp_dbcsr_init(tmp,error=error)
-!          CALL cp_dbcsr_create(tmp,template=matrix_ks_nosym,error=error)
-!          CALL cp_dbcsr_multiply("N","N",one,S_minus_half,matrix_ks(ispin)%matrix,zero,tmp,&
-!               filter_eps=rtp%filter_eps,error=error)
-!          CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,exp_H(im)%matrix,&
-!               filter_eps=rtp%filter_eps,error=error)
-!          CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-!       ELSE
-          CALL cp_dbcsr_desymmetrize(matrix_ks(ispin)%matrix,matrix_ks_nosym,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,S_inv,matrix_ks_nosym,zero,exp_H(im)%matrix,&
-               filter_eps=rtp%filter_eps,error=error)
-!       END IF
+       CALL cp_dbcsr_desymmetrize(matrix_ks(ispin)%matrix,matrix_ks_nosym,error=error)
+       CALL cp_dbcsr_multiply("N","N",one,S_inv,matrix_ks_nosym,zero,exp_H(im)%matrix,&
+            filter_eps=rtp%filter_eps,error=error)
        IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
           CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
           CALL cp_dbcsr_copy(SinvH(ispin)%matrix,exp_H(im)%matrix,error=error)
@@ -374,17 +361,7 @@ CONTAINS
           END DO
        ELSE
           ! in case of pure EMD its only needed once as B is the same for both spins
-!          IF(rtp%do_bch) THEN
-!             NULLIFY(tmp)
-!             ALLOCATE(tmp)
-!             CALL cp_dbcsr_init(tmp,error=error)
-!             CALL cp_dbcsr_create(tmp,template=B_mat,error=error)
-!             CALL cp_dbcsr_multiply("N","N",one,S_minus_half,B_mat,zero,tmp,filter_eps=rtp%filter_eps,error=error)
-!             CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,exp_H(1)%matrix,filter_eps=rtp%filter_eps,error=error)
-!             CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-!          ELSE
-             CALL cp_dbcsr_multiply("N","N",one,rtp%S_inv,B_mat,zero,exp_H(1)%matrix,filter_eps=rtp%filter_eps,error=error)
-!          END IF
+          CALL cp_dbcsr_multiply("N","N",one,S_inv,B_mat,zero,exp_H(1)%matrix,filter_eps=rtp%filter_eps,error=error)
           CALL cp_dbcsr_copy(SinvB(1)%matrix,exp_H(1)%matrix,error=error)
 
           IF(SIZE(matrix_ks)==2)CALL cp_dbcsr_copy(exp_H(3)%matrix,exp_H(1)%matrix,error=error)
@@ -623,6 +600,8 @@ CONTAINS
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
+    CALL cite_reference(Kolafa2004)
+
     rtp_control=>qs_env%dft_control%rtp_control
     NULLIFY(rho_hist)
     IF(rtp%linear_scaling) THEN
@@ -636,7 +615,6 @@ CONTAINS
          error=error)
 
     naspc=MIN(rtp%istep,aspc_order)
-    CALL cite_reference(Kolafa2004)
     IF(rtp%linear_scaling)THEN
        nmat=SIZE(rho_new)
        rho_hist=>rtp%history%rho_history
@@ -652,9 +630,7 @@ CONTAINS
              END IF
           END DO
        END DO
-    END IF
-
-    IF(.NOT.rtp%linear_scaling)THEN !.AND.naspc.GT.1)THEN
+    ELSE
        mo_hist=>rtp%history%mo_history
        nmat=SIZE(mos_new)
        DO imat=1,nmat

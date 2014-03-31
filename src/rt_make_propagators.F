@@ -14,7 +14,8 @@ MODULE rt_make_propagators
   USE cp_control_types,                ONLY: rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_init
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_scale
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
@@ -30,7 +31,6 @@ MODULE rt_make_propagators
                                              do_pade,&
                                              do_taylor
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_abort
   USE rt_matrix_exp,                   ONLY: arnoldi,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
@@ -296,9 +296,10 @@ CONTAINS
 
     INTEGER                                  :: handle, im, ispin, re
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: prefac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: propagator_matrix, rho_new, &
-                                                rho_next, rho_old
+      POINTER                                :: exp_H_old, propagator_matrix, &
+                                                rho_new, rho_next, rho_old
 
     CALL timeset(routineN,handle)
 
@@ -306,8 +307,6 @@ CONTAINS
 
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix,rho_old=rho_old,rho_new=rho_new,&
          rho_next=rho_next,error=error)
-
-    IF(.NOT.rtp_control%fixed_ions) CALL mp_abort("bch not yet implemented for emd")
 
     DO ispin=1,SIZE(propagator_matrix)/2
        re=2*ispin-1
@@ -318,24 +317,30 @@ CONTAINS
           CALL cp_dbcsr_copy(rho_next(re)%matrix,rho_old(re)%matrix,error=error)
           CALL cp_dbcsr_copy(rho_next(im)%matrix,rho_old(im)%matrix,error=error)
           IF(rtp_control%propagator==do_etrs) THEN
-             IF(.NOT.rtp%do_hfx)THEN
-                CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix,&
+             !since we never calculated the matrix exponential the old matrix exponential stores the unscalled propagator
+             CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,error=error)
+             prefac=-0.5_dp*rtp%dt
+             CALL cp_dbcsr_scale(exp_H_old(re)%matrix,prefac,error=error)
+             IF(.NOT.rtp%do_hfx.AND.rtp_control%fixed_ions)THEN
+                CALL bch_expansion_imaginary_propagator(exp_H_old(re)%matrix,&
                      rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
              ELSE
-                CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+                CALL cp_dbcsr_scale(exp_H_old(im)%matrix,prefac,error=error)
+                CALL bch_expansion_complex_propagator(exp_H_old(re)%matrix,exp_H_old(im)%matrix,&
                      rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
              ENDIF
           END IF
        END IF
        CALL cp_dbcsr_copy(rho_new(re)%matrix,rho_next(re)%matrix,error=error)
        CALL cp_dbcsr_copy(rho_new(im)%matrix,rho_next(im)%matrix,error=error)
-       IF(.NOT.rtp%do_hfx)THEN
+       IF(.NOT.rtp%do_hfx.AND.rtp_control%fixed_ions)THEN
           CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix,&
                rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
        ELSE
           CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
                rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
        ENDIF
+
     END DO
 
     CALL timestop(handle)
