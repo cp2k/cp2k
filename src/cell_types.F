@@ -20,7 +20,6 @@ MODULE cell_types
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k,&
                                              cp_units_rad
-  USE dbcsr_error_handling
   USE f77_blas
   USE input_constants,                 ONLY: &
        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
