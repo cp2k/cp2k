@@ -930,7 +930,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(cell, cores,hab,input, interp_section,rs_descs,pw_env,para_env,&
-            dft_control,rs_v,virial)
+            dft_control,rs_v,virial,work)
 
     failure = .FALSE.
 
