@@ -2229,6 +2229,7 @@
   Kernel_dnt_medium(m=6, n=23, k=22, tile_m=2, tile_n=1, threads=160, grouping=16, minblocks=8) , # 145.676 GFlop/s
   Kernel_dnt_medium(m=6, n=24, k=23, tile_m=1, tile_n=2, threads=160, grouping=16, minblocks=8) , # 156.783 GFlop/s
   Kernel_dnt_largeDB(m=16, n=6, k=16, tile_m=1, tile_n=1, w=8, v=6, threads=128, grouping=16, minblocks=4) , # 134.069 GFlop/s
+  Kernel_dnt_largeDB(m=78, n=78, k=78, tile_m=5, tile_n=5, w=8, v=26, threads=256, grouping=16, minblocks=1) , # 586.748 GFlops
 ]
 
 #EOF
