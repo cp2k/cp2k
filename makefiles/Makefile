@@ -27,6 +27,12 @@ EXEDIR       := $(MAINEXEDIR)/$(ARCH)
 REVISION     := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
 
 
+# Discover programs =========================================================
+ifeq ($(ALL_EXE_FILES),)
+export ALL_EXE_FILES := $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR)))
+endif
+EXE_NAMES := $(basename $(notdir $(ALL_EXE_FILES)))
+
 # Once we are down to a single version ======================================
 # this only happens on stage 3 and 4
 ifneq ($(ONEVERSION),)
@@ -35,13 +41,9 @@ include $(CP2KHOME)/arch/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
-DISCOVER_FLAGS = "--ignore-cuda-files"
+EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
 endif
-
-# Discover programs =========================================================
-ALL_EXE_FILES := $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR) $(DISCOVER_FLAGS) ))
-EXE_NAMES := $(basename $(notdir $(ALL_EXE_FILES)))
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
