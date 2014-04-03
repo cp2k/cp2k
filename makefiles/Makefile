@@ -40,8 +40,8 @@ endif
 endif
 
 # Discover programs =========================================================
-ALL_EXE_FILES = $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR) $(DISCOVER_FLAGS) ))
-EXE_NAMES = $(basename $(notdir $(ALL_EXE_FILES)))
+ALL_EXE_FILES := $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR) $(DISCOVER_FLAGS) ))
+EXE_NAMES := $(basename $(notdir $(ALL_EXE_FILES)))
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
