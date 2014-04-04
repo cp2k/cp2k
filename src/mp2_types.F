@@ -95,6 +95,7 @@ MODULE mp2_types
   TYPE ri_rpa_type
        INTEGER                  :: rpa_num_quad_points
        INTEGER                  :: rpa_integ_group_size
+       INTEGER                  :: mm_style
        TYPE(hfx_type),DIMENSION(:,:), POINTER     &
                                 :: x_data
   END TYPE

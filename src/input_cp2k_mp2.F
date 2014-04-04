@@ -468,6 +468,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,&
+            name="MM_STYLE",&
+            description="Matrix multiplication style for the Q matrix.",&
+            usage="MM_STYLE GEMM",&
+            enum_c_vals=s2a("GEMM","SYRK"),&
+            enum_i_vals=(/wfc_mm_style_gemm,wfc_mm_style_syrk/),&
+            enum_desc=s2a("Use pdgemm: more flops, maybe faster.",&
+                          "Use pdysrk: fewer flops, maybe slower."),&
+            default_i_val=wfc_mm_style_gemm, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
        CALL create_hfx_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)

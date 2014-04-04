@@ -13,7 +13,8 @@ MODULE rpa_ri_gpw
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_syrk
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -29,6 +30,8 @@ MODULE rpa_ri_gpw
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE input_constants,                 ONLY: wfc_mm_style_gemm,&
+                                             wfc_mm_style_syrk
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
@@ -506,7 +509,7 @@ MODULE rpa_ri_gpw
         ! go with clenshaw curtius quadrature
         CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                    num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,mp2_env%ri_rpa%mm_style,error,&
                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                    fm_mat_Q_gemm_beta,fm_mat_Q_beta)
       END IF
@@ -520,7 +523,7 @@ MODULE rpa_ri_gpw
         ! go with clenshaw curtius quadrature
         CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                    num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error)
+                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,mp2_env%ri_rpa%mm_style,error)
       END IF
     END IF
 
@@ -1262,7 +1265,7 @@ MODULE rpa_ri_gpw
 
     SUBROUTINE clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                      num_integ_points,num_integ_group,color_rpa_group,&
-                                     fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                     fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,mm_style,error,&
                                      homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                      fm_mat_Q_gemm_beta,fm_mat_Q_beta)
     REAL(KIND=dp)                            :: Erpa
@@ -1275,6 +1278,7 @@ MODULE rpa_ri_gpw
                                                 color_rpa_group
     TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
                                                 fm_mat_Q
+    INTEGER                                  :: mm_style
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
                                                 dimen_ia_beta
@@ -1285,6 +1289,7 @@ MODULE rpa_ri_gpw
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'clenshaw_curtius_quad', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: use_gemm = .FALSE.
 
     INTEGER :: avirt, handle, i_global, iiB, info_chol, iocc, j_global, jjB, &
       jquad, my_num_dgemm_call, ncol_local, nrow_local, number_of_rec, &
@@ -1436,11 +1441,23 @@ MODULE rpa_ri_gpw
 
       ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
       t_start=m_walltime()
-      CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
-                      matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
-                      matrix_c=fm_mat_Q_gemm,error=error)
+      SELECT CASE(mm_style)
+      CASE(wfc_mm_style_gemm)
+         ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
+         CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+                         matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
+                         matrix_c=fm_mat_Q_gemm,error=error)
+      CASE(wfc_mm_style_syrk)
+         ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
+         CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
+                         ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm,error=error)
+      CASE DEFAULT
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
       t_end=m_walltime()
-      actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+
+      actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)
+      actual_flop_rate=actual_flop_rate/(MAX(0.01_dp,t_end-t_start))
       IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
       my_num_dgemm_call=my_num_dgemm_call+1
 
@@ -1510,9 +1527,17 @@ MODULE rpa_ri_gpw
         END IF
 
         t_start=m_walltime()
-        CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
-                        matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
-                        matrix_c=fm_mat_Q_gemm_beta,error=error)
+        SELECT CASE(mm_style)
+        CASE(wfc_mm_style_gemm)
+           CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+                           matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
+                           matrix_c=fm_mat_Q_gemm_beta,error=error)
+        CASE(wfc_mm_style_syrk)
+           CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia_beta,alpha=alpha,matrix_a=fm_mat_S_beta,&
+                           ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm_beta,error=error)
+        CASE DEFAULT
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END SELECT
         t_end=m_walltime()
         actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
         IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate

@@ -1,0 +1,80 @@
+&GLOBAL                                                                                           
+  PROJECT  RI_RPA_H2O
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  ../HFX_BASIS
+    POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER WAVELET
+    &END POISSON
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-30
+    &END QS
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-7
+      MAX_SCF 100
+      ! ADDED_MOS 15000 15000
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+      &WF_CORRELATION
+        METHOD  RI_RPA_GPW
+        &WFC_GPW
+          CUTOFF  100
+          REL_CUTOFF 20
+        &END
+        &RI_RPA
+          RPA_NUM_QUAD_POINTS 40
+          MM_STYLE SYRK
+          &HF
+            FRACTION 1.0000000
+            &SCREENING
+              EPS_SCHWARZ 1.0E-8
+              SCREEN_ON_INITIAL_P FALSE
+            &END SCREENING
+          &END HF
+        &END RI_RPA
+        MEMORY  200.
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  8.000   8.000  8.000
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET  DZVP-GTH
+      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      POTENTIAL  GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET  DZVP-GTH
+      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      POTENTIAL  GTH-PBE-q6
+    &END KIND
+    &TOPOLOGY
+      COORD_FILE_NAME  H2O_gas.xyz
+      COORD_FILE_FORMAT xyz
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
