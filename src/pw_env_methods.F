@@ -141,10 +141,12 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
     IF (.NOT. failure) THEN
        NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
             pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
-            pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid)
+            pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid, &
+            pw_env%interp_section)
        pw_env%auxbas_grid=-1
        pw_env%ref_count=1
-       IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,external_para_env=external_para_env,error=error)
+       IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,&
+                                 external_para_env=external_para_env,error=error)
     END IF
 
     CALL timestop(handle)
@@ -286,6 +288,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
         para_env=>external_para_env
         CPPostcondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
      ENDIF
+     ! interpolation section
+     pw_env%interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
+
      CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell ,error=error)
      IF (use_ref_cell) THEN
        my_cell => cell_ref

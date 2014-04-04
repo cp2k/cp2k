@@ -97,8 +97,7 @@ MODULE qs_linres_current
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type
-  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
-                                             density_rs2pw
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_atom_current,          ONLY: calculate_jrho_atom,&
@@ -130,6 +129,7 @@ MODULE qs_linres_current
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
        rs_grid_mult_and_add, rs_grid_release, rs_grid_retain, rs_grid_zero
+  USE rs_pw_interface,                 ONLY: density_rs2pw
   USE task_list_methods,               ONLY: distribute_tasks,&
                                              int2pair,&
                                              rs_distribute_matrix,&
@@ -681,7 +681,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_current, rs_rho
     TYPE(realspaces_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_gauge
-    TYPE(section_vals_type), POINTER         :: input, interp_section
 
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, rs_rho, &
@@ -720,7 +719,6 @@ CONTAINS
          particle_set=particle_set,&
          sab_all=sab_orb,&
          para_env=para_env,&
-         input=input,&
          pw_env=pw_env,error=error)
 
     CALL get_current_env(current_env=current_env,&
@@ -741,10 +739,6 @@ CONTAINS
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-
-    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-         error=error)
-    !    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
     !   Check that the neighbor list with all the pairs is associated
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
@@ -1327,8 +1321,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,&
-         interp_section=interp_section,error=error)
+    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,error=error)
 
     IF (ASSOCIATED(rs_rho)) THEN
       DO i=1, SIZE(rs_rho)

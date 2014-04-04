@@ -56,8 +56,6 @@ MODULE mp2_ri_gpw
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
@@ -87,16 +85,15 @@ MODULE mp2_ri_gpw
                                              REALSPACE,&
                                              pw_p_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
-                                             potential_pw2rs
-  USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
+                                             integrate_v_rspace
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
                                              rs_grid_retain
+  USE rs_pw_interface,                 ONLY: potential_pw2rs
   USE task_list_types,                 ONLY: task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -620,7 +617,6 @@ MODULE mp2_ri_gpw
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(section_vals_type), POINTER         :: input, interp_section
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -685,8 +681,6 @@ MODULE mp2_ri_gpw
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     L_local_col=0.0_dp
 
-    CALL get_qs_env(qs_env=qs_env,input=input,error=error)
-
     i_counter=0
     DO LLL=my_group_L_start, my_group_L_end
       i_counter=i_counter+1
@@ -713,9 +707,7 @@ MODULE mp2_ri_gpw
       DO i=1,SIZE(rs_v)
         CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
       END DO
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-           error=error_sub)
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,interp_section,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
 
       CALL timestop(handle3)
  

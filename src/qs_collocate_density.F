@@ -49,7 +49,6 @@ MODULE qs_collocate_density
                                              cp_fm_get_info,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_spline_utils,                 ONLY: pw_prolongate_s3
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -60,16 +59,11 @@ MODULE qs_collocate_density
   USE gauss_colloc,                    ONLY: collocGauss
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_constants,                 ONLY: pw_interp,&
-                                             spline3_pbc_interp,&
-                                             use_aux_basis_set,&
+  USE input_constants,                 ONLY: use_aux_basis_set,&
                                              use_aux_fit_basis_set,&
                                              use_lri_basis_set,&
                                              use_orb_basis_set,&
                                              use_ri_aux_basis_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_8
@@ -93,7 +87,6 @@ MODULE qs_collocate_density
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
-                                             pw_copy,&
                                              pw_integrate_function,&
                                              pw_transfer,&
                                              pw_zero
@@ -125,6 +118,8 @@ MODULE qs_collocate_density
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_release, &
        rs_grid_retain, rs_grid_zero, rs_pw_transfer
+  USE rs_pw_interface,                 ONLY: density_rs2pw,&
+                                             density_rs2pw_basic
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scp_vector_type,&
                                              scptb_parameter_type
@@ -158,7 +153,6 @@ MODULE qs_collocate_density
             collocate_pgf_product_gspace,&
             collocate_pgf_product_rspace,&
             collocate_atomic_charge_density,&
-            density_rs2pw,&
             calculate_rho_nlcc
 
   INTEGER :: debug_count=0
@@ -1681,7 +1675,6 @@ END SUBROUTINE calculate_rho_resp_all
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
 
 !$    INTEGER :: omp_get_thread_num, omp_get_max_threads
@@ -1747,7 +1740,6 @@ END SUBROUTINE calculate_rho_resp_all
            para_env=para_env,&
            task_list=task_list,&
            task_list_soft=task_list_soft,&
-           input=input,&
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
@@ -1758,7 +1750,6 @@ END SUBROUTINE calculate_rho_resp_all
            para_env=para_env,&
            task_list_aux_fit=task_list,&
            task_list_soft=task_list_soft,&
-           input=input,&
            pw_env=pw_env,error=error)
     END SELECT
 
@@ -2157,8 +2148,7 @@ END SUBROUTINE calculate_rho_resp_all
     DEALLOCATE (workt,STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"workt")
 
-    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
-    CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
+    CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,error=error)
 
     total_rho = pw_integrate_function(rho%pw,isign=-1,error=error)
     CALL timestop(handle)
@@ -2229,7 +2219,6 @@ END SUBROUTINE calculate_rho_resp_all
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
 
     failure=.FALSE.
@@ -2265,7 +2254,6 @@ END SUBROUTINE calculate_rho_resp_all
            para_env=para_env,&
            task_list=task_list,&
            task_list_soft=task_list_soft,&
-           input=input,&
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
@@ -2277,7 +2265,6 @@ END SUBROUTINE calculate_rho_resp_all
            para_env=para_env,&
            task_list_aux_fit=task_list,&
            task_list_soft=task_list_soft,&
-           input=input,&
            pw_env=pw_env,error=error)
     END SELECT
 
@@ -2546,9 +2533,7 @@ END SUBROUTINE calculate_rho_resp_all
 
       END DO loop_tasks
 
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
-      CALL density_rs2pw_basic(pw_env,rs_rho,drho(idir),drho_gspace(idir),&
-           interp_section=interp_section,error=error)
+      CALL density_rs2pw_basic(pw_env,rs_rho,drho(idir),drho_gspace(idir),error=error)
 
     END DO loop_xyz
 
@@ -4116,198 +4101,5 @@ END SUBROUTINE calculate_rho_resp_all
     CALL timestop(handle)
 
   END SUBROUTINE collocate_pgf_product_gspace
-
-! *****************************************************************************
-!> \brief given partial densities on the realspace multigrids,
-!>      computes the full density on the plane wave grids, both in real and
-!>      gspace
-!> \note
-!>      should contain the all communication in the collocation of the density
-!>      in the case of replicated grids
-! *****************************************************************************
-  SUBROUTINE density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
-
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: interp_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, igrid_level, &
-                                                interp_kind
-    LOGICAL                                  :: failure
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), POINTER                  :: rs_descs
-
-    CALL timeset(routineN,handle)
-    failure = .FALSE.
-    NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_descs, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
-
-    gridlevel_info=>pw_env%gridlevel_info
-    IF(PRESENT(interp_section)) THEN
-      CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
-    ELSE
-      interp_kind = pw_interp
-    END IF
-
-    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
-                              use_data = REALDATA3D,&
-                              in_space = REALSPACE, error=error)
-
-    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
-                              use_data = COMPLEXDATA1D,&
-                              in_space = RECIPROCALSPACE, error=error)
-
-   IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
-       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-       CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
-       IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-          CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
-       ENDIF
-    ELSE
-       DO igrid_level=1,gridlevel_info%ngrid_levels
-          CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
-          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
-       ENDDO
-
-       ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
-       SELECT CASE(interp_kind)
-       CASE(pw_interp)
-          CALL pw_zero(rho_gspace%pw,error=error)
-          DO igrid_level=1,gridlevel_info%ngrid_levels
-             CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-                  mgrid_gspace(igrid_level)%pw,error=error)
-             CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw,&
-                  error=error)
-          END DO
-          CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
-       CASE(spline3_pbc_interp)
-          DO igrid_level=gridlevel_info%ngrid_levels,2,-1
-             CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw,&
-                  mgrid_rspace(igrid_level-1)%pw,pw_pools(igrid_level)%pool,&
-                  interp_section,error=error)
-          END DO
-          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw,error=error)
-          CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
-       CASE default
-          CALL cp_unimplemented_error(routineN,"interpolator "//&
-               cp_to_string(interp_kind),error=error)
-       END SELECT
-    END IF
-
-    ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
-    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
-    CALL timestop(handle)
-
-  END SUBROUTINE density_rs2pw
-
-! *****************************************************************************
-!> \brief given partial densities on the realspace multigrids,
-!>      computes the full density on the plane wave grids
-!> \note
-!>      should contain the all communication in the collocation of the density
-!>      in the case of replicated grids
-! *****************************************************************************
-  SUBROUTINE density_rs2pw_basic(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
-
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: interp_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw_basic', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, igrid_level, &
-                                                interp_kind
-    LOGICAL                                  :: failure
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), POINTER                  :: rs_descs
-
-    CALL timeset(routineN,handle)
-    failure = .FALSE.
-    NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_descs, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
-
-
-    gridlevel_info=>pw_env%gridlevel_info
-    IF(PRESENT(interp_section)) THEN
-      CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
-    ELSE
-      interp_kind = pw_interp
-    END IF
-
-    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
-                              use_data = REALDATA3D,&
-                              in_space = REALSPACE, error=error)
-
-    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
-                              use_data = COMPLEXDATA1D,&
-                              in_space = RECIPROCALSPACE, error=error)
-
-    IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
-       CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
-    ELSE
-       DO igrid_level=1,gridlevel_info%ngrid_levels
-         CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
-       ENDDO
-
-       ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
-       SELECT CASE(interp_kind)
-       CASE(pw_interp)
-          DO igrid_level=1,gridlevel_info%ngrid_levels
-             CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-                  mgrid_gspace(igrid_level)%pw,error=error)
-             IF (igrid_level/=1) THEN
-               CALL pw_axpy(mgrid_gspace(igrid_level)%pw,mgrid_gspace(1)%pw,&
-                    error=error)
-             END IF
-          END DO
-          CALL pw_transfer(mgrid_gspace(1)%pw,rho%pw,error=error)
-          CALL pw_transfer(mgrid_rspace(1)%pw,rho_gspace%pw,error=error)
-       CASE(spline3_pbc_interp)
-          DO igrid_level=gridlevel_info%ngrid_levels,2,-1
-             CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw,&
-                  mgrid_rspace(igrid_level-1)%pw,pw_pools(igrid_level)%pool,&
-                  interp_section,error=error)
-          END DO
-          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw,error=error)
-          CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
-       CASE default
-          CALL cp_unimplemented_error(routineN,"interpolator "//&
-               cp_to_string(interp_kind),error=error)
-       END SELECT
-    END IF
-
-    ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
-    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
-    CALL timestop(handle)
-
-  END SUBROUTINE density_rs2pw_basic
 
 END MODULE qs_collocate_density

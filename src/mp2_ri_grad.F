@@ -45,8 +45,6 @@ MODULE mp2_ri_grad
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: &
@@ -81,14 +79,14 @@ MODULE mp2_ri_grad
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
-                                             potential_pw2rs
-  USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
+                                             integrate_v_rspace
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
                                              rs_grid_retain
+  USE rs_pw_interface,                 ONLY: potential_pw2rs
   USE task_list_types,                 ONLY: task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -191,7 +189,6 @@ MODULE mp2_ri_grad
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -278,9 +275,9 @@ MODULE mp2_ri_grad
                            use_data=REALDATA3D,&
                            in_space=REALSPACE,error=error_sub)
 
-    ! get input section and forces
+    ! get forces
     NULLIFY (force, virial)
-    CALL get_qs_env(qs_env=qs_env,input=input,force=force,virial=virial,error=error)
+    CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
 
     ! check if we want to calculate the virial
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -385,9 +382,7 @@ MODULE mp2_ri_grad
       DO i=1,SIZE(rs_v)
         CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
       END DO
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-           error=error_sub)
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,interp_section,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
 
       offset=0
       DO iatom=1, natom
@@ -637,9 +632,7 @@ MODULE mp2_ri_grad
       DO i=1,SIZE(rs_v)
         CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
       END DO
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-           error=error_sub)
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,interp_section,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
 
       offset=0
       DO iatom=1, natom

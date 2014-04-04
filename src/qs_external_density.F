@@ -26,7 +26,6 @@ MODULE qs_external_density
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_integrate_function
   USE pw_types,                        ONLY: pw_p_type
-  USE qs_collocate_density,            ONLY: density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -34,6 +33,7 @@ MODULE qs_external_density
                                              realspace_grid_p_type,&
                                              rs_grid_create,&
                                              rs_grid_zero
+  USE rs_pw_interface,                 ONLY: density_rs2pw
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -80,8 +80,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho_ext
-    TYPE(section_vals_type), POINTER         :: ext_den_section, input, &
-                                                interp_section
+    TYPE(section_vals_type), POINTER         :: ext_den_section, input
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -195,12 +194,8 @@ CONTAINS
       ENDIF
 
 
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-                                                   error=error)
-
       CALL density_rs2pw(pw_env,rs_rho_ext,rho=rho_external%rho_r(1),&
-                         rho_gspace=rho_external%rho_g(1),interp_section=interp_section,&
-                         error=error)
+                         rho_gspace=rho_external%rho_g(1),error=error)
       rho_external%tot_rho_r(1) = pw_integrate_function(rho_external%rho_r(1)%pw,&
                                                         isign=1,error=error)
       IF (my_rank == 0) THEN

@@ -28,6 +28,9 @@ MODULE qs_integrate_potential_low
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential_low'
 
+! *** Don't include this routines directly, use the interface to
+! *** qs_integrate_potential
+
   PUBLIC :: integrate_pgf_product_rspace
 
 CONTAINS

@@ -15,7 +15,8 @@ MODULE pw_env_types
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_section_types,             ONLY: section_vals_release
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
   USE lgrid_types,                     ONLY: lgrid_release,&
                                              lgrid_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
@@ -70,17 +71,20 @@ MODULE pw_env_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE pw_env_type
-     INTEGER :: ref_count
+     INTEGER                                     :: ref_count
+     INTEGER                                     :: auxbas_grid
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-     TYPE(pw_pool_type), POINTER :: xc_pw_pool
-     TYPE(pw_pool_type), POINTER :: vdw_pw_pool
-     TYPE(realspace_grid_desc_p_type), DIMENSION(:), POINTER :: rs_descs
-     TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
-     TYPE(lgrid_type), POINTER :: lgrid
-     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
+     TYPE(pw_pool_type), POINTER                 :: xc_pw_pool
+     TYPE(pw_pool_type), POINTER                 :: vdw_pw_pool
+     TYPE(realspace_grid_desc_p_type), &
+        DIMENSION(:), POINTER                    :: rs_descs
+     TYPE(realspace_grid_p_type), &
+        DIMENSION(:), POINTER                    :: rs_grids
+     TYPE(lgrid_type), POINTER                   :: lgrid
+     TYPE(gridlevel_info_type), POINTER          :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
-     INTEGER :: auxbas_grid
-     TYPE(pw_poisson_type), POINTER :: poisson_env
+     TYPE(pw_poisson_type), POINTER              :: poisson_env
+     TYPE(section_vals_type), POINTER            :: interp_section
   END TYPE pw_env_type
 
 CONTAINS
@@ -97,7 +101,7 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,auxbas_rs_desc,auxbas_rs_grid,rs_descs,rs_grids,lgrid,&
-     xc_pw_pool, vdw_pw_pool, poisson_env,error)
+     xc_pw_pool, vdw_pw_pool, poisson_env, interp_section, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
@@ -118,6 +122,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
     TYPE(lgrid_type), OPTIONAL, POINTER      :: lgrid
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool, vdw_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: interp_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', &
@@ -149,6 +155,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
      IF (PRESENT(vdw_pw_pool)) vdw_pw_pool => pw_env%vdw_pw_pool
      IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
+     IF (PRESENT(interp_section)) interp_section => pw_env%interp_section
   END IF
 END SUBROUTINE pw_env_get
 
