@@ -107,7 +107,7 @@ CONTAINS
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
             radii, inp_radii, particle_set, qs_charges)
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
-                         qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
+                         qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                          qs_env%cp_ddapc_ewald%do_decoupling.OR.&
                          qs_env%cp_ddapc_ewald%do_restraint
     unimplemented =      qs_env%dft_control%qs_control%semi_empirical.OR.&

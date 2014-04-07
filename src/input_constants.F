@@ -236,6 +236,9 @@ MODULE input_constants
                                               do_method_ofgpw=17,&
                                               do_method_scptb=18
 
+  INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on=0,&
+                                              do_multipole_section_off=1
+
   INTEGER, PARAMETER, PUBLIC               :: do_ppl_analytic=0,&
                                               do_ppl_grid=1
 

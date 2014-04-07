@@ -246,7 +246,7 @@ CONTAINS
     need_f         = .FALSE.
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
     logger         => cp_error_get_logger(error)
-    apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic
+    apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl
     IF ((.NOT.failure).AND.(apply_decpl)) THEN
        ! Initialize
        NULLIFY(multipole_section,&
@@ -275,7 +275,7 @@ CONTAINS
        IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
           multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        END IF
-       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
           qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
           multipole_section       => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
@@ -308,7 +308,7 @@ CONTAINS
           e_decpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Md,charges))
           WRITE(iw,FMT="(T3,A,T60,F20.10)")"Decoupling Energy: ", e_decpl
        END IF
-       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic.AND.(iw>0)) THEN
+       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.AND.(iw>0)) THEN
           e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Mr,charges))
           WRITE(iw,FMT="(T3,A,T60,F20.10)")"Recoupling Energy: ", e_recpl
        END IF
@@ -326,7 +326,7 @@ CONTAINS
           CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
                .FALSE., 1.0_dp, multipole_section, cell, particle_set,&
                radii, dq, charges, error=error)
-          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_mm,&
                   .TRUE., -1.0_dp, multipole_section, super_cell, particle_set, &
                   radii, dq, charges, error=error)

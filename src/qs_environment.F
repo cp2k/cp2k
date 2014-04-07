@@ -237,7 +237,7 @@ CONTAINS
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
     LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, failure, harris_flag, &
-      mp2_present, my_qmmm, my_qmmm_periodic, use_ref_cell
+      mp2_present, my_qmmm, my_qmmm_multipole, my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -278,6 +278,8 @@ CONTAINS
     IF (PRESENT(qmmm)) my_qmmm=qmmm
     my_qmmm_periodic = .FALSE.
     IF (PRESENT(qmmm_periodic)) my_qmmm_periodic=qmmm_periodic
+    my_qmmm_multipole = .FALSE.
+    IF (PRESENT(qmmm_env_qm)) my_qmmm_multipole=qmmm_env_qm%multipole
     IF(PRESENT(qmmm_env_qm)) THEN
      qs_env%qmmm_env_qm => qmmm_env_qm
     END IF
@@ -315,7 +317,7 @@ CONTAINS
 
     !   *** Setup the grids for the G-space Interpolation if any
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_qmmm_periodic,&
-         my_cell, force_env_section, subsys_section, para_env, error)
+         my_qmmm_multipole, my_cell, force_env_section, subsys_section, para_env, error)
 
     !   *** Print the cell parameters ***
     CALL write_cell(my_cell,subsys_section,cell_ref=my_cell_ref,error=error)

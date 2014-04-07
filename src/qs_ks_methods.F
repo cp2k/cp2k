@@ -391,7 +391,7 @@ CONTAINS
     ! Setup the possible usage of DDAPC charges
     do_ddapc = qs_env%dft_control%qs_control%ddapc_restraint.OR.&
                qs_env%cp_ddapc_ewald%do_decoupling.OR.&
-               qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
+               qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                qs_env%cp_ddapc_ewald%do_solvation
 
     ! Check for GAPW method : additional terms for local densities

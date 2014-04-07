@@ -42,14 +42,11 @@ MODULE qmmm_main
                                              use_qmmm
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: qmmm_header
-  USE input_constants,                 ONLY: do_fist,&
-                                             do_qmmm,&
-                                             do_qmmm_center_every_step,&
-                                             do_qmmm_center_never,&
-                                             do_qmmm_center_pbc_aware,&
-                                             do_qmmm_center_setup_only,&
-                                             do_qmmm_none,&
-                                             do_qs
+  USE input_constants,                 ONLY: &
+       do_fist, do_multipole_section_off, do_multipole_section_on, do_qmmm, &
+       do_qmmm_center_every_step, do_qmmm_center_never, &
+       do_qmmm_center_pbc_aware, do_qmmm_center_setup_only, do_qmmm_none, &
+       do_qs
   USE input_cp2k_restarts,             ONLY: update_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -373,10 +370,8 @@ CPSourceFileRef,&
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER                                  :: center_i, delta_charge, &
-                                                handle, isubf, iw, iw2, &
-                                                orig_charge, qmmm_coupl_type, &
-                                                stat
+    INTEGER :: center_i, delta_charge, handle, isubf, iw, iw2, orig_charge, &
+      qmmm_coupl_type, stat, use_multipole
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index
     LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, &
@@ -401,8 +396,8 @@ CPSourceFileRef,&
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: print_gen, print_section, &
-                                                qmmm_periodic
+    TYPE(section_vals_type), POINTER         :: multipole_section, print_gen, &
+                                                print_section, qmmm_periodic
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -423,6 +418,7 @@ CPSourceFileRef,&
                error=error)
        END IF
        qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC",error=error)
+       multipole_section => section_vals_get_subs_vals(qmmm_section,"PERIODIC%MULTIPOLE",error=error)
        print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
        print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
        iw = cp_print_key_unit_nr(logger,print_gen,"", extension=".log",error=error)
@@ -485,7 +481,13 @@ CPSourceFileRef,&
        ! Periodic boundary condition calculation
        CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
        qmmm_env_qm%periodic = explicit
-       IF (explicit) CALL cite_reference(Laino2006)
+       !multipole section is switched on by default; switched off only if explicitly stated
+       IF(qmmm_env_qm%periodic) qmmm_env_qm%multipole = .TRUE.
+       CALL section_vals_get(multipole_section,explicit=explicit,error=error)
+       CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",i_val=use_multipole,error=error)
+       IF (explicit.and.use_multipole==do_multipole_section_off) qmmm_env_qm%multipole = .FALSE.
+       IF (explicit.and.use_multipole==do_multipole_section_on) qmmm_env_qm%multipole = .TRUE.
+       IF (qmmm_env_qm%periodic.and.qmmm_env_qm%multipole) CALL cite_reference(Laino2006)
        IF (qmmm_coupl_type == do_qmmm_none) THEN
           CALL cp_assert(.NOT.qmmm_env_qm%periodic,cp_warning_level,cp_assertion_failed,routineP,&
                "QMMM periodic calculation with coupling NONE was requested! "//&

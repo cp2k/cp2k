@@ -179,6 +179,7 @@ MODULE qmmm_types
      LOGICAL                                                 :: move_mm_charges
      LOGICAL                                                 :: add_mm_charges
      LOGICAL                                                 :: periodic
+     LOGICAL                                                 :: multipole
      LOGICAL                                                 :: image_charge
      INTEGER                                                 :: par_scheme
      INTEGER                                                 :: qmmm_coupl_type
@@ -378,6 +379,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      qmmm_env%add_mm_charges   = .FALSE.
      qmmm_env%move_mm_charges  = .FALSE.
      qmmm_env%periodic         = .FALSE.
+     qmmm_env%multipole        = .FALSE.
      qmmm_env%image_charge     = .FALSE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0

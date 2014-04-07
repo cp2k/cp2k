@@ -64,7 +64,7 @@ MODULE cp_ddapc_types
 ! *****************************************************************************
   TYPE cp_ddapc_ewald_type
      LOGICAL                                    :: do_decoupling
-     LOGICAL                                    :: do_qmmm_periodic
+     LOGICAL                                    :: do_qmmm_periodic_decpl
      LOGICAL                                    :: do_solvation
      LOGICAL                                    :: do_property
      LOGICAL                                    :: do_restraint
@@ -132,7 +132,7 @@ CONTAINS
                            radii,&
                            iw2,&
                            Vol, error)
-       IF ( cp_ddapc_ewald%do_qmmm_periodic.OR.&
+       IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
             cp_ddapc_ewald%do_decoupling) THEN
           !
           ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
@@ -146,7 +146,7 @@ CONTAINS
                                particle_set,&
                                cp_ddapc_env%Md,&
                                radii, error)
-          IF ( cp_ddapc_ewald%do_qmmm_periodic.OR.cp_ddapc_ewald%do_decoupling) THEN
+          IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.cp_ddapc_ewald%do_decoupling) THEN
              ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              IF ( cp_ddapc_ewald%do_decoupling) THEN
@@ -260,10 +260,12 @@ CONTAINS
 !>      none
 !> \author Teodoro Laino - [tlaino]
 ! *****************************************************************************
-  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,qm_cell,&
-       force_env_section, subsys_section, para_env, error)
+  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,&
+             qmmm_multipole, qm_cell, force_env_section, subsys_section, para_env,&
+             error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
-    LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic
+    LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic, &
+                                                qmmm_multipole
     TYPE(cell_type), POINTER                 :: qm_cell
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
@@ -276,7 +278,7 @@ CONTAINS
     INTEGER                                  :: my_val, npts(3), output_unit, &
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint, &
+    LOGICAL :: analyt, decoupling, do_qmmm_periodic_decpl, do_restraint, &
       do_restraintB, do_solvation, failure
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
@@ -312,13 +314,13 @@ CONTAINS
     CALL section_vals_get(poisson_section,explicit=decoupling, error=error)
     CALL section_vals_get(restraint_section,explicit=do_restraint, error=error)
     CALL section_vals_get(restraint_sectionB,explicit=do_restraintB, error=error)
-    do_qmmm_periodic                = qmmm_periodic.AND.qmmm
-    cp_ddapc_ewald%do_solvation     = do_solvation
-    cp_ddapc_ewald%do_qmmm_periodic = do_qmmm_periodic
-    cp_ddapc_ewald%do_property      = cp_printkey_is_on(logger%iter_info,printC_section,error)
-    cp_ddapc_ewald%do_restraint     = do_restraint.OR.do_restraintB
+    do_qmmm_periodic_decpl                = qmmm_periodic.AND.qmmm.AND.qmmm_multipole
+    cp_ddapc_ewald%do_solvation           = do_solvation
+    cp_ddapc_ewald%do_qmmm_periodic_decpl = do_qmmm_periodic_decpl
+    cp_ddapc_ewald%do_property            = cp_printkey_is_on(logger%iter_info,printC_section,error)
+    cp_ddapc_ewald%do_restraint           = do_restraint.OR.do_restraintB
     ! Determining the tasks and further check
-    IF (do_qmmm_periodic.AND.decoupling) THEN
+    IF (do_qmmm_periodic_decpl.AND.decoupling) THEN
        ! Check than an additional POISSON section has not been defined. In case write a warning
        IF (output_unit>0) &
           WRITE(output_unit,'(T2,"WARNING",A)')&
@@ -338,12 +340,12 @@ CONTAINS
        END SELECT
     END IF
     cp_ddapc_ewald%do_decoupling    = decoupling
-    IF (cp_ddapc_ewald%do_qmmm_periodic) THEN
+    IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
        ! QMMM periodic
        multipole_section => section_vals_get_subs_vals(qmmm_per_section,"MULTIPOLE", error=error)
     END IF
     cp_ddapc_ewald%ewald_section => multipole_section
-    IF (cp_ddapc_ewald%do_decoupling.OR.cp_ddapc_ewald%do_qmmm_periodic) THEN
+    IF (cp_ddapc_ewald%do_decoupling.OR.cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
        ! Do we do the calculation analytically or interpolating the g-space factor?
        CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
        IF (.NOT.analyt) THEN
@@ -366,7 +368,7 @@ CONTAINS
           DEALLOCATE(gz, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           NULLIFY(LG, gx, gy, gz)
-          IF (cp_ddapc_ewald%do_qmmm_periodic) THEN
+          IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              NULLIFY(mm_cell, dummy_cell)
              cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
              CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, para_env=para_env, error=error)
