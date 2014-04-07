@@ -848,11 +848,11 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="Defines the usage the multipole section",&
+            description="Defines the usage of the multipole section",&
             usage="ON",&
             enum_c_vals=s2a("ON","OFF"),&
             enum_i_vals=(/do_multipole_section_on, do_multipole_section_off/),&
-            enum_desc=s2a("switch on MULTPOLE section", &
+            enum_desc=s2a("switch on MULTIPOLE section", &
                           "switch off MULTIPOLE section"), &
             default_i_val=do_multipole_section_on,lone_keyword_i_val=do_multipole_section_on,&
             error=error)
