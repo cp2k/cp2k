@@ -241,12 +241,12 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_restart_wfn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, id_nr, ispin, nspin, &
-                                                qs_env_id
+    INTEGER                                  :: i, id_nr, im, ispin, nspin, &
+                                                qs_env_id, re
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv
+      POINTER                                :: p_rmpv, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -271,27 +271,42 @@ MODULE  rt_propagation_utils
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-    CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+
 
     SELECT CASE(dft_control%rtp_control%initial_wfn)
     CASE(use_restart_wfn)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
             error=error)
-       DO i=1,SIZE(qs_env%mos)
-          CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
-          CALL cp_fm_set_all(mos_new(2*i)%matrix,zero,zero,error)
-       END DO
+       DO ispin=1,nspin
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix,error=error)
+       ENDDO
+       IF(rtp%linear_scaling) THEN
+          CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
+          DO ispin=1,SIZE(qs_env%rho%rho_ao)
+             re=2*ispin-1
+             im=2*ispin
+             CALL cp_dbcsr_desymmetrize(qs_env%rho%rho_ao(ispin)%matrix,rho_old(re)%matrix,error=error)
+             CALL cp_dbcsr_set(rho_old(im)%matrix,zero,error=error)
+          END DO
+       ELSE
+          CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+          DO i=1,SIZE(qs_env%mos)
+             CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
+             CALL cp_fm_set_all(mos_new(2*i)%matrix,zero,zero,error)
+          END DO
+       ENDIF
     CASE(use_rt_restart)
+       CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
        CALL read_rt_mos_from_restart(mo_array,mos_old,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr,dft_control%multiplicity,dft_section, error)
+       DO ispin=1,nspin
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+               p_rmpv(ispin)%matrix,error=error)
+       ENDDO
     END SELECT
 
 
-    DO ispin=1,nspin
-       CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-            p_rmpv(ispin)%matrix,error=error)
-    ENDDO
 
 
   END SUBROUTINE get_restart_wfn

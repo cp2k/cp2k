@@ -823,9 +823,6 @@ MODULE input_constants
                                               do_arnoldi=3,&
                                               do_bch=4
 
-  INTEGER, PARAMETER, PUBLIC               :: extr_mos=1,&
-                                              extr_s_ks=2
-
   INTEGER, PARAMETER, PUBLIC               :: do_etrs=1,&
                                               do_cn=2,&
                                               do_em=3

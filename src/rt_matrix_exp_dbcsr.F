@@ -999,7 +999,7 @@ END SUBROUTINE
    END SUBROUTINE
 
 ! *****************************************************************************
-!> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
+!> \brief  The Baker-Campbell-Hausdorff expansion for a purely imaginary propagator (rtp)
 !>         Works for a non unitary propagator, because the density matrix is hermitian
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
@@ -1072,7 +1072,7 @@ END SUBROUTINE
     ENDDO
 
     CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "BCH method did not converge"//&
+         "BCH method did not converge "//&
          CPSourceFileRef,&
          only_ionode=.TRUE.)
 

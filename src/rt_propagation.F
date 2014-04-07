@@ -26,8 +26,7 @@ MODULE rt_propagation
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: extr_s_ks,&
-                                             real_time_propagation,&
+  USE input_constants,                 ONLY: real_time_propagation,&
                                              use_restart_wfn,&
                                              use_rt_restart,&
                                              use_scf_wfn
@@ -99,7 +98,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order
-    LOGICAL                                  :: extrapolate_H, failure
+    LOGICAL                                  :: failure
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -123,7 +122,6 @@ CONTAINS
     ! Initializes the extrapolation
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,input=input,error=error)
     aspc_order=rtp_control%aspc_order
-    extrapolate_H=(rtp_control%extrapolation==extr_s_ks)
     CALL rtp_history_create(rtp,aspc_order,error=error)
 
 

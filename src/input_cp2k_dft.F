@@ -7170,17 +7170,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="EXTRAPOLATION",&
-            description="Controls which quantity is extrapolated",&
-            usage="EXTRAPOLATION MOS",default_i_val=extr_mos, &
-            enum_c_vals=s2a("MOS","S_KS"),&
-            enum_i_vals=(/extr_mos,extr_s_ks/),&
-            enum_desc=s2a("Direct extrapolation on the MO matrices",&
-            "Extrapolation on the Kohn-Sham matrix, resp. the exponential in case of ETRS"),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MAT_EXP",&
             description="Which method should be used to calculate the exponential"//&
             " in the propagator. For Ehrenfest MD only the Taylor method works, "//&

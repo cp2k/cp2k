@@ -50,7 +50,6 @@ MODULE cp_control_types
      LOGICAL                              :: initial_step
      LOGICAL                              :: hfx_redistribute
      INTEGER                              :: aspc_order
-     INTEGER                              :: extrapolation
      INTEGER                              :: sc_check_start
      LOGICAL                              :: apply_delta_pulse
      LOGICAL                              :: periodic
