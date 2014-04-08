@@ -460,9 +460,6 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pw_grid), cp_failure_level, routineP, error, failure)
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP, error,failure)
-    IF ( pw_grid%grid_span == HALFSPACE ) THEN
-       WRITE(*,*) "WARNING: NOT FULLY TESTED YET! (pw_grid_create_ghatmap)"
-    END IF
 
     ! mapping of map_x( g_hat(i,j)) to g_hatmap
     ! the second index is for switching from gather(1) to scatter(2)
