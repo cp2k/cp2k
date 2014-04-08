@@ -578,8 +578,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"parametrization",&
             description="switches between the B97 and Grimme parametrization ",&
-            enum_i_vals=(/xc_b97_orig,xc_b97_grimme,xc_b97_grimme /),&
-            enum_c_vals=(/"ORIG      ","B97GRIMME ","B97_GRIMME"/),&
+            enum_i_vals=(/xc_b97_orig,xc_b97_grimme,xc_b97_grimme,xc_b97_mardirossian/),&
+            enum_c_vals=(/"ORIG      ","B97GRIMME ","B97_GRIMME","wB97X-V   "/),&
             default_i_val=xc_b97_orig,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

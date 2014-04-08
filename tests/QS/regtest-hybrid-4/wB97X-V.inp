@@ -1,0 +1,83 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_PGF_ORB 1.0E-12
+      EPS_FILTER_MATRIX 0.0e0
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MAX_SCF 10
+      &OT ON
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &BECKE97
+            PARAMETRIZATION  wB97X-V
+            SCALE_X 1.0
+            SCALE_C 1.0
+        &END 
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+           EPS_SCHWARZ 1.0E-3
+        &END
+        &INTERACTION_POTENTIAL
+           POTENTIAL_TYPE MIX_CL
+           SCALE_COULOMB   0.833
+           SCALE_LONGRANGE 0.167
+           OMEGA 0.30
+        &END
+        &MEMORY
+          MAX_MEMORY  10
+        &END
+        #FRACTION 0.167
+      &END
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE RVV10
+           PARAMETERS 6.3 0.0093
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME ../rVV10_kernel_table.dat
+           CUTOFF  80
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
+   &END XC 
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0 
+      PERIODIC NONE
+    &END CELL
+    &COORD
+H       0.0000 	0.3628 	0.0000
+H       0.0000 	-0.3628 0.0000
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2-test
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY_FORCE
+  &TIMINGS
+    THRESHOLD 0.000000001
+  &END
+&END GLOBAL

@@ -25,6 +25,7 @@ MODULE xc_b97
                                              cite_reference
   USE f77_blas
   USE input_constants,                 ONLY: xc_b97_grimme,&
+                                             xc_b97_mardirossian,&
                                              xc_b97_orig
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -53,6 +54,8 @@ MODULE xc_b97
     0.9454_dp, 0.7471_dp, -4.5961_dp, 0.1737_dp, 2.3487_dp, -2.4868_dp , 1.0_dp-0.1943_dp /)
   REAL(dp), DIMENSION(10) :: params_b97_grimme=(/ 1.08662_dp, -0.52127_dp, 3.25429_dp, &
     0.69041_dp, 6.30270_dp, -14.9712_dp, 0.22340_dp, -1.56208_dp, 1.94293_dp, 1.0_dp /)
+  REAL(dp), DIMENSION(10) :: params_b97_mardirossian=(/ 0.833_dp, 0.603_dp, 1.194_dp, &
+    1.219_dp, -1.850_dp, 0.00_dp, 0.556_dp, -0.257_dp, 0.00_dp, 1.0_dp /)
 
 CONTAINS
 
@@ -120,6 +123,21 @@ CONTAINS
              WRITE (shortform,"(a,a,3x,' sx=',f6.3,' sc=',f6.3,' (LDA)')")&
                   "B97-D, Grimme xc functional ",pol,sx,sc
           END IF
+       END IF
+    CASE(xc_b97_mardirossian)
+       CALL cite_reference(Becke1997)
+!       CALL cite_reference(Mardirossian2014)
+       IF (sx==1._dp .AND.sc==1._dp) THEN
+          IF ( PRESENT ( reference ) ) THEN
+             reference = "wB97X-V, xc functional,"//&
+                  " Mardirossian and Head-Gordon, PCCP DOI: 10.1039/c3cp54374a"//&
+                  ", needs HFX exchange and VV10 dispersion (NOT TESTED)"//pol
+          END IF
+          IF ( PRESENT ( shortform ) ) THEN
+             shortform = "wB97X-V, HFX+B97+VV10 functional (NOT TESTED)"//pol
+          END IF
+       ELSE
+         CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
        END IF
     CASE default
        CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
@@ -527,6 +545,8 @@ CONTAINS
        res = params_b97_orig
     CASE(xc_b97_grimme)
        res = params_b97_grimme
+    CASE(xc_b97_mardirossian)
+       res = params_b97_mardirossian
     CASE default
        CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
        res=0.0_dp
