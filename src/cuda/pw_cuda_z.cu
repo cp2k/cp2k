@@ -185,6 +185,7 @@ extern "C" void pw_cuda_cfffg_z_(const double          *din,
 
   // dimensions of double and complex arrays
   nrpts = npts[0] * npts[1] * npts[2];
+  if (nrpts == 0 || ngpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -275,6 +276,7 @@ extern "C" void pw_cuda_sfffc_z_(const cuDoubleComplex *zin,
 
   // dimensions of double and complex arrays
   nrpts = npts[0] * npts[1] * npts[2];
+  if (nrpts == 0 || ngpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -355,6 +357,7 @@ extern "C" void pw_cuda_cff_z_(const double          *din,
 
   // dimensions of double and complex arrays
   nrpts  = npts[0] * npts[1] * npts[2];
+  if (nrpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -426,6 +429,7 @@ extern "C" void pw_cuda_ffc_z_(const cuDoubleComplex *zin,
 
   // dimensions of double and complex arrays
   nrpts  = npts[0] * npts[1] * npts[2];
+  if (nrpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -496,6 +500,7 @@ extern "C" void pw_cuda_cf_z_(const double          *din,
 
   // dimensions of double and complex arrays
   nrpts  = npts[0] * npts[1] * npts[2];
+  if (nrpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -563,6 +568,7 @@ extern "C" void pw_cuda_fc_z_(const cuDoubleComplex *zin,
 
   // dimensions of double and complex arrays
   nrpts  = npts[0] * npts[1] * npts[2];
+  if (nrpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -629,6 +635,7 @@ extern "C" void pw_cuda_f_z_(const cuDoubleComplex *zin,
 
   // dimensions of complex arrays
   nrpts  = n * m;
+  if (nrpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
@@ -691,6 +698,7 @@ extern "C" void pw_cuda_fg_z_(const cuDoubleComplex *zin,
 
   // dimensions of double and complex arrays
   nrpts = npts[0] * mmax;
+  if (nrpts == 0 || ngpts == 0) return;
 
   // get streams and events
   cuda_get_streams_cu_(&cuda_streams);
@@ -768,6 +776,7 @@ extern "C" void pw_cuda_sf_z_(const cuDoubleComplex *zin,
 
   // dimensions of double and complex arrays
   nrpts = npts[0] * mmax;
+  if (nrpts == 0 || ngpts == 0) return;
 
   // get streams
   cuda_get_streams_cu_(&cuda_streams);
