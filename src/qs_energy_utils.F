@@ -48,6 +48,8 @@ MODULE qs_energy_utils
   USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -241,6 +243,8 @@ CONTAINS
     INTEGER                                  :: handle
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
@@ -273,7 +277,8 @@ CONTAINS
        CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL scptb_core_interaction(qs_env,calculate_forces=.FALSE.,error=error)
-       CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
+       CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
     ELSE
        CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
 
@@ -289,7 +294,8 @@ CONTAINS
 
        ! Add possible pair potential dispersion energy - Evaluate first so we can print
        ! energy info at the end of the SCF
-       CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
+       CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
 
     END IF
 

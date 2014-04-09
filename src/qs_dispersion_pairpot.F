@@ -22,7 +22,6 @@ MODULE qs_dispersion_pairpot
                                              get_cell,&
                                              pbc,&
                                              plane_distance
-  USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -34,16 +33,11 @@ MODULE qs_dispersion_pairpot
                                              parser_create,&
                                              parser_release
   USE f77_blas
-  USE input_constants,                 ONLY: vdw_nl_DRSLL,&
-                                             vdw_nl_LMKLL,&
-                                             vdw_nl_RVV10,&
-                                             vdw_pairpot_dftd2,&
+  USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                              vdw_pairpot_dftd3,&
                                              xc_vdw_fun_none,&
-                                             xc_vdw_fun_nonloc,&
                                              xc_vdw_fun_pairpot
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -61,7 +55,6 @@ MODULE qs_dispersion_pairpot
                                              dftd3_pp,&
                                              qs_atom_dispersion_type,&
                                              qs_dispersion_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -84,7 +77,7 @@ MODULE qs_dispersion_pairpot
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_pairpot'
 
   PUBLIC :: qs_dispersion_pairpot_init, calculate_dispersion_pairpot, &
-            qs_scaling_init, qs_scaling_dftd3, write_dispersion
+            qs_scaling_init, qs_scaling_dftd3
 
   TYPE dcnum_type
      INTEGER                                :: neighbors
@@ -551,117 +544,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-! *****************************************************************************
-  SUBROUTINE write_dispersion(qs_env,error)
+  SUBROUTINE calculate_dispersion_pairpot(qs_env,dispersion_env,energy,calculate_forces,error)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dispersion', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=2)                         :: symbol
-    INTEGER                                  :: handle, i, ikind, nkind, &
-                                                output_unit
-    LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_atom_dispersion_type), POINTER   :: disp
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(section_vals_type), POINTER         :: dft_section
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-
-    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    output_unit = cp_print_key_unit_nr(logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
-
-    IF (output_unit>0) THEN
-       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
-       ! vdW type specific output
-       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
-          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')")
-          ! Pair potentials
-          IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
-             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,error=error)
-             nkind  = SIZE(atomic_kind_set)
-             DO ikind = 1, nkind
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind,element_symbol=symbol,dispersion=disp)
-                IF ( disp%defined ) THEN
-                   WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
-                        "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
-                        symbol, disp%c6/(1000._dp*bohr**6/kjmol), disp%vdw_radii/bohr
-                ELSE
-                   WRITE (output_unit, fmt="(' vdW PARAMETER| ',T20,'Atom=',A2,T70,'not defined')")
-                END IF
-             END DO
-          ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s6 Scaling Factor:',T73,F8.4)") dispersion_env%s6
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'sr6 Scaling Factor:',T73,F8.4)") dispersion_env%sr6
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
-          END IF
-       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
-          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T61,'Non-local Functional')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ','Implementation: G. Roman-Perez, J. Soler, PRL 103: 096102 (2009)')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ',T38,' T. Thonhauser et al, PRB 76: 125112 (2007)')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ',T22,' R. Sabatini et al, J.Phys:Condens Matter 24: 424209 (2012)')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ',T16,' Based on QE implementation by Brian Kolb, Timo Thonhauser (2009)')")
-          SELECT CASE (dispersion_env%nl_type)
-             CASE DEFAULT
-                ! unknown functional
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             CASE (vdw_nl_DRSLL)
-                WRITE (output_unit, &
-                 fmt="(' vdW POTENTIAL| ','DRSLL Functional:           M. Dion et al, PRL 92: 246401 (2004)')")
-             CASE (vdw_nl_LMKLL)
-                WRITE (output_unit, &
-                 fmt="(' vdW POTENTIAL| ','LMKLL Functional:            K. Lee et al, PRB 82: 081101 (2010)')")
-             CASE (vdw_nl_RVV10)
-                WRITE (output_unit, &
-                 fmt="(' vdW POTENTIAL| ','RVV10 Functional:    R. Sabatini et al, PRB 87: 041108(R) (2013)')")
-          END SELECT
-          IF ( dispersion_env%verbose ) THEN
-             WRITE (output_unit,&
-              fmt="(' vdW POTENTIAL| ','         Carrying out vdW-DF run using the following parameters:')")
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ','Nqs =',I8,'        Nr_points =',I8,'       r_max =',F10.3)")&
-                dispersion_env%nqs,dispersion_env%nr_points,dispersion_env%r_max
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ','q_mesh =')")
-             WRITE (output_unit, fmt="(8X,4F18.8)" ) (dispersion_env%q_mesh(i), i=1, dispersion_env%nqs)
-             WRITE (output_unit,&
-              fmt="(' vdW POTENTIAL| ','Density cutoff for comvolution:',T68,F10.1,' Ry')") &
-              2.0_dp*dispersion_env%pw_cutoff
-          END IF
-       END IF
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE write_dispersion
-! *****************************************************************************
-
-  SUBROUTINE calculate_dispersion_pairpot(qs_env,calculate_forces,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(OUT)               :: energy
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -707,7 +594,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dcnum_type), ALLOCATABLE, &
       DIMENSION(:)                           :: dcnum
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -715,51 +601,50 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_atom_dispersion_type), POINTER   :: disp_a, disp_b, disp_c
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(section_vals_type), POINTER         :: dftd_section, input
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (atomic_kind_set,sab_cn, sab_vdw,input)
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-
     failure = .FALSE.
-    CALL get_qs_env(qs_env=qs_env, energy=energy, atomic_kind_set=atomic_kind_set,&
-         cell=cell, virial=virial, dft_control=dft_control, para_env=para_env,&
-         dispersion_env=dispersion_env, atprop=atprop, input=input, error=error)
-    debugx = dispersion_env%verbose
-    debugall = debugx
-    debug = debugx .AND. para_env%ionode
-    nkind = SIZE(atomic_kind_set)
 
-    dftd_section => section_vals_get_subs_vals(input,"DFT%XC%vdw_potential%PAIR_POTENTIAL",&
-         error=error)
-    unit_nr = cp_print_key_unit_nr(logger,dftd_section,"PRINT_DFTD",extension=".dftd",&
-         error=error)
-
-    ! atomic energy and stress arrays
-    atenergy = atprop%energy
-    IF (atenergy) THEN
-       NULLIFY (particle_set)
-       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
-       natom = SIZE(particle_set)
-       CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
-       atener => qs_env%atprop%atevdw
-    END IF
-    atstress = qs_env%atprop%stress
-    IF (atstress) THEN
-       atstr => qs_env%atprop%atstress
-    END IF
-
-    energy%dispersion = 0._dp
+    energy = 0._dp
 
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+
+       NULLIFY (atomic_kind_set,sab_cn, sab_vdw)
+
+       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+            cell=cell, virial=virial, para_env=para_env, atprop=atprop, error=error)
+
+       debugx = dispersion_env%verbose
+       debugall = debugx
+       debug = debugx .AND. para_env%ionode
+       nkind = SIZE(atomic_kind_set)
+
+       NULLIFY(logger)
+       logger => cp_error_get_logger(error)
+       IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
+          unit_nr = cp_print_key_unit_nr(logger,dispersion_env%dftd_section,"PRINT_DFTD",&
+                                         extension=".dftd",error=error)
+       ELSE
+          unit_nr = -1
+       END IF
+
+       ! atomic energy and stress arrays
+       atenergy = atprop%energy
+       IF (atenergy) THEN
+          NULLIFY (particle_set)
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+          natom = SIZE(particle_set)
+          CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
+          atener => qs_env%atprop%atevdw
+       END IF
+       atstress = qs_env%atprop%stress
+       IF (atstress) THEN
+          atstr => qs_env%atprop%atstress
+       END IF
 
        IF(unit_nr>0) THEN
         WRITE(unit_nr,*)
@@ -1424,7 +1309,7 @@ CONTAINS
        ! set dispersion energy
        CALL mp_sum(evdw,para_env%group)
        evdw = evdw + (elrc6+elrc8+elrc9)
-       energy%dispersion = evdw
+       energy = evdw
 
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. debugall ) THEN
          CALL mp_sum(e6tot,para_env%group)
@@ -1494,8 +1379,12 @@ CONTAINS
        DEALLOCATE (dodisp,ghost,atomnumber,rcpbc,radd2,c6d2,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+       IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
+          CALL cp_print_key_finished_output(unit_nr,logger,dispersion_env%dftd_section,&
+                                            "PRINT_DFTD", error=error)
+       END IF
+
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,dftd_section,"PRINT_DFTD", error=error)
 
     CALL timestop(handle)
 

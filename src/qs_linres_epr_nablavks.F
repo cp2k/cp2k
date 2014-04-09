@@ -910,6 +910,7 @@ CONTAINS
                            error=error)
 
     xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC", error=error)
+    ! a possible vdW section in xc_section will be ignored
 
     IF (gapw_xc) THEN
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho_xc, xc_section=xc_section,&

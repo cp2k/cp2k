@@ -294,8 +294,8 @@ CONTAINS
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
       failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
       my_print, use_virial
-    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, ekin_mol, &
-                                                mulliken_order_p
+    REAL(KIND=dp)                            :: ecore_ppl, edisp, ee_ener, &
+                                                ekin_mol, mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
@@ -586,6 +586,7 @@ CONTAINS
            CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
          END IF
 
+         ! here we ignore a possible vdW section in admm_env%xc_section_aux
          CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
               just_energy=just_energy_xc, error=error)
@@ -614,7 +615,9 @@ CONTAINS
        ELSE
          CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+              edisp=edisp, dispersion_env=qs_env%dispersion_env, &
               just_energy=just_energy_xc, error=error)
+         IF(edisp /= 0.0_dp) energy%dispersion = edisp
          IF (qs_env%requires_matrix_vxc) THEN
             CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
          ENDIF
@@ -877,6 +880,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure, just_energy_xc, &
                                                 my_print
+    REAL(KIND=dp)                            :: edisp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -979,7 +983,9 @@ CONTAINS
 
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+           edisp=edisp, dispersion_env=qs_env%dispersion_env, &
            just_energy=just_energy_xc, error=error)
+      IF(edisp /= 0.0_dp) energy%dispersion = edisp
 
       ! sum v_hartree + v_xc
       IF (ASSOCIATED(v_rspace_new)) THEN

@@ -9,6 +9,7 @@
 ! *****************************************************************************
 MODULE qs_dispersion_types
 
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
 #include "./common/cp_common_uses.f90"
@@ -31,6 +32,7 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: scaling
     REAL(KIND=dp)                          :: rc_disp
     REAL(KIND=dp)                          :: exp_pre
+    TYPE(section_vals_type), POINTER       :: dftd_section
     LOGICAL                                :: verbose  !extended output
     CHARACTER (LEN=default_string_length)  :: parameter_file_name
     CHARACTER (LEN=default_string_length)  :: kernel_file_name

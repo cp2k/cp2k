@@ -50,9 +50,6 @@ MODULE qs_dispersion_nonloc
                                              pw_p_type,&
                                              pw_type
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -168,13 +165,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_dispersion_nonloc(qs_env,vxc_rho,rho_r,rho_g,energy_only,&
-                                         cell,pw_pool,xc_pw_pool,virial,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE calculate_dispersion_nonloc(vxc_rho,rho_r,rho_g,edispersion,&
+             dispersion_env,energy_only,cell,pw_pool,xc_pw_pool,para_env,virial,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, rho_r, rho_g
+    REAL(KIND=dp), INTENT(OUT)               :: edispersion
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool, xc_pw_pool
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -192,15 +191,12 @@ CONTAINS
                                                 potential, q0, rho
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drho, thetas
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: thetas_g
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drho_r
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, vxc_g, vxc_r
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(qs_energy_type), POINTER            :: energy
 
     CALL timeset(routineN,handle)
 
@@ -223,8 +219,6 @@ CONTAINS
     IF (.NOT. energy_only) THEN
        CPPrecondition(ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     END IF
-    CALL get_qs_env(qs_env, dispersion_env=dispersion_env, energy=energy, &
-                    para_env=para_env, error=error)
 
     b_value = dispersion_env%b_value
     beta = 0.03125_dp * (3.0_dp / (b_value**2.0_dp) )**0.75_dp
@@ -373,7 +367,7 @@ CONTAINS
        END SELECT
     END IF
     CALL mp_sum(Ec_nl,para_env%group)
-    energy%dispersion = Ec_nl
+    edispersion = Ec_nl
 
     IF (.NOT.energy_only) THEN
        !! ----------------------------------------------------------------------------

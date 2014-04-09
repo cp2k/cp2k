@@ -15,6 +15,7 @@ MODULE qs_vxc
 
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: sic_ad,&
                                              sic_eo,&
                                              sic_mauri_spz,&
@@ -44,6 +45,7 @@ MODULE qs_vxc
                                              pw_release,&
                                              pw_type
   USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -93,15 +95,18 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_vxc_create( qs_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
-       just_energy, adiabatic_rescale_factor, error)
+       just_energy, edisp, dispersion_env, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    REAL(KIND=dp)                            :: exc
+    REAL(KIND=dp), INTENT(out)               :: exc
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: adiabatic_rescale_factor
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: edisp
+    TYPE(qs_dispersion_type), OPTIONAL, &
+      POINTER                                :: dispersion_env
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
@@ -118,6 +123,7 @@ CONTAINS
                                                 my_scaling, nelec_s_inv, &
                                                 nelec_spin(2)
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -155,7 +161,14 @@ CONTAINS
          i_val=myfun,error=error)
     CALL section_vals_val_get(xc_section,"VDW_POTENTIAL%POTENTIAL_TYPE",&
          i_val=vdw,error=error)
+
     vdW_nl = (vdw==xc_vdw_fun_nonloc)
+    ! this combination has not been investigated 
+    CPPrecondition(.NOT.(do_adiabatic_rescaling .AND. vdW_nl),cp_failure_level,routineP,error,failure)
+    ! are the necessary inputs available
+    IF(.NOT.(PRESENT(dispersion_env) .AND. PRESENT(edisp))) THEN
+       vdW_nl = .FALSE.
+    END IF
 
     IF (myfun/=xc_none .OR. vdW_nl) THEN
 
@@ -305,16 +318,22 @@ CONTAINS
           ! if yes, we use the dispersion_env from qs_env
           ! this is dangerous, as it assumes a special connection xc_section -> qs_env
           IF (vdW_nl) THEN
+             CALL get_qs_env(qs_env=qs_env, para_env=para_env, error=error)
              ! no spin polarization allowed
              CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+             ! no SIC functionals allowed
+             CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
+             ! 
              CALL pw_env_get(pw_env,vdw_pw_pool=vdw_pw_pool,error=error)
              IF(my_just_energy) THEN
-                CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
-                  cell,vdw_pw_pool,xc_pw_pool,error=error)
+                CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
+                     my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,error=error)
              ELSE
-                CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
-                  cell,vdw_pw_pool,xc_pw_pool,virial=virial,error=error)
+                CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
+                     my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,virial=virial,error=error)
              END IF
+          ELSE IF(PRESENT(edisp)) THEN
+             edisp = 0.0_dp
           END IF
 
           !! Apply rescaling to the potential if requested

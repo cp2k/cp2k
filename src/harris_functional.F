@@ -18,8 +18,10 @@ MODULE harris_functional
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type
+  USE input_constants,                 ONLY: xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -91,7 +93,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins, stat, &
+                                                vdw
     LOGICAL                                  :: failure, fast_flag, &
                                                 my_EII_necessary
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -131,6 +134,9 @@ CONTAINS
                       dft_control=dft_control, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
+      ! check for nonlocal vdW functional
+      CALL section_vals_val_get(xc_section,"VDW_POTENTIAL%POTENTIAL_TYPE",i_val=vdw,error=error)
+      CPPrecondition(.NOT.(vdw==xc_vdw_fun_nonloc), cp_failure_level, routineP, error, failure)
 
       nspins = dft_control%nspins
 
