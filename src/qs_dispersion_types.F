@@ -103,8 +103,75 @@ MODULE qs_dispersion_types
 
   PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type, cn_atom_list, cn_kind_list
   PUBLIC :: dftd2_pp, dftd3_pp
+  PUBLIC :: qs_dispersion_release
 
 ! *****************************************************************************
+  CONTAINS
+! *****************************************************************************
+  SUBROUTINE qs_dispersion_release (dispersion_env,error)
+
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'qs_dispersion_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: stat, i
+
+    IF (ASSOCIATED(dispersion_env)) THEN
+      IF (ASSOCIATED(dispersion_env%maxci)) THEN
+        ! DFT-D3 arrays
+        DEALLOCATE(dispersion_env%maxci, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(dispersion_env%c6ab, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(dispersion_env%r0ab, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(dispersion_env%rcov, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(dispersion_env%r2r4, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(dispersion_env%cn, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+          DEALLOCATE(dispersion_env%cnkind, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(dispersion_env%cnlist)) THEN
+          DO i=1,SIZE(dispersion_env%cnlist)
+            DEALLOCATE(dispersion_env%cnlist(i)%atom, stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END DO
+          DEALLOCATE(dispersion_env%cnlist, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+      END IF
+      ! vdD-DF
+      IF (ASSOCIATED(dispersion_env%q_mesh)) THEN
+         DEALLOCATE(dispersion_env%q_mesh, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(dispersion_env%kernel)) THEN
+         DEALLOCATE(dispersion_env%kernel, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(dispersion_env%d2phi_dk2)) THEN
+         DEALLOCATE(dispersion_env%d2phi_dk2, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(dispersion_env%d2y_dx2)) THEN
+         DEALLOCATE(dispersion_env%d2y_dx2, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+
+      DEALLOCATE(dispersion_env, stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    END IF
+
+  END SUBROUTINE qs_dispersion_release 
 
 END MODULE qs_dispersion_types
 

@@ -114,7 +114,8 @@ MODULE qs_environment_types
                                              qs_charges_type
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
                                              qs_dftb_pairpot_type
-  USE qs_dispersion_types,             ONLY: qs_dispersion_type
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type,&
+                                             qs_dispersion_release
   USE qs_energy_types,                 ONLY: deallocate_qs_energy,&
                                              qs_energy_type
   USE qs_force_types,                  ONLY: deallocate_qs_force,&
@@ -1894,55 +1895,9 @@ CONTAINS
           IF (ASSOCIATED(qs_env%kg_env)) THEN
             CALL kg_env_release(qs_env%kg_env, error)
           END IF
-          IF (ASSOCIATED(qs_env%dispersion_env)) THEN
-            IF (ASSOCIATED(qs_env%dispersion_env%maxci)) THEN
-              ! DFT-D3 arrays
-              DEALLOCATE(qs_env%dispersion_env%maxci, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              DEALLOCATE(qs_env%dispersion_env%c6ab, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              DEALLOCATE(qs_env%dispersion_env%r0ab, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              DEALLOCATE(qs_env%dispersion_env%rcov, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              DEALLOCATE(qs_env%dispersion_env%r2r4, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              DEALLOCATE(qs_env%dispersion_env%cn, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              IF (ASSOCIATED(qs_env%dispersion_env%cnkind)) THEN
-                DEALLOCATE(qs_env%dispersion_env%cnkind, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              END IF
-              IF (ASSOCIATED(qs_env%dispersion_env%cnlist)) THEN
-                DO i=1,SIZE(qs_env%dispersion_env%cnlist)
-                  DEALLOCATE(qs_env%dispersion_env%cnlist(i)%atom, stat=stat)
-                  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-                END DO
-                DEALLOCATE(qs_env%dispersion_env%cnlist, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              END IF
-            END IF
-            ! vdD-DF
-            IF (ASSOCIATED(qs_env%dispersion_env%q_mesh)) THEN
-               DEALLOCATE(qs_env%dispersion_env%q_mesh, stat=stat)
-               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-            END IF
-            IF (ASSOCIATED(qs_env%dispersion_env%kernel)) THEN
-               DEALLOCATE(qs_env%dispersion_env%kernel, stat=stat)
-               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-            END IF
-            IF (ASSOCIATED(qs_env%dispersion_env%d2phi_dk2)) THEN
-               DEALLOCATE(qs_env%dispersion_env%d2phi_dk2, stat=stat)
-               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-            END IF
-            IF (ASSOCIATED(qs_env%dispersion_env%d2y_dx2)) THEN
-               DEALLOCATE(qs_env%dispersion_env%d2y_dx2, stat=stat)
-               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-            END IF
 
-            DEALLOCATE(qs_env%dispersion_env, stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
+          ! dispersion
+          CALL qs_dispersion_release(qs_env%dispersion_env,error)
 
           IF( ASSOCIATED(qs_env%WannierCentres)) THEN
             DO i=1,SIZE(qs_env%WannierCentres)
