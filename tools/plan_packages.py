@@ -164,7 +164,8 @@ def process_manifest(packages, p):
 
     for r in packages[p]['requires']:
         rp = normpath(path.join(p,r))
-        assert(packages.has_key(rp))
+        if(not packages.has_key(rp)):
+	    error("Unexpected package requirement: "+r+" for dir "+packages[p]['dirname'])
 
 
 #=============================================================================
