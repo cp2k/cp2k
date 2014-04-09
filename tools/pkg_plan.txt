@@ -1,0 +1,115 @@
+[
+        {'dirname':'swarm',
+         'requires': ['../common', "../mpi", '../'],
+         'files': [
+            "glbopt_master.F",
+            "glbopt_worker.F",
+            "glbopt_minhop.F",
+            "glbopt_mincrawl.F",
+            "glbopt_callback.F",
+            "swarm.F",
+            "swarm_input.F",
+            "swarm_master.F",
+            "swarm_message.F",
+            "swarm_message_i4_1d.f90",
+            "swarm_message_i4.f90",
+            "swarm_message_i8_1d.f90",
+            "swarm_message_i8.f90",
+            "swarm_message__nametype_.instantiation",
+            "swarm_message__nametype_.template",
+            "swarm_message_r4_1d.f90",
+            "swarm_message_r4.f90",
+            "swarm_message_r8_1d.f90",
+            "swarm_message_r8.f90",
+            "swarm_message_str.f90",
+            "swarm_mpi.F",
+            "swarm_worker.F"]
+         },
+
+#============================================================================
+
+         {'dirname':'start',
+          'requires': ["../", "../common", "../swarm", "../dbcsr", "../mpi", "../pw"],
+          'files': [
+            "cp2k.F",
+            "input_cp2k.F",
+            "cp2k_runs.F",
+            "cp2k_shell.F",
+            "f77_int_low.F",
+            "f77_int.h"]
+         },
+
+#============================================================================
+
+         {'dirname':'pw',
+          'requires': ["../common", "../mpi", "../fft"],
+          'files': [
+             "realspace_grid_cube.F",
+             "fft_tools.F",
+             "pw_spline_utils.F",
+             "ps_wavelet_base.F",
+             "pw_methods.F",
+             "ps_wavelet_methods.F",
+             "ps_wavelet_kernel.F",
+             "pw_grids.F",
+             "pw_methods_cuda.F",
+             "pw_pool_types.F",
+             "dg_rho0_types.F",
+             "pw_poisson_types.F",
+             "cp_linked_list_pw.F",
+             "pw_grid_info.F",
+             "ps_wavelet_util.F",
+             "pw_poisson_methods.F",
+             "realspace_grid_types.F",
+             "lgrid_types.F",
+             "dg_types.F",
+             "cp_linked_list_rs.F",
+             "mt_util.F",
+             "dgs.F",
+             "cube_utils.F"]
+         },
+
+#============================================================================
+
+         {'dirname':'mpi',
+          'requires': [],
+          'files': [
+              "cp_para_env.F",
+              "cp_para_types.F",
+              "message_passing.F",
+              "c_mpi_calls.F",
+              "message_i_passing.f90",
+              "message_z_passing.f90",
+              "message_c_passing.f90",
+              "message_l_passing.f90",
+              "message_d_passing.f90",
+              "message_r_passing.f90",
+              "message__nametype1__passing.template",
+              "message__nametype1__passing.instantiation"]
+          },
+
+#============================================================================
+
+         {'dirname':'',
+          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi"]
+         },
+
+#============================================================================
+
+         {'dirname':'fm',
+          'requires':  ["../common", "../mpi"]
+         },
+
+#============================================================================
+
+         {'dirname':'arch',
+          'requires':  ["../common", "../dbcsr", "../machine", "../mpi"]
+         },
+
+#============================================================================
+
+         {'dirname':'common',
+          'requires': ["../mpi"]
+         },
+]
+
