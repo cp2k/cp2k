@@ -14,8 +14,7 @@ MODULE cp2k_runs
   USE cp2k_info,                       ONLY: compile_date,&
                                              compile_revision,&
                                              cp2k_version,&
-                                             cp2k_year,&
-                                             enable_color_tags
+                                             cp2k_year
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config,&
                                              cp_dbcsr_print_config
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
@@ -83,7 +82,8 @@ MODULE cp2k_runs
   USE input_cp2k_global,               ONLY: create_global_section
   USE input_cp2k_read,                 ONLY: empty_initial_variables,&
                                              read_input
-  USE input_keyword_types,             ONLY: keyword_release
+  USE input_keyword_types,             ONLY: enable_color_tags,&
+                                             keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_describe_html, section_describe_index_html, section_release, &

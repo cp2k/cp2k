@@ -11,21 +11,16 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_section_types
-  USE cp2k_info,                       ONLY: enable_color_tags
   USE cp_linked_list_val,              ONLY: &
        cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
   USE f77_blas
-  USE input_keyword_types,             ONLY: keyword_describe,&
-                                             keyword_describe_html,&
-                                             keyword_p_type,&
-                                             keyword_release,&
-                                             keyword_retain,&
-                                             keyword_type,&
-                                             keyword_typo_match,&
-                                             write_keyword_xml
+  USE input_keyword_types,             ONLY: &
+       enable_color_tags, keyword_describe, keyword_describe_html, &
+       keyword_p_type, keyword_release, keyword_retain, keyword_type, &
+       keyword_typo_match, write_keyword_xml
   USE input_val_types,                 ONLY: lchar_t,&
                                              no_t,&
                                              val_create,&

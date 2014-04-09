@@ -31,7 +31,6 @@ MODULE cp2k_info
   PUBLIC :: print_cp2k_license, get_runtime_info
 
   ! the version string of CP2K intended to be adjust after releases and branches
-  LOGICAL, PARAMETER, PUBLIC  :: enable_color_tags=.FALSE.
 #if defined(__RELEASE_VERSION)
   INTEGER, PARAMETER          :: id_cp2k_version = id_release_version     ! (Uncomment for release     version)
 #else

@@ -10,7 +10,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_keyword_types
-  USE cp2k_info,                       ONLY: enable_color_tags
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_release,&
@@ -42,6 +41,7 @@ MODULE input_keyword_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
+  LOGICAL, PARAMETER, PUBLIC  :: enable_color_tags=.FALSE.
 
   INTEGER, PARAMETER, PUBLIC :: usage_string_length=default_string_length*2
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
