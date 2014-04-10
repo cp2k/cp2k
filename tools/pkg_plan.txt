@@ -1,3 +1,6 @@
+#
+#  exploring possible packages , can be listed here in python syntax
+#
 [
         {'dirname':'swarm',
          'requires': ['../common', "../mpi", '../', '../input'],

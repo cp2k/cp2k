@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#
+# A tool to help planning CP2K packages, listing currently violated dependencies if any
+#
+
+
 
 import re, sys, os
 from os import path
