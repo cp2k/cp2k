@@ -114,8 +114,8 @@ MODULE qs_environment_types
                                              qs_charges_type
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
                                              qs_dftb_pairpot_type
-  USE qs_dispersion_types,             ONLY: qs_dispersion_type,&
-                                             qs_dispersion_release
+  USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
+                                             qs_dispersion_type
   USE qs_energy_types,                 ONLY: deallocate_qs_energy,&
                                              qs_energy_type
   USE qs_force_types,                  ONLY: deallocate_qs_force,&
