@@ -169,6 +169,7 @@ CONTAINS
     IF(.NOT.(PRESENT(dispersion_env) .AND. PRESENT(edisp))) THEN
        vdW_nl = .FALSE.
     END IF
+    IF(PRESENT(edisp)) edisp = 0.0_dp
 
     IF (myfun/=xc_none .OR. vdW_nl) THEN
 
@@ -332,8 +333,6 @@ CONTAINS
                 CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
                      my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,virial=virial,error=error)
              END IF
-          ELSE IF(PRESENT(edisp)) THEN
-             edisp = 0.0_dp
           END IF
 
           !! Apply rescaling to the potential if requested
