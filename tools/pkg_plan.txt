@@ -81,6 +81,34 @@
 
 #============================================================================
 
+         {'dirname':'hfx',
+          'requires': ["../common", "../dbcsr", "../mpi", '../input'],
+          'files': [
+             "t_c_g0.F",
+             "t_sh_p_s_c.F",
+             "hfx_communication.F",
+             "hfx_compression_core_methods.F",
+             "hfx_compression_methods.F",
+             "hfx_contract_block.F",
+             "hfx_contraction_methods.F",
+             "hfx_derivatives.F",
+             "hfx_energy_potential.F",
+             "hfx_get_pmax_val.f90",
+             "hfx_helpers.F",
+             "hfx_libint_interface.F",
+             "hfx_libint_wrapper.F",
+             "hfx_libint_wrapper_types.F",
+             "hfx_load_balance_methods.F",
+             "hfx_pair_list_methods.F",
+             "hfx_ri_gemopt.F",
+             "hfx_ri_methods.F",
+             "hfx_screening_methods.F",
+             "hfx_types.F"
+           ]
+         },
+
+#============================================================================
+
          {'dirname':'xc',
           'requires': ["../common", "../mpi", "../pw", '../input'],
           'files': [
@@ -148,7 +176,7 @@
 #============================================================================
 
          {'dirname':'',
-          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc"]
+          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx"]
          },
 
 #============================================================================
