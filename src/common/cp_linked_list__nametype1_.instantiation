@@ -92,54 +92,6 @@ end subroutine write_string
 },
 
 {
- 'nametype1':'pw',
- 'type1':'type(pw_type),pointer',
- 'type1in':'type(pw_type), pointer',
- 'type1out':'type(pw_type), pointer',
- 'common_dir':'.',
- 'USE':
-"""USE kinds, only: dp
-USE pw_types, ONLY: pw_type, pw_p_type
-USE pw_methods, ONLY: pw_write""",
- 'defines':
-"""! less not much meaningful...
-#define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
-#define CP_SLL_PW_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )
-""",
- '=':'=>',
- 'type1arrayEl':'type(pw_p_type)',
- 'array=':'=>',
- 'arrayEl':'%pw',
- 'lessQ':'CP_SLL_PW_LESS_Q',
- 'equalQ':'CP_SLL_PW_EQUAL_Q',
- 'write_el':'',
- 'private_routines':''
-},
-
-{
- 'nametype1':'rs',
- 'type1':'type(realspace_grid_type),pointer',
- 'type1in':'type(realspace_grid_type), pointer',
- 'type1out':'type(realspace_grid_type), pointer',
- 'common_dir':'.',
- 'USE':
-"""USE kinds, only: dp
-USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type""",
- 'defines':
-"""! less not much meningful...
-#define CP_SLL_RS_LESS_Q(el1,el2,error) ( el1%id_nr < el2%id_nr )
-#define CP_SLL_RS_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
-""",
- '=':'=>',
- 'type1arrayEl':'type(realspace_grid_p_type)',
- 'array=':'=>',
- 'arrayEl':'%rs_grid',
- 'lessQ':'CP_SLL_RS_LESS_Q',
- 'equalQ':'CP_SLL_RS_EQUAL_Q',
- 'write_el':'',
- 'private_routines':''
-},
-{
  'nametype1':'3d_r',
  'type1':'real(kind=dp),dimension(:,:,:),pointer',
  'type1in':'real(kind=dp),dimension(:,:,:), pointer',

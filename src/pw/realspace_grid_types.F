@@ -34,7 +34,7 @@ MODULE realspace_grid_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-#include "cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
 #if defined(__HAS_NO_OMP_3)
 #define __COLLAPSE3

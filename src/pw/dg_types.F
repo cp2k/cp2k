@@ -14,7 +14,7 @@ MODULE dg_types
                                              dg_rho0_retain,&
                                              dg_rho0_type
   USE f77_blas
-#include "cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

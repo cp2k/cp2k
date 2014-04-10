@@ -54,7 +54,7 @@ MODULE pw_pool_types
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop
-#include "cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

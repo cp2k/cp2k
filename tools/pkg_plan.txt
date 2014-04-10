@@ -136,36 +136,6 @@
 
 #============================================================================
 
-         {'dirname':'pw',
-          'requires': ["../common", "../mpi", "../fft"],
-          'files': [
-             "realspace_grid_cube.F",
-             "fft_tools.F",
-             "pw_spline_utils.F",
-             "ps_wavelet_base.F",
-             "pw_methods.F",
-             "ps_wavelet_methods.F",
-             "ps_wavelet_kernel.F",
-             "pw_grids.F",
-             "pw_methods_cuda.F",
-             "pw_pool_types.F",
-             "dg_rho0_types.F",
-             "pw_poisson_types.F",
-             "cp_linked_list_pw.F",
-             "pw_grid_info.F",
-             "ps_wavelet_util.F",
-             "pw_poisson_methods.F",
-             "realspace_grid_types.F",
-             "lgrid_types.F",
-             "dg_types.F",
-             "cp_linked_list_rs.F",
-             "mt_util.F",
-             "dgs.F",
-             "cube_utils.F"]
-         },
-
-#============================================================================
-
          {'dirname':'mpi',
           'requires': [],
           'files': [
@@ -187,6 +157,12 @@
 
          {'dirname':'',
           'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc"]
+         },
+
+#============================================================================
+
+         {'dirname':'pw',
+          'requires':  ["../common", "../mpi", "../fft"]
          },
 
 #============================================================================

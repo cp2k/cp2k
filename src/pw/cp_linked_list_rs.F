@@ -49,7 +49,7 @@ MODULE cp_linked_list_rs
   USE kinds,                           ONLY: dp
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type
-#include "./cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1190,7 +1190,7 @@ END FUNCTION cp_sll_rs_contains2
 !     USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type"
 !  array= = "=>"
 !  arrayEl = "%rs_grid"
-!  common_dir = "."
+!  common_dir = "../common"
 !  defines = 
 !    "! less not much meningful...
 !     #define CP_SLL_RS_LESS_Q(el1,el2,error) ( el1%id_nr < el2%id_nr )
@@ -1200,6 +1200,7 @@ END FUNCTION cp_sll_rs_contains2
 !  lessQ = "CP_SLL_RS_LESS_Q"
 !  nametype1 = "rs"
 !  private_routines = ""
+!  template = "../common/cp_linked_list__nametype1_.template"
 !  type1 = "type(realspace_grid_type),pointer"
 !  type1arrayEl = "type(realspace_grid_p_type)"
 !  type1in = "type(realspace_grid_type), pointer"

@@ -1,0 +1,5 @@
+{
+"description": "routines dealing with rs and pw grids",
+"archive": "libcp2kpw",
+"requires": ("../fft", "../common"),
+}
