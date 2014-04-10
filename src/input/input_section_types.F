@@ -41,7 +41,7 @@ MODULE input_section_types
                                              typo_match,&
                                              uppercase
   USE termination,                     ONLY: print_message
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

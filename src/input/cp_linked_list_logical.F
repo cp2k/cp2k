@@ -45,7 +45,7 @@
 ! *****************************************************************************
 MODULE cp_linked_list_logical
   USE f77_blas
-#include "./cp_common_uses.f90"
+#include "../common//cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1181,7 +1181,7 @@ END FUNCTION cp_sll_logical_contains2
 !  USE = " "
 !  array= = "="
 !  arrayEl = ""
-!  common_dir = "."
+!  common_dir = "../common/"
 !  defines = 
 !    "#define CP_SLL_L_LESS_Q(el1,el2,error) ( .not.el1.and.el2 )
 !     #define CP_SLL_L_EQUAL_Q(el1,el2,error) ( el1.EQV.el2 )
@@ -1190,6 +1190,7 @@ END FUNCTION cp_sll_logical_contains2
 !  lessQ = "CP_SLL_L_LESS_Q"
 !  nametype1 = "logical"
 !  private_routines = ""
+!  template = "../common/cp_linked_list__nametype1_.template"
 !  type1 = "logical"
 !  type1arrayEl = "logical"
 !  type1in = "logical, intent(in)"

@@ -62,15 +62,7 @@
 #============================================================================
 
          {'dirname':'input',
-          'requires': ["../common"],
-          'files': [
-            "input_val_types.F",
-            "cp_linked_list_val.F",
-            "input_section_types.F",
-            "input_parsing.F",
-            "input_keyword_types.F",
-            "input_enumeration_types.F"
-            ]
+          'requires': ["../common", "../mpi"],
          },
 
 #============================================================================

@@ -1,0 +1,5 @@
+{
+"description": "Dealing with the input, parsing files",
+"requires": ("../common", ),
+"archive": "libcp2kinput"
+}

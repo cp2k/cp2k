@@ -26,7 +26,7 @@ MODULE cp_parser_inpp_methods
   USE string_utilities,                ONLY: is_whitespace,&
                                              uppercase
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

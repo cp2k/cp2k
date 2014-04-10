@@ -1,0 +1,98 @@
+[
+{
+ 'nametype1':'int',
+ 'type1':'integer',
+ 'type1in':'integer, intent(in)',
+ 'type1out':'integer, intent(out)',
+ 'common_dir':'../common/',
+ 'template':'../common/cp_linked_list__nametype1_.template',
+ 'USE':
+""" """,
+ 'defines':
+"""#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
+#define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'integer',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_I_LESS_Q',
+ 'equalQ':'CP_SLL_I_EQUAL_Q',
+ 'write_el':'',
+ 'private_routines':''
+},
+{
+ 'nametype1':'real',
+ 'type1':'real(kind=dp)',
+ 'type1in':'real(kind=dp), intent(in)',
+ 'type1out':'real(kind=dp), intent(out)',
+ 'common_dir':'../common/',
+ 'template':'../common/cp_linked_list__nametype1_.template',
+ 'USE':
+"""USE kinds, only: dp""",
+ 'defines':
+"""#define CP_SLL_R_LESS_Q(el1,el2,error) ( el1 < el2 )
+#define CP_SLL_R_EQUAL_Q(el1,el2,error) ( el1 == el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'real(kind=dp)',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_R_LESS_Q',
+ 'equalQ':'CP_SLL_R_EQUAL_Q',
+ 'write_el':'',
+ 'private_routines':''
+},
+{
+ 'nametype1':'logical',
+ 'type1':'logical',
+ 'type1in':'logical, intent(in)',
+ 'type1out':'logical, intent(out)',
+ 'common_dir':'../common/',
+ 'template':'../common/cp_linked_list__nametype1_.template',
+ 'USE':
+""" """,
+ 'defines':
+"""#define CP_SLL_L_LESS_Q(el1,el2,error) ( .not.el1.and.el2 )
+#define CP_SLL_L_EQUAL_Q(el1,el2,error) ( el1.EQV.el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'logical',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_L_LESS_Q',
+ 'equalQ':'CP_SLL_L_EQUAL_Q',
+ 'write_el':'',
+ 'private_routines':''
+},
+{
+ 'nametype1':'char',
+ 'type1':'character(len=default_string_length)',
+ 'type1in':'character(len=default_string_length), intent(in)',
+ 'type1out':'character(len=default_string_length), intent(out)',
+ 'common_dir':'../common/',
+ 'template':'../common/cp_linked_list__nametype1_.template',
+ 'USE':
+"""USE kinds, only: default_string_length""",
+ 'defines':
+"""#define CP_SLL_C_LESS_Q(el1,el2,error) ( el1 < el2 )
+#define CP_SLL_C_EQUAL_Q(el1,el2,error) ( el1 == el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'character(len=default_string_length)',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_C_LESS_Q',
+ 'equalQ':'CP_SLL_C_EQUAL_Q',
+ 'write_el':'',
+ 'private_routines':"""subroutine write_string(str,unit_nr,error)
+  character(len=*),intent(in) :: str
+  integer, intent(in) :: unit_nr
+  type(cp_error_type), intent(inout) :: error
+
+  write(unit_nr,"(a,a,a)") '"',trim(str),'"'
+end subroutine write_string
+"""
+},
+
+]
