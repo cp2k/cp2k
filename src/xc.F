@@ -13,7 +13,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE xc
-  USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
@@ -116,12 +115,11 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
-       cell,pw_pool,error,virial)
+       pw_pool,error,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
                                                 rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
@@ -146,15 +144,15 @@ CONTAINS
        CASE(xc_new_f_routine)
           CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
-               cell=cell, pw_pool=pw_pool,error=error,virial=virial)
+               pw_pool=pw_pool,error=error,virial=virial)
        CASE(xc_debug_new_routine)
           CALL xc_vxc_pw_create_debug(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
-               cell=cell, pw_pool=pw_pool, error=error)
+               pw_pool=pw_pool, error=error)
        CASE(xc_test_lsd_f_routine)
           CALL xc_vxc_pw_create_test_lsd(vxc_rho=vxc_rho, vxc_tau=vxc_tau,&
                tau=tau, rho_r=rho_r, rho_g=rho_g, exc=exc, &
-               xc_section=xc_section, cell=cell, pw_pool=pw_pool,&
+               xc_section=xc_section, pw_pool=pw_pool,&
                error=error)
        CASE default
        END SELECT
@@ -186,12 +184,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
-     exc,xc_section, cell,pw_pool,  error)
+     exc,xc_section, pw_pool,  error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
                                                 rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -261,22 +258,22 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        PRINT *, "about to calculate xc (lda)"
        CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
             tau=tau,xc_section=xc_section,&
-            cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
+            pw_pool=pw_pool,rho_set=rho_set1,&
             deriv_set=dSet1, deriv_order=1,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho_r, rho_g=rho_g,tau=tau,&
             vxc_rho=vxc_rho,vxc_tau=vxc_tau, exc=exc, xc_section=xc_section,&
-            cell=cell, pw_pool=pw_pool, &
+            pw_pool=pw_pool, &
             error=error)
        PRINT *, "did calculate xc (lda)"
        PRINT *, "about to calculate xc (lsd)"
        CALL xc_rho_set_and_dset_create(rho_set=rho_set2,deriv_set=dSet2,&
             rho_r=rho2_r, rho_g=rho2_g,tau=tau2, xc_section=xc_section,&
-            cell=cell, pw_pool=pw_pool, deriv_order=1,&
+            pw_pool=pw_pool, deriv_order=1,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g,tau=tau2,&
             vxc_rho=vxc_rho2,vxc_tau=vxc_tau2,exc=exc2, xc_section=xc_section,&
-            cell=cell, pw_pool=pw_pool,  error=error)
+            pw_pool=pw_pool,  error=error)
        PRINT *, "did calculate xc (new)"
        PRINT *, "at (0,0,0) rho_r=",rho_r(1)%pw%cr3d(0,0,0),&
             "rho2_r(1)=",rho2_r(1)%pw%cr3d(0,0,0),&
@@ -545,12 +542,11 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
-     xc_section, cell,pw_pool,error)
+     xc_section, pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
                                                 rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -581,7 +577,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
 
      CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
           tau=tau,xc_section=xc_section,&
-          cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
+          pw_pool=pw_pool,rho_set=rho_set1,&
           deriv_set=dSet1, deriv_order=1,&
           needs_basic_components=.FALSE.,error=error)
 
@@ -669,7 +665,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      CALL xc_vxc_pw_create(vxc_rho=vxc_rho,vxc_tau=vxc_tau,&
           rho_r=rho_r, rho_g=rho_g,tau=tau,&
           exc=exc, xc_section=xc_section,&
-          cell=cell, pw_pool=pw_pool,&
+          pw_pool=pw_pool,&
           error=error)
 
      ! outputs 0,:,: plane
@@ -834,7 +830,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !>        without smoothing of rho or deriv)
 !> \param tau value of the kinetic density tau on the grid (can be null,
 !>        used only with meta functionals)
-!> \param cell the simulation cell (to scale the derivatives)
 !> \param xc_section the section describing the functional to use
 !> \param pw_pool the pool for the grids
 !> \param gradient_f returns true if any of the functionals is gradient
@@ -850,7 +845,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
-     rho_r,rho_g,tau,xc_section,cell,pw_pool,&
+     rho_r,rho_g,tau,xc_section,pw_pool,&
      needs_basic_components,error)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -858,7 +853,6 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
     INTEGER, INTENT(in)                      :: deriv_order
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     LOGICAL, INTENT(in)                      :: needs_basic_components
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -900,7 +894,7 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
             xc_functionals_get_needs(xc_fun_sections,lsd,needs_basic_components,error),&
             section_get_ival(xc_section,"XC_GRID%XC_DERIV",error),&
             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error),&
-            cell,pw_pool, error=error)
+            pw_pool, error=error)
 
      CALL xc_functionals_eval(xc_fun_sections, &
             lsd=lsd,&
@@ -1126,12 +1120,11 @@ END SUBROUTINE smooth_cutoff
 !> \author fawzi; based LDA version of JGH, based on earlier version of apsi
 ! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
-     cell,pw_pool,error,virial)
+     pw_pool,error,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
@@ -1209,7 +1202,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      CALL xc_rho_set_and_dset_create(rho_set=rho_set,deriv_set=deriv_set,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
           xc_section=xc_section,&
-          cell=cell, pw_pool=pw_pool,&
+          pw_pool=pw_pool,&
           needs_basic_components=.TRUE.,&
           error=error)
 
@@ -1625,7 +1618,7 @@ CPSourceFileRef,&
         IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
            ! partial integration
            IF (xc_deriv_method_id/=xc_deriv_pw) THEN
-              CALL pw_spline_scale_deriv(pw_to_deriv, cell%hmat,&
+              CALL pw_spline_scale_deriv(pw_to_deriv,&
                    transpose=.TRUE.,&
                    error=error)
            END IF
@@ -1937,11 +1930,10 @@ END SUBROUTINE xc_vxc_pw_create
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
+FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, pw_pool,&
      error) RESULT(exc)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: exc
@@ -1967,7 +1959,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
   CALL xc_rho_set_and_dset_create(rho_set=rho_set,&
        deriv_set=deriv_set,deriv_order=0,&
        rho_r=rho_r,rho_g=rho_g,tau=tau,xc_section=xc_section,&
-       cell=cell,pw_pool=pw_pool,&
+       pw_pool=pw_pool,&
        needs_basic_components=.FALSE.,error=error)
   deriv => xc_dset_get_derivative(deriv_set,"",error=error)
 
@@ -3076,19 +3068,17 @@ END SUBROUTINE xc_calc_2nd_deriv
 !> \param rho_r the place where you evaluate the derivative
 !> \param pw_pool the pool for the grids
 !> \param xc_section which functional should be used and how to calculate it
-!> \param cell the simulation cell (needed to scale the derivatives)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_prep_2nd_deriv(deriv_set, &
-       rho_set, rho_r, pw_pool, xc_section, cell, error)
+       rho_set, rho_r, pw_pool, xc_section, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
@@ -3120,7 +3110,7 @@ END SUBROUTINE xc_calc_2nd_deriv
 
     NULLIFY(rho_g, tau)
     CALL xc_rho_set_and_dset_create(rho_set,deriv_set,2,&
-       rho_r_pw,rho_g,tau,xc_section,cell,pw_pool,&
+       rho_r_pw,rho_g,tau,xc_section,pw_pool,&
        needs_basic_components=.TRUE.,error=error)
 
     DEALLOCATE(rho_r_pw, stat=stat)

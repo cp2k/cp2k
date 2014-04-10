@@ -10,7 +10,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE xc_rho_set_types
-  USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -613,19 +612,17 @@ CONTAINS
 !> \param rho_g the new density (in g space, needed for some
 !>        derivatives)
 !> \param needs the components of rho that are needed
-!> \param cell cell parameters (to rescale the derivative)
 !> \param pw_pool pool for the allocation of pw and cr3d
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-       xc_deriv_method_id,xc_rho_smooth_id,cell,pw_pool,error)
+       xc_deriv_method_id,xc_rho_smooth_id,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     INTEGER, INTENT(IN)                      :: xc_deriv_method_id, &
                                                 xc_rho_smooth_id
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -880,8 +877,7 @@ CONTAINS
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
              END DO
-             CALL pw_spline_scale_deriv(drho_r_att, cell%hmat,&
-                  error=error)
+             CALL pw_spline_scale_deriv(drho_r_att, error=error)
           END IF
 
        END IF

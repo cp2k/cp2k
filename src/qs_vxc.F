@@ -293,14 +293,14 @@ CONTAINS
           IF (my_just_energy) THEN
              exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
                   rho_g=rho_g, xc_section=xc_section,&
-                  cell=cell, pw_pool=xc_pw_pool,&
+                  pw_pool=xc_pw_pool,&
                   error=error)
 
           ELSE
              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                   rho_g=rho_g,tau=tau,exc=exc,&
                   xc_section=xc_section,&
-                  cell=cell, pw_pool=xc_pw_pool,&
+                  pw_pool=xc_pw_pool,&
                   virial=virial,&
                   error=error)
           END IF
@@ -412,13 +412,13 @@ CONTAINS
              IF (my_just_energy) THEN
                 exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                      rho_g=rho_g, xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
                      error=error)
              ELSE
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
                      error=error)
              END IF
 
@@ -487,13 +487,13 @@ CONTAINS
                 IF (my_just_energy) THEN
                    exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                         rho_g=rho_g, xc_section=xc_section,&
-                        cell=cell, pw_pool=xc_pw_pool,&
+                        pw_pool=xc_pw_pool,&
                         error=error)
                 ELSE
                    CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                         rho_g=rho_g,tau=tau,exc=exc_m,&
                         xc_section=xc_section,&
-                        cell=cell, pw_pool=xc_pw_pool,&
+                        pw_pool=xc_pw_pool,&
                         error=error)
                 END IF
 
@@ -533,13 +533,13 @@ CONTAINS
              IF (my_just_energy) THEN
                 exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                      rho_g=rho_g, xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
                      error=error)
              ELSE
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
                      error=error)
              END IF
 

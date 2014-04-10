@@ -10,7 +10,6 @@ MODULE xc_pot_saop
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
@@ -140,7 +139,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: orbital_density_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -180,7 +178,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
-                    cell=cell,&
                     input=input,&
                     mos=molecular_orbitals,error=error)
     CALL section_vals_val_get(input,"DFT%QS%METHOD",i_val=dft_method_id,error=error)
@@ -240,7 +237,7 @@ CONTAINS
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                            xc_deriv_method_id,&
                            xc_rho_smooth_id,&
-                           cell, auxbas_pw_pool, error)
+                           auxbas_pw_pool, error)
 
     !----------------------------------------!
     ! Construct the LB94 potential in vxc_LB !
@@ -257,7 +254,7 @@ CONTAINS
          xc_fun_section_tmp,error=error)
 
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
-                          xc_section_tmp, cell, auxbas_pw_pool,  &
+                          xc_section_tmp, auxbas_pw_pool,  &
                           error)
 
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
@@ -266,7 +263,7 @@ CONTAINS
          l_val=.TRUE.,error=error)
 
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
-                          xc_section_tmp, cell, auxbas_pw_pool, &
+                          xc_section_tmp, auxbas_pw_pool, &
                           error)
 
     DO ispin=1, nspins

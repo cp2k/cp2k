@@ -11,7 +11,6 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_methods
-  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
@@ -859,7 +858,6 @@ CONTAINS
                                                 lr_triplet, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -883,7 +881,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
+            rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
             poisson_env, input, scf_section,rho,dft_control,logger)
     logger => cp_error_get_logger(error)
 
@@ -908,7 +906,6 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env,&
             pw_env=pw_env,&
-            cell=cell,&
             input=input,&
             rho=rho,&
             linres_control=linres_control,&
@@ -1039,7 +1036,7 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
                              section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
                              section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
-                             cell, auxbas_pw_pool,  error)
+                             auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1295,7 +1292,6 @@ CONTAINS
 
     INTEGER                                  :: ispin, nspins, stat
     LOGICAL                                  :: failure
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1313,7 +1309,7 @@ CONTAINS
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, pw_env=pw_env,&
-                    matrix_s=matrix_s, cell=cell, input=input, error=error, rho=rho)
+                    matrix_s=matrix_s, input=input, error=error, rho=rho)
 
     CALL qs_rho_get(rho, rho_r=rho_r, error=error)
     nspins=SIZE(rho_r)
@@ -1373,7 +1369,7 @@ CONTAINS
 
        CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                               my_rho_r, auxbas_pw_pool, &
-                              xc_section=xc_section, cell=cell, error=error)
+                              xc_section=xc_section, error=error)
 
        DO ispin=1,SIZE(my_rho_r)
           CALL pw_release(my_rho_r(ispin)%pw,error=error)

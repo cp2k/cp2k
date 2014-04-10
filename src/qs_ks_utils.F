@@ -288,10 +288,10 @@ CONTAINS
        ! compute the exchange energies / potential if needed
        IF (just_energy) THEN
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool, error=error)
+                   pw_pool=xc_pw_pool, error=error)
        ELSE
            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
-                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, cell=cell, &
+                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                    pw_pool=xc_pw_pool, error=error)
        END IF
 
@@ -600,10 +600,10 @@ CONTAINS
 
        IF (just_energy) THEN
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool, error=error)
+                   pw_pool=xc_pw_pool, error=error)
        ELSE
            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
-                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, cell=cell, &
+                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                    pw_pool=xc_pw_pool, error=error)
            ! add to the existing work_v_rspace
            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &

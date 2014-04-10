@@ -11,7 +11,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_kpp1_env_methods
-  USE cell_types,                      ONLY: cell_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
@@ -175,7 +174,6 @@ CONTAINS
                                                 lsd_singlets
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho1_tot_gspace, &
@@ -196,7 +194,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
+            rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
             poisson_env, input, scf_section)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -211,7 +209,6 @@ CONTAINS
        CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env,error=error)
        CALL get_qs_env(qs_env=qs_env,&
             pw_env=pw_env,&
-            cell=cell,&
             input=input,&
             error=error)
 
@@ -352,7 +349,7 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
                              section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
                              section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
-                             cell, auxbas_pw_pool,  error)
+                             auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -652,7 +649,6 @@ CONTAINS
                                                 res_etype, stat
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -672,7 +668,7 @@ CONTAINS
     IF (.NOT. failure) THEN
 
        CALL get_qs_env(qs_env, pw_env=pw_env,&
-                       matrix_s=matrix_s, cell=cell, input=input, error=error, rho=rho)
+                       matrix_s=matrix_s, input=input, error=error, rho=rho)
 
        CALL qs_rho_get(rho, rho_r=rho_r, error=error)
        nspins=SIZE(rho_r)
@@ -742,7 +738,7 @@ CONTAINS
 
           CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                my_rho_r, auxbas_pw_pool, &
-               xc_section=xc_section, cell=cell, error=error)
+               xc_section=xc_section, error=error)
 
           DO ispin=1,SIZE(my_rho_r)
              CALL pw_release(my_rho_r(ispin)%pw,error=error)

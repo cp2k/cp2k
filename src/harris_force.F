@@ -13,7 +13,6 @@ MODULE harris_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -119,7 +118,6 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
@@ -153,7 +151,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
-            pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
+            pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao)
     para_env=>qs_env%para_env
@@ -170,7 +168,7 @@ CONTAINS
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
                       dft_control=dft_control, particle_set=particle_set, &
-                      cell=cell, input=input, error=error)
+                      input=input, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -289,7 +287,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -503,7 +501,6 @@ CONTAINS
     REAL(KIND=dp)                            :: E_overlap_core, Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
@@ -537,7 +534,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
-            pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
+            pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, harris_force, rho_r, ks_env, poisson_env, input)
     logger => cp_error_get_logger(error)
@@ -552,7 +549,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, cell=cell, particle_set=particle_set, &
+                      dft_control=dft_control, particle_set=particle_set, &
                       input=input, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
@@ -691,7 +688,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -824,7 +821,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -997,7 +994,6 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1028,7 +1024,7 @@ CONTAINS
     para_env=>qs_env%para_env
     NULLIFY(harris_env, harris_force, force, force_tmp, particle_set, &
             v_rspace_new, v_tau_rspace, rho_r, my_rho_r, v_xc, dft_control, &
-            cell, deriv_set, rho_set, auxbas_pw_pool, matrix_ks, pw_env, &
+            deriv_set, rho_set, auxbas_pw_pool, matrix_ks, pw_env, &
             poisson_env, xc_section, input)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1037,7 +1033,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, force=force, pw_env=pw_env, &
-                      particle_set=particle_set, matrix_ks=matrix_ks, cell=cell, &
+                      particle_set=particle_set, matrix_ks=matrix_ks, &
                       error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
@@ -1178,7 +1174,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
