@@ -29,7 +29,7 @@ MODULE input_cp2k_dft
   USE input_cp2k_ls,                   ONLY: create_ls_scf_section
   USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
                                              create_neighbor_lists_section
-  USE input_cp2k_motion,               ONLY: add_format_keyword
+  USE input_cp2k_motion_print,         ONLY: add_format_keyword
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_cp2k_xc,                   ONLY: create_xc_section

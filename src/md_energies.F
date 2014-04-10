@@ -40,7 +40,7 @@ MODULE md_energies
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
                                              reftraj_ensemble
-  USE input_cp2k_motion,               ONLY: create_md_section
+  USE input_cp2k_md,                   ONLY: create_md_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&

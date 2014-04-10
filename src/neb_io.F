@@ -37,7 +37,7 @@ MODULE neb_io
                                              pot_neb_fe,&
                                              pot_neb_full,&
                                              pot_neb_me
-  USE input_cp2k_motion,               ONLY: create_band_section
+  USE input_cp2k_neb,                  ONLY: create_band_section
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
