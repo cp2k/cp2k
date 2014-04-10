@@ -48,7 +48,7 @@ MODULE cp_linked_list_3d_r
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "./cp_common_uses.f90"
+#include "../common//cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1205,7 +1205,7 @@ END FUNCTION cp_sll_3d_r_contains2
 !     USE cp_array_r_utils, only: cp_3d_r_p_type"
 !  array= = "=>"
 !  arrayEl = "%array"
-!  common_dir = "."
+!  common_dir = "../common/"
 !  defines = 
 !    "! less not much meningful... and defines oly a partial ordering.
 !     #define CP_SLL_R_LESS_Q(el1,el2,error) ( all(el1 < el2) )
@@ -1215,6 +1215,7 @@ END FUNCTION cp_sll_3d_r_contains2
 !  lessQ = "CP_SLL_R_LESS_Q"
 !  nametype1 = "3d_r"
 !  private_routines = ""
+!  template = "../common/cp_linked_list__nametype1_.template"
 !  type1 = "real(kind=dp),dimension(:,:,:),pointer"
 !  type1arrayEl = "type(cp_3d_r_p_type)"
 !  type1in = "real(kind=dp),dimension(:,:,:), pointer"
