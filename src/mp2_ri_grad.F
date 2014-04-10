@@ -1424,7 +1424,7 @@ MODULE mp2_ri_grad
     CALL  mp_sendrecv(mat_send,proc_send_static,&
                       mat_rec,proc_receive_static,&
                       para_env_exchange%group)
-    L_mu_q%local_data(:,:)=mat_rec(1:nrow_local,1:ncol_local)
+    L_mu_q%local_data(1:nrow_local,1:ncol_local)=mat_rec(1:nrow_local,1:ncol_local)
     DEALLOCATE(buffer_cyclic)
     DEALLOCATE(mat_send)
     DEALLOCATE(mat_rec)
