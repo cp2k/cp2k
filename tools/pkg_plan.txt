@@ -28,6 +28,36 @@
 
 #============================================================================
 
+        {'dirname':'tmc',
+         'requires': ['../common', "../mpi", '../', '../input'],
+         'files': [
+            "tmc_analysis.F",
+            "tmc_analysis_types.F",
+            "tmc_calculations.F",
+            "tmc_cancelation.F",
+            "tmc_dot_tree.F",
+            "tmc_file_io.F",
+            "tmc_master.F",
+            "tmc_messages.F",
+            "tmc_move_handle.F",
+            "tmc_moves.F",
+            "tmc_move_types.F",
+            "tmc_setup.F",
+            "tmc_stati.F",
+            "tmc_tree_acceptance.F",
+            "tmc_tree_build.F",
+            "tmc_tree_references.F",
+            "tmc_tree_search.F",
+            "tmc_tree_types.F",
+            "tmc_types.F",
+            "tmc_utils.F",
+            "tmc_worker.F",
+            "input_cp2k_tmc.F"
+            ]
+        },
+
+#============================================================================
+
          {'dirname':'input',
           'requires': ["../common"],
           'files': [
@@ -43,10 +73,11 @@
 #============================================================================
 
          {'dirname':'start',
-          'requires': ["../", "../common", "../swarm", "../dbcsr", "../mpi", "../pw", '../input'],
+          'requires': ["../", "../common", "../swarm", "../dbcsr", "../mpi", "../pw", '../input', '../tmc'],
           'files': [
             "cp2k.F",
             "input_cp2k.F",
+            "input_cp2k_motion.F",
             "cp2k_runs.F",
             "cp2k_shell.F",
             "f77_int_low.F",
