@@ -113,12 +113,10 @@ MODULE qs_dispersion_types
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'qs_dispersion_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-    INTEGER                                  :: stat, i
+    INTEGER                                  :: i, stat
 
     IF (ASSOCIATED(dispersion_env)) THEN
       IF (ASSOCIATED(dispersion_env%maxci)) THEN
