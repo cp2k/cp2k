@@ -274,7 +274,7 @@ CONTAINS
        CALL cp_dbcsr_init(rtp%B_mat,error=error)
        CALL cp_dbcsr_create(rtp%B_mat,template=template,matrix_type="N",error=error)
        CALL cp_dbcsr_allocate_matrix_set(rtp%C_mat,3,error=error)
-       CALL cp_dbcsr_allocate_matrix_set(rtp%S_der,3,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(rtp%S_der,9,error=error)
        CALL cp_dbcsr_allocate_matrix_set(rtp%SinvH,nspin,error=error)
        CALL cp_dbcsr_allocate_matrix_set(rtp%SinvB,nspin,error=error)
        DO i=1,nspin 
@@ -286,6 +286,8 @@ CONTAINS
        DO i=1,3
           CALL cp_dbcsr_init_p(rtp%C_mat(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%C_mat(i)%matrix,template=template,matrix_type="N",error=error)
+       END DO
+       DO i=1,9
           CALL cp_dbcsr_init_p(rtp%S_der(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%S_der(i)%matrix,template=template,matrix_type="N",error=error)
        END DO

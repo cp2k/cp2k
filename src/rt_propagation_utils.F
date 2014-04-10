@@ -141,48 +141,50 @@ MODULE  rt_propagation_utils
     nder = 2
     maxder = ncoset(nder)
 
-    ! calculate the overlap derivative matrices
-    CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
-         basis_set_id_a=use_orb_basis_set,basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
-
     NULLIFY(tmp_mat)
     ALLOCATE(tmp_mat)
     CALL cp_dbcsr_init(tmp_mat,error=error)
-    CALL cp_dbcsr_create(tmp_mat,template=C_mat(1)%matrix,error=error)
-    NULLIFY(tmp_mat2)
-    ALLOCATE(tmp_mat2)
-    CALL cp_dbcsr_init(tmp_mat2,error=error)
-    CALL cp_dbcsr_create(tmp_mat2,template=C_mat(1)%matrix,error=error)
-    DO m=1,3
-       CALL cp_dbcsr_copy(tmp_mat,s_derivs(m+1)%matrix,error=error)
-       CALL cp_dbcsr_desymmetrize(tmp_mat,tmp_mat2,error=error)
-       CALL cp_dbcsr_copy(S_der(m)%matrix,tmp_mat2,error=error)
-       CALL cp_dbcsr_scale(S_der(m)%matrix,-one,error=error) 
-       CALL cp_dbcsr_filter(S_der(m)%matrix,rtp%filter_eps,error=error)
-       !The diagonal should be zero
-       CALL cp_dbcsr_iterator_start(iter, S_der(m)%matrix)
-       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-          IF(row_atom==col_atom) block_values=0
-       END DO
-       CALL cp_dbcsr_iterator_stop (iter) 
-    END DO
+    CALL cp_dbcsr_create(tmp_mat,template=S_der(1)%matrix,matrix_type="N",error=error)
 
+    IF(rtp%iter<2) THEN
+       ! calculate the overlap derivative matrices
+       CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
+            basis_set_id_a=use_orb_basis_set,basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
+
+       NULLIFY(tmp_mat2)
+       ALLOCATE(tmp_mat2)
+       CALL cp_dbcsr_init(tmp_mat2,error=error)
+       CALL cp_dbcsr_create(tmp_mat2,template=S_der(1)%matrix,matrix_type="S",error=error)
+       DO m=1,9
+          CALL cp_dbcsr_copy(tmp_mat2,s_derivs(m+1)%matrix,error=error)
+          CALL cp_dbcsr_desymmetrize(tmp_mat2,S_der(m)%matrix,error=error)
+          CALL cp_dbcsr_scale(S_der(m)%matrix,-one,error=error) 
+          CALL cp_dbcsr_filter(S_der(m)%matrix,rtp%filter_eps,error=error)
+          !The diagonal should be zero
+          CALL cp_dbcsr_iterator_start(iter, S_der(m)%matrix)
+          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+             CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+             IF(row_atom==col_atom) block_values=0
+          END DO
+          CALL cp_dbcsr_iterator_stop (iter) 
+       END DO
+       CALL cp_dbcsr_deallocate_matrix_set(s_derivs,error=error)
+       CALL cp_dbcsr_deallocate_matrix(tmp_mat2,error=error)
+    END IF
 
     !calculate scalar product v(Rb)*<alpha|d/dRb beta> (B_mat), and store the first derivatives
 
      CALL cp_dbcsr_set(B_mat,zero,error=error)
      DO m=1,3
-       CALL cp_dbcsr_copy(tmp_mat,s_derivs(m+1)%matrix,error=error)
-       CALL cp_dbcsr_desymmetrize(tmp_mat,tmp_mat2,error=error)
-       CALL cp_dbcsr_iterator_start(iter, tmp_mat2)
+       CALL cp_dbcsr_copy(tmp_mat,S_der(m)%matrix,error=error)
+       CALL cp_dbcsr_iterator_start(iter, tmp_mat)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
           CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
           IF(row_atom==col_atom) block_values=0
-          block_values=-block_values*particle_set(col_atom)%v(m)
+          block_values=block_values*particle_set(col_atom)%v(m)
        END DO
        CALL cp_dbcsr_iterator_stop (iter) 
-       CALL cp_dbcsr_add(B_mat,tmp_mat2,one,one,error=error)
+       CALL cp_dbcsr_add(B_mat,tmp_mat,one,one,error=error)
     END DO
     CALL cp_dbcsr_filter(B_mat,rtp%filter_eps,error=error)
     !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
@@ -203,11 +205,10 @@ MODULE  rt_propagation_utils
        CALL cp_dbcsr_set(C_mat(i)%matrix,zero,error=error)
     END DO
     DO m=1,6
-       CALL cp_dbcsr_copy(tmp_mat,s_derivs(m+4)%matrix,error=error)
-       CALL cp_dbcsr_desymmetrize(tmp_mat,tmp_mat2,error=error)
+       CALL cp_dbcsr_copy(tmp_mat,S_der(m+3)%matrix,error=error)
        DO j=1,2
           IF(c_map_mat(m,j)==0)CYCLE
-          CALL cp_dbcsr_add(C_mat(c_map_mat(m,j))%matrix,tmp_mat2,one,-one,error)
+          CALL cp_dbcsr_add(C_mat(c_map_mat(m,j))%matrix,tmp_mat,one,one,error)
        END DO
     END DO
 
@@ -220,10 +221,9 @@ MODULE  rt_propagation_utils
        CALL cp_dbcsr_iterator_stop (iter)
        CALL cp_dbcsr_filter(C_mat(m)%matrix,rtp%filter_eps,error=error)
     END DO
-    CALL cp_dbcsr_deallocate_matrix_set(s_derivs,error=error)
+
 
     CALL cp_dbcsr_deallocate_matrix(tmp_mat,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmp_mat2,error=error)
     CALL timestop(handle)
   END SUBROUTINE
 
