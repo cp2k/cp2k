@@ -24,9 +24,9 @@ water_charge_array.inp            2     5e-12
 water_charge_no_array_ewald.inp    2     5e-12
 water_charge_array_ewald.inp      2     1e-11
 water_charge_no_array_pme.inp     2     5e-12
-water_charge_array_pme.inp            2
+water_charge_array_pme.inp        2     5e-12
 # atomic properties
 argon_atprop.inp                      2
 water_atprop_spme.inp                 2
-water_atprop_pme.inp                  2
+water_atprop_pme.inp              2     5e-12
 water_atprop_ewald.inp                2

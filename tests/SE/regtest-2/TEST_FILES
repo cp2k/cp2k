@@ -17,7 +17,7 @@ nh4.inp         3
 st.inp          3
 # test the initial adaptation to OT
 ch4-ot.inp      3
-h2o_lsd-ot.inp  3
+h2o_lsd-ot.inp                    3     2e-14
 # tests for high-spin ROKS
 O-ROKS.inp      3
 O2-ROKS.inp     3
@@ -29,7 +29,7 @@ H2O-PDDG.inp    3
 # PM6
 b2h6_pm6.inp    3
 ch2o_pm6.inp    3
-hcn_pm6.inp     3
+hcn_pm6.inp                       3     1e-09
 md.inp                           11     4e-14
 # d-orbitals analytical der
 O2-ROKS-PM6.inp        3

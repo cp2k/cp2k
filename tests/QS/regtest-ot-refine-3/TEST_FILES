@@ -11,7 +11,7 @@ h2o_ot_refine_3.inp 1
 h2o_ot_refine_4.inp 1
 o2_ot_refine_3.inp 1
 o2_ot_refine_4.inp 1
-h2o_ot_precond_1_mp.inp 1
-h2o_ot_precond_2_mp.inp 1
-h2o_ot_precond_3_mp.inp 1
-h2o_ot_precond_4_mp.inp 1
+h2o_ot_precond_1_mp.inp           1     3e-09
+h2o_ot_precond_2_mp.inp           1     7e-10
+h2o_ot_precond_3_mp.inp           1     5e-09
+h2o_ot_precond_4_mp.inp           1     8e-10

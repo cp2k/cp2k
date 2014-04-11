@@ -14,7 +14,7 @@ Au.inp                35      1e-12
 Ba.inp                35      1e-12
 Be.inp                35      1e-12
 Bi.inp                35      1e-12
-B.inp                 35      1e-12
+B.inp                            35     4e-12
 Bk.inp                35      1e-12
 Br.inp                35      1e-12
 Ca.inp                35      1e-12

@@ -17,7 +17,7 @@ cell_opt_direct_lbfgs.inp 11 1E-11
 # Cell optimisation
 cell_opt_bfgs_geo_opt_bfgs.inp 11
 cell_opt_bfgs_geo_opt_lbfgs.inp   11     8e-10
-cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     2e-13
+cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     1e-11
 cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     1e-09
 cell_opt_lbfgs_geo_opt_lbfgs.inp   11     4e-09
 # Geometry optimisation using core-shell models

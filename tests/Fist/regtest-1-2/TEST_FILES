@@ -2,7 +2,7 @@ water_3.inp               2
 water_3_g3x3.inp          2
 water_3_dist.inp          2
 water32_hbonds_2.inp      2
-water_hbonds_dist.inp     2
+water_hbonds_dist.inp             2     3e-12
 ethene.inp                        2     1e-09
 butane.inp                2
 deca_ala.inp              2
