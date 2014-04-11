@@ -292,3 +292,6 @@ H2-emd-efield.inp
 H2O_excit_emd.inp
 #bugfix in bch/ETRS compatibility
 H2O-ls-rtp-bch.inp
+#initial density matrix no longer fixed to sparsity of S
+H2O-ls-emd.inp
+H2O-ls-rtp-bch.inp

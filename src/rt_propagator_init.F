@@ -13,11 +13,10 @@ MODULE rt_propagator_init
                                              rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_desymmetrize,&
+                                             cp_dbcsr_filter,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_multiply,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_scale
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix
@@ -33,6 +32,7 @@ MODULE rt_propagator_init
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE dm_ls_scf_methods,               ONLY: density_matrix_trs4
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
                                              do_cn,&
@@ -444,49 +444,55 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: im, ispin, re
+    INTEGER                                  :: im, ispin, &
+                                                nelectron_spin_real, re
+    REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, rho_old
+      POINTER                                :: matrix_ks, matrix_s, rho_new, &
+                                                rho_old
+    TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL get_qs_env(qs_env,rho=rho,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
-    !TODO: get the density from the kohn-sham matrix
-    !NULLIFY(S_half)
-    !ALLOCATE(S_half)
-    !CALL cp_dbcsr_init(S_half,error=error)
-    !CALL cp_dbcsr_create(S_half,template=matrix_s(1)%matrix,error=error)
-    !NULLIFY(S_minus_half)
-    !ALLOCATE(S_minus_half)
-    !CALL cp_dbcsr_init(S_minus_half,error=error)
-    !CALL cp_dbcsr_create(S_minus_half,template=matrix_s(1)%matrix,error=error)
-    !CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
-    !     rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
-    !NULLIFY(tmp)
-    !ALLOCATE(tmp)
-    !CALL cp_dbcsr_init(tmp,error=error)
-    !CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
+    NULLIFY(S_half)
+    ALLOCATE(S_half)
+    CALL cp_dbcsr_init(S_half,error=error)
+    CALL cp_dbcsr_create(S_half,template=matrix_s(1)%matrix,error=error)
+    NULLIFY(S_minus_half)
+    ALLOCATE(S_minus_half)
+    CALL cp_dbcsr_init(S_minus_half,error=error)
+    CALL cp_dbcsr_create(S_minus_half,template=matrix_s(1)%matrix,error=error)
+    CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
+         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
+    NULLIFY(tmp)
+    ALLOCATE(tmp)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
 
-    !e_homo = 0
-    !e_lumo = 0
-    !e_mu = 0
+    e_homo = 0
+    e_lumo = 0
+    e_mu = 0
 
 
     DO ispin=1,SIZE(matrix_ks)
        re=2*ispin-1
        im=2*ispin
-       !CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
-       !     qs_env%nelectron_total, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
-       !     max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
-       CALL cp_dbcsr_desymmetrize(rho%rho_ao(ispin)%matrix,rho_old(re)%matrix,error=error)
-       CALL cp_dbcsr_set(rho_old(im)%matrix,zero,error=error)
+       nelectron_spin_real=qs_env%nelectron_spin(ispin)
+       IF(SIZE(matrix_ks)==1) nelectron_spin_real=nelectron_spin_real/2
+       CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
+            nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
+            max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
+       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
+       IF (SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
     END DO
 
-    !CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-    !CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
-    !CALL cp_dbcsr_deallocate_matrix(s_minus_half,error=error)
 
-   END SUBROUTINE
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
+    CALL cp_dbcsr_deallocate_matrix(s_minus_half,error=error)
+
+   END SUBROUTINE rt_initialize_rho_from_ks
 
 END MODULE rt_propagator_init

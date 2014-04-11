@@ -140,7 +140,8 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order,error=error)
     CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
 
-    IF(qs_env%rtp%linear_scaling) CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,error=error)
+    IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn)&
+        CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,error=error)
  
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this
@@ -173,6 +174,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: i
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_new, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -185,7 +188,12 @@ CONTAINS
          error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
-    IF(.NOT.rtp%linear_scaling) THEN
+    IF(rtp%linear_scaling) THEN
+       CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
+        DO i=1,SIZE(rho_new)
+           CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
+        ENDDO 
+    ELSE
        CALL get_qs_env(qs_env,mos=mos,error=error)
        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
@@ -415,7 +423,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: homo, ispin, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: energy_consistency, failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
@@ -425,8 +433,11 @@ CONTAINS
     CASE(use_scf_wfn)
        qs_env%sim_time=0.0_dp
        qs_env%sim_step=0
+       energy_consistency=.TRUE.
+       !in the linear scaling case we need a correct kohn-sham matrix, which we cannot get with consistent energies
+       IF(rtp_control%linear_scaling) energy_consistency=.FALSE.
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-            consistent_energies=.TRUE.,error=error)
+            consistent_energies=energy_consistency,error=error)
        qs_env%run_rtp=.TRUE.
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

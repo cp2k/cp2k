@@ -241,8 +241,9 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_restart_wfn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, id_nr, im, ispin, nspin, &
-                                                qs_env_id, re
+    INTEGER                                  :: i, id_nr, im, ispin, ncol, &
+                                                nspin, re
+    REAL(KIND=dp)                            :: alpha
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -261,8 +262,7 @@ MODULE  rt_propagation_utils
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, &
-         input=input,rtp=rtp,&
-         id_nr=qs_env_id, dft_control=dft_control,&
+         input=input,rtp=rtp,dft_control=dft_control,&
          error=error)
 
     id_nr=0
@@ -283,16 +283,20 @@ MODULE  rt_propagation_utils
        ENDDO
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
-          DO ispin=1,SIZE(qs_env%rho%rho_ao)
+          DO ispin=1,SIZE(mo_array)
              re=2*ispin-1
              im=2*ispin
-             CALL cp_dbcsr_desymmetrize(qs_env%rho%rho_ao(ispin)%matrix,rho_old(re)%matrix,error=error)
-             CALL cp_dbcsr_set(rho_old(im)%matrix,zero,error=error)
+             CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,ncol_global=ncol,error=error)
+             alpha=1.0_dp
+             IF(SIZE(mo_array)==1) alpha=2*alpha
+             CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix,&
+                  matrix_v=mo_array(ispin)%mo_set%mo_coeff,matrix_g=mo_array(ispin)%mo_set%mo_coeff,ncol=ncol,&
+                  keep_sparsity=.FALSE.,alpha=alpha,error=error)
           END DO
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
           DO i=1,SIZE(qs_env%mos)
-             CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
+             CALL cp_fm_to_fm(mo_array(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
              CALL cp_fm_set_all(mos_new(2*i)%matrix,zero,zero,error)
           END DO
        ENDIF

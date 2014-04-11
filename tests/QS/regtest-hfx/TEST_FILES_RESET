@@ -372,3 +372,8 @@ H2O-hfx-ls-emd.inp
 #sparsity of rho in emd section no longer fixed
 H2O-hfx-emd.inp
 H2O-hfx-emd-restart.inp
+#initial density matrix no longer fixed to sparsity of S
+H2O-hfx-ls-emd.inp
+H2O-hfx-ls-rtp.inp
+H2O-hfx-ls-rtp-bch.inp
+H2O-hfx-ls-emd-bch.inp
