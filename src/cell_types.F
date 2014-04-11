@@ -46,9 +46,6 @@ MODULE cell_types
                                              det_3x3,&
                                              inv_3x3
   USE termination,                     ONLY: stop_program
-
-  USE, INTRINSIC ::  ISO_C_BINDING,    ONLY: C_PTR, C_F_POINTER
-
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
