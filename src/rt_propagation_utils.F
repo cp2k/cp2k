@@ -46,6 +46,7 @@ MODULE  rt_propagation_utils
   USE mathconstants
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
+  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -148,8 +149,13 @@ MODULE  rt_propagation_utils
 
     IF(rtp%iter<2) THEN
        ! calculate the overlap derivative matrices
-       CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
-            basis_set_id_a=use_orb_basis_set,basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
+       IF(qs_env%dft_control%qs_control%dftb)THEN
+            CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
+       ELSE
+          CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
+               basis_set_id_a=use_orb_basis_set,&
+               basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
+       END IF        
 
        NULLIFY(tmp_mat2)
        ALLOCATE(tmp_mat2)

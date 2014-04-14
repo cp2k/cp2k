@@ -35,3 +35,6 @@ fa2_atprop.inp      1
 h2o_atprop.inp      1
 # MD properties
 h2o_md.inp          1
+# Ehrenfest and RTP
+h2o_emd.inp
+h2o_rtp.inp
