@@ -21,8 +21,9 @@ MODULE rt_propagation_methods
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
-       cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_set
+       cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_get_occupation, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
+       cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
@@ -206,7 +207,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ihist
+    INTEGER                                  :: handle, i, ihist, im, re
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 rho_new, rho_old, s_mat
@@ -233,6 +234,12 @@ CONTAINS
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
           DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)
+          END DO
+          DO i=1,SIZE(rho_new)/2
+             re=2*i-1
+             im=2*i
+             rtp%sparsity=(cp_dbcsr_get_occupation(rho_new(re)%matrix)+&
+                          cp_dbcsr_get_occupation(rho_new(im)%matrix))/2
           END DO
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)

@@ -12,11 +12,14 @@ MODULE rt_propagation_output
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_desymmetrize,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
@@ -77,8 +80,8 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: im, ispin, n_electrons, &
-                                                output_unit, re
+    INTEGER                                  :: ispin, n_electrons, &
+                                                output_unit
     REAL(dp)                                 :: orthonormality, sparsity, &
                                                 tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -148,11 +151,7 @@ CONTAINS
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
              !TODO: Output the idempotency
              DO ispin=1,SIZE(rho_new)/2
-                re=2*ispin-1
-                im=2*ispin
-                sparsity=(cp_dbcsr_get_occupation(rho_new(re)%matrix)+&
-                         cp_dbcsr_get_occupation(rho_new(im)%matrix))/2
-                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Sparsity of P for spin ", ispin, ":",sparsity
+                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Sparsity of P for spin ", ispin, ":",rtp%sparsity
              ENDDO
           ENDIF
        ELSE

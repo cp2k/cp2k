@@ -115,6 +115,7 @@ MODULE rt_propagation_types
     TYPE(cp_fm_struct_type), POINTER            :: ao_ao_fmstruct
     INTEGER                                     :: lanzcos_max_iter
     REAL(KIND=dp)                               :: lanzcos_threshold
+    REAL(KIND=dp)                               :: sparsity
     INTEGER                                     :: newton_schulz_order
     LOGICAL                                     :: linear_scaling
  END TYPE rt_prop_type
