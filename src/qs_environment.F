@@ -704,7 +704,13 @@ CONTAINS
     maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere) + 1
 
     CALL init_orbital_pointers(maxl)
-    CALL init_spherical_harmonics(maxl,root_section,error)
+
+    output_unit = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
+           extension=".Log",error=error)
+    CALL init_spherical_harmonics(maxl,output_unit,error)
+    CALL cp_print_key_finished_output(output_unit,logger,root_section,&
+            "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
+
     !   *** Initialise the atomic kind set ***
     CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input,error=error)
 

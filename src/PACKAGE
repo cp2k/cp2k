@@ -1,5 +1,5 @@
 {
 "description": "Main package of CP2K",
 "archive" : "libcp2k",
-"requires": ("common", "fm", "arch", "cuda", "dbcsr", "pw", "input" )
+"requires": ("common", "fm", "arch", "cuda", "dbcsr", "pw", "input", "aobasis" )
 }

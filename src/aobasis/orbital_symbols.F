@@ -15,7 +15,7 @@ MODULE orbital_symbols
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
   USE termination,                     ONLY: stop_program
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'

@@ -14,10 +14,7 @@
 ! *****************************************************************************
 MODULE orbital_transformation_matrices
 
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -34,7 +31,7 @@ MODULE orbital_transformation_matrices
                                              sgf_symbol
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -341,21 +338,17 @@ CONTAINS
 !>      - maxl   : Maximum angular momentum quantum number
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_spherical_harmonics(maxl,root_section,error)
+  SUBROUTINE init_spherical_harmonics(maxl,output_unit,error)
 
     INTEGER, INTENT(IN)                      :: maxl
-    TYPE(section_vals_type), POINTER         :: root_section
+    INTEGER                                  :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_spherical_harmonics', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=78)                        :: headline
-    INTEGER                                  :: l, nc, ns, output_unit
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    INTEGER                                  :: l, nc, ns
 
     IF (maxl < 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -370,8 +363,6 @@ CONTAINS
 
 !     *** Print the spherical harmonics and   ***
 !     *** the orbital transformation matrices ***
-      output_unit = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
-           extension=".Log",error=error)
        IF (output_unit>0) THEN
 
           DO l=0,maxl
@@ -395,8 +386,6 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(A)") ""
 
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-            "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
 
     END IF
 
