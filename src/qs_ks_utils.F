@@ -17,6 +17,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_utils
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
@@ -96,6 +97,7 @@ MODULE qs_ks_utils
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
 #include "./common/cp_common_uses.f90"
@@ -135,9 +137,10 @@ CONTAINS
                                                 Nelectron, Nspin, Nterms, stat
     INTEGER, DIMENSION(:), POINTER           :: ivec
     INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
-    LOGICAL                                  :: failure, in_range, &
-                                                uniform_occupation
+    LOGICAL                                  :: compute_virial, failure, &
+                                                in_range, uniform_occupation
     REAL(KIND=dp)                            :: exc, total_rho
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -154,6 +157,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, low_spin_roks_section, &
                                                 xc_section
+    TYPE(virial_type), POINTER               :: virial
 
     IF (.NOT. dft_control%low_spin_roks) RETURN
     failure=.FALSE.
@@ -161,7 +165,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
-                    input=input, cell=cell, error=error)
+                    input=input, cell=cell, virial=virial, error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
     ! some assumptions need to be checked
@@ -290,9 +295,10 @@ CONTAINS
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
                    pw_pool=xc_pw_pool, error=error)
        ELSE
+           CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
-                   pw_pool=xc_pw_pool, error=error)
+                   pw_pool=xc_pw_pool, compute_virial=.FALSE., virial_xc=virial_xc_tmp, error=error)
        END IF
 
        energy%exc = energy%exc + energy_scaling(iterm) * exc
@@ -370,8 +376,10 @@ CONTAINS
     INTEGER                                  :: handle, i, Iorb, k_alpha, &
                                                 k_beta, Norb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
-    LOGICAL                                  :: failure, uniform_occupation
+    LOGICAL                                  :: compute_virial, failure, &
+                                                uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type)                    :: orb_density_matrix_p, orb_h_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -392,6 +400,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(virial_type), POINTER               :: virial
 
     IF (dft_control%sic_method_id .NE. sic_eo) RETURN
 
@@ -403,7 +412,8 @@ CONTAINS
 
     ! generate the lists of orbitals that need sic treatment
     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
-                    input=input, cell=cell, error=error)
+                    input=input, cell=cell, virial=virial, error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
     DO i=1,SIZE(mo_array)!fm->dbcsr
@@ -602,9 +612,10 @@ CONTAINS
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
                    pw_pool=xc_pw_pool, error=error)
        ELSE
+           CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
-                   pw_pool=xc_pw_pool, error=error)
+                   pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp, error=error)
            ! add to the existing work_v_rspace
            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &
                    dft_control%sic_scaling_b * vxc(1)%pw %pw_grid%dvol *  vxc(1)%pw%cr3d

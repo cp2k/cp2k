@@ -114,14 +114,13 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, myfun, stat, &
                                                 vdw
-    LOGICAL                                  :: do_adiabatic_rescaling, &
-                                                failure, my_just_energy, &
-                                                sic_scaling_b_zero, uf_grid, &
-                                                vdW_nl
+    LOGICAL :: compute_virial, do_adiabatic_rescaling, failure, &
+      my_just_energy, sic_scaling_b_zero, uf_grid, vdW_nl
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
                                                 my_scaling, nelec_s_inv, &
                                                 nelec_spin(2)
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -156,6 +155,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
          pw_env=pw_env, cell=cell, virial=virial, error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
 
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=myfun,error=error)
@@ -301,7 +301,8 @@ CONTAINS
                   rho_g=rho_g,tau=tau,exc=exc,&
                   xc_section=xc_section,&
                   pw_pool=xc_pw_pool,&
-                  virial=virial,&
+                  compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer),&
+                  virial_xc=virial%pv_xc,&
                   error=error)
           END IF
 
@@ -415,10 +416,14 @@ CONTAINS
                      pw_pool=xc_pw_pool,&
                      error=error)
              ELSE
+                ! virial untested
+                CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
                      pw_pool=xc_pw_pool,&
+                     compute_virial=.FALSE.,&
+                     virial_xc=virial_xc_tmp,&
                      error=error)
              END IF
 
@@ -490,10 +495,14 @@ CONTAINS
                         pw_pool=xc_pw_pool,&
                         error=error)
                 ELSE
+                   ! virial untested
+                   CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
                    CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                         rho_g=rho_g,tau=tau,exc=exc_m,&
                         xc_section=xc_section,&
                         pw_pool=xc_pw_pool,&
+                        compute_virial=.FALSE.,&
+                        virial_xc=virial_xc_tmp,&
                         error=error)
                 END IF
 
@@ -536,10 +545,14 @@ CONTAINS
                      pw_pool=xc_pw_pool,&
                      error=error)
              ELSE
+                ! virial untested
+                CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
                      pw_pool=xc_pw_pool,&
+                     compute_virial=.FALSE.,&
+                     virial_xc=virial_xc_tmp,&
                      error=error)
              END IF
 

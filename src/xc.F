@@ -59,7 +59,6 @@ MODULE xc
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_type
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              MAX_LABEL_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -109,20 +108,23 @@ CONTAINS
 !> \param xc_section parameters selecting the xc and the method used to
 !>        calculate it
 !> \param pw_pool the pool for the grids
-!> \param virial virial for calculating the GGA part of the stress
+!> \param compute_virial should the virial be computed... if so virial_xc must be present
+!> \param virial_xc for calculating the GGA part of the stress
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
-       pw_pool,error,virial)
+       pw_pool,error,compute_virial,virial_xc)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
                                                 rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    LOGICAL                                  :: compute_virial
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: virial_xc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
       routineP = moduleN//':'//routineN
@@ -144,7 +146,7 @@ CONTAINS
        CASE(xc_new_f_routine)
           CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
-               pw_pool=pw_pool,error=error,virial=virial)
+               pw_pool=pw_pool,error=error,compute_virial=compute_virial,virial_xc=virial_xc)
        CASE(xc_debug_new_routine)
           CALL xc_vxc_pw_create_debug(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
@@ -194,6 +196,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: compute_virial = .FALSE.
 
     CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
@@ -202,6 +205,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diff, exc2, maxdiff, tmp
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: pot, pot2, pot3
     TYPE(cp_sll_xc_deriv_type), POINTER      :: deriv_iter
@@ -264,7 +268,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        CALL xc_vxc_pw_create(rho_r=rho_r, rho_g=rho_g,tau=tau,&
             vxc_rho=vxc_rho,vxc_tau=vxc_tau, exc=exc, xc_section=xc_section,&
             pw_pool=pw_pool, &
-            error=error)
+            error=error, compute_virial=compute_virial,virial_xc=virial_xc)
        PRINT *, "did calculate xc (lda)"
        PRINT *, "about to calculate xc (lsd)"
        CALL xc_rho_set_and_dset_create(rho_set=rho_set2,deriv_set=dSet2,&
@@ -273,7 +277,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g,tau=tau2,&
             vxc_rho=vxc_rho2,vxc_tau=vxc_tau2,exc=exc2, xc_section=xc_section,&
-            pw_pool=pw_pool,  error=error)
+            pw_pool=pw_pool,  error=error, compute_virial=compute_virial, virial_xc=virial_xc)
        PRINT *, "did calculate xc (new)"
        PRINT *, "at (0,0,0) rho_r=",rho_r(1)%pw%cr3d(0,0,0),&
             "rho2_r(1)=",rho2_r(1)%pw%cr3d(0,0,0),&
@@ -552,6 +556,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: compute_virial = .FALSE.
 
     CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
@@ -559,6 +564,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     INTEGER                                  :: i, ispin, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: pot
     TYPE(cp_logger_type), POINTER            :: logger
@@ -666,7 +672,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
           rho_r=rho_r, rho_g=rho_g,tau=tau,&
           exc=exc, xc_section=xc_section,&
           pw_pool=pw_pool,&
-          error=error)
+          error=error,compute_virial=compute_virial,virial_xc=virial_xc)
 
      ! outputs 0,:,: plane
      IF (bo(1,1)<=0.AND.0<=bo(2,1)) THEN
@@ -1120,14 +1126,16 @@ END SUBROUTINE smooth_cutoff
 !> \author fawzi; based LDA version of JGH, based on earlier version of apsi
 ! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
-     pw_pool,error,virial)
+     pw_pool,error,compute_virial,virial_xc)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    LOGICAL                                  :: compute_virial
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: virial_xc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
       routineP = moduleN//':'//routineN
@@ -1188,11 +1196,12 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      END IF
   END IF
 
-  IF (PRESENT(virial)) THEN
-    use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
-  ELSE
-    use_virial = .FALSE.
-  ENDIF
+  use_virial=compute_virial
+! IF (PRESENT(virial)) THEN
+!   use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
+! ELSE
+!   use_virial = .FALSE.
+! ENDIF
 
   IF (.NOT.failure) THEN
      bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -1417,10 +1426,10 @@ CPSourceFileRef,&
                  END DO
                END DO
                DO jdir=1,idir
-                 virial%pv_xc(idir,jdir) = pw_grid%dvol*&
+                 virial_xc(idir,jdir) = pw_grid%dvol*&
                                            accurate_sum(virial_pw%cr3d(:,:,:)*&
                                                         drho(jdir)%array(:,:,:))
-                 virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
+                 virial_xc(jdir,idir) = virial_xc(idir,jdir)
                END DO
              END DO
              CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
@@ -1431,7 +1440,7 @@ CPSourceFileRef,&
                    use_data=REALDATA3D,in_space=REALSPACE,&
                    error=error)
               CPPrecondition(ASSOCIATED(drho(idir)%array),cp_failure_level,routineP,error,failure)
-              !$omp parallel do default(none) shared(bo,deriv_data,drho,idir,use_virial,virial_pw)&
+              !$omp parallel do default(none) shared(bo,deriv_data,drho,idir)&
               !$omp             private(k,j,i)
               DO k=bo(1,3),bo(2,3)
                  DO j=bo(1,2),bo(2,2)
@@ -1459,9 +1468,9 @@ CPSourceFileRef,&
                  END DO
                END DO
                DO jdir=1,idir
-                 virial%pv_xc(idir,jdir) = pw_grid%dvol*accurate_sum(virial_pw%cr3d(:,:,:)*&
+                 virial_xc(idir,jdir) = pw_grid%dvol*accurate_sum(virial_pw%cr3d(:,:,:)*&
                                            (drhoa(jdir)%array(:,:,:) + drhob(jdir)%array(:,:,:)))
-                 virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
+                 virial_xc(jdir,idir) = virial_xc(idir,jdir)
                END DO
              END DO
              CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
@@ -1553,10 +1562,10 @@ CPSourceFileRef,&
                     END DO
                   END DO
                   DO jdir=1,idir
-                    virial%pv_xc(idir,jdir) = virial%pv_xc(idir,jdir) + pw_grid%dvol*&
+                    virial_xc(idir,jdir) = virial_xc(idir,jdir) + pw_grid%dvol*&
                                               accurate_sum(virial_pw%cr3d(:,:,:)*&
                                                            drho_spin(jdir)%array(:,:,:))
-                    virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
+                    virial_xc(jdir,idir) = virial_xc(idir,jdir)
                   END DO
                 END DO
                 CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)

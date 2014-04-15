@@ -74,6 +74,7 @@ MODULE xc_pot_saop
   USE qs_vxc_atom,                     ONLY: calc_rho_angular,&
                                              gaVxcgb_noGC
   USE util,                            ONLY: get_limit
+  USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_vxc_pw_create
   USE xc_atom,                         ONLY: fill_rho_set,&
                                              vxc_of_r_new,&
@@ -129,13 +130,15 @@ CONTAINS
                                                 xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, gapw, ionode, lsd
+    LOGICAL                                  :: compute_virial, failure, &
+                                                gapw, ionode, lsd
     REAL(KIND=dp)                            :: density_cut, efac, &
                                                 gradient_cut, tau_cut, &
                                                 tot_rho_psi, we_GLLB, we_LB, &
                                                 xc_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coeff_col
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
@@ -158,6 +161,7 @@ CONTAINS
                                                 xc_fun_section_tmp, &
                                                 xc_section_orig, &
                                                 xc_section_tmp
+    TYPE(virial_type), POINTER               :: virial
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -179,7 +183,9 @@ CONTAINS
                     rho=rho_struct,&
                     pw_env=pw_env,&
                     input=input,&
+                    virial=virial,&
                     mos=molecular_orbitals,error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     CALL section_vals_val_get(input,"DFT%QS%METHOD",i_val=dft_method_id,error=error)
     gapw = (dft_method_id==do_method_gapw)
 
@@ -253,18 +259,21 @@ CONTAINS
     CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",&
          xc_fun_section_tmp,error=error)
 
+    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           xc_section_tmp, auxbas_pw_pool,  &
-                          error)
+                          error,compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
 
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
          l_val=.FALSE.,error=error)
     CALL section_vals_val_set(xc_fun_section_tmp,"PZ81%_SECTION_PARAMETERS_",&
          l_val=.TRUE.,error=error)
 
+    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           xc_section_tmp, auxbas_pw_pool, &
-                          error)
+                          compute_virial=.FALSE.,virial_xc=virial_xc_tmp,&
+                          error=error)
 
     DO ispin=1, nspins
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
