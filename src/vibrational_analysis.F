@@ -32,7 +32,8 @@ MODULE vibrational_analysis
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: vib_header
   USE input_constants
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -75,8 +76,9 @@ CONTAINS
 !> \brief Module performing a vibrational analysis
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE vb_anal(input, para_env, globenv, error)
+  SUBROUTINE vb_anal(input, input_declaration, para_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -144,7 +146,7 @@ CONTAINS
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=nrep,prep=prep,row_force=row_force,error=error)
+             input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force,error=error)
        IF (ASSOCIATED(rep_env)) THEN
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)

@@ -39,7 +39,8 @@ MODULE neb_methods
                                              band_md_opt,&
                                              do_rep_blocked,&
                                              do_sm
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -82,8 +83,9 @@ CONTAINS
 !>      Based on the use of replica_env
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE neb(input, para_env, globenv, error)
+  SUBROUTINE neb(input, input_declaration, para_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -136,7 +138,7 @@ CPSourceFileRef,&
        ! Create Replica Environments
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=nrep,prep=prep,row_force=row_force,error=error)
+            input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force,error=error)
        CPPostcondition(SIZE(rep_env%local_rep_indices)==1,cp_failure_level,routineP,error,failure)
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
        IF (ASSOCIATED(rep_env)) THEN

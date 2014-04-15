@@ -43,14 +43,10 @@ MODULE pint_methods
   USE input_constants,                 ONLY: transformation_normal,&
                                              transformation_stage
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_val_unset
+  USE input_section_types,             ONLY: &
+       section_type, section_vals_get, section_vals_get_subs_vals, &
+       section_vals_release, section_vals_retain, section_vals_type, &
+       section_vals_val_get, section_vals_val_set, section_vals_val_unset
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -123,9 +119,10 @@ CONTAINS
   !>           Fixed some bugs [hforbert]
   !>           Added normal mode transformation [hforbert]
   ! ***************************************************************************
-  SUBROUTINE pint_create(pint_env,input,para_env,error)
+  SUBROUTINE pint_create(pint_env,input,input_declaration,para_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -183,7 +180,7 @@ CONTAINS
        CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",c_val=project_name,error=error)
        CALL section_vals_val_get(input,"GLOBAL%OUTPUT_FILE_NAME",c_val=output_file_name,error=error)
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=nrep,prep=prep, row_force=.TRUE.,error=error)
+            input_declaration=input_declaration,nrep=nrep,prep=prep, row_force=.TRUE.,error=error)
        CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",c_val=TRIM(project_name),error=error)
        IF ( LEN_TRIM(output_file_name) .GT. 0 ) THEN
          CALL section_vals_val_set(input,"GLOBAL%OUTPUT_FILE_NAME",c_val=TRIM(output_file_name),error=error)
@@ -559,9 +556,10 @@ CONTAINS
   !>        see module cp_error_handling
   !> \author fawzi
   ! ***************************************************************************
-  SUBROUTINE pint_test(para_env,input,error)
+  SUBROUTINE pint_test(para_env,input,input_declaration,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_test', &
@@ -584,7 +582,7 @@ CONTAINS
   NULLIFY(pint_env)
   IF (.NOT. failure) THEN
      logger => cp_error_get_logger(error)
-      CALL pint_create(pint_env,input,para_env,error=error)
+      CALL pint_create(pint_env,input,input_declaration,para_env,error=error)
      IF (ASSOCIATED(pint_env)) THEN
         ALLOCATE(x1(pint_env%ndim,pint_env%p),stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -636,9 +634,10 @@ CONTAINS
   !>         2009-12-14 globenv parameter added to handle soft exit
   !>           requests [lwalewski]
   ! ***************************************************************************
-  SUBROUTINE do_pint_run( para_env, input, globenv, error )
+  SUBROUTINE do_pint_run( para_env, input, input_declaration, globenv, error )
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -709,13 +708,13 @@ CONTAINS
         CALL helium_release(helium,error=error)
 
       CASE (solute_only_mid)
-        CALL pint_create(pint_env,input,para_env,error=error)
+        CALL pint_create(pint_env,input,input_declaration,para_env,error=error)
         CALL pint_init(pint_env,error)
         CALL pint_do_run(pint_env,globenv,error=error)
         CALL pint_release(pint_env,error=error)
 
       CASE (solute_with_helium_mid)
-        CALL pint_create(pint_env,input,para_env,error=error)
+        CALL pint_create(pint_env,input,input_declaration,para_env,error=error)
         ! init pint wihtout helium forces (they are not yet initialized)
         CALL pint_init(pint_env,error)
         ! init helium with solute's positions (they are already initialized)

@@ -25,7 +25,8 @@ MODULE replica_methods
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set,&
                                              use_qs_force
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
@@ -189,9 +190,10 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE rep_env_test(para_env,input,error)
+  SUBROUTINE rep_env_test(para_env,input,input_declaration,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_test', &
@@ -210,6 +212,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
     CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
     max_err=0._dp
@@ -227,7 +230,7 @@ CONTAINS
        CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
             c_val=TRIM(project_name)//"t11",error=error)
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=1,prep=1,error=error)
+            input_declaration=input_declaration,nrep=1,prep=1,error=error)
        CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
             error=error)
        IF (ASSOCIATED(rep_env)) THEN
@@ -242,7 +245,7 @@ CONTAINS
        CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
             c_val=TRIM(project_name)//"t12",error=error)
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=1,prep=2,error=error)
+             input_declaration=input_declaration,nrep=1,prep=2,error=error)
        CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
             error=error)
        IF (ASSOCIATED(rep_env)) THEN
@@ -257,7 +260,7 @@ CONTAINS
        CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
             c_val=TRIM(project_name)//"t21",error=error)
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=2,prep=1,error=error)
+             input_declaration=input_declaration,nrep=2,prep=1,error=error)
        CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
             error=error)
        IF (ASSOCIATED(rep_env)) THEN
@@ -379,7 +382,7 @@ CONTAINS
           irep = rep_env%local_rep_indices(i)
           ndim = 3*rep_env%nparticle
           IF (rep_env%sync_v) THEN
-             CALL cp_set_vel(rep_env%f_env_id,rep_env%v(:,irep),ndim,ierr)
+             CALL cp_set_vel_int(rep_env%f_env_id,rep_env%v(:,irep),ndim,ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              IF (failure) EXIT
           END IF
@@ -405,7 +408,7 @@ CONTAINS
                error=error)
           CALL f_env_rm_defaults(f_env,new_error,ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-          CALL cp_calc_force(rep_env%f_env_id,rep_env%r(:,irep),ndim,&
+          CALL cp_calc_force_int(rep_env%f_env_id,rep_env%r(:,irep),ndim,&
                              rep_env%f(ndim+1,irep),rep_env%f(:ndim,irep),&
                              my_calc_f,ierr)
           CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)

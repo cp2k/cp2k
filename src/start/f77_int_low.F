@@ -247,59 +247,6 @@ RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
 END SUBROUTINE cp_run_input_comm
 
 ! *****************************************************************************
-RECURSIVE SUBROUTINE cp_rep_init(rep_env_id,ierr)
-  USE replica_methods, ONLY: rpin => rep_env_init_low
-  IMPLICIT NONE
-  INTEGER :: rep_env_id,ierr
-
-  CALL rpin(rep_env_id,ierr)
-END SUBROUTINE cp_rep_init
-
-! *****************************************************************************
-RECURSIVE SUBROUTINE cp_rep_destroy(rep_env_id,ierr)
-  USE replica_methods, ONLY: rpin => rep_env_destroy_low
-  IMPLICIT NONE
-  INTEGER :: rep_env_id,ierr
-
-  CALL rpin(rep_env_id,ierr)
-END SUBROUTINE cp_rep_destroy
-
-! *****************************************************************************
-RECURSIVE SUBROUTINE cp_rep_calc_e_f(rep_env_id,calc_f,ierr)
-  USE replica_methods, ONLY: rpef => rep_env_calc_e_f_low
-  IMPLICIT NONE
-  INTEGER :: rep_env_id,calc_f,ierr
-
-  CALL rpef(rep_env_id,calc_f,ierr)
-END SUBROUTINE cp_rep_calc_e_f
-
-! *****************************************************************************
-RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
-  USE ep_methods,                      ONLY: ep_env_init_low
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_section_types,             ONLY: section_type, section_release
-  USE cp_error_handling,               ONLY: cp_error_type
-  IMPLICIT NONE
-  INTEGER :: ep_env_id, ierr
-  TYPE(cp_error_type)                  :: error
-  TYPE(section_type), POINTER          :: input_declaration
-
-  NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration, error)
-  CALL ep_env_init_low(ep_env_id, input_declaration, ierr)
-  CALL section_release(input_declaration,error=error)
-END SUBROUTINE cp_ep_init
-
-! *****************************************************************************
-RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
-  USE ep_methods, ONLY: epef => ep_env_calc_e_f_low
-  IMPLICIT NONE
-  INTEGER :: ep_env_id, calc_f, ierr
-
-  CALL epef(ep_env_id, calc_f, ierr)
-END SUBROUTINE cp_ep_calc_e_f
-
-! *****************************************************************************
 SUBROUTINE cp_do_shake(f_env_id,dt,shake_tol,ierr)
   USE kinds, ONLY: dp
   USE f77_interface, ONLY: do_shake

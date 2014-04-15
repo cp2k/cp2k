@@ -424,7 +424,7 @@ CONTAINS
        CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " creating mol_envs",error=error)
-       CALL cp_get_natom(ep_env%f_env_id,nat,ierr)
+       CALL cp_get_natom_int(ep_env%f_env_id,nat,ierr)
        CALL section_vals_val_get(input,"FORCE_EVAL%EP%AT_PER_MOL",&
             i_val=at_per_mol,error=error)
        nmol=nat/at_per_mol
@@ -439,7 +439,7 @@ CONTAINS
                                 initial_variables=empty_initial_variables, &
                                 para_env=para_env,error=error)
        CALL rep_env_create(ep_env%mol_envs, para_env=para_env, input=comp_input,&
-            nrep=nmol, prep=1,keep_wf_history=.TRUE.,error=error)
+            input_declaration=input_declaration,nrep=nmol, prep=1,keep_wf_history=.TRUE.,error=error)
        CALL cp_assert(ASSOCIATED(ep_env%mol_envs),cp_failure_level,&
             cp_assertion_failed,routineP,"ep not implemented for a number of"//&
             " processors bigger than the number of molecules",error,failure)

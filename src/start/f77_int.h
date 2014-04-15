@@ -92,22 +92,6 @@ RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
   INTEGER :: mpi_comm, ierr
 END SUBROUTINE cp_run_input_comm
 
-RECURSIVE SUBROUTINE cp_rep_init(rep_env_id,ierr)
-  INTEGER :: rep_env_id,ierr
-END SUBROUTINE cp_rep_init
-
-RECURSIVE SUBROUTINE cp_rep_calc_e_f(rep_env_id,calc_f,ierr)
-  INTEGER :: rep_env_id,calc_f,ierr
-END SUBROUTINE cp_rep_calc_e_f
-
-RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
-  INTEGER :: ep_env_id, ierr
-END SUBROUTINE cp_ep_init
-
-RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
-  INTEGER :: ep_env_id, calc_f, ierr
-END SUBROUTINE cp_ep_calc_e_f
-
 SUBROUTINE cp_do_shake(f_env_id,dt,shake_tol,ierr)
   use kinds, only: dp
   INTEGER :: f_env_id

@@ -547,7 +547,7 @@ CPSourceFileRef,&
        n_el = 3*rep_env%nparticle
        Mmatrix = 0.0_dp
        ! Syncronize position on the replica procs
-       CALL cp_set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+       CALL cp_set_pos_int(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        !
        IF (irep+j <= n_rep_neb) THEN
@@ -625,7 +625,7 @@ CPSourceFileRef,&
        n_el = 3*rep_env%nparticle
        Mmatrix = 0.0_dp
        ! Syncronize position on the replica procs
-       CALL cp_set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+       CALL cp_set_pos_int(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        IF (irep+j <= n_rep_neb) THEN
           logger%iter_info%iteration(2)=irep+j

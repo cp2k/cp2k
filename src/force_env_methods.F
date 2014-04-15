@@ -90,7 +90,8 @@ MODULE force_env_methods
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        low_print_level, mix_coupled, mix_generic, mix_linear_combination, &
        mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -900,11 +901,12 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE ep_create_force_env(force_env, root_section, para_env, globenv,&
+  SUBROUTINE ep_create_force_env(force_env, root_section, input_declaration, para_env, globenv,&
      force_env_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -920,7 +922,7 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        NULLIFY(ep_env)
-       CALL ep_env_create(ep_env, root_section, para_env, globenv=globenv,&
+       CALL ep_env_create(ep_env, root_section, input_declaration, para_env, globenv=globenv,&
             error=error)
        CALL force_env_create(force_env,root_section,para_env,globenv=globenv,ep_env=ep_env,&
             force_env_section = force_env_section, error=error)

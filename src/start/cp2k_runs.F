@@ -347,7 +347,7 @@ CONTAINS
           CALL section_vals_release(input_file,error=suberror)
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
-             CALL do_pint_run( para_env, root_section, globenv, error=suberror )
+             CALL do_pint_run( para_env, root_section, input_declaration, globenv, error=suberror )
           CASE (none_run, tree_mc_run)
              ! do nothing
           CASE (driver_run)
@@ -436,9 +436,9 @@ CONTAINS
                      suberror,failure)
              END SELECT
           CASE (vib_anal)
-             CALL vb_anal(root_section,para_env,globenv,error=suberror)
+             CALL vb_anal(root_section,input_declaration,para_env,globenv,error=suberror)
           CASE (do_band)
-             CALL neb(root_section,para_env,globenv,error=suberror)
+             CALL neb(root_section,input_declaration,para_env,globenv,error=suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT

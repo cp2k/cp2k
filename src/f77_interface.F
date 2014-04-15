@@ -666,6 +666,7 @@ CONTAINS
 
     failure=.FALSE.
 
+    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
          fp_env)
     new_env_id=-1
@@ -840,7 +841,7 @@ CPSourceFileRef,&
           CASE (do_ep)
              ! does not support multi force_env_sections
              CPPostcondition(nforce_eval==1,cp_fatal_level,routineP,my_error,failure)
-             CALL ep_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
+             CALL ep_create_force_env ( my_force_env, root_section, input_declaration, my_para_env, globenv,&
                   force_env_section=force_env_section, error = my_error )
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&

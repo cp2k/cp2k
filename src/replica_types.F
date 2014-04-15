@@ -32,10 +32,12 @@ MODULE replica_types
   USE cp_result_types,                 ONLY: cp_result_p_type,&
                                              cp_result_release
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
                                              section_vals_write
+  USE iso_c_binding
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: MPI_COMM_NULL,&
@@ -151,11 +153,12 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
+  SUBROUTINE rep_env_create(rep_env, para_env, input, input_declaration, nrep, prep,&
        sync_v,keep_wf_history,row_force,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_type), POINTER              :: input_declaration
     INTEGER                                  :: nrep, prep
     LOGICAL, INTENT(in), OPTIONAL            :: sync_v, keep_wf_history, &
                                                 row_force
@@ -179,6 +182,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
+
     NULLIFY(cart,para_env_f,para_env_inter_rep)
     IF (.NOT. failure) THEN
        logger => cp_error_get_logger(error)
@@ -284,8 +289,8 @@ CONTAINS
           CALL section_vals_write(input,unit_nr,hide_root=.TRUE.,error=error)
           CALL close_file(unit_nr)
        END IF
-       CALL cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
-            para_env_f%group,ierr)
+       CALL cp_create_fenv_comm_int(new_env_id,input_file_path,c_loc(input_declaration),&
+             output_file_path,para_env_f%group,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
        ! Delete input files..
@@ -297,7 +302,7 @@ CONTAINS
 
        IF (.NOT.failure) THEN
           rep_env%f_env_id=new_env_id
-          CALL cp_get_nparticle(new_env_id,nparticle,ierr)
+          CALL cp_get_nparticle_int(new_env_id,nparticle,ierr)
           CPPostcondition(ierr==0,cp_fatal_level,routineP,error,failure)
           rep_env%nparticle = nparticle
           rep_env%ndim = 3*nparticle
@@ -340,11 +345,11 @@ CONTAINS
           rep_env%r=0._dp
           rep_env%f=0._dp
           rep_env%v=0._dp
-          CALL cp_set_vel(rep_env%f_env_id, rep_env%v(:,1), rep_env%ndim, ierr)
+          CALL cp_set_vel_int(rep_env%f_env_id, rep_env%v(:,1), rep_env%ndim, ierr)
           CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
           DO i=1,nrep
              IF (rep_env%rep_is_local(i)) THEN
-                CALL cp_get_pos(rep_env%f_env_id,rep_env%r(:,i),rep_env%ndim,ierr)
+                CALL cp_get_pos_int(rep_env%f_env_id,rep_env%r(:,i),rep_env%ndim,ierr)
                 CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
              END IF
           END DO
@@ -385,7 +390,7 @@ CONTAINS
        IF (rep_env%ref_count==0) THEN
           CALL cp_rep_destroy(rep_env%id_nr,ierr)
           IF (rep_env%f_env_id>0) THEN
-             CALL cp_destroy_fenv(rep_env%f_env_id,ierr)
+             CALL cp_destroy_fenv_int(rep_env%f_env_id,ierr)
              CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rep_env%r)) THEN

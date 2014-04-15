@@ -20,9 +20,11 @@ MODULE ep_types
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release,&
                                              globenv_retain
-  USE input_section_types,             ONLY: section_vals_release,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
+  USE iso_c_binding
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              preconditioner_p_type
@@ -227,7 +229,7 @@ CONTAINS
           CALL p_env_release(ep_env%sub_p_env,error=error)
           CALL cp_fm_vect_dealloc(ep_env%m_pi_Hrho_psi0d,error=error)
           CALL cp_fm_vect_dealloc(ep_env%psi1,error=error)
-          CALL cp_destroy_fenv(ep_env%f_env_id,ierr)
+          CALL cp_destroy_fenv_int(ep_env%f_env_id,ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
           IF (ASSOCIATED(ep_env%precond)) THEN
              DO i=1,1 !SIZE(ep_env%precond) ! same precond for all spins
@@ -349,9 +351,10 @@ CONTAINS
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE ep_env_create(ep_env,root_section,para_env,globenv, error)
+  SUBROUTINE ep_env_create(ep_env,root_section,input_declaration,para_env,globenv, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -391,7 +394,7 @@ CONTAINS
        CALL cp_para_env_retain(ep_env%para_env,error=error)
 
        CALL ep_envs_add_ep_env(ep_env,error=error)
-       CALL cp_ep_init(ep_env%id_nr,ierr)
+       CALL cp_ep_init(ep_env%id_nr,c_loc(input_declaration),ierr)
 
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
