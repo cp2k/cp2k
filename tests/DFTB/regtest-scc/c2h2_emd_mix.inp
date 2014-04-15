@@ -1,0 +1,90 @@
+#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../scc/oo.spl
+#CPQA INCLUDE ../scc/oh.spl
+#CPQA INCLUDE ../scc/ho.spl
+#CPQA INCLUDE ../scc/hh.spl
+&FORCE_EVAL
+  &DFT
+    LSD
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    T
+        DO_EWALD           T
+        DISPERSION         T
+        &PARAMETER
+          PARAM_FILE_PATH  ../scc
+          PARAM_FILE_NAME  scc_parameter
+          UFF_FORCE_FIELD  ../uff_table
+        &END PARAMETER
+      &END DFTB
+    &END QS
+
+    &SCF
+      SCF_GUESS CORE
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
+      MAX_SCF  20
+    &END SCF
+    &POISSON
+      &EWALD
+       EWALD_TYPE SPME
+       GMAX 25
+       O_SPLINE 5
+      &END EWALD
+    &END POISSON
+    &PRINT
+     &WFN_MIX
+       ! replace HOMO with an orthonormal linear combination of lumo and lumo+1
+       OVERWRITE_MOS
+       &UPDATE
+           RESULT_MO_INDEX 1
+           RESULT_SPIN_INDEX ALPHA
+           RESULT_SCALE 0.0
+
+           ORIG_MO_INDEX 1
+           ORIG_SPIN_INDEX ALPHA
+           ORIG_SCALE 1.00000000000
+
+           ORIG_IS_VIRTUAL .TRUE.
+       &END
+      &END
+
+    &END PRINT
+    &REAL_TIME_PROPAGATION
+       MAX_ITER 50
+       MAT_EXP ARNOLDI
+       EXP_ACCURACY 1.0E-10
+       EPS_ITER 1.0E-9
+       PROPAGATOR ETRS
+       INITIAL_WFN SCF_WFN
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+    &END CELL
+    &COORD
+ H         0.275793       -0.913109        0.147665
+ C         0.875677        0.007622        0.081751
+ C         2.257101        0.000000       -0.029477
+ H         2.872585        0.870218       -0.069684
+   &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT ethinmd
+  RUN_TYPE EHRENFEST_DYN
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TIMESTEP [au_t] 0.5
+    TEMPERATURE 330.0
+  &END MD
+&END MOTION

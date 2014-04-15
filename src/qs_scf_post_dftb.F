@@ -15,13 +15,27 @@ MODULE qs_scf_post_dftb
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_to_fm_submat,&
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -37,8 +51,11 @@ MODULE qs_scf_post_dftb
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_wfn_mix,                  ONLY: wfn_mix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -74,7 +91,7 @@ CONTAINS
     INTEGER                                  :: handle, iat, iatom, ikind, &
                                                 istat, nat, natom, nkind, &
                                                 nspins, unit_nr
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
@@ -89,7 +106,7 @@ CONTAINS
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, moments_section, &
-                                                print_key
+                                                print_key, wfn_mix_section
 
     CALL timeset(routineN,handle)
 
@@ -185,6 +202,10 @@ CONTAINS
 
        DEALLOCATE(charges,mcharge,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+ 
+       wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error)
+       CALL section_vals_get(wfn_mix_section,explicit=explicit, error=error)       
+       IF(explicit.AND..NOT.qs_env%run_rtp) CALL wfn_mix_dftb(qs_env,dft_section,scf_env,error)
 
     END IF
     CALL timestop(handle)
@@ -298,6 +319,92 @@ CONTAINS
     END IF
 
   END SUBROUTINE dftb_dipole
+
+! *****************************************************************************
+!> \brief computes the MOs and calls the wavefunction mixing routine.
+!> \note
+!> \author Florian Schiffmann
+! *****************************************************************************
+
+  SUBROUTINE wfn_mix_dftb(qs_env,dft_section,scf_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix_dftb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, nao, nmo, output_unit
+    REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: lumos
+    TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_lumo_struct
+    TYPE(cp_fm_type), POINTER                :: KS_tmp, mo_coeff, MO_tmp, &
+                                                S_tmp, work
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: wfn_mix_section
+
+    logger => cp_error_get_logger(error)
+    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,matrix_ks=matrix_ks,&
+                    particle_set=particle_set,atomic_kind_set=atomic_kind_set,&
+                    mos=mos,error=error)   
+
+    wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error) 
+
+    CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff,nao=nao)
+    
+    CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao,&
+         template_fmstruct=mo_coeff%matrix_struct, error=error)
+    CALL cp_fm_create(S_tmp,matrix_struct=ao_ao_fmstruct,error=error)
+    CALL cp_fm_create(KS_tmp,matrix_struct=ao_ao_fmstruct,error=error)
+    CALL cp_fm_create(MO_tmp,matrix_struct=ao_ao_fmstruct,error=error)
+    CALL cp_fm_create(work,matrix_struct=ao_ao_fmstruct,error=error)
+    ALLOCATE(lumos(SIZE(mos)))
+
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_tmp,error=error)
+    CALL cp_fm_cholesky_decompose(S_tmp,error=error)
+
+    DO ispin=1,SIZE(mos)
+       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,eigenvalues=mo_eigenvalues,nmo=nmo)
+       CALL cp_fm_struct_create(fmstruct=ao_lumo_struct, nrow_global=nao, ncol_global=nao-nmo,&
+            template_fmstruct=mo_coeff%matrix_struct, error=error)
+       
+       CALL cp_fm_create(lumos(ispin)%matrix,matrix_struct=ao_lumo_struct,error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,KS_tmp,error=error)
+       CALL cp_fm_cholesky_reduce(KS_tmp,S_tmp,error=error)
+       CALL choose_eigv_solver(KS_tmp,work,mo_eigenvalues,error=error)
+       CALL cp_fm_cholesky_restore(work,nao,S_tmp,MO_tmp,"SOLVE",error=error)
+       CALL cp_fm_to_fm_submat(MO_tmp, mo_coeff, nao, nmo, 1, 1, 1, 1, error)
+       CALL cp_fm_to_fm_submat(MO_tmp, lumos(ispin)%matrix, nao, nao-nmo, 1, nmo+1, 1, 1, error)
+       
+       CALL cp_fm_struct_release(ao_lumo_struct,error)
+    END DO
+
+    output_unit= cp_logger_get_default_io_unit(logger)
+    CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
+                 lumos, scf_env, matrix_s, output_unit, error=error)    
+
+    DO ispin=1,SIZE(mos)
+       CALL cp_fm_release(lumos(ispin)%matrix,error)
+    END DO
+    DEALLOCATE(lumos)   
+    CALL cp_fm_release(S_tmp,error)
+    CALL cp_fm_release(MO_tmp,error)
+    CALL cp_fm_release(KS_tmp,error)
+    CALL cp_fm_release(work,error)
+    CALL cp_fm_struct_release(ao_ao_fmstruct,error)
+
+  END SUBROUTINE wfn_mix_dftb
 
 ! *****************************************************************************
 
