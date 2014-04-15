@@ -67,20 +67,6 @@
 
 #============================================================================
 
-         {'dirname':'start',
-          'requires': ["../", "../common", "../swarm", "../dbcsr", "../mpi", "../pw", '../input', '../tmc'],
-          'files': [
-            "cp2k.F",
-            "input_cp2k.F",
-            "input_cp2k_motion.F",
-            "cp2k_runs.F",
-            "cp2k_shell.F",
-            "f77_int_low.F",
-            "f77_int.h"]
-         },
-
-#============================================================================
-
          {'dirname':'hfx',
           'requires': ["../common", "../dbcsr", "../mpi", '../input'],
           'files': [

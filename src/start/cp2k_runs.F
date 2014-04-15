@@ -123,7 +123,7 @@ MODULE cp2k_runs
   USE tmc_setup,                       ONLY: do_analyze_files,&
                                              do_tmc
   USE vibrational_analysis,            ONLY: vb_anal
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
