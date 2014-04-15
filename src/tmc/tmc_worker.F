@@ -92,7 +92,7 @@ MODULE tmc_worker
                                              tmc_atom_type,&
                                              tmc_env_type,&
                                              tmc_param_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

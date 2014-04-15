@@ -26,7 +26,7 @@ MODULE tmc_tree_search
        status_deleted, status_deleted_result, status_rejected, &
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_env_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

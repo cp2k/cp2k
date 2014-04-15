@@ -44,7 +44,7 @@ MODULE tmc_types
                                              elem_array_type,&
                                              elem_list_type,&
                                              global_tree_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

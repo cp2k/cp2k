@@ -25,7 +25,7 @@ MODULE tmc_tree_references
                                              gt_elem_list_type,&
                                              tree_type
   USE tmc_types,                       ONLY: tmc_env_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

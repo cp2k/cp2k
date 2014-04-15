@@ -74,7 +74,7 @@ MODULE tmc_master
        status_canceled_ener, status_canceled_nmc, status_created, &
        status_rejected, tree_type
   USE tmc_types,                       ONLY: tmc_env_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

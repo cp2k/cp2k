@@ -75,7 +75,7 @@ MODULE tmc_setup
   USE tmc_worker,                      ONLY: do_tmc_worker,&
                                              get_atom_kinds_and_cell,&
                                              get_initial_conf
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
