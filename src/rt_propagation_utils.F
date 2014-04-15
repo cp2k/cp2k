@@ -300,10 +300,10 @@ MODULE  rt_propagation_utils
                   keep_sparsity=.FALSE.,alpha=alpha,error=error)
           END DO
        ELSE
-          CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+          CALL get_rtp(rtp=rtp,mos_old=mos_old,error=error)
           DO i=1,SIZE(qs_env%mos)
              CALL cp_fm_to_fm(mo_array(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
-             CALL cp_fm_set_all(mos_new(2*i)%matrix,zero,zero,error)
+             CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
           END DO
        ENDIF
     CASE(use_rt_restart)
@@ -347,7 +347,6 @@ MODULE  rt_propagation_utils
        CALL cp_fm_to_fm(mos_new(2)%matrix,fm_tmp,error=error)
        CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
        alpha=1.0_dp
-
     ELSE
        alpha=mo_set%maxocc
        CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)

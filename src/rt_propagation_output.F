@@ -12,14 +12,11 @@ MODULE rt_propagation_output
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_desymmetrize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
@@ -80,12 +77,14 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: n_electrons, output_unit
-    REAL(dp)                                 :: orthonormality, tot_rho_r
+    INTEGER                                  :: im, ispin, n_electrons, &
+                                                output_unit, re
+    REAL(dp)                                 :: orthonormality, sparsity, &
+                                                tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
@@ -101,7 +100,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
          atomic_kind_set=atomic_kind_set,error=error)
-    IF(.NOT.rtp%linear_scaling) CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
@@ -119,9 +117,6 @@ CONTAINS
     IF(output_unit>0) THEN
        WRITE (output_unit,FMT="(/,(T3,A,T40,I5))")&
             "Information at iteration step:",rtp%iter
-    ENDIF
-
-    IF(output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
             "Total electronic density (r-space): ",&
             tot_rho_r,&
@@ -146,29 +141,44 @@ CONTAINS
            "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
        END IF
     END IF
-    !TODO: For density propagation output the idempotency
-    IF(rtp%converged.AND.(.NOT.rtp%linear_scaling)) THEN
-       CALL rt_calculate_orthonormality(output_unit,orthonormality,&
-            mos_new,matrix_s(1)%matrix,error)
-       IF(output_unit>0)&
-            WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-            "Max deviation from orthonormalization:",orthonormality
+
+    IF(rtp%converged) THEN
+       IF(rtp%linear_scaling) THEN
+          IF(output_unit>0) THEN
+             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+             !TODO: Output the idempotency
+             DO ispin=1,SIZE(rho_new)/2
+                re=2*ispin-1
+                im=2*ispin
+                sparsity=(cp_dbcsr_get_occupation(rho_new(re)%matrix)+&
+                         cp_dbcsr_get_occupation(rho_new(im)%matrix))/2
+                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Sparsity of P for spin ", ispin, ":",sparsity
+             ENDDO
+          ENDIF
+       ELSE
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+          CALL rt_calculate_orthonormality(output_unit,orthonormality,&
+               mos_new,matrix_s(1)%matrix,error)
+          IF(output_unit>0)&
+               WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+               "Max deviation from orthonormalization:",orthonormality
+       ENDIF
     END IF
+
     IF(output_unit>0)&
        CALL m_flush(output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
-    IF(.NOT.rtp%converged)THEN
-
-
-    ELSE
+    IF(rtp%converged)THEN
        CALL make_moment(qs_env,error)
        CALL write_available_results(qs_env=qs_env,error=error)
        dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
        !TODO: make a restart for density propagation
-       IF (.NOT. rtp%linear_scaling)&
+       IF (.NOT. rtp%linear_scaling) THEN
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
           CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
+       ENDIF
     END IF
 
   END SUBROUTINE rt_prop_output

@@ -164,9 +164,6 @@ CONTAINS
              CALL cp_fm_to_fm(mos_new(imat)%matrix,mos_next(imat)%matrix,error)
           END DO
        ELSEIF(rtp_control%mat_exp==do_bch) THEN
-         DO imat=1,SIZE(exp_H_new)
-            CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
-         END DO
        ELSE
          IF(rtp%linear_scaling) THEN
             CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)

@@ -462,18 +462,16 @@ CONTAINS
           CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
                error=error)
           CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
-          IF (.NOT.failure) THEN
-             DO ispin=1,SIZE(qs_env%mos_aux_fit)
-                CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
-                IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
-                   CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
-                        ao_mo_fm_pools_aux_fit(ispin)%pool,&
-                        name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                        "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                        error=error)
-                END IF
-             END DO
-          END IF
+          DO ispin=1,SIZE(qs_env%mos_aux_fit)
+             CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
+             IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
+                CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
+                     ao_mo_fm_pools_aux_fit(ispin)%pool,&
+                     name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                     "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                     error=error)
+             END IF
+          END DO
        END IF
 
        ALLOCATE(qs_env%rtp, stat=stat)
