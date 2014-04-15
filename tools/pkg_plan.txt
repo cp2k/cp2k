@@ -50,7 +50,7 @@
 #============================================================================
 
          {'dirname':'hfx',
-          'requires': ["../common", "../dbcsr", "../mpi", '../input'],
+          'requires': ["../common", "../dbcsr", "../mpi", '../input', "../aobasis"],
           'files': [
              "t_c_g0.F",
              "t_sh_p_s_c.F",
@@ -144,7 +144,7 @@
 #============================================================================
 
          {'dirname':'',
-          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx"]
+          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx", "aobasis"]
          },
 
 #============================================================================
