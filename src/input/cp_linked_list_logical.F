@@ -45,7 +45,7 @@
 ! *****************************************************************************
 MODULE cp_linked_list_logical
   USE f77_blas
-#include "../common//cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -1181,7 +1181,7 @@ END FUNCTION cp_sll_logical_contains2
 !  USE = " "
 !  array= = "="
 !  arrayEl = ""
-!  common_dir = "../common/"
+!  common_dir = "../common"
 !  defines = 
 !    "#define CP_SLL_L_LESS_Q(el1,el2,error) ( .not.el1.and.el2 )
 !     #define CP_SLL_L_EQUAL_Q(el1,el2,error) ( el1.EQV.el2 )

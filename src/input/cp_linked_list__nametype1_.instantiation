@@ -4,7 +4,7 @@
  'type1':'integer',
  'type1in':'integer, intent(in)',
  'type1out':'integer, intent(out)',
- 'common_dir':'../common/',
+ 'common_dir':'../common',
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
 """ """,
@@ -26,7 +26,7 @@
  'type1':'real(kind=dp)',
  'type1in':'real(kind=dp), intent(in)',
  'type1out':'real(kind=dp), intent(out)',
- 'common_dir':'../common/',
+ 'common_dir':'../common',
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
 """USE kinds, only: dp""",
@@ -48,7 +48,7 @@
  'type1':'logical',
  'type1in':'logical, intent(in)',
  'type1out':'logical, intent(out)',
- 'common_dir':'../common/',
+ 'common_dir':'../common',
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
 """ """,
@@ -70,7 +70,7 @@
  'type1':'character(len=default_string_length)',
  'type1in':'character(len=default_string_length), intent(in)',
  'type1out':'character(len=default_string_length), intent(out)',
- 'common_dir':'../common/',
+ 'common_dir':'../common',
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
 """USE kinds, only: default_string_length""",
@@ -93,6 +93,28 @@
   write(unit_nr,"(a,a,a)") '"',trim(str),'"'
 end subroutine write_string
 """
+},
+{
+ 'template':'../common/cp_linked_list__nametype1_.template',
+ 'nametype1':'val',
+ 'type1':'type(val_type),pointer',
+ 'type1in':'type(val_type),pointer',
+ 'type1out':'type(val_type),pointer',
+ 'common_dir':'../common',
+ 'USE':
+"""USE input_val_types, only: val_type, val_p_type""",
+ 'defines':
+"""#define CP_SLL_VAL_LESS_Q(el1,el2,error) el1%id_nr<el2%id_nr
+#define CP_SLL_VAL_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
+""",# stupid orderig, and sameness, define something more useful?
+ '=':'=>',
+ 'type1arrayEl':'type(val_p_type)',
+ 'array=':'=>',
+ 'arrayEl':'%val',
+ 'lessQ':'CP_SLL_VAL_LESS_Q',
+ 'equalQ':'CP_SLL_VAL_EQUAL_Q',
+ 'write_el':'',
+ 'private_routines':""
 },
 
 ]
