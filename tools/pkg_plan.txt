@@ -42,9 +42,13 @@
         },
 
 #============================================================================
-
          {'dirname':'input',
           'requires': ["../common", "../mpi"],
+         },
+
+#============================================================================
+         {'dirname':'aobasis',
+          'requires': ["../common", "../mpi", "../input"],
          },
 
 #============================================================================
@@ -79,46 +83,6 @@
 
          {'dirname':'xc',
           'requires': ["../common", "../mpi", "../pw", '../input'],
-          'files': [
-          "xc_atom.F",
-          "xc_b97.F",
-          "xc_cs1.F",
-          "xc_derivative_desc.F",
-          "xc_derivative_set_types.F",
-          "xc_derivatives.F",
-          "xc_derivative_types.F",
-          "xc_exchange_gga.F",
-          "xc.F",
-          "xc_f90_lib_m.F",
-          "xc_f90_types_m.F",
-          "xc_functionals_utilities.F",
-          "xc_hcth.F",
-          "xc_ke_gga.F",
-          "xc_libxc.F",
-          "xc_lyp_adiabatic.F",
-          "xc_lyp.F",
-          "xc_optx.F",
-          "xc_pade.F",
-          "xc_pbe.F",
-          "xc_perdew86.F",
-          "xc_perdew_wang.F",
-          "xc_perdew_zunger.F",
-          "xc_rho_cflags_types.F",
-          "xc_rho_set_types.F",
-          "xc_tfw.F",
-          "xc_thomas_fermi.F",
-          "xc_tpss.F",
-          "xc_vwn.F",
-          "xc_xalpha.F",
-          "xc_xbecke88.F",
-          "xc_xbecke88_long_range.F",
-          "xc_xbecke88_lr_adiabatic.F",
-          "xc_xbecke_roussel.F",
-          "xc_xbr_pbe_lda_hole_t_c_lr.F",
-          "xc_xlda_hole_t_c_lr.F",
-          "xc_xpbe_hole_t_c_lr.F",
-          "xc_xwpbe.F",
-          "cp_linked_list_xc_deriv.F","libxc_funcs_m.F"]
 	},
 
 
