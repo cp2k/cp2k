@@ -100,8 +100,9 @@ def main():
         deps += [ mod2fn[m] for m in collect_use_deps(parsed_files, fn) if mod2fn.has_key(m) ]
         n_deps += len(deps)
         for d in deps:
-            if(fn2pkg[path.basename(d)] not in packages[p]['allowed_deps']):
-                msg = "%32s  ->  %s"%(path.basename(fn), path.basename(d))
+            dp = fn2pkg[path.basename(d)]
+            if(dp not in packages[p]['allowed_deps']):
+                msg = "%32s  ->  %-32s  [src%s]"%(path.basename(fn), path.basename(d), dp[len(abs_srcdir):])
                 packages[p]['problems'].append(msg)
     print("Checked %d dependencies\n"%n_deps)
 
