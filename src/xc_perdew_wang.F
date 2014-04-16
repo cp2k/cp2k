@@ -14,9 +14,6 @@
 ! *****************************************************************************
 MODULE xc_perdew_wang
   USE f77_blas
-  USE input_constants,                 ONLY: pw_dmc,&
-                                             pw_orig,&
-                                             pw_vmc
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -29,6 +26,9 @@ MODULE xc_perdew_wang
                                              calc_rs,&
                                              calc_z,&
                                              set_util
+  USE xc_input_constants,              ONLY: pw_dmc,&
+                                             pw_orig,&
+                                             pw_vmc
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type

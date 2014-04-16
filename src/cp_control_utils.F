@@ -42,6 +42,7 @@ MODULE cp_control_utils
   USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functionals_get_needs
+  USE xc_input_constants
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "./common/cp_common_uses.f90"
 

@@ -13,7 +13,6 @@
 MODULE xc_perdew86
 
   USE f77_blas
-  USE input_constants,                 ONLY: pz_orig
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -24,6 +23,7 @@ MODULE xc_perdew86
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_rs_pw,&
                                              set_util
+  USE xc_input_constants,              ONLY: pz_orig
   USE xc_perdew_zunger,                ONLY: pz_lda_eval
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&

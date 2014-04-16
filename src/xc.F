@@ -16,12 +16,6 @@ MODULE xc
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
-  USE input_constants,                 ONLY: &
-       xc_debug_new_routine, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
-       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
-       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_new_f_routine, &
-       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_rval,&
                                              section_vals_get_subs_vals,&
@@ -69,6 +63,12 @@ MODULE xc
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functionals_eval,&
                                              xc_functionals_get_needs
+  USE xc_input_constants,              ONLY: &
+       xc_debug_new_routine, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_new_f_routine, &
+       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_get,&
                                              xc_rho_set_release,&

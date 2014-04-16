@@ -12,11 +12,6 @@
 MODULE xc_rho_set_types
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
-       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
-       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
-       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE kinds,                           ONLY: dp
   USE pw_methods,                      ONLY: pw_copy,&
                                              pw_derive,&
@@ -40,6 +35,11 @@ MODULE xc_rho_set_types
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE xc_input_constants,              ONLY: &
+       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                              xc_rho_cflags_setall,&
                                              xc_rho_cflags_type

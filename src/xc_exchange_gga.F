@@ -15,13 +15,6 @@ MODULE xc_exchange_gga
 
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
-  USE input_constants,                 ONLY: xgga_b88,&
-                                             xgga_ev93,&
-                                             xgga_opt,&
-                                             xgga_pbe,&
-                                             xgga_pw86,&
-                                             xgga_pw91,&
-                                             xgga_revpbe
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_program
@@ -33,6 +26,13 @@ MODULE xc_exchange_gga
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_wave_vector,&
                                              set_util
+  USE xc_input_constants,              ONLY: xgga_b88,&
+                                             xgga_ev93,&
+                                             xgga_opt,&
+                                             xgga_pbe,&
+                                             xgga_pw86,&
+                                             xgga_pw91,&
+                                             xgga_revpbe
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type

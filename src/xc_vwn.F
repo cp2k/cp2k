@@ -20,8 +20,6 @@ MODULE xc_vwn
   USE bibliography,                    ONLY: Vosko1980,&
                                              cite_reference
   USE f77_blas
-  USE input_constants,                 ONLY: do_vwn3,&
-                                             do_vwn5
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -33,6 +31,8 @@ MODULE xc_vwn
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_srs_pw,&
                                              set_util
+  USE xc_input_constants,              ONLY: do_vwn3,&
+                                             do_vwn5
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type

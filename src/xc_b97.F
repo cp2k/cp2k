@@ -24,9 +24,6 @@ MODULE xc_b97
                                              Grimme2006,&
                                              cite_reference
   USE f77_blas
-  USE input_constants,                 ONLY: xc_b97_grimme,&
-                                             xc_b97_mardirossian,&
-                                             xc_b97_orig
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -37,6 +34,9 @@ MODULE xc_b97
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
+  USE xc_input_constants,              ONLY: xc_b97_grimme,&
+                                             xc_b97_mardirossian,&
+                                             xc_b97_orig
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type

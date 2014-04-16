@@ -21,7 +21,7 @@ MODULE input_cp2k_check
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
-       do_thermo_nose, do_thermo_same_as_part, do_vwn5, id_release_version, &
+       do_thermo_nose, do_thermo_same_as_part, id_release_version, &
        npt_f_ensemble, npt_i_ensemble, xc_funct_b3lyp, xc_funct_blyp, &
        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
        xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, &
@@ -42,6 +42,7 @@ MODULE input_cp2k_check
   USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc_input_constants,              ONLY: do_vwn5
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

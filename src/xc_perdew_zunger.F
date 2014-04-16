@@ -17,9 +17,6 @@ MODULE xc_perdew_zunger
                                              Perdew1981,&
                                              cite_reference
   USE f77_blas
-  USE input_constants,                 ONLY: pz_dmc,&
-                                             pz_orig,&
-                                             pz_vmc
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -34,6 +31,9 @@ MODULE xc_perdew_zunger
                                              calc_rs,&
                                              calc_z,&
                                              set_util
+  USE xc_input_constants,              ONLY: pz_dmc,&
+                                             pz_orig,&
+                                             pz_vmc
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type

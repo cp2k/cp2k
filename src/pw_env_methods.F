@@ -32,12 +32,7 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE input_constants,                 ONLY: &
-       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
-       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
-       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
-       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
-       xc_vdw_fun_nonloc
+  USE input_constants,                 ONLY: xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -91,6 +86,11 @@ MODULE pw_env_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc_input_constants,              ONLY: &
+       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
