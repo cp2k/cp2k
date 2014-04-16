@@ -89,6 +89,7 @@ def main():
     # process the manifests
     for p in packages.keys():
         process_manifest(packages, p)
+        find_pkg_cycles(packages, p)
     print("Read %d package manifests"%len(packages))
 
     # check dependencies against package manifests
@@ -170,7 +171,7 @@ def process_manifest(packages, p):
     for r in packages[p]['requires']:
         rp = normpath(path.join(p,r))
         if(not packages.has_key(rp)):
-	    error("Unexpected package requirement: "+r+" for dir "+packages[p]['dirname'])
+            error("Unexpected package requirement: "+r+" for dir "+packages[p]['dirname'])
 
 
 #=============================================================================
@@ -237,30 +238,19 @@ def find_cycles(parsed_files, mod2fn, fn, S=None):
 
 
 #=============================================================================
-def collect_pkg_deps(packages, p, archives=None, S=None):
-    if(archives == None): archives = []
+def find_pkg_cycles(packages, p, S=None):
     if(S == None): S = []
 
-    a = packages[p]['archive']
-    if(a in archives):
-        return(archives)
-
-    if(a in S):
-        i = S.index(a)
-        error("Circular package dependency: "+ " -> ".join(S[i:] + [a]))
-    S.append(a)
+    if(p in S):
+        i = S.index(p)
+        error("Circular package dependency: "+ " -> ".join(S[i:] + [p]))
+    S.append(p)
 
     for r in packages[p]['requires']:
         d = normpath(path.join(p,r))
-        collect_pkg_deps(packages, d, archives, S)
+        find_pkg_cycles(packages, d, S)
 
     S.pop()
-
-    if(len(packages[p]['objects']) > 0):
-        archives.insert(0, packages[p]['archive'])
-
-    return(archives)
-
 
 #=============================================================================
 def error(msg):
