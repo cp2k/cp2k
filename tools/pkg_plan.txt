@@ -32,7 +32,7 @@
 #============================================================================
 
         {'dirname':'tmc',
-         'requires': ["../", "../common", "../input", "../mpi"],
+         'requires': ["../", "../common", "../input", "../mpi", "../system"],
         },
 
 #============================================================================
@@ -52,9 +52,44 @@
          },
 
 #============================================================================
+         {'dirname':'system',
+          'requires': ["../common", "../mpi", "../input"],
+          'files': ["cell_types.F","particle_types.F","virial_types.F",""]
+         },
+
+#============================================================================
+         {'dirname':'gpw',
+          'requires': ["../common", "../mpi", "../input", "../pw", "../grid", "../aobasis", "../system"],
+          'files': [
+             "qs_collocate_density.F",
+             "qs_integrate_potential.F",
+             "qs_integrate_potential_low.F",
+             "qs_integrate_potential_product.F",
+             "qs_integrate_potential_single.F",
+             "gaussian_gridlevels.F",
+             "d3_poly.F",
+             "gauss_colloc.F",
+             "prep.f90",
+             "colloc_int_body.f90",
+             "colloc_int_kloop1.f90",
+             "colloc_int_kloop2.f90",
+             "colloc_int_kloop3.f90",
+             "colloc_int_kloop4.f90",
+             "colloc_int_kloop5.f90",
+             "colloc_int_kloop6.f90",
+             "colloc_int_kloop7.f90",
+             "colloc_int_kloop8.f90",
+             "colloc_int_kloop.f90",
+             "call_collocate.f90",
+             "call_collocate_omp.f90",
+             "rs_pw_interface.F" #or should this be pw?
+          ]
+         },
+
+#============================================================================
 
          {'dirname':'hfx',
-          'requires': ["../common", "../dbcsr", "../mpi", '../input', "../aobasis"],
+          'requires': ["../common", "../dbcsr", "../mpi", '../input', "../aobasis", "../system"],
           'files': [
              "t_c_g0.F",
              "t_sh_p_s_c.F",
@@ -81,7 +116,7 @@
 
 #============================================================================
          {'dirname':'vib',
-          'requires': ["../", "../common","../mpi","../input",],
+          'requires': ["../", "../common","../mpi","../input", "../system"],
           'files': [
               "vibrational_analysis.F",
               "input_cp2k_vib.F",
@@ -90,7 +125,7 @@
 
 #============================================================================
          {'dirname':'neb',
-          'requires': ["../", "../common","../mpi","../input", "../motion",],
+          'requires': ["../", "../common","../mpi","../input", "../motion", "../system"],
           'files': [
             "neb_io.F",
             "neb_md_utils.F",
@@ -103,7 +138,7 @@
 
 #============================================================================
          {'dirname':'motion',
-          'requires': ["../", "../common","../mpi","../input", "../fm",],
+          'requires': ["../", "../common","../mpi","../input", "../fm", "../system"],
           'files': [
              # MC
             "tamc_run.F",
@@ -181,7 +216,7 @@
 
 #============================================================================
          {'dirname':'pint',
-          'requires': ["../", "../common","../mpi", "../input", "../motion",],
+          'requires': ["../", "../common","../mpi", "../input", "../motion", "../system"],
           'files': [
               "pint_gle.F",
               "pint_io.F",
@@ -227,13 +262,14 @@
 #============================================================================
 
          {'dirname':'',
-          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx", "aobasis"]
+          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx", "aobasis", "gpw", "system"]
          },
 
 #============================================================================
 
          {'dirname':'pw',
-          'requires':  ["../common", "../mpi", "../fft"]
+          'requires':  ["../common", "../mpi", "../fft"],
+          'files': ["cp_spline_utils.F"]
          },
 
 #============================================================================
