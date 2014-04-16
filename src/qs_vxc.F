@@ -301,7 +301,7 @@ CONTAINS
                   rho_g=rho_g,tau=tau,exc=exc,&
                   xc_section=xc_section,&
                   pw_pool=xc_pw_pool,&
-                  compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer),&
+                  compute_virial=compute_virial,&
                   virial_xc=virial%pv_xc,&
                   error=error)
           END IF

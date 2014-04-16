@@ -1197,11 +1197,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
   END IF
 
   use_virial=compute_virial
-! IF (PRESENT(virial)) THEN
-!   use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
-! ELSE
-!   use_virial = .FALSE.
-! ENDIF
 
   IF (.NOT.failure) THEN
      bo = rho_r(1)%pw%pw_grid%bounds_local
