@@ -770,148 +770,6 @@ END SUBROUTINE
   END SUBROUTINE exp_pade_only_imaginary_dbcsr
 
 ! *****************************************************************************
-!> \brief exponential of a real matrix,
-!>        calculated using pade approximation together with scaling and squaring
-!> \author Samuel Andermatt (02.2014)
-! *****************************************************************************
-
-
-!  SUBROUTINE exp_pade_real_dbcsr(exp_H,matrix,nsquare,npade,filter_eps,fm_struct,error)
-!    TYPE(cp_dbcsr_type)                      :: exp_H
-!    TYPE(cp_dbcsr_type), POINTER             :: matrix
-!    INTEGER                                  :: nsquare, npade
-!    TYPE(cp_error_type), INTENT(inout)       :: error
-!    REAL(KIND=dp)                            :: filter_eps
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
-!      routineP = moduleN//':'//routineN
-!    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
-!
-!    REAL(KIND=dp)                            :: scaleD, scaleN, square_fac
-!    INTEGER                                  :: handle, i, ldim, ndim, p, q, stat
-!    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
-!    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-!      POINTER                                :: mult_p
-!    TYPE(cp_dbcsr_type), POINTER             :: Dpq, fin_p, Npq, T1, T2, Tres
-!    LOGICAL                                  :: failure
-!    TYPE(cp_fm_type), POINTER                :: Dpq_fm, Npq_fm
-!    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-!
-!    p=npade
-!    q=npade !p==q seems to be neccesary for the rest of the code
-!
-!    CALL timeset(routineN,handle)
-!
-!    failure = .FALSE.
-!
-!    !Allocate work matrices
-!    NULLIFY(T1)
-!    ALLOCATE(T1,stat=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    CALL cp_dbcsr_init(T1,error=error)
-!    CALL cp_dbcsr_create(T1,template=matrix,matrix_type="N",error=error)
-!    NULLIFY(T2)
-!    ALLOCATE(T2,stat=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    CALL cp_dbcsr_init(T2,error=error)
-!    CALL cp_dbcsr_create(T2,template=matrix,matrix_type="N",error=error)
-!    NULLIFY(Tres)
-!    ALLOCATE(Tres,stat=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    CALL cp_dbcsr_init(Tres,error=error)
-!    CALL cp_dbcsr_create(Tres,template=matrix,matrix_type="N",error=error)
-!    NULLIFY(Dpq)
-!    ALLOCATE(Dpq,stat=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    CALL cp_dbcsr_init(Dpq,error=error)
-!    CALL cp_dbcsr_create(Dpq,template=matrix,matrix_type="N",error=error)
-!    NULLIFY(Npq)
-!    ALLOCATE(Npq,stat=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    CALL cp_dbcsr_init(Npq,error=error)
-!    CALL cp_dbcsr_create(Npq,template=matrix,matrix_type="N",error=error)
-!
-!    NULLIFY(mult_p)
-!    ALLOCATE(mult_p(2),stat=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!
-!    CALL cp_dbcsr_set(T1,zero,error=error)
-!    CALL cp_dbcsr_set(T2,zero,error=error)
-!
-!    square_fac=2.0_dp**REAL(nsquare,dp)
-!
-!    CALL cp_dbcsr_add(T2,matrix,zero,1/square_fac,error=error)
-!    CALL cp_dbcsr_copy(T1,T2,error=error)
-!
-!    !Create the unit matrices
-!    CALL cp_dbcsr_set(Dpq,zero,error=error)
-!    CALL cp_dbcsr_add_on_diag(Dpq,1.0_dp,error=error)
-!    CALL cp_dbcsr_set(Npq,zero,error=error)
-!    CALL cp_dbcsr_add_on_diag(Npq,1.0_dp,error=error)
-!
-!    CALL cp_dbcsr_add(Npq,T2,one,one*0.5_dp,error=error)
-!    CALL cp_dbcsr_add(Dpq,T2,one,-one*0.5_dp,error=error)
-!
-!    mult_p(1)%matrix=>T2
-!    mult_p(2)%matrix=>Tres
-!
-!    npade=MAX(p,q) !p will always be equal q here
-!    IF(npade.GT.2)THEN
-!       DO i=2,npade
-!          IF(i.LE.p)scaleN=CMPLX(fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,kind=dp)
-!          scaleD=CMPLX((-1.0_dp)**i  * fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,kind=dp)
-!          CALL cp_dbcsr_multiply("N","N",one,T1,mult_p(MOD(i,2)+1)%matrix,zero,&
-!               mult_p(MOD(i+1,2)+1)%matrix,filter_eps=filter_eps,error=error)
-!          IF(i.LE.p)CALL cp_dbcsr_add(Npq,mult_p(MOD(i+1,2)+1)%matrix,one,scaleN,error=error)
-!          IF(i.LE.q)CALL cp_dbcsr_add(Dpq,mult_p(MOD(i+1,2)+1)%matrix,one,scaleD,error=error)
-!       END DO
-!    END IF
-!
-!!**********************************************************************************************************
-!    !Inversion currently fm
-!
-!    CALL cp_fm_create(Dpq_fm, matrix_struct=fm_struct,&
-!         name="Dpq_fm",error=error)
-!    CALL cp_fm_create(Npq_fm, matrix_struct=fm_struct,&
-!         name="Npq_fm",error=error)
-!
-!    CALL copy_dbcsr_to_fm(Dpq,Dpq_fm,error=error)
-!    CALL copy_dbcsr_to_fm(Npq,Npq_fm,error=error)
-!
-!    CALL cp_fm_solve(Dpq_fm,Npq_fm,error=error)
-!
-!    CALL copy_fm_to_dbcsr(Dpq_fm,Dpq,error=error)
-!    CALL copy_fm_to_dbcsr(Npq_fm,Npq,error=error)
-!
-!    CALL cp_fm_release(Npq_fm,error=error)
-!    CALL cp_fm_release(Dpq_fm,error=error)
-!!***********************************************************************************************************************3
-!
-!    mult_p(2)%matrix=>Npq
-!    mult_p(1)%matrix=>Tres
-!    IF(nsquare.GT.0)THEN
-!       DO i=1,nsquare
-!          CALL cp_dbcsr_multiply("N","N",one,mult_p(MOD(i,2)+1)%matrix,mult_p(MOD(i,2)+1)%matrix,zero,&
-!               mult_p(MOD(i+1,2)+1)%matrix,filter_eps=filter_eps,error=error)
-!          fin_p=> mult_p(MOD(i+1,2)+1)%matrix
-!       END DO
-!    ELSE
-!       fin_p=>Npq
-!    END IF
-!
-!    CALL cp_dbcsr_copy(exp_H,fin_p,error=error)
-!
-!    CALL cp_dbcsr_deallocate_matrix(T1,error=error)
-!    CALL cp_dbcsr_deallocate_matrix(T2,error=error)
-!    CALL cp_dbcsr_deallocate_matrix(Tres,error=error)
-!    CALL cp_dbcsr_deallocate_matrix(Npq,error=error)
-!    CALL cp_dbcsr_deallocate_matrix(Dpq,error=error)
-!    DEALLOCATE(mult_p)
-!    CALL timestop(handle)
-!
-!  END SUBROUTINE exp_pade_real_dbcsr
-
-! *****************************************************************************
 !> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
@@ -983,6 +841,9 @@ END SUBROUTINE
        IF(max_alpha<eps_exp) convergence = .TRUE.
        IF(convergence) EXIT
     ENDDO
+
+    CALL cp_dbcsr_filter(density_re,filter_eps,error=error)
+    CALL cp_dbcsr_filter(density_im,filter_eps,error=error)
 
     CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
          "BCH method did not converge"//&
@@ -1070,6 +931,9 @@ END SUBROUTINE
        IF(max_alpha<eps_exp) convergence = .TRUE.
        IF(convergence) EXIT
     ENDDO
+
+    CALL cp_dbcsr_filter(density_re,filter_eps,error=error)
+    CALL cp_dbcsr_filter(density_im,filter_eps,error=error)
 
     CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
          "BCH method did not converge "//&
