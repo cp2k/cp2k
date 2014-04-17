@@ -41,14 +41,13 @@ MODULE dbcsr_tests
   USE dbcsr_types
   USE dbcsr_util
   USE dbcsr_work_operations
-  USE kinds,                           ONLY: dp,&
+  USE dbcsr_kinds,                           ONLY: dp,&
                                              int_8,&
                                              real_8
-  USE machine,                         ONLY: m_flush,&
+  USE dbcsr_machine,                         ONLY: m_flush,&
                                              m_walltime
 
   !$ USE OMP_LIB
-#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -77,13 +76,11 @@ CONTAINS
 !> \param[in] eps               eps value for filtering
 !> \param[in] deteriminstic     attempt deterministic behavior
 !> \param[in] always_checksum   checksum after each multiplication
-!> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE cp_test_multiplies (mp_group, io_unit, nproc,&
        matrix_sizes, matrix_types, trs, &
        bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, &
-       n_loops, eps, retain_sparsity, deterministic, always_checksum, &
-       error)
+       n_loops, eps, retain_sparsity, deterministic, always_checksum)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
     INTEGER, DIMENSION(:), INTENT(in)        :: matrix_sizes
@@ -96,7 +93,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: eps
     LOGICAL, INTENT(in)                      :: retain_sparsity, &
                                                 deterministic, always_checksum
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       fmt_desc = '(A,3(1X,I6),1X,A,2(1X,I5),1X,A,2(1X,L1))', &
@@ -239,7 +235,7 @@ CONTAINS
          dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
          n_loops=n_loops, eps=eps,&
          io_unit = io_unit, always_checksum=always_checksum,&
-         retain_sparsity=retain_sparsity, error=error)
+         retain_sparsity=retain_sparsity)
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
@@ -259,7 +255,7 @@ CONTAINS
        matrix_a, matrix_b, matrix_c,&
        transa, transb, alpha, beta, limits, retain_sparsity,&
        n_loops, eps,&
-       io_unit, always_checksum, error)
+       io_unit, always_checksum)
     INTEGER, INTENT(IN)                      :: mp_group
     INTEGER, DIMENSION(:, :)                 :: group_sizes
     TYPE(dbcsr_obj), INTENT(in)              :: matrix_a, matrix_b, matrix_c
@@ -272,7 +268,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: eps
     INTEGER, INTENT(IN)                      :: io_unit
     LOGICAL                                  :: always_checksum
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_multiplies_multiproc', &
       routineP = moduleN//':'//routineN

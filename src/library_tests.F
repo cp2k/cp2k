@@ -2021,7 +2021,7 @@ CONTAINS
             alpha, beta,&
             data_type=data_type,&
             n_loops=n_loop, eps=filter_eps, retain_sparsity=retain_sparsity, deterministic=deterministic,&
-            always_checksum=always_checksum,error=error)
+            always_checksum=always_checksum)
     END DO
   END SUBROUTINE cp_dbcsr_tests
 
