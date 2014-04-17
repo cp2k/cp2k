@@ -15,10 +15,6 @@
 !>      completely contained in the simulation box
 ! *****************************************************************************
 MODULE qs_linres_issc_utils
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -50,7 +46,11 @@ MODULE qs_linres_issc_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+  USE dbcsr_api,                       ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release,&
+                                             convert_offsets_to_sizes,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric

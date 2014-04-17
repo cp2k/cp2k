@@ -10,7 +10,6 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE task_list_methods
-  USE array_types,                     ONLY: array_data
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -31,7 +30,8 @@ MODULE task_list_methods
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE dbcsr_api,                       ONLY: convert_sizes_to_offsets
+  USE dbcsr_api,                       ONLY: array_data,&
+                                             convert_sizes_to_offsets
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type

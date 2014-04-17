@@ -9,8 +9,6 @@
 !>      06.2012 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_gpw
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -46,13 +44,10 @@ MODULE mp2_ri_gpw
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
+  USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_release, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set

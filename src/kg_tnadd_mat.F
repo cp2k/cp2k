@@ -11,10 +11,6 @@
 MODULE kg_tnadd_mat
 
   USE ai_overlap_ppl,                  ONLY: ppl_integral
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -30,7 +26,11 @@ MODULE kg_tnadd_mat
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE external_potential_types,        ONLY: get_potential,&
                                              local_potential_type

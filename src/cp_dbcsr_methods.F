@@ -13,8 +13,8 @@
 !> - Created 2010-08-11 [UB]
 ! *****************************************************************************
 MODULE cp_dbcsr_methods
-  USE array_types,                     ONLY: array_i1d_obj
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE dbcsr_api,                       ONLY: array_i1d_obj
 
   !$ USE OMP_LIB
 #include "common/cp_common_uses.f90"

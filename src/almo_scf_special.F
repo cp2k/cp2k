@@ -20,10 +20,6 @@ MODULE almo_scf_special
                                              almo_mat_dim_virt_disc,&
                                              almo_mat_dim_virt_full,&
                                              almo_objectM1_type
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -46,6 +42,7 @@ MODULE almo_scf_special
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE dbcsr_api,                       ONLY: &
+       array_data, array_i1d_obj, array_new, array_release, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &

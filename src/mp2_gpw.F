@@ -9,10 +9,6 @@
 !>      10.2011 created [Joost VandeVondele and Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_gpw
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
@@ -46,6 +42,7 @@ MODULE mp2_gpw
                                              cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, &
        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric

@@ -9,8 +9,6 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_eigensolver
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
@@ -25,14 +23,11 @@ MODULE qs_ot_eigensolver
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
+  USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_release, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_in_use,&

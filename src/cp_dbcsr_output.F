@@ -13,7 +13,6 @@
 !> - Created 2009-09-09
 ! *****************************************************************************
 MODULE cp_dbcsr_output
-  USE array_types,                     ONLY: array_data
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -31,7 +30,8 @@ MODULE cp_dbcsr_output
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric,&
+  USE dbcsr_api,                       ONLY: array_data,&
+                                             dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE kinds,                           ONLY: default_string_length,&

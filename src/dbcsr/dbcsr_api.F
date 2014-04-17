@@ -12,6 +12,13 @@
 !> \author  Joost VandeVondele
 ! *****************************************************************************
 MODULE dbcsr_api
+  USE array_types,                     ONLY: array_data,&
+                                             array_hold,&
+                                             array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release,&
+                                             array_size
   USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
                                              dbcsr_get_block,&
                                              dbcsr_get_block_p,&
@@ -120,7 +127,14 @@ MODULE dbcsr_api
                                              dbcsr_finalize,&
                                              dbcsr_work_create
 
-  PUBLIC :: add_work_coordinate ,&
+  PUBLIC :: array_data,&
+           array_hold,&
+           array_i1d_obj,&
+           array_new,&
+           array_release,&
+           array_size,&
+           array_nullify,&
+           add_work_coordinate ,&
            block_add_on_diag ,&
            block_chol_inv ,&
            block_set ,&

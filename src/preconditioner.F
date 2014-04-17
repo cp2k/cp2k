@@ -11,8 +11,6 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_add_on_diag, &
        cp_dbcsr_btriu, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
@@ -59,8 +57,8 @@ MODULE preconditioner
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE dbcsr_api,                       ONLY: &
-       block_add_on_diag, block_chol_inv, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       array_data, array_i1d_obj, block_add_on_diag, block_chol_inv, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_error_type, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &

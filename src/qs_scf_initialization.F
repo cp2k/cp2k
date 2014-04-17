@@ -7,8 +7,6 @@
 !> \brief Utility routines for qs_scf
 ! *****************************************************************************
 MODULE qs_scf_initialization
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -46,13 +44,11 @@ MODULE qs_scf_initialization
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
+  USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_release, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_default
   USE f77_blas
   USE input_constants,                 ONLY: &
        broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, &

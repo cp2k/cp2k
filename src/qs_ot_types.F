@@ -11,8 +11,6 @@
 !> \author Joost VandeVondele (06.2002)
 ! *****************************************************************************
 MODULE qs_ot_types
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE bibliography,                    ONLY: VandeVondele2003,&
                                              Weber2008,&
                                              cite_reference
@@ -35,7 +33,8 @@ MODULE qs_ot_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_api,                       ONLY: &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       array_i1d_obj, array_release, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_default

@@ -13,11 +13,6 @@
 !> - Created 2009-05-12
 ! *****************************************************************************
 MODULE cp_dbcsr_operations
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                              get_blacs_info
   USE cp_cfm_types,                    ONLY: cp_cfm_type
@@ -48,7 +43,8 @@ MODULE cp_dbcsr_operations
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_api,                       ONLY: &
-       add_work_coordinate, block_set, convert_sizes_to_offsets, &
+       add_work_coordinate, array_data, array_i1d_obj, array_new, &
+       array_nullify, array_release, block_set, convert_sizes_to_offsets, &
        create_bl_distribution, dbcsr_access_flush, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &

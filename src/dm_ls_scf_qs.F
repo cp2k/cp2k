@@ -11,10 +11,6 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf_qs
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -32,6 +28,7 @@ MODULE dm_ls_scf_qs
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dbcsr_api,                       ONLY: &
+       array_data, array_i1d_obj, array_new, array_release, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &
        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_name, &

@@ -13,7 +13,6 @@ MODULE almo_scf_aux2_methods
   USE almo_scf_aux2_types,             ONLY: object01_type,&
                                              object02_type,&
                                              select_row_col
-  USE array_types,                     ONLY: array_data
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_col_block_sizes, cp_dbcsr_distribution, cp_dbcsr_filter, &
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, &
@@ -24,7 +23,8 @@ MODULE almo_scf_aux2_methods
        cp_dbcsr_row_block_sizes, cp_dbcsr_work_create
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: array_data,&
+                                             dbcsr_distribution_mp,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_mynode,&
                                              dbcsr_mp_numnodes,&

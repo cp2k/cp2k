@@ -13,8 +13,6 @@ MODULE qs_mo_methods
   USE admm_types,                      ONLY: admm_type
   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
                                              admm_uncorrect_for_eigenvalues
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
                                              cp_dbcsr_syevx
   USE cp_dbcsr_interface,              ONLY: &
@@ -47,13 +45,10 @@ MODULE qs_mo_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
+  USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_release, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max

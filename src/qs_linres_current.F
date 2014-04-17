@@ -14,10 +14,6 @@
 ! *****************************************************************************
 MODULE qs_linres_current
 
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -64,7 +60,11 @@ MODULE qs_linres_current
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+  USE dbcsr_api,                       ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release,&
+                                             convert_offsets_to_sizes,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry

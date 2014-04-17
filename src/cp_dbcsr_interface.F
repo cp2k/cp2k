@@ -13,12 +13,6 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE cp_dbcsr_interface
-  USE array_types,                     ONLY: array_data,&
-                                             array_hold,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release,&
-                                             array_size
   USE cp_dbcsr_methods,                ONLY: cp_dbcsr_col_block_offsets,&
                                              cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_row_block_offsets,&
@@ -26,7 +20,8 @@ MODULE cp_dbcsr_interface
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
   USE dbcsr_api,                       ONLY: &
-       create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
+       array_data, array_hold, array_i1d_obj, array_new, array_release, &
+       array_size, create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_binary_read, dbcsr_binary_write, dbcsr_blk_col_offset, &
        dbcsr_blk_column_size, dbcsr_blk_row_offset, dbcsr_blk_row_size, &
        dbcsr_btriu, dbcsr_checksum, dbcsr_clear_mempools, &

@@ -9,8 +9,6 @@
 !>       2006.03 Moved here from qs_scf.F [Joost VandeVondele]
 ! *****************************************************************************
 MODULE qs_initial_guess
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -41,7 +39,9 @@ MODULE qs_initial_guess
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: array_i1d_obj,&
+                                             array_release,&
+                                             dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_distribution_row_dist,&

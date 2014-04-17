@@ -19,7 +19,6 @@ MODULE almo_scf_methods
                                              select_row,&
                                              select_row_col
   USE almo_scf_types,                  ONLY: almo_objectM1_type
-  USE array_types,                     ONLY: array_data
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
@@ -30,7 +29,8 @@ MODULE almo_scf_methods
        cp_dbcsr_scale, cp_dbcsr_transposed, cp_dbcsr_work_create
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: array_data,&
+                                             dbcsr_distribution_mp,&
                                              dbcsr_mp_numnodes,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric

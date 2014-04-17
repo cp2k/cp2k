@@ -20,7 +20,6 @@ MODULE qs_ks_methods
   USE admm_methods,                    ONLY: admm_merge_ks_matrix,&
                                              admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
-  USE array_types,                     ONLY: array_i1d_obj
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
@@ -58,7 +57,8 @@ MODULE qs_ks_methods
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: array_i1d_obj,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
