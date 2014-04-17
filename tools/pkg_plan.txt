@@ -3,7 +3,7 @@
 #
 [
         {'dirname':'swarm',
-         'requires': ['../common', "../mpi", '../', '../input', '../motion',],
+         'requires': ['../common', "../mpi", '../', '../input', '../motion', "../system"],
          'files': [
             "glbopt_master.F",
             "glbopt_worker.F",
@@ -82,7 +82,9 @@
              "colloc_int_kloop.f90",
              "call_collocate.f90",
              "call_collocate_omp.f90",
-             "rs_pw_interface.F" #or should this be pw?
+             "rs_pw_interface.F", #or should this be pw?
+             "task_list_methods.F",
+             "task_list_types.F"
           ]
          },
 
@@ -113,6 +115,31 @@
              "hfx_types.F"
            ]
          },
+
+
+#============================================================================
+
+         {'dirname':'wfc',
+          'requires': ["../common", "../dbcsr", "../fm", "../mpi", "../gpw", "../hfx", '../input', "../aobasis", "../system", "../pw"],
+          'files': [
+            "input_cp2k_mp2.F",
+            "mp2_cphf.F",
+            "mp2_direct_method.F",
+            "mp2.F",
+            "mp2_gpw.F",
+            "mp2_laplace.F",
+            "mp2_optimize_ri_basis.F",
+            "mp2_ri_gpw.F",
+            "mp2_ri_grad.F",
+            "mp2_ri_grad_util.F",
+            "mp2_ri_libint.F",
+            "mp2_setup.F",
+            "mp2_types.F",
+            "rpa_communication.F",
+            "rpa_ri_gpw.F"
+            ],
+          },
+
 
 #============================================================================
          {'dirname':'vib',
@@ -262,7 +289,7 @@
 #============================================================================
 
          {'dirname':'',
-          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx", "aobasis", "gpw", "system"]
+          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx", "aobasis", "gpw", "system", "wfc"]
          },
 
 #============================================================================
@@ -282,6 +309,13 @@
 
          {'dirname':'arch',
           'requires':  ["../common", "../dbcsr", "../machine", "../mpi"]
+         },
+
+#============================================================================
+
+         {'dirname':'dbcsr',
+          'requires':  [],
+          'files': []
          },
 
 #============================================================================
