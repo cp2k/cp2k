@@ -29,7 +29,7 @@
   Kernel_dnt_medium(m=6, n=22, k=17, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=12) , # 147.658 GFlop/s
   Kernel_dnt_medium(m=16, n=5, k=17, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=8) , # 125.062 GFlop/s
   Kernel_dnt_medium(m=23, n=8, k=13, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=12) , # 178.719 GFlop/s
-  Kernel_dnt_medium(m=5, n=32, k=5, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=1) , # 88.9991 GFlop/s
+  Kernel_dnt_largeDB(m=16, n=29, k=55, tile_m=2, tile_n=4, w=6, v=18, threads=96, grouping=16, minblocks=12) , # 360.734 GFlop/s
   Kernel_dnt_largeDB(m=32, n=22, k=32, tile_m=2, tile_n=4, w=8, v=6, threads=96, grouping=16, minblocks=12) , # 407.594 GFlop/s
   Kernel_dnt_medium(m=17, n=13, k=22, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=8) , # 220.321 GFlop/s
   Kernel_dnt_medium(m=5, n=13, k=6, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=1) , # 60.4434 GFlop/s
@@ -118,6 +118,7 @@
   Kernel_dnt_small(m=8, n=32, k=4, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=8) , # 120.164 GFlop/s
   Kernel_dnt_medium(m=5, n=26, k=8, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=4) , # 97.7841 GFlop/s
   Kernel_dnt_largeDB(m=9, n=32, k=32, tile_m=3, tile_n=1, w=8, v=22, threads=128, grouping=16, minblocks=12) , # 249.642 GFlop/s
+  Kernel_dnt_largeDB(m=29, n=55, k=55, tile_m=3, tile_n=5, w=6, v=34, threads=128, grouping=16, minblocks=4) , # 466.16 GFlop/s
   Kernel_dnt_medium(m=5, n=22, k=23, tile_m=1, tile_n=1, threads=192, grouping=16, minblocks=8) , # 135.879 GFlop/s
   Kernel_dnt_medium(m=24, n=9, k=13, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 192.82 GFlop/s
   Kernel_dnt_largeDB(m=4, n=24, k=24, tile_m=1, tile_n=1, w=8, v=24, threads=96, grouping=16, minblocks=4) , # 126.228 GFlop/s
@@ -158,7 +159,7 @@
   Kernel_dnt_largeDB(m=13, n=23, k=26, tile_m=2, tile_n=2, w=12, v=22, threads=96, grouping=16, minblocks=12) , # 235.319 GFlop/s
   Kernel_dnt_medium(m=9, n=23, k=8, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 143.712 GFlop/s
   Kernel_dnt_largeDB(m=26, n=23, k=32, tile_m=2, tile_n=3, w=14, v=14, threads=128, grouping=16, minblocks=8) , # 341.076 GFlop/s
-  Kernel_dnt_medium(m=17, n=8, k=6, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=12) , # 90.287 GFlop/s
+  Kernel_dnt_largeDB(m=8, n=22, k=17, tile_m=2, tile_n=1, w=8, v=10, threads=96, grouping=16, minblocks=4) , # 175.381 GFlop/s
   Kernel_dnt_medium(m=6, n=17, k=6, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=12) , # 75.0572 GFlop/s
   Kernel_dnt_largeDB(m=23, n=23, k=26, tile_m=2, tile_n=3, w=10, v=12, threads=96, grouping=16, minblocks=12) , # 333.812 GFlop/s
   Kernel_dnt_largeDB(m=9, n=32, k=22, tile_m=3, tile_n=1, w=8, v=20, threads=128, grouping=16, minblocks=12) , # 230.249 GFlop/s
@@ -167,6 +168,7 @@
   Kernel_dnt_medium(m=22, n=9, k=8, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 139.231 GFlop/s
   Kernel_dnt_largeDB(m=22, n=8, k=32, tile_m=3, tile_n=2, w=16, v=8, threads=96, grouping=16, minblocks=12) , # 205.185 GFlop/s
   Kernel_dnt_medium(m=32, n=22, k=5, tile_m=2, tile_n=3, threads=128, grouping=16, minblocks=8) , # 195.309 GFlop/s
+  Kernel_dnt_medium(m=5, n=32, k=5, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=1) , # 88.9991 GFlop/s
   Kernel_dnt_small(m=8, n=13, k=8, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=8) , # 98.14 GFlop/s
   Kernel_dnt_medium(m=26, n=13, k=13, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=1) , # 222.329 GFlop/s
   Kernel_dnt_largeDB(m=6, n=23, k=32, tile_m=2, tile_n=1, w=8, v=16, threads=96, grouping=16, minblocks=8) , # 163.779 GFlop/s
@@ -479,8 +481,10 @@
   Kernel_dnt_medium(m=26, n=23, k=13, tile_m=3, tile_n=2, threads=128, grouping=16, minblocks=8) , # 273.966 GFlop/s
   Kernel_dnt_largeDB(m=16, n=23, k=24, tile_m=2, tile_n=3, w=12, v=12, threads=96, grouping=16, minblocks=12) , # 295.553 GFlop/s
   Kernel_dnt_medium(m=22, n=4, k=8, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=8) , # 83.1265 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=29, k=29, tile_m=3, tile_n=5, w=10, v=26, threads=160, grouping=16, minblocks=4) , # 381.973 GFlop/s
   Kernel_dnt_medium(m=13, n=8, k=22, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 163.585 GFlop/s
   Kernel_dnt_largeDB(m=32, n=22, k=24, tile_m=2, tile_n=4, w=8, v=8, threads=96, grouping=16, minblocks=12) , # 385.833 GFlop/s
+  Kernel_dnt_largeDB(m=16, n=55, k=29, tile_m=2, tile_n=4, w=8, v=40, threads=128, grouping=16, minblocks=8) , # 387.767 GFlop/s
   Kernel_dnt_largeDB(m=32, n=26, k=9, tile_m=5, tile_n=2, w=2, v=14, threads=96, grouping=16, minblocks=12) , # 254.073 GFlop/s
   Kernel_dnt_medium(m=17, n=5, k=9, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=8) , # 86.2825 GFlop/s
   Kernel_dnt_medium(m=23, n=22, k=16, tile_m=3, tile_n=2, threads=128, grouping=16, minblocks=8) , # 286.218 GFlop/s
@@ -749,10 +753,11 @@
   Kernel_dnt_medium(m=13, n=32, k=5, tile_m=5, tile_n=1, threads=96, grouping=16, minblocks=12) , # 155.889 GFlop/s
   Kernel_dnt_largeDB(m=8, n=9, k=32, tile_m=1, tile_n=1, w=12, v=6, threads=128, grouping=16, minblocks=12) , # 131.311 GFlop/s
   Kernel_dnt_largeDB(m=24, n=5, k=32, tile_m=1, tile_n=1, w=16, v=4, threads=128, grouping=16, minblocks=8) , # 153.309 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=55, k=55, tile_m=5, tile_n=5, w=6, v=18, threads=128, grouping=16, minblocks=1) , # 589.764 GFlop/s
   Kernel_dnt_medium(m=32, n=26, k=13, tile_m=4, tile_n=2, threads=128, grouping=16, minblocks=4) , # 298.845 GFlop/s
   Kernel_dnt_medium(m=17, n=5, k=5, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=1) , # 67.2537 GFlop/s
   Kernel_dnt_largeDB(m=6, n=23, k=17, tile_m=2, tile_n=1, w=8, v=12, threads=96, grouping=16, minblocks=4) , # 130.847 GFlop/s
-  Kernel_dnt_largeDB(m=8, n=22, k=17, tile_m=2, tile_n=1, w=8, v=10, threads=96, grouping=16, minblocks=4) , # 175.381 GFlop/s
+  Kernel_dnt_medium(m=17, n=8, k=6, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=12) , # 90.287 GFlop/s
   Kernel_dnt_largeDB(m=6, n=24, k=24, tile_m=2, tile_n=1, w=8, v=24, threads=96, grouping=16, minblocks=8) , # 163.247 GFlop/s
   Kernel_dnt_medium(m=16, n=6, k=13, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=1) , # 128.018 GFlop/s
   Kernel_dnt_largeDB(m=32, n=16, k=32, tile_m=2, tile_n=4, w=8, v=6, threads=96, grouping=16, minblocks=12) , # 362.722 GFlop/s
@@ -762,6 +767,7 @@
   Kernel_dnt_medium(m=4, n=22, k=8, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 91.5999 GFlop/s
   Kernel_dnt_small(m=6, n=6, k=8, tile_m=1, tile_n=1, threads=64, grouping=16, minblocks=12) , # 51.4584 GFlop/s
   Kernel_dnt_medium(m=17, n=13, k=8, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=12) , # 149.14 GFlop/s
+  Kernel_dnt_medium(m=16, n=9, k=17, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=12) , # 166.142 GFlop/s
   Kernel_dnt_largeDB(m=23, n=24, k=22, tile_m=2, tile_n=3, w=10, v=16, threads=96, grouping=16, minblocks=12) , # 332.21 GFlop/s
   Kernel_dnt_medium(m=5, n=6, k=23, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=8) , # 72.2008 GFlop/s
   Kernel_dnt_largeDB(m=4, n=8, k=24, tile_m=1, tile_n=1, w=12, v=8, threads=96, grouping=16, minblocks=1) , # 72.6651 GFlop/s
@@ -811,6 +817,7 @@
   Kernel_dnt_medium(m=6, n=22, k=13, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=12) , # 130.85 GFlop/s
   Kernel_dnt_medium(m=6, n=17, k=23, tile_m=1, tile_n=1, threads=160, grouping=16, minblocks=8) , # 137.919 GFlop/s
   Kernel_dnt_medium(m=23, n=23, k=13, tile_m=3, tile_n=2, threads=128, grouping=16, minblocks=8) , # 286.552 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=16, k=16, tile_m=3, tile_n=3, w=8, v=12, threads=128, grouping=16, minblocks=8) , # 323.549 GFlop/s
   Kernel_dnt_medium(m=22, n=5, k=6, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=1) , # 74.4677 GFlop/s
   Kernel_dnt_medium(m=26, n=16, k=9, tile_m=2, tile_n=3, threads=96, grouping=16, minblocks=12) , # 223.126 GFlop/s
   Kernel_dnt_largeDB(m=32, n=32, k=23, tile_m=2, tile_n=4, w=8, v=20, threads=128, grouping=16, minblocks=8) , # 450.644 GFlop/s
@@ -837,6 +844,7 @@
   Kernel_dnt_largeDB(m=4, n=22, k=32, tile_m=1, tile_n=1, w=8, v=20, threads=96, grouping=16, minblocks=8) , # 127.401 GFlop/s
   Kernel_dnt_small(m=5, n=23, k=5, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=1) , # 74.1593 GFlop/s
   Kernel_dnt_small(m=22, n=4, k=5, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=4) , # 61.4088 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=29, k=16, tile_m=3, tile_n=5, w=8, v=20, threads=128, grouping=16, minblocks=1) , # 338.407 GFlop/s
   Kernel_dnt_medium(m=22, n=9, k=6, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=12) , # 112.692 GFlop/s
   Kernel_dnt_largeDB(m=22, n=8, k=26, tile_m=1, tile_n=2, w=8, v=4, threads=96, grouping=16, minblocks=8) , # 190.52 GFlop/s
   Kernel_dnt_largeDB(m=26, n=16, k=16, tile_m=2, tile_n=2, w=8, v=8, threads=128, grouping=16, minblocks=12) , # 272.563 GFlop/s
@@ -882,6 +890,7 @@
   Kernel_dnt_medium(m=32, n=5, k=16, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=4) , # 153.149 GFlop/s
   Kernel_dnt_largeDB(m=5, n=8, k=24, tile_m=1, tile_n=1, w=12, v=8, threads=128, grouping=16, minblocks=4) , # 84.7498 GFlop/s
   Kernel_dnt_largeDB(m=24, n=32, k=22, tile_m=3, tile_n=2, w=8, v=28, threads=128, grouping=16, minblocks=8) , # 382.529 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=55, k=16, tile_m=5, tile_n=5, w=6, v=26, threads=128, grouping=16, minblocks=1) , # 362.202 GFlop/s
   Kernel_dnt_medium(m=6, n=13, k=5, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 61.4172 GFlop/s
   Kernel_dnt_medium(m=17, n=6, k=22, tile_m=1, tile_n=2, threads=96, grouping=16, minblocks=4) , # 140.116 GFlop/s
   Kernel_dnt_largeDB(m=13, n=24, k=32, tile_m=3, tile_n=2, w=12, v=24, threads=96, grouping=16, minblocks=12) , # 272.912 GFlop/s
@@ -895,6 +904,7 @@
   Kernel_dnt_medium(m=9, n=26, k=8, tile_m=3, tile_n=1, threads=96, grouping=16, minblocks=12) , # 148.898 GFlop/s
   Kernel_dnt_largeDB(m=26, n=17, k=24, tile_m=2, tile_n=2, w=6, v=14, threads=128, grouping=16, minblocks=12) , # 298.462 GFlop/s
   Kernel_dnt_largeDB(m=8, n=24, k=8, tile_m=2, tile_n=1, w=4, v=24, threads=96, grouping=16, minblocks=1) , # 143.632 GFlop/s
+  Kernel_dnt_largeDB(m=29, n=29, k=55, tile_m=2, tile_n=4, w=8, v=22, threads=128, grouping=16, minblocks=8) , # 431.418 GFlop/s
   Kernel_dnt_medium(m=5, n=13, k=13, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 86.3631 GFlop/s
   Kernel_dnt_largeDB(m=13, n=32, k=26, tile_m=3, tile_n=2, w=6, v=32, threads=96, grouping=16, minblocks=12) , # 274.165 GFlop/s
   Kernel_dnt_largeDB(m=16, n=24, k=23, tile_m=2, tile_n=3, w=8, v=24, threads=96, grouping=16, minblocks=12) , # 302.868 GFlop/s
@@ -1001,6 +1011,7 @@
   Kernel_dnt_largeDB(m=32, n=13, k=23, tile_m=2, tile_n=2, w=6, v=10, threads=128, grouping=16, minblocks=12) , # 288.889 GFlop/s
   Kernel_dnt_small(m=17, n=8, k=4, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=1) , # 73.5398 GFlop/s
   Kernel_dnt_largeDB(m=23, n=23, k=22, tile_m=2, tile_n=3, w=10, v=16, threads=96, grouping=16, minblocks=12) , # 317.15 GFlop/s
+  Kernel_dnt_medium(m=5, n=22, k=16, tile_m=1, tile_n=4, threads=96, grouping=16, minblocks=12) , # 136.353 GFlop/s
   Kernel_dnt_medium(m=16, n=4, k=16, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 104.947 GFlop/s
   Kernel_dnt_medium(m=29, n=14, k=16, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=8) , # 258.248 GFlop/s
   Kernel_dnt_largeDB(m=16, n=9, k=23, tile_m=2, tile_n=1, w=10, v=4, threads=96, grouping=16, minblocks=4) , # 173.179 GFlop/s
@@ -1087,6 +1098,7 @@
   Kernel_dnt_medium(m=22, n=6, k=8, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=12) , # 106.018 GFlop/s
   Kernel_dnt_largeDB(m=16, n=32, k=8, tile_m=2, tile_n=2, w=4, v=24, threads=128, grouping=16, minblocks=12) , # 234.188 GFlop/s
   Kernel_dnt_medium(m=9, n=17, k=9, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=12) , # 130.008 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=55, k=29, tile_m=5, tile_n=5, w=10, v=30, threads=128, grouping=16, minblocks=1) , # 408.132 GFlop/s
   Kernel_dnt_medium(m=26, n=24, k=6, tile_m=2, tile_n=2, threads=160, grouping=16, minblocks=8) , # 217.359 GFlop/s
   Kernel_dnt_medium(m=9, n=22, k=13, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=12) , # 172.574 GFlop/s
   Kernel_dnt_medium(m=5, n=17, k=26, tile_m=1, tile_n=1, threads=160, grouping=16, minblocks=4) , # 132.131 GFlop/s
@@ -1095,6 +1107,7 @@
   Kernel_dnt_medium(m=17, n=9, k=16, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=4) , # 163.688 GFlop/s
   Kernel_dnt_medium(m=5, n=6, k=32, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 81.0562 GFlop/s
   Kernel_dnt_medium(m=22, n=16, k=9, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 221.618 GFlop/s
+  Kernel_dnt_largeDB(m=29, n=55, k=16, tile_m=4, tile_n=4, w=8, v=38, threads=128, grouping=16, minblocks=1) , # 327.265 GFlop/s
   Kernel_dnt_small(m=24, n=8, k=4, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=1) , # 102.382 GFlop/s
   Kernel_dnt_largeDB(m=32, n=23, k=8, tile_m=4, tile_n=2, w=4, v=12, threads=96, grouping=16, minblocks=12) , # 272.379 GFlop/s
   Kernel_dnt_largeDB(m=26, n=13, k=22, tile_m=2, tile_n=2, w=6, v=10, threads=96, grouping=16, minblocks=12) , # 250.837 GFlop/s
@@ -1271,7 +1284,7 @@
   Kernel_dnt_medium(m=6, n=22, k=23, tile_m=1, tile_n=2, threads=160, grouping=16, minblocks=8) , # 144.504 GFlop/s
   Kernel_dnt_largeDB(m=23, n=22, k=9, tile_m=2, tile_n=3, w=4, v=12, threads=96, grouping=16, minblocks=12) , # 222.676 GFlop/s
   Kernel_dnt_medium(m=22, n=17, k=17, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=8) , # 257.375 GFlop/s
-  Kernel_dnt_medium(m=5, n=22, k=16, tile_m=1, tile_n=4, threads=96, grouping=16, minblocks=12) , # 136.353 GFlop/s
+  Kernel_dnt_largeDB(m=16, n=16, k=55, tile_m=2, tile_n=2, w=14, v=16, threads=128, grouping=16, minblocks=12) , # 303.245 GFlop/s
   Kernel_dnt_medium(m=22, n=26, k=8, tile_m=2, tile_n=2, threads=160, grouping=16, minblocks=8) , # 217.596 GFlop/s
   Kernel_dnt_medium(m=22, n=5, k=16, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=4) , # 136.417 GFlop/s
   Kernel_dnt_medium(m=13, n=17, k=5, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=12) , # 118.252 GFlop/s
@@ -1325,7 +1338,7 @@
   Kernel_dnt_largeDB(m=24, n=8, k=32, tile_m=2, tile_n=1, w=8, v=6, threads=96, grouping=16, minblocks=1) , # 218.41 GFlop/s
   Kernel_dnt_largeDB(m=24, n=6, k=16, tile_m=1, tile_n=2, w=8, v=4, threads=96, grouping=16, minblocks=8) , # 155.633 GFlop/s
   Kernel_dnt_medium(m=13, n=8, k=26, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=4) , # 151.357 GFlop/s
-  Kernel_dnt_medium(m=16, n=9, k=17, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=12) , # 166.142 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=16, k=29, tile_m=3, tile_n=3, w=6, v=8, threads=128, grouping=16, minblocks=8) , # 370.096 GFlop/s
   Kernel_dnt_medium(m=8, n=13, k=17, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 137.477 GFlop/s
   Kernel_dnt_medium(m=26, n=16, k=17, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=8) , # 278.933 GFlop/s
   Kernel_dnt_medium(m=17, n=4, k=23, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=1) , # 109.504 GFlop/s
@@ -1363,6 +1376,7 @@
   Kernel_dnt_medium(m=17, n=9, k=13, tile_m=2, tile_n=1, threads=128, grouping=16, minblocks=12) , # 150.565 GFlop/s
   Kernel_dnt_medium(m=16, n=5, k=4, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 53.2937 GFlop/s
   Kernel_dnt_medium(m=23, n=8, k=16, tile_m=1, tile_n=2, threads=96, grouping=16, minblocks=1) , # 188.882 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=16, k=55, tile_m=5, tile_n=2, w=6, v=8, threads=128, grouping=16, minblocks=8) , # 426.606 GFlop/s
   Kernel_dnt_medium(m=5, n=32, k=8, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=8) , # 120.304 GFlop/s
   Kernel_dnt_medium(m=13, n=6, k=13, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 102.487 GFlop/s
   Kernel_dnt_medium(m=9, n=6, k=23, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 104.769 GFlop/s
@@ -1426,6 +1440,7 @@
   Kernel_dnt_medium(m=6, n=9, k=17, tile_m=1, tile_n=1, threads=160, grouping=16, minblocks=12) , # 84.3988 GFlop/s
   Kernel_dnt_largeDB(m=22, n=23, k=26, tile_m=2, tile_n=3, w=10, v=16, threads=96, grouping=16, minblocks=12) , # 325.286 GFlop/s
   Kernel_dnt_medium(m=4, n=17, k=4, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 44.3641 GFlop/s
+  Kernel_dnt_largeDB(m=6, n=24, k=26, tile_m=1, tile_n=2, w=8, v=16, threads=96, grouping=16, minblocks=4) , # 158.81 GFlop/s
   Kernel_dnt_medium(m=8, n=6, k=17, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=1) , # 87.1602 GFlop/s
   Kernel_dnt_largeDB(m=24, n=32, k=13, tile_m=3, tile_n=2, w=6, v=20, threads=160, grouping=16, minblocks=8) , # 306.849 GFlop/s
   Kernel_dnt_largeDB(m=6, n=8, k=24, tile_m=1, tile_n=1, w=12, v=8, threads=128, grouping=16, minblocks=1) , # 99.5961 GFlop/s
@@ -1467,6 +1482,7 @@
   Kernel_dnt_tiny(m=6, n=5, k=8, split_thread=32, threads=96, grouping=16, minblocks=1) , # 39.7844 GFlop/s
   Kernel_dnt_medium(m=8, n=8, k=26, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=8) , # 139.438 GFlop/s
   Kernel_dnt_largeDB(m=23, n=32, k=8, tile_m=3, tile_n=2, w=4, v=16, threads=128, grouping=16, minblocks=12) , # 289.124 GFlop/s
+  Kernel_dnt_largeDB(m=29, n=16, k=55, tile_m=2, tile_n=4, w=6, v=6, threads=96, grouping=16, minblocks=12) , # 359.654 GFlop/s
   Kernel_dnt_small(m=5, n=8, k=16, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=1) , # 67.8873 GFlop/s
   Kernel_dnt_largeDB(m=17, n=24, k=26, tile_m=3, tile_n=2, w=10, v=16, threads=96, grouping=16, minblocks=12) , # 280.206 GFlop/s
   Kernel_dnt_medium(m=24, n=16, k=4, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=12) , # 151.035 GFlop/s
@@ -1813,6 +1829,7 @@
   Kernel_dnt_medium(m=24, n=6, k=17, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=4) , # 148.725 GFlop/s
   Kernel_dnt_largeDB(m=22, n=8, k=24, tile_m=2, tile_n=1, w=8, v=8, threads=96, grouping=16, minblocks=8) , # 197.07 GFlop/s
   Kernel_dnt_medium(m=32, n=22, k=13, tile_m=2, tile_n=3, threads=128, grouping=16, minblocks=8) , # 325.002 GFlop/s
+  Kernel_dnt_largeDB(m=16, n=55, k=16, tile_m=2, tile_n=4, w=8, v=40, threads=128, grouping=16, minblocks=8) , # 333.661 GFlop/s
   Kernel_dnt_largeDB(m=8, n=13, k=16, tile_m=1, tile_n=1, w=8, v=10, threads=128, grouping=16, minblocks=12) , # 135.239 GFlop/s
   Kernel_dnt_largeDB(m=26, n=16, k=22, tile_m=2, tile_n=4, w=10, v=10, threads=96, grouping=16, minblocks=12) , # 283.175 GFlop/s
   Kernel_dnt_medium(m=17, n=4, k=22, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=4) , # 113.713 GFlop/s
@@ -1886,6 +1903,7 @@
   Kernel_dnt_largeDB(m=9, n=23, k=32, tile_m=1, tile_n=2, w=14, v=12, threads=128, grouping=16, minblocks=12) , # 209.275 GFlop/s
   Kernel_dnt_medium(m=6, n=22, k=6, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=1) , # 85.5436 GFlop/s
   Kernel_dnt_medium(m=23, n=9, k=16, tile_m=1, tile_n=2, threads=128, grouping=16, minblocks=8) , # 177.395 GFlop/s
+  Kernel_dnt_largeDB(m=29, n=55, k=29, tile_m=5, tile_n=3, w=10, v=44, threads=160, grouping=16, minblocks=4) , # 383.671 GFlop/s
   Kernel_dnt_medium(m=5, n=32, k=16, tile_m=1, tile_n=2, threads=96, grouping=16, minblocks=4) , # 148.849 GFlop/s
   Kernel_dnt_largeDB(m=26, n=17, k=26, tile_m=2, tile_n=2, w=6, v=8, threads=128, grouping=16, minblocks=12) , # 287.445 GFlop/s
   Kernel_dnt_medium(m=13, n=6, k=22, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=12) , # 126.591 GFlop/s
@@ -1961,7 +1979,9 @@
   Kernel_dnt_medium(m=23, n=26, k=13, tile_m=3, tile_n=2, threads=128, grouping=16, minblocks=8) , # 286.414 GFlop/s
   Kernel_dnt_medium(m=24, n=16, k=5, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=12) , # 177.041 GFlop/s
   Kernel_dnt_largeDB(m=13, n=32, k=8, tile_m=2, tile_n=2, w=4, v=32, threads=128, grouping=16, minblocks=12) , # 200.207 GFlop/s
+  Kernel_dnt_largeDB(m=55, n=29, k=55, tile_m=3, tile_n=5, w=6, v=18, threads=128, grouping=16, minblocks=1) , # 467.106 GFlop/s
   Kernel_dnt_small(m=22, n=6, k=4, tile_m=2, tile_n=1, threads=96, grouping=16, minblocks=12) , # 69.8662 GFlop/s
+  Kernel_dnt_largeDB(m=16, n=55, k=55, tile_m=2, tile_n=4, w=8, v=24, threads=128, grouping=16, minblocks=8) , # 430.199 GFlop/s
   Kernel_dnt_medium(m=9, n=22, k=17, tile_m=2, tile_n=2, threads=160, grouping=16, minblocks=8) , # 170.487 GFlop/s
   Kernel_dnt_largeDB(m=26, n=23, k=17, tile_m=2, tile_n=3, w=6, v=12, threads=160, grouping=16, minblocks=8) , # 285.445 GFlop/s
   Kernel_dnt_medium(m=17, n=6, k=13, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 121.148 GFlop/s
@@ -2027,7 +2047,7 @@
   Kernel_dnt_medium(m=4, n=32, k=13, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=12) , # 124.107 GFlop/s
   Kernel_dnt_medium(m=17, n=9, k=26, tile_m=2, tile_n=2, threads=128, grouping=16, minblocks=8) , # 168.829 GFlop/s
   Kernel_dnt_medium(m=26, n=6, k=9, tile_m=1, tile_n=2, threads=96, grouping=16, minblocks=1) , # 126.842 GFlop/s
-  Kernel_dnt_largeDB(m=6, n=24, k=26, tile_m=1, tile_n=2, w=8, v=16, threads=96, grouping=16, minblocks=4) , # 158.81 GFlop/s
+  Kernel_dnt_largeDB(m=78, n=78, k=78, tile_m=5, tile_n=5, w=8, v=26, threads=256, grouping=16, minblocks=1) , # 586.748 GFlop/s
   Kernel_dnt_medium(m=16, n=16, k=13, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 240.903 GFlop/s
   Kernel_dnt_largeDB(m=24, n=9, k=16, tile_m=2, tile_n=2, w=8, v=6, threads=128, grouping=16, minblocks=12) , # 192.434 GFlop/s
   Kernel_dnt_medium(m=13, n=5, k=22, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=8) , # 110.275 GFlop/s
@@ -2229,7 +2249,6 @@
   Kernel_dnt_medium(m=6, n=23, k=22, tile_m=2, tile_n=1, threads=160, grouping=16, minblocks=8) , # 145.676 GFlop/s
   Kernel_dnt_medium(m=6, n=24, k=23, tile_m=1, tile_n=2, threads=160, grouping=16, minblocks=8) , # 156.783 GFlop/s
   Kernel_dnt_largeDB(m=16, n=6, k=16, tile_m=1, tile_n=1, w=8, v=6, threads=128, grouping=16, minblocks=4) , # 134.069 GFlop/s
-  Kernel_dnt_largeDB(m=78, n=78, k=78, tile_m=5, tile_n=5, w=8, v=26, threads=256, grouping=16, minblocks=1) , # 586.748 GFlops
 ]
 
 #EOF
