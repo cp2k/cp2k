@@ -14,13 +14,9 @@
 !> - Created 2011-08-23
 ! *****************************************************************************
 MODULE machine_architecture_utils
-#if !defined (__HAS_NO_ISO_C_BINDING)
-  USE ISO_C_BINDING
-#endif
-  USE dummy_c_bindings
 
- USE machine_architecture_types
- USE ma_kinds
+  USE ma_kinds
+  USE machine_architecture_types
 
  IMPLICIT NONE
 

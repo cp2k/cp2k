@@ -11,8 +11,7 @@
 ! *****************************************************************************
 MODULE input_cp2k
   USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE dbcsr_error_handling
-  USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
+  USE dbcsr_api,                       ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8

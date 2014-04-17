@@ -25,6 +25,12 @@ MODULE distribution_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE dbcsr_api,                       ONLY: heap_fill,&
+                                             heap_get_first,&
+                                             heap_new,&
+                                             heap_release,&
+                                             heap_reset_first,&
+                                             heap_t
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
@@ -45,12 +51,6 @@ MODULE distribution_methods
                                              lcm
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
-  USE min_heap,                        ONLY: heap_fill,&
-                                             heap_get_first,&
-                                             heap_new,&
-                                             heap_release,&
-                                             heap_reset_first,&
-                                             heap_t
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              get_molecule_kind_set,&
                                              molecule_kind_type

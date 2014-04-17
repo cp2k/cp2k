@@ -126,8 +126,20 @@ MODULE dbcsr_api
                                              dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE min_heap,                        ONLY: heap_fill,&
+                                             heap_get_first,&
+                                             heap_new,&
+                                             heap_release,&
+                                             heap_reset_first,&
+                                             heap_t
 
-  PUBLIC :: array_data,&
+  PUBLIC :: heap_fill,&
+            heap_get_first,&
+            heap_new,&
+            heap_release,&
+            heap_reset_first,&
+            heap_t,&
+           array_data,&
            array_hold,&
            array_i1d_obj,&
            array_new,&
