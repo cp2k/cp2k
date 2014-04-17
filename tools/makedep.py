@@ -74,7 +74,7 @@ def main():
             dp = normpath(dirname(d))
             if(dp not in packages[p]['allowed_deps']):
                 error("Dependency forbidden according to package manifest: %s -> %s"%(fn, d))
-            if(packages[dp].has_key("public")):
+            if(dp != p and packages[dp].has_key("public")):
                 if(basename(d) not in packages[dp]["public"]):
                     error("File not public according to package manifest: %s -> %s"%(fn, d))
     messages.append("Checked %d dependencies"%n_deps)

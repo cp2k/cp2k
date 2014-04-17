@@ -104,7 +104,7 @@ def main():
             msg = "%32s  ->  %-32s  %-15s "%(basename(fn), basename(d), "[src"+dp[len(abs_srcdir):]+"]")
             if(dp not in packages[p]['allowed_deps']):
                 packages[p]['problems'].append(msg + "(requirement not listed)")
-            if(packages[dp].has_key("public")):
+            if(dp != p and packages[dp].has_key("public")):
                 if(basename(d) not in packages[dp]["public"]):
                     packages[p]['problems'].append(msg + "(file not public)")
 
