@@ -71,8 +71,12 @@ def main():
         deps += [ mod2fn[m] for m in collect_use_deps(parsed_files, fn) if mod2fn.has_key(m) ]
         n_deps += len(deps)
         for d in deps:
-            if(normpath(dirname(d)) not in packages[p]['allowed_deps']):
+            dp = normpath(dirname(d))
+            if(dp not in packages[p]['allowed_deps']):
                 error("Dependency forbidden according to package manifest: %s -> %s"%(fn, d))
+            if(packages[dp].has_key("public")):
+                if(basename(d) not in packages[dp]["public"]):
+                    error("File not public according to package manifest: %s -> %s"%(fn, d))
     messages.append("Checked %d dependencies"%n_deps)
 
     # check for circular dependencies

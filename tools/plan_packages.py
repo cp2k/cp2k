@@ -8,7 +8,7 @@
 
 import re, sys, os
 from os import path
-from os.path import dirname, basename, normpath
+from os.path import dirname, basename, normpath, abspath
 
 # pre-compiled regular expressions
 re_module = re.compile(r"(?:^|\n)\s*module\s+(\w+)\s.*\n\s*end\s*module",re.DOTALL)
@@ -27,7 +27,7 @@ def main():
     planned_pkgs = eval(open(sys.argv[1]).read())
 
     srcdir = "../src"
-    abs_srcdir = path.abspath(srcdir)
+    abs_srcdir = abspath(srcdir)
 
     src_files = []
     for root, dirs, files in os.walk(abs_srcdir):
@@ -73,12 +73,12 @@ def main():
     fn2pkg = dict()
     for fn in parsed_files.keys():
         p = normpath(dirname(fn))
-        fn2pkg[path.basename(fn)] = p
+        fn2pkg[basename(fn)] = p
         read_manifest(packages, p)
 
     # update with manifest with planned packages
     for pp in planned_pkgs:
-        p = path.abspath(path.join(srcdir, pp['dirname']))
+        p = abspath(path.join(srcdir, pp['dirname']))
         if(not packages.has_key(p)):
             packages[p] = {'problems':[]}
         packages[p].update(pp)
@@ -95,15 +95,19 @@ def main():
     # check dependencies against package manifests
     n_deps = 0
     for fn in src_files:
-        p = fn2pkg[path.basename(fn)]
+        p = fn2pkg[basename(fn)]
         deps = collect_include_deps(parsed_files, fn)
         deps += [ mod2fn[m] for m in collect_use_deps(parsed_files, fn) if mod2fn.has_key(m) ]
         n_deps += len(deps)
         for d in deps:
-            dp = fn2pkg[path.basename(d)]
+            dp = fn2pkg[basename(d)]
+            msg = "%32s  ->  %-32s  %-15s "%(basename(fn), basename(d), "[src"+dp[len(abs_srcdir):]+"]")
             if(dp not in packages[p]['allowed_deps']):
-                msg = "%32s  ->  %-32s  [src%s]"%(path.basename(fn), path.basename(d), dp[len(abs_srcdir):])
-                packages[p]['problems'].append(msg)
+                packages[p]['problems'].append(msg + "(requirement not listed)")
+            if(packages[dp].has_key("public")):
+                if(basename(d) not in packages[dp]["public"]):
+                    packages[p]['problems'].append(msg + "(file not public)")
+
     print("Checked %d dependencies\n"%n_deps)
 
 
