@@ -23,6 +23,7 @@ rsync -axq \
 
 mkdir $OUTDIR/tools
 cp -a ../tools/makedep.py  $OUTDIR/tools/
+cp -a ../tools/discover_programs.py  $OUTDIR/tools/
 cp -a ../tools/get_arch_code  $OUTDIR/tools/
 cp -a ../tools/get_revision_number  $OUTDIR/tools/
 
