@@ -63,7 +63,6 @@ MODULE dbcsr_api
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_message_passing,           ONLY: mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
        dbcsr_blk_row_size, dbcsr_distribution, dbcsr_distribution_col_dist, &
@@ -319,7 +318,6 @@ MODULE dbcsr_api
            mm_name_matmul ,&
            mm_name_plasma ,&
            mm_name_smm ,&
-           mp_environ ,&
            multrec_limit ,&
            swap
 
