@@ -14,30 +14,25 @@ MODULE cp_dbcsr_cp2k_link
                                              cp_dbcsr_get_matrix_type,&
                                              cp_dbcsr_reserve_blocks
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE dbcsr_config,                    ONLY: &
+  USE dbcsr_api,                       ONLY: &
        cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
        cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
        cudadrv_min_flop_process, cudadrv_min_flop_sort, &
        cudadrv_posterior_buffers, cudadrv_posterior_streams, &
-       cudadrv_priority_buffers, cudadrv_priority_streams, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_cuda, &
+       cudadrv_priority_buffers, cudadrv_priority_streams, dbcsr_error_set, &
+       dbcsr_error_stop, dbcsr_error_type, dbcsr_get_conf_combtypes, &
+       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
+       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_type_no_symmetry, has_cuda, &
        has_mpi, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
        mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
-  USE dbcsr_dist_operations
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
-  USE dbcsr_io
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&

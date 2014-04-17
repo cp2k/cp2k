@@ -34,16 +34,11 @@ MODULE qs_ot_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_complex_default,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_default
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_default
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &

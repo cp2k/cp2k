@@ -31,18 +31,12 @@ MODULE dm_ls_scf_qs
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_init,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_name
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_8,&
-                                             dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_name, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&

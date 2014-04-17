@@ -24,11 +24,11 @@ MODULE almo_scf_aux2_methods
        cp_dbcsr_row_block_sizes, cp_dbcsr_work_create
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_mynode,&
-                                             dbcsr_mp_numnodes
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE kinds,                           ONLY: dp

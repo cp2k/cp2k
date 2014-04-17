@@ -50,7 +50,7 @@ MODULE qs_efield_berry
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp

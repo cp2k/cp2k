@@ -45,15 +45,10 @@ MODULE mp2_gpw
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default,&
-                                             dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&

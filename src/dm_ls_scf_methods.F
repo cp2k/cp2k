@@ -17,19 +17,12 @@ MODULE dm_ls_scf_methods
        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE dbcsr_block_access,              ONLY: dbcsr_put_block
-  USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
-                                             dbcsr_data_init,&
-                                             dbcsr_data_new,&
-                                             dbcsr_data_release
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_type
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                             dbcsr_iterator,&
-                                             dbcsr_type_no_symmetry
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_obj, dbcsr_data_release, dbcsr_get_data_type, &
+       dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_put_block, &
+       dbcsr_type_no_symmetry
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_mstruct_type
   USE f77_blas

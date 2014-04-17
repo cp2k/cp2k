@@ -52,7 +52,7 @@ MODULE admm_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
+  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE input_constants,                 ONLY: &
        do_admm_basis_set_projection, do_admm_block_aux_basis_off, &

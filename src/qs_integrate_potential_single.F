@@ -35,7 +35,6 @@ MODULE qs_integrate_potential_single
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_dist_operations
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&

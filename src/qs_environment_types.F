@@ -50,7 +50,7 @@ MODULE qs_environment_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&

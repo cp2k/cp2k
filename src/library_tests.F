@@ -43,7 +43,7 @@ MODULE library_tests
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_realspace_grid_init,          ONLY: init_input_type
-  USE dbcsr_tests,                     ONLY: cp_test_multiplies
+  USE dbcsr_api,                       ONLY: cp_test_multiplies
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FWFFT,&

@@ -16,7 +16,7 @@
 !> - 2011-11-14 [UB] Removed buffers and maps
 ! *****************************************************************************
 MODULE cp_dbcsr_types
-  USE dbcsr_types,                     ONLY: cp_dbcsr_iterator=>dbcsr_iterator,&
+  USE dbcsr_api,                       ONLY: cp_dbcsr_iterator=>dbcsr_iterator,&
                                              dbcsr_obj
 
   !$ USE OMP_LIB

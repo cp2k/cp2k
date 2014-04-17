@@ -46,11 +46,11 @@ MODULE mp2_ri_gpw
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_mp_nprows,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel

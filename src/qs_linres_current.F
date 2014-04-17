@@ -64,10 +64,10 @@ MODULE qs_linres_current
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
   USE input_section_types,             ONLY: section_get_ivals,&

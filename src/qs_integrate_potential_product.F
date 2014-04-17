@@ -47,9 +47,8 @@ MODULE qs_integrate_potential_product
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_dist_operations
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_has_threads
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_has_threads,&
+                                             dbcsr_distribution_obj
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set

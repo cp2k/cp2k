@@ -21,7 +21,7 @@ MODULE dm_ls_chebyshev
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
   USE dm_ls_scf_qs,                    ONLY: write_matrix_to_cube
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE f77_blas

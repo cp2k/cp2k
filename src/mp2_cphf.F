@@ -38,7 +38,7 @@ MODULE mp2_cphf
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_types,                       ONLY: alloc_containers,&
                                              hfx_container_type,&

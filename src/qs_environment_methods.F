@@ -21,7 +21,7 @@ MODULE qs_environment_methods
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d

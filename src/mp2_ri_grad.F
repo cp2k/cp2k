@@ -40,7 +40,7 @@ MODULE mp2_ri_grad
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
+  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&

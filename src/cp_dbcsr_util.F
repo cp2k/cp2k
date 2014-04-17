@@ -14,7 +14,7 @@ MODULE cp_dbcsr_util
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_real_4,&
+  USE dbcsr_api,                       ONLY: dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE kinds,                           ONLY: dp,&
                                              sp

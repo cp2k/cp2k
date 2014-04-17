@@ -25,72 +25,42 @@ MODULE cp_dbcsr_interface
                                              cp_dbcsr_row_block_sizes
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_put_block,&
-                                             dbcsr_reserve_all_blocks,&
-                                             dbcsr_reserve_block2d,&
-                                             dbcsr_reserve_blocks,&
-                                             dbcsr_reserve_diag_blocks
-  USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
-                                             dbcsr_scalar_fill_all,&
-                                             dbcsr_scalar_get_type,&
-                                             dbcsr_scalar_get_value,&
-                                             dbcsr_scalar_set_type,&
-                                             dbcsr_scalar_zero
-  USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
-                                             dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_index_operations,          ONLY: dbcsr_index_compact
-  USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
-                                             dbcsr_binary_write,&
-                                             dbcsr_print,&
-                                             dbcsr_print_block_sum
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
-       dbcsr_blk_row_size, dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, &
+  USE dbcsr_api,                       ONLY: &
+       create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
+       dbcsr_binary_read, dbcsr_binary_write, dbcsr_blk_col_offset, &
+       dbcsr_blk_column_size, dbcsr_blk_row_offset, dbcsr_blk_row_size, &
+       dbcsr_btriu, dbcsr_checksum, dbcsr_clear_mempools, &
+       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
+       dbcsr_create, dbcsr_data_obj, dbcsr_desymmetrize_deep, &
+       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
-       dbcsr_init, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_new, &
-       dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_frobenius_norm, dbcsr_function_of_elements, &
+       dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
+       dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_get_num_blocks, dbcsr_get_occupation, &
+       dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
+       dbcsr_index_compact, dbcsr_init, dbcsr_init_lib, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, &
+       dbcsr_make_untransposed_blocks, dbcsr_max_col_size, &
+       dbcsr_max_row_size, dbcsr_maxabs, dbcsr_mp_new, dbcsr_mp_obj, &
+       dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_valid_index
-  USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_clear_mempools, &
-       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
-       dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, &
-       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
-       dbcsr_init_lib, dbcsr_maxabs, dbcsr_multiply, dbcsr_norm, dbcsr_scale, &
+       dbcsr_new_transposed, dbcsr_nfullcols_local, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_no_transpose, &
+       dbcsr_norm, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
+       dbcsr_release, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
+       dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
+       dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
+       dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
        dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, &
-       dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
-  USE dbcsr_operations_low,            ONLY: dbcsr_function_of_elements
-  USE dbcsr_toollib,                   ONLY: swap
-  USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
-                                             dbcsr_desymmetrize_deep,&
-                                             dbcsr_distribute,&
-                                             dbcsr_make_untransposed_blocks,&
-                                             dbcsr_new_transposed,&
-                                             dbcsr_replicate,&
-                                             dbcsr_replicate_all
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_no_transpose,&
-                                             dbcsr_scalar_type,&
-                                             dbcsr_type_complex_4,&
-                                             dbcsr_type_complex_8
-  USE dbcsr_util,                      ONLY: dbcsr_checksum,&
-                                             dbcsr_verify_matrix
-  USE dbcsr_work_operations,           ONLY: dbcsr_create,&
-                                             dbcsr_finalize,&
-                                             dbcsr_work_create
+       dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_valid_index, dbcsr_verify_matrix, &
+       dbcsr_work_create, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&

@@ -22,7 +22,7 @@ MODULE rt_hfx_utils
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp

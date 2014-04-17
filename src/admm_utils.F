@@ -21,7 +21,7 @@ MODULE admm_utils
                                              cp_dbcsr_deallocate_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE input_constants,                 ONLY: do_admm_basis_set_projection,&
                                              do_admm_block_density_matrix,&
                                              do_admm_purify_cauchy,&

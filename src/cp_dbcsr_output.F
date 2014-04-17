@@ -31,7 +31,7 @@ MODULE cp_dbcsr_output
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
+  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE kinds,                           ONLY: default_string_length,&

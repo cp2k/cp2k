@@ -48,6 +48,8 @@ MODULE dbcsr_api
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
        dbcsr_scalar_set_type, dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
+                                             dbcsr_create_dist_block_cyclic,&
+                                             dbcsr_create_dist_r_unrot,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -153,6 +155,8 @@ MODULE dbcsr_api
            dbcsr_copy ,&
            dbcsr_copy_into_existing ,&
            dbcsr_create ,&
+           dbcsr_create_dist_block_cyclic,&
+           dbcsr_create_dist_r_unrot,&
            dbcsr_data_clear_pointer ,&
            dbcsr_data_init ,&
            dbcsr_data_new ,&

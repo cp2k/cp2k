@@ -26,11 +26,11 @@ MODULE qs_ot_scf
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_mp_npcols,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE f77_blas

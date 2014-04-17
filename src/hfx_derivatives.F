@@ -23,7 +23,7 @@ MODULE hfx_derivatives
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: get_full_density
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&

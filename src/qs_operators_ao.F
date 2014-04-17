@@ -25,7 +25,7 @@ MODULE qs_operators_ao
                                              cp_dbcsr_get_matrix_type
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
+  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi

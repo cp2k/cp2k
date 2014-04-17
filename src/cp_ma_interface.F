@@ -20,7 +20,7 @@ MODULE cp_ma_interface
                                              cp_note_level,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_config,                    ONLY: dbcsr_get_conf_use_comm_thread
+  USE dbcsr_api,                       ONLY: dbcsr_get_conf_use_comm_thread
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

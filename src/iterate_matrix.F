@@ -17,7 +17,7 @@ MODULE iterate_matrix
        cp_dbcsr_transposed
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE dbcsr_types,                     ONLY: dbcsr_norm_maxabsnorm,&
+  USE dbcsr_api,                       ONLY: dbcsr_norm_maxabsnorm,&
                                              dbcsr_type_no_symmetry
   USE f77_blas
   USE kinds,                           ONLY: dp,&

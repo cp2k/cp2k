@@ -31,7 +31,7 @@ MODULE task_list_methods
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
+  USE dbcsr_api,                       ONLY: convert_sizes_to_offsets
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type

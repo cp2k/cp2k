@@ -19,7 +19,6 @@ MODULE input_cp2k_read
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
-  USE dbcsr_error_handling
   USE f77_blas
   USE input_constants
   USE input_parsing,                   ONLY: section_vals_parse

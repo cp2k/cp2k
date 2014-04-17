@@ -19,8 +19,8 @@ MODULE qs_ot_minimizer
                                              cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_operations,                ONLY: dbcsr_init_random
+  USE dbcsr_api,                       ONLY: dbcsr_error_type,&
+                                             dbcsr_init_random
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8

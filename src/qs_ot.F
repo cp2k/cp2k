@@ -28,7 +28,7 @@ MODULE qs_ot
        cp_dbcsr_set, cp_dbcsr_transposed
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group
   USE f77_blas
   USE kinds,                           ONLY: dp

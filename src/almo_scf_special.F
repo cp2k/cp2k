@@ -45,15 +45,11 @@ MODULE almo_scf_special
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_group,&
-                                             dbcsr_mp_mynode,&
-                                             dbcsr_mp_numnodes
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &
+       dbcsr_mp_numnodes, dbcsr_type_no_symmetry
   USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
                                              almo_constraint_block_diagonal,&
                                              almo_constraint_distance,&

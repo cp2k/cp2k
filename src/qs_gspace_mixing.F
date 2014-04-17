@@ -21,7 +21,7 @@ MODULE qs_gspace_mixing
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix

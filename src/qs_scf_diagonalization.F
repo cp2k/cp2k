@@ -42,7 +42,7 @@ MODULE qs_scf_diagonalization
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&

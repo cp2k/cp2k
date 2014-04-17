@@ -45,16 +45,11 @@ MODULE qs_scf_block_davidson
        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, &
        cp_fm_vectorsnorm
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_norm_column,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default,&
-                                             dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_norm_column, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
+       dbcsr_type_symmetric
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum

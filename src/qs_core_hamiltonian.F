@@ -96,7 +96,7 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              kg_tnadd_atomic,&

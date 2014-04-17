@@ -30,7 +30,7 @@ MODULE kg_tnadd_mat
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE external_potential_types,        ONLY: get_potential,&
                                              local_potential_type

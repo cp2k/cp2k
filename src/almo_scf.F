@@ -64,15 +64,10 @@ MODULE almo_scf
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_mp_mynode
-  USE dbcsr_types,                     ONLY: dbcsr_func_artanh,&
-                                             dbcsr_func_dtanh,&
-                                             dbcsr_func_inverse,&
-                                             dbcsr_func_tanh,&
-                                             dbcsr_norm_maxabsnorm,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: &
+       dbcsr_distribution_mp, dbcsr_func_artanh, dbcsr_func_dtanh, &
+       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_mp_mynode, &
+       dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE input_constants,                 ONLY: &
        almo_constraint_distance, almo_deloc_full_scf, almo_deloc_none, &
        almo_deloc_qscf, almo_deloc_qx, almo_deloc_x, &

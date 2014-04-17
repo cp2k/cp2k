@@ -1,7 +1,7 @@
 MODULE cuda_device
 
   USE cp_error_handling,               ONLY: cp_error_type
-  USE dbcsr_message_passing,           ONLY: mp_environ
+  USE dbcsr_api,           ONLY: mp_environ
   USE ma_affinity,                     ONLY: ma_set_gpu_affinity
   USE machine_architecture_types,      ONLY: has_ma
   USE kinds,                           ONLY: default_string_length

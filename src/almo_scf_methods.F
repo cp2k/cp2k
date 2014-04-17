@@ -30,9 +30,9 @@ MODULE almo_scf_methods
        cp_dbcsr_scale, cp_dbcsr_transposed, cp_dbcsr_work_create
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_mp_numnodes
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE f77_blas
   USE input_constants,                 ONLY: almo_domain_layout_molecular,&

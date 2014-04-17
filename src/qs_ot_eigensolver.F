@@ -25,12 +25,12 @@ MODULE qs_ot_eigensolver
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_distribution_row_dist,&
                                              dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_mp_nprows,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE f77_blas

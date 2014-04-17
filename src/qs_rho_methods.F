@@ -25,7 +25,7 @@ MODULE qs_rho_methods
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set

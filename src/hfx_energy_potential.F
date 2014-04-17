@@ -27,7 +27,7 @@ MODULE hfx_energy_potential
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                              get_atomic_block_maps,&

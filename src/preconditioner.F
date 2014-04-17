@@ -58,21 +58,14 @@ MODULE preconditioner
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
-                                             block_chol_inv
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes
-  USE dbcsr_operations,                ONLY: dbcsr_scale_mat
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_norm_frobenius,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_default
+  USE dbcsr_api,                       ONLY: &
+       block_add_on_diag, block_chol_inv, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_error_type, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+       dbcsr_norm_frobenius, dbcsr_scale_mat, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_default
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &

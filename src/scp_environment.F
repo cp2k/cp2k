@@ -25,10 +25,10 @@ MODULE scp_environment
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_repl_full,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pnnl,&
                                              use_scp_basis_set

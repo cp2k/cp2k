@@ -55,10 +55,10 @@ MODULE qs_linres_op
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type

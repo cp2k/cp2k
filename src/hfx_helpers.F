@@ -16,7 +16,7 @@ MODULE hfx_helpers
                                              cp_dbcsr_get_num_blocks
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8

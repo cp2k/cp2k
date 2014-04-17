@@ -58,7 +58,7 @@ MODULE qs_ks_methods
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential

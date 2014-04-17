@@ -54,9 +54,9 @@ MODULE xas_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_list, state_loc_range, xas_1s_type, &
        xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &

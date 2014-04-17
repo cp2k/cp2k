@@ -53,9 +53,9 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE f77_blas
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&

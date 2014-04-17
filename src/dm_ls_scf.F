@@ -28,7 +28,7 @@ MODULE dm_ls_scf
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
   USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
   USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                              dm_ls_curvy_optimization
