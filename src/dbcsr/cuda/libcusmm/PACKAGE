@@ -1,5 +1,5 @@
 {
 "description": "Cuda accelerated Small Matrix Multiplications",
 "archive": "libcusmm",
-"requires": ("kernels", )
+"requires": ["kernels", ]
 }

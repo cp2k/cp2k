@@ -1,4 +1,4 @@
 {
 "description": "Basic routines which are conceptually independent from CP2K",
-"requires": ("../grid", "../cuda", )
+"requires": ["../grid", "../cuda", ]
 }

@@ -1,4 +1,4 @@
 {
 "description": "Cuda acceleration for CP2K",
-"requires": ()
+"requires": []
 }

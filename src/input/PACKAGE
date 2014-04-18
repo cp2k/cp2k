@@ -1,4 +1,4 @@
 {
 "description": "Dealing with the input, parsing files",
-"requires": ("../common", ),
+"requires": ["../common", ],
 }

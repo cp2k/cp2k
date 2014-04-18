@@ -1,4 +1,4 @@
 {
 "description": "Full Matrices",
-"requires": ("../common", )
+"requires": ["../common", ]
 }
