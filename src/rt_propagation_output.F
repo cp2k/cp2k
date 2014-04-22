@@ -81,8 +81,7 @@ CONTAINS
 
     INTEGER                                  :: ispin, n_electrons, &
                                                 output_unit
-    REAL(dp)                                 :: orthonormality, sparsity, &
-                                                tot_rho_r
+    REAL(dp)                                 :: orthonormality, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -150,7 +149,10 @@ CONTAINS
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
              !TODO: Output the idempotency
              DO ispin=1,SIZE(rho_new)/2
-                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Sparsity of P for spin ", ispin, ":",rtp%sparsity
+                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Occupation of P for spin ",&
+                      ispin, " real:",rtp%sparsity(2*ispin-1)
+                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Occupation of P for spin ",&
+                      ispin, " imag:",rtp%sparsity(2*ispin)
              ENDDO
           ENDIF
        ELSE

@@ -207,7 +207,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ihist, im, re
+    INTEGER                                  :: handle, i, ihist
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 rho_new, rho_old, s_mat
@@ -235,11 +235,8 @@ CONTAINS
           DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)
           END DO
-          DO i=1,SIZE(rho_new)/2
-             re=2*i-1
-             im=2*i
-             rtp%sparsity=(cp_dbcsr_get_occupation(rho_new(re)%matrix)+&
-                          cp_dbcsr_get_occupation(rho_new(im)%matrix))/2
+          DO i=1,SIZE(rho_new)
+             rtp%sparsity(i)=cp_dbcsr_get_occupation(rho_new(i)%matrix)
           END DO
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
