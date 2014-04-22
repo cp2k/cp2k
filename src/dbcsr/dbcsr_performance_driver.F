@@ -14,6 +14,7 @@
 ! *****************************************************************************
 PROGRAM dbcsr_performance_driver
 
+  USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -32,8 +33,7 @@ PROGRAM dbcsr_performance_driver
   USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
   USE dbcsr_performance_multiply,      ONLY: dbcsr_perf_multiply
-  USE dbcsr_test_methods,              ONLY: dbcsr_default_config,&
-                                             dbcsr_test_read_args
+  USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
 
   !$ USE OMP_LIB
@@ -94,7 +94,7 @@ PROGRAM dbcsr_performance_driver
   !
   ! initialize libdbcsr
   CALL dbcsr_init_lib (mp_comm, error)
-  CALL dbcsr_default_config (error=error)
+  CALL dbcsr_set_default_config (error=error)
 
   !
   ! select the operation

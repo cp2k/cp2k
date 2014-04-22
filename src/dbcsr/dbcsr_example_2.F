@@ -20,6 +20,7 @@ PROGRAM dbcsr_example_2
                                              array_nullify,&
                                              array_release
   USE dbcsr_block_access
+  USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_data_methods
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
@@ -31,7 +32,8 @@ PROGRAM dbcsr_example_2
                                              mp_world_finalize,&
                                              mp_world_init
   USE dbcsr_methods
-  USE dbcsr_operations
+  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
+                                             dbcsr_init_lib
   USE dbcsr_ptr_util
   USE dbcsr_transformations
   USE dbcsr_types
@@ -49,7 +51,7 @@ PROGRAM dbcsr_example_2
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
-       row, col, row_s, col_s
+       row, col, row_s, col_s, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
@@ -77,6 +79,15 @@ PROGRAM dbcsr_example_2
   DEALLOCATE(pgrid)
 
   !***************************************************************************************
+  !
+  ! initialize libdbcsr
+  CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_set_default_config (error=error)
+
+  !
+  ! set standard output parameters
+  io_unit = 0
+  IF (mynode.EQ.0) io_unit = 6
 
   !
   ! the matrix will contain nblkrows_total row blocks and nblkcols_total column blocks
@@ -185,7 +196,12 @@ PROGRAM dbcsr_example_2
   CALL array_release (col_blk_sizes)
 
   !***************************************************************************************
+  !
+  ! finalize libdbcsr
+  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
 
+  !
+  ! finalize mpi
   CALL mp_world_finalize()
 
   !***************************************************************************************

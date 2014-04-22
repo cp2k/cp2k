@@ -29,6 +29,8 @@ MODULE dbcsr_config
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_config'
 
 
+  PUBLIC :: dbcsr_set_default_config
+
   PUBLIC :: dbcsr_set_conf_subcomm, dbcsr_get_conf_subcomm
   PUBLIC :: dbcsr_set_conf_combtypes, dbcsr_get_conf_combtypes
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
@@ -508,5 +510,52 @@ CONTAINS
     external_timestop => timestop
                 
   END SUBROUTINE dbcsr_set_conf_external_timing
+
+! *****************************************************************************
+!> \brief Configure DBCSR driver with default values.
+!> \param[inout] error        dbcsr error
+!>
+!> Basically it reads the default values and reset them.
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_default_config(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_default_config', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comm_thread_load, &
+                                                error_handler, max_ele_block, &
+                                                mm_driver, mm_ss
+    INTEGER, DIMENSION(3)                    :: nstacks
+    LOGICAL                                  :: use_combtypes, &
+                                                use_comm_thread, use_mpi_mem, &
+                                                use_subcomms
+
+    CALL dbcsr_error_set (routineN, error_handler, error=error)
+
+    use_subcomms = dbcsr_get_conf_subcomm()
+    use_combtypes = dbcsr_get_conf_combtypes()
+    use_mpi_mem = dbcsr_get_conf_mpi_mem()
+    mm_ss = -1
+    mm_driver = dbcsr_get_conf_mm_driver()
+    max_ele_block = dbcsr_get_conf_max_ele_block()
+    nstacks(1:3) = -1
+    use_comm_thread = dbcsr_get_conf_use_comm_thread()
+    comm_thread_load = -1
+
+    CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
+    CALL dbcsr_set_conf_subcomm (use_subcomms, error=error)
+    CALL dbcsr_set_conf_combtypes (use_combtypes, error=error)
+    CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)
+    CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=error)
+    IF (mm_ss > 0) CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=error)
+    IF (nstacks(1) > 0) CALL dbcsr_set_conf_nstacks(nstacks, error=error)
+
+    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=error)
+    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=error)
+
+    CALL dbcsr_error_stop(error_handler, error=error)
+
+  END SUBROUTINE dbcsr_set_default_config
 
 END MODULE dbcsr_config

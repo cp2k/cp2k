@@ -27,15 +27,6 @@ MODULE dbcsr_test_methods
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
-  USE dbcsr_config,                    ONLY: &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
@@ -86,7 +77,7 @@ MODULE dbcsr_test_methods
   PUBLIC :: dbcsr_to_dense_local, dbcsr_impose_sparsity
   PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix, dbcsr_make_null_mp, &
        dbcsr_make_random_block_sizes, dbcsr_make_null_dist, dbcsr_test_read_args, &
-       atoi, atol, ator, dbcsr_default_config
+       atoi, atol, ator
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 
@@ -111,54 +102,6 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE dbcsr_test_read_args
-
-! *****************************************************************************
-!> \brief Configure DBCSR driver with default values. [test routine]
-!> \param[inout] error        dbcsr error
-!>
-!> This is only used for dbcsr_test_driver and dbcsr_performance_driver.
-!> Basically it reads the default values and reset them.
-! *****************************************************************************
-  SUBROUTINE dbcsr_default_config(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_default_config', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: comm_thread_load, &
-                                                error_handler, max_ele_block, &
-                                                mm_driver, mm_ss
-    INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
-                                                use_subcomms
-
-    CALL dbcsr_error_set (routineN, error_handler, error=error)
-
-    use_subcomms = dbcsr_get_conf_subcomm()
-    use_combtypes = dbcsr_get_conf_combtypes()
-    use_mpi_mem = dbcsr_get_conf_mpi_mem()
-    mm_ss = -1
-    mm_driver = dbcsr_get_conf_mm_driver()
-    max_ele_block = dbcsr_get_conf_max_ele_block()
-    nstacks(1:3) = -1
-    use_comm_thread = dbcsr_get_conf_use_comm_thread()
-    comm_thread_load = -1
-
-    CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
-    CALL dbcsr_set_conf_subcomm (use_subcomms, error=error)
-    CALL dbcsr_set_conf_combtypes (use_combtypes, error=error)
-    CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)
-    CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=error)
-    IF (mm_ss > 0) CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=error)
-    IF (nstacks(1) > 0) CALL dbcsr_set_conf_nstacks(nstacks, error=error)
-
-    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=error)
-    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=error)
-
-    CALL dbcsr_error_stop(error_handler, error=error)
-
-  END SUBROUTINE dbcsr_default_config
 
 ! *****************************************************************************
 !> \brief Impose sparsity on a dense matrix based on a dbcsr

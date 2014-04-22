@@ -19,6 +19,7 @@ PROGRAM dbcsr_example_1
                                              array_nullify,&
                                              array_release
   USE dbcsr_block_access
+  USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_data_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_io,                        ONLY: dbcsr_print
@@ -28,7 +29,8 @@ PROGRAM dbcsr_example_1
                                              mp_world_finalize,&
                                              mp_world_init
   USE dbcsr_methods
-  USE dbcsr_operations
+  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
+                                             dbcsr_init_lib
   USE dbcsr_ptr_util
   USE dbcsr_transformations
   USE dbcsr_types
@@ -45,7 +47,7 @@ PROGRAM dbcsr_example_1
   TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-       prow, pcol, nblkrows_total, nblkcols_total
+       prow, pcol, nblkrows_total, nblkcols_total, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
@@ -88,6 +90,15 @@ PROGRAM dbcsr_example_1
   DEALLOCATE(pgrid)
 
   !***************************************************************************************
+  !
+  ! initialize libdbcsr
+  CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_set_default_config (error=error)
+
+  !
+  ! set standard output parameters
+  io_unit = 0
+  IF (mynode.EQ.0) io_unit = 6
 
   !
   ! the matrix will contain nblkrows_total row blocks and nblkcols_total column blocks
@@ -167,6 +178,9 @@ PROGRAM dbcsr_example_1
 
 
   !***************************************************************************************
+  !
+  ! finalize libdbcsr
+  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
 
   !
   ! finalize mpi
