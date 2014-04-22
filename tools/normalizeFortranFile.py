@@ -900,7 +900,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
                 print 'noMatch',repr(line)
                 nonStPrep=1
         if nonStPrep:
-            logFile.write("*** use statements contains preprocessor directives, not cleaning ***")
+            logFile.write("*** use statements contains preprocessor directives, not cleaning ***\n")
             outFile.writelines(modulesDict['origLines'])
         else:
             implicitUses=None
