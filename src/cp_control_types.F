@@ -54,6 +54,8 @@ MODULE cp_control_types
      LOGICAL                              :: apply_delta_pulse
      LOGICAL                              :: periodic
      LOGICAL                              :: linear_scaling
+     LOGICAL                              :: calc_idempotency
+     LOGICAL                              :: McWeeny
      INTEGER, DIMENSION(3)                :: delta_pulse_direction
      REAL(KIND=dp)                        :: delta_pulse_scale
   END TYPE rtp_control_type

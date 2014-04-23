@@ -21,15 +21,19 @@ MODULE rt_propagation_methods
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
-       cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_set
+       cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, &
+       cp_dbcsr_get_block, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
+       cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -63,6 +67,7 @@ MODULE rt_propagation_methods
                                              propagate_bch,&
                                              propagate_exp,&
                                              propagate_exp_density
+  USE rt_matrix_exp_dbcsr,             ONLY: cp_complex_dbcsr_gemm_3
   USE rt_propagation_output,           ONLY: rt_convergence,&
                                              rt_convergence_density
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -206,11 +211,14 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, ihist
+    INTEGER                                  :: handle, i, ihist, im, ispin, &
+                                                re
+    REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new, exp_H_old, &
-                                                rho_new, rho_old, s_mat
+      POINTER                                :: exp_H_new, exp_H_old, PS, &
+                                                PSP, rho_new, rho_old, s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -228,15 +236,61 @@ CONTAINS
         END IF
         rtp%converged=(rtp%delta_iter.LT.rtp_control%eps_ener)
     END IF
-
     IF(rtp%converged)THEN
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
           DO i=1,SIZE(rho_new)
-             CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)
-          END DO
-          DO i=1,SIZE(rho_new)
              rtp%sparsity(i)=cp_dbcsr_get_occupation(rho_new(i)%matrix)
+          END DO
+          IF(rtp_control%mcweeny.OR.rtp_control%calc_idempotency) THEN
+             IF(SIZE(rho_new)==2) THEN
+                CALL cp_dbcsr_scale(rho_new(1)%matrix,one/2,error=error)
+                CALL cp_dbcsr_scale(rho_new(2)%matrix,one/2,error=error)
+             ENDIF
+             NULLIFY(PS,PSP)
+             CALL cp_dbcsr_allocate_matrix_set(PS,SIZE(rho_new),error=error)
+             CALL cp_dbcsr_allocate_matrix_set(PSP,SIZE(rho_new),error=error)
+             DO ispin=1,SIZE(rho_new)/2
+                re=2*ispin-1
+                im=2*ispin
+                CALL cp_dbcsr_init_p(PS(re)%matrix,error=error)
+                CALL cp_dbcsr_init_p(PS(im)%matrix,error=error)
+                CALL cp_dbcsr_init_p(PSP(re)%matrix,error=error)
+                CALL cp_dbcsr_init_p(PSP(im)%matrix,error=error)
+                CALL cp_dbcsr_create(PS(re)%matrix,template=rho_new(re)%matrix,error=error)
+                CALL cp_dbcsr_create(PS(im)%matrix,template=rho_new(im)%matrix,error=error)
+                CALL cp_dbcsr_create(PSP(re)%matrix,template=rho_new(re)%matrix,error=error)
+                CALL cp_dbcsr_create(PSP(im)%matrix,template=rho_new(im)%matrix,error=error)
+                CALL cp_dbcsr_multiply("N","N",one,rho_new(re)%matrix,s_mat(1)%matrix,zero,&
+                     PS(re)%matrix,filter_eps=rtp%filter_eps,error=error)
+                CALL cp_dbcsr_multiply("N","N",one,rho_new(im)%matrix,s_mat(1)%matrix,zero,&
+                     PS(im)%matrix,filter_eps=rtp%filter_eps,error=error)
+                CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
+                     rho_new(re)%matrix,rho_new(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
+                     filter_eps=rtp%filter_eps,error=error)
+             END DO
+             IF(rtp_control%mcweeny)THEN
+                !performs a single mcweeny purification step
+                CALL cp_dbcsr_copy(rho_new(re)%matrix,PSP(re)%matrix,error=error)
+                CALL cp_dbcsr_copy(rho_new(im)%matrix,PSP(im)%matrix,error=error)
+                CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
+                     PSP(re)%matrix,PSP(im)%matrix,3.0_dp,rho_new(re)%matrix,rho_new(im)%matrix,&
+                     filter_eps=rtp%filter_eps,error=error)
+             END IF
+             !PSP works here as a work matrix to calculate the idempotency
+             CALL cp_dbcsr_add(PSP(re)%matrix,rho_new(re)%matrix,one,-one,error=error)
+             CALL cp_dbcsr_add(PSP(im)%matrix,rho_new(im)%matrix,one,-one,error=error)
+             CALL complex_frobenius_norm(frob_norm,PSP(re)%matrix,PSP(im)%matrix,error=error)
+             CALL cp_dbcsr_deallocate_matrix_set(PS,error)
+             CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
+             IF(SIZE(rho_new)==2) THEN
+                CALL cp_dbcsr_scale(rho_new(1)%matrix,one*2,error=error)
+                CALL cp_dbcsr_scale(rho_new(2)%matrix,one*2,error=error)
+             ENDIF
+             CALL calc_update_rho_sparse(qs_env,error)
+          ENDIF
+          DO i=1,SIZE(rho_new)
+             CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)
           END DO
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
@@ -258,7 +312,6 @@ CONTAINS
           CALL  put_data_to_history(rtp,rho=rho_new,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
     END IF
-
     CALL timestop(handle)
 
   END SUBROUTINE step_finalize
@@ -433,6 +486,72 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE s_matrices_create
+
+! *****************************************************************************
+!> \brief Calculates the frobenius norm of a omplex matrix represented by two real matrices
+!> \author Samuel Andermatt (04.14)
+! *****************************************************************************
+
+  SUBROUTINE complex_frobenius_norm(frob_norm,mat_re,mat_im,error)
+
+    REAL(KIND=dp)                            :: frob_norm
+    TYPE(cp_dbcsr_type), POINTER             :: mat_re, mat_im
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'complex_frobenius_norm', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: col_atom, handle, row_atom, &
+                                                unit_nr
+    LOGICAL                                  :: found
+    REAL(dp), DIMENSION(:), POINTER          :: block_values, block_values2
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_type), POINTER             :: tmp
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger   => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    NULLIFY(tmp)
+    ALLOCATE(tmp)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=mat_re,error=error)
+    !make sure the tmp has the same sparsity pattern as the real and the complex part combined
+    CALL cp_dbcsr_add(tmp,mat_re,zero,one,error=error)
+    CALL cp_dbcsr_add(tmp,mat_im,zero,one,error=error)
+    CALL cp_dbcsr_set(tmp,zero,error=error)
+    !calculate the hadamard product
+    CALL cp_dbcsr_iterator_start(iter, tmp)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+       ALLOCATE(block_values2(SIZE(block_values)))
+       CALL cp_dbcsr_get_block(mat_re, row_atom, col_atom, block_values2, found=found)
+       IF(found) THEN
+          block_values=block_values2*block_values2
+       ENDIF
+       CALL cp_dbcsr_get_block(mat_im, row_atom, col_atom, block_values2, found=found)
+       IF(found) THEN
+          block_values=block_values+block_values2*block_values2
+       ENDIF
+       block_values=SQRT(block_values)
+       DEALLOCATE(block_values2)
+    END DO
+    CALL cp_dbcsr_iterator_stop (iter)
+    frob_norm=cp_dbcsr_frobenius_norm(tmp)
+    IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation of idempotency: ",frob_norm
+
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE complex_frobenius_norm
 
 ! *****************************************************************************
 !> \brief calculates the density from the complex MOs and passes the density to
