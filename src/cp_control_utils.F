@@ -21,7 +21,6 @@ MODULE cp_control_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants
-  USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                              create_qs_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -30,9 +29,8 @@ MODULE cp_control_utils
                                              keyword_type
   USE input_section_types,             ONLY: &
        section_get_ival, section_get_keyword, section_release, section_type, &
-       section_vals_get, section_vals_get_subs_vals, &
-       section_vals_get_subs_vals2, section_vals_type, section_vals_val_get, &
-       section_vals_val_set
+       section_vals_get, section_vals_get_subs_vals, section_vals_type, &
+       section_vals_val_get, section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -40,8 +38,7 @@ MODULE cp_control_utils
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: read_xas_control
-  USE xc_derivatives,                  ONLY: xc_functional_get_info,&
-                                             xc_functionals_get_needs
+  USE xc_derivatives,                  ONLY: xc_functionals_get_needs
   USE xc_input_constants
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_write_output,                 ONLY: xc_write
@@ -960,13 +957,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_dft_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2*default_string_length)   :: reference, shortform
     CHARACTER(LEN=20)                        :: tmpStr
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: func_name
-    INTEGER                                  :: handle, ifun, ifunc_name, il, &
-                                                myfun, output_unit, vmajor, &
-                                                vminor
+    INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -975,8 +967,7 @@ CPSourceFileRef,&
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
-                                                xc_section
+    TYPE(section_vals_type), POINTER         :: xc_section
 
     IF (dft_control%qs_control%semi_empirical) RETURN
     IF (dft_control%qs_control%dftb) RETURN
