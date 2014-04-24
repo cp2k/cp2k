@@ -1222,7 +1222,7 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_scptb .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       CALL get_qs_env(qs_env,dispersion_env=dispersion_env,error=error)
-      CALL qs_write_dispersion(qs_env,dispersion_env,error)
+      CALL qs_write_dispersion(qs_env,dispersion_env,error=error)
     END IF
 
     ! Print the Quickstep control parameters

@@ -140,9 +140,10 @@ MODULE qs_dispersion_utils
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_write_dispersion(qs_env,dispersion_env,error)
+  SUBROUTINE qs_write_dispersion(qs_env,dispersion_env,ounit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    INTEGER, OPTIONAL, INTENT(in)            :: ounit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_write_dispersion', &
@@ -160,12 +161,16 @@ MODULE qs_dispersion_utils
 
     failure=.FALSE.
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    IF(PRESENT(ounit)) THEN
+       output_unit = ounit
+    ELSE
+       NULLIFY(logger)
+       logger => cp_error_get_logger(error)
 
-    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    output_unit = cp_print_key_unit_nr(logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+       dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+       output_unit = cp_print_key_unit_nr(logger,dft_section,&
+            "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    END IF
 
     IF (output_unit>0) THEN
        ! vdW type specific output
@@ -235,8 +240,10 @@ MODULE qs_dispersion_utils
           END IF
        END IF
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    IF(.NOT.PRESENT(ounit)) THEN
+       CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
+            "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    END IF
 
   END SUBROUTINE qs_write_dispersion
 
