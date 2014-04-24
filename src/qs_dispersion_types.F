@@ -12,6 +12,8 @@ MODULE qs_dispersion_types
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
+                                             neighbor_list_set_p_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -46,6 +48,8 @@ MODULE qs_dispersion_types
     LOGICAL                                :: doabc    !neglect C9 terms
     LOGICAL                                :: c9cnst   !use constant c9 terms
     LOGICAL                                :: lrc      !calculate a long range correction
+    TYPE(neighbor_list_set_p_type),&
+      DIMENSION(:), POINTER                :: sab_vdw, sab_cn ! neighborlists for pair interactions
     REAL(KIND=dp),DIMENSION(:,:,:,:,:), POINTER &
                                            :: c6ab
     INTEGER,DIMENSION(:),POINTER           :: maxci
@@ -116,7 +120,7 @@ MODULE qs_dispersion_types
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, iab, stat
 
     IF (ASSOCIATED(dispersion_env)) THEN
       IF (ASSOCIATED(dispersion_env%maxci)) THEN
@@ -161,6 +165,21 @@ MODULE qs_dispersion_types
       END IF
       IF (ASSOCIATED(dispersion_env%d2y_dx2)) THEN
          DEALLOCATE(dispersion_env%d2y_dx2, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      ! neighborlists
+      IF (ASSOCIATED(dispersion_env%sab_vdw)) THEN
+         DO iab=1,SIZE(dispersion_env%sab_vdw)
+           CALL deallocate_neighbor_list_set(dispersion_env%sab_vdw(iab)%neighbor_list_set)
+         END DO
+         DEALLOCATE(dispersion_env%sab_vdw,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(dispersion_env%sab_cn)) THEN
+         DO iab=1,SIZE(dispersion_env%sab_cn)
+           CALL deallocate_neighbor_list_set(dispersion_env%sab_cn(iab)%neighbor_list_set)
+         END DO
+         DEALLOCATE(dispersion_env%sab_cn,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
 

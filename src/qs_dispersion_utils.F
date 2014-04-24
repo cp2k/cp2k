@@ -70,6 +70,7 @@ MODULE qs_dispersion_utils
             dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
     NULLIFY(dispersion_env%q_mesh,dispersion_env%kernel,dispersion_env%d2phi_dk2,&
             dispersion_env%d2y_dx2)
+    NULLIFY(dispersion_env%sab_vdw,dispersion_env%sab_cn)
     NULLIFY(dispersion_env%dftd_section)
     NULLIFY(vdw_section,xc_fun_section)
     vdw_section =>  section_vals_get_subs_vals(xc_section,"vdw_potential",error=error)

@@ -613,7 +613,7 @@ CONTAINS
 
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
 
-       NULLIFY (atomic_kind_set,sab_cn, sab_vdw)
+       NULLIFY (atomic_kind_set,sab_cn,sab_vdw)
 
        CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
             cell=cell, virial=virial, para_env=para_env, atprop=atprop, error=error)
@@ -730,7 +730,7 @@ CONTAINS
           END IF
           ! Calculate coordination numbers
           NULLIFY (particle_set)
-          CALL get_qs_env(qs_env=qs_env,sab_cn=sab_cn,particle_set=particle_set,error=error)
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
           natom = SIZE (particle_set)
           ALLOCATE (cnumbers(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -744,7 +744,7 @@ CONTAINS
               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             END DO
           END IF
-          CALL get_qs_env(qs_env=qs_env,sab_cn=sab_cn,error=error)
+          sab_cn => dispersion_env%sab_cn
           CALL neighbor_list_iterator_create(nl_iterator,sab_cn)
           DO WHILE (neighbor_list_iterate(nl_iterator)==0)
              CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
@@ -868,7 +868,7 @@ CONTAINS
 
        evdw = 0._dp
 
-       CALL get_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+       sab_vdw => dispersion_env%sab_vdw
 
        nkind = SIZE(atomic_kind_set)
 

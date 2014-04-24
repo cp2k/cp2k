@@ -431,7 +431,6 @@ CONTAINS
                     sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
                     sab_vdw=sab_vdw,&
-                    sab_cn=sab_cn,&
                     sap_ppnl=sap_ppnl,&
                     sap_oce=sap_oce,&
                     sab_se=sab_se,&
@@ -748,13 +747,15 @@ CONTAINS
 
        ! Build the neighbor lists for the vdW pair potential
        CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
+       sab_vdw => dispersion_env%sab_vdw
+       sab_cn => dispersion_env%sab_cn
        IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
           c_radius(:) = dispersion_env%rc_disp
           default_present=.TRUE. !include all atoms in vdW (even without basis)
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_vdw,particle_set,atom2d,cell,pair_radius,&
                subcells=subcells,operator_type="PP",name="sab_vdw",error=error)
-          CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+          dispersion_env%sab_vdw => sab_vdw
 
           IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
              ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
@@ -766,7 +767,7 @@ CONTAINS
              CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
              CALL build_neighbor_lists(sab_cn,particle_set,atom2d,cell,pair_radius,&
                   subcells=subcells,operator_type="PP",name="sab_cn",error=error)
-             CALL set_qs_env(qs_env=qs_env,sab_cn=sab_cn,error=error)
+             dispersion_env%sab_cn => sab_cn
           END IF
        END IF
 

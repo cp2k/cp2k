@@ -246,7 +246,6 @@ MODULE qs_environment_types
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
 !> \param sab_vdw: neighbor lists for the calculation of dispersion interactions
-!> \param sab_cn: neighbor lists for the calculation of coordination numbers
 !> \param sab_scp: neighbor lists for the calculation of the dispersion interactions
 !>        when self-consistent polarization (SCP) is included
 !> \param sab_almo: neighbor lists to create ALMO delocalization template
@@ -357,7 +356,7 @@ MODULE qs_environment_types
     INTEGER                                               :: neighbor_list_id
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ae,&
                                                              sac_ppl,sap_ppnl,&
-                                                             sap_oce,sab_se,sab_vdw,sab_cn,&
+                                                             sap_oce,sab_se,sab_vdw,&
                                                              sab_tbe,sab_core,sab_all,sab_scp,&
                                                              sab_aux_fit, sab_aux_fit_vs_orb,&
                                                              sab_aux_fit_asymm, sab_lrc,&
@@ -475,7 +474,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
-       sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_cn,sab_scp,sap_oce,sab_lrc,&
+       sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_scp,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_almo,particle_set,energy,force,harris_env,&
        matrix_h,matrix_ks,matrix_vxc,run_rtp,rtp,&
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_w_mp2,matrix_p_mp2,&
@@ -506,7 +505,7 @@ CONTAINS
                                                 sab_aux_fit_vs_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-      sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_cn, sab_scp, sap_oce, sab_lrc, &
+      sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, &
       sab_se, sab_tbe, sab_core, sab_almo
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
@@ -682,7 +681,6 @@ CONTAINS
     IF (PRESENT(sab_all)) sab_all => qs_env%sab_all
     IF (PRESENT(sab_scp)) sab_scp => qs_env%sab_scp
     IF (PRESENT(sab_vdw)) sab_vdw => qs_env%sab_vdw
-    IF (PRESENT(sab_cn)) sab_cn => qs_env%sab_cn
     IF (PRESENT(sac_ae)) sac_ae => qs_env%sac_ae
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sap_ppnl)) sap_ppnl => qs_env%sap_ppnl
@@ -854,7 +852,6 @@ CONTAINS
     NULLIFY (qs_env%sab_aux_fit_vs_orb)
     NULLIFY (qs_env%sab_scp)
     NULLIFY (qs_env%sab_vdw)
-    NULLIFY (qs_env%sab_cn)
     NULLIFY (qs_env%sab_all)
     NULLIFY (qs_env%sac_ae)
     NULLIFY (qs_env%sac_ppl)
@@ -997,7 +994,7 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,sab_almo,energy,force,harris_env,&
+       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,energy,force,harris_env,&
        matrix_h,matrix_ks,matrix_vxc,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_w_mp2,matrix_p_mp2,&
        gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,&
@@ -1024,7 +1021,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
-      sab_scp, sab_vdw, sab_cn, sab_almo
+      sab_scp, sab_vdw, sab_almo
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -1190,7 +1187,6 @@ CONTAINS
     IF (PRESENT(sab_aux_fit_vs_orb)) qs_env%sab_aux_fit_vs_orb => sab_aux_fit_vs_orb
     IF (PRESENT(sab_scp)) qs_env%sab_scp => sab_scp
     IF (PRESENT(sab_vdw)) qs_env%sab_vdw => sab_vdw
-    IF (PRESENT(sab_cn)) qs_env%sab_cn => sab_cn
     IF (PRESENT(sab_all)) qs_env%sab_all => sab_all
     IF (PRESENT(sac_ae)) qs_env%sac_ae => sac_ae
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
@@ -1577,14 +1573,6 @@ CONTAINS
                      qs_env%sab_vdw(i)%neighbor_list_set)
              END DO
              DEALLOCATE(qs_env%sab_vdw,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (ASSOCIATED(qs_env%sab_cn)) THEN
-             DO i=1,SIZE(qs_env%sab_cn)
-                CALL deallocate_neighbor_list_set(&
-                     qs_env%sab_cn(i)%neighbor_list_set)
-             END DO
-             DEALLOCATE(qs_env%sab_cn,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(qs_env%sab_orb)) THEN

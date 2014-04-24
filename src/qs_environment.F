@@ -958,6 +958,7 @@ CONTAINS
               dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
       NULLIFY(dispersion_env%q_mesh,dispersion_env%kernel,dispersion_env%d2phi_dk2,&
               dispersion_env%d2y_dx2,dispersion_env%dftd_section)
+      NULLIFY(dispersion_env%sab_vdw,dispersion_env%sab_cn)
       IF (scptb_control%dispersion) THEN
          dispersion_env%type = xc_vdw_fun_pairpot
          dispersion_env%pp_type = vdw_pairpot_dftd3
