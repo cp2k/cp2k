@@ -1188,6 +1188,8 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "The requested atomic potential <"//&
                             TRIM(potential_name)//&
+                            "> for element <"//&
+                            TRIM(symbol)//&
                             "> was not found in the potential file <"//&
                             TRIM(potential_file_name)//">")
        END IF
@@ -1357,6 +1359,8 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "The requested local atomic potential <"//&
                             TRIM(potential_name)//&
+                            "> for element <"//&
+                            TRIM(symbol)//&
                             "> was not found in the potential file <"//&
                             TRIM(potential_file_name)//">")
        END IF
@@ -1936,6 +1940,8 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "The requested atomic potential <"//&
                             TRIM(potential_name)//&
+                            "> for element <"//&
+                            TRIM(symbol)//&
                             "> was not found in the potential file <"//&
                             TRIM(potential_file_name)//">",para_env)
        END IF
