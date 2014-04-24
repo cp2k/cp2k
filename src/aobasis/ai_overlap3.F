@@ -52,11 +52,15 @@ MODULE ai_overlap3
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap3'
 
 ! *** Public subroutines ***
 
@@ -955,10 +959,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE overlap3(la_max,npgfa,zeta,rpgfa,la_min,&
-                      lb_max,npgfb,zetb,rpgfb,lb_min,&
-                      lc_max,npgfc,zetc,rpgfc,lc_min,&
-                      rab,dab,rac,dac,rbc,dbc,sabc)
+  SUBROUTINE overlap3(la_max_set,npgfa,zeta,rpgfa,la_min_set,&
+                      lb_max_set,npgfb,zetb,rpgfb,lb_min_set,&
+                      lc_max_set,npgfc,zetc,rpgfc,lc_min_set,&
+                      rab,dab,rac,dac,rbc,dbc,sabc,sdabc,sabdc,error)
 
 !   Purpose: Calculation of three-center overlap integrals <a|b|c> over
 !            Cartesian Gaussian functions. 
@@ -967,13 +971,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                      :: la_max, npgfa
+    INTEGER, INTENT(IN)                      :: la_max_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
+    INTEGER, INTENT(IN)                      :: la_min_set, lb_max_set, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min, lc_max, npgfc
+    INTEGER, INTENT(IN)                      :: lb_min_set, lc_max_set, npgfc
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc, rpgfc
-    INTEGER, INTENT(IN)                      :: lc_min
+    INTEGER, INTENT(IN)                      :: lc_min_set
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: dab
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
@@ -982,21 +986,64 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: dbc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: sabc
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: sdabc, sabdc
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, ipgf, ix, j, jpgf, k, &
-                                                kpgf, la, lam, lamm, lb, lbm, &
-                                                lbmm, lc, lcm, lcmm, na, nb, &
-                                                nc
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ax, ay, az, bx, by, bz, coa, coamx, coamy, coamz, coapx, &
+      coapy, coapz, cob, coc, cocmx, cocmy, cocmz, cocpx, cocpy, cocpz, cx, &
+      cy, cz, devx, devy, devz, handle, i, ipgf, ix, j, jpgf, k, kpgf, l, la, &
+      la_max, la_min, lai, lam, lamm, lb, lb_max, lb_min, lbi, lbm, lbmm, lc, &
+      lc_max, lc_min, lci, lcm, lcmm, na, nb, nc, nda, ndc, stat
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, aax, aay, f0, f1, f2, &
-                                                rcp2, zetg, zetp
+                                                fax, fay, faz, fcx, fcy, fcz, &
+                                                fexpa, fexpc, rcp2, zetg, zetp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: s
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: sda, sdc
     REAL(KIND=dp), DIMENSION(3)              :: rag, rbg, rcg, rcp
-    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lb_max), ncoset(lc_max))        :: s
 
 !   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    lai = 0
+    lbi = 0
+    lci = 0
+    
+    IF(PRESENT(sdabc)) lai = 1
+    IF(PRESENT(sabdc)) lci = 1
+ 
+    la_max = la_max_set + lai
+    la_min = MAX(0,la_min_set-lai)
+    lb_max = lb_max_set
+    lb_min = lb_min_set
+    lc_max = lc_max_set + lci
+    lc_min = MAX(0,lc_min_set-lci)
+
+    ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    s=0._dp
+    IF(PRESENT(sdabc)) THEN
+     ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     sda=0._dp
+    ENDIF
+    IF(PRESENT(sabdc)) THEN
+     ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     sdc=0._dp
+    ENDIF
+
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
-    na = 0
+    na  = 0
+    nda = 0
     DO ipgf=1,npgfa
 
       nb = 0
@@ -1004,17 +1051,19 @@ CONTAINS
 
         ! *** Screening ***
         IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-          nb = nb + ncoset(lb_max)
+          nb = nb + ncoset(lb_max_set)
           CYCLE
         END IF
 
         nc = 0
+        ndc = 0
         DO kpgf=1,npgfc
 
           ! *** Screening ***
           IF ((rpgfb(jpgf) + rpgfc(kpgf) < dbc).OR.&
               (rpgfa(ipgf) + rpgfc(kpgf) < dac)) THEN
-            nc = nc + ncoset(lc_max)
+            nc  = nc + ncoset(lc_max_set)
+            ndc = ndc + ncoset(lc_max_set)
             CYCLE
           END IF
 
@@ -1076,22 +1125,138 @@ CONTAINS
             END DO
           END IF
 
-          DO k=ncoset(lc_min-1)+1,ncoset(lc_max)
-            DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-              DO i=ncoset(la_min-1)+1,ncoset(la_max)
+          DO k=ncoset(lc_min_set-1)+1,ncoset(lc_max_set)
+            DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+              DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
                 sabc(na+i,nb+j,nc+k) = s(i,j,k)
               END DO
             END DO
           END DO
+ 
+!         *** Calculate the requested derivatives with respect to  ***
+!         *** the nuclear coordinates of the atomic center a and c ***
 
-          nc = nc + ncoset(lc_max)
+          IF(PRESENT(sdabc).OR.PRESENT(sabdc)) THEN
+           fexpa = 2.0_dp*zeta(ipgf)
+           fexpc = 2.0_dp*zetc(kpgf)
+!          derviative with respec to x,y,z
+           devx = 1
+           devy = 2
+           devz = 3
+
+!          *** [da/dAi|b|c] = 2*zeta*[a+1i|b|c] - Ni(a)[a-1i|b|c] ***
+!          *** [a|b|dc/dCi] = 2*zetc*[a|b|c+1i] - Ni(c)[a|b|c-1i] ***
+        
+           DO la=la_min_set,la_max_set
+             DO ax=0,la
+               fax = REAL(ax,dp)
+               DO ay=0,la-ax
+                 fay = REAL(ay,dp)
+                 az = la - ax - ay
+                 faz = REAL(az,dp)
+                 coa = coset(ax,ay,az)
+                 coamx = coset(ax-1,ay,az)
+                 coamy = coset(ax,ay-1,az)
+                 coamz = coset(ax,ay,az-1)
+                 coapx = coset(ax+1,ay,az)
+                 coapy = coset(ax,ay+1,az)
+                 coapz = coset(ax,ay,az+1)
+                 DO lb=lb_min,lb_max_set
+                   DO bx=0,lb
+                     DO by=0,lb-bx
+                       bz = lb - bx - by
+                       cob = coset(bx,by,bz)
+                       DO lc=lc_min_set,lc_max_set
+                         DO cx=0,lc
+                           fcx = REAL(cx,dp)
+                           DO cy=0,lc-cx
+                            fcy = REAL(cy,dp)
+                            cz = lc - cx - cy
+                            fcz = REAL(cz,dp)
+                            coc = coset(cx,cy,cz)
+                            cocmx = coset(cx-1,cy,cz)
+                            cocmy = coset(cx,cy-1,cz)
+                            cocmz = coset(cx,cy,cz-1)
+                            cocpx = coset(cx+1,cy,cz)
+                            cocpy = coset(cx,cy+1,cz)
+                            cocpz = coset(cx,cy,cz+1)
+                            IF(PRESENT(sdabc)) THEN
+                              sda(coa,cob,coc,devx) = fexpa*s(coapx,cob,coc) -&
+                                                      fax*s(coamx,cob,coc)
+                              sda(coa,cob,coc,devy) = fexpa*s(coapy,cob,coc) -&
+                                                      fay*s(coamy,cob,coc)
+                              sda(coa,cob,coc,devz) = fexpa*s(coapz,cob,coc) -&
+                                                      faz*s(coamz,cob,coc)
+                            ENDIF
+                            IF(PRESENT(sabdc)) THEN
+                              sdc(coa,cob,coc,devx) = fexpc*s(coa,cob,cocpx) -&
+                                                      fcx*s(coa,cob,cocmx)
+                              sdc(coa,cob,coc,devy) = fexpc*s(coa,cob,cocpy) -&
+                                                      fcy*s(coa,cob,cocmy)
+                              sdc(coa,cob,coc,devz) = fexpc*s(coa,cob,cocpz) -&
+                                                      fcz*s(coa,cob,cocmz)
+                            ENDIF
+                           ENDDO
+                         ENDDO
+                       ENDDO
+                     END DO
+                   END DO
+                 END DO
+               END DO
+             END DO
+           END DO
+          ENDIF
+
+!         *** Store the first derivatives of the primitive overlap integrals ***
+
+          IF (PRESENT(sdabc)) THEN
+            DO k=1,3
+             DO l=1,ncoset(lc_max_set)
+              DO j=1,ncoset(lb_max_set)
+                DO i=1,ncoset(la_max_set)
+                  sdabc(nda+i,nb+j,nc+l,k) = sda(i,j,l,k)
+                END DO
+              END DO
+             ENDDO
+            END DO
+          END IF
+
+          IF (PRESENT(sabdc)) THEN
+            DO k=1,3
+             DO l=1,ncoset(lc_max_set)
+              DO j=1,ncoset(lb_max_set)
+                DO i=1,ncoset(la_max_set)
+                  sabdc(na+i,nb+j,ndc+l,k) = sdc(i,j,l,k)
+                END DO
+              END DO
+             ENDDO
+            END DO
+          END IF
+
+
+          nc = nc + ncoset(lc_max_set)
+          ndc = ndc + ncoset(lc_max_set)
         END DO
 
         nb = nb + ncoset(lb_max)
       END DO
 
-      na = na + ncoset(la_max)
+      na = na + ncoset(la_max_set)
+      nda = nda + ncoset(la_max_set)
     END DO
+
+    DEALLOCATE(s,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF(PRESENT(sdabc)) THEN
+     DEALLOCATE(sda,STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF(PRESENT(sabdc)) THEN
+     DEALLOCATE(sdc,STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    CALL timestop(handle)
 
   END SUBROUTINE overlap3
 

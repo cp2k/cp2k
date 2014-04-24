@@ -34,6 +34,7 @@ MODULE qs_force_types
                                          overlap_admm,&
                                          rho_core,&
                                          rho_elec,&
+                                         rho_lri_elec,&
                                          vhxc_atom,&
                                          g0s_Vh_elec,&
                                          repulsive,&
@@ -137,6 +138,11 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,&
                          "qs_force(ikind)%rho_elec",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%rho_lri_elec(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "qs_force(ikind)%rho_lri_elec",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%vhxc_atom(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -309,6 +315,12 @@ CONTAINS
           CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%rho_elec")
         END IF
       END IF
+      IF (ASSOCIATED(qs_force(ikind)%rho_lri_elec)) THEN
+        DEALLOCATE (qs_force(ikind)%rho_lri_elec,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%rho_lri_elec")
+        END IF
+      END IF
 
       IF (ASSOCIATED(qs_force(ikind)%vhxc_atom)) THEN
         DEALLOCATE (qs_force(ikind)%vhxc_atom,STAT=istat)
@@ -447,6 +459,7 @@ CONTAINS
       qs_force(ikind)%overlap_admm(:,:) = 0.0_dp
       qs_force(ikind)%rho_core(:,:) = 0.0_dp
       qs_force(ikind)%rho_elec(:,:) = 0.0_dp
+      qs_force(ikind)%rho_lri_elec(:,:) = 0.0_dp
       qs_force(ikind)%vhxc_atom(:,:) = 0.0_dp
       qs_force(ikind)%g0s_Vh_elec(:,:) = 0.0_dp
       qs_force(ikind)%repulsive(:,:) = 0.0_dp
@@ -520,6 +533,7 @@ CONTAINS
         qs_force_output(ikind)%overlap_admm(:,:) = qs_force_input(ikind)%overlap_admm(:,:)
         qs_force_output(ikind)%rho_core(:,:) = qs_force_input(ikind)%rho_core(:,:)
         qs_force_output(ikind)%rho_elec(:,:) = qs_force_input(ikind)%rho_elec(:,:)
+        qs_force_output(ikind)%rho_lri_elec(:,:) = qs_force_input(ikind)%rho_lri_elec(:,:)
         qs_force_output(ikind)%vhxc_atom(:,:) = qs_force_input(ikind)%vhxc_atom(:,:)
         qs_force_output(ikind)%g0s_Vh_elec(:,:) = &
            qs_force_input(ikind)%g0s_Vh_elec(:,:)

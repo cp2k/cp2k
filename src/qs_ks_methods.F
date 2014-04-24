@@ -79,6 +79,7 @@ MODULE qs_ks_methods
   USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type,&
                                              lri_kind_type
+  USE lri_forces,                      ONLY: calculate_lri_forces
   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
   USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -862,7 +863,7 @@ CONTAINS
 !> \author Dorothea Golze
 ! *****************************************************************************
   SUBROUTINE lri_build_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,&
-             just_energy,print_active,error)
+             calculate_forces,just_energy,print_active,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -870,7 +871,7 @@ CONTAINS
       POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: just_energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     LOGICAL, INTENT(in), OPTIONAL            :: print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -884,7 +885,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, mo_derivs
+      POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -906,8 +907,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env,&
             pw_env, xc_section)
-    NULLIFY(auxbas_pw_pool, matrix_h, poisson_env, pw_pools, v_rspace_new, &
-         v_tau_rspace)
+    NULLIFY(auxbas_pw_pool, matrix_h, matrix_p, poisson_env, pw_pools, v_rspace_new, &
+            v_tau_rspace)
     NULLIFY(atomic_kind_set, lri_env, lri_density, lri_v_int)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -999,10 +1000,11 @@ CONTAINS
  
       !do integration and build matrix
       IF (.NOT. just_energy) THEN
+
        DO ispin=1,nspins
           lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
           CALL integrate_v_rspace_one_center(v_rspace_new(ispin),qs_env,&
-               lri_v_int,error)
+               lri_v_int,calculate_forces,error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                error=error)
           CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin)%matrix,&
@@ -1010,6 +1012,15 @@ CONTAINS
        ENDDO
        DEALLOCATE(v_rspace_new,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+       IF (calculate_forces ) THEN
+           ! Getting nuclear force contribution from the core charge density
+            CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
+           ! Getting electronic force contribution from fitted LRI charge density
+            matrix_p =>qs_env%rho%rho_ao
+            CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,error)
+       END IF
+
       ENDIF
       
       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
@@ -1032,6 +1043,7 @@ CONTAINS
             energy%ee + energy%ee_core+&
             energy%exc_aux_fit+&
             energy%image_charge
+
 
     END IF ! failure
 
@@ -1305,8 +1317,9 @@ CONTAINS
                   print_active=print_active,rho_xc=rho_xc,error=error)
           ELSEIF (dft_control%qs_control%lrigpw) THEN
             CALL lri_build_ks_matrix(ks_env,qs_env,ks_matrix=matrix_ks,& 
-                 rho=rho,energy=energy,just_energy=energy_only,&
-                 print_active=print_active,error=error)
+                 rho=rho,energy=energy,calculate_forces=c_forces, &
+                 just_energy=energy_only,print_active=print_active,&
+                 error=error)
           ELSE
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&

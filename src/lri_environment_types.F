@@ -44,6 +44,8 @@ MODULE lri_environment_types
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avec
      ! projection coeffs for RI density: SUM_ab (ab,i)*Pab
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvec
+     ! integral (ai) * sinv * tvec
+     REAL(KIND=dp)                                           :: nst
      ! Lagrange parameter
      REAL(KIND=dp)                                           :: lambda
      ! Charge of pair density
@@ -63,14 +65,24 @@ MODULE lri_environment_types
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: abaint
      ! integrals (a,b,bi)
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: abbint
+     ! integrals (da/dA,b,dai/dA)
+     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER              :: dabdaint
+     ! integrals (da/dA,b,bi)
+     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER              :: dabbint
      ! integrals (a,b)
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: soo
+     ! derivative d(a,b)/dA
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dsoo
      ! integrals (ai,bi)
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: sab
-     ! derivative of fit coeff with respect to pmatrix
+     ! derivative d(ai,bi)/dA
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dsab
+     ! derivative of fit coeff dacoef/dpmatrix
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dacoef
      ! inverse of integrals (ai,bi)
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: sinv
+     ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: n
      ! sinv * (ai)
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sn
      ! (ai) * sinv * (ai)
@@ -99,18 +111,14 @@ MODULE lri_environment_types
   
 ! *****************************************************************************
 
-  TYPE lri_bas_norm_type
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: norm_radial
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: norm_s_func
-  END TYPE lri_bas_norm_type
-
   TYPE lri_bas_int_type
      ! integral of ri basis fbas
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas
   END TYPE lri_bas_int_type
 
   TYPE lri_bas_overlap_type
-     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: ovlp
+     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: ri_ovlp
+     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: orb_ovlp
   END TYPE lri_bas_overlap_type
 
 ! *****************************************************************************
@@ -123,8 +131,6 @@ MODULE lri_environment_types
      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
      ! local RI integrals
      TYPE(lri_list_type), POINTER                            :: lri_ints
-     ! norm of ri basis
-     TYPE(lri_bas_norm_type), DIMENSION(:), POINTER          :: bas_norm
      ! integral of a single contracted gaussian
      TYPE(lri_bas_int_type), DIMENSION(:), POINTER           :: bas_int
      ! self overlap of ri basis
@@ -136,13 +142,34 @@ MODULE lri_environment_types
   TYPE lri_kind_type
     ! expansion coeff for lri density dim(natom,nsgf)
     REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: acoef
+    ! SUM_i integral(V*fbas_i)*davec/dR dim(natom,3) 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: v_dadr
     ! integrals V*fbas (potentia*fit basis) dim(natom,nsgf)
     REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: v_int
+    ! integrals V*dfbas/dR
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: v_dfdr
   END TYPE lri_kind_type
 
   TYPE lri_spin_type
      TYPE(lri_kind_type), DIMENSION(:), POINTER              :: lri_kinds
   END TYPE lri_spin_type
+
+! *****************************************************************************
+
+  TYPE lri_force_type
+    REAL(KIND=dp), DIMENSION(:), POINTER                     :: st
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: dssn,&
+                                                                sdssn,&                                                               
+                                                                dsst,&
+                                                                sdsst,&
+                                                                sdt
+    ! derivative dtvec/dR 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: dtvec
+    ! derivative davec/dR 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: davec
+    ! derivative overlap matrix dS/dR 
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER                 :: ds
+  END TYPE lri_force_type
 
 ! *****************************************************************************
 
@@ -153,6 +180,7 @@ MODULE lri_environment_types
      TYPE(lri_list_p_type), DIMENSION(:),POINTER             :: lri_rhos
      ! coefficients of RI expansion and gradients (nspin)
      TYPE(lri_spin_type), DIMENSION(:),POINTER               :: lri_coefs
+     TYPE(lri_force_type), POINTER                           :: lri_force
   END TYPE lri_density_type
 
 ! *****************************************************************************
@@ -161,13 +189,14 @@ MODULE lri_environment_types
   INTEGER, SAVE, PRIVATE :: last_lri_env_id=0
   INTEGER, SAVE, PRIVATE :: last_lri_density_id=0
 
-  PUBLIC :: lri_environment_type, lri_bas_norm_type, lri_bas_int_type,&
-            lri_bas_overlap_type, lri_list_type, lri_atom_type, lri_node_type,&
-            lri_int_type, lri_density_type, lri_list_p_type, lri_spin_type,&
-            lri_kind_type, lri_rhoab_type 
-  PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs,&
-            lri_density_create, lri_density_release, allocate_lri_list_type,&
-            lri_basis_init, deallocate_lri_ints      
+  PUBLIC :: lri_environment_type, lri_bas_int_type,&
+            lri_bas_overlap_type, lri_force_type, lri_list_type, lri_atom_type,&
+            lri_node_type, lri_int_type, lri_density_type, lri_list_p_type,&
+            lri_spin_type, lri_kind_type, lri_rhoab_type 
+  PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs, &
+            allocate_lri_int_type, lri_density_create, lri_density_release,&
+            allocate_lri_list_type, allocate_lri_force_components,&
+            lri_basis_init, deallocate_lri_ints, deallocate_lri_force_components       
 
 ! *****************************************************************************
 
@@ -202,7 +231,6 @@ CONTAINS
 
     NULLIFY(lri_env%soo_list)
     NULLIFY(lri_env%lri_ints)
-    NULLIFY(lri_env%bas_norm)
     NULLIFY(lri_env%bas_int)
     NULLIFY(lri_env%bas_ovlp)
 
@@ -256,16 +284,6 @@ CONTAINS
        IF (ASSOCIATED(lri_env%lri_ints)) THEN
           CALL deallocate_lri_ints(lri_env%lri_ints,error)
        END IF
-       IF (ASSOCIATED(lri_env%bas_norm)) THEN
-          DO i=1,SIZE(lri_env%bas_norm)
-             DEALLOCATE(lri_env%bas_norm(i)%norm_radial,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             DEALLOCATE(lri_env%bas_norm(i)%norm_s_func,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END DO
-          DEALLOCATE(lri_env%bas_norm,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
        IF (ASSOCIATED(lri_env%bas_int)) THEN
           DO i=1,SIZE(lri_env%bas_int)
              DEALLOCATE(lri_env%bas_int(i)%int_fbas,stat=stat)
@@ -276,7 +294,9 @@ CONTAINS
        END IF
        IF (ASSOCIATED(lri_env%bas_ovlp)) THEN
           DO i=1,SIZE(lri_env%bas_ovlp)
-             DEALLOCATE(lri_env%bas_ovlp(i)%ovlp,stat=stat)
+             DEALLOCATE(lri_env%bas_ovlp(i)%ri_ovlp,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             DEALLOCATE(lri_env%bas_ovlp(i)%orb_ovlp,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END DO
           DEALLOCATE(lri_env%bas_ovlp,stat=stat)
@@ -317,6 +337,7 @@ CONTAINS
   
     NULLIFY(lri_density%lri_rhos)
     NULLIFY(lri_density%lri_coefs)
+    NULLIFY(lri_density%lri_force)
 
   END SUBROUTINE lri_density_create
 
@@ -350,6 +371,7 @@ CONTAINS
        END IF
 
        CALL deallocate_lri_coefs(lri_density%lri_coefs, error)
+       CALL deallocate_lri_force_components(lri_density%lri_force, error)
 
        DEALLOCATE(lri_density,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -373,9 +395,9 @@ CONTAINS
 
     INTEGER                                  :: ikind, nkind, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ri_int_fbas, ri_norm_r, &
-                                                ri_norm_s
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ri_ovlp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: orb_norm_r, ri_int_fbas, &
+                                                ri_norm_r, ri_norm_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orb_ovlp, ri_ovlp
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, ri_basis
 
     failure=.FALSE.
@@ -384,8 +406,6 @@ CONTAINS
        IF (ASSOCIATED(lri_env%orb_basis)) THEN
           CPPreconditionNoFail(ASSOCIATED(lri_env%ri_basis),cp_warning_level,routineP,error)
           nkind = SIZE(lri_env%orb_basis)
-          ALLOCATE (lri_env%bas_norm(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (lri_env%bas_int(nkind),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (lri_env%bas_ovlp(nkind),STAT=stat)
@@ -398,16 +418,21 @@ CONTAINS
                 CPPreconditionNoFail(ASSOCIATED(ri_basis),cp_warning_level,routineP,error)
                 NULLIFY(ri_norm_r)
                 CALL basis_norm_radial(ri_basis,ri_norm_r,error)
-                lri_env%bas_norm(ikind)%norm_radial => ri_norm_r
+                NULLIFY(orb_norm_r)
+                CALL basis_norm_radial(orb_basis,orb_norm_r,error)
                 NULLIFY(ri_norm_s)
                 CALL basis_norm_s_func(ri_basis,ri_norm_s,error)
-                lri_env%bas_norm(ikind)%norm_s_func => ri_norm_s
                 NULLIFY(ri_int_fbas)
                 CALL basis_int(ri_basis,ri_int_fbas,ri_norm_s,error)
                 lri_env%bas_int(ikind)%int_fbas => ri_int_fbas
                 NULLIFY(ri_ovlp)
                 CALL basis_ovlp(ri_basis,ri_ovlp,ri_norm_r,error)
-                lri_env%bas_ovlp(ikind)%ovlp => ri_ovlp
+                lri_env%bas_ovlp(ikind)%ri_ovlp => ri_ovlp
+                NULLIFY(orb_ovlp)
+                CALL basis_ovlp(orb_basis,orb_ovlp,orb_norm_r,error)
+                lri_env%bas_ovlp(ikind)%orb_ovlp => orb_ovlp
+                DEALLOCATE (orb_norm_r,ri_norm_r,ri_norm_s,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              END IF
           END DO
        END IF
@@ -684,7 +709,9 @@ CONTAINS
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO ikind=1,nkind
        NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%acoef)
+       NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%v_dadr)
        NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%v_int)
+       NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr)
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom)
        fbas => lri_env%ri_basis(ikind)%gto_basis_set
@@ -692,13 +719,152 @@ CONTAINS
        ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%acoef(natom,nsgf),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        lri_coefs(ispin)%lri_kinds(ikind)%acoef = 0._dp
+       ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%v_dadr(natom,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lri_coefs(ispin)%lri_kinds(ikind)%v_dadr = 0._dp
        ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%v_int(natom,nsgf),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        lri_coefs(ispin)%lri_kinds(ikind)%v_int = 0._dp
+       ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr(natom,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr = 0._dp
      END DO
     ENDDO
 
   END SUBROUTINE allocate_lri_coefs
+
+! *****************************************************************************
+!> \brief allocate lri_int_type
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_int_type(lrii, iatom, jatom, error)
+
+    TYPE(lri_int_type), POINTER              :: lrii
+    INTEGER, INTENT(IN)                      :: iatom, jatom
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_int_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nba, nbb, nfa, nfb, nn, stat
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    nba = lrii%nba
+    nbb = lrii%nbb
+    nfa = lrii%nfa
+    nfb = lrii%nfb
+    nn  = nfa + nfb
+   
+    ALLOCATE(lrii%abaint(nba,nbb,nfa),&
+             lrii%abbint(nba,nbb,nfb),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    lrii%abaint = 0._dp
+    lrii%abbint = 0._dp
+
+    ALLOCATE(lrii%dabdaint(nba,nbb,nfa,3),&
+             lrii%dabbint(nba,nbb,nfb,3),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    lrii%dabdaint = 0._dp
+    lrii%dabbint = 0._dp
+
+    ALLOCATE(lrii%sab(nfa,nfb),lrii%dsab(nfa,nfb,3),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    lrii%sab  = 0._dp
+    lrii%dsab = 0._dp
+
+    IF(iatom == jatom) THEN
+     ALLOCATE(lrii%sinv(nfa,nfa),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+     ALLOCATE(lrii%sinv(nn,nn),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    lrii%sinv = 0._dp
+
+    IF(iatom == jatom) THEN
+     ALLOCATE(lrii%n(nfa),lrii%sn(nfa),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+     ALLOCATE(lrii%n(nn),lrii%sn(nn),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    lrii%n    = 0._dp
+    lrii%sn   = 0._dp
+
+    ALLOCATE(lrii%soo(nba,nbb),lrii%dsoo(nba,nbb,3),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    lrii%soo  = 0._dp
+    lrii%dsoo = 0._dp
+
+    IF(iatom == jatom) THEN
+     ALLOCATE(lrii%dacoef(nba,nbb,nfa),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+     ALLOCATE(lrii%dacoef(nba,nbb,nn),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    lrii%dacoef = 0._dp
+
+  END SUBROUTINE allocate_lri_int_type
+
+! *****************************************************************************
+!> \brief creates and initializes lri_force
+!> \param nfa and nfb number of fit functions on a/b
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_force_components(lri_force, nfa, nfb, error)
+
+    TYPE(lri_force_type), POINTER            :: lri_force
+    INTEGER, INTENT(IN)                      :: nfa, nfb
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'allocate_lri_force_components', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nn, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    nn = nfa + nfb
+
+    IF(.NOT.ASSOCIATED(lri_force)) THEN
+      ALLOCATE(lri_force,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ALLOCATE(lri_force%ds(nn,nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%ds    = 0._dp
+      ALLOCATE(lri_force%st(nn),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%st    = 0._dp
+      ALLOCATE(lri_force%dsst(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%dsst  = 0._dp
+      ALLOCATE(lri_force%sdsst(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%sdsst = 0._dp
+      ALLOCATE(lri_force%dssn(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%dssn  = 0._dp
+      ALLOCATE(lri_force%sdssn(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%sdssn = 0._dp
+      ALLOCATE(lri_force%sdt(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%sdt   = 0._dp
+      ALLOCATE(lri_force%davec(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%davec = 0._dp
+      ALLOCATE(lri_force%dtvec(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%dtvec = 0._dp
+    ENDIF
+
+  END SUBROUTINE allocate_lri_force_components
 
 ! *****************************************************************************
 !> \brief releases the given lri_coefs
@@ -726,8 +892,16 @@ CONTAINS
             DEALLOCATE(lri_coefs(i)%lri_kinds(j)%acoef,stat=stat)
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            ENDIF
+           IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_dadr)) THEN
+            DEALLOCATE(lri_coefs(i)%lri_kinds(j)%v_dadr,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ENDIF
            IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_int)) THEN
             DEALLOCATE(lri_coefs(i)%lri_kinds(j)%v_int,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ENDIF
+           IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_dfdr)) THEN
+            DEALLOCATE(lri_coefs(i)%lri_kinds(j)%v_dfdr,stat=stat)
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            ENDIF
         ENDDO
@@ -741,6 +915,72 @@ CONTAINS
  
   END SUBROUTINE deallocate_lri_coefs
 
+! *****************************************************************************
+!> \brief releases the given lri_force_type
+!> \param lri_force the integral storage environment that is released 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE deallocate_lri_force_components(lri_force, error)
+
+    TYPE(lri_force_type), POINTER            :: lri_force
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'deallocate_lri_force_components', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(lri_force)) THEN
+
+       IF(ASSOCIATED(lri_force%st)) THEN
+        DEALLOCATE(lri_force%st,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%dssn)) THEN
+        DEALLOCATE(lri_force%dssn,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%sdssn)) THEN
+        DEALLOCATE(lri_force%sdssn,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%dsst)) THEN
+        DEALLOCATE(lri_force%dsst,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%sdsst)) THEN
+        DEALLOCATE(lri_force%sdsst,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%sdt)) THEN
+        DEALLOCATE(lri_force%sdt,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%dtvec)) THEN
+        DEALLOCATE(lri_force%dtvec,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%davec)) THEN
+        DEALLOCATE(lri_force%davec,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%ds)) THEN
+        DEALLOCATE(lri_force%ds,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       
+       DEALLOCATE(lri_force, stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+       NULLIFY(lri_force)
+    ENDIF
+
+  END SUBROUTINE deallocate_lri_force_components
 ! *****************************************************************************
 !> \brief deallocates the given lri_ints
 !> \param error variable to control error logging, stopping,...
@@ -772,10 +1012,15 @@ CONTAINS
                       DO inode = 1,nnode
                          DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%abaint,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%abbint,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dabdaint,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dabbint,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%soo,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dsoo,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sab,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dsab,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dacoef,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sinv,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%n,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sn,&
                                      STAT=istat)
                          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)

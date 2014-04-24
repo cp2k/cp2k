@@ -6,3 +6,5 @@ H2_tz2p_lri_diag.inp
 #  
 H2_tz2p_lri_ot.inp 
 #
+#change from ENERGY to MD run
+H2He_tz2p_lri.inp 

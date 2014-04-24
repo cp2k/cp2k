@@ -848,11 +848,13 @@ CONTAINS
 !>        required for LRIGPW
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE integrate_v_rspace_one_center(v_rspace,qs_env,int_res,error)
+  SUBROUTINE integrate_v_rspace_one_center(v_rspace,qs_env,int_res,&
+                                           calculate_forces,error)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: int_res
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -860,8 +862,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, ipgf, iset, j, &
-      maxco, maxsgf_set, na1, natom, natom_of_kind, ncoa, nkind, npme, nseta, &
-      nsgfa, sgfa, stat
+      m1, maxco, maxsgf_set, na1, natom, natom_of_kind, ncoa, nkind, npme, &
+      nseta, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, la_max, &
                                                 la_min, npgfa, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
@@ -869,9 +871,10 @@ CONTAINS
                                                 map_consistent, parallel, &
                                                 use_virial
     REAL(KIND=dp)                            :: eps_gvg_rspace, eps_rho_rspace
-    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, rpgfa, sphi_a, work, zeta
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab, rpgfa, sphi_a, &
+                                                work_f, work_i, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -891,8 +894,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(cell,cores,hab,rs_descs,pw_env,para_env,&
-            dft_control,rs_v,virial,work)
+    NULLIFY(atomic_kind, atomic_kind_set, atom_list, cell, cores, dft_control,&
+            first_sgfa, gridlevel_info, hab, la_max, la_min, lri_basis_set,&
+            npgfa, nsgf_seta, pab, para_env, particle_set, pw_env, rpgfa, &
+            rs_descs, rs_v, virial, set_radius_a, sphi_a,  work_f, work_i, zeta)
 
     failure = .FALSE.
 
@@ -948,7 +953,6 @@ CONTAINS
             maxsgf_set=maxsgf_set,&
             npgf=npgfa,&
             nset=nseta,&
-            nsgf=nsgfa,&  
             nsgf_set=nsgf_seta,&
             pgf_radius=rpgfa,&
             set_radius=set_radius_a,&
@@ -956,9 +960,11 @@ CONTAINS
             zet=zeta)
  
        CALL reallocate(hab,1,maxco,1,1)
+       CALL reallocate(pab,1,maxco,1,1)
        CALL reallocate (cores, 1, natom_of_kind)
        int_res(ikind)%v_int = 0.0_dp
        hab = 0._dp
+       pab(:,1) = 0._dp
        npme = 0
        cores = 0
 
@@ -987,46 +993,76 @@ CONTAINS
         iatom = cores(j)
         atom_a = atom_list(iatom)
         ra(:) = pbc(particle_set(atom_a)%r,cell)
+        force_a(:) = 0._dp
+        force_b(:) = 0._dp
 
         DO iset = 1,nseta
            sgfa = first_sgfa(1,iset)
            ncoa = npgfa(iset)*ncoset(la_max(iset))
-           hab(:,1)=0._dp
-           CALL reallocate(work,1,nsgf_seta(iset),1,1)
-           work =0.0_dp
+           hab(:,1) = 0._dp
+           CALL reallocate(work_i,1,nsgf_seta(iset),1,1)
+           work_i = 0.0_dp
+
+           ! get fit coefficients for forces
+           IF (calculate_forces) THEN
+            m1=sgfa+nsgf_seta(iset)-1
+            CALL reallocate(work_f,1,nsgf_seta(iset),1,1)
+            work_f(1:nsgf_seta(iset),1) = int_res(ikind)%acoef(iatom,sgfa:m1)  
+            CALL dgemm("N","N",ncoa,1,nsgf_seta(iset),1.0_dp,sphi_a(1,sgfa),&
+                 SIZE(sphi_a,1),work_f(1,1),SIZE(work_f,1),0.0_dp,pab(1,1),&
+                 SIZE(pab,1))
+           ENDIF
            
            DO ipgf = 1,npgfa(iset)
-   
               na1 = (ipgf-1)*ncoset(la_max(iset))
               igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
-
-              CALL integrate_pgf_product_rspace(la_max=la_max(iset),&
-                   zeta=zeta(ipgf,iset),la_min=la_min(iset),&
-                   lb_max=0,zetb=0.0_dp,lb_min=0,&
-                   ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
-                   rsgrid=rs_v(igrid_level)%rs_grid ,cell=cell,&
-                   cube_info=pw_env%cube_info(igrid_level),&
-                   hab=hab,o1=na1,o2=0,&
-                   eps_gvg_rspace=eps_rho_rspace,calculate_forces=.FALSE.,&
-                   map_consistent=map_consistent,&
-                   error=error)
-
+             
+              IF(.NOT.calculate_forces) THEN
+               CALL integrate_pgf_product_rspace(la_max=la_max(iset),&
+                    zeta=zeta(ipgf,iset),la_min=la_min(iset),&
+                    lb_max=0,zetb=0.0_dp,lb_min=0,&
+                    ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
+                    rsgrid=rs_v(igrid_level)%rs_grid ,cell=cell,&
+                    cube_info=pw_env%cube_info(igrid_level),&
+                    hab=hab,o1=na1,o2=0, eps_gvg_rspace=eps_rho_rspace,&
+                    calculate_forces=calculate_forces,&
+                    map_consistent=map_consistent,&
+                    error=error)
+              ELSE
+               CALL integrate_pgf_product_rspace(la_max=la_max(iset),&
+                    zeta=zeta(ipgf,iset),la_min=la_min(iset),&
+                    lb_max=0,zetb=0.0_dp,lb_min=0,&
+                    ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
+                    rsgrid=rs_v(igrid_level)%rs_grid ,cell=cell,&
+                    cube_info=pw_env%cube_info(igrid_level),&
+                    hab=hab,pab=pab,o1=na1,o2=0, eps_gvg_rspace=eps_rho_rspace,&
+                    calculate_forces=calculate_forces,force_a=force_a,&
+                    force_b=force_b,map_consistent=map_consistent,&
+                    error=error)
+               ENDIF
            ENDDO
-           !contract hab here!!
+           ! contract hab 
            CALL dgemm("T","N",nsgf_seta(iset),1,ncoa, 1.0_dp,sphi_a(1,sgfa),&
                 SIZE(sphi_a,1),hab(1,1),SIZE(hab,1), 0.0_dp,&
-                work(1,1),SIZE(work,1))
+                work_i(1,1),SIZE(work_i,1))
 
-           int_res(ikind)%v_int(iatom,sgfa:sgfa-1+nsgf_seta(iset))=work(1:nsgf_seta(iset),1)
+           int_res(ikind)%v_int(iatom,sgfa:sgfa-1+nsgf_seta(iset))=work_i(1:nsgf_seta(iset),1)
         ENDDO
 
-        DEALLOCATE (work, STAT=stat)
+        IF(calculate_forces) int_res(ikind)%v_dfdr(iatom,:)=force_a(:)
+
+        DEALLOCATE (work_i, STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF(calculate_forces) THEN
+         DEALLOCATE (work_f, STAT=stat)
+         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        ENDIF
+
       END DO
 
       CALL mp_sum(int_res(ikind)%v_int,para_env%group)
      
-      DEALLOCATE (cores,hab,STAT=stat)
+      DEALLOCATE (cores,hab,pab,STAT=stat)
       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
 

@@ -26,18 +26,17 @@ MODULE lri_environment_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE lri_environment_types,           ONLY: &
-       allocate_lri_coefs, allocate_lri_list_type, deallocate_lri_ints, &
-       lri_density_create, lri_density_release, lri_density_type, &
-       lri_environment_type, lri_int_type, lri_kind_type, lri_list_type, &
-       lri_rhoab_type
+       allocate_lri_coefs, allocate_lri_int_type, allocate_lri_list_type, &
+       deallocate_lri_ints, lri_density_create, lri_density_release, &
+       lri_density_type, lri_environment_type, lri_int_type, lri_kind_type, &
+       lri_list_type, lri_rhoab_type
   USE mathlib,                         ONLY: invmat
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: coset,&
@@ -76,10 +75,11 @@ CONTAINS
 !> \brief creates and initializes an lri_env
 !> \param lri_env the lri_environment you want to create
 ! *****************************************************************************
-  SUBROUTINE build_lri_matrices(lri_env,qs_env,error)
+  SUBROUTINE build_lri_matrices(lri_env,qs_env,calculate_forces,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_lri_matrices', &
@@ -88,7 +88,7 @@ CONTAINS
 ! calculate the integrals needed to do the local (2-center) expansion
 ! of the (pair) densities
 
-    CALL calculate_lri_integrals(lri_env,qs_env,error)
+    CALL calculate_lri_integrals(lri_env,qs_env,calculate_forces,error)
 
   END SUBROUTINE build_lri_matrices
 
@@ -96,10 +96,11 @@ CONTAINS
 !> \brief calculates integrals needed for the LRI density fitting,
 !>        integrals are calculated once, before the SCF starts
 ! *****************************************************************************
-  SUBROUTINE calculate_lri_integrals(lri_env,qs_env,error)
+  SUBROUTINE calculate_lri_integrals(lri_env,qs_env,calculate_forces,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_integrals', &
@@ -109,8 +110,7 @@ CONTAINS
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, stat
     LOGICAL                                  :: calc_abb, failure
     REAL(KIND=dp)                            :: dab
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: n
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3)              :: rab
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_type), POINTER        :: fbasa, fbasb, obasa, obasb
     TYPE(lri_int_type), POINTER              :: lrii
@@ -142,10 +142,11 @@ CONTAINS
 
       CALL neighbor_list_iterator_create(nl_iterator,soo_list)
       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+
          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
               nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
               iatom=iatom,jatom=jatom,r=rab)
-
+        
          iac = ikind + nkind*(jkind - 1)
          dab = SQRT(SUM(rab*rab))
 
@@ -178,77 +179,70 @@ CONTAINS
          nbb = obasb%nsgf
          nfa = fbasa%nsgf
          nfb = fbasb%nsgf
-         ALLOCATE(lrii%abaint(nba,nbb,nfa),&
-                  lrii%abbint(nba,nbb,nfb),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         lrii%abaint = 0._dp
-         lrii%abbint = 0._dp
 
          lrii%nba = nba
          lrii%nbb = nbb
          lrii%nfa = nfa
          lrii%nfb = nfb
 
-         ! calculate integrals (a,b,fa) and (a,b,fb)
-         ra(:) = pbc(particle_set(iatom)%r, cell) !testing
-         rb(:) = pbc(particle_set(jatom)%r, cell) !testing
-         IF(iatom == jatom) calc_abb=.FALSE.
-         IF(iatom /= jatom) calc_abb=.TRUE.
-         CALL lri_int_abc(lrii%abaint,lrii%abbint,rab,obasa,obasb,fbasa,fbasb,calc_abb,&
-                          ra,rb,error)
+         ! allocate matrices storing the integrals
+         CALL allocate_lri_int_type(lrii,iatom,jatom,error)
 
+         ! calculate integrals (a,b,fa) and (a,b,fb)
          IF(iatom == jatom) THEN
-          ALLOCATE(lrii%sab(nfa,nfa),lrii%sinv(nfa,nfa),lrii%sn(nfa),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(n(nfa),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL lri_int_abc(lrii%abaint,lrii%abbint,rab=rab,oba=obasa,obb=obasb,&
+                           fba=fbasa,fbb=fbasb,calculate_forces=.FALSE.,&
+                           calc_abb=.FALSE.,error=error)
+          lrii%dabdaint = 0.0_dp
+          lrii%dabbint  = 0.0_dp
          ELSE
-          nn = nfa+nfb
-          ALLOCATE(lrii%sab(nfa,nfb),lrii%sinv(nn,nn),lrii%sn(nn),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(n(nn),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL lri_int_abc(lrii%abaint,lrii%abbint,lrii%dabdaint,&
+                           lrii%dabbint,rab,obasa,obasb,fbasa,fbasb,&
+                           calculate_forces,calc_abb=.TRUE.,error=error)
          ENDIF
-         lrii%sab = 0._dp
 
          ! calculate integrals (fa,fb); for iatom=jatom this is the self-overlap
-         IF(iatom /= jatom) THEN
-           CALL lri_int_ab(lrii%sab,rab,fbasa,fbasb,error)
+         IF(iatom == jatom) THEN
+           lrii%sab(1:nfa,1:nfa)=lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
+           lrii%dsab = 0._dp
+         ELSE
+           CALL lri_int_ab(lrii%sab,lrii%dsab,rab,fbasa,fbasb,calculate_forces,error)
          ENDIF
 
          ! construct and invert S matrix 
-         lrii%sinv(1:nfa,1:nfa) = lri_env%bas_ovlp(ikind)%ovlp(1:nfa,1:nfa)
+         lrii%sinv(1:nfa,1:nfa) = lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
          IF(iatom /= jatom) THEN
+          nn = nfa+nfb
           lrii%sinv(1:nfa,nfa+1:nn) = lrii%sab(1:nfa,1:nfb)
           lrii%sinv(nfa+1:nn,1:nfa) = TRANSPOSE(lrii%sab(1:nfa,1:nfb))
-          lrii%sinv(nfa+1:nn,nfa+1:nn) = lri_env%bas_ovlp(jkind)%ovlp(1:nfb,1:nfb)
+          lrii%sinv(nfa+1:nn,nfa+1:nn) = lri_env%bas_ovlp(jkind)%ri_ovlp(1:nfb,1:nfb)
          ENDIF
          CALL invmat(lrii%sinv,stat,error)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
          ! calculate Sinv*n and n*Sinv*n
-         n(1:nfa) = lri_env%bas_int(ikind)%int_fbas(1:nfa)
+         lrii%n(1:nfa) = lri_env%bas_int(ikind)%int_fbas(1:nfa)
          IF(iatom == jatom) THEN
-          lrii%sn(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),n(1:nfa))
-          lrii%nsn = SUM(lrii%sn(1:nfa)*n(1:nfa))
+          lrii%sn(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),lrii%n(1:nfa))
+          lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
          ELSE
-          n(nfa+1:nn) = lri_env%bas_int(jkind)%int_fbas(1:nfb)
-          lrii%sn(1:nn) = MATMUL(lrii%sinv(1:nn,1:nn),n(1:nn))
-          lrii%nsn = SUM(lrii%sn(1:nn)*n(1:nn))
+          lrii%n(nfa+1:nn) = lri_env%bas_int(jkind)%int_fbas(1:nfb)
+          lrii%sn(1:nn) = MATMUL(lrii%sinv(1:nn,1:nn),lrii%n(1:nn))
+          lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
          ENDIF
 
-         DEALLOCATE(n,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
          ! calculate integrals (a,b), overlap of primary basis
-         ALLOCATE(lrii%soo(nba,nbb),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         lrii%soo = 0._dp
-         CALL lri_int_ab(lrii%soo,rab,obasa,obasb,error=error)
+         IF(iatom == jatom) THEN
+          lrii%soo(1:nba,1:nba) =  lri_env%bas_ovlp(ikind)%orb_ovlp(1:nba,1:nba)
+          lrii%dsoo = 0._dp
+         ELSE
+          CALL lri_int_ab(lrii%soo,lrii%dsoo,rab,obasa,obasb,calculate_forces,&
+                          error=error)
+         ENDIF
          
          ! calculate derivative of fit coefficients, needed for update of KS matrix
-         CALL lri_calculate_derivative_acoef(lrii,iatom,jatom,nba,nbb,nfa,nfb,error) 
-
+         CALL lri_calculate_derivative_acoef(lrii,iatom,jatom,nba,nbb,nfa,nfb,error)
+ 
       END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -289,8 +283,7 @@ CONTAINS
       nn, nneighbor, nspin, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
-    REAL(KIND=dp)                            :: nst
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: n
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m
     REAL(KIND=dp), DIMENSION(:), POINTER     :: aci, acj
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbij
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -307,8 +300,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(aci, acj, atomic_kind, atom_of_kind, lri_coef, lrii, &
-            lrho, lri_rho, nl_iterator, pbij, pmat, soo_list)
+    NULLIFY(aci, acj, atomic_kind, atom_of_kind, lri_coef, lrii, lri_rho,&
+            nl_iterator, pbij, pmat, soo_list)
 
     IF ( ASSOCIATED(lri_env%soo_list) ) THEN
       soo_list => lri_env%soo_list
@@ -403,25 +396,26 @@ CONTAINS
                   lrho%tvec(nfa+i) = SUM(pbij(1:nba,1:nbb)*lrii%abbint(1:nba,1:nbb,i))
                END DO
             END IF
+
             IF(iatom == jatom) THEN
-             nst = SUM(lrho%tvec(1:nfa) * lrii%sn(1:nfa))
+             lrho%nst = SUM(lrho%tvec(1:nfa) * lrii%sn(1:nfa))
             ELSE
-             nst = SUM(lrho%tvec(1:nn) * lrii%sn(1:nn))
+             lrho%nst = SUM(lrho%tvec(1:nn) * lrii%sn(1:nn))
             ENDIF
-            lrho%lambda = (lrho%charge - nst)/lrii%nsn
+            lrho%lambda = (lrho%charge - lrho%nst)/lrii%nsn
 
             ! solve the linear system of equations
-            ALLOCATE(n(nn),STAT=stat)
+            ALLOCATE(m(nn),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            n(1:nfa)    = lri_env%bas_int(ikind)%int_fbas(1:nfa)
-            n(nfa+1:nn) = lri_env%bas_int(jkind)%int_fbas(1:nfb)
-            n(1:nn) = lrho%tvec(1:nn) + lrho%lambda * n(1:nn)
+            m = 0._dp
             IF(iatom == jatom) THEN
-              lrho%avec(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),n(1:nfa))
+              m(1:nfa) = lrho%tvec(1:nfa) + lrho%lambda * lrii%n(1:nfa)
+              lrho%avec(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),m(1:nfa))
             ELSE
-              lrho%avec(1:nn)  = MATMUL(lrii%sinv(1:nn,1:nn),n(1:nn))
+              m(1:nn) = lrho%tvec(1:nn) + lrho%lambda * lrii%n(1:nn)
+              lrho%avec(1:nn)  = MATMUL(lrii%sinv(1:nn,1:nn),m(1:nn))
             ENDIF
-            DEALLOCATE(n,STAT=stat)
+            DEALLOCATE(m,STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      
          END DO
@@ -492,20 +486,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculate integrals (a,b,fa) and (a,b,fb)
 ! *****************************************************************************
-  SUBROUTINE lri_int_abc(abaint,abbint,rab,oba,obb,fba,fbb,calc_abb,ra,rb,error)
+  SUBROUTINE lri_int_abc(abaint,abbint,dabdaint,dabbint,rab,oba,obb,&
+                         fba,fbb,calculate_forces,calc_abb,error)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: abaint, abbint
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      OPTIONAL, POINTER                      :: dabdaint, dabbint
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     TYPE(gto_basis_set_type), POINTER        :: oba, obb, fba, fbb
-    LOGICAL, INTENT(IN)                      :: calc_abb
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb
+    LOGICAL, INTENT(IN)                      :: calculate_forces, calc_abb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_abc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iset, jset, kaset, kbset, m1, m2, m3, ncoa, ncob, &
+    INTEGER :: handle, i, iset, jset, kaset, kbset, m1, m2, m3, ncoa, ncob, &
       ncoc, nseta, nsetb, nsetca, nsetcb, sgfa, sgfb, sgfc, stat
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, &
       lca_max, lca_min, lcb_max, lcb_min, npgfa, npgfb, npgfca, npgfcb, &
@@ -516,6 +512,8 @@ CONTAINS
     REAL(KIND=dp)                            :: dab, dac, dbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: saba, sabb
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: sabda, sdaba, sdabb, sdabda
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfca, rpgfcb, &
@@ -525,14 +523,13 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(la_max, la_min, lb_max, lb_min,lca_max, lca_min, lcb_max, lcb_min,&
+    NULLIFY(la_max, la_min, lb_max, lb_min, lca_max, lca_min, lcb_max, lcb_min,&
             npgfa, npgfb, npgfca, npgfcb, nsgfa, nsgfb, nsgfca, nsgfcb)
     NULLIFY(first_sgfa, first_sgfb, first_sgfca, first_sgfcb, set_radius_a,&
             set_radius_b, rpgfa, rpgfb, rpgfca, rpgfcb, sphi_a, sphi_b, sphi_ca,&
             sphi_cb, zeta, zetb, zetca, zetcb) 
 
-! basis ikind
-
+    ! basis ikind
     first_sgfa   =>  oba%first_sgf
     la_max       =>  oba%lmax
     la_min       =>  oba%lmin
@@ -592,7 +589,7 @@ CONTAINS
           m1=sgfa+nsgfa(iset)-1
           m2=sgfb+nsgfb(jset)-1
 
-          ! calculate integrals abaint
+          ! calculate integrals abaint and derivative [d(a,b,a)/dA] dabdaint if requested
           rac = 0._dp
           dac = 0._dp
           rbc = -rab
@@ -604,16 +601,39 @@ CONTAINS
              IF(ncoa*ncob*ncoc > 0) THEN
                 ALLOCATE(saba(ncoa,ncob,ncoc),STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                saba(:,:,:) =0._dp
+                saba(:,:,:)    = 0._dp
                 ! integrals
-                CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                              lca_max(kaset),npgfca(kaset),zetca(:,kaset),rpgfca(:,kaset),lca_min(kaset),&
-                              rab,dab,rac,dac,rbc,dbc,saba)
-               !CALL overlap3_test_2(la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),&
-               !                     lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),&
-               !                     lca_max(kaset),npgfca(kaset),zetca(:,kaset),lca_min(kaset),&
-               !                     ra,rb,ra,saba,error)
+                IF(calculate_forces) THEN
+                 ALLOCATE(sdaba(ncoa,ncob,ncoc,3),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 ALLOCATE(sabda(ncoa,ncob,ncoc,3),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 ALLOCATE(sdabda(ncoa,ncob,ncoc,3),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 sdaba(:,:,:,:) = 0._dp
+                 sabda(:,:,:,:) = 0._dp
+                 sdabda(:,:,:,:) = 0._dp
+                 CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                               lca_max(kaset),npgfca(kaset),zetca(:,kaset),rpgfca(:,kaset),lca_min(kaset),&
+                               rab,dab,rac,dac,rbc,dbc,saba,sdaba,sabda,error=error)
+                 !d(a,b,a)/dA = (da/dA,b,a) + (a,b,da/dA)
+                 sdabda = sdaba + sabda
+
+                 DO i=1,3
+                  CALL abc_contract(dabdaint(sgfa:m1,sgfb:m2,sgfc:m3,i),sdabda(:,:,:,i),& 
+                       sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_ca(:,sgfc:),&
+                       ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset),error)
+                 ENDDO
+
+                 DEALLOCATE(sdaba,sabda,sdabda,STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ELSE
+                 CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                               lca_max(kaset),npgfca(kaset),zetca(:,kaset),rpgfca(:,kaset),lca_min(kaset),&
+                               rab,dab,rac,dac,rbc,dbc,saba,error=error)
+                ENDIF
                 CALL abc_contract(abaint(sgfa:m1,sgfb:m2,sgfc:m3),saba,& 
                      sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_ca(:,sgfc:),&
                      ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset),error)
@@ -622,7 +642,7 @@ CONTAINS
              END IF
           END DO
 
-          ! calculate integrals abbint
+          ! calculate integrals abbint and derivative [d(a,b,b)/dA] dabbint if requested
           IF(calc_abb) THEN
             rac = rab
             dac = dab
@@ -635,16 +655,29 @@ CONTAINS
                IF(ncoa*ncob*ncoc > 0) THEN
                   ALLOCATE(sabb(ncoa,ncob,ncoc),STAT=stat)
                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                  sabb(:,:,:) =0._dp
+                  sabb(:,:,:) = 0._dp
+                  IF(calculate_forces) THEN
+                   ALLOCATE(sdabb(ncoa,ncob,ncoc,3),STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   sdabb(:,:,:,:) = 0._dp
                   ! integrals
-                  CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                               lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),rpgfcb(:,kbset),lcb_min(kbset),&
-                               rab,dab,rac,dac,rbc,dbc,sabb)
-                 !CALL overlap3_test_2(la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),&
-                 !                     lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),&
-                 !                     lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),lcb_min(kbset),&
-                 !                     ra,rb,rb,sabb,error)
+                   CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                                lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                                lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),rpgfcb(:,kbset),lcb_min(kbset),&
+                                rab,dab,rac,dac,rbc,dbc,sabb,sdabc=sdabb,error=error)
+                   DO i=1,3
+                    CALL abc_contract(dabbint(sgfa:m1,sgfb:m2,sgfc:m3,i),sdabb(:,:,:,i),&
+                         sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
+                         ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset),error)
+                   ENDDO
+                   DEALLOCATE(sdabb,STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                  ELSE
+                   CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                                lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                                lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),rpgfcb(:,kbset),lcb_min(kbset),&
+                                rab,dab,rac,dac,rbc,dbc,sabb,error=error)
+                  ENDIF
                   CALL abc_contract(abbint(sgfa:m1,sgfb:m2,sgfc:m3),sabb,&
                        sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
                        ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset),error)
@@ -664,20 +697,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculate overlap integrals (a,b)
 ! *****************************************************************************
-  SUBROUTINE lri_int_ab(sab,rab,fba,fbb,error)
+  SUBROUTINE lri_int_ab(sab,dsab,rab,fba,fbb,calculate_forces,error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: dsab
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     TYPE(gto_basis_set_type), POINTER        :: fba, fbb
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_ab', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iset, jset, lds, m1, &
-                                                m2, maxco, maxl, ncoa, ncob, &
-                                                nseta, nsetb, sgfa, sgfb, &
-                                                stat, va, vb, wa, wb
+    INTEGER :: handle, i, iset, jset, lds, m1, m2, maxco, maxcoa, maxcob, &
+      maxl, maxla, maxlb, ncoa, ncob, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -687,7 +721,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sint
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: swork
+      DIMENSION(:, :, :)                     :: devab, swork
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
@@ -721,14 +755,27 @@ CONTAINS
     sphi_b       =>  fbb%sphi
     zetb         =>  fbb%zet
 
-    CALL get_gto_basis_set(fba,maxco=va,maxl=wa)
-    CALL get_gto_basis_set(fbb,maxco=vb,maxl=wb)
-    maxco = MAX(va,vb)
-    maxl = MAX(wa,wb)
+    CALL get_gto_basis_set(fba,maxco=maxcoa,maxl=maxla)
+    CALL get_gto_basis_set(fbb,maxco=maxcob,maxl=maxlb)
+    maxco = MAX(maxcoa,maxcob)
+    IF(calculate_forces) THEN
+     maxl = MAX(maxla+1,maxlb)
+    ELSE
+     maxl = MAX(maxla,maxlb)
+    ENDIF
     lds = ncoset(maxl)
-    ALLOCATE(sint(maxco,maxco),swork(lds,lds,1),STAT=stat)
+    ALLOCATE(sint(maxco,maxco),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    sint = 0._dp
+    IF(calculate_forces) THEN
+     !derivatives will be stored in devab(:,:,2:4)
+     ALLOCATE(swork(lds,lds,4),devab(maxco,maxco,4),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     devab = 0._dp
+    ELSE
+     ALLOCATE(swork(lds,lds,1),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    sint  = 0._dp
     swork = 0._dp
 
     dab = SQRT( SUM(rab**2) )
@@ -746,16 +793,38 @@ CONTAINS
           sgfb = first_sgfb(1,jset)
           m1=sgfa+nsgfa(iset)-1
           m2=sgfb+nsgfb(jset)-1
+          sint=0._dp
+          swork = 0._dp
 
           ! calculate integrals
-          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
-                       lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
-                       rab,dab,sint,0,.FALSE.,swork,lds)
+          IF(calculate_forces) THEN
+             devab = 0._dp 
+             CALL overlap(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
+                          lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
+                          rab,dab,sint,0,.FALSE.,swork,lds,sdab=devab)
+             DO i=1,3
+              !NOTE: devab(:,:,2:4) contains all derivatives for lmin=0 to lmax=lmax 
+              !      correct after contraction (multiply with zero for elements l < lmin) 
+              CALL ab_contract(dsab(sgfa:m1,sgfb:m2,i),devab(:,:,i+1),sphi_a(:,sgfa:),&
+                   sphi_b(:,sgfb:),ncoa,ncob,nsgfa(iset),nsgfb(jset),error)
+             ENDDO
+
+          ELSE
+             CALL overlap(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
+                          lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
+                          rab,dab,sint,0,.FALSE.,swork,lds)
+          ENDIF
 
           CALL ab_contract(sab(sgfa:m1,sgfb:m2),sint,sphi_a(:,sgfa:),sphi_b(:,sgfb:),&
                ncoa,ncob,nsgfa(iset),nsgfb(jset),error)
        END DO
     END DO
+
+    IF(calculate_forces) THEN
+     DEALLOCATE(devab,STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
     DEALLOCATE(sint,swork,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -899,19 +968,10 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(abxint_work(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    !alloc lrii%dacoef
-    IF(iatom == jatom) THEN
-     ALLOCATE(lrii%dacoef(nba,nbb,nfa),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-     ALLOCATE(lrii%dacoef(nba,nbb,nn),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
 
     R(:,:,:)=0._dp
     Q(:,:,:)=0._dp
     abxint_work(:,:,:) =0._dp
-    lrii%dacoef(:,:,:) =0._dp
 
     abxint_work(1:nba,1:nbb,1:nfa)=lrii%abaint(1:nba,1:nbb,1:nfa)    !abaint
     abxint_work(1:nba,1:nbb,nfa+1:nn)=lrii%abbint(1:nba,1:nbb,1:nfb) !abbint
@@ -949,6 +1009,7 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! *****************************************************************************
 !  DEBUG ROUTINES ==> RECURSIVE INTEGRAL EVALUATION
+!  TO BE DELETED LATER
 ! *****************************************************************************
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   SUBROUTINE overlap3_test(error)
@@ -1004,10 +1065,10 @@ CONTAINS
     rpgfc =20._dp
     sabc=0._dp
 
-    CALL overlap3(la_max=la_max,npgfa=1,zeta=xa_work,rpgfa=rpgfa,la_min=la_min,&
-                  lb_max=lb_max,npgfb=1,zetb=xb_work,rpgfb=rpgfb,lb_min=lb_min,&
-                  lc_max=lc_max,npgfc=1,zetc=xc_work,rpgfc=rpgfc,lc_min=lc_min,&
-                  rab=rab,dab=dab,rac=rac,dac=dac,rbc=rbc,dbc=dbc,sabc=sabc)
+    CALL overlap3(la_max_set=la_max,npgfa=1,zeta=xa_work,rpgfa=rpgfa,la_min_set=la_min,&
+                  lb_max_set=lb_max,npgfb=1,zetb=xb_work,rpgfb=rpgfb,lb_min_set=lb_min,&
+                  lc_max_set=lc_max,npgfc=1,zetc=xc_work,rpgfc=rpgfc,lc_min_set=lc_min,&
+                  rab=rab,dab=dab,rac=rac,dac=dac,rbc=rbc,dbc=dbc,sabc=sabc,error=error)
    ! write(*,*) "sabc", sabc 
     !sabc(:,:,:)=0._dp 
    !CALL overlap3_old(la_max=la_max,npgfa=1,zeta=xa_work,rpgfa=rpgfa,la_min=la_min,&

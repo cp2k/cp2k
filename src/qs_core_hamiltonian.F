@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+!i----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -445,7 +445,7 @@ CONTAINS
     ! *** LRIGPW  matrices
     IF(lrigpw) THEN
        CALL get_qs_env(qs_env=qs_env,lri_env=lri_env,error=error)
-       CALL build_lri_matrices(lri_env,qs_env,error)
+       CALL build_lri_matrices(lri_env,qs_env,calculate_forces,error)
     END IF
 
     ! *** KG atomic potentials for nonadditive kinetic energy
