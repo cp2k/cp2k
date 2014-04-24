@@ -505,8 +505,8 @@ CONTAINS
                                                 sab_aux_fit_vs_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-      sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, &
-      sab_se, sab_tbe, sab_core, sab_almo
+      sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, &
+      sab_tbe, sab_core, sab_almo
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy

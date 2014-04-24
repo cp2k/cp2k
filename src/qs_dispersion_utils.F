@@ -144,7 +144,7 @@ MODULE qs_dispersion_utils
   SUBROUTINE qs_write_dispersion(qs_env,dispersion_env,ounit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    INTEGER, OPTIONAL, INTENT(in)            :: ounit
+    INTEGER, INTENT(in), OPTIONAL            :: ounit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_write_dispersion', &
