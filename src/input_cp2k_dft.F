@@ -7292,10 +7292,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="USE_MCWEENY",&
-            description="Uses McWeeny to improve the idempotency",&
-            usage="USE_MCWEENY",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL keyword_create(keyword, name="MCWEENY_MAX_ITER",&
+            description="Determines the maximum amount of McWeeny steps used after each converged"//&
+            " step in density propagation",&
+            usage="MCWEENY_MAX_ITER 2",default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MCWEENY_EPS",&
+            description="Threshold after which McWeeny is terminated",&
+            usage="MCWEENY_EPS 0.00001",&
+            default_r_val=0.0_dp,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

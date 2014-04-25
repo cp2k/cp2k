@@ -13,11 +13,14 @@ MODULE rt_propagation_output
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_occupation, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
@@ -68,7 +71,8 @@ MODULE rt_propagation_output
 
   PUBLIC :: rt_prop_output,&
             rt_convergence,&
-            rt_convergence_density
+            rt_convergence_density,&
+            report_density_occupation
 
 CONTAINS
 
@@ -79,13 +83,12 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin, n_electrons, &
-                                                output_unit
+    INTEGER                                  :: n_electrons, output_unit
     REAL(dp)                                 :: orthonormality, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, rho_new
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
@@ -144,18 +147,7 @@ CONTAINS
     END IF
 
     IF(rtp%converged) THEN
-       IF(rtp%linear_scaling) THEN
-          IF(output_unit>0) THEN
-             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-             !TODO: Output the idempotency
-             DO ispin=1,SIZE(rho_new)/2
-                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Occupation of P for spin ",&
-                      ispin, " real:",rtp%sparsity(2*ispin-1)
-                WRITE(output_unit,FMT="((T3,A,I1,A,T61,F20.10))") "Occupation of P for spin ",&
-                      ispin, " imag:",rtp%sparsity(2*ispin)
-             ENDDO
-          ENDIF
-       ELSE
+       IF(.NOT.rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
           CALL rt_calculate_orthonormality(output_unit,orthonormality,&
                mos_new,matrix_s(1)%matrix,error)
@@ -500,9 +492,62 @@ CONTAINS
 
   END SUBROUTINE make_moment
 
+! *****************************************************************************
+!> \brief Reports the sparsity pattern of the complex density matrix
+!> \author Samuel Andermatt (09.14)
+! *****************************************************************************
 
+  SUBROUTINE report_density_occupation(rtp,rho,error)
 
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'report_density_occupation', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, im, ispin, re, &
+                                                unit_nr
+    REAL(KIND=dp)                            :: eps, occ
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: tmp
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    unit_nr = cp_logger_get_default_io_unit(logger)
+    NULLIFY(tmp)
+    CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(rho),error=error)
+    DO i=1,SIZE(rho)
+      CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
+      CALL cp_dbcsr_create(tmp(i)%matrix,template=rho(i)%matrix,error=error)
+      CALL cp_dbcsr_copy(tmp(i)%matrix,rho(i)%matrix,error=error)
+    ENDDO
+    DO ispin=1,SIZE(rho)/2
+      re=2*ispin-1
+      im=2*ispin
+      eps=MAX(rtp%filter_eps,10E-12)
+      DO WHILE(eps<1.1_dp)
+         CALL cp_dbcsr_filter(tmp(re)%matrix,eps,error=error)
+         occ=cp_dbcsr_get_occupation(tmp(re)%matrix)
+         IF(unit_nr>0) WRITE(unit_nr,FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ",&
+                       ispin," eps ", eps, " : ", occ
+         eps=eps*10 
+      ENDDO
+      eps=MAX(rtp%filter_eps,10E-12)
+      DO WHILE(eps<1.1_dp)
+         CALL cp_dbcsr_filter(tmp(im)%matrix,eps,error=error)
+         occ=cp_dbcsr_get_occupation(tmp(im)%matrix)
+         IF(unit_nr>0) WRITE(unit_nr,FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ",&
+                       ispin," eps ", eps, " : " ,occ
+         eps=eps*10 
+      ENDDO
+    ENDDO
+    CALL cp_dbcsr_deallocate_matrix_set(tmp,error=error)
+    CALL timestop(handle)
+
+  END SUBROUTINE report_density_occupation
 
 END MODULE rt_propagation_output

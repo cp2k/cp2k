@@ -1692,8 +1692,10 @@ CPSourceFileRef,&
       l_val=dft_control%rtp_control%linear_scaling,error=error)
     CALL section_vals_val_get(rtp_section,"CALCULATE_IDEMPOTENCY",&
       l_val=dft_control%rtp_control%calc_idempotency,error=error)
-    CALL section_vals_val_get(rtp_section,"USE_MCWEENY",&
-      l_val=dft_control%rtp_control%mcweeny,error=error)
+    CALL section_vals_val_get(rtp_section,"MCWEENY_MAX_ITER",&
+      i_val=dft_control%rtp_control%mcweeny_max_iter,error=error)
+    CALL section_vals_val_get(rtp_section,"MCWEENY_EPS",&
+      r_val=dft_control%rtp_control%mcweeny_eps,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_SCALE",&
       r_val=dft_control%rtp_control%delta_pulse_scale,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_DIRECTION",&

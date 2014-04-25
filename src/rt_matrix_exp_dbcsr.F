@@ -785,12 +785,16 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i, stat, unit_nr
     LOGICAL                                  :: convergence, failure
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    unit_nr = cp_logger_get_default_io_unit(logger)
 
     failure=.FALSE.
     NULLIFY(tmp)
@@ -839,7 +843,11 @@ END SUBROUTINE
        alpha = cp_dbcsr_frobenius_norm(comm2)
        IF(alpha>max_alpha) max_alpha=alpha
        IF(max_alpha<eps_exp) convergence = .TRUE.
-       IF(convergence) EXIT
+       IF(convergence) THEN
+          IF(unit_nr>0) WRITE (UNIT=unit_nr,FMT="((T3,A,I2,A))")&
+                "BCH converged after ",i," steps"
+          EXIT
+       ENDIF
     ENDDO
 
     CALL cp_dbcsr_filter(density_re,filter_eps,error=error)
@@ -876,12 +884,16 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i, stat, unit_nr
     LOGICAL                                  :: convergence, failure
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    unit_nr = cp_logger_get_default_io_unit(logger)
 
     failure=.FALSE.
     NULLIFY(tmp)
@@ -929,7 +941,11 @@ END SUBROUTINE
        alpha = cp_dbcsr_frobenius_norm(comm2)
        IF(alpha>max_alpha) max_alpha=alpha
        IF(max_alpha<eps_exp) convergence = .TRUE.
-       IF(convergence) EXIT
+       IF(convergence) THEN
+          IF(unit_nr>0) WRITE (UNIT=unit_nr,FMT="((T3,A,I2,A))")&
+                "BCH converged after ",i," steps"
+          EXIT
+       ENDIF
     ENDDO
 
     CALL cp_dbcsr_filter(density_re,filter_eps,error=error)

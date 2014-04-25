@@ -68,7 +68,8 @@ MODULE rt_propagation_methods
                                              propagate_exp,&
                                              propagate_exp_density
   USE rt_matrix_exp_dbcsr,             ONLY: cp_complex_dbcsr_gemm_3
-  USE rt_propagation_output,           ONLY: rt_convergence,&
+  USE rt_propagation_output,           ONLY: report_density_occupation,&
+                                             rt_convergence,&
                                              rt_convergence_density
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              get_rtp_hfx,&
@@ -90,7 +91,7 @@ MODULE rt_propagation_methods
        calc_update_rho_sparse,&
        aspc_extrapolate,&
        calc_sinvH,&
-       put_data_to_history
+       put_data_to_history, purify_mcweeny_complex_nonorth
 
 
 CONTAINS
@@ -242,53 +243,51 @@ CONTAINS
           DO i=1,SIZE(rho_new)
              rtp%sparsity(i)=cp_dbcsr_get_occupation(rho_new(i)%matrix)
           END DO
-          IF(rtp_control%mcweeny.OR.rtp_control%calc_idempotency) THEN
+          IF(rtp_control%mcweeny_max_iter>0.OR.rtp_control%calc_idempotency) THEN
              IF(SIZE(rho_new)==2) THEN
                 CALL cp_dbcsr_scale(rho_new(1)%matrix,one/2,error=error)
                 CALL cp_dbcsr_scale(rho_new(2)%matrix,one/2,error=error)
              ENDIF
-             NULLIFY(PS,PSP)
-             CALL cp_dbcsr_allocate_matrix_set(PS,SIZE(rho_new),error=error)
-             CALL cp_dbcsr_allocate_matrix_set(PSP,SIZE(rho_new),error=error)
-             DO ispin=1,SIZE(rho_new)/2
-                re=2*ispin-1
-                im=2*ispin
-                CALL cp_dbcsr_init_p(PS(re)%matrix,error=error)
-                CALL cp_dbcsr_init_p(PS(im)%matrix,error=error)
-                CALL cp_dbcsr_init_p(PSP(re)%matrix,error=error)
-                CALL cp_dbcsr_init_p(PSP(im)%matrix,error=error)
-                CALL cp_dbcsr_create(PS(re)%matrix,template=rho_new(re)%matrix,error=error)
-                CALL cp_dbcsr_create(PS(im)%matrix,template=rho_new(im)%matrix,error=error)
-                CALL cp_dbcsr_create(PSP(re)%matrix,template=rho_new(re)%matrix,error=error)
-                CALL cp_dbcsr_create(PSP(im)%matrix,template=rho_new(im)%matrix,error=error)
-                CALL cp_dbcsr_multiply("N","N",one,rho_new(re)%matrix,s_mat(1)%matrix,zero,&
-                     PS(re)%matrix,filter_eps=rtp%filter_eps,error=error)
-                CALL cp_dbcsr_multiply("N","N",one,rho_new(im)%matrix,s_mat(1)%matrix,zero,&
-                     PS(im)%matrix,filter_eps=rtp%filter_eps,error=error)
-                CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
-                     rho_new(re)%matrix,rho_new(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
-                     filter_eps=rtp%filter_eps,error=error)
-             END DO
-             IF(rtp_control%mcweeny)THEN
-                !performs a single mcweeny purification step
-                CALL cp_dbcsr_copy(rho_new(re)%matrix,PSP(re)%matrix,error=error)
-                CALL cp_dbcsr_copy(rho_new(im)%matrix,PSP(im)%matrix,error=error)
-                CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
-                     PSP(re)%matrix,PSP(im)%matrix,3.0_dp,rho_new(re)%matrix,rho_new(im)%matrix,&
-                     filter_eps=rtp%filter_eps,error=error)
-             END IF
-             !PSP works here as a work matrix to calculate the idempotency
-             CALL cp_dbcsr_add(PSP(re)%matrix,rho_new(re)%matrix,one,-one,error=error)
-             CALL cp_dbcsr_add(PSP(im)%matrix,rho_new(im)%matrix,one,-one,error=error)
-             CALL complex_frobenius_norm(frob_norm,PSP(re)%matrix,PSP(im)%matrix,error=error)
-             CALL cp_dbcsr_deallocate_matrix_set(PS,error)
-             CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
+             IF(rtp_control%mcweeny_max_iter>0) THEN
+                CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,&
+                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
+             ELSE
+                NULLIFY(PS,PSP)
+                CALL cp_dbcsr_allocate_matrix_set(PS,SIZE(rho_new),error=error)
+                CALL cp_dbcsr_allocate_matrix_set(PSP,SIZE(rho_new),error=error)
+                DO ispin=1,SIZE(rho_new)/2
+                   re=2*ispin-1
+                   im=2*ispin
+                   CALL cp_dbcsr_init_p(PS(re)%matrix,error=error)
+                   CALL cp_dbcsr_init_p(PS(im)%matrix,error=error)
+                   CALL cp_dbcsr_init_p(PSP(re)%matrix,error=error)
+                   CALL cp_dbcsr_init_p(PSP(im)%matrix,error=error)
+                   CALL cp_dbcsr_create(PS(re)%matrix,template=rho_new(re)%matrix,error=error)
+                   CALL cp_dbcsr_create(PS(im)%matrix,template=rho_new(im)%matrix,error=error)
+                   CALL cp_dbcsr_create(PSP(re)%matrix,template=rho_new(re)%matrix,error=error)
+                   CALL cp_dbcsr_create(PSP(im)%matrix,template=rho_new(im)%matrix,error=error)
+                   CALL cp_dbcsr_multiply("N","N",one,rho_new(re)%matrix,s_mat(1)%matrix,zero,&
+                        PS(re)%matrix,filter_eps=rtp%filter_eps,error=error)
+                   CALL cp_dbcsr_multiply("N","N",one,rho_new(im)%matrix,s_mat(1)%matrix,zero,&
+                        PS(im)%matrix,filter_eps=rtp%filter_eps,error=error)
+                   CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
+                        rho_new(re)%matrix,rho_new(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
+                        filter_eps=rtp%filter_eps,error=error)
+                END DO
+                !PSP works here as a work matrix to calculate the idempotency
+                CALL cp_dbcsr_add(PSP(re)%matrix,rho_new(re)%matrix,one,-one,error=error)
+                CALL cp_dbcsr_add(PSP(im)%matrix,rho_new(im)%matrix,one,-one,error=error)
+                CALL complex_frobenius_norm(frob_norm,PSP(re)%matrix,PSP(im)%matrix,error=error)
+                CALL cp_dbcsr_deallocate_matrix_set(PS,error)
+                CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
+             ENDIF
              IF(SIZE(rho_new)==2) THEN
                 CALL cp_dbcsr_scale(rho_new(1)%matrix,one*2,error=error)
                 CALL cp_dbcsr_scale(rho_new(2)%matrix,one*2,error=error)
              ENDIF
              CALL calc_update_rho_sparse(qs_env,error)
           ENDIF
+          CALL report_density_occupation(rtp,rho_new,error=error)
           DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)
           END DO
@@ -545,13 +544,86 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop (iter)
     frob_norm=cp_dbcsr_frobenius_norm(tmp)
-    IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation of idempotency: ",frob_norm
+    IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE complex_frobenius_norm
+
+! *****************************************************************************
+!> \brief Does McWeeny for complex matrices
+!> \author Samuel Andermatt (04.14)
+! *****************************************************************************
+
+  SUBROUTINE purify_mcweeny_complex_nonorth(P,s_mat,eps,max_iter,threshold,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: P, s_mat
+    REAL(KIND=dp)                            :: eps
+    INTEGER                                  :: max_iter
+    REAL(KIND=dp)                            :: threshold
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'purify_mcweeny_complex_nonorth', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, im, ispin, re
+    REAL(KIND=dp)                            :: frob_norm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: PS, PSP, tmp
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(tmp,PS,PSP)
+    CALL cp_dbcsr_allocate_matrix_set(tmp,2,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(PSP,2,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(PS,2,error=error)
+    DO i=1,2
+       CALL cp_dbcsr_init_p(PS(i)%matrix,error=error)
+       CALL cp_dbcsr_create(PS(i)%matrix,template=P(1)%matrix,error=error)
+       CALL cp_dbcsr_init_p(PSP(i)%matrix,error=error)
+       CALL cp_dbcsr_create(PSP(i)%matrix,template=P(1)%matrix,error=error)
+       CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
+       CALL cp_dbcsr_create(tmp(i)%matrix,template=P(1)%matrix,error=error)
+    ENDDO
+    DO ispin=1,SIZE(P)/2
+       re=2*ispin-1
+       im=2*ispin
+       DO i=1,max_iter
+          CALL cp_dbcsr_multiply("N", "N", one, P(re)%matrix,s_mat(1)%matrix,&
+               zero, PS(re)%matrix, filter_eps=eps,error=error)
+          CALL cp_dbcsr_multiply("N", "N", one, P(im)%matrix,s_mat(1)%matrix,&
+               zero, PS(im)%matrix, filter_eps=eps,error=error)
+          CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
+               P(re)%matrix,P(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
+               filter_eps=eps,error=error)
+          CALL cp_dbcsr_copy(tmp(re)%matrix,PSP(re)%matrix,error=error)
+          CALL cp_dbcsr_copy(tmp(im)%matrix,PSP(im)%matrix,error=error)
+          CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
+          CALL cp_dbcsr_add(tmp(im)%matrix,P(im)%matrix,1.0_dp,-1.0_dp,error=error)
+          CALL complex_frobenius_norm(frob_norm,tmp(re)%matrix,tmp(im)%matrix,error=error)
+          IF(frob_norm.GT.threshold)THEN
+             CALL cp_dbcsr_copy(P(re)%matrix,PSP(re)%matrix,error=error)
+             CALL cp_dbcsr_copy(P(im)%matrix,PSP(im)%matrix,error=error)
+             CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
+                  PSP(re)%matrix,PSP(im)%matrix,3.0_dp,P(re)%matrix,P(im)%matrix,&
+                  filter_eps=eps,error=error)
+          ELSE
+              EXIT
+          END IF
+       END DO
+    END DO
+    CALL cp_dbcsr_deallocate_matrix_set(tmp,error)
+    CALL cp_dbcsr_deallocate_matrix_set(PS,error)
+    CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE purify_mcweeny_complex_nonorth
 
 ! *****************************************************************************
 !> \brief calculates the density from the complex MOs and passes the density to
