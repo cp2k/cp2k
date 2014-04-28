@@ -2610,7 +2610,7 @@ CONTAINS
       ENDDO
     ENDDO
 
-    IF(rsum > 10.E-08_dp)THEN
+    IF(rsum > 0.0_dp)THEN
        c6=csum/rsum
        dc6a=(dza-c6*dwa)/rsum
        dc6b=(dzb-c6*dwb)/rsum
