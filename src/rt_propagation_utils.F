@@ -298,7 +298,6 @@ MODULE  rt_propagation_utils
              CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix,&
                   matrix_v=mo_array(ispin)%mo_set%mo_coeff,matrix_g=mo_array(ispin)%mo_set%mo_coeff,ncol=ncol,&
                   keep_sparsity=.FALSE.,alpha=alpha,error=error)
-             CALL cp_dbcsr_filter(rho_old(re)%matrix,rtp%filter_eps,error=error)
           END DO
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,error=error)

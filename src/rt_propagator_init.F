@@ -178,6 +178,9 @@ CONTAINS
 
     IF(rtp%linear_scaling) THEN
        CALL get_rtp (rtp=rtp,rho_old=rho_old,error=error)
+       DO i=1,SIZE(rho_old)
+          CALL cp_dbcsr_filter(rho_old(i)%matrix,rtp%filter_eps,error=error)
+       END DO
     ELSE
        CALL get_rtp (rtp=rtp,mos_old=mos_old,error=error)
     ENDIF
