@@ -19,8 +19,7 @@ MODULE dbcsr_tests
                                              array_size
   USE dbcsr_block_access
   USE dbcsr_data_methods
-  USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin,&
-                                             dbcsr_mp_make_env
+  USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -32,12 +31,9 @@ MODULE dbcsr_tests
                                              real_8
   USE dbcsr_machine,                   ONLY: m_flush,&
                                              m_walltime
-  USE dbcsr_message_passing,           ONLY: dmp_max,&
-                                             mp_cart_create,&
-                                             mp_dims_create,&
-                                             mp_environ,&
-                                             mp_sum,&
-                                             mp_sync
+  USE dbcsr_message_passing,           ONLY: &
+       dmp_max, mp_cart_create, mp_cart_rank, mp_comm_free, mp_comm_null, &
+       mp_dims_create, mp_environ, mp_sum, mp_sync
   USE dbcsr_methods
   USE dbcsr_operations
   USE dbcsr_ptr_util
@@ -99,8 +95,8 @@ CONTAINS
       routineN = 'cp_test_multiplies', routineP = moduleN//':'//routineN
 
     CHARACTER                                :: t_a, t_b
-    INTEGER                                  :: bmax, bmin, error_handle, &
-                                                mynode, numnodes
+    INTEGER                                  :: bmax, bmin, cart_group, &
+                                                error_handle, mynode, numnodes
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: group_sizes
     INTEGER, DIMENSION(2)                    :: npdims
     LOGICAL                                  :: pgiven
@@ -143,7 +139,7 @@ CONTAINS
     ! Create dist
 
     ! Create the random matrices.
-    CALL dbcsr_mp_make_env (mp_env, mp_group, error=dbcsr_error)
+    CALL dbcsr_mp_make_env (mp_env, cart_group, mp_group, error=dbcsr_error)
     npdims(1) = dbcsr_mp_nprows (mp_env)
     npdims(2) = dbcsr_mp_npcols (mp_env)
     CALL dbcsr_dist_bin (row_dist_c, array_size(sizes_m), npdims(1),&
@@ -239,6 +235,7 @@ CONTAINS
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
+    CALL mp_comm_free(cart_group)
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
   END SUBROUTINE cp_test_multiplies
 
@@ -272,11 +269,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_multiplies_multiproc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, group, &
-                                                loop_iter, mynode, numnodes, &
-                                                test
+    INTEGER                                  :: cart_group, error_handle, &
+                                                group, loop_iter, mynode, &
+                                                numnodes, test
     INTEGER(kind=int_8)                      :: flop, flop_sum
-    INTEGER, DIMENSION(2)                    :: myploc, npdims
+    INTEGER, DIMENSION(2)                    :: npdims
     LOGICAL                                  :: i_am_alive
     REAL(kind=real_8)                        :: cs, cs_pos, flops_all, t1, t2
     TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
@@ -304,25 +301,15 @@ CONTAINS
        group = dbcsr_mp_group (dbcsr_distribution_mp (&
                    dbcsr_distribution (matrix_c)))
        IF (numnodes .EQ. 0) THEN
-          CALL dbcsr_mp_make_env (mp_env, group, nprocs=MAXVAL(npdims),&
+          CALL dbcsr_mp_make_env (mp_env, cart_group, group, nprocs=MAXVAL(npdims),&
                error=dbcsr_error)
        ELSE
-          CALL dbcsr_mp_make_env (mp_env, group, pgrid_dims=npdims,&
+          CALL dbcsr_mp_make_env (mp_env, cart_group, group, pgrid_dims=npdims,&
                error=dbcsr_error)
        ENDIF
        CALL dbcsr_assert (numnodes, "GE", 0, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN,&
             "Cartesian sides must be greater or equal to 0",__LINE__,dbcsr_error)
-       IF (.FALSE.) THEN
-          ! Let MPI decide our process grid
-          IF (numnodes .EQ. 0) THEN
-             numnodes = MAXVAL (npdims)
-             npdims(1:2) = 0
-             CALL mp_dims_create (numnodes, npdims)
-          ENDIF
-          ! Create communicator with given cartesian grid
-          CALL mp_cart_create (mp_group, 2, npdims, myploc, group)
-       ENDIF
        i_am_alive = dbcsr_mp_active (mp_env)
        alive: IF (i_am_alive) THEN
           npdims(1) = dbcsr_mp_nprows (mp_env)
@@ -464,8 +451,74 @@ CONTAINS
          CALL dbcsr_release (m_c)
          CALL dbcsr_release (m_c_reserve)
        ENDIF alive
+       CALL mp_comm_free(cart_group)
     ENDDO p_sizes
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
   END SUBROUTINE test_multiplies_multiproc
+
+! *****************************************************************************
+!> \brief Creates a sane mp_obj from the given MPI comm that is not a cartesian one (hack)
+!> \param[out] mp_env      Message-passing environment object to create
+!> \param[out] cart_group  the created cartesian group (to be freed by the user)
+!> \param[in] mp_group     MPI group
+!> \param[in] pgrid_dims   (optional) Dimensions of MPI group
+!> \param[in] nprocs       (optional) Number of processes
+!> \param[in,out] error    error
+! *****************************************************************************
+  SUBROUTINE dbcsr_mp_make_env (mp_env, cart_group, mp_group, &
+       nprocs, pgrid_dims, error)
+    TYPE(dbcsr_mp_obj), INTENT(OUT)          :: mp_env
+    INTEGER, INTENT(OUT)                     :: cart_group
+    INTEGER, INTENT(IN)                      :: mp_group
+    INTEGER, INTENT(IN), OPTIONAL            :: nprocs
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: pgrid_dims
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mp_make_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, mynode, &
+                                                numnodes, pcol, prow
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+    INTEGER, DIMENSION(2)                    :: coord, myploc, npdims
+    LOGICAL                                  :: alive
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL mp_environ (numnodes, mynode, mp_group)
+    IF (PRESENT (nprocs)) THEN
+       CALL dbcsr_assert (nprocs, "LE", numnodes,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Can not grow processes.", __LINE__, error=error)
+       numnodes = nprocs
+    ENDIF
+    !
+    IF (PRESENT (pgrid_dims)) THEN
+       npdims(:) = pgrid_dims
+    ELSE
+       npdims(:) = 0
+       CALL mp_dims_create (numnodes, npdims)
+    ENDIF
+    CALL mp_cart_create (mp_group, 2, npdims, myploc, cart_group)
+    alive = cart_group .NE. mp_comm_null
+    IF (alive) THEN
+       CALL mp_environ (numnodes, mynode, cart_group)
+       ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
+       DO prow = 0, npdims(1)-1
+          DO pcol = 0, npdims(2)-1
+             coord = (/ prow, pcol /)
+             CALL mp_cart_rank (cart_group, coord, pgrid(prow, pcol))
+          ENDDO
+       ENDDO
+       CALL dbcsr_mp_new (mp_env, pgrid, cart_group, mynode, numnodes,&
+            myprow=myploc(1), mypcol=myploc(2))
+    ELSE
+       CALL dbcsr_mp_init (mp_env)
+    ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_mp_make_env
+
 
 END MODULE dbcsr_tests

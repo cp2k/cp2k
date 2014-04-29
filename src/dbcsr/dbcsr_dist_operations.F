@@ -20,11 +20,6 @@ MODULE dbcsr_dist_operations
   USE dbcsr_config,                    ONLY: max_elements_per_block
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: sp
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
-                                             mp_cart_rank,&
-                                             mp_comm_null,&
-                                             mp_dims_create,&
-                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_col_dist, &
        dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
@@ -34,10 +29,9 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_new, dbcsr_distribution_no_threads, &
        dbcsr_distribution_nrows, dbcsr_distribution_processor, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_thread_dist, dbcsr_is_initialized, dbcsr_mp_init, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
-       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_release, dbcsr_release_locals
+       dbcsr_distribution_thread_dist, dbcsr_is_initialized, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_release, dbcsr_release_locals
   USE dbcsr_toollib,                   ONLY: gcd,&
                                              lcm
   USE dbcsr_types,                     ONLY: &
@@ -84,8 +78,6 @@ MODULE dbcsr_dist_operations
 
   PUBLIC :: dbcsr_create_image_dist,&
             make_image_distribution_dense
-
-  PUBLIC :: dbcsr_mp_make_env
 
   ! Helper routines
   PUBLIC ::  evenly_bin,&
@@ -2962,76 +2954,5 @@ CONTAINS
     CALL array_new (bin_dist, dist, gift=.TRUE.)
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_dist_bin
-
-
-! *****************************************************************************
-!> \brief Creates a sane mp_obj from the given MPI group.
-!> \param[out] mp_env      Message-passing environment object to create
-!> \param[in] mp_group     MPI group
-!> \param[in] pgrid_dims   (optional) Dimensions of MPI group
-!> \param[in] nprocs       (optional) Number of processes
-!> \param[in,out] error    error
-! *****************************************************************************
-  SUBROUTINE dbcsr_mp_make_env (mp_env, mp_group, &
-       nprocs, pgrid_dims, error)
-    TYPE(dbcsr_mp_obj), INTENT(OUT)          :: mp_env
-    INTEGER, INTENT(IN)                      :: mp_group
-    INTEGER, INTENT(IN), OPTIONAL            :: nprocs
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: pgrid_dims
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mp_make_env', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle, group, mynode, &
-                                                numnodes, pcol, prow
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    INTEGER, DIMENSION(2)                    :: coord, myploc, npdims
-    LOGICAL                                  :: alive
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handle, error)
-    CALL mp_environ (numnodes, mynode, mp_group)
-    IF (PRESENT (nprocs)) THEN
-       CALL dbcsr_assert (nprocs, "LE", numnodes,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Can not grow processes.", __LINE__, error=error)
-       numnodes = nprocs
-    ENDIF
-    !
-    IF (PRESENT (pgrid_dims)) THEN
-       CALL dbcsr_assert (SIZE(pgrid_dims), "EQ", 2,&
-            dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Only 2-Dimensional process grids supported.",&
-            __LINE__, error=error)
-       CALL dbcsr_assert (pgrid_dims(1)*pgrid_dims(2), "LE", numnodes,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Process grid dimensions do not match number of processes.",&
-            __LINE__, error=error)
-       npdims(:) = pgrid_dims
-    ELSE
-       npdims(:) = 0
-       CALL mp_dims_create (numnodes, npdims)
-    ENDIF
-    CALL mp_cart_create (mp_group, 2, npdims, myploc, group)
-    alive = group .NE. mp_comm_null
-    IF (alive) THEN
-       CALL mp_environ (numnodes, mynode, group)
-       ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
-       DO prow = 0, npdims(1)-1
-          DO pcol = 0, npdims(2)-1
-             coord = (/ prow, pcol /)
-             CALL mp_cart_rank (group, coord, pgrid(prow, pcol))
-          ENDDO
-       ENDDO
-       CALL dbcsr_mp_new (mp_env, pgrid, group, mynode, numnodes,&
-            myprow=myploc(1), mypcol=myploc(2))
-    ELSE
-       CALL dbcsr_mp_init (mp_env)
-    ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE dbcsr_mp_make_env
 
 END MODULE dbcsr_dist_operations
