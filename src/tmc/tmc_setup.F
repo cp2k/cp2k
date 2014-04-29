@@ -35,6 +35,7 @@ MODULE tmc_setup
                                              m_flush
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_comm_dup,&
+                                             mp_comm_free,&
                                              mp_comm_split_direct
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
@@ -1005,37 +1006,49 @@ CONTAINS
       END IF
 
       IF(success) THEN
-        ! -- spiltting communicators
+        ! -- splitting communicators
         ! worker intern communication
         CALL mp_comm_split_direct(my_mpi_world,comm_tmp,cc_group, cc_group_rank)
         NULLIFY(tmc_comp_set%para_env_sub_group)
         ! not the unused cores
-        IF(cc_group_rank.GE.0) &
+        IF(cc_group_rank.GE.0) THEN
           CALL cp_para_env_create(para_env=tmc_comp_set%para_env_sub_group,&
                                   group=comm_tmp,error=error)
+        ELSE
+          CALL mp_comm_free(comm_tmp)
+        ENDIF
   
         ! worker master communication
         CALL mp_comm_split_direct(my_mpi_world,comm_tmp, master_worker_group, master_worker_rank)
         NULLIFY(tmc_comp_set%para_env_m_w)
         ! not the unused cores
-        IF(master_worker_rank.GE.0) &
+        IF(master_worker_rank.GE.0) THEN
           CALL cp_para_env_create(para_env=tmc_comp_set%para_env_m_w,&
                                   group=comm_tmp,error=error)
+        ELSE
+          CALL mp_comm_free(comm_tmp)
+        ENDIF
   
         ! communicator only for first energy worker master and global master 
         CALL mp_comm_split_direct(my_mpi_world,comm_tmp, master_first_e_worker_g, master_first_e_worker_r)
         NULLIFY(tmc_comp_set%para_env_m_first_w)
         ! not the unused cores
-        IF(master_first_e_worker_r.GE.0) &
+        IF(master_first_e_worker_r.GE.0) THEN
           CALL cp_para_env_create(para_env=tmc_comp_set%para_env_m_first_w,&
                                   group=comm_tmp,error=error)
+        ELSE
+          CALL mp_comm_free(comm_tmp)
+        ENDIF
    
         ! communicator only for analysis worker and global master
         CALL mp_comm_split_direct(my_mpi_world,comm_tmp, master_ana_group, master_ana_rank)
         NULLIFY(tmc_comp_set%para_env_m_ana)
-        IF(master_ana_rank.GE.0) &
+        IF(master_ana_rank.GE.0) THEN
           CALL cp_para_env_create(para_env=tmc_comp_set%para_env_m_ana,&
                                   group=comm_tmp,error=error)
+        ELSE
+          CALL mp_comm_free(comm_tmp)
+        ENDIF
 
         ! communicator for master only to handle external control
         master_ana_group = my_mpi_undefined
@@ -1046,9 +1059,12 @@ CONTAINS
         END IF
         CALL mp_comm_split_direct(my_mpi_world,comm_tmp, master_ana_group, master_ana_rank)
         NULLIFY(tmc_comp_set%para_env_m_only)
-        IF(master_ana_rank.GE.0) &
+        IF(master_ana_rank.GE.0) THEN
           CALL cp_para_env_create(para_env=tmc_comp_set%para_env_m_only,&
                                   group=comm_tmp,error=error)
+        ELSE
+          CALL mp_comm_free(comm_tmp)
+        ENDIF
       END IF
     END IF
   END SUBROUTINE tmc_redistributing_cores
