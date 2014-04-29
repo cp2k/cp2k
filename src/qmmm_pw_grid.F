@@ -184,7 +184,6 @@ CONTAINS
             pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
 
        !para
-       CALL mp_comm_dup ( pw_grid_in % para % group, pw_grid_out % para % group )
        CALL mp_environ ( pw_grid_out % para % group_size, &
                          pw_grid_out % para % my_pos, &
                          pw_grid_out % para % group )
