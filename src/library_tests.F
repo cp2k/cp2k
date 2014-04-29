@@ -588,6 +588,8 @@ CONTAINS
                           pool_limit=10, plan_style=fftw_plan_type, &
                           error=error )
           method = "FFTSG  "
+       CASE ( 2 )
+          CYCLE
        CASE ( 3 )
           CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
                           pool_limit=10, plan_style=fftw_plan_type, &
