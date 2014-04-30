@@ -473,6 +473,7 @@ CONTAINS
       CALL cp_error_dealloc_ref(error_sub,error=error)
       CALL cp_logger_release(logger_sub)
     END IF
+    CALL mp_comm_free(my_mpi_world)
     CALL tmc_env_release(tmc_env, error)
 
     ! end the timing
@@ -1066,6 +1067,7 @@ CONTAINS
           CALL mp_comm_free(comm_tmp)
         ENDIF
       END IF
+      CALL mp_comm_free(my_mpi_world)
     END IF
   END SUBROUTINE tmc_redistributing_cores
 
