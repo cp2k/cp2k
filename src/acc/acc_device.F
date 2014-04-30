@@ -7,6 +7,7 @@ MODULE acc_device
 #if defined( __ACC)
   USE ISO_C_BINDING
 #endif
+  USE dummy_c_bindings
 
   IMPLICIT NONE
 

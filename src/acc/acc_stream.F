@@ -12,6 +12,7 @@ MODULE acc_stream
 #if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
 #endif
+ USE dummy_c_bindings
 
   IMPLICIT NONE
 

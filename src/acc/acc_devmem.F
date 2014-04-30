@@ -23,6 +23,7 @@ MODULE acc_devmem
                                              real_4_size,&
                                              real_8,&
                                              real_8_size
+  USE dummy_c_bindings
 
   IMPLICIT NONE
 

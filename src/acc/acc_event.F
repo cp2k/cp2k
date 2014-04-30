@@ -14,6 +14,7 @@ MODULE acc_event
   USE acc_stream, ONLY: acc_stream_cptr
 #endif
 
+  USE dummy_c_bindings
   USE acc_stream, ONLY: acc_stream_type
 
   IMPLICIT NONE
