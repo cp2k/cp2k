@@ -14,11 +14,11 @@
 ! *****************************************************************************
 MODULE dbcsr_data_methods_low
 
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
-                                             dbcsr_cuda_devmem_allocated,&
-                                             dbcsr_cuda_devmem_deallocate
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_create,&
-                                             dbcsr_cuda_event_destroy
+  USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
+                                             acc_devmem_allocated,&
+                                             acc_devmem_deallocate
+  USE acc_event,                       ONLY: acc_event_create,&
+                                             acc_event_destroy
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -37,11 +37,12 @@ MODULE dbcsr_data_methods_low
                                              pointer_s_rank_remap2,&
                                              pointer_z_rank_remap2
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memtype_type, dbcsr_obj, &
-       dbcsr_scalar_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
-       dbcsr_type_complex_8, dbcsr_type_complex_8_2d, dbcsr_type_int_4, &
-       dbcsr_type_int_8, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d
+       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_datatype_sizeof, &
+       dbcsr_memtype_type, dbcsr_obj, dbcsr_scalar_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
+       dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
+       dbcsr_type_real_8_2d
 
   !$ USE OMP_LIB
 
@@ -301,10 +302,10 @@ MODULE dbcsr_data_methods_low
 
 
 
-    IF(area%memory_type%cuda_devalloc) THEN
+    IF(area%memory_type%acc_devalloc) THEN
        IF(sizes(1) > 1) &
-          CALL dbcsr_cuda_devmem_allocate(area%cuda_devmem, datatype=area%data_type, n=sizes(1), error=error)
-       CALL dbcsr_cuda_event_create(area%cuda_ready, error)
+          CALL acc_devmem_allocate_bytes(area%acc_devmem, dbcsr_datatype_sizeof(area%data_type)*sizes(1))
+       CALL acc_event_create(area%acc_ready)
     ENDIF
 
     CALL dbcsr_error_stop(error_handle, error)
@@ -372,10 +373,10 @@ MODULE dbcsr_data_methods_low
                routineN, "Invalid data type.",__LINE__,error)
     END SELECT
 
-    IF(area%memory_type%cuda_devalloc) THEN
-       IF(dbcsr_cuda_devmem_allocated(area%cuda_devmem)) &
-          CALL dbcsr_cuda_devmem_deallocate(area%cuda_devmem, error)
-       CALL dbcsr_cuda_event_destroy(area%cuda_ready, error)
+    IF(area%memory_type%acc_devalloc) THEN
+       IF(acc_devmem_allocated(area%acc_devmem)) &
+          CALL acc_devmem_deallocate(area%acc_devmem)
+       CALL acc_event_destroy(area%acc_ready)
     ENDIF
 
     CALL dbcsr_error_stop(error_handler, error)
@@ -903,8 +904,8 @@ MODULE dbcsr_data_methods_low
                routineN, "Invalid data type.",__LINE__,error)
     END SELECT
 
-    IF(area%d%memory_type%cuda_devalloc) THEN
-       WRITE(*,*) "dbcsr_data_zero: not yet supported for cuda devmem"
+    IF(area%d%memory_type%acc_devalloc) THEN
+       WRITE(*,*) "dbcsr_data_zero: not yet supported for acc devmem"
        STOP 1
     ENDIF
 

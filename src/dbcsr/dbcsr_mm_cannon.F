@@ -16,12 +16,20 @@
 !>  - 2013-01    reorganized code (Ole Schuett)
 ! *****************************************************************************
 MODULE dbcsr_mm_cannon
+  USE acc_event,                       ONLY: acc_event_record,&
+                                             acc_event_synchronize,&
+                                             acc_stream_wait_event
+  USE acc_stream,                      ONLY: acc_stream_associated,&
+                                             acc_stream_create,&
+                                             acc_stream_destroy,&
+                                             acc_stream_type
   USE array_types,                     ONLY: array_data,&
                                              array_equality,&
                                              array_exists,&
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_release
+  USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
   USE dbcsr_block_access,              ONLY: dbcsr_access_flush
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                              dbcsr_block_copy,&
@@ -31,20 +39,11 @@ MODULE dbcsr_mm_cannon
   USE dbcsr_config,                    ONLY: default_resize_factor,&
                                              mm_async,&
                                              mm_driver,&
+                                             mm_driver_acc,&
                                              mm_driver_blas,&
-                                             mm_driver_cuda,&
                                              mm_driver_plasma,&
                                              use_combined_types,&
                                              use_comm_thread
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_record,&
-                                             dbcsr_cuda_event_synchronize,&
-                                             dbcsr_cuda_stream_wait_event
-  USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_transpose
-  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_associated,&
-                                             dbcsr_cuda_stream_create,&
-                                             dbcsr_cuda_stream_destroy,&
-                                             dbcsr_cuda_stream_set_name,&
-                                             dbcsr_cuda_stream_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, &
@@ -176,7 +175,7 @@ MODULE dbcsr_mm_cannon
   !$OMP THREADPRIVATE(memtype_product_wm)
   TYPE(dbcsr_memtype_type),     PRIVATE, SAVE  :: memtype_abpanel_1, memtype_abpanel_2,&
                                                   memtype_trsbuffer_1, memtype_trsbuffer_2
-  TYPE(dbcsr_cuda_stream_type), PRIVATE, SAVE  :: stream_1, stream_2
+  TYPE(acc_stream_type), PRIVATE, SAVE         :: stream_1, stream_2
   ! ab-panels and streams are shared between all threads
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
@@ -237,10 +236,10 @@ MODULE dbcsr_mm_cannon
         CALL dbcsr_mempool_destruct(memtype_abpanel_1%pool, error)
      IF (ASSOCIATED(memtype_abpanel_2%pool)) &
         CALL dbcsr_mempool_destruct(memtype_abpanel_2%pool, error)
-     IF(dbcsr_cuda_stream_associated(stream_1)) &
-        CALL dbcsr_cuda_stream_destroy(stream_1, error)
-     IF(dbcsr_cuda_stream_associated(stream_2)) &
-        CALL dbcsr_cuda_stream_destroy(stream_2, error)
+     IF(acc_stream_associated(stream_1)) &
+        CALL acc_stream_destroy(stream_1)
+     IF(acc_stream_associated(stream_2)) &
+        CALL acc_stream_destroy(stream_2)
      !$omp end master
   END SUBROUTINE dbcsr_mm_cannon_lib_finalize
 
@@ -375,29 +374,27 @@ MODULE dbcsr_mm_cannon
     ! setup driver-dependent memory-types and their memory-pools ---------------
 
     ! the ab_buffers are shared by all threads
-    IF (mm_driver==mm_driver_cuda) THEN
-       IF(.NOT. dbcsr_cuda_stream_associated(stream_1)) THEN
-          CALL dbcsr_cuda_stream_create(stream_1, error=error)
-          CALL dbcsr_cuda_stream_set_name(stream_1, "MemCpy (odd ticks)", error)
-          CALL dbcsr_cuda_stream_create(stream_2, error=error)
-          CALL dbcsr_cuda_stream_set_name(stream_2, "MemCpy (even ticks)", error)
+    IF (mm_driver==mm_driver_acc) THEN
+       IF(.NOT. acc_stream_associated(stream_1)) THEN
+          CALL acc_stream_create(stream_1, "MemCpy (odd ticks)")
+          CALL acc_stream_create(stream_2, "MemCpy (even ticks)")
        ENDIF
 
        CALL dbcsr_memtype_setup(memtype_abpanel_1, has_pool=.TRUE.,&
-            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE., cuda_stream=stream_1,&
+            acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1,&
             mpi=.TRUE., oversize_factor=default_resize_factor, error=error)
 
        CALL dbcsr_memtype_setup(memtype_abpanel_2, has_pool=.TRUE.,&
-            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE., cuda_stream=stream_2,&
+            acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2,&
             mpi=.TRUE., oversize_factor=default_resize_factor, error=error)
 
        !TODO: ensure capacity 2/3?
        CALL dbcsr_memtype_setup(memtype_trsbuffer_1,has_pool=.TRUE.,&
-            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE., cuda_stream=stream_1,error=error)
+            acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1,error=error)
        CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1)
 
        CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE.,&
-            cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,cuda_stream=stream_2, error=error)
+            acc_hostalloc=.TRUE., acc_devalloc=.TRUE.,acc_stream=stream_2, error=error)
        CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1)
     ELSE
        CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE., error=error)
@@ -2258,7 +2255,7 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel
 
     ! update capacity of memory-pools
-    IF (mm_driver == mm_driver_cuda) THEN
+    IF (mm_driver == mm_driver_acc) THEN
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
       capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
@@ -2370,7 +2367,7 @@ MODULE dbcsr_mm_cannon
 
 
     ! Setup transpose stackbuffers
-    IF (mm_driver==mm_driver_cuda) THEN
+    IF (mm_driver==mm_driver_acc) THEN
        CALL dbcsr_data_init(trs_stackbuf_1)
        CALL dbcsr_data_init(trs_stackbuf_2)
        CALL dbcsr_data_new(trs_stackbuf_1, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer_1)
@@ -2471,9 +2468,9 @@ MODULE dbcsr_mm_cannon
                   vprow_shift=metronome*min_nimages,&
                   shifting='R', error=error)
              !
-             IF (mm_driver == mm_driver_cuda) THEN
-                CALL dbcsr_error_set(routineN//"_cuda_sync_right", error_handler3, error)
-                CALL dbcsr_cuda_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%m%data_area%d%cuda_ready, error)
+             IF (mm_driver == mm_driver_acc) THEN
+                CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3, error)
+                CALL acc_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%m%data_area%d%acc_ready)
                 CALL dbcsr_error_stop(error_handler3, error)
              ENDIF
 
@@ -2624,9 +2621,9 @@ MODULE dbcsr_mm_cannon
                   vpcol_shift=metronome*min_nimages,&
                   shifting='L', error=error)
              !
-             IF (mm_driver == mm_driver_cuda) THEN
-                CALL dbcsr_error_set(routineN//"_cuda_sync_left", error_handler3, error)
-                CALL dbcsr_cuda_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%m%data_area%d%cuda_ready, error)
+             IF (mm_driver == mm_driver_acc) THEN
+                CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3, error)
+                CALL acc_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%m%data_area%d%acc_ready)
                 CALL dbcsr_error_stop(error_handler3, error)
              ENDIF
 
@@ -2724,10 +2721,10 @@ MODULE dbcsr_mm_cannon
                      left_set%image_dist, error=error)
              ENDIF
 
-             IF (mm_driver==mm_driver_cuda) THEN
+             IF (mm_driver==mm_driver_acc) THEN
                CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
                CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
-               CALL cuda_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
+               CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
              END IF
 
              ! Sets the local right-matrix columns
@@ -2827,7 +2824,7 @@ MODULE dbcsr_mm_cannon
     ENDDO grouped_k_index
     IF (excessive_output) CALL m_flush(1000000+mynode)
 
-    IF (mm_driver==mm_driver_cuda) THEN
+    IF (mm_driver==mm_driver_acc) THEN
        CALL dbcsr_data_release(trs_stackbuf_1)
        CALL dbcsr_data_release(trs_stackbuf_2)
     END IF
@@ -3498,12 +3495,12 @@ MODULE dbcsr_mm_cannon
 !> \brief write out a stack for transposing the blocks
 !>  \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cuda_transpose_blocks(matrix, trs_stackbuf, error)
+  SUBROUTINE acc_transpose_blocks(matrix, trs_stackbuf, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: trs_stackbuf
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cuda_transpose_blocks', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'acc_transpose_blocks', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, col, error_handle, i, &
@@ -3541,7 +3538,7 @@ MODULE dbcsr_mm_cannon
     counters(:,:)=0;  offsets(:,:)=0; filled(:,:)=0
 
     ! make sure buffer from previous cannon-tick was uploaded
-    CALL dbcsr_cuda_event_synchronize(trs_stackbuf%d%cuda_ready, error)
+    CALL acc_event_synchronize(trs_stackbuf%d%acc_ready)
 
     CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE., error=error)
     trs_stack => trs_stackbuf%d%i4
@@ -3589,7 +3586,7 @@ MODULE dbcsr_mm_cannon
     !sanity check
     DO mi=1, mi_max
       DO ni=1, ni_max
-         IF(filled(mi,ni) /= counters(mi,ni)) STOP "cuda_transpose_blocks: bug"
+         IF(filled(mi,ni) /= counters(mi,ni)) STOP "acc_transpose_blocks: bug"
       END DO
     END DO
 
@@ -3597,7 +3594,7 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_host2dev(trs_stackbuf, error)
 
     ! make sure block-buffer is uploaded befor running the kernels
-    CALL dbcsr_cuda_stream_wait_event(trs_stackbuf%d%memory_type%cuda_stream, matrix%m%data_area%d%cuda_ready, error)
+    CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, matrix%m%data_area%d%acc_ready)
 
     ! launch kernels
     DO mi=1, mi_max
@@ -3605,25 +3602,27 @@ MODULE dbcsr_mm_cannon
         IF(counters(mi, ni) > 0) THEN
           m = enum2row_blk_sizes(mi)
           n = enum2col_blk_sizes(ni)
-          CALL dbcsr_cuda_transpose( &
-            trs_stack=trs_stackbuf%d%cuda_devmem,&
-            offset=offsets(mi, ni), nblks=counters(mi, ni),&
-            buffer=matrix%m%data_area%d%cuda_devmem,&
+          CALL dbcsr_acc_transpose( &
+            trs_stack=trs_stackbuf%d%acc_devmem,&
+            offset=offsets(mi, ni),&
+            nblks=counters(mi, ni),&
+            datatype=matrix%m%data_type,&
+            buffer=matrix%m%data_area%d%acc_devmem,&
             m=m, n=n,&
-            stream=trs_stackbuf%d%memory_type%cuda_stream, error=error)
+            stream=trs_stackbuf%d%memory_type%acc_stream, error=error)
         END IF
       ENDDO
     ENDDO
 
     ! make sure block-buffer are not used until transpose kernels finnished
-    CALL dbcsr_cuda_event_record(trs_stackbuf%d%cuda_ready, trs_stackbuf%d%memory_type%cuda_stream, error)
-    CALL dbcsr_cuda_stream_wait_event(matrix%m%data_area%d%memory_type%cuda_stream, trs_stackbuf%d%cuda_ready,  error)
-    CALL dbcsr_cuda_event_record(matrix%m%data_area%d%cuda_ready, matrix%m%data_area%d%memory_type%cuda_stream, error)
+    CALL acc_event_record(trs_stackbuf%d%acc_ready, trs_stackbuf%d%memory_type%acc_stream)
+    CALL acc_stream_wait_event(matrix%m%data_area%d%memory_type%acc_stream, trs_stackbuf%d%acc_ready)
+    CALL acc_event_record(matrix%m%data_area%d%acc_ready, matrix%m%data_area%d%memory_type%acc_stream)
 
     DEALLOCATE(row_blk_sizes2enum, enum2row_blk_sizes)
     DEALLOCATE(col_blk_sizes2enum, enum2col_blk_sizes)
     CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE cuda_transpose_blocks
+  END SUBROUTINE acc_transpose_blocks
 
 
 ! *****************************************************************************

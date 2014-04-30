@@ -1,0 +1,5 @@
+{
+"description": "CUDA FFT acceleration",
+"requires": [],
+"archive": "libcp2kpwcuda",
+}

@@ -46,7 +46,7 @@ int hw_topology_init (struct arch_topology *topo)
     hwloc_topology_load(topology);
     local_topo = malloc(sizeof(struct arch_topology));
 
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
   int nDev;
   ma_get_ndevices_cu(&nDev);
 #endif
@@ -175,7 +175,7 @@ int hw_topology_init (struct arch_topology *topo)
         set_node_cores(topology, obj, i, &count_cores);
 
        //GPU support
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
        int *devIds;
        devIds = malloc (nDev*sizeof(int));
        topo->ngpus = nDev;
@@ -484,7 +484,7 @@ void print_machine(hwloc_topology_t topo, hwloc_obj_t obj, int depth)
       sprintf(out_string,"%*s%s\n", depth, "", string);
       strcat(console_output,out_string); 
 //if the machine has shared GPUs
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
        if ((local_topo->ngpus > 0) && (local_topo->ngpus < local_topo->ncores)){
                 ma_get_nDevcu(obj->logical_index, &countDev);
                 devIds = malloc (countDev*sizeof(int));
@@ -502,7 +502,7 @@ void print_machine(hwloc_topology_t topo, hwloc_obj_t obj, int depth)
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
       if(obj->type == HWLOC_OBJ_PU )
       {
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
        sprintf(out_string,"%*s%s\t", depth, "", string);
        strcat(console_output,out_string);
        if (local_topo->ngpus > 0 && local_topo->ngpus == local_topo->ncores){
@@ -594,7 +594,7 @@ void print_machine_branch(hwloc_topology_t topology, hwloc_obj_t obj, int depth,
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
        sprintf(out_string,"%*s%s\n", depth, "", string); 
        strcat(console_output,out_string);      
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
        if ((local_topo->ngpus > 0) && (local_topo->ngpus < local_topo->ncores)){
                 ma_get_nDevcu(obj->logical_index, &countDev);
                 devIds = malloc (countDev*sizeof(int));
@@ -615,7 +615,7 @@ void print_machine_branch(hwloc_topology_t topology, hwloc_obj_t obj, int depth,
      else {
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
       if(obj->type == HWLOC_OBJ_PU)  {
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
        sprintf(out_string,"%*s%s\t", depth, "", string);
        strcat(console_output,out_string);
        if (local_topo->ngpus > 0 && local_topo->ngpus == local_topo->ncores){
@@ -1113,7 +1113,7 @@ int hw_my_netCard(int core, int myRank)
     return netcards[myRank%nnetcards];
 }
 
-#if defined  (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined  (__DBCSR_ACC) || defined (__PW_CUDA)
 
 
 /*

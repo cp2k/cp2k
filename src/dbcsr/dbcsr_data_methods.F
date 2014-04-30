@@ -15,14 +15,14 @@
 MODULE dbcsr_data_methods
 
 
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
-                                             dbcsr_cuda_devmem_allocated,&
-                                             dbcsr_cuda_devmem_dev2host,&
-                                             dbcsr_cuda_devmem_ensure_size,&
-                                             dbcsr_cuda_devmem_host2dev,&
-                                             dbcsr_cuda_devmem_setzero,&
-                                             dbcsr_cuda_devmem_size
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_record
+  USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
+                                             acc_devmem_allocated,&
+                                             acc_devmem_dev2host,&
+                                             acc_devmem_ensure_size_bytes,&
+                                             acc_devmem_host2dev,&
+                                             acc_devmem_setzero_bytes,&
+                                             acc_devmem_size_in_bytes
+  USE acc_event,                       ONLY: acc_event_record
   USE dbcsr_data_methods_low,          ONLY: &
        dbcsr_data_clear_2d_pointer, dbcsr_data_clear_pointer, &
        dbcsr_data_exists, dbcsr_data_get_memory_type, dbcsr_data_get_size, &
@@ -55,9 +55,10 @@ MODULE dbcsr_data_methods
                                              dbcsr_mempool_get
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_memtype_default, dbcsr_memtype_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_int_4, &
-       dbcsr_type_int_8, dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_memtype_default, &
+       dbcsr_memtype_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_int_4, dbcsr_type_int_8, dbcsr_type_real_4, &
+       dbcsr_type_real_8
 
   IMPLICIT NONE
 
@@ -98,7 +99,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Transfers data from host- to (cuda) device-buffer, asynchronously.
+!> \brief Transfers data from host- to device-buffer, asynchronously.
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_host2dev(area, error)
@@ -119,39 +120,39 @@ CONTAINS
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
 
-    IF(.NOT. dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) RETURN !nothing to do
+    IF(.NOT. acc_devmem_allocated(area%d%acc_devmem)) RETURN !nothing to do
     IF(area%d%ref_size==0) RETURN !nothing to do
 
     SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_int_4)
          i4 => area%d%i4(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=i4,   stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=i4,   stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_int_8)
          i8 => area%d%i8(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=i8,   stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=i8,   stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_real_4)
          r_sp => area%d%r_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=r_sp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=r_sp, stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_real_8)
          r_dp => area%d%r_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=r_dp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=r_dp, stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_complex_4)
          c_sp => area%d%c_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=c_sp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=c_sp, stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_complex_8)
          c_dp => area%d%c_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_host2dev(area%d%cuda_devmem, hostmem=c_dp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=c_dp, stream=area%d%memory_type%acc_stream)
        CASE default
          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
     END SELECT
 
-    CALL dbcsr_cuda_event_record(area%d%cuda_ready, area%d%memory_type%cuda_stream, error=error)
+    CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
   END SUBROUTINE dbcsr_data_host2dev
 
 
 ! *****************************************************************************
-!> \brief Transfers data from (cuda) device- to host-buffer, asynchronously.
+!> \brief Transfers data from device- to host-buffer, asynchronously.
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_dev2host(area, error)
@@ -173,16 +174,16 @@ CONTAINS
     SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_real_4)
          r_sp => area%d%r_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=r_sp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_dev2host(area%d%acc_devmem, hostmem=r_sp, stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_real_8)
          r_dp => area%d%r_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=r_dp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_dev2host(area%d%acc_devmem, hostmem=r_dp, stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_complex_4)
          c_sp => area%d%c_sp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=c_sp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_dev2host(area%d%acc_devmem, hostmem=c_sp, stream=area%d%memory_type%acc_stream)
        CASE (dbcsr_type_complex_8)
          c_dp => area%d%c_dp(:area%d%ref_size)
-         CALL dbcsr_cuda_devmem_dev2host(area%d%cuda_devmem, hostmem=c_dp, stream=area%d%memory_type%cuda_stream, error=error)
+         CALL acc_devmem_dev2host(area%d%acc_devmem, hostmem=c_dp, stream=area%d%memory_type%acc_stream)
        CASE default
          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
@@ -305,11 +306,11 @@ CONTAINS
     ! allocate some more as padding for libsmm kernels which read over the end.
     wanted_size = data_size + 10
 
-    !IF(area%d%memory_type%cuda_devalloc) THEN
-    !    IF(current_size==dbcsr_cuda_devmem_size(area%d%cuda_devmem)) &
+    !IF(area%d%memory_type%acc_devalloc) THEN
+    !    IF(current_size==acc_devmem_size(area%d%acc_devmem)) &
     !      WRITE (*,*) "dbcsr_data_ensure_size: Host and device buffer differ in size."
     !END IF
-    !   CALL dbcsr_assert(current_size==dbcsr_cuda_devmem_size(area%d%cuda_devmem),&
+    !   CALL dbcsr_assert(current_size==acc_devmem_size(area%d%acc_devmem),&
     !          dbcsr_fatal_level, dbcsr_caller_error,&
     !          routineN, "Host and device buffer differ in size.",__LINE__,error)
 
@@ -383,18 +384,21 @@ CONTAINS
        END SELECT
 
 
-       IF(area%d%memory_type%cuda_devalloc) THEN
-          IF(.NOT.dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) THEN
-             CALL dbcsr_cuda_devmem_allocate(area%d%cuda_devmem, &
-                datatype=area%d%data_type, n=dbcsr_data_get_size(area), error=error)
-             IF(pad) CALL dbcsr_cuda_devmem_setzero(area%d%cuda_devmem, stream=area%d%memory_type%cuda_stream, error=error)
+       IF(area%d%memory_type%acc_devalloc) THEN
+          IF(.NOT.acc_devmem_allocated(area%d%acc_devmem)) THEN
+             CALL acc_devmem_allocate_bytes(area%d%acc_devmem, &
+                dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area))
+             IF(pad) CALL acc_devmem_setzero_bytes(area%d%acc_devmem, stream=area%d%memory_type%acc_stream)
           ELSE
-             CALL dbcsr_cuda_devmem_ensure_size(area%d%cuda_devmem, &
-                   area%d%memory_type%cuda_stream, dbcsr_data_get_size(area), &
-                   nocopy, zero_pad, error)
+             CALL acc_devmem_ensure_size_bytes(area%d%acc_devmem, &
+                   area%d%memory_type%acc_stream, &
+                   dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area), &
+                   nocopy, zero_pad)
           END IF
-          CALL dbcsr_cuda_event_record(area%d%cuda_ready, area%d%memory_type%cuda_stream, error=error)
-          CALL dbcsr_assert(dbcsr_data_get_size(area)==dbcsr_cuda_devmem_size(area%d%cuda_devmem),&
+          CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
+          CALL dbcsr_assert(&
+                 dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area)&
+                  == acc_devmem_size_in_bytes(area%d%acc_devmem),&
                  dbcsr_fatal_level, dbcsr_caller_error,&
                  routineN, "Host and device buffer differ in size.",__LINE__,error)
        ENDIF

@@ -17,17 +17,16 @@ MODULE input_cp2k_global
                                              BLACS_GRID_SQUARE
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE dbcsr_api,                       ONLY: &
-       cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
-       cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
-       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
-       cudadrv_priority_buffers, cudadrv_priority_streams, &
+       accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
+       accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
+       accdrv_posterior_buffers, accdrv_posterior_streams, &
+       accdrv_priority_buffers, accdrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
-       mm_driver_smm, mm_name_blas, mm_name_cuda, mm_name_matmul, &
-       mm_name_plasma, mm_name_smm, multrec_limit
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
+       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
+       mm_name_smm, multrec_limit
   USE f77_blas
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -681,16 +680,15 @@ CONTAINS
          usage="mm_driver blas",&
          default_i_val=dbcsr_get_conf_mm_driver(),&
          enum_c_vals=s2a(mm_name_blas,mm_name_matmul,mm_name_smm,&
-                         mm_name_plasma,mm_name_cuda),&
+                         mm_name_plasma,mm_name_acc),&
          enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,&
-                       mm_driver_plasma,mm_driver_cuda/),&
+                       mm_driver_plasma,mm_driver_acc/),&
          enum_desc=s2a("BLAS (requires the BLAS library at link time)",&
                        "Fortran MATMUL",&
                        "Library optimised for Small Matrix Multiplies "//&
                        "(requires the SMM library at link time)",&
                        "PLASMA (requires the PLASMA library at link time)",&
-                       "CUDA (requires the CUDA library at link time "//&
-                       "and GPU support at run time)"),&
+                       "ACC (requires an accelerator backend)"),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -739,47 +737,47 @@ CONTAINS
 
     !---------------------------------------------------------------------------
     NULLIFY(subsection)
-    CALL section_create(subsection,name="CUDA",&
-         description="Configuration options for the CUDA-Driver.",&
+    CALL section_create(subsection,name="ACC",&
+         description="Configuration options for the ACC-Driver.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
     CALL keyword_create(keyword, name="priority_buffers",&
          description="Number of transfer-buffers associated with high priority streams.",&
-         default_i_val=cudadrv_priority_buffers,error=error)
+         default_i_val=accdrv_priority_buffers,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="posterior_buffers",&
          description="Number of transfer-buffers associated with low priority streams.",&
-         default_i_val=cudadrv_posterior_buffers,error=error)
+         default_i_val=accdrv_posterior_buffers,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="priority_streams",&
-         description="Number of cuda streams created with high priority.",&
-         default_i_val=cudadrv_priority_streams,error=error)
+         description="Number of acc streams created with high priority.",&
+         default_i_val=accdrv_priority_streams,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="posterior_streams",&
-         description="Number of cuda streams created with low priority.",&
-         default_i_val=cudadrv_posterior_streams,error=error)
+         description="Number of acc streams created with low priority.",&
+         default_i_val=accdrv_posterior_streams,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="avoid_after_busy",&
-         description="If enabled, stacks are not processed by the cuda-driver "&
+         description="If enabled, stacks are not processed by the acc-driver "&
          //"after it has signaled congestion during a round of flushing. "&
          //"For the next round of flusing the driver is used again.",&
-         default_l_val=cudadrv_avoid_after_busy,error=error)
+         default_l_val=accdrv_avoid_after_busy,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="min_flop_process",&
          description="Only process stacks with more than the given number of "&
          //"floating-point operations per stack-entry (2*m*n*k).",&
-         default_i_val=cudadrv_min_flop_process,error=error)
+         default_i_val=accdrv_min_flop_process,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -788,27 +786,27 @@ CONTAINS
          //"floating-point operations per stack-entry (2*m*n*k). "&
          //"Alternatively, the stacks are roughly ordered through a "&
          //"binning-scheme by Peter Messmer.",&
-         default_i_val=cudadrv_min_flop_sort,error=error)
+         default_i_val=accdrv_min_flop_sort,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="process_inhomogenous",&
-         description="If enabled, inhomogenous stacks are also processed by the cuda driver.",&
-         default_l_val=cudadrv_do_inhomogenous,error=error)
+         description="If enabled, inhomogenous stacks are also processed by the acc driver.",&
+         default_l_val=accdrv_do_inhomogenous,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="binning_nbins",&
          description="Number of bins used when ordering "&
          //"the stacks with the binning-scheme.",&
-         default_i_val=cudadrv_binning_nbins,error=error)
+         default_i_val=accdrv_binning_nbins,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="binning_binsize",&
          description="Size of bins used when ordering "&
          //"the stacks with the binning-scheme.",&
-         default_i_val=cudadrv_binning_binsize,error=error)
+         default_i_val=accdrv_binning_binsize,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

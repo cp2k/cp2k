@@ -5,6 +5,8 @@
 
 ! *****************************************************************************
 MODULE cp2k_runs
+  USE acc_device,                      ONLY: acc_get_ndevices,&
+                                             acc_set_active_device
   USE atom,                            ONLY: atom_code
   USE bibliography,                    ONLY: Hutter2014,&
                                              cite_reference
@@ -37,9 +39,7 @@ MODULE cp2k_runs
                                              cp_unit_set_release,&
                                              cp_unit_set_type,&
                                              print_all_units
-  USE cuda_device,                     ONLY: cuda_device_init
-  USE cuda_memory,                     ONLY: cuda_device_mem_init,&
-                                             cuda_device_mem_release
+  USE cuda_profiling,                  ONLY: cuda_nvtx_init
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
@@ -109,6 +109,8 @@ MODULE cp2k_runs
   USE optimize_basis,                  ONLY: run_optimize_basis
   USE optimize_input,                  ONLY: run_optimize_input
   USE pint_methods,                    ONLY: do_pint_run
+  USE pw_cuda,                         ONLY: pw_cuda_finalize,&
+                                             pw_cuda_init
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE reference_manager,               ONLY: print_all_references,&
@@ -187,9 +189,14 @@ CONTAINS
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
 
-    CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
+    IF(acc_get_ndevices() > 0) &
+      CALL acc_set_active_device(MOD(para_env%mepos, acc_get_ndevices()))
 
-    CALL cuda_device_init (group=mpi_comm, error=error)
+    CALL cuda_nvtx_init()
+
+    CALL pw_cuda_init()
+
+    CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
 
     NULLIFY(globenv, force_env)
 
@@ -294,13 +301,6 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT='()')
           ENDIF
 
-          IF (prog_name_id/=do_farming) THEN
-             ! if PW_CUDA is enabled we need to get cudaStreams and
-             ! cudaEvents on the GPU
-             CALL cuda_device_mem_init(error)
-          ENDIF
-
-
           SELECT CASE (prog_name_id)
           CASE (do_atom)
              globenv%run_type_id = none_run
@@ -314,8 +314,10 @@ CONTAINS
              ! But, we don't want to change the public f77_interface.
              ! TODO: refactor cp2k's startup code
              CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
+             CALL pw_cuda_finalize()
              CALL farming_run(input_declaration, root_section, para_env, suberror )
              CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
+             CALL pw_cuda_init()
           CASE (do_opt_basis)
              CALL run_optimize_basis (input_declaration, root_section, para_env, suberror)
              globenv%run_type_id = none_run
@@ -443,11 +445,8 @@ CONTAINS
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
 
-
-          ! if CUDA is enabled we need to free memory on the graphics card
-          CALL cuda_device_mem_release()
+          CALL pw_cuda_finalize()
           CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
-
 
           CALL cp_error_propagate_error(suberror,routineP,&
                "cp2k ending run", error=error,failure=failure)
@@ -470,10 +469,6 @@ CONTAINS
              CALL section_vals_release(root_section,error=error)
              CALL globenv_release(globenv,error=error)
           END IF
-
-          ! if PW_CUDA is enabled we need to free cudaStreams, cudaEvents
-          ! and stored FFT-plans on the GPU
-          CALL cuda_device_mem_release()
 
        END IF
 

@@ -19,7 +19,16 @@ rsync -axq \
    --exclude="*.template" \
    --exclude="*.pyc" \
    --exclude="libcusmm.cu" \
-   ../src/dbcsr/ $OUTDIR/src/
+   ../src/dbcsr/ $OUTDIR/src/dbcsr
+
+rsync -axq \
+   --exclude=".*" \
+   --exclude="**/preprettify/" \
+   --exclude="*.instantiation" \
+   --exclude="*.template" \
+   --exclude="*.pyc" \
+   --exclude="libcusmm.cu" \
+   ../src/acc/ $OUTDIR/src/acc
 
 mkdir $OUTDIR/tools
 cp -a ../tools/makedep.py  $OUTDIR/tools/

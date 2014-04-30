@@ -16,6 +16,8 @@
 !> \author fawzi & Johanna
 ! *****************************************************************************
 MODULE f77_interface
+  USE acc_device,                      ONLY: acc_get_ndevices,&
+                                             acc_set_active_device
   USE bibliography,                    ONLY: add_all_references
   USE cell_types,                      ONLY: cell_type,&
                                              init_cell
@@ -41,8 +43,6 @@ MODULE f77_interface
                                              test_for_result
   USE cp_subsys_types,                 ONLY: cp_subsys_type,&
                                              unpack_subsys_particles
-  USE cuda_device,                     ONLY: cuda_device_init,&
-                                             cuda_device_release
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
@@ -100,6 +100,8 @@ MODULE f77_interface
   USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
   USE physcon,                         ONLY: init_physcon
+  USE pw_cuda,                         ONLY: pw_cuda_finalize,&
+                                             pw_cuda_init
   USE qmmm_main,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE reference_manager,               ONLY: remove_all_references
@@ -288,11 +290,14 @@ CONTAINS
        CALL add_all_references()
 
 
+       IF(acc_get_ndevices() > 0) &
+         CALL acc_set_active_device(MOD(default_para_env%mepos, acc_get_ndevices()))
+
+       CALL pw_cuda_init()
+
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
 
-       ! Initialize non DBCSR CUDA devices
-       CALL cuda_device_init (group=mpi_comm_default, error=error)
     ELSE
        ierr=cp_failure_level
     END IF
@@ -324,7 +329,7 @@ CONTAINS
          CALL cp_ma_finalize_lib(error=error)
        ENDIF
        CALL cp_error_init(error, stop_level=cp_fatal_level)
-       CALL cuda_device_release (error=error)
+       CALL pw_cuda_finalize()
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
           CPAssertNoFail(ierr==0,cp_warning_level,routineP,error)

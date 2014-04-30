@@ -113,7 +113,7 @@ SUBROUTINE ma_set_default_affinity()
 
 #if defined (__LIBNUMA) || defined (__HWLOC)
 !Place MPI closer to GPU
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
    IF (my_info%nr_neighbors .GT. topology%ngpus) THEN
      CALL ma_group_place(my_info%mp_info%myproc, mpi)
    ELSE
@@ -277,7 +277,7 @@ END SUBROUTINE ma_get_mempol
     LOGICAL                                  :: is_greater
 
     is_greater = .FALSE.
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
     IF (my_info%nr_neighbors .GT. topology%ngpus ) is_greater = .TRUE.
 #endif
  END FUNCTION ma_MPI_nGpus
@@ -1052,7 +1052,7 @@ END SUBROUTINE ma_get_mempol
    gpuId = 0
 
   IF (myRank .EQ. rank) THEN
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
 #if defined (__HWLOC) || defined (__LIBNUMA)
    gpuId = ma_get_cuDev(core,myRank,ma_get_neighbors())
    my_info%gpu = gpuId
@@ -1069,7 +1069,7 @@ END SUBROUTINE ma_get_mempol
 
     gpuId = -1
 
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
 #if defined (__HWLOC) || defined (__LIBNUMA)
      gpuId = my_info%gpu
 #endif
@@ -1108,7 +1108,7 @@ END SUBROUTINE ma_get_mempol
        END IF
        all_node(:) = 0
 
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
 
        ALLOCATE (all_gpu(my_info%mp_info%numproc),STAT=istat)
        IF (istat /= 0) THEN
@@ -1142,7 +1142,7 @@ END SUBROUTINE ma_get_mempol
 
    IF (print_proc) THEN
  ! ***** Print where process are running!
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
        CALL mp_sum(all_gpu,my_info%mp_info%mp_group)
 #endif
 
@@ -1193,7 +1193,7 @@ END SUBROUTINE ma_get_mempol
              CALL integer_to_string(core,first_core)
              all_cores = first_core
            ENDIF
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
            IF (all_node(ipe) .EQ. -1) THEN
              WRITE(unit_nr,"(T2,A,I8,A,I8,5X,20X,A,A,A,I3)")&
                            "Process ", ipe-1, " ", all_pid(ipe),&
@@ -1272,7 +1272,7 @@ END SUBROUTINE ma_get_mempol
        IF (istat /= 0) THEN
          CALL ma_error_stop(ma_error_allocation)
        END IF
-#if defined (__DBCSR_CUDA) || defined (__PW_CUDA)
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
        DEALLOCATE (all_gpu,STAT=istat)
        IF (istat /= 0) THEN
          CALL ma_error_stop(ma_error_allocation)

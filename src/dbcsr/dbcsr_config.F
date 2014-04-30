@@ -54,7 +54,7 @@ MODULE dbcsr_config
   PUBLIC :: has_blas,&
             has_smm_gemm,&
             has_plasma,&
-            has_cuda
+            has_acc
   PUBLIC :: has_omp_2_5
   PUBLIC :: use_subcommunicators
   PUBLIC :: use_combined_types
@@ -65,24 +65,24 @@ MODULE dbcsr_config
             mm_driver_matmul,&
             mm_driver_smm,&
             mm_driver_plasma,&
-            mm_driver_cuda
+            mm_driver_acc
   PUBLIC :: mm_async
   PUBLIC :: mm_name_blas,&
             mm_name_matmul,&
             mm_name_smm,&
             mm_name_plasma,&
-            mm_name_cuda
+            mm_name_acc
   PUBLIC :: nm_stacks, nn_stacks, nk_stacks
   PUBLIC :: use_comm_thread, comm_thread_load
   PUBLIC :: max_elements_per_block
   !
   PUBLIC :: is_initialized
 
-  PUBLIC :: cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
-            cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
-            cudadrv_binning_nbins, cudadrv_binning_binsize, &
-            cudadrv_posterior_streams, cudadrv_posterior_buffers,&
-            cudadrv_priority_streams, cudadrv_priority_buffers
+  PUBLIC :: accdrv_avoid_after_busy, accdrv_min_flop_process,&
+            accdrv_min_flop_sort, accdrv_do_inhomogenous, &
+            accdrv_binning_nbins, accdrv_binning_binsize, &
+            accdrv_posterior_streams, accdrv_posterior_buffers,&
+            accdrv_priority_streams, accdrv_priority_buffers
 
   PUBLIC :: multrec_limit
   PUBLIC :: default_resize_factor
@@ -95,13 +95,13 @@ MODULE dbcsr_config
   INTEGER, PARAMETER :: mm_driver_blas       = 2
   INTEGER, PARAMETER :: mm_driver_smm        = 3
   INTEGER, PARAMETER :: mm_driver_plasma     = 4
-  INTEGER, PARAMETER :: mm_driver_cuda       = 5
+  INTEGER, PARAMETER :: mm_driver_acc       = 5
 
   CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
                                  mm_name_matmul = "MATMUL",&
                                  mm_name_smm    = "SMM",&
                                  mm_name_plasma = "PLASMA",&
-                                 mm_name_cuda   = "CUDA"
+                                 mm_name_acc   = "ACC"
 
   ! Then the capabilities are specified.
 
@@ -125,10 +125,10 @@ MODULE dbcsr_config
   LOGICAL, PARAMETER :: has_plasma = .FALSE.
 #endif
 
-#if defined (__DBCSR_CUDA)
-  LOGICAL, PARAMETER :: has_cuda = .TRUE.
+#if defined (__DBCSR_ACC)
+  LOGICAL, PARAMETER :: has_acc = .TRUE.
 #else
-  LOGICAL, PARAMETER :: has_cuda = .FALSE.
+  LOGICAL, PARAMETER :: has_acc = .FALSE.
 #endif
 
 #if defined (__parallel)
@@ -153,8 +153,8 @@ MODULE dbcsr_config
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
   ! Which driver to use for matrix multiplications.
-#if defined (__DBCSR_CUDA)
-  INTEGER, SAVE :: mm_driver = mm_driver_cuda
+#if defined (__DBCSR_ACC)
+  INTEGER, SAVE :: mm_driver = mm_driver_acc
 #else
   INTEGER, SAVE :: mm_driver = mm_driver_smm
 #endif
@@ -162,7 +162,7 @@ MODULE dbcsr_config
   ! Which driver to use for matrix multiplications (on the host).
   INTEGER, SAVE :: mm_host_driver = mm_driver_smm
 
-  ! Whether an accelerator such as a GPU is used.
+  ! Whether an accelerator is used.
   LOGICAL, SAVE :: mm_async = .FALSE.
 
   ! Stack size to use for multiplication parameters
@@ -185,16 +185,16 @@ MODULE dbcsr_config
 
   INTEGER, SAVE :: multrec_limit = 512
 
-  INTEGER, SAVE :: cudadrv_priority_streams = 4
-  INTEGER, SAVE :: cudadrv_priority_buffers = 40
-  INTEGER, SAVE :: cudadrv_posterior_streams  = 4
-  INTEGER, SAVE :: cudadrv_posterior_buffers  = 80
-  LOGICAL, SAVE :: cudadrv_avoid_after_busy = .FALSE.
-  INTEGER, SAVE :: cudadrv_min_flop_process = 0
-  INTEGER, SAVE :: cudadrv_min_flop_sort = 4000
-  LOGICAL, SAVE :: cudadrv_do_inhomogenous = .TRUE.
-  INTEGER, SAVE :: cudadrv_binning_nbins = 4096
-  INTEGER, SAVE :: cudadrv_binning_binsize = 16
+  INTEGER, SAVE :: accdrv_priority_streams = 4
+  INTEGER, SAVE :: accdrv_priority_buffers = 40
+  INTEGER, SAVE :: accdrv_posterior_streams  = 4
+  INTEGER, SAVE :: accdrv_posterior_buffers  = 80
+  LOGICAL, SAVE :: accdrv_avoid_after_busy = .FALSE.
+  INTEGER, SAVE :: accdrv_min_flop_process = 0
+  INTEGER, SAVE :: accdrv_min_flop_sort = 4000
+  LOGICAL, SAVE :: accdrv_do_inhomogenous = .TRUE.
+  INTEGER, SAVE :: accdrv_binning_nbins = 4096
+  INTEGER, SAVE :: accdrv_binning_binsize = 16
 
 CONTAINS
 
@@ -238,11 +238,11 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Support for PLASMA not compiled in.", __LINE__, error=error)
        mm_driver = mm_driver_plasma
-    CASE (mm_driver_cuda)
-       CALL dbcsr_assert (has_cuda,&
+    CASE (mm_driver_acc)
+       CALL dbcsr_assert (has_acc,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Support for CUDA not compiled in.", __LINE__, error=error)
-       mm_driver = mm_driver_cuda
+            "Support for ACC not compiled in.", __LINE__, error=error)
+       mm_driver = mm_driver_acc
        mm_stack_size = 30000
        nm_stacks = 3
        nn_stacks = 3
@@ -485,7 +485,7 @@ CONTAINS
 
     driver_is_async = .FALSE.
     SELECT CASE (driver)
-       CASE (mm_driver_cuda)
+       CASE (mm_driver_acc)
           driver_is_async = .TRUE.
     END SELECT
   END FUNCTION driver_is_async

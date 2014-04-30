@@ -66,7 +66,7 @@ CONTAINS
     REAL(KIND=dp)                            :: get_clk
 
     !$ IF (.FALSE.) THEN
-#if !defined (__DBCSR_CUDA)
+#if !defined (__DBCSR_ACC)
 ! count lies in [0,count_max] and increases monotonically
     IF (cycles == -1) THEN ! get parameters of system_clock and initialise
         CALL SYSTEM_CLOCK(count_rate=count_rate,count_max=count_max)

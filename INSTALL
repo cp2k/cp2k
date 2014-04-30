@@ -100,7 +100,7 @@ How to compile CP2K code
      * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
  2h) CUDA support (optional, under development):
-     * (Experimental): Use the __DBCSR_CUDA to compile with CUDA
+     * (Experimental): Use the __DBCSR_ACC to compile with accelerator support
        support for matrix multiplication.  For linking add -lcudart and -lrt
        to LIBS.  The compiler must support ISO_C_BINDING.
      * Use __PW_CUDA for CUDA support for PW (gather/scatter/fft)

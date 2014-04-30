@@ -1,0 +1,5 @@
+{
+"description": "Cuda backend for accelerator api",
+"archive":"libcp2kacccuda",
+"requires": ["../include"]
+}

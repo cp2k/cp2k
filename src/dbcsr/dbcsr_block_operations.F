@@ -14,8 +14,8 @@
 ! *****************************************************************************
 MODULE dbcsr_block_operations
 
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocated,&
-                                             dbcsr_cuda_devmem_setzero
+  USE acc_devmem,                      ONLY: acc_devmem_allocated,&
+                                             acc_devmem_setzero_bytes
   USE dbcsr_data_methods_low,          ONLY: &
        dbcsr_data_exists, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, &
@@ -29,8 +29,8 @@ MODULE dbcsr_block_operations
                                              real_8,&
                                              sp
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
 
@@ -1108,7 +1108,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l, l2, u, u2
+    INTEGER                                  :: l, l2, s, u, u2
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -1123,9 +1123,10 @@ CONTAINS
             "Incompatible data types",__LINE__,error)
     ENDIF
 
-    IF(dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) THEN
-      IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for cuda_devmem"
-      CALL dbcsr_cuda_devmem_setzero(area%d%cuda_devmem, lb, ub, area%d%memory_type%cuda_stream, error)
+    IF(acc_devmem_allocated(area%d%acc_devmem)) THEN
+      IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for acc_devmem"
+      s = dbcsr_datatype_sizeof(area%d%data_type)
+      CALL acc_devmem_setzero_bytes(area%d%acc_devmem, s*lb, s*ub, area%d%memory_type%acc_stream)
     END IF
 
     SELECT CASE (area%d%data_type)

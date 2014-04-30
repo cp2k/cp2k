@@ -18,8 +18,8 @@ MODULE dbcsr_ptr_util
   USE ISO_C_BINDING
 #endif
 
-  USE dbcsr_cuda_hostmem,              ONLY: dbcsr_cuda_hostmem_allocate,&
-                                             dbcsr_cuda_hostmem_deallocate
+  USE acc_hostmem,                     ONLY: acc_hostmem_allocate,&
+                                             acc_hostmem_deallocate
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,int_4, int_8, real_8, dp
   USE dbcsr_message_passing,           ONLY: mp_allocate,&

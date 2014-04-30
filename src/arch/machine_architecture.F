@@ -730,7 +730,7 @@ SUBROUTINE ma_set_proc_node(node)
                                 topology%ncores/topology%nsockets
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of siblings per core             ",&
                                 topology%nsiblings
-#if defined (__PW_CUDA) || defined (__DBCSR_CUDA)
+#if defined (__PW_CUDA) || defined (__DBCSR_ACC)
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of graphics processing units     ",&
                                 topology%ngpus
 #endif

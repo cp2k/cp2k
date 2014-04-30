@@ -8,7 +8,7 @@
 !>         It collects the full matrix blocks, which need to be multiplied,
 !>         and stores their parameters in various stacks.
 !>         After a certain amount of parameters is collected it dispatches
-!>         the filled stacks to either the CPU or the GPU.
+!>         the filled stacks to either the CPU or the accelerator device.
 !>
 !> \author  Urban Borstnik
 !>

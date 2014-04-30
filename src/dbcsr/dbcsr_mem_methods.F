@@ -4,14 +4,14 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief   DBCSR Memory Pool to avoid slow allocations e.g. of cuda memory
+!> \brief   DBCSR Memory Pool to avoid slow allocations of accelerator memory
 !> \author  Ole Schuett
 ! *****************************************************************************
 MODULE dbcsr_mem_methods
 
-  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_associated,&
-                                             dbcsr_cuda_stream_equal,&
-                                             dbcsr_cuda_stream_type
+  USE acc_stream,                      ONLY: acc_stream_associated,&
+                                             acc_stream_equal,&
+                                             acc_stream_type
   USE dbcsr_data_methods_low,          ONLY: dbcsr_data_exists,&
                                              dbcsr_data_get_size,&
                                              internal_data_deallocate
@@ -265,12 +265,12 @@ MODULE dbcsr_mem_methods
 ! \brief Ensures that given memtype has requested settings.
 ! \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_memtype_setup(memtype, cuda_hostalloc, cuda_devalloc, mpi,&
-              cuda_stream, oversize_factor, has_pool, error)
+  SUBROUTINE dbcsr_memtype_setup(memtype, acc_hostalloc, acc_devalloc, mpi,&
+              acc_stream, oversize_factor, has_pool, error)
     TYPE(dbcsr_memtype_type), INTENT(INOUT)  :: memtype
-    LOGICAL, INTENT(IN), OPTIONAL            :: cuda_hostalloc, &
-                                                cuda_devalloc, mpi
-    TYPE(dbcsr_cuda_stream_type), OPTIONAL   :: cuda_stream
+    LOGICAL, INTENT(IN), OPTIONAL            :: acc_hostalloc, acc_devalloc, &
+                                                mpi
+    TYPE(acc_stream_type), OPTIONAL          :: acc_stream
     REAL(KIND=dp), OPTIONAL                  :: oversize_factor
     LOGICAL, INTENT(IN), OPTIONAL            :: has_pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -282,20 +282,20 @@ MODULE dbcsr_mem_methods
 
     my_has_pool = .FALSE.
     IF(PRESENT(has_pool)) my_has_pool = has_pool
-    IF(PRESENT(cuda_hostalloc))  aim%cuda_hostalloc  = cuda_hostalloc
-    IF(PRESENT(cuda_devalloc))   aim%cuda_devalloc   = cuda_devalloc
+    IF(PRESENT(acc_hostalloc))   aim%acc_hostalloc   = acc_hostalloc
+    IF(PRESENT(acc_devalloc))    aim%acc_devalloc    = acc_devalloc
     IF(PRESENT(mpi))             aim%mpi             = mpi
-    IF(PRESENT(cuda_stream))     aim%cuda_stream     = cuda_stream
+    IF(PRESENT(acc_stream))      aim%acc_stream      = acc_stream
     IF(PRESENT(oversize_factor)) aim%oversize_factor = oversize_factor
 
-    IF(.NOT. aim%cuda_devalloc.EQV.dbcsr_cuda_stream_associated(aim%cuda_stream))&
-       STOP "dbcsr_memtype_setup: cuda_stream missing"
+    IF(.NOT. aim%acc_devalloc.EQV.acc_stream_associated(aim%acc_stream))&
+       STOP "dbcsr_memtype_setup: acc_stream missing"
 
     is_ok = .TRUE.
-    is_ok = is_ok .AND. (memtype%cuda_hostalloc.EQV.aim%cuda_hostalloc)
-    is_ok = is_ok .AND. (memtype%cuda_devalloc.EQV.aim%cuda_devalloc)
+    is_ok = is_ok .AND. (memtype%acc_hostalloc.EQV.aim%acc_hostalloc)
+    is_ok = is_ok .AND. (memtype%acc_devalloc.EQV.aim%acc_devalloc)
     is_ok = is_ok .AND. (memtype%mpi.EQV.aim%mpi)
-    is_ok = is_ok .AND. dbcsr_cuda_stream_equal(memtype%cuda_stream,aim%cuda_stream)
+    is_ok = is_ok .AND. acc_stream_equal(memtype%acc_stream,aim%acc_stream)
     is_ok = is_ok .AND. (memtype%oversize_factor==aim%oversize_factor)
     is_ok = is_ok .AND. (ASSOCIATED(memtype%pool).EQV.my_has_pool)
 
@@ -303,10 +303,10 @@ MODULE dbcsr_mem_methods
         IF(ASSOCIATED(memtype%pool)) &
            CALL dbcsr_mempool_destruct(memtype%pool, error)
 
-        memtype%cuda_hostalloc = aim%cuda_hostalloc
-        memtype%cuda_devalloc = aim%cuda_devalloc
+        memtype%acc_hostalloc = aim%acc_hostalloc
+        memtype%acc_devalloc  = aim%acc_devalloc
         memtype%mpi = aim%mpi
-        memtype%cuda_stream = aim%cuda_stream
+        memtype%acc_stream = aim%acc_stream
         memtype%oversize_factor = aim%oversize_factor
         IF(my_has_pool) &
            CALL dbcsr_mempool_create(memtype%pool)
@@ -323,8 +323,8 @@ MODULE dbcsr_mem_methods
     LOGICAL                                  :: res
 
       res = (mt1%mpi .EQV. mt2%mpi) .AND. &
-            (mt1%cuda_hostalloc .EQV. mt2%cuda_hostalloc) .AND. &
-            (mt1%cuda_devalloc .EQV. mt2%cuda_devalloc) .AND. &
+            (mt1%acc_hostalloc .EQV. mt2%acc_hostalloc) .AND. &
+            (mt1%acc_devalloc .EQV. mt2%acc_devalloc) .AND. &
             (ASSOCIATED(mt1%pool) .EQV. ASSOCIATED(mt2%pool)) .AND. &
             (.NOT. ASSOCIATED(mt1%pool) .OR. ASSOCIATED(mt1%pool, mt2%pool))
   END FUNCTION dbcsr_memtype_equal

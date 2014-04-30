@@ -1,6 +1,6 @@
 {
 "description": "Distributed Block Compressed Sparse Row, A sparse matrix library",
 "archive": "libdbcsr",
-"requires": ["cuda", ],
+"requires": ["../acc", "libsmm_acc"],
 "public": ["dbcsr_api.F"],
 }

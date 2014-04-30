@@ -196,8 +196,8 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc .AND. n>1) THEN
-       CALL dbcsr_cuda_hostmem_allocate(mem, n, error=error)
+    IF(mem_type%acc_hostalloc .AND. n>1) THEN
+       CALL acc_hostmem_allocate(mem, n)
     ELSE IF(mem_type%mpi) THEN
        CALL mp_allocate(mem, n)
     ELSE
@@ -229,10 +229,10 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc) THEN
+    IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Cuda hostalloc not supported for 2D arrays.",__LINE__,error)
-       !CALL dbcsr_cuda_hostmem_allocate(mem, n, error=error)
+               routineN, "Accelerator hostalloc not supported for 2D arrays.",__LINE__,error)
+       !CALL acc_hostmem_allocate(mem, n)
     ELSE IF(mem_type%mpi) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
           routineN, "MPI allocate not supported for 2D arrays.",__LINE__,error)
@@ -265,8 +265,8 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc .AND. SIZE(mem)>1) THEN
-       CALL dbcsr_cuda_hostmem_deallocate(mem, error=error)
+    IF(mem_type%acc_hostalloc .AND. SIZE(mem)>1) THEN
+       CALL acc_hostmem_deallocate(mem)
     ELSE IF(mem_type%mpi) THEN
        CALL mp_deallocate(mem)
     ELSE
@@ -297,10 +297,10 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc) THEN
+    IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "Cuda host deallocate not supported for 2D arrays.",__LINE__,error)
-       !CALL dbcsr_cuda_hostmem_deallocate(mem, error=error)
+          routineN, "Accelerator host deallocate not supported for 2D arrays.",__LINE__,error)
+       !CALL acc_hostmem_deallocate(mem)
     ELSE IF(mem_type%mpi) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
           routineN, "MPI deallocate not supported for 2D arrays.",__LINE__,error)

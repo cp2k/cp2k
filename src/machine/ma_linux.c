@@ -34,7 +34,7 @@ int linux_topology_init(struct arch_topology *topo)
 {
   int count, i, j, error,k,tmpNode;
   
-#ifdef  __DBCSR_CUDA
+#ifdef  __DBCSR_ACC
   int nDev;
   ma_get_ndevices_cu(&nDev);
   topo->ngpus = nDev;
@@ -82,7 +82,7 @@ int linux_topology_init(struct arch_topology *topo)
         machine_nodes[i].id = i;
         machine_nodes[i].memory = 0;
         machine_nodes[i].ncores = ncore_node;
-#ifdef  __DBCSR_CUDA
+#ifdef  __DBCSR_ACC
        ma_get_nDevcu(i,&nDev);
        machine_nodes[i].mygpus = malloc (nDev*sizeof(int));
        ma_get_cu(i,machine_nodes[i].mygpus);
@@ -566,7 +566,7 @@ void linux_get_mempol(int *node, int *mem_pol)
 
 
 
-#ifdef  __DBCSR_CUDA
+#ifdef  __DBCSR_ACC
 
 /*
  *Build the GPUs list for a core

@@ -1,5 +1,0 @@
-{
-"description": "Cuda acceleration for DBCSR",
-"archive": "libdbcsrcuda",
-"requires": ["libcusmm", ]
-}

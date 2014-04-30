@@ -54,6 +54,7 @@ endif
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
+LIBCUSMM_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.F")
@@ -222,7 +223,6 @@ TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
 # Libcusmm stuff ============================================================
-LIBCUSMM_DIR = $(shell find $(SRCDIR) -type d -name "libcusmm")
 $(LIBCUSMM_DIR)/libcusmm.cu: $(LIBCUSMM_DIR)/generate.py $(LIBCUSMM_DIR)/parameters.txt $(wildcard $(LIBCUSMM_DIR)/kernels/*.py)
 	cd $(LIBCUSMM_DIR); ./generate.py $(LIBCUSMM_FLAGS)
 

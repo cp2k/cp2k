@@ -31,14 +31,14 @@ MODULE pw_methods
   USE machine,                         ONLY: m_loc_c,&
                                              m_loc_r
   USE message_passing,                 ONLY: mp_sum
+  USE pw_cuda,                         ONLY: pw_cuda_c1dr3d_3d,&
+                                             pw_cuda_c1dr3d_3d_ps,&
+                                             pw_cuda_r3dc1d_3d,&
+                                             pw_cuda_r3dc1d_3d_ps
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
-  USE pw_methods_cuda,                 ONLY: pw_cuda_c1dr3d_3d,&
-                                             pw_cuda_c1dr3d_3d_ps,&
-                                             pw_cuda_r3dc1d_3d,&
-                                             pw_cuda_r3dc1d_3d_ps
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
        REALSPACE, RECIPROCALSPACE, SQUARE, SQUAREROOT, pw_type

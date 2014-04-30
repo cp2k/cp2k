@@ -1,0 +1,4 @@
+{
+"description": "Generic accelerated library for small matrix multiplications",
+"requires": ["libcusmm", ],
+}

@@ -15,11 +15,10 @@ MODULE cp_dbcsr_cp2k_link
                                              cp_dbcsr_reserve_blocks
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE dbcsr_api,                       ONLY: &
-       cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
-       cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
-       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
-       cudadrv_priority_buffers, cudadrv_priority_streams, dbcsr_error_set, &
+       accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
+       accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
+       accdrv_posterior_buffers, accdrv_posterior_streams, &
+       accdrv_priority_buffers, accdrv_priority_streams, dbcsr_error_set, &
        dbcsr_error_stop, dbcsr_error_type, dbcsr_get_conf_combtypes, &
        dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
@@ -29,9 +28,9 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_type_no_symmetry, has_cuda, &
-       has_mpi, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_type_no_symmetry, has_acc, &
+       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
+       mm_driver_plasma, mm_driver_smm, mm_name_acc, mm_name_blas, &
        mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -113,26 +112,26 @@ CONTAINS
          "multrec_limit", i_val=multrec_limit, error=error)
 
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%priority_streams", i_val=cudadrv_priority_streams, error=error)
+         "ACC%priority_streams", i_val=accdrv_priority_streams, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%priority_buffers", i_val=cudadrv_priority_buffers, error=error)
+         "ACC%priority_buffers", i_val=accdrv_priority_buffers, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%posterior_streams", i_val=cudadrv_posterior_streams, error=error)
+         "ACC%posterior_streams", i_val=accdrv_posterior_streams, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%posterior_buffers", i_val=cudadrv_posterior_buffers, error=error)
+         "ACC%posterior_buffers", i_val=accdrv_posterior_buffers, error=error)
 
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%min_flop_process", i_val=cudadrv_min_flop_process, error=error)
+         "ACC%min_flop_process", i_val=accdrv_min_flop_process, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%min_flop_sort", i_val=cudadrv_min_flop_sort, error=error)
+         "ACC%min_flop_sort", i_val=accdrv_min_flop_sort, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%process_inhomogenous", l_val=cudadrv_do_inhomogenous, error=error)
+         "ACC%process_inhomogenous", l_val=accdrv_do_inhomogenous, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%avoid_after_busy", l_val=cudadrv_avoid_after_busy, error=error)
+         "ACC%avoid_after_busy", l_val=accdrv_avoid_after_busy, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%binning_nbins", i_val=cudadrv_binning_nbins, error=error)
+         "ACC%binning_nbins", i_val=accdrv_binning_nbins, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "CUDA%binning_binsize", i_val=cudadrv_binning_binsize, error=error)
+         "ACC%binning_binsize", i_val=accdrv_binning_binsize, error=error)
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
@@ -177,7 +176,7 @@ CONTAINS
        CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
        CASE(mm_driver_smm)    ; mm_name = mm_name_smm
        CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
-       CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
+       CASE(mm_driver_acc)   ; mm_name = mm_name_acc
        END SELECT
        WRITE(UNIT=unit_num, FMT='(1X,A,T41,A40)')&
         "DBCSR| Multiplication driver", ADJUSTR(mm_name(1:40))
@@ -213,27 +212,27 @@ CONTAINS
             "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
        ENDIF
 
-       IF (has_cuda) THEN
+       IF (has_acc) THEN
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of priority stack-buffers", cudadrv_priority_buffers
+            "DBCSR| ACC: Number of priority stack-buffers", accdrv_priority_buffers
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of posterior stack-buffers", cudadrv_posterior_buffers
+            "DBCSR| ACC: Number of posterior stack-buffers", accdrv_posterior_buffers
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of priority streams", cudadrv_priority_streams
+            "DBCSR| ACC: Number of priority streams", accdrv_priority_streams
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of posterior streams", cudadrv_posterior_streams
+            "DBCSR| ACC: Number of posterior streams", accdrv_posterior_streams
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| CUDA: Avoid driver after busy ", cudadrv_avoid_after_busy
+            "DBCSR| ACC: Avoid driver after busy ", accdrv_avoid_after_busy
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| CUDA: Process inhomogenous stacks", cudadrv_do_inhomogenous
+            "DBCSR| ACC: Process inhomogenous stacks", accdrv_do_inhomogenous
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Min. flop for processing", cudadrv_min_flop_process
+            "DBCSR| ACC: Min. flop for processing", accdrv_min_flop_process
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Min. flop for sorting", cudadrv_min_flop_sort
+            "DBCSR| ACC: Min. flop for sorting", accdrv_min_flop_sort
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Number of binning bins", cudadrv_binning_nbins
+            "DBCSR| ACC: Number of binning bins", accdrv_binning_nbins
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-            "DBCSR| CUDA: Size of binning bins", cudadrv_binning_binsize
+            "DBCSR| ACC: Size of binning bins", accdrv_binning_binsize
        END IF
     ENDIF
 

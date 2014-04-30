@@ -31,11 +31,10 @@ MODULE dbcsr_api
                                              block_chol_inv,&
                                              block_set
   USE dbcsr_config,                    ONLY: &
-       cudadrv_avoid_after_busy, cudadrv_binning_binsize, &
-       cudadrv_binning_nbins, cudadrv_do_inhomogenous, &
-       cudadrv_min_flop_process, cudadrv_min_flop_sort, &
-       cudadrv_posterior_buffers, cudadrv_posterior_streams, &
-       cudadrv_priority_buffers, cudadrv_priority_streams, &
+       accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
+       accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
+       accdrv_posterior_buffers, accdrv_posterior_streams, &
+       accdrv_priority_buffers, accdrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
@@ -45,9 +44,9 @@ MODULE dbcsr_api
        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, has_cuda, has_mpi, mm_driver_blas, &
-       mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, &
+       dbcsr_set_conf_use_comm_thread, has_acc, has_mpi, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
+       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
        mm_name_smm, multrec_limit
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
@@ -154,16 +153,16 @@ MODULE dbcsr_api
            convert_sizes_to_offsets ,&
            cp_test_multiplies ,&
            create_bl_distribution ,&
-           cudadrv_avoid_after_busy ,&
-           cudadrv_binning_binsize ,&
-           cudadrv_binning_nbins ,&
-           cudadrv_do_inhomogenous ,&
-           cudadrv_min_flop_process ,&
-           cudadrv_min_flop_sort ,&
-           cudadrv_posterior_buffers ,&
-           cudadrv_posterior_streams ,&
-           cudadrv_priority_buffers ,&
-           cudadrv_priority_streams ,&
+           accdrv_avoid_after_busy ,&
+           accdrv_binning_binsize ,&
+           accdrv_binning_nbins ,&
+           accdrv_do_inhomogenous ,&
+           accdrv_min_flop_process ,&
+           accdrv_min_flop_sort ,&
+           accdrv_posterior_buffers ,&
+           accdrv_posterior_streams ,&
+           accdrv_priority_buffers ,&
+           accdrv_priority_streams ,&
            dbcsr_access_flush ,&
            dbcsr_add ,&
            dbcsr_add_on_diag ,&
@@ -332,15 +331,15 @@ MODULE dbcsr_api
            dbcsr_verify_matrix ,&
            dbcsr_wm_use_mutable ,&
            dbcsr_work_create ,&
-           has_cuda ,&
+           has_acc ,&
            has_mpi ,&
            mm_driver_blas ,&
-           mm_driver_cuda ,&
+           mm_driver_acc ,&
            mm_driver_matmul ,&
            mm_driver_plasma ,&
            mm_driver_smm ,&
            mm_name_blas ,&
-           mm_name_cuda ,&
+           mm_name_acc ,&
            mm_name_matmul ,&
            mm_name_plasma ,&
            mm_name_smm ,&

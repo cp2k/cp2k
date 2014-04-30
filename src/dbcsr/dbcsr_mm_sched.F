@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief  Fourth layer of the dbcsr matrix-matrix multiplication.
 !>         It hides the differences between performing calculations on the
-!>         GPU or the CPU.
+!>         accelerator device or on the CPU.
 !>
 !> \author  Urban Borstnik
 !>
@@ -20,12 +20,12 @@
 
 MODULE dbcsr_mm_sched
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
-  USE dbcsr_config,                    ONLY: cudadrv_avoid_after_busy,&
-                                             cudadrv_do_inhomogenous,&
-                                             cudadrv_min_flop_process,&
+  USE dbcsr_config,                    ONLY: accdrv_avoid_after_busy,&
+                                             accdrv_do_inhomogenous,&
+                                             accdrv_min_flop_process,&
                                              default_resize_factor,&
                                              mm_driver,&
-                                             mm_driver_cuda
+                                             mm_driver_acc
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
   USE dbcsr_error_handling
@@ -36,14 +36,14 @@ MODULE dbcsr_mm_sched
                                              mp_bcast,&
                                              mp_environ,&
                                              mp_sum
-  USE dbcsr_mm_cudadrv,                ONLY: dbcsr_mm_cudadrv_barrier,&
-                                             dbcsr_mm_cudadrv_finalize,&
-                                             dbcsr_mm_cudadrv_init,&
-                                             dbcsr_mm_cudadrv_lib_finalize,&
-                                             dbcsr_mm_cudadrv_lib_init,&
-                                             dbcsr_mm_cudadrv_phaseout,&
-                                             dbcsr_mm_cudadrv_process,&
-                                             dbcsr_mm_cudadrv_type
+  USE dbcsr_mm_accdrv,                 ONLY: dbcsr_mm_accdrv_barrier,&
+                                             dbcsr_mm_accdrv_finalize,&
+                                             dbcsr_mm_accdrv_init,&
+                                             dbcsr_mm_accdrv_lib_finalize,&
+                                             dbcsr_mm_accdrv_lib_init,&
+                                             dbcsr_mm_accdrv_phaseout,&
+                                             dbcsr_mm_accdrv_process,&
+                                             dbcsr_mm_accdrv_type
   USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_barrier,&
                                              dbcsr_mm_hostdrv_finalize,&
                                              dbcsr_mm_hostdrv_init,&
@@ -81,9 +81,9 @@ MODULE dbcsr_mm_sched
   TYPE dbcsr_mm_sched_type
     PRIVATE
     TYPE(dbcsr_work_type), POINTER  :: product_wm
-    TYPE(dbcsr_mm_cudadrv_type)     :: cudadrv
+    TYPE(dbcsr_mm_accdrv_type)      :: accdrv
     TYPE(dbcsr_mm_hostdrv_type)     :: hostdrv
-    LOGICAL                         :: avoid_cudadrv = .FALSE.
+    LOGICAL                         :: avoid_accdrv = .FALSE.
     LOGICAL                         :: product_wm_cleared = .FALSE.
     INTEGER                         :: product_wm_orig_datasize = -1
   END TYPE dbcsr_mm_sched_type
@@ -91,8 +91,8 @@ MODULE dbcsr_mm_sched
   ! *****************************************************************************
   TYPE stats_type
     INTEGER(kind=int_8)   :: cpu_num_stacks = 0
-    INTEGER(kind=int_8)   :: gpu_num_stacks = 0
-    INTEGER(kind=int_8)   :: gpu_flop = 0
+    INTEGER(kind=int_8)   :: acc_num_stacks = 0
+    INTEGER(kind=int_8)   :: acc_flop = 0
     INTEGER(kind=int_8)   :: cpu_flop = 0
   END TYPE stats_type
 
@@ -126,7 +126,7 @@ MODULE dbcsr_mm_sched
     ALLOCATE(stats_num_mnk_stacks(1,5))
     stats_num_mnk_stacks(1,:) = 0 ! entry for the default stack
 
-    CALL dbcsr_mm_cudadrv_lib_init(error)
+    CALL dbcsr_mm_accdrv_lib_init(error)
 
 
   END SUBROUTINE dbcsr_mm_sched_lib_init
@@ -142,7 +142,7 @@ MODULE dbcsr_mm_sched
 
     TYPE(stats_type), SAVE                   :: report
 
-   CALL dbcsr_mm_cudadrv_lib_finalize(output_unit, error)
+   CALL dbcsr_mm_accdrv_lib_finalize(output_unit, error)
 
    ! Collect and output statistics ---------------------------------------------
 
@@ -208,8 +208,8 @@ MODULE dbcsr_mm_sched
 
     CALL dbcsr_mm_hostdrv_init(this%hostdrv, left, right, product_wm, error)
 
-    IF (mm_driver == mm_driver_cuda) &
-       CALL dbcsr_mm_cudadrv_init(this%cudadrv, left, right, product_wm, error)
+    IF (mm_driver == mm_driver_acc) &
+       CALL dbcsr_mm_accdrv_init(this%accdrv, left, right, product_wm, error)
 
     CALL dbcsr_error_stop(error_handler, error)
 
@@ -224,8 +224,8 @@ MODULE dbcsr_mm_sched
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_mm_hostdrv_phaseout(this%hostdrv, error)
-    IF (mm_driver == mm_driver_cuda) &
-       CALL dbcsr_mm_cudadrv_phaseout(this%cudadrv, error)
+    IF (mm_driver == mm_driver_acc) &
+       CALL dbcsr_mm_accdrv_phaseout(this%accdrv, error)
   END SUBROUTINE dbcsr_mm_sched_phaseout
 
 
@@ -248,8 +248,8 @@ MODULE dbcsr_mm_sched
     CALL ensure_product_wm_cleared(this)
 
     CALL dbcsr_mm_hostdrv_finalize(this%hostdrv, error)
-    IF (mm_driver == mm_driver_cuda) &
-       CALL dbcsr_mm_cudadrv_finalize(this%cudadrv, error)
+    IF (mm_driver == mm_driver_acc) &
+       CALL dbcsr_mm_accdrv_finalize(this%accdrv, error)
 
     CALL dbcsr_error_stop(error_handler, error)
 
@@ -263,7 +263,7 @@ MODULE dbcsr_mm_sched
     TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    this%avoid_cudadrv = .FALSE.
+    this%avoid_accdrv = .FALSE.
   END SUBROUTINE dbcsr_mm_sched_begin_burst
 
 ! *****************************************************************************
@@ -287,8 +287,8 @@ MODULE dbcsr_mm_sched
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_mm_hostdrv_barrier(this%hostdrv, error)
-    IF (mm_driver==mm_driver_cuda) &
-       CALL dbcsr_mm_cudadrv_barrier(this%cudadrv, error)
+    IF (mm_driver==mm_driver_acc) &
+       CALL dbcsr_mm_accdrv_barrier(this%accdrv, error)
 
   END SUBROUTINE dbcsr_mm_sched_barrier
 
@@ -349,12 +349,12 @@ MODULE dbcsr_mm_sched
      flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
      total_flop = stack_fillcount * flop_per_entry
 
-     IF (mm_driver==mm_driver_cuda .AND. &
-         flop_per_entry > cudadrv_min_flop_process .AND. &
-         (.NOT. this%avoid_cudadrv) .AND. &
-         (stack_descr%defined_mnk .OR. cudadrv_do_inhomogenous) ) THEN
-            CALL dbcsr_mm_cudadrv_process(&
-                    this%cudadrv,&
+     IF (mm_driver==mm_driver_acc .AND. &
+         flop_per_entry > accdrv_min_flop_process .AND. &
+         (.NOT. this%avoid_accdrv) .AND. &
+         (stack_descr%defined_mnk .OR. accdrv_do_inhomogenous) ) THEN
+            CALL dbcsr_mm_accdrv_process(&
+                    this%accdrv,&
                     left, right,&
                     params=stack_data,&
                     stack_size=stack_fillcount, &
@@ -364,13 +364,13 @@ MODULE dbcsr_mm_sched
 
          IF(success) THEN
             ! update statistics
-            stats%gpu_num_stacks = stats%gpu_num_stacks + 1
-            stats%gpu_flop = stats%gpu_flop + total_flop
+            stats%acc_num_stacks = stats%acc_num_stacks + 1
+            stats%acc_flop = stats%acc_flop + total_flop
             CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
-                     stacksize_gpu=INT(stack_fillcount,kind=int_8))
+                     stacksize_acc=INT(stack_fillcount,kind=int_8))
             RETURN
          ELSE
-            this%avoid_cudadrv = cudadrv_avoid_after_busy
+            this%avoid_accdrv = accdrv_avoid_after_busy
          ENDIF
      ENDIF
 
@@ -405,9 +405,9 @@ MODULE dbcsr_mm_sched
 ! \brief Helper-routine used by dbcsr_mm_sched_process to supply statistics.
 ! \author Ole Schuett
 ! ******************************************************************************
- SUBROUTINE stats_add(m,n,k, stacksize_cpu, stacksize_gpu)
+ SUBROUTINE stats_add(m,n,k, stacksize_cpu, stacksize_acc)
     INTEGER, INTENT(IN)                      :: m, n, k
-    INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_gpu
+    INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_acc
 
     INTEGER                                  :: i, s
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -419,8 +419,8 @@ MODULE dbcsr_mm_sched
           stats_num_mnk_stacks(i,3)==k) THEN
             IF(PRESENT(stacksize_cpu))&
               stats_num_mnk_stacks(i,4) = stats_num_mnk_stacks(i,4) + stacksize_cpu
-            IF(PRESENT(stacksize_gpu))&
-              stats_num_mnk_stacks(i,5) = stats_num_mnk_stacks(i,5) + stacksize_gpu
+            IF(PRESENT(stacksize_acc))&
+              stats_num_mnk_stacks(i,5) = stats_num_mnk_stacks(i,5) + stacksize_acc
             RETURN
        ENDIF
    END DO
@@ -436,8 +436,8 @@ MODULE dbcsr_mm_sched
    stats_num_mnk_stacks(s+1,4:5) = 0
    IF(PRESENT(stacksize_cpu))&
      stats_num_mnk_stacks(s+1,4) = stacksize_cpu
-   IF(PRESENT(stacksize_gpu))&
-     stats_num_mnk_stacks(s+1,5) = stacksize_gpu
+   IF(PRESENT(stacksize_acc))&
+     stats_num_mnk_stacks(s+1,5) = stacksize_acc
    DEALLOCATE(tmp)
  END SUBROUTINE stats_add
 
@@ -459,8 +459,8 @@ MODULE dbcsr_mm_sched
 
    !$OMP CRITICAL
    report%cpu_num_stacks = report%cpu_num_stacks + stats%cpu_num_stacks
-   report%gpu_num_stacks = report%gpu_num_stacks + stats%gpu_num_stacks
-   report%gpu_flop = report%gpu_flop + stats%gpu_flop
+   report%acc_num_stacks = report%acc_num_stacks + stats%acc_num_stacks
+   report%acc_flop = report%acc_flop + stats%acc_flop
    report%cpu_flop = report%cpu_flop + stats%cpu_flop
    !$OMP END CRITICAL
 
@@ -474,7 +474,7 @@ MODULE dbcsr_mm_sched
                         n=INT(handover(j,2), kind=int_4),&
                         k=INT(handover(j,3), kind=int_4),&
                         stacksize_cpu=handover(j,4),&
-                        stacksize_gpu=handover(j,5))
+                        stacksize_acc=handover(j,5))
        END DO
      END IF
    END DO
@@ -497,10 +497,10 @@ MODULE dbcsr_mm_sched
 
     CALL mp_environ(nranks, myrank, group)
 
-    CALL mp_sum(report%gpu_flop, group)
+    CALL mp_sum(report%acc_flop, group)
     CALL mp_sum(report%cpu_flop, group)
     CALL mp_sum(report%cpu_num_stacks, group)
-    CALL mp_sum(report%gpu_num_stacks, group)
+    CALL mp_sum(report%acc_num_stacks, group)
 
     ! array mnk_collected is used as a logical-array, allows to use minloc
     ALLOCATE(mnk_collected(SIZE(stats_num_mnk_stacks,1)))
@@ -520,7 +520,7 @@ MODULE dbcsr_mm_sched
       ENDIF
       CALL mp_bcast(msg=mnk, source=sending_rank, gid=group)
 
-      CALL stats_add(m=mnk(1), n=mnk(2), k=mnk(3), stacksize_cpu=0_int_8, stacksize_gpu=0_int_8)
+      CALL stats_add(m=mnk(1), n=mnk(2), k=mnk(3), stacksize_cpu=0_int_8, stacksize_acc=0_int_8)
       DO i=1, SIZE(stats_num_mnk_stacks, 1)
          IF(ALL(stats_num_mnk_stacks(i,1:3)==mnk)) THEN
             IF(i<=SIZE(mnk_collected)) mnk_collected(i) = 1
@@ -547,11 +547,11 @@ MODULE dbcsr_mm_sched
 
     IF(output_unit<=0) RETURN
 
-    WRITE (output_unit,"(1X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "GPU", "GPU%"
+    WRITE (output_unit,"(1X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "ACC", "ACC%"
 
-    percent = 100*REAL(report%gpu_num_stacks)/REAL(MAX(INT(1,KIND=int_8),report%cpu_num_stacks+report%gpu_num_stacks))
+    percent = 100*REAL(report%acc_num_stacks)/REAL(MAX(INT(1,KIND=int_8),report%cpu_num_stacks+report%acc_num_stacks))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
-       report%cpu_num_stacks, report%gpu_num_stacks, percent
+       report%cpu_num_stacks, report%acc_num_stacks, percent
 
     percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(1,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls inhomo. stacks",&
@@ -574,9 +574,9 @@ MODULE dbcsr_mm_sched
        " flops",stats_num_mnk_stacks(j,1:3),stats_num_mnk_stacks(j,4:5)*2*PRODUCT(stats_num_mnk_stacks(j,1:3)), percent
     END DO
 
-    percent = 100*REAL(report%gpu_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%gpu_flop))
+    percent = 100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%acc_flop))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
-       report%cpu_flop, report%gpu_flop, percent
+       report%cpu_flop, report%acc_flop, percent
 
   END SUBROUTINE stats_print_report
 

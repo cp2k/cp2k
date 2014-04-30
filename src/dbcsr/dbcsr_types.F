@@ -13,20 +13,17 @@
 !> - Created 2009-05-12
 ! *****************************************************************************
 MODULE dbcsr_types
+  USE acc_devmem,                      ONLY: acc_devmem_type
+  USE acc_event,                       ONLY: acc_event_type
+  USE acc_stream,                      ONLY: acc_stream_type
   USE array_types,                     ONLY: array_i1d_obj
   USE btree_i8_k_cp2d_v,               ONLY: btree_2d_c => btree
   USE btree_i8_k_dp2d_v,               ONLY: btree_2d_d => btree
   USE btree_i8_k_sp2d_v,               ONLY: btree_2d_s => btree
   USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_type
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_type
-  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_type
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8
+  USE dbcsr_kinds,                     ONLY: &
+       default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
+       real_4, real_4_size, real_8, real_8_size
   USE dbcsr_message_passing,           ONLY: mp_window_type
 
   !$ USE OMP_LIB
@@ -86,6 +83,7 @@ MODULE dbcsr_types
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d,&
             dbcsr_type_int_4, dbcsr_type_int_8
+  PUBLIC :: dbcsr_datatype_sizeof
   PUBLIC :: dbcsr_mempool_type,&
             dbcsr_mempool_entry_type,&
             dbcsr_memtype_type,&
@@ -264,9 +262,9 @@ MODULE dbcsr_types
 
   TYPE dbcsr_memtype_type
      LOGICAL                           :: mpi = .FALSE.
-     LOGICAL                           :: cuda_hostalloc = .FALSE.
-     LOGICAL                           :: cuda_devalloc = .FALSE.
-     TYPE(dbcsr_cuda_stream_type)      :: cuda_stream = dbcsr_cuda_stream_type()
+     LOGICAL                           :: acc_hostalloc = .FALSE.
+     LOGICAL                           :: acc_devalloc = .FALSE.
+     TYPE(acc_stream_type)             :: acc_stream = acc_stream_type()
      TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
      REAL(KIND=dp)                     :: oversize_factor = 1.0
   END TYPE dbcsr_memtype_type
@@ -302,8 +300,8 @@ MODULE dbcsr_types
      INTEGER                                  :: id = -1
      TYPE(dbcsr_memtype_type)                 :: memory_type = dbcsr_memtype_default
      INTEGER                                  :: data_type  = -1
-     TYPE(dbcsr_cuda_devmem_type)             :: cuda_devmem
-     TYPE(dbcsr_cuda_event_type)              :: cuda_ready
+     TYPE(acc_devmem_type)                    :: acc_devmem
+     TYPE(acc_event_type)                     :: acc_ready
   END TYPE dbcsr_data_area_type
 
 !> Type definitions:
@@ -686,5 +684,33 @@ MODULE dbcsr_types
      TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: mats
      TYPE(dbcsr_imagedistribution_obj) :: image_dist
   END TYPE dbcsr_2d_array_type
+
+ CONTAINS
+
+! *****************************************************************************
+!> \brief Helper-routine, returns size of given datatype in terms of bytes.
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION dbcsr_datatype_sizeof(datatype) RESULT(size)
+    INTEGER, INTENT(IN)                      :: datatype
+    INTEGER                                  :: size
+
+    SELECT CASE (datatype)
+    CASE (dbcsr_type_int_4)
+       size = int_4_size
+    CASE (dbcsr_type_int_8)
+       size = int_8_size
+    CASE (dbcsr_type_real_4)
+       size = real_4_size
+    CASE (dbcsr_type_real_8)
+       size = real_8_size
+    CASE (dbcsr_type_complex_4)
+       size = (2*real_4_size)
+    CASE (dbcsr_type_complex_8)
+       size = (2*real_8_size)
+    CASE default
+       STOP("dbcsr_datatype_sizeof: Invalid data type")
+    END SELECT
+ END FUNCTION dbcsr_datatype_sizeof
 
 END MODULE dbcsr_types
