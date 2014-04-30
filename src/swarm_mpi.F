@@ -23,6 +23,7 @@ MODULE swarm_mpi
   USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_any_source,&
                                              mp_bcast,&
+                                             mp_comm_free,&
                                              mp_comm_split,&
                                              mp_comm_split_direct,&
                                              mp_environ,&
@@ -123,6 +124,7 @@ MODULE swarm_mpi
        worker_id = group_distribution(subgroup_rank) + 1 ! shall start by 1
        IF(n_groups_created/=n_workers) STOP "swarm: mp_comm_split failed."
        CALL cp_para_env_create(swarm_mpi%worker, group=worker_group, error=error)
+       CALL mp_comm_free(subgroup)
 
        !WRITE (*,*) "this is worker ", worker_id, swarm_mpi%worker%mepos, swarm_mpi%worker%num_pe
 
