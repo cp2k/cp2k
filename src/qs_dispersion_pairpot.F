@@ -921,9 +921,6 @@ CONTAINS
                            cnumbers(iatom),cnumbers(jatom),dispersion_env%k3,c6,dc6a,dc6b)
                 r6 = dr**6
                 e6 = s6*fac*c6*fdab6/r6
-!deb
-IF(iatom==361) WRITE(95,*) iatom,jatom,dr,za,cnumbers(iatom),c6,dc6a
-!deb
                 c8 = 3.0d0*c6*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
                 dc8a = 3.0d0*dc6a*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
                 dc8b = 3.0d0*dc6b*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
