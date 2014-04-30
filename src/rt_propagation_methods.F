@@ -544,7 +544,7 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop (iter)
     frob_norm=cp_dbcsr_frobenius_norm(tmp)
-    IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
+    IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
 

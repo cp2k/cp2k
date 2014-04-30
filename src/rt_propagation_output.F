@@ -56,7 +56,8 @@ MODULE rt_propagation_output
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
-                                             write_available_results
+                                             write_available_results,&
+                                             write_mo_free_results
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -163,12 +164,14 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
     IF(rtp%converged)THEN
-       CALL make_moment(qs_env,error)
-       CALL write_available_results(qs_env=qs_env,error=error)
-       dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
        !TODO: make a restart for density propagation
-       IF (.NOT. rtp%linear_scaling) THEN
+       IF (rtp%linear_scaling) THEN
+          CALL write_mo_free_results(qs_env,error)
+       ELSE
+          CALL make_moment(qs_env,error)
+          CALL write_available_results(qs_env=qs_env,error=error)
           CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
           CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
        ENDIF
     END IF
@@ -533,7 +536,7 @@ CONTAINS
          CALL cp_dbcsr_filter(tmp(re)%matrix,eps,error=error)
          occ=cp_dbcsr_get_occupation(tmp(re)%matrix)
          IF(unit_nr>0) WRITE(unit_nr,FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ",&
-                       ispin," eps ", eps, " : ", occ
+                       ispin," eps ", eps, " real: ", occ
          eps=eps*10 
       ENDDO
       eps=MAX(rtp%filter_eps,10E-12)
@@ -541,7 +544,7 @@ CONTAINS
          CALL cp_dbcsr_filter(tmp(im)%matrix,eps,error=error)
          occ=cp_dbcsr_get_occupation(tmp(im)%matrix)
          IF(unit_nr>0) WRITE(unit_nr,FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ",&
-                       ispin," eps ", eps, " : " ,occ
+                       ispin," eps ", eps, " imag: " ,occ
          eps=eps*10 
       ENDDO
     ENDDO
