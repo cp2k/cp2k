@@ -33,7 +33,7 @@ MODULE lri_environment_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE lri_environment_types,           ONLY: &
-       allocate_lri_coefs, allocate_lri_int_type, allocate_lri_list_type, &
+       allocate_lri_coefs, allocate_lri_ints, allocate_lri_rhos, &
        deallocate_lri_ints, lri_density_create, lri_density_release, &
        lri_density_type, lri_environment_type, lri_int_type, lri_kind_type, &
        lri_list_type, lri_rhoab_type
@@ -106,7 +106,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_integrals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
+    INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, stat
     LOGICAL                                  :: calc_abb, failure
     REAL(KIND=dp)                            :: dab
@@ -136,8 +136,9 @@ CONTAINS
       IF ( ASSOCIATED(lri_env%lri_ints) ) THEN
         CALL deallocate_lri_ints (lri_env%lri_ints,error)
       END IF
-      ! alloc lri_ints
-      CALL allocate_lri_list_type(lri_env%lri_ints,nkind,error)
+
+      ! allocate matrices storing the LRI integrals
+      CALL allocate_lri_ints(lri_env,lri_env%lri_ints,nkind,error)
       lri_ints => lri_env%lri_ints
 
       CALL neighbor_list_iterator_create(nl_iterator,soo_list)
@@ -158,21 +159,6 @@ CONTAINS
          IF (.NOT.ASSOCIATED(obasa)) CYCLE
          IF (.NOT.ASSOCIATED(obasb)) CYCLE
 
-         IF(.NOT.ASSOCIATED(lri_ints%lri_atom(iac)%lri_node)) THEN
-            lri_ints%lri_atom(iac)%natom = nlist
-            ALLOCATE(lri_ints%lri_atom(iac)%lri_node(nlist),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            DO i=1,nlist
-               NULLIFY(lri_ints%lri_atom(iac)%lri_node(i)%lri_int)
-               lri_ints%lri_atom(iac)%lri_node(i)%nnode = 0
-            END DO
-         END IF
-         IF(.NOT.ASSOCIATED(lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int)) THEN
-            lri_ints%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
-            ALLOCATE(lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(nneighbor),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         END IF
-
          lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
 
          nba = obasa%nsgf
@@ -184,9 +170,6 @@ CONTAINS
          lrii%nbb = nbb
          lrii%nfa = nfa
          lrii%nfb = nfb
-
-         ! allocate matrices storing the integrals
-         CALL allocate_lri_int_type(lrii,iatom,jatom,error)
 
          ! calculate integrals (a,b,fa) and (a,b,fb)
          IF(iatom == jatom) THEN
@@ -318,13 +301,13 @@ CONTAINS
       CALL lri_density_release(lri_density,error)
       CALL lri_density_create(lri_density,error)
       lri_density%nspin = nspin
-      ALLOCATE(lri_density%lri_rhos(nspin),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ! allocate structure lri_rhos and vectors tvec and avec
+      CALL allocate_lri_rhos(lri_env,lri_density%lri_rhos,nspin,nkind,error)
 
       DO ispin = 1, nspin
          pmat => pmatrix(ispin)%matrix
-         CALL allocate_lri_list_type(lri_density%lri_rhos(nspin)%lri_list,nkind,error)
-         lri_rho => lri_density%lri_rhos(nspin)%lri_list
+         lri_rho => lri_density%lri_rhos(ispin)%lri_list
  
          CALL neighbor_list_iterator_create(nl_iterator,soo_list)
          DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -334,21 +317,6 @@ CONTAINS
             iac = ikind + nkind*(jkind - 1)
 
             IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
-
-            IF(.NOT.ASSOCIATED(lri_rho%lri_atom(iac)%lri_node)) THEN
-               lri_rho%lri_atom(iac)%natom = nlist
-               ALLOCATE(lri_rho%lri_atom(iac)%lri_node(nlist),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-               DO i=1,nlist
-                  NULLIFY(lri_rho%lri_atom(iac)%lri_node(i)%lri_rhoab)
-                  lri_rho%lri_atom(iac)%lri_node(i)%nnode = 0
-               END DO
-            END IF
-            IF(.NOT.ASSOCIATED(lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab)) THEN
-               lri_rho%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
-               ALLOCATE(lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(nneighbor),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            END IF
 
             ! get the density matrix Pab
             NULLIFY (pbij)
@@ -364,19 +332,12 @@ CONTAINS
             lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
             lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
   
-            lrho%nba = lrii%nba
-            lrho%nbb = lrii%nbb
-            lrho%nfa = lrii%nfa
-            lrho%nfb = lrii%nfb
             nba = lrii%nba
             nbb = lrii%nbb
             nfa = lrii%nfa
             nfb = lrii%nfb
 
-            nn = lrho%nfa + lrho%nfb
-            ALLOCATE(lrho%avec(nn),&
-                     lrho%tvec(nn),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            nn = nfa + nfb
 
             ! compute tvec = SUM_ab Pab *(a,b,x) and charge contraint 
             IF (trans) THEN
@@ -384,17 +345,21 @@ CONTAINS
                DO i=1,nfa
                   lrho%tvec(i) = SUM(TRANSPOSE(pbij(1:nbb,1:nba))*lrii%abaint(1:nba,1:nbb,i))
                END DO
-               DO i=1,nfb
-                  lrho%tvec(nfa+i) = SUM(TRANSPOSE(pbij(1:nbb,1:nba))*lrii%abbint(1:nba,1:nbb,i))
-               END DO
+               IF(iatom /= jatom) THEN
+                DO i=1,nfb
+                   lrho%tvec(nfa+i) = SUM(TRANSPOSE(pbij(1:nbb,1:nba))*lrii%abbint(1:nba,1:nbb,i))
+                END DO
+               ENDIF
             ELSE
                lrho%charge = SUM(pbij(1:nba,1:nbb)*lrii%soo(1:nba,1:nbb))
                DO i=1,nfa
                   lrho%tvec(i) = SUM(pbij(1:nba,1:nbb)*lrii%abaint(1:nba,1:nbb,i))
                END DO
-               DO i=1,nfb
-                  lrho%tvec(nfa+i) = SUM(pbij(1:nba,1:nbb)*lrii%abbint(1:nba,1:nbb,i))
-               END DO
+               IF(iatom /= jatom) THEN
+                DO i=1,nfb
+                   lrho%tvec(nfa+i) = SUM(pbij(1:nba,1:nbb)*lrii%abbint(1:nba,1:nbb,i))
+                END DO
+               ENDIF
             END IF
 
             IF(iatom == jatom) THEN

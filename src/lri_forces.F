@@ -52,6 +52,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the lri forces
+!> \param pmatrix density matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_lri_forces(lri_env,lri_density,qs_env,pmatrix,&
              atomic_kind_set,error)
@@ -80,7 +83,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(atomic_kind, v_dadr, force, lri_coef, v_dfdr)
+    NULLIFY(atomic_kind, force, lri_coef, v_dadr, v_dfdr)
 
     IF ( ASSOCIATED(lri_env%soo_list) ) THEN
 
