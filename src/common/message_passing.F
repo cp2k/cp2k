@@ -80,7 +80,6 @@ MODULE message_passing
   PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
-  PUBLIC :: mp_group
   PUBLIC :: cp2k_is_parallel
   PUBLIC :: mp_proc_name
   PUBLIC :: mp_probe
@@ -533,6 +532,11 @@ CONTAINS
 
     CALL mpi_comm_create(mp_comm, newgroup, newcomm, ierr)
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_reordering" )
+
+    CALL mpi_group_free(oldgroup, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_free @ mp_reordering" )
+    CALL mpi_group_free(newgroup, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_free @ mp_reordering" )
 
     ! update the system default communicator
     mp_new_comm = newcomm
@@ -1237,6 +1241,10 @@ CONTAINS
     CALL mpi_group_translate_ranks ( g1, n, rin, g2, rank, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, &
          "mpi_group_translate_rank @ mp_rank_compare" )
+    CALL mpi_group_free(g1, ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "group_free @ mp_rank_compare" )
+    CALL mpi_group_free(g2, ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "group_free @ mp_rank_compare" )
     DEALLOCATE ( rin, STAT = ierr )
     IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
 #endif
@@ -1646,50 +1654,6 @@ CONTAINS
     host_name = "localhost"
 #endif
   END SUBROUTINE mp_proc_name
-
-! a bunch of currently unused features
-!..mp_group
-! *****************************************************************************
-  SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
-
-    INTEGER, INTENT(IN)                      :: group_list( : ), group_size, &
-                                                base_group
-    INTEGER, INTENT(OUT)                     :: groupid
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_group', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: base, handle, ierr, newgroup
-
-    ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
-
-    ierr = 0
-    groupid = base_group
-#if defined(__parallel)
-    t_start = m_walltime ( )
-    CALL mpi_comm_group ( base_group, base, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
-
-    CALL mpi_group_incl ( base, group_size, group_list, newgroup, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_group" )
-
-    CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
-    debug_comm_count = debug_comm_count + 1
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
-    CALL add_perf(perf_id=2,count=1)
-    t_end = m_walltime ( )
-    CALL add_perf(perf_id=1,time=t_end-t_start)
-#endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
-
-  END SUBROUTINE mp_group
-
-
 
 ! *****************************************************************************
 !> \brief Destroys an MPI RMA window.

@@ -916,6 +916,11 @@ CONTAINS
     CALL mpi_group_translate_ranks ( g1, n, rin, g2, rank, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, &
          "mpi_group_translate_rank @ mp_rank_compare" )
+     CALL mpi_group_free(g1, ierr)
+     IF ( ierr /= 0 ) CALL mp_abort( "group_free @ mp_rank_compare" )
+     CALL mpi_group_free(g2, ierr)
+     IF ( ierr /= 0 ) CALL mp_abort( "group_free @ mp_rank_compare" )
+
     DEALLOCATE ( rin, STAT = ierr )
     IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
 #endif
