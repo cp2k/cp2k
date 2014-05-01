@@ -3,6 +3,13 @@
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+SUBROUTINE fftsg_do_cleanup()
+
+ ! no cleanup needed
+
+END SUBROUTINE
+
+
 ! *****************************************************************************
 !> \par History
 !>      Adapted to new interface structure

@@ -26,6 +26,20 @@
 
 END FUNCTION fft_library
 
+SUBROUTINE fft_do_cleanup(fft_type)
+  INTEGER, INTENT(IN)              :: fft_type
+
+  SELECT CASE ( fft_type )
+    CASE DEFAULT
+      STOP "fft_do_cleanup"
+    CASE ( 1 )
+      CALL fftsg_do_cleanup ( )
+    CASE ( 3 )
+      CALL fftw3_do_cleanup ( )
+  END SELECT
+
+END SUBROUTINE
+
 ! *****************************************************************************
 SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
 

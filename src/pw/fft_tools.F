@@ -296,6 +296,10 @@ CONTAINS
 
     CALL release_fft_scratch_pool(error)
 
+    ! finalize fft libs
+
+    CALL fft_do_cleanup(fft_type)
+
     ! we don't want to use this yet, it is only meaningful if we really plan with something else than estimate
     RETURN
     ! only do FFTW3 related stuff right now

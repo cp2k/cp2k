@@ -15,6 +15,20 @@
 #define XFFTW_EXECUTE_DFT dfftw_execute_dft
 #define XFFTW_DESTROY_PLAN dfftw_destroy_plan
 
+SUBROUTINE fftw3_do_cleanup()
+
+#if defined ( __FFTW3 )
+
+    INTERFACE
+      SUBROUTINE fftw_cleanup() BIND(C,name="fftw_cleanup")
+      END SUBROUTINE
+    END INTERFACE
+
+    CALL fftw_cleanup()
+
+#endif
+
+END SUBROUTINE
 
 ! *****************************************************************************
 !> \par History
