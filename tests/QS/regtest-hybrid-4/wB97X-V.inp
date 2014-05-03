@@ -44,7 +44,7 @@
         &MEMORY
           MAX_MEMORY  10
         &END
-        #FRACTION 0.167
+        FRACTION 0.167
       &END
       &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL NON_LOCAL
