@@ -301,6 +301,13 @@ def error(msg):
     sys.stderr.write("makedep error: %s\n"%msg)
     sys.exit(1)
 
+#=============================================================================
+# Python 2.4 compatibility
+def all(iterable):
+    for element in iterable:
+        if(not element):
+            return(False)
+    return(True)
 
 #=============================================================================
 main()
