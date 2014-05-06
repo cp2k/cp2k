@@ -3089,7 +3089,6 @@ END SUBROUTINE xc_calc_2nd_deriv
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins, stat
-    INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
 
@@ -3120,11 +3119,10 @@ END SUBROUTINE xc_calc_2nd_deriv
     DEALLOCATE(rho_r_pw, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    bo = rho_r(1)%pw%pw_grid%bounds_local
-
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     CALL timestop(handle)
+
   END SUBROUTINE xc_prep_2nd_deriv
 
 ! *****************************************************************************
