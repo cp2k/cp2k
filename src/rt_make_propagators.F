@@ -320,12 +320,12 @@ CONTAINS
              !since we never calculated the matrix exponential the old matrix exponential stores the unscalled propagator
              CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,error=error)
              prefac=-0.5_dp*rtp%dt
-             CALL cp_dbcsr_scale(exp_H_old(re)%matrix,prefac,error=error)
+             CALL cp_dbcsr_scale(exp_H_old(im)%matrix,prefac,error=error)
              IF(.NOT.rtp%do_hfx.AND.rtp_control%fixed_ions)THEN
-                CALL bch_expansion_imaginary_propagator(exp_H_old(re)%matrix,&
+                CALL bch_expansion_imaginary_propagator(exp_H_old(im)%matrix,&
                      rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
              ELSE
-                CALL cp_dbcsr_scale(exp_H_old(im)%matrix,prefac,error=error)
+                CALL cp_dbcsr_scale(exp_H_old(re)%matrix,prefac,error=error)
                 CALL bch_expansion_complex_propagator(exp_H_old(re)%matrix,exp_H_old(im)%matrix,&
                      rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
              ENDIF

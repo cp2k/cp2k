@@ -295,3 +295,5 @@ H2O-ls-rtp-bch.inp
 #initial density matrix no longer fixed to sparsity of S
 H2O-ls-emd.inp
 H2O-ls-rtp-bch.inp
+#Bugfix of sparse rtp with ETRS and bch
+H2O-ls-rtp-bch.inp
