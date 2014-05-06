@@ -111,16 +111,16 @@ SUBROUTINE acc_stream_wait_event(stream, event)
     TYPE(acc_event_type), INTENT(IN)  :: event
 
 #if ! defined (__ACC)
-    STOP("__ACC not compiled in.")
+    STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat
     TYPE(C_PTR)                              :: stream_cptr
 
     stream_cptr = acc_stream_cptr(stream)
-    IF(.NOT. C_ASSOCIATED(event%cptr)) STOP("acc_stream_wait_event: event not allocated")
-    IF(.NOT. C_ASSOCIATED(stream_cptr)) STOP("acc_stream_wait_event: stream not allocated")
+    IF(.NOT. C_ASSOCIATED(event%cptr)) STOP "acc_stream_wait_event: event not allocated"
+    IF(.NOT. C_ASSOCIATED(stream_cptr)) STOP "acc_stream_wait_event: stream not allocated"
     istat = cuda_stream_wait_event(stream_cptr, event%cptr)
-    IF(istat /= 0) STOP("acc_stream_wait_event failed")
+    IF(istat /= 0) STOP "acc_stream_wait_event failed"
 #endif
 END SUBROUTINE acc_stream_wait_event
 
@@ -134,16 +134,16 @@ SUBROUTINE acc_event_record(this, stream)
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    STOP("__ACC not compiled in.")
+    STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat
     TYPE(C_PTR)                              :: stream_cptr
 
     stream_cptr = acc_stream_cptr(stream)
-    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP("acc_event_record: event not allocated")
-    IF(.NOT. C_ASSOCIATED(stream_cptr)) STOP("acc_event_record: stream not allocated")
+    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP "acc_event_record: event not allocated"
+    IF(.NOT. C_ASSOCIATED(stream_cptr)) STOP "acc_event_record: stream not allocated"
     istat = cuda_event_record(this%cptr, stream_cptr)
-    IF(istat /= 0) STOP("acc_event_record failed")
+    IF(istat /= 0) STOP "acc_event_record failed"
 #endif
 END SUBROUTINE acc_event_record
 
@@ -157,13 +157,13 @@ SUBROUTINE acc_event_create(this)
       INTENT(INOUT)                          :: this
 
 #if ! defined (__ACC)
-    STOP("__ACC not compiled in.")
+    STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat
 
-    IF(C_ASSOCIATED(this%cptr)) STOP("acc_event_create: already allocated")
+    IF(C_ASSOCIATED(this%cptr)) STOP "acc_event_create: already allocated"
     istat = cuda_event_create(this%cptr)
-    IF(istat /= 0 .OR. .NOT. C_ASSOCIATED(this%cptr)) STOP("acc_event_create: failed")
+    IF(istat /= 0 .OR. .NOT. C_ASSOCIATED(this%cptr)) STOP "acc_event_create: failed"
 #endif
 END SUBROUTINE acc_event_create
 
@@ -177,12 +177,12 @@ SUBROUTINE acc_event_destroy(this)
       INTENT(INOUT)                          :: this
 
 #if ! defined (__ACC)
-    STOP("__ACC not compiled in.")
+    STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat
-    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP("acc_event_destroy: event not allocated")
+    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP "acc_event_destroy: event not allocated"
     istat = cuda_event_destroy(this%cptr)
-    IF(istat /= 0) STOP("acc_event_destroy failed")
+    IF(istat /= 0) STOP "acc_event_destroy failed"
     this%cptr = C_NULL_PTR
 #endif
 END SUBROUTINE acc_event_destroy
@@ -197,12 +197,12 @@ FUNCTION acc_event_query(this) RESULT(res)
     LOGICAL                                  :: res
 
 #if ! defined (__ACC)
-    STOP("__ACC not compiled in.")
+    STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat, has_occured
-    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP("acc_event_query: event not allocated")
+    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP "acc_event_query: event not allocated"
     istat = cuda_event_query(this%cptr, has_occured)
-    IF(istat /= 0) STOP("acc_event_query failed")
+    IF(istat /= 0) STOP "acc_event_query failed"
     res = (has_occured == 1)
 #endif
 END FUNCTION acc_event_query
@@ -216,12 +216,12 @@ SUBROUTINE acc_event_synchronize(this)
     TYPE(acc_event_type), INTENT(IN)  :: this
 
 #if ! defined (__ACC)
-    STOP("__ACC not compiled in.")
+    STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat
-    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP("acc_event_synchronize: event not allocated")
+    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP "acc_event_synchronize: event not allocated"
     istat = cuda_event_synchronize(this%cptr)
-    IF(istat < 0) STOP("acc_event_synchronize failed")
+    IF(istat < 0) STOP "acc_event_synchronize failed"
 #endif
 END SUBROUTINE acc_event_synchronize
 

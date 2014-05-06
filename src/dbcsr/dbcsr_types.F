@@ -709,7 +709,7 @@ MODULE dbcsr_types
     CASE (dbcsr_type_complex_8)
        size = (2*real_8_size)
     CASE default
-       STOP("dbcsr_datatype_sizeof: Invalid data type")
+       STOP "dbcsr_datatype_sizeof: Invalid data type"
     END SELECT
  END FUNCTION dbcsr_datatype_sizeof
 
