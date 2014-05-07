@@ -212,7 +212,7 @@ CONTAINS
 #if defined (__INTEL) && defined (__MKL) && defined (__FFTW3) && !defined(__HAS_NO_ISO_C_BINDING)
 !$    include "mkl.fi"
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
-!DEC$ IF INTEL_MKL_VERSION .GE. 110100
+!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
 !DIR$ ATTRIBUTES ALIGN : 8 :: fftw3_mkl
 !$    COMMON/fftw3_mkl/ignore(4),mkl_dft_number_of_user_threads,ignore2(7)
 !$    INTEGER*4 :: ignore, mkl_dft_number_of_user_threads, ignore2 
@@ -255,8 +255,10 @@ CONTAINS
 !$        mkl_is_safe = .FALSE.
 #if defined (__INTEL) && defined (__MKL) && defined (__FFTW3) && !defined (__HAS_NO_ISO_C_BINDING)
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
-!DEC$ IF INTEL_MKL_VERSION .GE. 110100
+!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
 !$        mkl_dft_number_of_user_threads=omp_get_max_threads() 
+!DEC$ ENDIF
+!DEC$ IF INTEL_MKL_VERSION .GE. 110100
 !$        mkl_is_safe = .TRUE.
 !DEC$ ENDIF
 !DEC$ ENDIF
@@ -264,8 +266,9 @@ CONTAINS
 !$        IF (.NOT.mkl_is_safe) THEN
 !$           CALL stop_program(routineN,moduleN,__LINE__,&
 !$                          "Intel's FFTW3 interface to MKL is not "//&
-!$                          "thread-safe!  Please rebuild CP2K, linking "//&
-!$                          "against FFTW 3 from www.fftw.org. "//&
+!$                          "thread-safe prior to MKL 11.1.0!  Please "//&
+!$                          "rebuild CP2K, linking against FFTW 3 from "//&
+!$                          "www.fftw.org or a newer version of MKL. "//&
 !$                          "Now exiting...")
 !$        ENDIF
 !$     ENDIF
