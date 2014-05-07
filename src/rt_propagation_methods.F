@@ -91,7 +91,8 @@ MODULE rt_propagation_methods
        calc_update_rho_sparse,&
        aspc_extrapolate,&
        calc_sinvH,&
-       put_data_to_history, purify_mcweeny_complex_nonorth
+       put_data_to_history,&
+       purify_mcweeny_complex_nonorth
 
 
 CONTAINS

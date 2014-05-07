@@ -296,6 +296,7 @@ CONTAINS
 
     INTEGER                                  :: handle, im, ispin, re
     LOGICAL                                  :: failure
+    REAL(dp)                                 :: dt
     REAL(KIND=dp)                            :: prefac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_old, propagator_matrix, &
@@ -318,8 +319,8 @@ CONTAINS
           CALL cp_dbcsr_copy(rho_next(im)%matrix,rho_old(im)%matrix,error=error)
           IF(rtp_control%propagator==do_etrs) THEN
              !since we never calculated the matrix exponential the old matrix exponential stores the unscalled propagator
-             CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,error=error)
-             prefac=-0.5_dp*rtp%dt
+             CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,dt=dt,error=error)
+             prefac=-0.5_dp*dt
              CALL cp_dbcsr_scale(exp_H_old(im)%matrix,prefac,error=error)
              IF(.NOT.rtp%do_hfx.AND.rtp_control%fixed_ions)THEN
                 CALL bch_expansion_imaginary_propagator(exp_H_old(im)%matrix,&

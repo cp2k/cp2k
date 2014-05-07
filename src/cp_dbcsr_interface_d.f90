@@ -281,7 +281,7 @@
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    REAL(kind=real_8), INTENT(IN), OPTIONAL :: filter_eps
+    REAL(kind=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 

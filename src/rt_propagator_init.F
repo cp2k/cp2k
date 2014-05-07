@@ -178,9 +178,6 @@ CONTAINS
 
     IF(rtp%linear_scaling) THEN
        CALL get_rtp (rtp=rtp,rho_old=rho_old,error=error)
-       DO i=1,SIZE(rho_old)
-          CALL cp_dbcsr_filter(rho_old(i)%matrix,rtp%filter_eps,error=error)
-       END DO
     ELSE
        CALL get_rtp (rtp=rtp,mos_old=mos_old,error=error)
     ENDIF
@@ -448,13 +445,12 @@ CONTAINS
                                                 nelectron_spin_real, re
     REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, rho_new, &
-                                                rho_old
+      POINTER                                :: matrix_ks, matrix_s, rho_old
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL get_qs_env(qs_env,rho=rho,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
     NULLIFY(S_half)
     ALLOCATE(S_half)
@@ -484,8 +480,8 @@ CONTAINS
        CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
             nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
             max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
-       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
        IF (SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
+       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
     END DO
 
 
