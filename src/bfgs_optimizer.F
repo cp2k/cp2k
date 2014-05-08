@@ -972,12 +972,12 @@ CONTAINS
      DO i=1,ncol_local
         iglobal=col_indices(i)
         iind=MOD(iglobal-1,3)+1
-        iat_col=CEILING(REAL(iglobal)/3)
+        iat_col=(iglobal+2)/3
         IF(iat_col.gt.natom)CYCLE
         DO j=1,nrow_local
            jglobal=row_indices(j)
            jind=MOD(jglobal-1,3)+1
-           iat_row=CEILING(REAL(jglobal)/3)
+           iat_row=(jglobal+2)/3 
            IF(iat_row.gt.natom)CYCLE
            IF(iat_row.ne.iat_col)THEN
                IF(d_ij(iat_row,iat_col).lt.6.0_dp)&
