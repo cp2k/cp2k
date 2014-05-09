@@ -19,7 +19,6 @@ MODULE dbcsr_dist_operations
        array_new, array_nullify, array_release, array_size
   USE dbcsr_config,                    ONLY: max_elements_per_block
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: sp
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_col_dist, &
        dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
@@ -40,6 +39,7 @@ MODULE dbcsr_dist_operations
        dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
+  USE kinds,                           ONLY: sp
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&

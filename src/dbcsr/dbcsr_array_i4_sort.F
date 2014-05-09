@@ -27,7 +27,7 @@
 ! *****************************************************************************
 MODULE dbcsr_array_i4_sort
    
-  USE dbcsr_kinds,                     ONLY: int_4
+  USE kinds,                           ONLY: int_4
 
   IMPLICIT NONE
   PRIVATE

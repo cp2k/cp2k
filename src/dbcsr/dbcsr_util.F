@@ -20,10 +20,6 @@ MODULE dbcsr_util
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
-                                             real_4,&
-                                             real_8
   USE dbcsr_message_passing,           ONLY: mp_sum
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_row_offset, &
@@ -47,6 +43,10 @@ MODULE dbcsr_util
        dbcsr_slot_nfullrows_total, dbcsr_slot_nze, dbcsr_slot_row_p, &
        dbcsr_slot_type, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
+  USE kinds,                           ONLY: dp,&
+                                             int_4,&
+                                             real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
   IMPLICIT NONE

@@ -23,11 +23,6 @@ MODULE dbcsr_data_methods_low
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_4_size,&
-                                             real_8,&
-                                             real_8_size
   USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
                                              memory_allocate,&
                                              memory_deallocate,&
@@ -43,6 +38,11 @@ MODULE dbcsr_data_methods_low
        dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size
 
   !$ USE OMP_LIB
 

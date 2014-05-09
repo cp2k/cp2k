@@ -75,15 +75,6 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
-                                             real_4,&
-                                             real_4_size,&
-                                             real_8,&
-                                             real_8_size,&
-                                             sp
-  USE dbcsr_machine,                   ONLY: default_output_unit,&
-                                             m_flush
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_clear,&
                                              dbcsr_mempool_destruct,&
                                              dbcsr_mempool_ensure_capacity,&
@@ -158,6 +149,15 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_finalize,&
                                              dbcsr_special_finalize,&
                                              dbcsr_work_create
+  USE kinds,                           ONLY: dp,&
+                                             int_8,&
+                                             real_4,&
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size,&
+                                             sp
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_flush
 
   !$ USE OMP_LIB
 

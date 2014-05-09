@@ -30,8 +30,6 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_get_data,&
                                              dbcsr_type_is_2d
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_num_threads,&
@@ -46,6 +44,8 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_iterator,&
                                              dbcsr_obj,&
                                              dbcsr_scalar_type
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 

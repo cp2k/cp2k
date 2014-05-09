@@ -12,10 +12,10 @@
 ! *****************************************************************************
 MODULE dbcsr_error_handling
 
-  USE dbcsr_kinds,                     ONLY: default_string_length
-  USE dbcsr_machine,                   ONLY: default_output_unit,&
-                                             m_flush
   USE dbcsr_message_passing,           ONLY: mp_abort
+  USE kinds,                           ONLY: default_string_length
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_flush
 
   !$ USE OMP_LIB
 

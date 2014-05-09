@@ -24,7 +24,7 @@ MODULE kinds
 
   PRIVATE
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
-  PUBLIC :: int_4, int_8, int_4_size, int_8_size
+  PUBLIC :: int_1, int_2, int_4, int_8, int_1_size, int_2_size, int_4_size, int_8_size
   PUBLIC :: real_4, real_8, real_4_size, real_8_size
   PUBLIC :: default_string_length, default_path_length, max_line_length
 
@@ -41,13 +41,19 @@ MODULE kinds
   INTEGER, PARAMETER :: real_8_size = 8
 
 
-  ! this int holds more than the normal 4byte ints
-  ! on standard machines it ought to be an 8byte int but this is not guaranteed
-  ! this should also be different from the default integer size (which we require to be 4 bytes)
-  INTEGER, PARAMETER :: int_8 = SELECTED_INT_KIND(10)
+  INTEGER, PARAMETER :: int_1  = SELECTED_INT_KIND(2)
+  INTEGER, PARAMETER :: int_1_size = BIT_SIZE(INT(0, int_1))/8
+
+  INTEGER, PARAMETER :: int_2  = SELECTED_INT_KIND(4)
+  INTEGER, PARAMETER :: int_2_size = BIT_SIZE(INT(0, int_2))/8
+
   INTEGER, PARAMETER :: int_4 = SELECTED_INT_KIND(5)
-  INTEGER, PARAMETER :: int_4_size = 4
-  INTEGER, PARAMETER :: int_8_size = 8
+  INTEGER, PARAMETER :: int_4_size = BIT_SIZE(INT(0, int_4))/8
+
+  INTEGER, PARAMETER :: int_8 = SELECTED_INT_KIND(10)
+  INTEGER, PARAMETER :: int_8_size = BIT_SIZE(INT(0, int_8))/8
+
+
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=1024
   INTEGER, PARAMETER :: max_line_length = 2*default_path_length

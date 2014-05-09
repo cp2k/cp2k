@@ -19,8 +19,6 @@ MODULE dbcsr_index_operations
   USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_4,&
-                                             int_8
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_local_cols, &
        dbcsr_distribution_local_rows, dbcsr_distribution_ncols, &
@@ -42,6 +40,8 @@ MODULE dbcsr_index_operations
        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type
+  USE kinds,                           ONLY: int_4,&
+                                             int_8
 
   !$ USE OMP_LIB
 

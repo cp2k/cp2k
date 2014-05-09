@@ -19,8 +19,6 @@ MODULE dbcsr_block_buffers
        dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_resize, dbcsr_type_1d_to_2d, dbcsr_type_is_2d
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
   USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping
   USE dbcsr_types,                     ONLY: dbcsr_block_buffer_obj,&
                                              dbcsr_data_obj,&
@@ -28,6 +26,8 @@ MODULE dbcsr_block_buffers
                                              dbcsr_type_complex_8_2d,&
                                              dbcsr_type_real_4_2d,&
                                              dbcsr_type_real_8_2d
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
   IMPLICIT NONE

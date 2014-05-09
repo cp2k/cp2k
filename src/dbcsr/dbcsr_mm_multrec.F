@@ -22,9 +22,6 @@ MODULE dbcsr_mm_multrec
                                              array_equality
   USE dbcsr_config,                    ONLY: multrec_limit
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_8,&
-                                             real_8,&
-                                             sp
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_local_cols,&
@@ -42,6 +39,9 @@ MODULE dbcsr_mm_multrec
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
+  USE kinds,                           ONLY: int_8,&
+                                             real_8,&
+                                             sp
 
   !$ USE OMP_LIB
 

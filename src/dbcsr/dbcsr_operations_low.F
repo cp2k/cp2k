@@ -52,10 +52,6 @@ MODULE dbcsr_operations_low
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_allgather,&
                                              mp_bcast,&
@@ -101,6 +97,10 @@ MODULE dbcsr_operations_low
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
 
   !$ USE OMP_LIB
 

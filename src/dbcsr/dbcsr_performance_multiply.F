@@ -29,10 +29,6 @@ MODULE dbcsr_performance_multiply
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_kinds,                     ONLY: int_8,&
-                                             real_4,&
-                                             real_8
-  USE dbcsr_machine,                   ONLY: m_walltime
   USE dbcsr_message_passing,           ONLY: mp_environ,&
                                              mp_sum,&
                                              mp_sync
@@ -60,6 +56,10 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
+  USE kinds,                           ONLY: int_8,&
+                                             real_4,&
+                                             real_8
+  USE machine,                         ONLY: m_walltime
 
   !$ USE OMP_LIB
 

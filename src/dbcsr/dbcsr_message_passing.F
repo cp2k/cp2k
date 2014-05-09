@@ -13,13 +13,13 @@
 MODULE dbcsr_message_passing
   USE dbcsr_c_mpi_calls,               ONLY: mp_alloc_mem,&
                                              mp_free_mem
-  USE dbcsr_kinds,                     ONLY: int_4,&
+  USE kinds,                           ONLY: int_4,&
                                              int_8,&
                                              real_4,&
                                              real_4_size,&
                                              real_8,&
                                              real_8_size
-  USE dbcsr_machine,                   ONLY: default_output_unit,&
+  USE machine,                         ONLY: default_output_unit,&
                                              m_abort,&
                                              m_flush
 

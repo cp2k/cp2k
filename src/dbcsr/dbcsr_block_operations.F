@@ -24,15 +24,15 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
 
   !$ USE OMP_LIB
   IMPLICIT NONE

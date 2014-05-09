@@ -18,7 +18,7 @@ MODULE dbcsr_config
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
        external_timeset, external_timestop, timeset_interface, &
        timestop_interface
-  USE dbcsr_kinds,                     ONLY: dp
+  USE kinds,                           ONLY: dp
 
 !$ USE OMP_LIB
 

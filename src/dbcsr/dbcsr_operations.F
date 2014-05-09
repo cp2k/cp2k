@@ -20,14 +20,6 @@ MODULE dbcsr_operations
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_1_size,&
-                                             int_2_size,&
-                                             int_4_size,&
-                                             int_8,&
-                                             int_8_size,&
-                                             real_4,&
-                                             real_8
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
@@ -53,6 +45,14 @@ MODULE dbcsr_operations
                                              dbcsr_type_real_8
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
+  USE kinds,                           ONLY: dp,&
+                                             int_1_size,&
+                                             int_2_size,&
+                                             int_4_size,&
+                                             int_8,&
+                                             int_8_size,&
+                                             real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 

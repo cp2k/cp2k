@@ -55,10 +55,6 @@ MODULE dbcsr_mm_accdrv
                                              dbcsr_data_new,&
                                              dbcsr_data_release
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             int_4,&
-                                             int_4_size,&
-                                             int_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                              dbcsr_mempool_ensure_capacity,&
                                              dbcsr_memtype_setup
@@ -71,6 +67,10 @@ MODULE dbcsr_mm_accdrv
                                              dbcsr_memtype_type,&
                                              dbcsr_type,&
                                              dbcsr_work_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_4,&
+                                             int_4_size,&
+                                             int_8
 
  !$ USE OMP_LIB
 

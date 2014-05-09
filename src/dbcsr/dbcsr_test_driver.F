@@ -21,7 +21,6 @@ PROGRAM dbcsr_test_driver
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: default_string_length
   USE dbcsr_message_passing,           ONLY: mp_bcast,&
                                              mp_cart_create,&
                                              mp_cart_rank,&
@@ -36,6 +35,7 @@ PROGRAM dbcsr_test_driver
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
+  USE kinds,                           ONLY: default_string_length
 
   !$ USE OMP_LIB
 

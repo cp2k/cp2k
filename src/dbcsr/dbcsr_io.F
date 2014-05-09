@@ -23,13 +23,6 @@ MODULE dbcsr_io
                                              dbcsr_data_new,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             dp,&
-                                             real_4,&
-                                             real_4_size,&
-                                             real_8,&
-                                             real_8_size,&
-                                             sp
   USE dbcsr_message_passing,           ONLY: &
        file_amode_create, file_amode_rdonly, file_amode_wronly, file_offset, &
        mp_allgather, mp_environ, mp_file_close, mp_file_get_size, &
@@ -53,6 +46,13 @@ MODULE dbcsr_io
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE dbcsr_work_operations,           ONLY: dbcsr_create
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             real_4,&
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size,&
+                                             sp
 
   !$ USE OMP_LIB
 

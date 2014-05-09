@@ -23,14 +23,14 @@ MODULE dbcsr_data_operations
                                              dbcsr_data_set_size_referenced,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: sgn
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 

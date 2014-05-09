@@ -59,10 +59,6 @@ MODULE dbcsr_work_operations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_memtype_equal
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
@@ -102,6 +98,10 @@ MODULE dbcsr_work_operations
                                              dbcsr_calc_block_sizes,&
                                              dbcsr_verify_matrix,&
                                              meta_from_dist
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 

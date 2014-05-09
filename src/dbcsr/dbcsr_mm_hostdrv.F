@@ -22,10 +22,6 @@ MODULE dbcsr_mm_hostdrv
                                              mm_host_driver
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
                                              p_a_first,&
                                              p_b_first,&
@@ -41,6 +37,10 @@ MODULE dbcsr_mm_hostdrv
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8,&
                                              dbcsr_work_type
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
 
   !$ USE OMP_LIB
 

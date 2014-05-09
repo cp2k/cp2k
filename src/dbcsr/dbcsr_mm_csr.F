@@ -26,11 +26,6 @@ MODULE dbcsr_mm_csr
                                              default_resize_factor,&
                                              mm_stack_size
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_1,&
-                                             int_4,&
-                                             int_8,&
-                                             real_8,&
-                                             sp
   USE dbcsr_mm_sched,                  ONLY: &
        dbcsr_mm_sched_barrier, dbcsr_mm_sched_begin_burst, &
        dbcsr_mm_sched_end_burst, dbcsr_mm_sched_finalize, &
@@ -45,6 +40,11 @@ MODULE dbcsr_mm_csr
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
   USE dbcsr_util,                      ONLY: map_most_common
+  USE kinds,                           ONLY: int_1,&
+                                             int_4,&
+                                             int_8,&
+                                             real_8,&
+                                             sp
 
   !$ USE OMP_LIB
 

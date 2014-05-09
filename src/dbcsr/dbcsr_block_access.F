@@ -54,9 +54,6 @@ MODULE dbcsr_block_access
                                              dbcsr_make_dbcsr_index,&
                                              dbcsr_sort_indices,&
                                              merge_index_arrays
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_8
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_distribution, &
        dbcsr_distribution_mp, dbcsr_get_data_size_referenced, &
@@ -78,6 +75,9 @@ MODULE dbcsr_block_access
        dbcsr_type_real_8, dbcsr_type_real_8_2d
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                              dbcsr_work_create
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 

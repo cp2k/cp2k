@@ -17,7 +17,7 @@ MODULE dbcsr_toollib
   USE dbcsr_array_i4_sort,             ONLY: dbcsr_1d_i4_sort
   USE dbcsr_array_i8_sort,             ONLY: dbcsr_1d_i8_sort
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_4,&
+  USE kinds,                           ONLY: int_4,&
                                              int_8
 
   !$ USE OMP_LIB

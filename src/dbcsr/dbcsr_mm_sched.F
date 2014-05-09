@@ -29,8 +29,6 @@ MODULE dbcsr_mm_sched
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_4,&
-                                             int_8
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_abort,&
                                              mp_bcast,&
@@ -60,6 +58,8 @@ MODULE dbcsr_mm_sched
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
+  USE kinds,                           ONLY: int_4,&
+                                             int_8
 
  !$ USE OMP_LIB
 

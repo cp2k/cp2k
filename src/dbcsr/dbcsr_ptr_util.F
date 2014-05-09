@@ -21,7 +21,7 @@ MODULE dbcsr_ptr_util
   USE acc_hostmem,                     ONLY: acc_hostmem_allocate,&
                                              acc_hostmem_deallocate
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: real_4,int_4, int_8, real_8, dp
+  USE kinds,                     ONLY: real_4,int_4, int_8, real_8, dp
   USE dbcsr_message_passing,           ONLY: mp_allocate,&
                                              mp_deallocate
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&

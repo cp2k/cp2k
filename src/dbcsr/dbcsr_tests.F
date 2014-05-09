@@ -26,11 +26,6 @@ MODULE dbcsr_tests
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
-                                             real_8
-  USE dbcsr_machine,                   ONLY: m_flush,&
-                                             m_walltime
   USE dbcsr_message_passing,           ONLY: &
        dmp_max, mp_cart_create, mp_cart_rank, mp_comm_free, mp_comm_null, &
        mp_dims_create, mp_environ, mp_sum, mp_sync
@@ -42,6 +37,11 @@ MODULE dbcsr_tests
   USE dbcsr_types
   USE dbcsr_util
   USE dbcsr_work_operations
+  USE kinds,                           ONLY: dp,&
+                                             int_8,&
+                                             real_8
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
 
   !$ USE OMP_LIB
 

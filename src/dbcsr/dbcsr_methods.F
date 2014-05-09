@@ -47,10 +47,6 @@ MODULE dbcsr_methods
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             int_8,&
-                                             real_8,&
-                                             sp
   USE dbcsr_message_passing,           ONLY: mp_cart_create,&
                                              mp_cart_sub,&
                                              mp_comm_free,&
@@ -67,6 +63,10 @@ MODULE dbcsr_methods
        dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
        dbcsr_work_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_8,&
+                                             real_8,&
+                                             sp
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&

@@ -33,8 +33,6 @@ MODULE dbcsr_test_multiply
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
   USE dbcsr_message_passing,           ONLY: mp_bcast,&
                                              mp_environ
   USE dbcsr_methods,                   ONLY: &
@@ -66,6 +64,8 @@ MODULE dbcsr_test_multiply
        dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d, &
        dbcsr_type_symmetric
   USE dbcsr_work_operations,           ONLY: dbcsr_create
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 

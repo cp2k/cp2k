@@ -49,7 +49,7 @@
 ! *****************************************************************************
 
 MODULE dbcsr_c_mpi_calls
-  USE dbcsr_kinds,                           ONLY: dp, sp, real_4, real_8,&
+  USE kinds,                           ONLY: dp, sp, real_4, real_8,&
                                              int_4, int_8
 
 ! Reset the settings for code selection

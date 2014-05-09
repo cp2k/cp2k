@@ -46,11 +46,6 @@ MODULE dbcsr_data_methods
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
        dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
@@ -59,6 +54,11 @@ MODULE dbcsr_data_methods
        dbcsr_memtype_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_int_4, dbcsr_type_int_8, dbcsr_type_real_4, &
        dbcsr_type_real_8
+  USE kinds,                           ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8
 
   IMPLICIT NONE
 

@@ -27,7 +27,7 @@
 ! *****************************************************************************
 MODULE dbcsr_array_i8_sort
    
-  USE dbcsr_kinds,                     ONLY: int_8
+  USE kinds,                           ONLY: int_8
 
   IMPLICIT NONE
   PRIVATE
