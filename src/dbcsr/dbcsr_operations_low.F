@@ -121,7 +121,6 @@ MODULE dbcsr_operations_low
             dbcsr_get_diag, dbcsr_set_diag, &
             dbcsr_get_block_diag, dbcsr_hadamard_product, &
             dbcsr_filter, dbcsr_scale_by_vector,&
-            dbcsr_replace_blocks, &
             dbcsr_function_of_elements, &
             dbcsr_btriu, dbcsr_triu, dbcsr_tril,&
             dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
@@ -1513,74 +1512,6 @@ CONTAINS
     CALL dbcsr_data_release (b_data)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_hadamard_product
-
-! *****************************************************************************
-!> \brief Replaces blocks with blocks from another matrix.
-!>
-!> Every block in matrix B is copied over to matrix A, replacing any possibly
-!> pre-existing blocks.
-!> \param[in,out] matrix_a   replace blocks in this DBCSR matrix
-!> \param[in] matrix_b       replace blocks taken from the DBCSR matrix
-! *****************************************************************************
-  SUBROUTINE dbcsr_replace_blocks(matrix_a, matrix_b, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replace_blocks', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: data_c
-    COMPLEX(KIND=sp), DIMENSION(:, :), &
-      POINTER                                :: data_z
-    INTEGER                                  :: blk, col, error_handler, row
-    LOGICAL                                  :: tr
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
-    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
-    TYPE(dbcsr_iterator)                     :: iter
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-
-    CALL dbcsr_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b), &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "data types not consistent",__LINE__,error)
-    !
-    ! let's go
-    CALL dbcsr_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total, &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__,error)
-
-    CALL dbcsr_iterator_start(iter, matrix_b)
-
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-       SELECT CASE (dbcsr_get_data_type(matrix_a))
-       CASE (dbcsr_type_real_4)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk)
-          CALL dbcsr_put_block(matrix_a, row, col, data_r)
-       CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-          CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
-               summation=.FALSE.)
-       CASE (dbcsr_type_complex_4)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
-          CALL dbcsr_put_block(matrix_a, row, col, data_c)
-       CASE (dbcsr_type_complex_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
-          CALL dbcsr_put_block(matrix_a, row, col, data_z)
-       CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Unkown precision",__LINE__,error)
-       END SELECT
-
-    ENDDO
-
-    CALL dbcsr_iterator_stop(iter)
-    CALL dbcsr_finalize (matrix_a, error=error)
-    !
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_replace_blocks
 
 ! *****************************************************************************
 !> \brief add a constant to the diagonal of a matrix
