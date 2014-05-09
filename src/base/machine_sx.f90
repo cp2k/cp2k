@@ -7,10 +7,10 @@
 !> \par History
 !>      - m_flush added (12.06.2002,MK)
 !>      - print_memory changed (24.09.2002,MK)
-!> \author APSI & JGH
+!> \author SM
 ! *****************************************************************************
-  USE f77_blas
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_8
 
   IMPLICIT NONE
@@ -18,8 +18,8 @@
   PRIVATE
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg,&
-            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
             m_procrun
 
 CONTAINS
@@ -94,15 +94,9 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-#if defined(__parallel)
-    REAL(KIND=dp), EXTERNAL                  :: MPI_WTIME
-
-    ct = MPI_WTIME()
-#else
     INTEGER                                  :: mclock
 
-    ct = mclock()*0.01_dp
-#endif
+  ct = mclock()*0.01_dp
 END FUNCTION m_cputime
 
 ! *****************************************************************************
@@ -114,24 +108,18 @@ END FUNCTION m_cputime
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-    CALL flush(lunit)
+    INTEGER                                  :: istat
+
+    CALL flush(lunit,istat)
 
   END SUBROUTINE m_flush
 
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
-#if defined(__parallel)
-    INTEGER(KIND=int_8) m_memory
-    INTEGER(KIND=int_8) total_free, largest_free, total_used
-    INTEGER             fragments, i, heap_info
-    i = heap_info(fragments, total_free, largest_free, total_used)
-    m_memory=total_used
-#else
-    INTEGER(KIND=int_8) m_memory
-    m_memory=0
-#endif
+    INTEGER(KIND=int_8)                      :: m_memory
 
+    m_memory=0
   END FUNCTION m_memory
 
 ! *****************************************************************************
@@ -139,9 +127,10 @@ END FUNCTION m_cputime
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-!cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+    CHARACTER(LEN=2*default_string_length+4) :: cmd
 
-    CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
+    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+    CALL system(cmd)
 
   END SUBROUTINE m_mov
 
@@ -170,6 +159,7 @@ SUBROUTINE m_chdir(dir,ierror)
 
     ierror = chdir(dir)
 END SUBROUTINE m_chdir
+
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user

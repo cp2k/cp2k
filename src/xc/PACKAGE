@@ -1,4 +1,4 @@
 {
 "description": "Routines dealing with xc functionals in CP2K",
-"requires": ["../common", "../pw", "../input"]
+"requires": ["../common", "../pw", "../input", "../base", "../mpiwrap"]
 }

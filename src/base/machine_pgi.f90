@@ -9,9 +9,7 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-  USE f77_blas
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_8
 
   IMPLICIT NONE
@@ -19,8 +17,8 @@
   PRIVATE
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg,&
+            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
             m_procrun
 
 CONTAINS
@@ -47,6 +45,7 @@ CONTAINS
 
 ! returns if a process is running on the local machine
 ! 1 if yes and 0 if not
+
 INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     INTEGER           ::   id, ios
     CHARACTER(len=80) ::   filename, tmp
@@ -55,6 +54,7 @@ INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     run_on = 0
 
 END FUNCTION m_procrun
+
 
 ! *****************************************************************************
 FUNCTION m_loc_r(a) RESULT(res)
@@ -93,18 +93,16 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    REAL(KIND=4)                             :: etime, timearray( 2 )
-
-  ct = REAL ( etime ( timearray ),KIND=dp)
+    CALL CPU_TIME(ct)
 END FUNCTION m_cputime
-
 ! *****************************************************************************
 !> \brief   Flush the output to a logical unit.
 !> \author  MK
 !> \date    14.10.1999
 !> \version 1.0
 ! *****************************************************************************
-SUBROUTINE m_flush(lunit)
+  SUBROUTINE m_flush(lunit)
+
     INTEGER, INTENT(IN)                      :: lunit
 
     CALL flush(lunit)
@@ -124,10 +122,7 @@ SUBROUTINE m_flush(lunit)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    CHARACTER(LEN=2*default_string_length+4) :: cmd
-
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
+    CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
 
   END SUBROUTINE m_mov
 

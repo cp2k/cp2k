@@ -1,4 +1,4 @@
 {
 "description": "Tree Monte Carlo",
-"requires": ["../", "../common", "../input", ]
+"requires": ["../", "../common", "../input", "../base", "../mpiwrap" ]
 }

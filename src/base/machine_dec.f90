@@ -9,11 +9,9 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             int_8,&
-                                             sp
+                                             int_8
 
   IMPLICIT NONE
 
@@ -57,7 +55,6 @@ INTEGER FUNCTION m_procrun(id) RESULT (run_on)
 
 END FUNCTION m_procrun
 
-
 ! *****************************************************************************
 FUNCTION m_loc_r(a) RESULT(res)
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
@@ -95,11 +92,9 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    REAL(sp)                                 :: d, etime, tarray(2)
+    REAL(KIND=4)                             :: etime, timearray( 2 )
 
-  EXTERNAL etime
-  d=ETIME(tarray)
-  ct = REAL(tarray(1),KIND=dp)
+  ct = REAL ( etime ( timearray ),KIND=dp)
 END FUNCTION m_cputime
 
 ! *****************************************************************************
@@ -108,7 +103,7 @@ END FUNCTION m_cputime
 !> \date    14.10.1999
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE m_flush(lunit)
+SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
     CALL flush(lunit)
@@ -147,20 +142,18 @@ END SUBROUTINE m_hostnm
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
 
-    CHARACTER(len=255)                       :: dir
     INTEGER                                  :: getcwd, ierror
 
-  ierror = getcwd(dir)
-  curdir = dir
+  ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
 ! *****************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
     INTEGER, INTENT(OUT)                     :: ierror
 
-! ierror = chdir(dir)
+    INTEGER                                  :: chdir
 
-    STOP
+    ierror = chdir(dir)
 END SUBROUTINE m_chdir
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)

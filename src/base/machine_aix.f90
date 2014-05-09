@@ -11,7 +11,6 @@
 !> \author APSI & JGH
 ! *****************************************************************************
   USE ISO_C_BINDING
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

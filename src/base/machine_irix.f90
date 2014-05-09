@@ -7,9 +7,8 @@
 !> \par History
 !>      - m_flush added (12.06.2002,MK)
 !>      - print_memory changed (24.09.2002,MK)
-!> \author SM
+!> \author APSI & JGH
 ! *****************************************************************************
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

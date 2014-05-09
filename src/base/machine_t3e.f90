@@ -9,7 +9,6 @@
 !>      - print_memory changed (24.09.2002,MK)
 !> \author APSI & JGH
 ! *****************************************************************************
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
@@ -18,7 +17,7 @@
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_flush, m_memory, &
+  PUBLIC :: m_cputime,  m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
             m_procrun
@@ -95,9 +94,9 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    INTEGER                                  :: mclock
+    REAL(KIND=dp)                            :: tsecnd
 
-  ct = mclock()*0.01_dp
+  ct = tsecnd()
 END FUNCTION m_cputime
 
 ! *****************************************************************************
@@ -109,9 +108,7 @@ END FUNCTION m_cputime
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-    INTEGER                                  :: istat
-
-    CALL flush(lunit,istat)
+!MK CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
@@ -131,7 +128,7 @@ END FUNCTION m_cputime
     CHARACTER(LEN=2*default_string_length+4) :: cmd
 
     cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
+!   CALL ishell(cmd)
 
   END SUBROUTINE m_mov
 
@@ -139,54 +136,53 @@ END FUNCTION m_cputime
 SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
 
-    INTEGER                                  :: hostnm, ierror
-
-  ierror = hostnm(hname)
+  CALL gethost(hname)
 END SUBROUTINE m_hostnm
 ! *****************************************************************************
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
 
-    INTEGER                                  :: getcwd, ierror
-
-  ierror = getcwd(curdir)
+  CALL getcwd(curdir)
 END SUBROUTINE m_getcwd
 ! *****************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
     INTEGER, INTENT(OUT)                     :: ierror
 
-    INTEGER                                  :: chdir
+! ierror = chdir(dir)  ! adapt as needed
 
-    ierror = chdir(dir)
+    STOP
 END SUBROUTINE m_chdir
-
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
-  CALL getlog(user)
+    INTEGER                                  :: ierror, ilen
+
+  CALL pxfgetlogin(user,ilen,ierror)
 END SUBROUTINE m_getlog
 ! *****************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
 
-    INTEGER                                  :: getuid
+    INTEGER                                  :: ierror
 
-  uid = getuid()
+  CALL pxfgetuid(uid,ierror)
 END SUBROUTINE m_getuid
 ! *****************************************************************************
 SUBROUTINE m_getpid(pid)
     INTEGER, INTENT(OUT)                     :: pid
 
-    INTEGER                                  :: getpid
+    INTEGER                                  :: ierror
 
-  pid = getpid()
+  CALL pxfgetpid(pid,ierror)
 END SUBROUTINE m_getpid
 ! *****************************************************************************
 SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
     CHARACTER(len=*), INTENT(OUT)            :: arg
 
-  CALL getarg(i,arg)
+    INTEGER                                  :: ierror, ilen
+
+  CALL pxfgetarg(i,arg,ilen,ierror)
 END SUBROUTINE m_getarg

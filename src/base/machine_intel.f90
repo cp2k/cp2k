@@ -4,9 +4,11 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief currently for testing gfortran
+!> \par History
+!>      - m_flush added (12.06.2002,MK)
+!>      - print_memory changed (24.09.2002,MK)
+!> \author MK
 ! *****************************************************************************
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 
@@ -26,7 +28,7 @@ FUNCTION m_loc_r(a) RESULT(res)
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
-    res=LOC(a)
+  res=-1
 END FUNCTION m_loc_r
 
 ! *****************************************************************************
@@ -35,7 +37,7 @@ FUNCTION m_loc_c(a) RESULT(res)
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
-    res=LOC(a)
+  res=-1
 END FUNCTION m_loc_c
 
 ! can be used to get a nice core
@@ -44,14 +46,13 @@ SUBROUTINE m_abort()
    CALL abort()
 END SUBROUTINE m_abort
 
-! the number of arguments of the fortran program
 ! *****************************************************************************
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
 
-    INTEGER                                  :: iargc
+    INTEGER, EXTERNAL                        :: iargc
 
-    ic = iargc()
+  ic = iargc()
 END FUNCTION m_iargc
 
 !!  cpu time in seconds
@@ -62,38 +63,18 @@ FUNCTION m_cputime() RESULT (ct)
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 
-! flush a given unit
+! *****************************************************************************
+!> \brief   Flush the output to a logical unit.
+!> \author  MK
+!> \date    14.10.1999
+!> \version 1.0
 ! *****************************************************************************
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
     CALL flush(lunit)
+
   END SUBROUTINE m_flush
-
-! returns if a process is running on the local machine
-! 1 if yes and 0 if not
-
-INTEGER FUNCTION m_procrun(id) RESULT (run_on)
-    INTEGER           ::   id, ios
-    CHARACTER(len=80) ::   filename, tmp
-    CHARACTER(len=8)  ::   id_s
-
-    WRITE(id_s,'(I8)') id
-
-    id_s = ADJUSTL(id_s)
-
-    tmp = "/proc/" // TRIM(id_s) // "/stat"
-    filename = TRIM(tmp)
-
-    OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
-    IF (ios /= 0) THEN
-        run_on = 0
-    ELSE
-       run_on = 1
-       CLOSE(87)
-    ENDIF
-
-END FUNCTION m_procrun
 
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
@@ -138,7 +119,7 @@ END FUNCTION m_procrun
       IF (iostat.NE.0) THEN
          m_memory=0
       ELSE
-         m_memory=m2
+         m_memory=m1
 #if defined(__STATM_TOTAL)
          m_memory=m1
 #endif
@@ -214,29 +195,41 @@ END FUNCTION m_procrun
               ENDIF
            ENDIF
         END FUNCTION
+
   END SUBROUTINE m_memory_details
+
+! returns if a process is running on the local machine
+! 1 if yes and 0 if not
+
+INTEGER FUNCTION m_procrun(id) RESULT (run_on)
+    INTEGER           ::   id, ios
+    CHARACTER(len=80) ::   filename, tmp
+    CHARACTER(len=8)  ::   id_s
+
+    run_on = 0
+
+END FUNCTION m_procrun
+
 
 ! *****************************************************************************
   SUBROUTINE m_mov(source,TARGET)
-
+    USE IFPOSIX, ONLY: PXFRENAME
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    INTEGER                                  :: stat
+    INTEGER*4                                :: ierrno, len_source, len_target
 
-    IF (TARGET==source) THEN
-       WRITE(6,*) "Warning: m_mov ",TRIM(TARGET)," equals ", TRIM(source)
-       RETURN
-    ENDIF
-    ! first remove target (needed on windows / mingw)
-    CALL unlink(TARGET)
-    ! now move
-    stat=rename(source,TARGET)
-    IF (stat .NE. 0) THEN
-      WRITE(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
-      WRITE(6,*) "rename returned status: ",stat
-      STOP "Problem moving file"
-    ENDIF
-END SUBROUTINE m_mov
+! cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+! istat = system(cmd)
+
+    len_source=LEN_TRIM(source)
+    len_target=LEN_TRIM(TARGET)
+    CALL PXFRENAME(source,len_source,TARGET,len_target,ierrno)
+
+    IF(ierrno.NE.0) THEN
+       WRITE(*,*) "PXFRENAME returned",ierrno
+    END IF
+
+  END SUBROUTINE m_mov
 
 ! *****************************************************************************
 SUBROUTINE m_hostnm(hname)
@@ -244,18 +237,16 @@ SUBROUTINE m_hostnm(hname)
 
     INTEGER                                  :: hostnm, ierror
 
-    ierror=hostnm(hname)
+  ierror = hostnm(hname)
 END SUBROUTINE m_hostnm
-
 ! *****************************************************************************
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
 
     INTEGER                                  :: getcwd, ierror
 
-    ierror = getcwd(curdir)
+  ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
-
 ! *****************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
@@ -265,43 +256,32 @@ SUBROUTINE m_chdir(dir,ierror)
 
     ierror = chdir(dir)
 END SUBROUTINE m_chdir
-
 ! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
-    ! this is needed to load a statically linked binary on some architectures.
-#if defined(__HAS_NO_GETLOG)
-    user="root ;-)"
-#else
     CALL getlog(user)
-#endif
-
 END SUBROUTINE m_getlog
-
 ! *****************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
 
     INTEGER                                  :: getuid
 
-    uid = getuid()
+  uid = getuid()
 END SUBROUTINE m_getuid
-
 ! *****************************************************************************
 SUBROUTINE m_getpid(pid)
     INTEGER, INTENT(OUT)                     :: pid
 
     INTEGER                                  :: getpid
 
-    pid = getpid()
+  pid = getpid()
 END SUBROUTINE m_getpid
-
 ! *****************************************************************************
 SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
     CHARACTER(len=*), INTENT(OUT)            :: arg
 
-    CALL getarg(i,arg)
+  CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-

@@ -18,11 +18,9 @@
 !>      JGH (15-Feb-2006): single precision mp_alltoall
 !> \author JGH
 ! *****************************************************************************
-
 MODULE message_passing
   USE c_mpi_calls,                     ONLY: mp_alloc_mem,&
                                              mp_free_mem
-  USE f77_blas
   USE kinds,                           ONLY: &
        default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
        real_4, real_4_size, real_8, real_8_size
@@ -30,8 +28,6 @@ MODULE message_passing
                                              m_abort,&
                                              m_flush,&
                                              m_walltime
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
   PRIVATE
@@ -442,7 +438,23 @@ MODULE message_passing
   INTEGER, PARAMETER :: charlen=1
   INTEGER, SAVE, PRIVATE :: last_mp_perf_env_id=0
 
-  ! Store the default type for Real and Complex in a special variable
+  ! external timing hooks
+  ! this interface (with subroutines in it) musst to be defined right before
+  ! the regular subroutines/functions - otherwise prettify.py will screw up.
+  INTERFACE
+    SUBROUTINE timeset_interface(routineN, handle)
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN
+    INTEGER, INTENT(OUT)                     :: handle
+
+    END SUBROUTINE timeset_interface
+    SUBROUTINE timestop_interface(handle)
+    INTEGER, INTENT(IN)                      :: handle
+
+    END SUBROUTINE timestop_interface
+  END INTERFACE
+
+  PROCEDURE(timeset_interface), PRIVATE, POINTER  :: external_timeset  => NULL()
+  PROCEDURE(timestop_interface), PRIVATE, POINTER :: external_timestop => NULL()
 
 CONTAINS
 
@@ -517,13 +529,10 @@ CONTAINS
     INTEGER                                  :: newcomm, newgroup, oldgroup 
     INTEGER                                  :: handle, ierr
 
-#if defined(__mp_timeset__)
- 
-    CALL timeset(routineN,handle)
-    t_start = m_walltime()    
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
     ierr = 0
 #if defined(__parallel)
+    t_start = m_walltime()    
 
     CALL mpi_comm_group( mp_comm, oldgroup, ierr );
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_reordering" )
@@ -541,13 +550,11 @@ CONTAINS
     ! update the system default communicator
     mp_new_comm = newcomm
     debug_comm_count = debug_comm_count + 1
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=1,count=1,time=t_end-t_start)
 #endif 
-#if defined(__mp_timeset__)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=1,count=1)
-  CALL add_perf(perf_id=2,time=t_end-t_start)
-  CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_reordering
 
 ! *****************************************************************************
@@ -843,9 +850,7 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
 
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -854,9 +859,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=5,count=1,time=t_end-t_start)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_sync
 
@@ -878,9 +881,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr    = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
     numtask = 1
     taskid  = 0
 #if defined(__parallel)
@@ -890,9 +892,7 @@ CONTAINS
     CALL mpi_comm_size ( groupid, numtask, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_l" )
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_environ_l
 
@@ -910,9 +910,7 @@ CONTAINS
     LOGICAL                                  :: periods( 2 )
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
     numtask = 1
     task_coor = 0
     dims = 1
@@ -923,9 +921,7 @@ CONTAINS
     CALL mpi_cart_get ( groupid, 2, dims, periods, task_coor, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_environ_c
 
@@ -943,9 +939,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
     task_coor = 0
     dims = 1
@@ -954,9 +949,7 @@ CONTAINS
     CALL mpi_cart_get ( comm, ndims, dims, periods, task_coor, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_environ_c2
 
@@ -975,9 +968,8 @@ CONTAINS
     LOGICAL                                  :: period(1:ndims), reorder
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
     pos ( 1:ndims ) = -1
     comm_cart = comm_old
 #if defined(__parallel)
@@ -1011,9 +1003,7 @@ CONTAINS
     dims = 1
     comm_cart = 0
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_cart_create
 
@@ -1030,9 +1020,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr, m
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
     m = SIZE ( coords )
 #if defined(__parallel)
@@ -1041,9 +1030,7 @@ CONTAINS
 #else
     coords = 0
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_cart_coords
 
@@ -1060,9 +1047,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     CALL mpi_cart_shift ( comm, dir, disp, source, dest, ierr )
@@ -1071,9 +1057,7 @@ CONTAINS
     source = 0
     dest = 0
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_cart_shift
 
@@ -1090,9 +1074,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr, iout
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
     RESULT = 0
 #if defined(__parallel)
@@ -1111,9 +1094,7 @@ CONTAINS
        RESULT=4
     END SELECT
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_comm_compare
 
@@ -1131,9 +1112,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
     sub_comm = 0
 #if defined(__parallel)
@@ -1141,9 +1121,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_sub @ mp_cart_sub" )
     debug_comm_count = debug_comm_count + 1
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_cart_sub
 
@@ -1159,18 +1137,15 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     CALL mpi_comm_free ( comm, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_free @ mp_comm_free" )
     debug_comm_count = debug_comm_count - 1
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_comm_free
 
@@ -1187,9 +1162,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     CALL mpi_comm_dup ( comm1, comm2, ierr )
@@ -1198,9 +1172,7 @@ CONTAINS
 #else
     comm2=comm1
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_comm_dup
 
@@ -1219,9 +1191,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
     rank = 0
 #if defined(__parallel)
     CALL mpi_comm_size ( comm1, n1, ierr )
@@ -1248,9 +1219,7 @@ CONTAINS
     DEALLOCATE ( rin, STAT = ierr )
     IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_rank_compare
 
@@ -1267,9 +1236,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr, ndim
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     ndim = SIZE ( dims )
@@ -1278,9 +1246,7 @@ CONTAINS
 #else
     dims = 1
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_dims_create
 
@@ -1297,9 +1263,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     CALL mpi_cart_rank ( group, pos, rank, ierr )
@@ -1307,9 +1272,7 @@ CONTAINS
 #else
     rank = 0
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_cart_rank
 
@@ -1332,9 +1295,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
@@ -1348,9 +1310,7 @@ CONTAINS
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
     DEALLOCATE(status)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_wait
 
 ! *****************************************************************************
@@ -1371,9 +1331,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     count=SIZE(requests)
@@ -1388,9 +1347,7 @@ CONTAINS
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
     DEALLOCATE(status)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_waitall_1
 
 ! *****************************************************************************
@@ -1411,9 +1368,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     count=SIZE(requests)
@@ -1428,9 +1384,7 @@ CONTAINS
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
     DEALLOCATE(status)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_waitall_2
 
 ! *****************************************************************************
@@ -1450,9 +1404,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
 #if defined(__parallel)
     count=SIZE(requests)
@@ -1467,9 +1420,7 @@ CONTAINS
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
     DEALLOCATE(status)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_waitany
 
 ! *****************************************************************************
@@ -1489,9 +1440,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr, my_key
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     my_key = 0
@@ -1504,9 +1454,7 @@ CONTAINS
 #else
     CALL mp_comm_dup(comm,sub_comm)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_comm_split_direct
 ! *****************************************************************************
@@ -1548,9 +1496,8 @@ CONTAINS
                                                 nnodes
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 
     ! actual number of groups
 
@@ -1623,9 +1570,7 @@ CONTAINS
     group_distribution(0)=0
     ngroups=1
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
 
   END SUBROUTINE mp_comm_split
 
@@ -1666,9 +1611,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
     INTEGER                   :: ierr, handle
 !   ---------------------------------------------------------------------------
-#if defined(__mp_timeset__)
-    CALL timeset(routineN, handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
@@ -1679,9 +1623,7 @@ CONTAINS
 #else
     NULLIFY(window%src_d, window%src_i)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_window_destroy
 
 
@@ -1703,9 +1645,8 @@ CONTAINS
     INTEGER                   :: ierr, handle
     INTEGER                   :: exclusivity, assertion
 !   ---------------------------------------------------------------------------
-#if defined(__mp_timeset__)
-    CALL timeset(routineN, handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
@@ -1722,9 +1663,7 @@ CONTAINS
     t_end = m_walltime()
     CALL add_perf(perf_id=19, count=1, time=t_end-t_start)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_window_lock
 
 ! *****************************************************************************
@@ -1740,9 +1679,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
     INTEGER                   :: ierr, handle
 !   ---------------------------------------------------------------------------
-#if defined(__mp_timeset__)
-    CALL timeset(routineN, handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
@@ -1751,9 +1689,7 @@ CONTAINS
     t_end = m_walltime()
     CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_window_unlock
 
 
@@ -1783,9 +1719,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
     INTEGER                   :: ierr, handle, assertion
 !   ---------------------------------------------------------------------------
-#if defined(__mp_timeset__)
-    CALL timeset(routineN, handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
@@ -1807,9 +1742,7 @@ CONTAINS
     t_end = m_walltime()
     CALL add_perf(perf_id=18, count=1, time=t_end-t_start)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_window_fence
 
 
@@ -1836,9 +1769,8 @@ CONTAINS
     INTEGER, DIMENSION(mp_status_size)    :: status_single
     LOGICAL                               :: flag
 !   ---------------------------------------------------------------------------
-#if defined(__mp_timeset__)
-    CALL timeset(routineN, handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
 
     IF(source .EQ. mp_any_source) THEN
@@ -1859,9 +1791,7 @@ CONTAINS
     END IF
 
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_probe
 
 
@@ -1879,9 +1809,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr, msglen
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
     msglen = 1
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -1890,9 +1819,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_bcast_b
 ! *****************************************************************************
   SUBROUTINE mp_bcast_bv(msg,source,gid)
@@ -1905,9 +1832,8 @@ CONTAINS
     INTEGER                                  :: handle, ierr, msglen
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
     msglen = SIZE(msg)
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -1916,9 +1842,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_bcast_bv
 
   SUBROUTINE mp_bcast_av(msg,source,gid)
@@ -1933,9 +1857,8 @@ CONTAINS
     INTEGER, ALLOCATABLE                     :: imsg( : )
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
 
@@ -1962,9 +1885,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_bcast_av
 
   SUBROUTINE mp_bcast_am(msg,source,gid)
@@ -1980,9 +1901,8 @@ CONTAINS
     INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     CALL mp_environ (numtask, taskid, gid )
@@ -2022,9 +1942,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_bcast_am
 
 
@@ -2054,9 +1972,8 @@ CONTAINS
        CALL mp_abort&
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2069,9 +1986,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_minloc_dv
 
 
@@ -2100,9 +2015,8 @@ CONTAINS
        CALL mp_abort&
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2115,9 +2029,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_minloc_iv
 
 
@@ -2147,9 +2059,8 @@ CONTAINS
        CALL mp_abort&
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2162,9 +2073,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_minloc_lv
 
 
@@ -2193,9 +2102,8 @@ CONTAINS
        CALL mp_abort&
             ("Minimal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2208,9 +2116,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_minloc_rv
 
 
@@ -2240,9 +2146,8 @@ CONTAINS
        CALL mp_abort&
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2255,9 +2160,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_maxloc_dv
 
 ! *****************************************************************************
@@ -2285,9 +2188,8 @@ CONTAINS
        CALL mp_abort&
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2300,9 +2202,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_maxloc_iv
 
 ! *****************************************************************************
@@ -2330,9 +2230,8 @@ CONTAINS
        CALL mp_abort&
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2345,9 +2244,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_maxloc_lv
 
 ! *****************************************************************************
@@ -2375,9 +2272,8 @@ CONTAINS
        CALL mp_abort&
             ("Maximal location not available with long integers @ "//routineN)
     ENDIF
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
@@ -2390,9 +2286,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_maxloc_rv
 
 
@@ -2414,9 +2308,8 @@ CONTAINS
     INTEGER, ALLOCATABLE                     :: imsg( : )
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     CALL mp_environ (numtask, taskid, gid )
@@ -2441,9 +2334,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_bcast_z1_t3e
 ! *****************************************************************************
   SUBROUTINE mp_bcast_zv_t3e(msg,source,gid)
@@ -2459,9 +2350,8 @@ CONTAINS
     INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 
     ierr = 0
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
+    IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     msgsiz = SIZE(msg)
@@ -2501,9 +2391,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
 #endif
-#if defined(__mp_timeset__)
-    CALL timestop(handle)
-#endif
+    IF (ASSOCIATED(external_timestop)) CALL external_timestop(handle)
   END SUBROUTINE mp_bcast_zv_t3e
 
 

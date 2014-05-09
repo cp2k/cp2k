@@ -1,5 +1,5 @@
 {
 "description": "routines defining and dealing with atomic orbitals on a low level",
 "archive": "libcp2kao",
-"requires": ["../common", "../input"],
+"requires": ["../common", "../input", "../base"],
 }

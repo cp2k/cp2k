@@ -4,26 +4,18 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \par History
-!>      - m_flush added (12.06.2002,MK)
-!>      - print_memory changed (24.09.2002,MK)
-!>      - adapted for g95 (29.05.2003,JVdV)
-!> \author APSI & JGH
+!> \brief currently for testing gfortran
 ! *****************************************************************************
-  USE ISO_C_BINDING,                   ONLY: C_INT64_T
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 
   IMPLICIT NONE
 
-  INTEGER(KIND=C_INT64_T), bind(C, name='_g95_total_alloc') :: total_memory
-
   PRIVATE
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory,m_mov, m_memory_details, &
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
             m_procrun
 
 CONTAINS
@@ -77,18 +69,44 @@ END FUNCTION m_cputime
     CALL flush(lunit)
   END SUBROUTINE m_flush
 
+! returns if a process is running on the local machine
+! 1 if yes and 0 if not
+
+INTEGER FUNCTION m_procrun(id) RESULT (run_on)
+    INTEGER           ::   id, ios
+    CHARACTER(len=80) ::   filename, tmp
+    CHARACTER(len=8)  ::   id_s
+
+    WRITE(id_s,'(I8)') id
+
+    id_s = ADJUSTL(id_s)
+
+    tmp = "/proc/" // TRIM(id_s) // "/stat"
+    filename = TRIM(tmp)
+
+    OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
+    IF (ios /= 0) THEN
+        run_on = 0
+    ELSE
+       run_on = 1
+       CLOSE(87)
+    ENDIF
+
+END FUNCTION m_procrun
+
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
 
       INTEGER(KIND=int_8)                      :: m_memory
+      INTEGER(KIND=int_8)                      :: m1,m2,m3
 
       !
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
-      m_memory=total_memory
+      m_memory=0
 #else
       CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
@@ -112,10 +130,20 @@ END FUNCTION m_cputime
       ENDDO
 999   CLOSE(121245)
       DATA(I:80)=""
-      READ(DATA,*,IOSTAT=iostat) m_memory
+      ! m1 = total
+      ! m2 = resident
+      ! m3 = shared
+      READ(DATA,*,IOSTAT=iostat) m1,m2,m3
       IF (iostat.NE.0) THEN
          m_memory=0
       ELSE
+         m_memory=m2
+#if defined(__STATM_TOTAL)
+         m_memory=m1
+#endif
+#if defined(__STATM_RESIDENT)
+         m_memory=m2
+#endif
          m_memory=m_memory*getpagesize()
       ENDIF
 #endif
@@ -187,40 +215,27 @@ END FUNCTION m_cputime
         END FUNCTION
   END SUBROUTINE m_memory_details
 
-! returns if a process is running on the local machine
-! 1 if yes and 0 if not
-
-INTEGER FUNCTION m_procrun(id) RESULT (run_on)
-    INTEGER           ::   id, ios
-    CHARACTER(len=80) ::   filename, tmp
-    CHARACTER(len=8)  ::   id_s
-
-    WRITE(id_s,'(I8)') id
-
-    id_s = ADJUSTL(id_s)
-
-    tmp = "/proc/" // TRIM(id_s) // "/stat"
-    filename = TRIM(tmp)
-
-    OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
-    IF (ios /= 0) THEN
-        run_on = 0
-    ELSE
-       run_on = 1
-       CLOSE(87)
-    ENDIF
-
-END FUNCTION m_procrun
-
-
 ! *****************************************************************************
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    CALL rename(TRIM(source),TRIM(TARGET))
+    INTEGER                                  :: stat
 
-  END SUBROUTINE m_mov
+    IF (TARGET==source) THEN
+       WRITE(6,*) "Warning: m_mov ",TRIM(TARGET)," equals ", TRIM(source)
+       RETURN
+    ENDIF
+    ! first remove target (needed on windows / mingw)
+    CALL unlink(TARGET)
+    ! now move
+    stat=rename(source,TARGET)
+    IF (stat .NE. 0) THEN
+      WRITE(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
+      WRITE(6,*) "rename returned status: ",stat
+      STOP "Problem moving file"
+    ENDIF
+END SUBROUTINE m_mov
 
 ! *****************************************************************************
 SUBROUTINE m_hostnm(hname)
@@ -254,7 +269,13 @@ END SUBROUTINE m_chdir
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
+    ! this is needed to load a statically linked binary on some architectures.
+#if defined(__HAS_NO_GETLOG)
+    user="root ;-)"
+#else
     CALL getlog(user)
+#endif
+
 END SUBROUTINE m_getlog
 
 ! *****************************************************************************
@@ -282,5 +303,4 @@ SUBROUTINE m_getarg(i,arg)
 
     CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-
 

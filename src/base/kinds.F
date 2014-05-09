@@ -19,7 +19,6 @@
 !> \author Matthias Krack
 ! *****************************************************************************
 MODULE kinds
-  USE f77_blas
 
   IMPLICIT NONE
 

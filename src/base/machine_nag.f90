@@ -12,7 +12,6 @@
 !>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
 ! *****************************************************************************
-  USE f77_blas
   USE f90_unix
   USE f90_unix_dir
   USE f90_unix_env,                    ONLY: gethostname,&
@@ -321,7 +320,6 @@ END SUBROUTINE m_getarg
 !>      - print_memory changed (24.09.2002,MK)
 !>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
-  USE f77_blas
   USE kinds,                           ONLY: dp, int_8
 
   IMPLICIT NONE
