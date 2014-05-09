@@ -163,27 +163,4 @@ SUBROUTINE create_almo_scf_section(section,error)
 
   END SUBROUTINE create_almo_scf_section
 
-! *****************************************************************************
-!> \brief create the optimizer section
-!> \par History
-!>       2012.03 created [Rustam Z Khaliullin]
-!> \author Rustam Z Khaliullin
-! *****************************************************************************
-SUBROUTINE create_optimizer_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_optimizer_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-    END IF
-
-  END SUBROUTINE create_optimizer_section
-
 END MODULE input_cp2k_almo
