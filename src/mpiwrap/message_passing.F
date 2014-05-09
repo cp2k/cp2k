@@ -109,7 +109,7 @@ MODULE message_passing
 
   ! assumed to be private
   PUBLIC :: external_timeset, external_timestop
-
+  PUBLIC :: timeset_interface, timestop_interface
 
 ! Interface declarations for non-data-oriented subroutines.
 
@@ -457,8 +457,8 @@ MODULE message_passing
   END INTERFACE
 
   ! assumed to be private...
-  PROCEDURE(timeset_interface), POINTER  :: external_timeset  => NULL()
-  PROCEDURE(timestop_interface), POINTER :: external_timestop => NULL()
+  PROCEDURE(timeset_interface), POINTER, SAVE  :: external_timeset  => NULL()
+  PROCEDURE(timestop_interface), POINTER, SAVE :: external_timestop => NULL()
 
 CONTAINS
 
@@ -476,6 +476,9 @@ CONTAINS
     INTEGER                                  :: ierr
 !$  INTEGER                                  :: provided_tsl
 !$  LOGICAL                                  :: no_threading_support
+
+    external_timeset  => NULL()
+    external_timestop => NULL()
 
 #if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
     ! Hack that does not request or check MPI thread suppolt level.
