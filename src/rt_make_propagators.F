@@ -39,8 +39,6 @@ MODULE rt_make_propagators
   USE rt_matrix_exp_dbcsr,             ONLY: bch_expansion_complex_propagator,&
                                              bch_expansion_imaginary_propagator,&
                                              cp_complex_dbcsr_gemm_3,&
-                                             exp_pade_full_complex_dbcsr,&
-                                             exp_pade_only_imaginary_dbcsr,&
                                              taylor_full_complex_dbcsr,&
                                              taylor_only_imaginary_dbcsr
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -440,25 +438,13 @@ CONTAINS
     DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1
        im=2*ispin
-       SELECT CASE(rtp_control%mat_exp)
-
-       CASE(do_taylor)
-          IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
-             CALL taylor_only_imaginary_dbcsr(propagator(re:im),propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
-          ELSE
-             CALL taylor_full_complex_dbcsr(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
-          END IF
-       CASE(do_pade)
-          IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
-             CALL exp_pade_only_imaginary_dbcsr(propagator(re:im),propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,rtp%ao_ao_fmstruct,error)
-          ELSE
-             CALL exp_pade_full_complex_dbcsr(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,rtp%ao_ao_fmstruct,error)
-          END IF
-       END SELECT
+       IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
+          CALL taylor_only_imaginary_dbcsr(propagator(re:im),propagator_matrix(im)%matrix,&
+               rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
+       ELSE
+          CALL taylor_full_complex_dbcsr(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+               rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
+       END IF
     END DO
 
     CALL timestop(handle)

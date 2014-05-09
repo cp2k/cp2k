@@ -165,14 +165,14 @@ CONTAINS
           END DO
        ELSEIF(rtp_control%mat_exp==do_bch) THEN
        ELSE
-         IF(rtp%linear_scaling) THEN
-            CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
-         ELSE
-            CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
-         END IF
-         DO imat=1,SIZE(exp_H_new)
-            CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
-         END DO
+          IF(rtp%linear_scaling) THEN
+             CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
+          ELSE
+             CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
+          END IF
+          DO imat=1,SIZE(exp_H_new)
+             CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
+          END DO
        END IF
     END IF
 
@@ -420,7 +420,7 @@ CONTAINS
             error=error)
        !derivativs of the overlap needed for EMD
        CALL calc_S_derivs(qs_env,error)
-       ! a bit hidden, but computs SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
+       ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
        ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE
        CALL init_propagators(qs_env,error)
    END SUBROUTINE init_emd_propagators

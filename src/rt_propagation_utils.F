@@ -150,7 +150,7 @@ MODULE  rt_propagation_utils
     IF(rtp%iter<2) THEN
        ! calculate the overlap derivative matrices
        IF(qs_env%dft_control%qs_control%dftb)THEN
-            CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
+          CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
        ELSE
           CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
                basis_set_id_a=use_orb_basis_set,&
