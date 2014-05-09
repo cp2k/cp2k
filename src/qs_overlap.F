@@ -77,7 +77,7 @@ MODULE qs_overlap
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_overlap_matrix, build_overlap_matrix_simple 
+  PUBLIC :: build_overlap_matrix
 
 CONTAINS
 
