@@ -107,6 +107,9 @@ MODULE message_passing
   INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
 #endif
 
+  ! assumed to be private
+  PUBLIC :: external_timeset, external_timestop
+
 
 ! Interface declarations for non-data-oriented subroutines.
 
