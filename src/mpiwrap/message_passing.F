@@ -453,8 +453,9 @@ MODULE message_passing
     END SUBROUTINE timestop_interface
   END INTERFACE
 
-  PROCEDURE(timeset_interface), PRIVATE, POINTER  :: external_timeset  => NULL()
-  PROCEDURE(timestop_interface), PRIVATE, POINTER :: external_timestop => NULL()
+  ! assumed to be private...
+  PROCEDURE(timeset_interface), POINTER  :: external_timeset  => NULL()
+  PROCEDURE(timestop_interface), POINTER :: external_timestop => NULL()
 
 CONTAINS
 
