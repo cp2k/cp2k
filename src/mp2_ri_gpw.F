@@ -1038,9 +1038,10 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_Lcols', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, &
-      ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
-      proc_receive_static, proc_send, proc_send_static, proc_shift, stat
+    INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, &
+      max_row_col_local, ncol_local, ncol_rec, nrow_local, nrow_rec, &
+      proc_receive, proc_receive_static, proc_send, proc_send_static, &
+      proc_shift, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 rec_col_row_info

@@ -521,14 +521,15 @@ CONTAINS
 !>      1.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
   SUBROUTINE mp_reordering(mp_comm,mp_new_comm,ranks_order)
-    INTEGER, INTENT(IN)                   :: mp_comm
-    INTEGER, INTENT(out)                  :: mp_new_comm
-    INTEGER, DIMENSION(:), POINTER           :: ranks_order 
+    INTEGER, INTENT(IN)                      :: mp_comm
+    INTEGER, INTENT(out)                     :: mp_new_comm
+    INTEGER, DIMENSION(:), POINTER           :: ranks_order
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: newcomm, newgroup, oldgroup 
-    INTEGER                                  :: handle, ierr
+
+    INTEGER                                  :: handle, ierr, newcomm, &
+                                                newgroup, oldgroup
 
     IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
     ierr = 0
@@ -1607,11 +1608,15 @@ CONTAINS
 !> \param[in] window       window to free and destroy
 ! *****************************************************************************
   SUBROUTINE mp_window_destroy(window)
-    TYPE(mp_window_type), INTENT(INOUT) :: window
+    TYPE(mp_window_type), INTENT(INOUT)      :: window
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_destroy', &
-         routineP = moduleN//':'//routineN
-    INTEGER                   :: ierr, handle
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
 
 #if defined(__parallel)
@@ -1638,14 +1643,18 @@ CONTAINS
 !>                     to be careful and check)
 ! *****************************************************************************
   SUBROUTINE mp_window_lock(window, remote, shared, nocheck)
-    TYPE(mp_window_type), INTENT(INOUT) :: window
-    INTEGER, INTENT(IN)      :: remote
-    LOGICAL, INTENT(IN), OPTIONAL       :: shared, nocheck
+    TYPE(mp_window_type), INTENT(INOUT)      :: window
+    INTEGER, INTENT(IN)                      :: remote
+    LOGICAL, INTENT(IN), OPTIONAL            :: shared, nocheck
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_lock', &
-         routineP = moduleN//':'//routineN
-    INTEGER                   :: ierr, handle
-    INTEGER                   :: exclusivity, assertion
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: assertion, exclusivity, &
+                                                handle, ierr
+
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
 
 #if defined(__parallel)
@@ -1674,12 +1683,16 @@ CONTAINS
 !> \param[in] remote   process to which access is initiated (target)
 ! *****************************************************************************
   SUBROUTINE mp_window_unlock(window, remote)
-    TYPE(mp_window_type), INTENT(INOUT) :: window
-    INTEGER, INTENT(IN)      :: remote
+    TYPE(mp_window_type), INTENT(INOUT)      :: window
+    INTEGER, INTENT(IN)                      :: remote
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_unlock', &
-         routineP = moduleN//':'//routineN
-    INTEGER                   :: ierr, handle
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
 
 #if defined(__parallel)
@@ -1713,13 +1726,18 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE mp_window_fence(window, nothing_stored, no_put_follows,&
        no_pre_access, no_post_access)
-    TYPE(mp_window_type), INTENT(INOUT) :: window
-    LOGICAL, INTENT(IN), OPTIONAL       :: nothing_stored, no_put_follows,&
-                                           no_pre_access, no_post_access
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_unlock', &
-         routineP = moduleN//':'//routineN
-    INTEGER                   :: ierr, handle, assertion
+    TYPE(mp_window_type), INTENT(INOUT)      :: window
+    LOGICAL, INTENT(IN), OPTIONAL            :: nothing_stored, &
+                                                no_put_follows, &
+                                                no_pre_access, no_post_access
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_fence', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: assertion, handle, ierr
+
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
 
 #if defined(__parallel)
@@ -1759,17 +1777,19 @@ CONTAINS
 !> \param tag[out] the tag of the incomming message
 ! *****************************************************************************
   SUBROUTINE mp_probe(source, comm, tag)
-    INTEGER                               :: source
-    INTEGER, INTENT(IN)                   :: comm
-    INTEGER, INTENT(OUT)                  :: tag
+    INTEGER                                  :: source
+    INTEGER, INTENT(IN)                      :: comm
+    INTEGER, INTENT(OUT)                     :: tag
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                               :: ierr, handle, assertion
-    INTEGER, DIMENSION(mp_status_size)    :: status_single
-    LOGICAL                               :: flag
+    INTEGER                                  :: handle, ierr
+    INTEGER, DIMENSION(mp_status_size)       :: status_single
+    LOGICAL                                  :: flag
+
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(external_timeset)) CALL external_timeset(routineN,handle)
 
 #if defined(__parallel)
