@@ -66,3 +66,5 @@ Li2-1-nSCF-EV.inp 53
 Li2-2-nSCF-EV93.inp 53
 Li2-3-nSCF-EV93.inp 52
 Li2-4-nSCF-EV93.inp 48
+# debug
+Ne_debug.inp 1
