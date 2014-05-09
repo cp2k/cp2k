@@ -26,9 +26,6 @@ MODULE dbcsr_tests
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_message_passing,           ONLY: &
-       dmp_max, mp_cart_create, mp_cart_rank, mp_comm_free, mp_comm_null, &
-       mp_dims_create, mp_environ, mp_sum, mp_sync
   USE dbcsr_methods
   USE dbcsr_operations
   USE dbcsr_ptr_util
@@ -42,6 +39,9 @@ MODULE dbcsr_tests
                                              real_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE message_passing,                 ONLY: &
+       mp_cart_create, mp_cart_rank, mp_comm_free, mp_comm_null, &
+       mp_dims_create, mp_environ, mp_max, mp_sum, mp_sync
 
   !$ USE OMP_LIB
 
@@ -427,7 +427,7 @@ CONTAINS
              t2 = t2 + t1
              flop_sum = flop_sum + flop
              !
-             CALL dmp_max (t1, group)
+             CALL mp_max (t1, group)
              CALL mp_sum (flop, group)
              t1 = MAX (t1, EPSILON (t1))
              flops_all = REAL(flop, KIND=real_8) / t1 / numnodes / (1024*1024)

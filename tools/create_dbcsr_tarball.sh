@@ -39,6 +39,15 @@ rsync -axq \
    --exclude="libcusmm.cu" \
    ../src/base/ $OUTDIR/src/base
 
+rsync -axq \
+   --exclude=".*" \
+   --exclude="**/preprettify/" \
+   --exclude="*.instantiation" \
+   --exclude="*.template" \
+   --exclude="*.pyc" \
+   --exclude="libcusmm.cu" \
+   ../src/mpiwrap/ $OUTDIR/src/mpiwrap
+
 
 mkdir $OUTDIR/tools
 cp -a ../tools/makedep.py  $OUTDIR/tools/

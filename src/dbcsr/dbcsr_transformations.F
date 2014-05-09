@@ -54,8 +54,6 @@ MODULE dbcsr_transformations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_message_passing,           ONLY: mp_allgather,&
-                                             mp_alltoall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
@@ -103,6 +101,8 @@ MODULE dbcsr_transformations
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              sp
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_alltoall
 
   !$ USE OMP_LIB
 

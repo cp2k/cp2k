@@ -20,7 +20,6 @@ MODULE dbcsr_util
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
-  USE dbcsr_message_passing,           ONLY: mp_sum
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_row_offset, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
@@ -47,6 +46,7 @@ MODULE dbcsr_util
                                              int_4,&
                                              real_4,&
                                              real_8
+  USE message_passing,                 ONLY: mp_sum
 
   !$ USE OMP_LIB
   IMPLICIT NONE

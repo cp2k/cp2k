@@ -44,8 +44,6 @@ MODULE dbcsr_test_methods
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_message_passing,           ONLY: mp_comm_null,&
-                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution_hold, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -67,6 +65,8 @@ MODULE dbcsr_test_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              real_8
+  USE message_passing,                 ONLY: mp_comm_null,&
+                                             mp_environ
 
   !$ USE OMP_LIB
 

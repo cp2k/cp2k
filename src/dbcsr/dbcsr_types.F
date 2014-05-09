@@ -21,10 +21,10 @@ MODULE dbcsr_types
   USE btree_i8_k_dp2d_v,               ONLY: btree_2d_d => btree
   USE btree_i8_k_sp2d_v,               ONLY: btree_2d_s => btree
   USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
-  USE dbcsr_message_passing,           ONLY: mp_window_type
   USE kinds,                           ONLY: &
        default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
        real_4, real_4_size, real_8, real_8_size
+  USE message_passing,                 ONLY: mp_window_type
 
   !$ USE OMP_LIB
 

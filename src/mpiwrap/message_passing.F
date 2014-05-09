@@ -48,6 +48,14 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_comm_null=MPI_COMM_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=MPI_REQUEST_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_status_size=MPI_STATUS_SIZE
+  INTEGER, PARAMETER, PUBLIC :: mp_address_kind= MPI_ADDRESS_KIND
+
+  INTEGER, PARAMETER, PUBLIC :: file_offset=MPI_OFFSET_KIND
+  INTEGER, PARAMETER, PUBLIC :: file_amode_create=MPI_MODE_CREATE
+  INTEGER, PARAMETER, PUBLIC :: file_amode_rdonly=MPI_MODE_RDONLY
+  INTEGER, PARAMETER, PUBLIC :: file_amode_wronly=MPI_MODE_WRONLY
+  INTEGER, PARAMETER, PUBLIC :: file_amode_rdwr=MPI_MODE_RDWR
+  INTEGER, PARAMETER, PUBLIC :: file_amode_excl=MPI_MODE_EXCL
 #else
   LOGICAL, PARAMETER :: cp2k_is_parallel=.FALSE.
   INTEGER, PARAMETER, PUBLIC :: mp_any_tag=-1
@@ -55,7 +63,19 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_comm_null=-3
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=-4
   INTEGER, PARAMETER, PUBLIC :: mp_status_size=-5
+
+  INTEGER, PARAMETER, PUBLIC :: file_offset=int_8
+  INTEGER, PARAMETER, PUBLIC :: file_amode_create=1
+  INTEGER, PARAMETER, PUBLIC :: file_amode_rdonly=2
+  INTEGER, PARAMETER, PUBLIC :: file_amode_wronly=4
+  INTEGER, PARAMETER, PUBLIC :: file_amode_rdwr=8
+  INTEGER, PARAMETER, PUBLIC :: file_amode_excl=64
+  INTEGER, PARAMETER, PUBLIC :: mp_address_kind=int_8
 #endif
+
+  ! we need to fix this to a given number (crossing fingers) so that the serial code using Fortran stream IO and the MPI have the same sizes.
+  INTEGER, PARAMETER, PUBLIC :: mpi_character_size=1
+  INTEGER, PARAMETER, PUBLIC :: mpi_integer_size=4
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
 
@@ -84,7 +104,7 @@ MODULE message_passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
-  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany
+  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
 
@@ -103,6 +123,19 @@ MODULE message_passing
 
   ! default communicators
   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
+
+  ! I/O
+  PUBLIC :: mp_file_open, mp_file_close
+  PUBLIC :: mp_file_write_at, mp_file_read_at
+  PUBLIC :: mp_file_write_at_all, mp_file_read_at_all
+  PUBLIC :: mp_file_get_size
+
+  ! some 'advanced types' currently only used for dbcsr
+  PUBLIC :: mp_indexing_meta_type, mp_type_descriptor_type
+  PUBLIC :: mp_type_make, mp_type_free
+  PUBLIC :: mp_type_size
+
+
 #ifndef __parallel
   INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
 #endif
@@ -172,6 +205,7 @@ MODULE message_passing
                       mp_sum_root_dv, mp_sum_root_dm,&
                       mp_sum_root_cv, mp_sum_root_cm,&
                       mp_sum_root_zv, mp_sum_root_zm
+     MODULE PROCEDURE mp_sum_b
   END INTERFACE
 
   INTERFACE mp_max
@@ -316,6 +350,7 @@ MODULE message_passing
                       mp_isend_dv, mp_isend_dm2, mp_isend_dm3,&
                       mp_isend_cv, mp_isend_cm2, mp_isend_cm3,&
                       mp_isend_zv, mp_isend_zm2, mp_isend_zm3
+     MODULE PROCEDURE mp_isend_custom
   END INTERFACE
 
   INTERFACE mp_irecv
@@ -325,6 +360,7 @@ MODULE message_passing
                       mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3,&
                       mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3,&
                       mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3
+     MODULE PROCEDURE mp_irecv_custom
   END INTERFACE
 
   INTERFACE mp_window_create
@@ -372,10 +408,53 @@ MODULE message_passing
                       mp_deallocate_z
   END INTERFACE
 
+  INTERFACE mp_type_make
+     MODULE PROCEDURE mp_type_make_struct
+     MODULE PROCEDURE mp_type_make_i, mp_type_make_l,&
+                      mp_type_make_r, mp_type_make_d,&
+                      mp_type_make_c, mp_type_make_z
+  END INTERFACE
+
+  INTERFACE mp_file_write_at
+     MODULE PROCEDURE mp_file_write_at_ch, mp_file_write_at_chv,&
+                      mp_file_write_at_i, mp_file_write_at_iv,&
+                      mp_file_write_at_r, mp_file_write_at_rv,&
+                      mp_file_write_at_d, mp_file_write_at_dv,&
+                      mp_file_write_at_c, mp_file_write_at_cv,&
+                      mp_file_write_at_z, mp_file_write_at_zv
+  END INTERFACE
+
+  INTERFACE mp_file_write_at_all
+     MODULE PROCEDURE mp_file_write_at_all_ch, mp_file_write_at_all_chv,&
+                      mp_file_write_at_all_i, mp_file_write_at_all_iv,&
+                      mp_file_write_at_all_r, mp_file_write_at_all_rv,&
+                      mp_file_write_at_all_d, mp_file_write_at_all_dv,&
+                      mp_file_write_at_all_c, mp_file_write_at_all_cv,&
+                      mp_file_write_at_all_z, mp_file_write_at_all_zv
+  END INTERFACE
+
+  INTERFACE mp_file_read_at
+     MODULE PROCEDURE mp_file_read_at_ch, mp_file_read_at_chv,&
+                      mp_file_read_at_i, mp_file_read_at_iv,&
+                      mp_file_read_at_r, mp_file_read_at_rv,&
+                      mp_file_read_at_d, mp_file_read_at_dv,&
+                      mp_file_read_at_c, mp_file_read_at_cv,&
+                      mp_file_read_at_z, mp_file_read_at_zv
+  END INTERFACE
+
+  INTERFACE mp_file_read_at_all
+     MODULE PROCEDURE mp_file_read_at_all_ch, mp_file_read_at_all_chv,&
+                      mp_file_read_at_all_i, mp_file_read_at_all_iv,&
+                      mp_file_read_at_all_r, mp_file_read_at_all_rv,&
+                      mp_file_read_at_all_d, mp_file_read_at_all_dv,&
+                      mp_file_read_at_all_c, mp_file_read_at_all_cv,&
+                      mp_file_read_at_all_z, mp_file_read_at_all_zv
+  END INTERFACE
+
+
 
 
 ! Type declarations
-
 ! *****************************************************************************
 !> \brief Windows used for MPI RMA operations
 !> \var id          MPI window identifier
@@ -393,6 +472,31 @@ MODULE message_passing
      COMPLEX(KIND=real_8), DIMENSION(:), POINTER      :: src_z
 #endif
   END TYPE mp_window_type
+
+
+  TYPE mp_indexing_meta_type
+     INTEGER, DIMENSION(:), POINTER :: index, chunks
+  END TYPE mp_indexing_meta_type
+
+  TYPE mp_type_descriptor_type
+     INTEGER :: type_handle
+     INTEGER :: length
+#if defined(__parallel)
+     INTEGER(kind=mpi_address_kind) :: base
+#endif
+     INTEGER(kind=int_4),  DIMENSION(:), POINTER :: data_i
+     INTEGER(kind=int_8),  DIMENSION(:), POINTER :: data_l
+     REAL(kind=real_4),    DIMENSION(:), POINTER :: data_r
+     REAL(kind=real_8),    DIMENSION(:), POINTER :: data_d
+     COMPLEX(kind=real_4), DIMENSION(:), POINTER :: data_c
+     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: data_z
+     TYPE(mp_type_descriptor_type), DIMENSION(:), POINTER :: subtype
+     INTEGER :: vector_descriptor(2)
+     LOGICAL :: has_indexing
+     TYPE(mp_indexing_meta_type) :: index_descriptor
+  END TYPE mp_type_descriptor_type
+
+
 
 
   ! type internally used to store message passing performance indicators
@@ -1432,6 +1536,41 @@ CONTAINS
   END SUBROUTINE mp_waitany
 
 ! *****************************************************************************
+!> \brief tests for completion of the given requests
+!> \par History
+!>      08.2011 created
+!> \author Iain Bethune
+! *****************************************************************************
+  SUBROUTINE mp_testany(requests, completed, flag)
+    INTEGER, DIMENSION(:, :), INTENT(inout)  :: requests
+    INTEGER, INTENT(out), OPTIONAL           :: completed
+    LOGICAL, INTENT(out), OPTIONAL           :: flag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: completed_l, count, ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+    LOGICAL                                  :: flag_l
+
+    ierr = 0
+
+#if defined(__parallel)
+    count=SIZE(requests)
+    ALLOCATE(status(MPI_STATUS_SIZE,count))
+
+    CALL mpi_testany(count,requests,completed_l,flag_l,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testany @ mp_testany" )
+
+    IF (PRESENT(completed)) completed = completed_l
+    IF (PRESENT(flag)) flag = flag_l
+
+    DEALLOCATE(status)
+#endif
+  END SUBROUTINE mp_testany
+
+! *****************************************************************************
 !> \brief the direct way to split a communicator each color is a sub_comm,
 !>        the rank order is accoring to the order in the orig comm
 !> \author Joost VandeVondele
@@ -1581,7 +1720,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
 
   END SUBROUTINE mp_comm_split
-
 
 ! *****************************************************************************
 !> \brief Extract the processor name of a MPI process
@@ -2420,6 +2558,506 @@ CONTAINS
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_bcast_zv_t3e
+
+! *****************************************************************************
+!> \brief Logical OR reduction
+!> \par MPI mapping
+!>      mpi_allreduce
+!> \param[in,out] msg         Datum to perform inclusive disjunction (input)
+!>                            and resultant inclusive disjunction (output)
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_sum_b(msg,gid)
+    LOGICAL, INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_b', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    LOGICAL                                  :: res
+
+    IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
+    ierr = 0
+    msglen = 1
+#if defined(__parallel)
+    CALL mpi_allreduce(msg,res,msglen,MPI_LOGICAL,MPI_LOR,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+#endif
+    IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
+  END SUBROUTINE mp_sum_b
+
+! *****************************************************************************
+!> \brief Opens a file 
+!> \par MPI-I/O mapping  mpi_file_open 
+!> \par STREAM-I/O mapping  OPEN
+!> 
+!> \param[in] groupid    message passing environment identifier
+!> \param[in] filepath   path to the file 
+!> \param[in] amode      access mode
+!> \param[out] fh        file handle (file storage unit)
+!> \param[in](optinal) info   info object 
+!> \par History
+!>      11.2012 created [Hossein Bani-Hashemian]  
+! *****************************************************************************
+  SUBROUTINE mp_file_open(groupid, fh, filepath, amode_status, info)
+    INTEGER, INTENT(IN)                      :: groupid
+    INTEGER, INTENT(OUT)                     :: fh
+    CHARACTER(len=*), INTENT(IN)             :: filepath
+    INTEGER, INTENT(IN)                      :: amode_status
+    INTEGER, INTENT(IN), OPTIONAL            :: info
+
+    CHARACTER(len=10)                        :: fstatus
+    INTEGER                                  :: ierr, my_info
+
+    ierr = 0
+#if defined(__parallel)
+    my_info = mpi_info_null
+    IF (PRESENT(info)) my_info = info
+    CALL mpi_file_open(groupid, filepath, amode_status, my_info, fh, ierr)
+    CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
+    IF (ierr .NE. 0) CALL mp_stop ( ierr, "mpi_file_set_errhandler @ mp_file_open" )
+#else
+    IF ((amode_status .EQ. file_amode_create) .OR. &
+        (amode_status .EQ. file_amode_create+file_amode_wronly) .OR. &
+        (amode_status .EQ. file_amode_create+file_amode_wronly+file_amode_excl) ) THEN
+       fstatus = "UNKNOWN"
+    ELSE
+       fstatus = "OLD"
+    END IF
+    fh = 1  ! UNIT=1
+    OPEN(UNIT=fh, FILE=filepath, STATUS=fstatus, ACCESS="STREAM")
+#endif
+  END SUBROUTINE mp_file_open
+
+! *****************************************************************************
+!> \brief Closes a file 
+!> \par MPI-I/O mapping   mpi_file_close 
+!> \par STREAM-I/O mapping   CLOSE 
+!>
+!> \param[in] fh   file handle (file storage unit)                   
+!> \par History
+!>      11.2012 created [Hossein Bani-Hashemian]
+! *****************************************************************************
+  SUBROUTINE mp_file_close(fh)
+    INTEGER, INTENT(IN)                      :: fh
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+#if defined(__parallel)
+    CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
+    CALL mpi_file_close(fh, ierr)
+    IF (ierr .NE. 0) CALL mp_stop ( ierr, "mpi_file_set_errhandler @ mp_file_close" )
+#else
+    CLOSE(fh)
+#endif
+  END SUBROUTINE mp_file_close
+
+! *****************************************************************************
+!> \brief Returns the file size
+!> \par MPI-I/O mapping   mpi_file_get_size
+!> \par STREAM-I/O mapping   INQUIRE 
+!>
+!> \param[in] fh file handle (file storage unit)
+!> \param[out] file_size  the file size                   
+!> \par History
+!>      12.2012 created [Hossein Bani-Hashemian]
+! *****************************************************************************
+  SUBROUTINE mp_file_get_size(fh,file_size)
+    INTEGER, INTENT(IN)                      :: fh
+    INTEGER(kind=file_offset), INTENT(OUT)   :: file_size
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+#if defined(__parallel)
+    CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
+    CALL mpi_file_get_size(fh, file_size, ierr)
+    IF (ierr .NE. 0) CALL mp_stop ( ierr, "mpi_file_set_errhandler @ mp_file_get_size" )
+#else
+    INQUIRE(UNIT=fh, SIZE=file_size)
+#endif
+  END SUBROUTINE mp_file_get_size
+
+! *****************************************************************************
+!> \brief (parallel) Blocking individual file write using explicit offsets
+!>        (serial) Unformatted stream write
+!> \par MPI-I/O mapping   mpi_file_write_at
+!> \par STREAM-I/O mapping   WRITE   
+!> \param[in] fh     file handle (file storage unit) 
+!> \param[in] offset file offset (position)
+!> \param[in] msg    data to be writen to the file
+!> \param[in](optional) msglen number of the elements of data                    
+! *****************************************************************************
+  SUBROUTINE mp_file_write_at_chv(fh, offset, msg, msglen)
+    CHARACTER, INTENT(IN)                      :: msg(:)
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER, INTENT(IN), OPTIONAL              :: msglen
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_chv', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    msg_len = SIZE(msg)
+    IF (PRESENT(msglen)) msg_len = msglen
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_chv @ "//routineN)
+    DEALLOCATE(status)
+#else
+    WRITE(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_write_at_chv
+
+  SUBROUTINE mp_file_write_at_ch(fh, offset, msg)
+    CHARACTER(LEN=*), INTENT(IN)               :: msg
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_ch', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_WRITE_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_ch @ "//routineN)
+    DEALLOCATE(status)
+#else
+    WRITE(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_write_at_ch
+
+! *****************************************************************************
+!> \brief (parallel) Blocking collective file write using explicit offsets
+!>        (serial) Unformatted stream write
+!> \par MPI-I/O mapping   mpi_file_write_at_all 
+!> \par STREAM-I/O mapping   WRITE   
+! *****************************************************************************
+  SUBROUTINE mp_file_write_at_all_chv(fh, offset, msg, msglen)
+    CHARACTER, INTENT(IN)                      :: msg(:)
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER, INTENT(IN), OPTIONAL              :: msglen
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_chv', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    msg_len = SIZE(msg)
+    IF (PRESENT(msglen)) msg_len = msglen
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_chv @ "//routineN)
+    DEALLOCATE(status)
+#else
+    WRITE(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_write_at_all_chv
+
+  SUBROUTINE mp_file_write_at_all_ch(fh, offset, msg)
+    CHARACTER(LEN=*), INTENT(IN)               :: msg
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_ch', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_ch @ "//routineN)
+    DEALLOCATE(status)
+#else
+    WRITE(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_write_at_all_ch
+
+! *****************************************************************************
+!> \brief (parallel) Blocking individual file read using explicit offsets 
+!>        (serial) Unformatted stream read
+!> \par MPI-I/O mapping   mpi_file_read_at 
+!> \par STREAM-I/O mapping   READ  
+!> \param[in] fh     file handle (file storage unit)
+!> \param[in] offset file offset (position)
+!> \param[out] msg   data to be read from the file
+!> \param[in](optional) msglen  number of elements of data                      
+! *****************************************************************************
+  SUBROUTINE mp_file_read_at_chv(fh, offset, msg, msglen)
+    CHARACTER, INTENT(OUT)                     :: msg(:)
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER, INTENT(IN), OPTIONAL              :: msglen
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_chv', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    msg_len = SIZE(msg)
+    IF (PRESENT(msglen)) msg_len = msglen
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_chv @ "//routineN)
+    DEALLOCATE(status)
+#else
+    READ(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_read_at_chv
+
+  SUBROUTINE mp_file_read_at_ch(fh, offset, msg)
+    CHARACTER(LEN=*), INTENT(OUT)               :: msg
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_ch', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_READ_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_ch @ "//routineN)
+    DEALLOCATE(status)
+#else
+    READ(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_read_at_ch
+
+! *****************************************************************************
+!> \brief (parallel) Blocking collective file read using explicit offsets
+!>        (serial) Unformatted stream read
+!> \par MPI-I/O mapping    mpi_file_read_at_all 
+!> \par STREAM-I/O mapping   READ  
+! *****************************************************************************
+  SUBROUTINE mp_file_read_at_all_chv(fh, offset, msg, msglen)
+    CHARACTER, INTENT(OUT)                     :: msg(:)
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER, INTENT(IN), OPTIONAL              :: msglen
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_chv', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    msg_len = SIZE(msg)
+    IF (PRESENT(msglen)) msg_len = msglen
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_chv @ "//routineN)
+    DEALLOCATE(status)
+#else
+    READ(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_read_at_all_chv
+
+  SUBROUTINE mp_file_read_at_all_ch(fh, offset, msg)
+    CHARACTER(LEN=*), INTENT(OUT)               :: msg
+    INTEGER, INTENT(IN)                        :: fh
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_ch', &
+                                   routineP = moduleN//':'//routineN
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_ch @ "//routineN)
+    DEALLOCATE(status)
+#else
+    READ(UNIT=fh, POS=offset+1) msg
+#endif
+  END SUBROUTINE mp_file_read_at_all_ch
+
+! *****************************************************************************
+!> \brief Returns the size of a data type in bytes
+!> \par MPI mapping
+!>      mpi_type_size 
+!> 
+!> \param[in] type_descriptor  data type                   
+!> \param[out] type_size       size of the data type
+! *****************************************************************************
+  SUBROUTINE mp_type_size (type_descriptor, type_size)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(IN)                             :: type_descriptor
+    INTEGER, INTENT(OUT)                     :: type_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_size', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+#if defined(__parallel)
+    CALL MPI_TYPE_SIZE (type_descriptor%type_handle, type_size, ierr)
+    IF (ierr .NE. 0) CALL mp_abort("mpi_type_size @ "//routineN)
+#else 
+    SELECT CASE (type_descriptor%type_handle)
+    CASE (1)
+         type_size = real_4_size
+    CASE (3)
+         type_size = real_8_size
+    CASE (5)
+         type_size = 2*real_4_size
+    CASE (7)
+         type_size = 2*real_8_size
+    END SELECT
+#endif
+  END SUBROUTINE mp_type_size
+
+  FUNCTION mp_type_make_struct (subtypes,&
+       vector_descriptor, index_descriptor) &
+       RESULT (type_descriptor)
+    TYPE(mp_type_descriptor_type), &
+      DIMENSION(:), INTENT(IN)               :: subtypes
+    INTEGER, DIMENSION(2), INTENT(IN), &
+      OPTIONAL                               :: vector_descriptor
+    TYPE(mp_indexing_meta_type), &
+      INTENT(IN), OPTIONAL                   :: index_descriptor
+    TYPE(mp_type_descriptor_type)            :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_struct', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, n
+#if defined(__parallel)
+    INTEGER(kind=mpi_address_kind), &
+      ALLOCATABLE, DIMENSION(:)              :: displacements
+#endif
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: lengths, old_types
+
+!   ---------------------------------------------------------------------------
+
+    n = SIZE (subtypes)
+    !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
+    type_descriptor%length = 1
+#if defined(__parallel)
+    CALL mpi_get_address (MPI_BOTTOM, type_descriptor%base, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_get_address @ "//routineN)
+    ALLOCATE (displacements(n))
+#endif
+    type_descriptor%vector_descriptor(1:2) = 1
+    type_descriptor%has_indexing = .FALSE.
+    ALLOCATE (type_descriptor%subtype(n))
+    type_descriptor%subtype(:) = subtypes(:)
+    ALLOCATE (lengths(n), old_types(n))
+    DO i = 1, SIZE (subtypes)
+#if defined(__parallel)
+       displacements(i) = subtypes(i)%base
+#endif
+       old_types(i) = subtypes(i)%type_handle
+       lengths(i) = subtypes(i)%length
+    ENDDO
+#if defined(__parallel)
+    CALL MPI_Type_create_struct(n,&
+         lengths, displacements, old_types,&
+         type_descriptor%type_handle, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_Type_create_struct @ "//routineN)
+    CALL MPI_Type_commit (type_descriptor%type_handle, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_Type_commit @ "//routineN)
+#endif
+    IF (PRESENT (vector_descriptor) .OR. PRESENT (index_descriptor)) THEN
+       CALL mp_abort (routineN//" Vectors and indices NYI")
+    ENDIF
+  END FUNCTION mp_type_make_struct
+
+  RECURSIVE SUBROUTINE mp_type_free (type_descriptor)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(inout)                          :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr
+
+!   ---------------------------------------------------------------------------
+! If the subtype is associated, then it's a user-defined data type.
+
+    IF (ASSOCIATED (type_descriptor%subtype)) THEN
+        DO i = 1, SIZE(type_descriptor%subtype)
+          CALL mp_type_free (type_descriptor%subtype(i))
+       ENDDO
+       DEALLOCATE (type_descriptor%subtype)
+#if defined(__parallel)
+       CALL MPI_Type_free (type_descriptor%type_handle, ierr)
+       IF (ierr /= 0) CALL mp_abort("MPI_Type_free @ "//routineN)
+#endif
+    ENDIF
+  END SUBROUTINE mp_type_free
+
+! *****************************************************************************
+!> \brief Non-blocking send of custom type
+!> \sa mp_isendrecv_iv
+! *****************************************************************************
+  SUBROUTINE mp_isend_custom(msgin,dest,comm,request,tag)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(IN)                             :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_custom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, my_tag
+
+    ierr = 0
+
+#if defined(__parallel)
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    CALL mpi_isend(MPI_BOTTOM,1,msgin%type_handle,dest,my_tag,&
+            comm,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
+#else
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+  END SUBROUTINE mp_isend_custom
+
+! *****************************************************************************
+!> \brief Non-blocking receive of vector data
+!> \sa mp_isendrecv_iv
+! *****************************************************************************
+  SUBROUTINE mp_irecv_custom(msgout,source,comm,request,tag)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(INOUT)                          :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_custom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, my_tag
+
+    ierr = 0
+
+#if defined(__parallel)
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    CALL mpi_irecv(MPI_BOTTOM,1,msgout%type_handle,source, my_tag,&
+         comm,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
+#else
+    ierr=1
+    CALL mp_abort( "mp_irecv called in non parallel case" )
+#endif
+  END SUBROUTINE mp_irecv_custom
+
+
+
+
 
 
 #include "message_i_passing.f90"

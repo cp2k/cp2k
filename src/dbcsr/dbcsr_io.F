@@ -23,12 +23,6 @@ MODULE dbcsr_io
                                              dbcsr_data_new,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
-  USE dbcsr_message_passing,           ONLY: &
-       file_amode_create, file_amode_rdonly, file_amode_wronly, file_offset, &
-       mp_allgather, mp_environ, mp_file_close, mp_file_get_size, &
-       mp_file_open, mp_file_read_at_all, mp_file_write_at, &
-       mp_file_write_at_all, mp_group, mp_sum, mp_type_descriptor_type, &
-       mp_type_size, mpi_character_size, mpi_integer_size
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
@@ -53,6 +47,12 @@ MODULE dbcsr_io
                                              real_8,&
                                              real_8_size,&
                                              sp
+  USE message_passing,                 ONLY: &
+       file_amode_create, file_amode_rdonly, file_amode_wronly, file_offset, &
+       mp_allgather, mp_environ, mp_file_close, mp_file_get_size, &
+       mp_file_open, mp_file_read_at_all, mp_file_write_at, &
+       mp_file_write_at_all, mp_sum, mp_type_descriptor_type, mp_type_size, &
+       mpi_character_size, mpi_integer_size
 
   !$ USE OMP_LIB
 

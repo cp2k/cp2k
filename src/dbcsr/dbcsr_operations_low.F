@@ -52,12 +52,6 @@ MODULE dbcsr_operations_low
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_message_passing,           ONLY: dmp_max,&
-                                             mp_allgather,&
-                                             mp_bcast,&
-                                             mp_recv,&
-                                             mp_send,&
-                                             mp_sum
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
@@ -101,6 +95,12 @@ MODULE dbcsr_operations_low
                                              real_4,&
                                              real_8,&
                                              sp
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast,&
+                                             mp_max,&
+                                             mp_recv,&
+                                             mp_send,&
+                                             mp_sum
 
   !$ USE OMP_LIB
 
@@ -3392,11 +3392,7 @@ CONTAINS
     ENDDO
     CALL dbcsr_iterator_stop(iter)
 
-    !dmp_max, this fixes a bug in g95
-    ! -> ambigous interface for mp_max
-    !    in module dbcsr_message_passing and wrongly
-    !    exported from the module timings
-    CALL dmp_max(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    CALL mp_max(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
   END FUNCTION dbcsr_maxabs_r8
 

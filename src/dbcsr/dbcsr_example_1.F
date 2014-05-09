@@ -23,11 +23,6 @@ PROGRAM dbcsr_example_1
   USE dbcsr_data_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
-                                             mp_cart_rank,&
-                                             mp_environ,&
-                                             mp_world_finalize,&
-                                             mp_world_init
   USE dbcsr_methods
   USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
@@ -36,6 +31,11 @@ PROGRAM dbcsr_example_1
   USE dbcsr_types
   USE dbcsr_util
   USE dbcsr_work_operations
+  USE message_passing,                 ONLY: mp_cart_create,&
+                                             mp_cart_rank,&
+                                             mp_environ,&
+                                             mp_world_finalize,&
+                                             mp_world_init
 
   !$ USE OMP_LIB
 

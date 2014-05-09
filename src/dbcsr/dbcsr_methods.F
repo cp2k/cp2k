@@ -47,10 +47,6 @@ MODULE dbcsr_methods
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
-                                             mp_cart_sub,&
-                                             mp_comm_free,&
-                                             mp_sum
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: &
@@ -67,6 +63,10 @@ MODULE dbcsr_methods
                                              int_8,&
                                              real_8,&
                                              sp
+  USE message_passing,                 ONLY: mp_cart_create,&
+                                             mp_cart_sub,&
+                                             mp_comm_free,&
+                                             mp_sum
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&

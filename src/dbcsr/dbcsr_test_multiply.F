@@ -33,8 +33,6 @@ MODULE dbcsr_test_multiply
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -66,6 +64,8 @@ MODULE dbcsr_test_multiply
   USE dbcsr_work_operations,           ONLY: dbcsr_create
   USE kinds,                           ONLY: real_4,&
                                              real_8
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_environ
 
   !$ USE OMP_LIB
 

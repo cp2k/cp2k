@@ -17,9 +17,6 @@ MODULE dbcsr_mp_operations
   USE dbcsr_config,                    ONLY: has_MPI
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type
   USE dbcsr_error_handling
-  USE dbcsr_message_passing,           ONLY: &
-       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_send, &
-       mp_type_descriptor_type, mp_type_make, mp_waitall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
@@ -33,6 +30,9 @@ MODULE dbcsr_mp_operations
                                              dbcsr_type_real_8
   USE kinds,                           ONLY: real_4,&
                                              real_8
+  USE message_passing,                 ONLY: &
+       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_send, &
+       mp_type_descriptor_type, mp_type_make, mp_waitall
 
   !$ USE OMP_LIB
 

@@ -21,12 +21,6 @@ PROGRAM dbcsr_performance_driver
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_cart_create,&
-                                             mp_cart_rank,&
-                                             mp_environ,&
-                                             mp_world_finalize,&
-                                             mp_world_init
   USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
                                              dbcsr_mp_release
   USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
@@ -35,6 +29,12 @@ PROGRAM dbcsr_performance_driver
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
   USE kinds,                           ONLY: default_string_length
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_cart_create,&
+                                             mp_cart_rank,&
+                                             mp_environ,&
+                                             mp_world_finalize,&
+                                             mp_world_init
 
   !$ USE OMP_LIB
 

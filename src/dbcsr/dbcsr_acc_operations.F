@@ -18,7 +18,7 @@ MODULE dbcsr_acc_operations
   USE acc_stream,                      ONLY: acc_stream_type
   USE dbcsr_error_handling
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
-  USE dbcsr_message_passing,           ONLY: mp_abort
+  USE message_passing,           ONLY: mp_abort
 
 #if defined (__DBCSR_ACC)
   USE ISO_C_BINDING

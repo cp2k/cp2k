@@ -29,11 +29,6 @@ MODULE dbcsr_mm_sched
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
   USE dbcsr_error_handling
-  USE dbcsr_message_passing,           ONLY: dmp_max,&
-                                             mp_abort,&
-                                             mp_bcast,&
-                                             mp_environ,&
-                                             mp_sum
   USE dbcsr_mm_accdrv,                 ONLY: dbcsr_mm_accdrv_barrier,&
                                              dbcsr_mm_accdrv_finalize,&
                                              dbcsr_mm_accdrv_init,&
@@ -60,6 +55,11 @@ MODULE dbcsr_mm_sched
                                              dbcsr_work_type
   USE kinds,                           ONLY: int_4,&
                                              int_8
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_bcast,&
+                                             mp_environ,&
+                                             mp_max,&
+                                             mp_sum
 
  !$ USE OMP_LIB
 
@@ -511,7 +511,7 @@ MODULE dbcsr_mm_sched
       ! each rank with uncollected stats tries to become the sending_rank
       sending_rank = -1
       IF(.NOT. ALL(mnk_collected==1)) sending_rank = myrank
-      CALL dmp_max(sending_rank, group)
+      CALL mp_max(sending_rank, group)
       IF(sending_rank < 0) EXIT ! every rank got all mnk collected
 
       IF(sending_rank == myrank) THEN

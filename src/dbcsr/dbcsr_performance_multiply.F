@@ -29,9 +29,6 @@ MODULE dbcsr_performance_multiply
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_message_passing,           ONLY: mp_environ,&
-                                             mp_sum,&
-                                             mp_sync
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_new, &
@@ -60,6 +57,9 @@ MODULE dbcsr_performance_multiply
                                              real_4,&
                                              real_8
   USE machine,                         ONLY: m_walltime
+  USE message_passing,                 ONLY: mp_environ,&
+                                             mp_sum,&
+                                             mp_sync
 
   !$ USE OMP_LIB
 
