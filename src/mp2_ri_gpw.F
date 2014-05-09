@@ -1038,7 +1038,7 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_Lcols', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, &
+    INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, &
       ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
       proc_receive_static, proc_send, proc_send_static, proc_shift, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
@@ -1110,6 +1110,8 @@ MODULE mp2_ri_gpw
     proc_send_static=proc_map(para_env%mepos+1)
     proc_receive_static=proc_map(para_env%mepos-1)
 
+    CALL timeset(routineN//"_comm",handle2)
+
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
       proc_receive=proc_map(para_env%mepos-proc_shift)
@@ -1156,6 +1158,7 @@ MODULE mp2_ri_gpw
       DEALLOCATE(row_indices_rec)
       DEALLOCATE(rec_L)
     END DO
+    CALL timestop(handle2)
 
     DEALLOCATE(local_col_row_info)
     DEALLOCATE(rec_col_row_info)
