@@ -238,12 +238,10 @@
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_scalar_type)                  :: trace_scalar
 
-    CALL timeset(routineN, timing_handle)
     trace_scalar = dbcsr_scalar_zero (cp_dbcsr_get_data_type(matrix_a))
     CALL dbcsr_trace(matrix_a%matrix, trace_scalar, dbcsr_error)
     CALL dbcsr_scalar_fill_all (trace_scalar)
     CALL dbcsr_scalar_get_value (trace_scalar, trace)
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_a_s
 
 
@@ -260,9 +258,7 @@
     INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum, dbcsr_error)
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_ab_s
 
 
@@ -299,8 +295,6 @@
     TYPE(cp_dbcsr_type)                      :: new_a, new_b
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
-    !
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
@@ -311,8 +305,6 @@
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
     CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb,&
          new_a, new_b, new_a_is_new, new_b_is_new, error)
-    CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
-         //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
@@ -330,9 +322,7 @@
             variable_name="mpo", error=error)
     ENDIF
     IF (verify) cs_b = cp_dbcsr_checksum (matrix_c, error=error)
-    CALL timestop(timing_handle_detail)
 
-    CALL timestop(timing_handle)
     IF (verify) THEN
        WRITE(*,'(A,4(1X,E9.3))')routineN//" checksums", cs_c, cs_b,&
             cs_c-cs_b, ABS(cs_c-cs_b)/cs_b
@@ -357,9 +347,7 @@
     INTEGER                                   :: timing_handle
     TYPE(dbcsr_error_type)                    :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_by_vector_s
 
 
@@ -375,9 +363,7 @@
     INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_s
 
 
@@ -394,12 +380,10 @@
     TYPE(cp_error_type)                       :: cp_error
     TYPE(dbcsr_error_type)                    :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     CALL cp_error_init (cp_error)
     dbcsr_error = error
     CALL dbcsr_scale_mat(matrix_a%matrix, alpha_matrix, side, error=dbcsr_error)
     error = dbcsr_error
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_s_m
 
 
@@ -414,9 +398,7 @@
     INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_s
 
 
@@ -432,7 +414,5 @@
     INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
-    CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_s
