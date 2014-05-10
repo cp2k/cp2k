@@ -3,7 +3,7 @@
 #
 [
         {'dirname':'swarm',
-         'requires': ['../common', "../mpiwrap", '../', '../input', '../motion', "../system", "../base"],
+         'requires': ['../common', "../mpiwrap", '../', '../input', '../motion', "../systemtypes", "../base"],
          'files': [
             "glbopt_master.F",
             "glbopt_worker.F",
@@ -30,20 +30,34 @@
          },
 
 #============================================================================
+        {'dirname':'dbcsrwrap',
+         'requires': ["../dbcsr","../common", "../base"],
+         'files': [
+            "cp_dbcsr_types.F",
+            "cp_dbcsr_methods.F",
+            "cp_dbcsr_interface.F",
+            "cp_dbcsr_interface_d.f90",
+            "cp_dbcsr_interface_s.f90",
+            "cp_dbcsr_interface_c.f90",
+            "cp_dbcsr_interface_z.f90",
+         ]
+        },
 
+#============================================================================
         {'dirname':'tmc',
-         'requires': ["../", "../base", "../common", "../input", "../mpiwrap", "../system"],
+         'requires': ["../", "../base", "../common", "../input", "../mpiwrap", "../systemtypes"],
         },
 
 #============================================================================
 
         {'dirname':'start',
-         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsr", "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion", "../pint",],
+         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsr", "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion", "../pint", "../dbcsrwrap"],
         },
 
 #============================================================================
          {'dirname':'input',
           'requires': ["../base", "../common", "../mpiwrap"],
+          'files': ["cp_output_handling.F","input_constants.F"],
          },
 
 #============================================================================
@@ -52,14 +66,122 @@
          },
 
 #============================================================================
-         {'dirname':'system',
-          'requires': ["../base", "../common", "../mpiwrap", "../input"],
-          'files': ["cell_types.F","particle_types.F","virial_types.F",""]
+# basic system level types....what types are needed to describe an atom (entangled for both first and qs and ...)
+# via our atomic_kind_types.F this is one big pot
+#============================================================================
+         {'dirname':'systemtypes',
+          'requires': ["../base", "../common", "../mpiwrap", "../input", "../aobasis"],
+          'files': ["cell_types.F",
+                    "particle_types.F",
+                    "particle_list_types.F",     
+                    "mol_kind_new_list_types.F", 
+                    "cp_subsys_types.F",
+                    "virial_types.F",
+                    "atomic_kind_types.F", # due to dependencies more stuff follows
+                    "atomic_kind_list_types.F",  
+                    "molecule_kind_types.F",  
+                    "molecule_types_new.F",
+                    "mol_new_list_types.F",
+                    "soft_basis_set.F",
+                    "damping_dipole_types.F",
+                    "qs_dispersion_types.F",
+                    "qs_dftb_types.F",
+                    "force_field_types.F",
+                    "shell_potential_types.F",
+                    "external_potential_types.F",
+                    "colvar_types.F",
+                    "soft_basis_set.F",
+                    "damping_dipole_types.F",
+                    "qs_dispersion_types.F",
+                    "qs_dftb_types.F",
+                    "force_field_types.F",
+                    "shell_potential_types.F",
+                    "external_potential_types.F",
+                    "colvar_types.F",
+                    "pair_potential_types.F",
+                    "qs_neighbor_list_types.F",
+                    "paw_proj_set_types.F",
+                    "scptb_types.F"
+                   ]
          },
 
 #============================================================================
+# qs types....what basic types are needed to do a qs calculation (but not e.g. fist)
+# 
+#============================================================================
+        {'dirname':'qstypes',
+         'requires':["../base", "../common", "../mpiwrap", "../input", "../aobasis","../systemtypes", "../fm", "../dbcsr", "../pw", "../dbcsrwrap"],
+         'files': ["qs_environment_types.F",
+                   "qs_energy_types.F",
+                   "qs_rho_types.F",
+                   "cp_control_types.F",
+                   "xas_control.F",
+                   "wannier_states_types.F",
+                   "qs_mo_types.F",
+                   "qs_scf_types.F",
+                   "qs_force_types.F",
+                   "xas_env_types.F",
+                   "scf_control_types.F",
+                   "qs_ks_types.F",
+                   "qs_density_mixing_types.F",
+                   "block_p_types.F",
+                   "harris_energy_types.F",
+                   "harris_force_types.F",
+                   "task_list_types.F",
+                   "scp_coeff_types.F",
+                   "scp_energy_types.F",
+                   "taper_types.F",
+                   "semi_empirical_expns3_types.F",
+                   "fist_neighbor_list_types.F",
+                   "qs_ot_types.F",
+                   "qs_block_davidson_types.F",
+                   "preconditioner_types.F",
+                   "qmmm_gaussian_types.F",
+                   "hfx_types.F",
+                   "admm_types.F",
+                   "qs_loc_types.F",
+                   "sap_kind_types.F",
+                   "scp_force_types.F",
+                   "ri_environment_types.F",
+                   "pw_env_types.F",
+                   "qs_rho_atom_types.F",
+                   "semi_empirical_store_int_types.F",
+                   "harris_env_types.F",        
+                   "rt_propagation_types.F",
+                   "ga_environment_types.F",    
+                   "qs_ks_qmmm_types.F",        
+                   "mp2_types.F",               
+                   "ewald_pw_types.F",          
+                   "qmmm_types.F",              
+                   "qs_local_rho_types.F",      
+                   "kg_environment_types.F",    
+                   "qs_matrix_pools.F",         
+                   "qs_charges_types.F",        
+                   "fist_nonbond_env_types.F",  
+                   "qs_rho0_types.F",
+                   "scp_environment_types.F",
+                   "qs_wf_history_types.F",     
+                   "semi_empirical_types.F",    
+                   "rel_control_types.F",       
+                   "ewald_environment_types.F", 
+                   "lri_environment_types.F",   
+                   "cp_ddapc_types.F",          
+                   "et_coupling_types.F",       
+                   "ep_qs_types.F",             
+                   "hartree_local_types.F",     
+                   "semi_empirical_mpole_types.F",
+                   "atprop_types.F",
+                   "qs_linres_types.F",         
+                   "dm_ls_scf_types.F",         
+                   "qs_oce_types.F",            
+                   "qs_diis_types.F",
+                   "qs_period_efield_types.F" ]
+        },
+
+#============================================================================
          {'dirname':'gpw',
-          'requires': ["../base", "../common", "../mpiwrap", "../input", "../pw", "../grid", "../aobasis", "../system"],
+          'requires': ["../base", "../common", "../mpiwrap", "../input",
+                       "../pw", "../grid", "../aobasis", "../systemtypes", "../qstypes", "../dbcsr", "../dbcsrwrap" ],
           'files': [
              "qs_collocate_density.F",
              "qs_integrate_potential.F",
@@ -70,6 +192,7 @@
              "d3_poly.F",
              "gauss_colloc.F",
              "prep.f90",
+             "qs_modify_pab_block.F",
              "colloc_int_body.f90",
              "colloc_int_kloop1.f90",
              "colloc_int_kloop2.f90",
@@ -84,14 +207,13 @@
              "call_collocate_omp.f90",
              "rs_pw_interface.F", #or should this be pw?
              "task_list_methods.F",
-             "task_list_types.F"
           ]
          },
 
 #============================================================================
 
          {'dirname':'hfx',
-          'requires': ["../base", "../common", "../dbcsr", "../mpiwrap", '../input', "../aobasis", "../system"],
+          'requires': ["../base", "../common", "../dbcsr", "../mpiwrap", '../input', "../aobasis", "../systemtypes", "../qstypes", "../dbcsrwrap"],
           'files': [
              "t_c_g0.F",
              "t_sh_p_s_c.F",
@@ -112,7 +234,6 @@
              "hfx_ri_gemopt.F",
              "hfx_ri_methods.F",
              "hfx_screening_methods.F",
-             "hfx_types.F"
            ]
          },
 
@@ -120,7 +241,7 @@
 #============================================================================
 
          {'dirname':'wfc',
-          'requires': ["../base", "../common", "../dbcsr", "../fm", "../mpiwrap", "../gpw", "../hfx", '../input', "../aobasis", "../system", "../pw"],
+          'requires': ["../base", "../common", "../dbcsr", "../fm", "../mpiwrap", "../gpw", "../hfx", '../input', "../aobasis", "../systemtypes", "../pw", "../qstypes", "../dbcsrwrap"],
           'files': [
             "input_cp2k_mp2.F",
             "mp2_cphf.F",
@@ -134,7 +255,6 @@
             "mp2_ri_grad_util.F",
             "mp2_ri_libint.F",
             "mp2_setup.F",
-            "mp2_types.F",
             "rpa_communication.F",
             "rpa_ri_gpw.F",
             "minimax.F"
@@ -144,7 +264,7 @@
 
 #============================================================================
          {'dirname':'vib',
-          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../systemtypes"],
           'files': [
               "vibrational_analysis.F",
               "input_cp2k_vib.F",
@@ -153,7 +273,7 @@
 
 #============================================================================
          {'dirname':'neb',
-          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../motion", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../motion", "../systemtypes"],
           'files': [
             "neb_io.F",
             "neb_md_utils.F",
@@ -166,7 +286,7 @@
 
 #============================================================================
          {'dirname':'motion',
-          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../systemtypes"],
           'files': [
              # MC
             "tamc_run.F",
@@ -244,7 +364,7 @@
 
 #============================================================================
          {'dirname':'pint',
-          'requires': ["../", "../base", "../common","../mpiwrap", "../input", "../motion", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap", "../input", "../motion", "../systemtypes"],
           'files': [
               "pint_gle.F",
               "pint_io.F",
@@ -270,7 +390,8 @@
 #============================================================================
 
          {'dirname':'',
-          'requires':  ["base", "common", "fm", "pw", "arch", "acc", "dbcsr", "mpiwrap", "input", "xc", "hfx", "aobasis", "gpw", "system", "wfc"]
+          'requires':  ["base", "common", "fm", "pw", "ma", "acc", "dbcsr", "mpiwrap",
+                        "input", "xc", "hfx", "aobasis", "gpw", "systemtypes", "wfc", "qstypes", "dbcsrwrap"]
          },
 
 #============================================================================
@@ -288,8 +409,8 @@
 
 #============================================================================
 
-         {'dirname':'arch',
-          'requires':  ["../base", "../common", "../dbcsr", "../machine", "../mpiwrap"]
+         {'dirname':'ma',
+          'requires':  ["../base", "../common", "../dbcsr", "../mpiwrap"]
          },
 
 #============================================================================
