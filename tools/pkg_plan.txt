@@ -264,7 +264,6 @@
 
          {'dirname':'xc',
           'requires': ["../base", "../common", "../mpiwrap", "../pw", '../input'],
-#          'files': ["input_cp2k_xc.F"]
          },
 
 
@@ -277,7 +276,7 @@
 #============================================================================
 
          {'dirname':'pw',
-          'requires':  ["../base", "../common", "../mpiwrap", "../fft"],
+          'requires':  ["../base", "../common", "../mpiwrap", "fft"],
           'files': ["cp_spline_utils.F"]
          },
 
