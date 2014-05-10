@@ -3,7 +3,7 @@
 #
 [
         {'dirname':'swarm',
-         'requires': ['../common', "../mpi", '../', '../input', '../motion', "../system"],
+         'requires': ['../common', "../mpiwrap", '../', '../input', '../motion', "../system", "../base"],
          'files': [
             "glbopt_master.F",
             "glbopt_worker.F",
@@ -32,34 +32,34 @@
 #============================================================================
 
         {'dirname':'tmc',
-         'requires': ["../", "../common", "../input", "../mpi", "../system"],
+         'requires': ["../", "../base", "../common", "../input", "../mpiwrap", "../system"],
         },
 
 #============================================================================
 
         {'dirname':'start',
-         'requires': ["../", "../common", "../input", "../dbcsr", "../pw", "../tmc", "../swarm", "../mpi", "../vib", "../neb", "../motion", "../pint",],
+         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsr", "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion", "../pint",],
         },
 
 #============================================================================
          {'dirname':'input',
-          'requires': ["../common", "../mpi"],
+          'requires': ["../base", "../common", "../mpiwrap"],
          },
 
 #============================================================================
          {'dirname':'aobasis',
-          'requires': ["../common", "../mpi", "../input"],
+          'requires': ["../base", "../common", "../mpiwrap", "../input"],
          },
 
 #============================================================================
          {'dirname':'system',
-          'requires': ["../common", "../mpi", "../input"],
+          'requires': ["../base", "../common", "../mpiwrap", "../input"],
           'files': ["cell_types.F","particle_types.F","virial_types.F",""]
          },
 
 #============================================================================
          {'dirname':'gpw',
-          'requires': ["../common", "../mpi", "../input", "../pw", "../grid", "../aobasis", "../system"],
+          'requires': ["../base", "../common", "../mpiwrap", "../input", "../pw", "../grid", "../aobasis", "../system"],
           'files': [
              "qs_collocate_density.F",
              "qs_integrate_potential.F",
@@ -91,7 +91,7 @@
 #============================================================================
 
          {'dirname':'hfx',
-          'requires': ["../common", "../dbcsr", "../mpi", '../input', "../aobasis", "../system"],
+          'requires': ["../base", "../common", "../dbcsr", "../mpiwrap", '../input', "../aobasis", "../system"],
           'files': [
              "t_c_g0.F",
              "t_sh_p_s_c.F",
@@ -120,7 +120,7 @@
 #============================================================================
 
          {'dirname':'wfc',
-          'requires': ["../common", "../dbcsr", "../fm", "../mpi", "../gpw", "../hfx", '../input', "../aobasis", "../system", "../pw"],
+          'requires': ["../base", "../common", "../dbcsr", "../fm", "../mpiwrap", "../gpw", "../hfx", '../input', "../aobasis", "../system", "../pw"],
           'files': [
             "input_cp2k_mp2.F",
             "mp2_cphf.F",
@@ -136,14 +136,15 @@
             "mp2_setup.F",
             "mp2_types.F",
             "rpa_communication.F",
-            "rpa_ri_gpw.F"
+            "rpa_ri_gpw.F",
+            "minimax.F"
             ],
           },
 
 
 #============================================================================
          {'dirname':'vib',
-          'requires': ["../", "../common","../mpi","../input", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../system"],
           'files': [
               "vibrational_analysis.F",
               "input_cp2k_vib.F",
@@ -152,7 +153,7 @@
 
 #============================================================================
          {'dirname':'neb',
-          'requires': ["../", "../common","../mpi","../input", "../motion", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../motion", "../system"],
           'files': [
             "neb_io.F",
             "neb_md_utils.F",
@@ -165,7 +166,7 @@
 
 #============================================================================
          {'dirname':'motion',
-          'requires': ["../", "../common","../mpi","../input", "../fm", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../system"],
           'files': [
              # MC
             "tamc_run.F",
@@ -243,7 +244,7 @@
 
 #============================================================================
          {'dirname':'pint',
-          'requires': ["../", "../common","../mpi", "../input", "../motion", "../system"],
+          'requires': ["../", "../base", "../common","../mpiwrap", "../input", "../motion", "../system"],
           'files': [
               "pint_gle.F",
               "pint_io.F",
@@ -262,59 +263,40 @@
 #============================================================================
 
          {'dirname':'xc',
-          'requires': ["../common", "../mpi", "../pw", '../input'],
+          'requires': ["../base", "../common", "../mpiwrap", "../pw", '../input'],
 #          'files': ["input_cp2k_xc.F"]
          },
 
 
 #============================================================================
 
-         {'dirname':'mpi',
-          'requires': [],
-          'files': [
-              "cp_para_env.F",
-              "cp_para_types.F",
-              "message_passing.F",
-              "c_mpi_calls.F",
-              "message_i_passing.f90",
-              "message_z_passing.f90",
-              "message_c_passing.f90",
-              "message_l_passing.f90",
-              "message_d_passing.f90",
-              "message_r_passing.f90",
-              "message__nametype1__passing.template",
-              "message__nametype1__passing.instantiation"]
-          },
-
-#============================================================================
-
          {'dirname':'',
-          'requires':  ["common", "fm", "pw", "arch", "cuda", "dbcsr", "mpi", "input", "xc", "hfx", "aobasis", "gpw", "system", "wfc"]
+          'requires':  ["base", "common", "fm", "pw", "arch", "acc", "dbcsr", "mpiwrap", "input", "xc", "hfx", "aobasis", "gpw", "system", "wfc"]
          },
 
 #============================================================================
 
          {'dirname':'pw',
-          'requires':  ["../common", "../mpi", "../fft"],
+          'requires':  ["../base", "../common", "../mpiwrap", "../fft"],
           'files': ["cp_spline_utils.F"]
          },
 
 #============================================================================
 
          {'dirname':'fm',
-          'requires':  ["../common", "../mpi"]
+          'requires':  ["../base", "../common", "../mpiwrap"]
          },
 
 #============================================================================
 
          {'dirname':'arch',
-          'requires':  ["../common", "../dbcsr", "../machine", "../mpi"]
+          'requires':  ["../base", "../common", "../dbcsr", "../machine", "../mpiwrap"]
          },
 
 #============================================================================
 
          {'dirname':'dbcsr',
-          'requires':  [],
+          'requires':  ["../acc","../base","../mpiwrap"],
           'files': [],
           'public': ['dbcsr_api.F'],
          },
@@ -322,7 +304,7 @@
 #============================================================================
 
          {'dirname':'common',
-          'requires': ["../mpi"]
+          'requires': ["../mpiwrap","../base"]
          },
 ]
 
