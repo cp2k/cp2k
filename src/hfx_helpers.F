@@ -13,8 +13,8 @@ MODULE hfx_helpers
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_data_size,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_get_matrix_type,&
-                                             cp_dbcsr_get_num_blocks
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             cp_dbcsr_get_num_blocks,&
+                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE f77_blas

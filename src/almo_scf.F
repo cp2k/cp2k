@@ -56,11 +56,9 @@ MODULE almo_scf
        cp_dbcsr_function_of_elements, cp_dbcsr_get_info, &
        cp_dbcsr_get_stored_coordinates, cp_dbcsr_hadamard_product, &
        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_release, &
-       cp_dbcsr_reserve_block2d, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace, cp_dbcsr_work_create
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+       cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, cp_dbcsr_work_create
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain

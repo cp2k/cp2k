@@ -13,13 +13,11 @@ MODULE mp2_ri_grad_util
                                              cp_blacs_env_release
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_init, &
+       cp_dbcsr_distribution_release, cp_dbcsr_init, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
 ! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

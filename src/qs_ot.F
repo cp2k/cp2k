@@ -21,13 +21,11 @@ MODULE qs_ot
        cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, &
        cp_dbcsr_gershgorin_norm, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
        cp_dbcsr_get_occupation, cp_dbcsr_hadamard_product, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
        cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_scale_by_vector, &
-       cp_dbcsr_set, cp_dbcsr_transposed
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
+       cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type
   USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group
   USE f77_blas

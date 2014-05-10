@@ -18,11 +18,9 @@ MODULE dm_ls_scf_qs
        cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_init, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set
+       cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&

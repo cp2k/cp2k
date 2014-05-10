@@ -14,13 +14,12 @@ MODULE qs_ot_eigensolver
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release_p, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_trace, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_copy_columns_hack
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
   USE dbcsr_api,                       ONLY: &

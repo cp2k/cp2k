@@ -17,11 +17,9 @@ MODULE mp2_ri_grad
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
-       cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_set, cp_dbcsr_transposed
+       cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
 ! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

@@ -19,13 +19,13 @@ MODULE qs_dftb_coulomb
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator,&
                                              cp_dbcsr_iterator_blocks_left,&
                                              cp_dbcsr_iterator_next_block,&
                                              cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&

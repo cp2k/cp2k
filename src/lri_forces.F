@@ -15,8 +15,8 @@ MODULE lri_forces
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE lri_environment_types,           ONLY: &

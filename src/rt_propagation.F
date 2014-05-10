@@ -10,8 +10,8 @@
 
 MODULE rt_propagation
   USE cp_control_types,                ONLY: rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&

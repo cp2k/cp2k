@@ -22,10 +22,9 @@ MODULE mp2_ri_gpw
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_create, cp_dbcsr_distribution, &
        cp_dbcsr_distribution_release, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_set
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, &
+       cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
 ! USE f77_blas
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose

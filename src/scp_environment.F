@@ -17,9 +17,9 @@ MODULE scp_environment
                                              cp_dbcsr_get_diag,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_api,                       ONLY: array_i1d_obj,&
                                              array_new,&

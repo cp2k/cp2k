@@ -19,12 +19,12 @@ MODULE cp_dbcsr_diag
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
                                              copy_dbcsr_to_cfm,&
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                              cp_fm_syevr,&
                                              cp_fm_syevx

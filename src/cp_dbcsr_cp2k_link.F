@@ -12,8 +12,8 @@
 MODULE cp_dbcsr_cp2k_link
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize,&
                                              cp_dbcsr_get_matrix_type,&
-                                             cp_dbcsr_reserve_blocks
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             cp_dbcsr_reserve_blocks,&
+                                             cp_dbcsr_type
   USE dbcsr_api,                       ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &

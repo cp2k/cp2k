@@ -24,10 +24,10 @@ MODULE qs_mo_types
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init_p,&
-                                             cp_dbcsr_release_p
+                                             cp_dbcsr_release_p,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_copy_columns_hack
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&

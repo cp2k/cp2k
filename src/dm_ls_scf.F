@@ -22,9 +22,8 @@ MODULE dm_ls_scf
        cp_dbcsr_binary_write, cp_dbcsr_checksum, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain

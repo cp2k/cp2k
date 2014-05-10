@@ -12,7 +12,7 @@
 MODULE qs_energy
   USE almo_scf,                        ONLY: almo_entry_scf
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE dm_ls_scf,                       ONLY: ls_scf
   USE f77_blas
   USE input_constants,                 ONLY: ehrenfest

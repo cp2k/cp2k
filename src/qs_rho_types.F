@@ -11,8 +11,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_rho_types
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&

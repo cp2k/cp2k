@@ -43,9 +43,9 @@ MODULE qs_collocate_density
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_type

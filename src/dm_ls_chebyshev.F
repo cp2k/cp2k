@@ -14,8 +14,7 @@ MODULE dm_ls_chebyshev
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_get_occupation, &
        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&

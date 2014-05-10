@@ -22,8 +22,8 @@ MODULE almo_scf_aux_types
                                              cp_dbcsr_init,&
                                              cp_dbcsr_release,&
                                              cp_dbcsr_set,&
-                                             cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             cp_dbcsr_trace,&
+                                             cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

@@ -20,18 +20,16 @@ MODULE qs_initial_guess
        cp_create_bl_distribution, cp_dbcsr_checksum, cp_dbcsr_copy, &
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
        cp_dbcsr_get_diag, cp_dbcsr_get_num_blocks, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullrows_total, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, &
+       cp_dbcsr_type, cp_dbcsr_verify_matrix
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_from_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &

@@ -9,7 +9,7 @@
 !> \par History
 ! *****************************************************************************
 MODULE se_fock_matrix_control
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type

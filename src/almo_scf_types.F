@@ -12,7 +12,7 @@
 MODULE almo_scf_types
   USE almo_scf_aux2_types,             ONLY: object01_type,&
                                              object02_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp

@@ -15,12 +15,12 @@ MODULE qs_linres_methods
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file

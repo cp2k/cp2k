@@ -32,13 +32,13 @@ MODULE qs_efield_berry
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

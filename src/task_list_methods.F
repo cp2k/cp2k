@@ -25,8 +25,8 @@ MODULE task_list_methods
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_put_block,&
                                              cp_dbcsr_row_block_sizes,&
+                                             cp_dbcsr_type,&
                                              cp_dbcsr_work_create
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&

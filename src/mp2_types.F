@@ -10,7 +10,7 @@
 !> \author MDB
 ! *****************************************************************************
 MODULE mp2_types
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE hfx_types,                       ONLY: hfx_release,&

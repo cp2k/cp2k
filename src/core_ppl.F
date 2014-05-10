@@ -19,8 +19,8 @@ MODULE core_ppl
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_get_block_p
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp

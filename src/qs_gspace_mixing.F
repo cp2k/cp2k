@@ -11,12 +11,12 @@ MODULE qs_gspace_mixing
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full

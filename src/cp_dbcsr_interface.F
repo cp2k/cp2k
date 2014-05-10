@@ -13,18 +13,12 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE cp_dbcsr_interface
-  USE cp_dbcsr_methods,                ONLY: cp_dbcsr_col_block_offsets,&
-                                             cp_dbcsr_col_block_sizes,&
-                                             cp_dbcsr_row_block_offsets,&
-                                             cp_dbcsr_row_block_sizes
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
   USE dbcsr_api,                       ONLY: &
        array_data, array_hold, array_i1d_obj, array_new, array_release, &
-       array_size, create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
-       dbcsr_binary_read, dbcsr_binary_write, dbcsr_blk_col_offset, &
-       dbcsr_blk_column_size, dbcsr_blk_row_offset, dbcsr_blk_row_size, &
-       dbcsr_btriu, dbcsr_checksum, dbcsr_clear_mempools, &
+       array_size, cp_dbcsr_iterator=>dbcsr_iterator, create_bl_distribution, &
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, &
+       dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
+       dbcsr_blk_row_size, dbcsr_btriu, dbcsr_checksum, dbcsr_clear_mempools, &
        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
        dbcsr_create, dbcsr_data_obj, dbcsr_desymmetrize_deep, &
        dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_dist, &
@@ -46,8 +40,8 @@ MODULE cp_dbcsr_interface
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_new_transposed, dbcsr_nfullcols_local, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_no_transpose, &
-       dbcsr_norm, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
-       dbcsr_release, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_norm, dbcsr_obj, dbcsr_print, dbcsr_print_block_sum, &
+       dbcsr_put_block, dbcsr_release, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
        dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
@@ -76,6 +70,9 @@ MODULE cp_dbcsr_interface
 
   !
   ! Interface to libdbcsr (contains cp2k timing and error)
+  PUBLIC :: cp_dbcsr_iterator
+  PUBLIC :: cp_dbcsr_type 
+  PUBLIC :: cp_dbcsr_p_type
   PUBLIC :: cp_dbcsr_conform_scalar
   PUBLIC :: cp_dbcsr_init_lib, cp_dbcsr_finalize_lib
   PUBLIC :: cp_dbcsr_untranspose_blocks
@@ -159,6 +156,15 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_print_block_sum
   PUBLIC :: cp_dbcsr_triu
   PUBLIC :: cp_dbcsr_clear_mempools
+
+  TYPE cp_dbcsr_p_type
+     TYPE(cp_dbcsr_type), POINTER :: matrix
+  END TYPE cp_dbcsr_p_type
+
+  TYPE cp_dbcsr_type
+     INTEGER                              :: ref_count
+     TYPE(dbcsr_obj)                      :: matrix
+  END TYPE cp_dbcsr_type
 
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
@@ -1835,6 +1841,46 @@ CONTAINS
     CALL timestop(timing_handle)
 
   END SUBROUTINE cp_dbcsr_triu
+
+  FUNCTION cp_dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_sizes', &
+      routineP = moduleN//':'//routineN
+
+    row_blk_sizes = matrix%matrix%m%row_blk_size
+  END FUNCTION cp_dbcsr_row_block_sizes
+
+  FUNCTION cp_dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(array_i1d_obj)                      :: col_blk_sizes
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_sizes', &
+      routineP = moduleN//':'//routineN
+
+    col_blk_sizes = matrix%matrix%m%col_blk_size
+  END FUNCTION cp_dbcsr_col_block_sizes
+
+  FUNCTION cp_dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(array_i1d_obj)                      :: col_blk_offsets
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_offsets', &
+      routineP = moduleN//':'//routineN
+
+    col_blk_offsets = matrix%matrix%m%col_blk_offset
+  END FUNCTION cp_dbcsr_col_block_offsets
+
+  FUNCTION cp_dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(array_i1d_obj)                      :: row_blk_offsets
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_offsets', &
+      routineP = moduleN//':'//routineN
+
+    row_blk_offsets = matrix%matrix%m%row_blk_offset
+  END FUNCTION cp_dbcsr_row_block_offsets
 
 #include "cp_dbcsr_interface_s.f90"
 #include "cp_dbcsr_interface_d.f90"

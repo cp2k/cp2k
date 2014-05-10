@@ -12,19 +12,14 @@ MODULE qs_scf_initialization
                                              get_atomic_kind_set,&
                                              set_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_create_bl_distribution,&
-                                             cp_dbcsr_col_block_sizes,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_distribution,&
-                                             cp_dbcsr_distribution_release,&
-                                             cp_dbcsr_init_p,&
-                                             cp_dbcsr_row_block_sizes
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_init_p, &
+       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power

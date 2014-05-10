@@ -33,12 +33,11 @@ MODULE almo_scf_special
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
        cp_dbcsr_get_num_blocks, cp_dbcsr_get_stored_coordinates, &
        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_work_create
+       cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, cp_dbcsr_work_create
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE dbcsr_api,                       ONLY: &

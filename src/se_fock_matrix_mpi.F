@@ -21,8 +21,8 @@ MODULE se_fock_matrix_mpi
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_multiply,&
-                                             cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_trace,&
                                              cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr

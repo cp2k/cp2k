@@ -20,12 +20,11 @@ MODULE qs_ot_types
        cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
        cp_dbcsr_finalize, cp_dbcsr_get_data_size, cp_dbcsr_init_p, &
-       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&

@@ -11,8 +11,8 @@
 ! *****************************************************************************
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_trace
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type

@@ -17,8 +17,8 @@ MODULE cp_ddapc
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&

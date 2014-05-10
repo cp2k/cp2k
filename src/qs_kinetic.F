@@ -24,10 +24,10 @@ MODULE qs_kinetic
                                              cp_dbcsr_filter,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_api,                       ONLY: array_i1d_obj,&
                                              array_new,&

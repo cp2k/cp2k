@@ -17,8 +17,7 @@ MODULE dm_ls_scf_curvy
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, &
        cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace, cp_dbcsr_transposed
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+       cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type
   USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
   USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                              ls_scf_env_type

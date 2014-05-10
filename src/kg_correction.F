@@ -12,8 +12,8 @@
 MODULE kg_correction
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                              kg_tnadd_embed

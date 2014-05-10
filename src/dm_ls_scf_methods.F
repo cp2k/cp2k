@@ -14,8 +14,8 @@ MODULE dm_ls_scf_methods
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
+       cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE dbcsr_api,                       ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &

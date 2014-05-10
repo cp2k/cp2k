@@ -11,8 +11,8 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf_types
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
+                                             cp_dbcsr_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&

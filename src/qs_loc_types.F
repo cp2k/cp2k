@@ -26,8 +26,8 @@ MODULE qs_loc_types
                                              cell_retain,&
                                              cell_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&

@@ -4,9 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: init_qs_energy,&

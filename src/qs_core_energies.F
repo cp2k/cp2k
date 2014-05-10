@@ -18,8 +18,8 @@ MODULE qs_core_energies
                                              atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace,&
+                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erfc

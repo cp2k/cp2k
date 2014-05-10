@@ -13,8 +13,8 @@ MODULE scp_nddo_utils
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_get_diag,&
                                              cp_dbcsr_get_info,&
-                                             cp_dbcsr_set_diag
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             cp_dbcsr_set_diag,&
+                                             cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type

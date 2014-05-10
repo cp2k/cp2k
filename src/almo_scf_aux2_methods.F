@@ -16,13 +16,12 @@ MODULE almo_scf_aux2_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_col_block_sizes, cp_dbcsr_distribution, cp_dbcsr_filter, &
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, &
-       cp_dbcsr_get_stored_coordinates, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_nblkcols_total, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_reserve_block2d, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_work_create
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
+       cp_dbcsr_get_stored_coordinates, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+       cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, &
+       cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+       cp_dbcsr_work_create
   USE dbcsr_api,                       ONLY: array_data,&
                                              dbcsr_distribution_mp,&
                                              dbcsr_mp_group,&
