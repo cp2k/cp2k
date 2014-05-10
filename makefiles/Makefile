@@ -3,7 +3,7 @@
 #
 # will now perform a parallel build of 4 cp2k executables
 #
-.SUFFIXES: .F .dep .o .f90 .cu .c
+.SUFFIXES: .F .dep .o .f90 .cu .c .instantiation
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -21,6 +21,7 @@ MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
+INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
@@ -49,7 +50,7 @@ endif
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
          prettydir pretty prettyclean doxygen/clean doxygen \
-         install clean realclean distclean mrproper help
+         install clean realclean distclean mrproper help templates instantiationdir templatesclean
 
 
 # Discover files and directories ============================================
@@ -59,6 +60,7 @@ LIBCUSMM_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.F")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.c")
+ALL_INST_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.instantiation")
 
 ifneq ($(NVCC),)
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
@@ -173,6 +175,27 @@ OTHER_HELP += "distclean : Remove all files from previous builds"
 mrproper:
 	cd $(CP2KHOME); ./tools/clean_cwd.sh
 OTHER_HELP += "mrproper : Remove ALL files not in SVN"
+
+#
+# instantiate the templates
+#
+vpath %.instantiation   $(ALL_SRC_DIRS)
+vpath %.template        $(ALL_SRC_DIRS)
+vpath %.instantiated    $(INSTANTIATEDDIR)
+
+instantiateddir:
+	@mkdir -p $(INSTANTIATEDDIR)
+
+templates: instantiateddir $(addprefix $(INSTANTIATEDDIR)/, $(notdir $(ALL_INST_FILES:.instantiation=.instantiated)))
+TOOL_HELP += "templates : instantiate all templates"
+
+templatesclean:
+	-rm -fR $(INSTANTIATEDDIR)
+TOOL_HELP += "templatesclean : remove instantiated markers"
+
+$(INSTANTIATEDDIR)/%.instantiated: %.instantiation %.template
+	cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
+	@touch $@
 
 #
 # so far CP2K does not install, but give a hint to the user
