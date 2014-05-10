@@ -8,6 +8,7 @@
 !>      coming from local atomic densities
 ! *****************************************************************************
 MODULE qs_ks_atom
+  USE ao_util,                         ONLY: trace_r_AxB
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -37,7 +38,6 @@ MODULE qs_ks_atom
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: trace_r_AxB
   USE sap_kind_types,                  ONLY: alist_post_align_blk,&
                                              alist_pre_align_blk,&
                                              alist_type,&

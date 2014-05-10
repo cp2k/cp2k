@@ -10,6 +10,8 @@
 ! *****************************************************************************
 MODULE paw_proj_set_types
 
+  USE ao_util,                         ONLY: exp_radius,&
+                                             gauss_exponent
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: qs_control_type
@@ -30,8 +32,6 @@ MODULE paw_proj_set_types
                                              nso,&
                                              nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE qs_util,                         ONLY: exp_radius,&
-                                             gauss_exponent
   USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 

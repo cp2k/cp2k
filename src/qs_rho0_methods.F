@@ -6,6 +6,9 @@
 ! *****************************************************************************
 MODULE qs_rho0_methods
 
+  USE ao_util,                         ONLY: exp_radius,&
+                                             gaussint_sph,&
+                                             trace_r_AxB
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -52,9 +55,6 @@ MODULE qs_rho0_methods
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: exp_radius,&
-                                             gaussint_sph,&
-                                             trace_r_AxB
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"

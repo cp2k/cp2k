@@ -8,6 +8,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE ewald_pw_types
+  USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -42,7 +43,6 @@ MODULE ewald_pw_types
                                              pw_pool_release,&
                                              pw_pool_retain,&
                                              pw_pool_type
-  USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_type, realspace_grid_input_type, &
        realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &

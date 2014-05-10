@@ -9,7 +9,7 @@
 !>      none
 !> \author CJM & JGH
 ! *****************************************************************************
-MODULE qs_util
+MODULE ao_util
 
   USE f77_blas
   USE kinds,                           ONLY: dp,&
@@ -17,7 +17,8 @@ MODULE qs_util
   USE mathconstants,                   ONLY: &
        dfac, fac, fourpi, oorootpi, rootpi, sqrt105, sqrt15, sqrt2, sqrt21, &
        sqrt3, sqrt35, sqrt5, sqrt7, sqrthalf
-  USE orbital_pointers,                ONLY: indco,&
+  USE orbital_pointers,                ONLY: coset,&
+                                             indco,&
                                              nco,&
                                              ncoset,&
                                              nso,&
@@ -25,13 +26,13 @@ MODULE qs_util
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_util'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ao_util'
 
   !MK sqrt* constants moved to mathconstants
 
@@ -97,6 +98,7 @@ MODULE qs_util
 
   PUBLIC :: cart2sph_mat,&
        exp_radius,&
+       exp_radius_very_extended,&
        gauss_exponent,&
        gaussint_sph,&
        trace_r_AxB, &
@@ -255,6 +257,102 @@ CONTAINS
                       "Maximum number of iterations exceeded")
 
   END FUNCTION exp_radius
+
+! *****************************************************************************
+!> \brief computes the radius of the Gaussian outside of which it is smaller
+!>      than eps
+!> \note
+!>      can optionally screen by the maximum element of the pab block
+!> \par History
+!>      03.2007 new version that assumes that the Gaussians origante from spherical
+!>              Gaussians
+! *****************************************************************************
+ FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
+                          zetp,eps,prefactor,cutoff,epsin) RESULT(radius)
+
+    INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, lb_max
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: pab
+    INTEGER, OPTIONAL                        :: o1, o2
+    REAL(KIND=dp), INTENT(IN)                :: ra(3), rb(3), rp(3), zetp, &
+                                                eps, prefactor, cutoff
+    REAL(KIND=dp), OPTIONAL                  :: epsin
+    REAL(KIND=dp)                            :: radius
+
+    INTEGER                                  :: i, ico, j, jco, la(3), lb(3), &
+                                                lxa, lxb, lya, lyb, lza, lzb
+    REAL(KIND=dp)                            :: bini, binj, coef(0:20), &
+                                                epsin_local, polycoef(0:60), &
+                                                prefactor_local, rad_a, &
+                                                rad_b, s1, s2
+
+! get the local prefactor, we'll now use the largest density matrix element of the block to screen
+
+    epsin_local=1.0E-2_dp
+    IF(PRESENT(epsin)) epsin_local=epsin
+
+    IF (PRESENT(pab)) THEN
+       prefactor_local=cutoff
+       DO lxa=0,la_max
+       DO lxb=0,lb_max
+          DO lya=0,la_max-lxa
+          DO lyb=0,lb_max-lxb
+             DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+             DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                la=(/lxa,lya,lza/)
+                lb=(/lxb,lyb,lzb/)
+                ico=coset(lxa,lya,lza)
+                jco=coset(lxb,lyb,lzb)
+                prefactor_local=MAX(ABS(pab(o1+ico,o2+jco)),prefactor_local)
+       ENDDO
+       ENDDO
+       ENDDO
+       ENDDO
+       ENDDO
+       ENDDO
+       prefactor_local=prefactor*prefactor_local
+    ELSE
+       prefactor_local=prefactor*MAX(1.0_dp,cutoff)
+    ENDIF
+
+    !
+    ! assumes that we can compute the radius for the case where
+    ! the Gaussians a and b are both on the z - axis, but at the same
+    ! distance as the original a and b
+    !
+    rad_a=SQRT(SUM((ra-rp)**2))
+    rad_b=SQRT(SUM((rb-rp)**2))
+
+    polycoef(0:la_max+lb_max)=0.0_dp
+    DO lxa=0,la_max
+    DO lxb=0,lb_max
+       coef(0:la_max+lb_max)=0.0_dp
+       bini=1.0_dp
+       s1=1.0_dp
+       DO i=0,lxa
+          binj=1.0_dp
+          s2=1.0_dp
+          DO j=0,lxb
+             coef(lxa+lxb-i-j)=coef(lxa+lxb-i-j) + bini*binj*s1*s2
+             binj=(binj*(lxb-j))/(j+1)
+             s2=s2*(rad_b)
+          ENDDO
+          bini=(bini*(lxa-i))/(i+1)
+          s1=s1*(rad_a)
+       ENDDO
+       DO i=0,lxa+lxb
+          polycoef(i)=MAX(polycoef(i),coef(i))
+       ENDDO
+    ENDDO
+    ENDDO
+
+    polycoef(0:la_max+lb_max)=polycoef(0:la_max+lb_max)*prefactor_local
+    radius=0.0_dp
+    DO i=0,la_max+lb_max
+          radius=MAX(radius,exp_radius(i,zetp,eps,polycoef(i),epsin_local) )
+    ENDDO
+
+  END FUNCTION exp_radius_very_extended
 
 ! *****************************************************************************
   FUNCTION gaussint_sph(alpha,l)
@@ -969,4 +1067,4 @@ CONTAINS
 
   END SUBROUTINE cart2sph_mat
 
-END MODULE qs_util
+END MODULE ao_util

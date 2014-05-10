@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE qs_integrate_potential_low
+  USE ao_util,                         ONLY: exp_radius_very_extended
   USE cell_types,                      ONLY: cell_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
@@ -16,7 +17,6 @@ MODULE qs_integrate_potential_low
   USE orbital_pointers,                ONLY: coset,&
                                              current_maxl,&
                                              ncoset
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "./common/cp_common_uses.f90"
 

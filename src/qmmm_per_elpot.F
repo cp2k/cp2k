@@ -11,6 +11,7 @@ MODULE qmmm_per_elpot
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
+  USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -30,7 +31,6 @@ MODULE qmmm_per_elpot
   USE qmmm_types,                      ONLY: qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type
-  USE qs_util,                         ONLY: exp_radius
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

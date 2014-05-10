@@ -10,6 +10,7 @@
 !> \author Matthias Krack (04.07.2000)
 ! *****************************************************************************
 MODULE external_potential_types
+  USE ao_util,                         ONLY: exp_radius
   USE bibliography,                    ONLY: Goedecker1996,&
                                              Hartwigsen1998,&
                                              Krack2000,&
@@ -50,7 +51,6 @@ MODULE external_potential_types
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE periodic_table,                  ONLY: ptable
-  USE qs_util,                         ONLY: exp_radius
   USE string_utilities,                ONLY: remove_word,&
                                              uppercase
   USE termination,                     ONLY: stop_program

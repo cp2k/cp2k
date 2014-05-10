@@ -11,6 +11,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_gaussian_init
+  USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -34,7 +35,6 @@ MODULE qmmm_gaussian_init
                                              set_mm_potential_swave
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qs_util,                         ONLY: exp_radius
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

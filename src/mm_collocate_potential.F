@@ -11,13 +11,13 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE mm_collocate_potential
+  USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_type
-  USE qs_util,                         ONLY: exp_radius
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

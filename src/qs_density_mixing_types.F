@@ -11,11 +11,11 @@
 ! *****************************************************************************
 MODULE qs_density_mixing_types
 
+  USE ao_util,                         ONLY: exp_radius
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE qs_util,                         ONLY: exp_radius
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

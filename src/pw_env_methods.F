@@ -13,6 +13,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_env_methods
+  USE ao_util,                         ONLY: exp_radius
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -74,7 +75,6 @@ MODULE pw_env_methods
                                              qs_environment_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
-  USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_input_type,&
                                              realspace_grid_p_type,&

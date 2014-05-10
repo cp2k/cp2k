@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE soft_basis_set
 
+  USE ao_util,                         ONLY: exp_radius
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
                                              init_cphi_and_sphi
@@ -23,7 +24,6 @@ MODULE soft_basis_set
                                              nso
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
-  USE qs_util,                         ONLY: exp_radius
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

@@ -14,6 +14,7 @@
 MODULE qs_oce_methods
 
   USE ai_overlap_new,                  ONLY: overlap
+  USE ao_util,                         ONLY: exp_radius
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -38,7 +39,6 @@ MODULE qs_oce_methods
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_util,                         ONLY: exp_radius
   USE sap_kind_types,                  ONLY: clist_type,&
                                              sap_int_type,&
                                              sap_sort
