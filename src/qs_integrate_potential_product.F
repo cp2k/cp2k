@@ -40,13 +40,12 @@ MODULE qs_integrate_potential_product
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
        cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, &
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create
+       cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_obj
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_deallocate_matrix
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_has_threads,&
-                                             dbcsr_distribution_obj
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set

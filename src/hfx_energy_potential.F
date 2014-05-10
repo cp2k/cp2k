@@ -20,14 +20,14 @@ MODULE hfx_energy_potential
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
                                              cp_dbcsr_p_type,&
-                                             cp_dbcsr_trace
+                                             cp_dbcsr_trace,&
+                                             dbcsr_type_antisymmetric
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                              get_atomic_block_maps,&

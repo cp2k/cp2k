@@ -20,17 +20,17 @@ MODULE distribution_methods
                                              pbc,&
                                              real_to_scaled
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE dbcsr_api,                       ONLY: heap_fill,&
+  USE cp_dbcsr_interface,              ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&
                                              heap_release,&
                                              heap_reset_first,&
                                              heap_t
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&

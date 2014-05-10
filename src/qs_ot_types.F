@@ -17,11 +17,15 @@ MODULE qs_ot_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_finalize, cp_dbcsr_get_data_size, cp_dbcsr_init_p, &
-       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_finalize, &
+       cp_dbcsr_get_data_size, cp_dbcsr_init_p, cp_dbcsr_p_type, &
+       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_obj, dbcsr_distribution_row_dist, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_type_complex_default, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
@@ -31,12 +35,6 @@ MODULE qs_ot_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_api,                       ONLY: &
-       array_i1d_obj, array_release, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_default
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &

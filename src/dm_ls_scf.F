@@ -23,11 +23,10 @@ MODULE dm_ls_scf
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_type
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain
-  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
   USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
   USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                              dm_ls_curvy_optimization

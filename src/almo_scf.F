@@ -58,14 +58,13 @@ MODULE almo_scf
        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
        cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, cp_dbcsr_work_create
-  USE cp_external_control,             ONLY: external_control
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
-  USE dbcsr_api,                       ONLY: &
+       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, cp_dbcsr_work_create, &
        dbcsr_distribution_mp, dbcsr_func_artanh, dbcsr_func_dtanh, &
        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_mp_mynode, &
        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+  USE cp_external_control,             ONLY: external_control
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE input_constants,                 ONLY: &
        almo_constraint_distance, almo_deloc_full_scf, almo_deloc_none, &
        almo_deloc_qscf, almo_deloc_qx, almo_deloc_x, &

@@ -13,6 +13,7 @@
 !> - Created 2011
 ! *****************************************************************************
 MODULE cp_ma_interface
+  USE cp_dbcsr_interface,              ONLY: dbcsr_get_conf_use_comm_thread
   USE cp_error_handling
   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                              cp_logger_type,&
@@ -20,7 +21,6 @@ MODULE cp_ma_interface
                                              cp_note_level,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_get_conf_use_comm_thread
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

@@ -25,9 +25,8 @@ MODULE qs_ot
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
        cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_scale_by_vector, &
-       cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_mp_group
+       cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_mp_group
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum

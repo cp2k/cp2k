@@ -12,7 +12,7 @@ MODULE qs_gspace_mixing
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_get_info, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_set, cp_dbcsr_trace, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set,&
@@ -21,7 +21,6 @@ MODULE qs_gspace_mixing
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix

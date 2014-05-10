@@ -1,0 +1,4 @@
+{
+"description": "wrappers of the dbcsr routines, should not require any advanced cp2k functionality (fm, qs)",
+"requires": ["../base", "../common", "../dbcsr"]
+}

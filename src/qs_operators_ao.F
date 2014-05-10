@@ -23,10 +23,10 @@ MODULE qs_operators_ao
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_get_matrix_type,&
-                                             cp_dbcsr_p_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric,&
+                                             cp_dbcsr_p_type,&
+                                             dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

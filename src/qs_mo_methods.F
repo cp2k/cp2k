@@ -16,11 +16,14 @@ MODULE qs_mo_methods
   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
                                              cp_dbcsr_syevx
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, &
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_type
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_obj, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
@@ -43,10 +46,6 @@ MODULE qs_mo_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_api,                       ONLY: &
-       array_i1d_obj, array_release, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max

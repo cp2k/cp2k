@@ -23,6 +23,7 @@ MODULE library_tests
   USE cg_test,                         ONLY: clebsch_gordon_test
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
+  USE cp_dbcsr_interface,              ONLY: cp_test_multiplies
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -43,7 +44,6 @@ MODULE library_tests
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_realspace_grid_init,          ONLY: init_input_type
-  USE dbcsr_api,                       ONLY: cp_test_multiplies
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FWFFT,&

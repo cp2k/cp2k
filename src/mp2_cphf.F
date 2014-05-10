@@ -18,7 +18,7 @@ MODULE mp2_cphf
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set
+       cp_dbcsr_scale, cp_dbcsr_set, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set
@@ -37,7 +37,6 @@ MODULE mp2_cphf
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_api,                       ONLY: dbcsr_type_symmetric
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_types,                       ONLY: alloc_containers,&
                                              hfx_container_type,&

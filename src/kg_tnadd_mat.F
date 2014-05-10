@@ -17,21 +17,13 @@ MODULE kg_tnadd_mat
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, cp_dbcsr_add, &
+       cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, dbcsr_distribution_obj, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE dbcsr_api,                       ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_type_symmetric
   USE external_potential_types,        ONLY: get_potential,&
                                              local_potential_type
   USE input_constants,                 ONLY: use_orb_basis_set

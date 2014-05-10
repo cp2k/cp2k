@@ -19,20 +19,15 @@ MODULE task_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_put_block,&
-                                             cp_dbcsr_row_block_sizes,&
-                                             cp_dbcsr_type,&
-                                             cp_dbcsr_work_create
+  USE cp_dbcsr_interface,              ONLY: &
+       array_data, convert_sizes_to_offsets, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
+       cp_dbcsr_put_block, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+       cp_dbcsr_work_create
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE dbcsr_api,                       ONLY: array_data,&
-                                             convert_sizes_to_offsets
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type

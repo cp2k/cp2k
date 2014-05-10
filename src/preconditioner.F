@@ -12,6 +12,7 @@
 ! *****************************************************************************
 MODULE preconditioner
   USE cp_dbcsr_interface,              ONLY: &
+       array_data, array_i1d_obj, block_add_on_diag, block_chol_inv, &
        cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_add_on_diag, &
        cp_dbcsr_btriu, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
@@ -26,7 +27,13 @@ MODULE preconditioner
        cp_dbcsr_nblkrows_local, cp_dbcsr_nblkrows_total, cp_dbcsr_norm, &
        cp_dbcsr_p_type, cp_dbcsr_print, cp_dbcsr_put_block, cp_dbcsr_release, &
        cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_trace, &
-       cp_dbcsr_type, cp_dbcsr_verify_matrix, cp_dbcsr_work_create
+       cp_dbcsr_type, cp_dbcsr_verify_matrix, cp_dbcsr_work_create, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_error_type, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+       dbcsr_norm_frobenius, dbcsr_scale_mat, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: &
        copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy_vec, &
        cp_dbcsr_deallocate_matrix, cp_dbcsr_from_fm, cp_dbcsr_multiply_vec, &
@@ -53,14 +60,6 @@ MODULE preconditioner
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_api,                       ONLY: &
-       array_data, array_i1d_obj, block_add_on_diag, block_chol_inv, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_error_type, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
-       dbcsr_norm_frobenius, dbcsr_scale_mat, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_default
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &

@@ -13,9 +13,13 @@ MODULE qs_scf_initialization
                                              set_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_init_p, &
-       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_p_type, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -39,11 +43,6 @@ MODULE qs_scf_initialization
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: &
-       array_i1d_obj, array_release, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default
   USE f77_blas
   USE input_constants,                 ONLY: &
        broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, &

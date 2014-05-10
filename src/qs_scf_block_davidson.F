@@ -16,11 +16,16 @@
 MODULE qs_scf_block_davidson
 
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_type
+       array_i1d_obj, array_release, cp_create_bl_distribution, cp_dbcsr_add, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_norm_column, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -42,12 +47,6 @@ MODULE qs_scf_block_davidson
        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, &
        cp_fm_vectorsnorm
-  USE dbcsr_api,                       ONLY: &
-       array_i1d_obj, array_release, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_norm_column, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
-       dbcsr_type_symmetric
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum

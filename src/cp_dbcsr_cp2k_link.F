@@ -10,28 +10,26 @@
 !>         01.2014 created
 ! *****************************************************************************
 MODULE cp_dbcsr_cp2k_link
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_matrix_type,&
-                                             cp_dbcsr_reserve_blocks,&
-                                             cp_dbcsr_type
-  USE dbcsr_api,                       ONLY: &
+  USE cp_dbcsr_interface,              ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
-       accdrv_priority_buffers, accdrv_priority_streams, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_error_type, dbcsr_get_conf_combtypes, &
-       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_type_no_symmetry, has_acc, &
-       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_name_acc, mm_name_blas, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm, multrec_limit
+       accdrv_priority_buffers, accdrv_priority_streams, cp_dbcsr_finalize, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_reserve_blocks, cp_dbcsr_type, &
+       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, &
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
+       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
+       mm_name_smm, multrec_limit
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&

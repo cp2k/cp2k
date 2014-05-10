@@ -23,11 +23,11 @@ MODULE xas_methods
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, &
+       convert_offsets_to_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, dbcsr_distribution_obj, &
+       dbcsr_type_antisymmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
@@ -50,13 +50,6 @@ MODULE xas_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release,&
-                                             convert_offsets_to_sizes,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_list, state_loc_range, xas_1s_type, &
        xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &

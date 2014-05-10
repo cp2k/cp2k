@@ -19,19 +19,17 @@ MODULE cp_dbcsr_output
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_get_data_size, cp_dbcsr_get_info, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_name, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type
+       array_data, cp_dbcsr_col_block_sizes, cp_dbcsr_get_data_size, &
+       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_name, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+       dbcsr_type_symmetric
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_api,                       ONLY: array_data,&
-                                             dbcsr_type_antisymmetric,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_symmetric
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

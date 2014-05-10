@@ -32,15 +32,7 @@
 #============================================================================
         {'dirname':'dbcsrwrap',
          'requires': ["../dbcsr","../common", "../base"],
-         'files': [
-            "cp_dbcsr_types.F",
-            "cp_dbcsr_methods.F",
-            "cp_dbcsr_interface.F",
-            "cp_dbcsr_interface_d.f90",
-            "cp_dbcsr_interface_s.f90",
-            "cp_dbcsr_interface_c.f90",
-            "cp_dbcsr_interface_z.f90",
-         ]
+         'files': [ ]
         },
 
 #============================================================================
@@ -51,7 +43,7 @@
 #============================================================================
 
         {'dirname':'start',
-         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsr", "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion", "../pint", "../dbcsrwrap"],
+         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsrwrap", "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion", "../pint", "../dbcsrwrap"],
         },
 
 #============================================================================
@@ -133,6 +125,7 @@
                    "taper_types.F",
                    "semi_empirical_expns3_types.F",
                    "fist_neighbor_list_types.F",
+                   "exclusion_types.F",
                    "qs_ot_types.F",
                    "qs_block_davidson_types.F",
                    "preconditioner_types.F",
@@ -181,7 +174,7 @@
 #============================================================================
          {'dirname':'gpw',
           'requires': ["../base", "../common", "../mpiwrap", "../input",
-                       "../pw", "../grid", "../aobasis", "../systemtypes", "../qstypes", "../dbcsr", "../dbcsrwrap" ],
+                       "../pw", "../grid", "../aobasis", "../systemtypes", "../qstypes", "../dbcsrwrap" ],
           'files': [
              "qs_collocate_density.F",
              "qs_integrate_potential.F",
@@ -213,7 +206,7 @@
 #============================================================================
 
          {'dirname':'hfx',
-          'requires': ["../base", "../common", "../dbcsr", "../mpiwrap", '../input', "../aobasis", "../systemtypes", "../qstypes", "../dbcsrwrap"],
+          'requires': ["../base", "../common", "../mpiwrap", '../input', "../aobasis", "../systemtypes", "../qstypes", "../dbcsrwrap"],
           'files': [
              "t_c_g0.F",
              "t_sh_p_s_c.F",
@@ -241,7 +234,7 @@
 #============================================================================
 
          {'dirname':'wfc',
-          'requires': ["../base", "../common", "../dbcsr", "../fm", "../mpiwrap", "../gpw", "../hfx", '../input', "../aobasis", "../systemtypes", "../pw", "../qstypes", "../dbcsrwrap"],
+          'requires': ["../base", "../common", "../fm", "../mpiwrap", "../gpw", "../hfx", '../input', "../aobasis", "../systemtypes", "../pw", "../qstypes", "../dbcsrwrap"],
           'files': [
             "input_cp2k_mp2.F",
             "mp2_cphf.F",
@@ -390,7 +383,7 @@
 #============================================================================
 
          {'dirname':'',
-          'requires':  ["base", "common", "fm", "pw", "ma", "acc", "dbcsr", "mpiwrap",
+          'requires':  ["base", "common", "fm", "pw", "ma", "acc", "mpiwrap",
                         "input", "xc", "hfx", "aobasis", "gpw", "systemtypes", "wfc", "qstypes", "dbcsrwrap"]
          },
 
@@ -410,7 +403,7 @@
 #============================================================================
 
          {'dirname':'ma',
-          'requires':  ["../base", "../common", "../dbcsr", "../mpiwrap"]
+          'requires':  ["../base", "../common", "../dbcsrwrap", "../mpiwrap"]
          },
 
 #============================================================================

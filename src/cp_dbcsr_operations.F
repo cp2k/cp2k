@@ -17,6 +17,8 @@ MODULE cp_dbcsr_operations
                                              get_blacs_info
   USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE cp_dbcsr_interface,              ONLY: &
+       add_work_coordinate, array_data, array_i1d_obj, array_new, &
+       array_nullify, array_release, block_set, convert_sizes_to_offsets, &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
        cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_data_size, &
@@ -28,22 +30,7 @@ MODULE cp_dbcsr_operations
        cp_dbcsr_p_type, cp_dbcsr_put_block, cp_dbcsr_release, &
        cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
        cp_dbcsr_type, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, &
-       cp_dbcsr_work_create
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE dbcsr_api,                       ONLY: &
-       add_work_coordinate, array_data, array_i1d_obj, array_new, &
-       array_nullify, array_release, block_set, convert_sizes_to_offsets, &
-       create_bl_distribution, dbcsr_access_flush, &
+       cp_dbcsr_work_create, create_bl_distribution, dbcsr_access_flush, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
@@ -60,6 +47,17 @@ MODULE cp_dbcsr_operations
        dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
        dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric, &
        dbcsr_wm_use_mutable
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp,&

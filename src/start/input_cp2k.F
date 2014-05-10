@@ -10,11 +10,11 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE dbcsr_api,                       ONLY: dbcsr_type_complex_4,&
+  USE cp_dbcsr_interface,              ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_atom_section

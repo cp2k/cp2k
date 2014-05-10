@@ -14,13 +14,12 @@ MODULE dm_ls_chebyshev
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_get_occupation, &
        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
+       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
   USE dm_ls_scf_qs,                    ONLY: write_matrix_to_cube
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE f77_blas

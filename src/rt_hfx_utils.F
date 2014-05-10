@@ -19,10 +19,10 @@ MODULE rt_hfx_utils
                                              cp_dbcsr_init,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_row_block_sizes,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_set,&
+                                             dbcsr_type_antisymmetric
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE dbcsr_api,                       ONLY: dbcsr_type_antisymmetric
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp

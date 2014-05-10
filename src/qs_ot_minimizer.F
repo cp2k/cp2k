@@ -11,16 +11,10 @@
 ! *****************************************************************************
 MODULE qs_ot_minimizer
 
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_trace,&
-                                             cp_dbcsr_type
-  USE dbcsr_api,                       ONLY: dbcsr_error_type,&
-                                             dbcsr_init_random
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_info, cp_dbcsr_p_type, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
+       dbcsr_error_type, dbcsr_init_random
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8

@@ -18,7 +18,7 @@ MODULE rt_propagation_output
        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_type
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
@@ -37,8 +37,6 @@ MODULE rt_propagation_output
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_api,                       ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_mp_group
   USE input_constants,                 ONLY: ehrenfest,&
                                              real_time_propagation
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

@@ -1,4 +1,4 @@
 {
 "description": "Entry points of CP2K",
-"requires": ["../", "../common", "../input", "../dbcsr", "../pw", "../tmc", "../acc", "../base", "../mpiwrap"]
+"requires": ["../", "../common", "../input", "../dbcsrwrap", "../pw", "../tmc", "../acc", "../base", "../mpiwrap"]
 }

@@ -15,23 +15,22 @@ MODULE dm_ls_scf_qs
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
+       array_data, array_i1d_obj, array_new, array_release, &
        cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_init, &
        cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE dbcsr_api,                       ONLY: &
-       array_data, array_i1d_obj, array_new, array_release, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &
        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_name, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&

@@ -15,8 +15,7 @@ MODULE input_cp2k_global
   USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
                                              BLACS_GRID_SQUARE
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE dbcsr_api,                       ONLY: &
+  USE cp_dbcsr_interface,              ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
@@ -27,6 +26,7 @@ MODULE input_cp2k_global
        mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
        mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
        mm_name_smm, multrec_limit
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&

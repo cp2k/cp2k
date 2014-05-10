@@ -14,10 +14,9 @@ MODULE iterate_matrix
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
        cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_transposed, cp_dbcsr_type
+       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_norm_maxabsnorm, &
+       dbcsr_type_no_symmetry
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE dbcsr_api,                       ONLY: dbcsr_norm_maxabsnorm,&
-                                             dbcsr_type_no_symmetry
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
