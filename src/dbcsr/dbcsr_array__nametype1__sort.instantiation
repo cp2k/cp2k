@@ -1,6 +1,6 @@
 [
 
-{'template':'../common/cp_array__nametype1__sort.template',
+{'template':'dbcsr_array__nametype1__sort.template',
 'libname':'dbcsr',
 'nametype1':'i4',
 'type1':'integer(kind=int_4)',
@@ -8,7 +8,7 @@
 'lessQ':'CP_I_LESS_Q',
 'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
 
-{'template':'../common/cp_array__nametype1__sort.template',
+{'template':'dbcsr_array__nametype1__sort.template',
 'libname':'dbcsr',
 'nametype1':'i8',
 'type1':'integer(kind=int_8)',

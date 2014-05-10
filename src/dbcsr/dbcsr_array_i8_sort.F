@@ -185,7 +185,7 @@ END SUBROUTINE dbcsr_1d_i8_sort_low
 !  lessQ = "CP_I_LESS_Q"
 !  libname = "dbcsr"
 !  nametype1 = "i8"
-!  template = "../common/cp_array__nametype1__sort.template"
+!  template = "dbcsr_array__nametype1__sort.template"
 !  type1 = "integer(kind=int_8)"
 
 
