@@ -27,12 +27,11 @@ MODULE qs_linres_current_utils
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
-       convert_offsets_to_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, dbcsr_distribution_obj, &
+       convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_set, dbcsr_distribution_obj, &
        dbcsr_type_antisymmetric
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

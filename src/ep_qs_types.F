@@ -11,8 +11,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE ep_qs_types
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&

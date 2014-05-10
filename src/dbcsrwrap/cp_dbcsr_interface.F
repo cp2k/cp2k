@@ -231,6 +231,8 @@ MODULE cp_dbcsr_interface
                                              heap_release,&
                                              heap_reset_first,&
                                              heap_t
+  PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
+  PUBLIC :: cp_dbcsr_add_block_node
 
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix
@@ -349,6 +351,15 @@ MODULE cp_dbcsr_interface
                       cp_dbcsr_reserve_block2d_s,&
                       cp_dbcsr_reserve_block2d_c,&
                       cp_dbcsr_reserve_block2d_z
+  END INTERFACE
+
+  INTERFACE cp_dbcsr_allocate_matrix_set
+     MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
+  END INTERFACE
+
+  INTERFACE cp_dbcsr_deallocate_matrix_set
+     MODULE PROCEDURE deallocate_dbcsr_matrix_set,&
+                      deallocate_dbcsr_matrix_set_2d
   END INTERFACE
 
   PRIVATE
@@ -1733,6 +1744,212 @@ CONTAINS
 
     row_blk_offsets = matrix%matrix%m%row_blk_offset
   END FUNCTION cp_dbcsr_row_block_offsets
+
+! *****************************************************************************
+!> \brief Deallocates a DBCSR matrix for compatibility with CP2K
+!> \param[in,out] matrix      DBCSR matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_deallocate_matrix(matrix, error)
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_deallocate_matrix', &
+      routineP = moduleN//':'//routineN
+
+    CALL cp_dbcsr_release (matrix, error=error)
+    CALL cp_assert (.NOT. cp_dbcsr_valid_index(matrix), cp_warning_level,&
+         cp_caller_error, routineN,&
+         'You should not "deallocate" a referenced matrix. '//&
+         'Avoid pointers to DBCSR matrices.')
+    DEALLOCATE (matrix)
+    NULLIFY (matrix)
+
+  END SUBROUTINE cp_dbcsr_deallocate_matrix
+
+! *****************************************************************************
+! CP2k-compatible matrix sets
+! *****************************************************************************
+
+
+! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix 1-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrices
+!> \param[in] nmatrix         Size of set
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE allocate_dbcsr_matrix_set(matrix_set, nmatrix, error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set
+    INTEGER, INTENT(IN)                      :: nmatrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix
+
+    IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
+    ALLOCATE (matrix_set(nmatrix))
+    DO imatrix=1,nmatrix
+       NULLIFY (matrix_set(imatrix)%matrix)
+       !ALLOCATE (matrix_set(imatrix)%matrix)
+       !CALL cp_dbcsr_init (matrix_set(imatrix)%matrix)
+    END DO
+  END SUBROUTINE allocate_dbcsr_matrix_set
+
+! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix 2-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in] nmatrix         Size of set
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_set
+    INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix, jmatrix
+
+    IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
+    ALLOCATE (matrix_set(nmatrix,mmatrix))
+    DO jmatrix=1,mmatrix
+      DO imatrix=1,nmatrix
+         NULLIFY (matrix_set(imatrix,jmatrix)%matrix)
+         !ALLOCATE (matrix_set(imatrix,jmatrix)%matrix)
+         !CALL cp_dbcsr_init (matrix_set(imatrix,jmatrix)%matrix)
+      END DO
+    END DO
+  END SUBROUTINE allocate_dbcsr_matrix_set_2d
+
+
+! *****************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE deallocate_dbcsr_matrix_set(matrix_set,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix
+
+    IF (ASSOCIATED(matrix_set)) THEN
+      DO imatrix=1,SIZE(matrix_set)
+        CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
+      END DO
+      DEALLOCATE (matrix_set)
+    END IF
+
+  END SUBROUTINE deallocate_dbcsr_matrix_set
+
+! *****************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'deallocate_dbcsr_matrix_set_2d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix, jmatrix
+
+    IF (ASSOCIATED(matrix_set)) THEN
+      DO jmatrix=1,SIZE(matrix_set,2)
+        DO imatrix=1,SIZE(matrix_set,1)
+          CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix,error=error)
+        END DO
+      END DO
+      DEALLOCATE (matrix_set)
+    END IF
+  END SUBROUTINE deallocate_dbcsr_matrix_set_2d
+
+
+! *****************************************************************************
+!> \brief Emulation of sparse_matrix_types/add_block_node mapped
+!>        to add_real_matrix_block.... should not be used any longer
+!>
+!> It adds a block to the dbcsr matrix and returns a rank-2 pointer to the
+!> block. Currently it only and always uses the mutable data.
+!> \param[in,out] matrix      DBCSR matrix
+!> \param[in]  row            the row
+!> \param[in]  col            the column
+!> \param[in]  block          the block to put
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_add_block_node (matrix, block_row, block_col, block, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    INTEGER, INTENT(IN)                      :: block_row, block_col
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_add_block_node', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: c, ithread, p, r
+    LOGICAL                                  :: dbg, existed, is_there, tr
+
+!   ---------------------------------------------------------------------------
+
+    dbg = .FALSE.
+
+    ithread = 0
+!$  ithread = omp_get_thread_num()
+    IF (.NOT. ASSOCIATED (matrix%matrix%m%wms)) THEN
+       CALL cp_dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
+       matrix%matrix%m%valid = .FALSE.
+    ENDIF
+!$  CALL cp_assert (SIZE (matrix%matrix%m%wms) .GE. omp_get_num_threads(),&
+!$       cp_fatal_level, cp_wrong_args_error, routineN,&
+!$       "Too few threads.", error=error)
+    CALL cp_assert (dbcsr_wm_use_mutable (matrix%matrix%m%wms(ithread+1)),&
+         cp_warning_level,&
+         cp_unimplemented_error_nr, routineN,&
+         "Data loss due to no conversion of appendable to mutable data")
+    is_there = ASSOCIATED(block)
+    !r = row ; c = col ; tr = .FALSE.
+    !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
+    !CALL dbcsr_reserve_block2d (matrix, row, col, block)
+    !write(*,*) 'add_block_node: block_row',block_row,' block_col',block_col
+    CALL cp_dbcsr_reserve_block2d (matrix, block_row, block_col, block,&
+         existed=existed)
+!
+    IF (dbg) THEN
+       r = block_row ; c = block_col ; tr = .FALSE.
+       CALL cp_dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
+       CALL cp_assert (p .EQ. dbcsr_mp_mynode (dbcsr_distribution_mp (&
+            cp_dbcsr_distribution(matrix))),&
+            cp_warning_level, cp_internal_error, routineN,&
+            "Adding non-local element", error=error)
+    ENDIF
+    CALL cp_assert (.NOT.existed, cp_warning_level, cp_wrong_args_error,&
+         routineN, "You should not add existing blocks according to old API.")
+    IF(.NOT.is_there) block(:,:) = 0.0_dp
+  END SUBROUTINE cp_dbcsr_add_block_node
+
 
 #include "cp_dbcsr_interface_s.f90"
 #include "cp_dbcsr_interface_d.f90"

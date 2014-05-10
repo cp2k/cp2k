@@ -24,15 +24,13 @@ MODULE qs_ks_utils
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_scale_by_vector, &
-       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_scale, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD

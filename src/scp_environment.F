@@ -13,11 +13,10 @@ MODULE scp_environment
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
-       convert_offsets_to_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_finalize, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
-       cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, &
-       dbcsr_repl_full, dbcsr_type_symmetric
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node
+       convert_offsets_to_sizes, cp_dbcsr_add_block_node, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_diag, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_obj, dbcsr_repl_full, dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pnnl,&

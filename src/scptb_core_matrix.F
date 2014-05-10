@@ -13,11 +13,11 @@ MODULE scptb_core_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_output_handling,              ONLY: cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas

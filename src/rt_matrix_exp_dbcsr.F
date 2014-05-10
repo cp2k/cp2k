@@ -13,10 +13,9 @@ MODULE rt_matrix_exp_dbcsr
 
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_type_complex_8
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, &
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_type_complex_8
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

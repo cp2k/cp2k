@@ -13,8 +13,8 @@ MODULE et_coupling
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_invert,&
                                              cp_fm_transpose

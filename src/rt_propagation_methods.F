@@ -20,17 +20,16 @@ MODULE rt_propagation_methods
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
-       cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, &
-       cp_dbcsr_get_block, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_plus_fm_fm_t,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

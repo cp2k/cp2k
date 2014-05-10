@@ -16,11 +16,11 @@ MODULE qs_energy_utils
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
-       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE efield_utils,                    ONLY: calculate_ecore_efield

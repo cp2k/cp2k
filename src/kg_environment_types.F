@@ -10,8 +10,8 @@
 !> \author Martin Haeufel
 ! *****************************************************************************
 MODULE kg_environment_types
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type

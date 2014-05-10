@@ -23,11 +23,10 @@ MODULE qs_overlap
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
-       cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_type, &
-       dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
-       dbcsr_type_no_symmetry, dbcsr_type_symmetric
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_filter, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj, &
+       dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set

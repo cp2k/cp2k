@@ -27,26 +27,24 @@ MODULE cp_dbcsr_operations
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_norm, &
-       cp_dbcsr_p_type, cp_dbcsr_put_block, cp_dbcsr_release, &
-       cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_type, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, &
-       cp_dbcsr_work_create, create_bl_distribution, dbcsr_access_flush, &
-       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_obj, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_norm_frobenius, &
+       cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_type, cp_dbcsr_valid_index, &
+       cp_dbcsr_verify_matrix, cp_dbcsr_work_create, create_bl_distribution, &
+       dbcsr_access_flush, dbcsr_create_dist_block_cyclic, &
+       dbcsr_create_dist_r_unrot, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_get_data, &
+       dbcsr_get_data_p, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
+       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_obj, dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_norm_frobenius, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric, &
-       dbcsr_wm_use_mutable
+       dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -61,12 +59,10 @@ MODULE cp_dbcsr_operations
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp,&
-                                             int_size,&
                                              real_4,&
                                              sp
   USE message_passing,                 ONLY: mp_bcast
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -90,10 +86,7 @@ MODULE cp_dbcsr_operations
   END INTERFACE
 
   ! CP2K API emulation
-  PUBLIC :: cp_dbcsr_add_block_node,&
-            cp_dbcsr_deallocate_matrix,&
-            cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set,&
-            cp_dbcsr_from_fm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
+  PUBLIC :: cp_dbcsr_from_fm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             copy_dbcsr_to_cfm, copy_cfm_to_dbcsr, &
             cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t,&
             cp_dbcsr_get_id_nr
@@ -102,15 +95,6 @@ MODULE cp_dbcsr_operations
   PUBLIC :: cp_dbcsr_dist2d_to_dist
 
   PUBLIC :: cp_dbcsr_copy_columns_hack
-
-  INTERFACE cp_dbcsr_allocate_matrix_set
-     MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_deallocate_matrix_set
-     MODULE PROCEDURE deallocate_dbcsr_matrix_set,&
-                      deallocate_dbcsr_matrix_set_2d
-  END INTERFACE
 
   INTERFACE cp_dbcsr_plus_fm_fm_t
      MODULE PROCEDURE cp_dbcsr_plus_fm_fm_t_native
@@ -1614,69 +1598,6 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_copy_vec
 
 
-! *****************************************************************************
-!> \brief Emulation of sparse_matrix_types/add_block_node mapped
-!>        to add_real_matrix_block.
-!>
-!> It adds a block to the dbcsr matrix and returns a rank-2 pointer to the
-!> block. Currently it only and always uses the mutable data.
-!> \param[in,out] matrix      DBCSR matrix
-!> \param[in]  row            the row
-!> \param[in]  col            the column
-!> \param[in]  block          the block to put
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_add_block_node (matrix, block_row, block_col, block, error)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    INTEGER, INTENT(IN)                      :: block_row, block_col
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_add_block_node', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: c, ithread, p, r
-    LOGICAL                                  :: dbg, existed, is_there, tr
-
-!   ---------------------------------------------------------------------------
-!    CALL cp_assert (matrix%m%work_mutable, cp_warning_level, cp_caller_error,&
-!         routineN, "Mutable not defined upon DBCSR creation, forcing its use.")
-
-    dbg = .FALSE.
-
-    ithread = 0
-!$  ithread = omp_get_thread_num()
-    IF (.NOT. ASSOCIATED (matrix%matrix%m%wms)) THEN
-       CALL cp_dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
-       matrix%matrix%m%valid = .FALSE.
-    ENDIF
-!$  CALL cp_assert (SIZE (matrix%matrix%m%wms) .GE. omp_get_num_threads(),&
-!$       cp_fatal_level, cp_wrong_args_error, routineN,&
-!$       "Too few threads.", error=error)
-    CALL cp_assert (dbcsr_wm_use_mutable (matrix%matrix%m%wms(ithread+1)),&
-         cp_warning_level,&
-         cp_unimplemented_error_nr, routineN,&
-         "Data loss due to no conversion of appendable to mutable data")
-    is_there = ASSOCIATED(block)
-    !r = row ; c = col ; tr = .FALSE.
-    !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
-    !CALL dbcsr_reserve_block2d (matrix, row, col, block)
-    !write(*,*) 'add_block_node: block_row',block_row,' block_col',block_col
-    CALL cp_dbcsr_reserve_block2d (matrix, block_row, block_col, block,&
-         existed=existed)
-!
-    IF (dbg) THEN
-       r = block_row ; c = block_col ; tr = .FALSE.
-       CALL cp_dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
-       CALL cp_assert (p .EQ. dbcsr_mp_mynode (dbcsr_distribution_mp (&
-            cp_dbcsr_distribution(matrix))),&
-            cp_warning_level, cp_internal_error, routineN,&
-            "Adding non-local element", error=error)
-    ENDIF
-    CALL cp_assert (.NOT.existed, cp_warning_level, cp_wrong_args_error,&
-         routineN, "You should not add existing blocks according to old API.")
-    IF(.NOT.is_there) block(:,:) = 0.0_dp
-  END SUBROUTINE cp_dbcsr_add_block_node
 
 ! *****************************************************************************
 !> \brief returns the id of the given matrix (from cp_sm_get_id_nr)
@@ -1703,164 +1624,6 @@ FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
      res=0
   END IF
 END FUNCTION cp_dbcsr_get_id_nr
-
-! *****************************************************************************
-!> \brief Deallocates a DBCSR matrix for compatibility with CP2K
-!> \param[in,out] matrix      DBCSR matrix
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_deallocate_matrix(matrix, error)
-    TYPE(cp_dbcsr_type), POINTER             :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_deallocate_matrix', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-
-    CALL timeset(routineN, timing_handle)
-
-    CALL cp_dbcsr_release (matrix, error=error)
-    CALL cp_assert (.NOT. cp_dbcsr_valid_index(matrix), cp_warning_level,&
-         cp_caller_error, routineN,&
-         'You should not "deallocate" a referenced matrix. '//&
-         'Avoid pointers to DBCSR matrices.')
-    DEALLOCATE (matrix)
-    NULLIFY (matrix)
-
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE cp_dbcsr_deallocate_matrix
-
-! *****************************************************************************
-! CP2k-compatible matrix sets
-! *****************************************************************************
-
-
-! *****************************************************************************
-!> \brief   Allocate and initialize a real matrix 1-dimensional set.
-!> \param[in,out] matrix_set  Set containing the DBCSR matrices
-!> \param[in] nmatrix         Size of set
-!> \param[in,out] error       cp2k error
-!> \par History
-!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
-! *****************************************************************************
-  SUBROUTINE allocate_dbcsr_matrix_set(matrix_set, nmatrix, error)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_set
-    INTEGER, INTENT(IN)                      :: nmatrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: imatrix, istat
-
-    IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
-    ALLOCATE (matrix_set(nmatrix),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "matrix_set",int_size*nmatrix)
-    DO imatrix=1,nmatrix
-       NULLIFY (matrix_set(imatrix)%matrix)
-       !ALLOCATE (matrix_set(imatrix)%matrix)
-       !CALL cp_dbcsr_init (matrix_set(imatrix)%matrix)
-    END DO
-  END SUBROUTINE allocate_dbcsr_matrix_set
-
-! *****************************************************************************
-!> \brief   Allocate and initialize a real matrix 2-dimensional set.
-!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
-!> \param[in] nmatrix         Size of set
-!> \param[in,out] error       cp2k error
-!> \par History
-!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
-! *****************************************************************************
-  SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_set
-    INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: imatrix, istat, jmatrix
-
-    IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
-    ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "matrix_set",int_size*nmatrix*mmatrix)
-    DO jmatrix=1,mmatrix
-      DO imatrix=1,nmatrix
-         NULLIFY (matrix_set(imatrix,jmatrix)%matrix)
-         !ALLOCATE (matrix_set(imatrix,jmatrix)%matrix)
-         !CALL cp_dbcsr_init (matrix_set(imatrix,jmatrix)%matrix)
-      END DO
-    END DO
-  END SUBROUTINE allocate_dbcsr_matrix_set_2d
-
-
-! *****************************************************************************
-!> \brief Deallocate a real matrix set and release all of the member matrices.
-!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
-!> \param[in,out] error       cp2k error
-!> \par History
-!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
-! *****************************************************************************
-  SUBROUTINE deallocate_dbcsr_matrix_set(matrix_set,error)
-
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: imatrix, istat, timing_handle
-
-    CALL timeset(routineN, timing_handle)
-
-    IF (ASSOCIATED(matrix_set)) THEN
-      DO imatrix=1,SIZE(matrix_set)
-        CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
-      END DO
-      DEALLOCATE (matrix_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"matrix_set")
-    END IF
-
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE deallocate_dbcsr_matrix_set
-
-! *****************************************************************************
-!> \brief Deallocate a real matrix set and release all of the member matrices.
-!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
-!> \param[in,out] error       cp2k error
-!> \par History
-!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
-! *****************************************************************************
-  SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set,error)
-
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'deallocate_dbcsr_matrix_set_2d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: imatrix, istat, jmatrix
-
-    IF (ASSOCIATED(matrix_set)) THEN
-      DO jmatrix=1,SIZE(matrix_set,2)
-        DO imatrix=1,SIZE(matrix_set,1)
-          CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix,error=error)
-        END DO
-      END DO
-      DEALLOCATE (matrix_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"matrix_set")
-    END IF
-  END SUBROUTINE deallocate_dbcsr_matrix_set_2d
 
 ! *****************************************************************************
 !> \brief Maps sparse_matrix_type symmetry to DBCSR matrix type

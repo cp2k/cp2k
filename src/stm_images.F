@@ -14,11 +14,11 @@ MODULE stm_images
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_plus_fm_fm_t
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&

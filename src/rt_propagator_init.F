@@ -11,17 +11,12 @@ MODULE rt_propagator_init
 
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_filter,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_multiply,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_scale, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_deallocate_matrix
+                                             copy_fm_to_dbcsr
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&

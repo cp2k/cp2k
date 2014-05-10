@@ -14,12 +14,11 @@ MODULE admm_utils
   USE admm_types,                      ONLY: admm_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_data_size, &
-       cp_dbcsr_get_data_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_type_symmetric
-  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                             cp_dbcsr_deallocate_matrix
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
+       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE input_constants,                 ONLY: do_admm_basis_set_projection,&
                                              do_admm_block_density_matrix,&

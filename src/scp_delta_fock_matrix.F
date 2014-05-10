@@ -22,13 +22,11 @@ MODULE scp_delta_fock_matrix
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
-       cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_distribute, cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
        cp_dbcsr_sum_replicated, cp_dbcsr_trace, cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type

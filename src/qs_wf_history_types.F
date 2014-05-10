@@ -12,10 +12,10 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_types
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE f77_blas

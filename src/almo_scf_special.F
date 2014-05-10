@@ -28,20 +28,20 @@ MODULE almo_scf_special
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        array_data, array_i1d_obj, array_new, array_release, &
-       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
-       cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
-       cp_dbcsr_get_num_blocks, cp_dbcsr_get_stored_coordinates, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
+       cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_get_num_blocks, &
+       cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, cp_dbcsr_work_create, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &
        dbcsr_mp_numnodes, dbcsr_type_no_symmetry
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_allocate_matrix_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: almo_constraint_ao_overlap,&

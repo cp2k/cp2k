@@ -18,12 +18,11 @@ MODULE qs_dftb_matrices
                                              dftb_control_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
-       convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_type, &
+       convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_add_block_node, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_type, &
        dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_symmetric
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
