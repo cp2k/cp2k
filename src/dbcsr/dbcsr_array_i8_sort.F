@@ -178,7 +178,7 @@ END SUBROUTINE dbcsr_1d_i8_sort_low
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,lessQ,defines)]
 ! ARGS:
-!  USE = "USE dbcsr_kinds,       ONLY:int_8"
+!  USE = "USE kinds,       ONLY:int_8"
 !  defines = 
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
