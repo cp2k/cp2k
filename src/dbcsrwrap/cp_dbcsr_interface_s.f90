@@ -161,28 +161,6 @@
   END SUBROUTINE cp_dbcsr_get_block_s
 
 
-  SUBROUTINE cp_dbcsr_get_2d_block_s (matrix,row,col,block,found,&
-       row_size, col_size)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_4), DIMENSION(:, :), INTENT(OUT)    :: block
-    LOGICAL, INTENT(OUT)                     :: found
-    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_s', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: tr
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
-    tr=.FALSE.
-    CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
-         row_size, col_size)
-
-  END SUBROUTINE cp_dbcsr_get_2d_block_s
-
-
   SUBROUTINE cp_dbcsr_get_2d_block_p_s (matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -365,26 +343,6 @@
 
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
   END SUBROUTINE cp_dbcsr_scale_s
-
-
-  SUBROUTINE cp_dbcsr_scale_s_m (matrix_a, alpha_matrix, side, error)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)        :: matrix_a
-    REAL(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: alpha_matrix
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL    :: side
-    TYPE(dbcsr_error_type), INTENT(INOUT)     :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_s_m', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                   :: timing_handle
-    TYPE(cp_error_type)                       :: cp_error
-    TYPE(dbcsr_error_type)                    :: dbcsr_error
-
-    CALL cp_error_init (cp_error)
-    dbcsr_error = error
-    CALL dbcsr_scale_mat(matrix_a%matrix, alpha_matrix, side, error=dbcsr_error)
-    error = dbcsr_error
-  END SUBROUTINE cp_dbcsr_scale_s_m
 
 
   SUBROUTINE cp_dbcsr_set_s (matrix, alpha, error)

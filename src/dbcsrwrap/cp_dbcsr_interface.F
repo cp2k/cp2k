@@ -275,10 +275,6 @@ MODULE cp_dbcsr_interface
                       cp_dbcsr_scale_s,&
                       cp_dbcsr_scale_c,&
                       cp_dbcsr_scale_z
-     MODULE PROCEDURE cp_dbcsr_scale_d_m,&
-                      cp_dbcsr_scale_s_m,&
-                      cp_dbcsr_scale_c_m,&
-                      cp_dbcsr_scale_z_m
   END INTERFACE
 
   INTERFACE cp_dbcsr_scale_by_vector
@@ -311,10 +307,6 @@ MODULE cp_dbcsr_interface
                       cp_dbcsr_get_block_s,&
                       cp_dbcsr_get_block_z,&
                       cp_dbcsr_get_block_c
-     MODULE PROCEDURE cp_dbcsr_get_2d_block_d,&
-                      cp_dbcsr_get_2d_block_s,&
-                      cp_dbcsr_get_2d_block_z,&
-                      cp_dbcsr_get_2d_block_c
   END INTERFACE
 
   INTERFACE cp_dbcsr_put_block
