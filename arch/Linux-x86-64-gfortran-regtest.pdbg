@@ -1,0 +1,26 @@
+# Tested with: GFortran 4.9.1, MPICH 3.1, LAPACK 3.5.0, ScaLAPACK 2.0.2
+CC         = gcc
+CPP        =
+FC         = mpif90
+LD         = mpif90
+AR         = ar -r
+FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-regtest/include
+FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-regtest/lib64
+LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
+LIBXC_INC  = $(GCC_DIR)/libxc/2.0.1-gnu-regtest/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/2.0.1-gnu-regtest/lib64
+DFLAGS     = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2\
+             -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS   = 
+FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds -ffree-form -ffree-line-length-none\
+             -fno-omit-frame-pointer -g -mtune=generic\
+             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+LDFLAGS    = $(FCFLAGS) -static-libgfortran -fsanitize=leak
+LIBS       = $(LIBPATH)/libscalapack-gnu-regtest.a\
+             $(LIBPATH)/liblapack-gnu-regtest.a\
+             $(LIBPATH)/libblas-gnu-regtest.a\
+             $(FFTW_LIB)/libfftw3.a\
+             $(LIBXC_LIB)/libxc.a\
+             $(LIBINT_LIB)/libderiv.a\
+             $(LIBINT_LIB)/libint.a
