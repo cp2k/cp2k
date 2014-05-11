@@ -36,8 +36,7 @@ MODULE input_cp2k
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
                                              lchar_t,&
-                                             logical_t,&
-                                             real_t
+                                             logical_t
   USE kinds,                           ONLY: dp
   USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                              do_pw_grid_blocked_free,&

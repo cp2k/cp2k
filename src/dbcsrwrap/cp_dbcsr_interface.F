@@ -52,18 +52,17 @@ MODULE cp_dbcsr_interface
        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_init, &
        dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_maxabs, dbcsr_mp_get_coordinates, &
-       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_pgrid, dbcsr_mp_release, &
-       dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_new_transposed, dbcsr_nfullcols_local, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_no_transpose, &
-       dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, &
-       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_print, dbcsr_put_block, &
-       dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_maxabs, &
+       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_multiply, dbcsr_name, &
+       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
+       dbcsr_nblkrows_total, dbcsr_new_transposed, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
+       dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
+       dbcsr_obj, dbcsr_print, dbcsr_put_block, dbcsr_release, &
+       dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
        dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
@@ -185,12 +184,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_nblkcols_total
   PUBLIC :: cp_dbcsr_get_num_blocks
   PUBLIC :: cp_dbcsr_get_data_size
-  PUBLIC :: cp_dbcsr_col_block_offsets
-  PUBLIC :: cp_dbcsr_row_block_offsets
   PUBLIC :: cp_dbcsr_nfullrows_total
   PUBLIC :: cp_dbcsr_nfullcols_total
-  PUBLIC :: cp_dbcsr_nfullrows_local
-  PUBLIC :: cp_dbcsr_nfullcols_local
   !         1234567890123456789012345678901
   PUBLIC :: cp_dbcsr_get_stored_coordinates
   PUBLIC :: cp_dbcsr_valid_index
@@ -321,7 +316,6 @@ MODULE cp_dbcsr_interface
   END INTERFACE
 
   INTERFACE cp_dbcsr_iterator_next_block
-     MODULE PROCEDURE cp_iterator_next_block_index
      MODULE PROCEDURE cp_iterator_next_2d_block_d,&
                       cp_iterator_next_2d_block_s,&
                       cp_iterator_next_2d_block_c,&
@@ -656,51 +650,6 @@ CONTAINS
     nblkcols_local = dbcsr_nblkcols_local(matrix%matrix)
   END FUNCTION cp_dbcsr_nblkcols_local
 
-  FUNCTION cp_dbcsr_nfullrows_local(matrix) RESULT (nfullrows_local)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: nfullrows_local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nfullrows_local', &
-      routineP = moduleN//':'//routineN
-
-    nfullrows_local = dbcsr_nfullrows_local(matrix%matrix)
-
-  END FUNCTION cp_dbcsr_nfullrows_local
-
-
-  FUNCTION cp_dbcsr_nfullcols_local(matrix) RESULT (nfullcols_local)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: nfullcols_local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nfullcols_local', &
-      routineP = moduleN//':'//routineN
-
-    nfullcols_local = dbcsr_nfullcols_local(matrix%matrix)
-
-  END FUNCTION cp_dbcsr_nfullcols_local
-
-  FUNCTION cp_dbcsr_max_row_size(matrix) RESULT (max_row_size)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: max_row_size
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_max_row_size', &
-      routineP = moduleN//':'//routineN
-
-    max_row_size = dbcsr_max_row_size(matrix%matrix)
-
-  END FUNCTION cp_dbcsr_max_row_size
-
-  FUNCTION cp_dbcsr_max_col_size(matrix) RESULT (max_col_size)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: max_col_size
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_max_col_size', &
-      routineP = moduleN//':'//routineN
-
-    max_col_size = dbcsr_max_col_size(matrix%matrix)
-
-  END FUNCTION cp_dbcsr_max_col_size
-
   FUNCTION cp_dbcsr_distribution (matrix) RESULT (distribution)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     TYPE(dbcsr_distribution_obj)             :: distribution
@@ -773,24 +722,6 @@ CONTAINS
        mypcol)
 
   END SUBROUTINE cp_dbcsr_mp_new
-
-  SUBROUTINE cp_iterator_next_block_index (iterator, row, column, blk,&
-       blk_p, row_size, col_size, row_offset, col_offset)
-    TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
-    INTEGER, INTENT(OUT)                     :: row, column, blk
-    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p, row_size, col_size, &
-                                                row_offset, col_offset
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_block_index', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: transposed
-
-    CALL dbcsr_iterator_next_block (iterator, row, column, blk,&
-       transposed, blk_p, row_size, col_size, row_offset, col_offset)
-
-  END SUBROUTINE cp_iterator_next_block_index
-
 
   SUBROUTINE cp_dbcsr_iterator_stop (iterator)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
@@ -1645,26 +1576,6 @@ CONTAINS
 
     col_blk_sizes = matrix%matrix%m%col_blk_size
   END FUNCTION cp_dbcsr_col_block_sizes
-
-  FUNCTION cp_dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: col_blk_offsets
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_offsets', &
-      routineP = moduleN//':'//routineN
-
-    col_blk_offsets = matrix%matrix%m%col_blk_offset
-  END FUNCTION cp_dbcsr_col_block_offsets
-
-  FUNCTION cp_dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: row_blk_offsets
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_offsets', &
-      routineP = moduleN//':'//routineN
-
-    row_blk_offsets = matrix%matrix%m%row_blk_offset
-  END FUNCTION cp_dbcsr_row_block_offsets
 
 ! *****************************************************************************
 !> \brief Deallocates a DBCSR matrix for compatibility with CP2K
