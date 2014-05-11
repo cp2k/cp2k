@@ -23,36 +23,35 @@ MODULE cp_dbcsr_interface
        block_set, convert_offsets_to_sizes, convert_sizes_to_offsets, &
        cp_dbcsr_iterator=>dbcsr_iterator, cp_test_multiplies, &
        create_bl_distribution, dbcsr_access_flush, dbcsr_add, &
-       dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, &
-       dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
-       dbcsr_blk_row_size, dbcsr_btriu, dbcsr_checksum, dbcsr_clear_mempools, &
-       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
-       dbcsr_create, dbcsr_create_dist_block_cyclic, &
-       dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
-       dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_filter, &
-       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
-       dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
-       dbcsr_func_tanh, dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
-       dbcsr_get_block, dbcsr_get_block_diag, dbcsr_get_block_p, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_diag, &
-       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
-       dbcsr_hadamard_product, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
-       dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, &
+       dbcsr_checksum, dbcsr_clear_mempools, dbcsr_complete_redistribute, &
+       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
+       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_obj, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
+       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
+       dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
+       dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
+       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+       dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_init, &
+       dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_max_col_size, &
        dbcsr_max_row_size, dbcsr_maxabs, dbcsr_mp_get_coordinates, &
        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
@@ -63,13 +62,13 @@ MODULE cp_dbcsr_interface
        dbcsr_new_transposed, dbcsr_nfullcols_local, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_no_transpose, &
        dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, &
-       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_print, dbcsr_print_block_sum, &
-       dbcsr_put_block, dbcsr_release, dbcsr_repl_full, dbcsr_replicate, &
-       dbcsr_replicate_all, dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, &
-       dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_scalar, &
-       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
-       dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, &
-       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
+       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_print, dbcsr_put_block, &
+       dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
+       dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
+       dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
+       dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
+       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
        dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
@@ -208,7 +207,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_binary_write
   PUBLIC :: cp_dbcsr_binary_read
   PUBLIC :: cp_dbcsr_function_of_elements
-  PUBLIC :: cp_dbcsr_print_block_sum
   PUBLIC :: cp_dbcsr_btriu
   PUBLIC :: cp_dbcsr_clear_mempools
   PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
@@ -1415,29 +1413,6 @@ CONTAINS
             b_assume_value, dbcsr_error)
   END SUBROUTINE cp_dbcsr_hadamard_product
 
-
-  SUBROUTINE fill_sizes (matrix, row, col,&
-       row_size, col_size, row_offset, col_offset)
-    TYPE(cp_dbcsr_type), INTENT(in)          :: matrix
-    INTEGER, INTENT(in)                      :: row, col
-    INTEGER, INTENT(out), OPTIONAL           :: row_size, col_size, &
-                                                row_offset, col_offset
-
-    IF (PRESENT (row_size)) THEN
-       row_size = dbcsr_blk_row_size (matrix%matrix, row)
-    ENDIF
-    IF (PRESENT (col_size)) THEN
-       col_size = dbcsr_blk_column_size (matrix%matrix, col)
-    ENDIF
-    IF (PRESENT (row_offset)) THEN
-       row_offset = dbcsr_blk_row_offset (matrix%matrix, row)
-    ENDIF
-    IF (PRESENT (col_offset)) THEN
-       col_offset = dbcsr_blk_col_offset (matrix%matrix, col)
-    ENDIF
-  END SUBROUTINE fill_sizes
-
-
 ! *****************************************************************************
 !> \brief     Adjusts matrices to be compatibly for multiplication.
 !>
@@ -1658,20 +1633,6 @@ CONTAINS
        new_data(sz+1:new_size) = 0
     ENDIF
   END SUBROUTINE match_1_dist
-
-  SUBROUTINE cp_dbcsr_print_block_sum(matrix, unit_nr, error)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER, OPTIONAL                        :: unit_nr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_block_sum', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_print_block_sum(matrix%matrix, unit_nr, dbcsr_error)
-
-  END SUBROUTINE cp_dbcsr_print_block_sum
 
   FUNCTION cp_dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix

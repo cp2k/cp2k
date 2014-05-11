@@ -62,8 +62,7 @@ MODULE dbcsr_api
                                              dbcsr_error_type
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                              dbcsr_binary_write,&
-                                             dbcsr_print,&
-                                             dbcsr_print_block_sum
+                                             dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -281,7 +280,6 @@ MODULE dbcsr_api
            dbcsr_no_transpose ,&
            dbcsr_obj ,&
            dbcsr_print ,&
-           dbcsr_print_block_sum ,&
            dbcsr_put_block ,&
            dbcsr_release ,&
            dbcsr_repl_full ,&
