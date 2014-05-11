@@ -28,6 +28,7 @@ if [[ -s ${cp2kexe} ]]; then
    if [[ -n ${mandir} ]]; then
       scp -r cp2k.vim toggle_folding.js cp2k_input.xsl cp2k_input.xml CP2K_INPUT.html html_tables.html index.html references.html units.html generate_manual_howto.html favicon.png CP2K_INPUT/ ${mandir}
    fi
+   echo "CP2K manual update done."
 else
-   echo ERROR in $(basename $0): CP2K executable file ${cp2kexe} not found
+   echo "ERROR in $(basename $0): CP2K executable file ${cp2kexe} not found"
 fi
