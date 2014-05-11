@@ -3,7 +3,7 @@
 #
 # will now perform a parallel build of 4 cp2k executables
 #
-.SUFFIXES: .F .dep .o .f90 .cu .c .instantiation
+.SUFFIXES: .F .dep .o .f90 .cu .c .instantiation .instantiated .template
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -180,21 +180,19 @@ OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 # instantiate the templates
 #
 vpath %.instantiation   $(ALL_SRC_DIRS)
-vpath %.template        $(ALL_SRC_DIRS)
-vpath %.instantiated    $(INSTANTIATEDDIR)
 
+# since the same named .instantiation file can be present in many directories, we need to copy the full tree
+# to store the instantiated file in a unique location
+# TODO: proper dependencies based on .template
 instantiateddir:
-	@mkdir -p $(INSTANTIATEDDIR)
+	-rm -fR $(INSTANTIATEDDIR)
+	@mkdir -p $(dir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated)))
 
-templates: instantiateddir $(addprefix $(INSTANTIATEDDIR)/, $(notdir $(ALL_INST_FILES:.instantiation=.instantiated)))
+templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
 TOOL_HELP += "templates : instantiate all templates"
 
-templatesclean:
-	-rm -fR $(INSTANTIATEDDIR)
-TOOL_HELP += "templatesclean : remove instantiated markers"
-
-$(INSTANTIATEDDIR)/%.instantiated: %.instantiation %.template
-	cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
+$(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation
+	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
 	@touch $@
 
 #
