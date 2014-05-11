@@ -6,5 +6,5 @@
 # tests simmetry breaking in initialization for spin polarized systems
 cu2cl6_m1_std.inp                 1     7e-12
 cu2cl6_m3_std.inp                 1     8e-11
-cu2cl6_m1_clp6cud9.inp            1     2e-13
-cu2cl6_m3_clp6cud9.inp            1     2e-14
+cu2cl6_m1_clp6cud9.inp            1     5e-13
+cu2cl6_m3_clp6cud9.inp            1     5e-13
