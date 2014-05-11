@@ -25,25 +25,25 @@ MODULE cp_dbcsr_operations
        cp_dbcsr_get_data_type, cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, &
        cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_norm, &
-       cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_type, cp_dbcsr_valid_index, &
-       cp_dbcsr_verify_matrix, cp_dbcsr_work_create, create_bl_distribution, &
-       dbcsr_access_flush, dbcsr_create_dist_block_cyclic, &
-       dbcsr_create_dist_r_unrot, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_get_data, &
-       dbcsr_get_data_p, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
-       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_obj, dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_norm_frobenius, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_mp_new, &
+       cp_dbcsr_mp_release, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
+       cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_put_block, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_type, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, &
+       cp_dbcsr_work_create, create_bl_distribution, dbcsr_access_flush, &
+       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_obj, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_get_data, dbcsr_get_data_p, &
+       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_pgrid, &
+       dbcsr_norm_frobenius, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
        dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -197,7 +197,7 @@ CONTAINS
        mp_env = mp_obj
        CALL dbcsr_mp_hold (mp_env)
     ELSE
-       CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc,&
+       CALL cp_dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc,&
             myprow, mypcol)
     ENDIF
     CALL array_nullify (rd)
@@ -205,7 +205,7 @@ CONTAINS
     CALL array_new(rd, row_dist_data)
     CALL array_new(cd, col_dist_data)
     CALL dbcsr_distribution_new(dist, mp_env, rd, cd)
-    CALL dbcsr_mp_release (mp_env)
+    CALL cp_dbcsr_mp_release (mp_env)
     CALL array_release (rd)
     CALL array_release (cd)
   END SUBROUTINE cp_dbcsr_dist2d_to_dist

@@ -51,11 +51,9 @@ MODULE cp_dbcsr_interface
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_diag, &
        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
        dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
-       dbcsr_hadamard_product, dbcsr_index_compact, dbcsr_init, &
-       dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_make_untransposed_blocks, dbcsr_max_col_size, &
+       dbcsr_hadamard_product, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
+       dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_max_col_size, &
        dbcsr_max_row_size, dbcsr_maxabs, dbcsr_mp_get_coordinates, &
        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
        dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
@@ -77,7 +75,7 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu, &
+       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
@@ -112,7 +110,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_distribution_local_rows,&
             dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p, dbcsr_mp_get_coordinates,&
-            dbcsr_mp_hold, dbcsr_mp_new, dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_wm_use_mutable, dbcsr_distribution_local_rows,&
+            dbcsr_mp_hold, dbcsr_mp_pgrid, dbcsr_wm_use_mutable, dbcsr_distribution_local_rows,&
             dbcsr_distribution_ncols, dbcsr_get_data_p
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
@@ -134,7 +132,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_p_type
   PUBLIC :: cp_dbcsr_conform_scalar
   PUBLIC :: cp_dbcsr_init_lib, cp_dbcsr_finalize_lib
-  PUBLIC :: cp_dbcsr_untranspose_blocks
   PUBLIC :: cp_dbcsr_set
   PUBLIC :: cp_dbcsr_add
   PUBLIC :: cp_dbcsr_scale
@@ -154,7 +151,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_create
   PUBLIC :: cp_dbcsr_work_create
   PUBLIC :: cp_dbcsr_verify_matrix
-  PUBLIC :: cp_dbcsr_btriu
   PUBLIC :: cp_dbcsr_sum_replicated
   PUBLIC :: cp_dbcsr_checksum
   PUBLIC :: cp_dbcsr_trace
@@ -213,7 +209,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_binary_read
   PUBLIC :: cp_dbcsr_function_of_elements
   PUBLIC :: cp_dbcsr_print_block_sum
-  PUBLIC :: cp_dbcsr_triu
+  PUBLIC :: cp_dbcsr_btriu
   PUBLIC :: cp_dbcsr_clear_mempools
   PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
@@ -1419,20 +1415,6 @@ CONTAINS
             b_assume_value, dbcsr_error)
   END SUBROUTINE cp_dbcsr_hadamard_product
 
-  ! ultimately this routine should not be needed
-  SUBROUTINE cp_dbcsr_untranspose_blocks(matrix, error)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_untranspose_blocks', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_make_untransposed_blocks(matrix%matrix,dbcsr_error)
-
-  END SUBROUTINE cp_dbcsr_untranspose_blocks
-
 
   SUBROUTINE fill_sizes (matrix, row, col,&
        row_size, col_size, row_offset, col_offset)
@@ -1690,20 +1672,6 @@ CONTAINS
     CALL dbcsr_print_block_sum(matrix%matrix, unit_nr, dbcsr_error)
 
   END SUBROUTINE cp_dbcsr_print_block_sum
-
-  SUBROUTINE cp_dbcsr_triu(matrix, error)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_triu', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_triu(matrix%matrix, dbcsr_error)
-    CALL dbcsr_index_compact(matrix%matrix, dbcsr_error)
-
-  END SUBROUTINE cp_dbcsr_triu
 
   FUNCTION cp_dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
