@@ -323,11 +323,13 @@ endif
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
+ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
-	@echo "Updating archive $@"
+	@echo "Updating archive ($(LIBDIR)) $@ : $?"
 	@$(AR) $@ $?
 ifneq ($(RANLIB),)
 	@$(RANLIB) $@
+endif
 endif
 
 %.o: %.cu
