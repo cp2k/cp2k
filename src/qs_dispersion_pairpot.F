@@ -18,7 +18,7 @@ MODULE qs_dispersion_pairpot
   USE bibliography,                    ONLY: cite_reference,&
                                              grimme2006,&
                                              grimme2010
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance

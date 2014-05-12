@@ -14,7 +14,7 @@ MODULE qs_dftb_coulomb
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&

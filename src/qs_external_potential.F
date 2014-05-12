@@ -10,7 +10,7 @@
 MODULE qs_external_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_subsys_types,                 ONLY: cp_subsys_get
   USE f77_blas

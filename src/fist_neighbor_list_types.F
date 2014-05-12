@@ -8,7 +8,7 @@
 ! *****************************************************************************
 MODULE fist_neighbor_list_types
 
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas

@@ -22,7 +22,7 @@ MODULE qs_neighbor_lists
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance,&

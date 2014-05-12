@@ -9,7 +9,7 @@
 !> \author MJM
 ! *****************************************************************************
 MODULE mc_coordinates
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type

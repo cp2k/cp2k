@@ -16,7 +16,7 @@
 MODULE library_tests
 
   USE ai_coulomb_test,                 ONLY: eri_test
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              init_cell

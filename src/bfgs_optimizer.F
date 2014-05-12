@@ -11,7 +11,7 @@ MODULE bfgs_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&

@@ -19,7 +19,7 @@ MODULE f77_interface
   USE acc_device,                      ONLY: acc_get_ndevices,&
                                              acc_set_active_device
   USE bibliography,                    ONLY: add_all_references
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              init_cell
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&

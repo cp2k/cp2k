@@ -14,7 +14,7 @@ MODULE fp_methods
   USE beta_gamma_psi,                  ONLY: erf,&
                                              gamln,&
                                              psi
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_print_key_finished_output,&

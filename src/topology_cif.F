@@ -9,7 +9,7 @@
 !> \date   12.2008
 ! *****************************************************************************
 MODULE topology_cif
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              pbc,&

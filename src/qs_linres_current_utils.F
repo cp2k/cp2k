@@ -19,7 +19,7 @@
 ! *****************************************************************************
 MODULE qs_linres_current_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type

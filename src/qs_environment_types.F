@@ -15,7 +15,7 @@ MODULE qs_environment_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_type
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&

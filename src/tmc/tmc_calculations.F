@@ -11,7 +11,7 @@
 ! *****************************************************************************
 
 MODULE tmc_calculations
-  USE cell_types,                      ONLY: cell_copy,&
+  USE cell_methods,                    ONLY: cell_copy,&
                                              cell_type,&
                                              get_cell,&
                                              init_cell,&

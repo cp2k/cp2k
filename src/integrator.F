@@ -27,7 +27,7 @@ MODULE integrator
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE barostat_types,                  ONLY: barostat_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              init_cell,&
                                              parse_cell_line
   USE constraint,                      ONLY: rattle_control,&

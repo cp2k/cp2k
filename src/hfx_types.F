@@ -18,7 +18,7 @@ MODULE hfx_types
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008,&
                                              guidon2009
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&
                                              scaled_to_real

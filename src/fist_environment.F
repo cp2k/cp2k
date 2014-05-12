@@ -17,7 +17,7 @@ MODULE fist_environment
                                              Dick1958,&
                                              Mitchell1993,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
                                              read_cell,&

@@ -6,7 +6,7 @@
 ! *****************************************************************************
 MODULE ipi_driver
 
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: external_control

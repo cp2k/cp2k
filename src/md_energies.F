@@ -19,7 +19,7 @@ MODULE md_energies
                                              compute_averages
   USE barostat_types,                  ONLY: barostat_type
   USE barostat_utils,                  ONLY: print_barostat_status
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&

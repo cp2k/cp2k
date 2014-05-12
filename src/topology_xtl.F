@@ -9,7 +9,7 @@
 !> \date   05.2009
 ! *****************************************************************************
 MODULE topology_xtl
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              pbc,&

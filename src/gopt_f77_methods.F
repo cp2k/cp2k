@@ -26,7 +26,7 @@
     USE cell_opt_utils,                  ONLY: get_dg_dh,&
                                                gopt_new_error_create,&
                                                gopt_new_error_release
-    USE cell_types,                      ONLY: cell_type,&
+    USE cell_methods,                      ONLY: cell_type,&
                                                cell_copy,&
                                                cell_release,&
                                                cell_create,&

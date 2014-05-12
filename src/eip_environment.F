@@ -16,7 +16,7 @@ MODULE eip_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              write_atomic_kind_set
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
                                              read_cell,&

@@ -44,7 +44,7 @@
 !> 67 - 70       Integer        Z value
 ! *****************************************************************************
 MODULE topology_pdb
-  USE cell_types,                      ONLY: get_cell
+  USE cell_methods,                    ONLY: get_cell
   USE cp2k_info,                       ONLY: compile_revision,&
                                              cp2k_version,&
                                              r_datx,&

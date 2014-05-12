@@ -19,7 +19,7 @@ MODULE particle_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&

@@ -15,7 +15,7 @@ MODULE spme
   USE atprop_types,                    ONLY: atprop_type
   USE bibliography,                    ONLY: Essmann1995,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&

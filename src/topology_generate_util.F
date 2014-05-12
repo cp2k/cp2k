@@ -13,7 +13,7 @@ MODULE topology_generate_util
                                              atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
-  USE cell_types,                      ONLY: pbc
+  USE cell_methods,                    ONLY: pbc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type

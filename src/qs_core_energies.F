@@ -16,7 +16,7 @@ MODULE qs_core_energies
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace,&
                                              cp_dbcsr_type

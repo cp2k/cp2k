@@ -8,7 +8,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_ddapc_types
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_type,&
                                              read_cell
   USE cp_ddapc_methods,                ONLY: ddapc_eval_AmI,&

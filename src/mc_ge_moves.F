@@ -14,7 +14,7 @@
 !> \author Matthew J. McGrath  (01.25.2004)
 ! *****************************************************************************
 MODULE mc_ge_moves
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_p_type,&
                                              cell_release,&

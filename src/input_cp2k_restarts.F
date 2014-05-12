@@ -13,7 +13,7 @@ MODULE input_cp2k_restarts
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE averages_types,                  ONLY: average_quantities_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled
   USE cp2k_info,                       ONLY: compile_arch,&
                                              compile_date,&

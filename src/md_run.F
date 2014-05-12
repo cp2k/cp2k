@@ -15,7 +15,7 @@ MODULE md_run
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc_cp2k_plumed_getset_cell
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&

@@ -12,7 +12,7 @@
 !> \author Alessandro Laio,Fawzi Mohamed
 ! *****************************************************************************
 MODULE colvar_methods
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE colvar_types,                    ONLY: &
        HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_check_points, &

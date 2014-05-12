@@ -14,7 +14,7 @@ MODULE pme_tools
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled
   USE f77_blas
   USE kinds,                           ONLY: dp

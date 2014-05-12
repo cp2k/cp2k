@@ -5,7 +5,7 @@
 ! *****************************************************************************
 MODULE topology_cp2k
 
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr

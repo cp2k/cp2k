@@ -12,7 +12,7 @@ MODULE semi_empirical_utils
                                              create_gto_from_sto_basis,&
                                              gto_basis_set_type,&
                                              set_sto_basis_set
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              plane_distance
   USE cp_control_types,                ONLY: semi_empirical_control_type
   USE f77_blas

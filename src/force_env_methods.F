@@ -17,7 +17,7 @@ MODULE force_env_methods
   USE atprop_types,                    ONLY: atprop_create,&
                                              atprop_init,&
                                              atprop_type
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&

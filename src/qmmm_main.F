@@ -15,7 +15,7 @@ MODULE qmmm_main
                                              Laino2005,&
                                              Laino2006,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_release,&
                                              cell_type,&
                                              get_cell,&

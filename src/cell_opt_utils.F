@@ -10,7 +10,7 @@
 !>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! *****************************************************************************
 MODULE cell_opt_utils
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell_param,&
                                              set_cell_param
   USE cp_files,                        ONLY: close_file,&

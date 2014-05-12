@@ -11,7 +11,7 @@ MODULE ewald_spline_util
 !> \par History
 !>      12.2005 created [tlaino]
 !> \author Teodoro Laino
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&

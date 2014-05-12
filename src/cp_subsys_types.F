@@ -16,7 +16,7 @@ MODULE cp_subsys_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE colvar_types,                    ONLY: colvar_p_release,&

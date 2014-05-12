@@ -12,7 +12,7 @@
 !>      09.10.05  MJM combined the two subroutines in this module into one
 ! *****************************************************************************
 MODULE mc_ensembles
-  USE cell_types,                      ONLY: cell_p_type,&
+  USE cell_methods,                    ONLY: cell_p_type,&
                                              get_cell
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&

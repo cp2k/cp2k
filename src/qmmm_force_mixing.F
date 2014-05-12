@@ -8,7 +8,7 @@ MODULE qmmm_force_mixing
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type

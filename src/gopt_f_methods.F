@@ -14,7 +14,7 @@ MODULE gopt_f_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_copy,&
+  USE cell_methods,                    ONLY: cell_copy,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&

@@ -14,7 +14,7 @@ MODULE ewalds_multipole
   USE bibliography,                    ONLY: Aguado2003,&
                                              Laino2008,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE damping_dipole_types,            ONLY: damping_type,&
                                              no_damping,&

@@ -10,7 +10,7 @@
 ! *****************************************************************************
 SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
      particle_set, local_particles, iw, debug_r_space, error )
-  USE cell_types,                      ONLY: cell_type
+  USE cell_methods,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -710,7 +710,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
      particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw, &
      atomic_kind_set, mm_section, error )
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_methods,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -904,7 +904,7 @@ END SUBROUTINE debug_ewald_multipoles_fields
 SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell,&
      particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw, &
      error )
-  USE cell_types,                      ONLY: cell_type
+  USE cell_methods,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
