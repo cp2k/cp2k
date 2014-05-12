@@ -325,7 +325,7 @@ endif
 
 ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
-	@echo "Updating archive ($(LIBDIR)) $@ : $?"
+	@echo "Updating archive $@"
 	@$(AR) $@ $?
 ifneq ($(RANLIB),)
 	@$(RANLIB) $@
