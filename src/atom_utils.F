@@ -1732,7 +1732,8 @@ CONTAINS
   END SUBROUTINE err_matrix
 ! *****************************************************************************
   SUBROUTINE slater_density(density1,density2,zcore,state,grid,error)
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density1, density2
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(OUT), OPTIONAL                  :: density1, density2
     INTEGER, INTENT(IN)                      :: zcore
     TYPE(atom_state), INTENT(IN)             :: state
     TYPE(grid_atom_type), INTENT(IN)         :: grid
