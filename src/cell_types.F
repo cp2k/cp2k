@@ -20,8 +20,6 @@ MODULE cell_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
 
-  INTEGER, SAVE, PRIVATE :: last_cell_id = 0
-
 ! *****************************************************************************
 !> \brief   Type defining parameters related to the simulation cell
 !> \version 1.0

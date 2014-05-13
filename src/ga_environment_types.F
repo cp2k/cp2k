@@ -19,8 +19,9 @@ MODULE ga_environment_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ga_environment_types'
 
+#ifdef _USE_GA
   INTEGER, PRIVATE, SAVE :: last_ga_env_id_nr=0
-
+#endif
 
   ! Data types
 ! *****************************************************************************
