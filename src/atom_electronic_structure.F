@@ -107,7 +107,7 @@ CONTAINS
                                                 need_vxc, need_x, need_xc, &
                                                 need_zmp
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc, tmp_dens
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
@@ -228,7 +228,11 @@ CONTAINS
 
     IF (doguess) THEN
       ! initial guess
-      CALL slater_density(density%op,density%op,atom%z,atom%state,atom%basis%grid,error)
+      ALLOCATE(tmp_dens(SIZE(density%op)))
+      tmp_dens=0
+      CALL slater_density(density%op,tmp_dens,atom%z,atom%state,atom%basis%grid,error)
+      density%op=density%op+tmp_dens
+      DEALLOCATE(tmp_dens)
       CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
       CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
       CALL wigner_slater_functional(density%op,cpot%op,error)
