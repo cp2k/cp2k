@@ -109,8 +109,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_alloc_raw', &
       routineP = moduleN//':'//routineN
-
+#if defined (__ACC)
     INTEGER                                  :: istat
+#endif
 
 #if defined (__ACC)
     istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &

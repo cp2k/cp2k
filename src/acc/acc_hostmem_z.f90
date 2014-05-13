@@ -96,7 +96,9 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
       POINTER                                :: host_mem
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z', &
       routineP = moduleN//':'//routineN
+#if defined (__ACC)
     INTEGER                                  :: istat
+#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
@@ -118,7 +120,9 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
       POINTER                                :: host_mem
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z_2D', &
       routineP = moduleN//':'//routineN
+#if defined (__ACC)
     INTEGER                                  :: istat
+#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
@@ -140,7 +144,9 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
       POINTER                                :: host_mem
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z_3D', &
       routineP = moduleN//':'//routineN
+#if defined (__ACC)
     INTEGER                                  :: istat
+#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
@@ -162,7 +168,9 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
       POINTER                                :: host_mem
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z_4D', &
       routineP = moduleN//':'//routineN
+#if defined (__ACC)
     INTEGER                                  :: istat
+#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
@@ -173,4 +181,3 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
     STOP "acc_hostmem_dealloc_z: ACC not compiled in."
 #endif
   END SUBROUTINE acc_hostmem_dealloc_z_4D
-

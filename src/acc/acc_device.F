@@ -45,7 +45,9 @@ CONTAINS
   FUNCTION acc_get_ndevices() RESULT(n)
     INTEGER                                  :: n
 
+#if defined (__ACC)
     INTEGER                                  :: istat
+#endif
 
      n = 0
 #if defined (__ACC)
@@ -58,9 +60,11 @@ CONTAINS
 ! *****************************************************************************
 ! *****************************************************************************
   SUBROUTINE acc_set_active_device(dev_id)
-     INTEGER :: dev_id
-     INTEGER :: istat
+    INTEGER :: dev_id
+
 #if defined (__ACC)
+    INTEGER :: istat
+
     istat = acc_set_active_device_cu (dev_id)
     IF (istat /= 0) STOP 'acc_set_active_device: failed'
 #else
