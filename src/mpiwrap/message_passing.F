@@ -421,7 +421,8 @@ MODULE message_passing
                       mp_file_write_at_r, mp_file_write_at_rv,&
                       mp_file_write_at_d, mp_file_write_at_dv,&
                       mp_file_write_at_c, mp_file_write_at_cv,&
-                      mp_file_write_at_z, mp_file_write_at_zv
+                      mp_file_write_at_z, mp_file_write_at_zv,&
+                      mp_file_write_at_l, mp_file_write_at_lv
   END INTERFACE
 
   INTERFACE mp_file_write_at_all
@@ -439,7 +440,8 @@ MODULE message_passing
                       mp_file_read_at_r, mp_file_read_at_rv,&
                       mp_file_read_at_d, mp_file_read_at_dv,&
                       mp_file_read_at_c, mp_file_read_at_cv,&
-                      mp_file_read_at_z, mp_file_read_at_zv
+                      mp_file_read_at_z, mp_file_read_at_zv,&
+                      mp_file_read_at_l, mp_file_read_at_lv
   END INTERFACE
 
   INTERFACE mp_file_read_at_all
