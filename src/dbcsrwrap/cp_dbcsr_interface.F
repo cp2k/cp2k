@@ -108,8 +108,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_distribution_local_rows,&
             dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p, dbcsr_mp_get_coordinates,&
-            dbcsr_mp_hold, dbcsr_mp_pgrid, dbcsr_wm_use_mutable, dbcsr_distribution_local_rows,&
-            dbcsr_distribution_ncols, dbcsr_get_data_p
+            dbcsr_mp_hold, dbcsr_mp_pgrid, dbcsr_wm_use_mutable
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
@@ -118,11 +117,11 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
   PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, dbcsr_mp_mypcol,dbcsr_mp_myprow
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
-  PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left,dbcsr_iterator_next_block,dbcsr_put_block,dbcsr_get_data_type
+  PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left,dbcsr_iterator_next_block,dbcsr_put_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full, block_add_on_diag, block_chol_inv,dbcsr_scale_mat
   PUBLIC :: cp_test_multiplies, dbcsr_norm_maxabsnorm, dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
-  PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_func_artanh, dbcsr_func_dtanh
+  PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_distribution_mp
   PUBLIC :: convert_sizes_to_offsets
   PUBLIC :: cp_dbcsr_iterator
@@ -210,7 +209,7 @@ MODULE cp_dbcsr_interface
        accdrv_priority_buffers, accdrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
+       dbcsr_get_conf_subcomm, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
        mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
        mm_name_smm, multrec_limit
