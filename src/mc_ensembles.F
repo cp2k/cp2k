@@ -143,7 +143,7 @@ CONTAINS
     INTEGER, DIMENSION(1:3, 1:2)             :: discrete_array
     INTEGER :: atom_number, box_number, cell_unit, com_crd, com_ene, com_mol, &
       end_mol, group, handle, ibox, idum, imol_type, imolecule, imove, &
-      iparticle, iprint, itype, iunit, iuptrans, iupvolume, iw, jbox, &
+      iparticle, iprint, itype, iunit, iuptrans, iupvolume, iw, jbox, jdum, &
       molecule_type, molecule_type_swap, molecule_type_target, nchain_total, &
       nmol_types, nmoves, nnstep, nstart, nstep, source, start_atom, &
       start_atom_swap, start_atom_target, start_mol, stat
@@ -679,7 +679,7 @@ CONTAINS
              ! pick a molecule to be swapped in the box
              IF (ionode) THEN
                 CALL find_mc_test_molecule(mc_molecule_info,&
-                     start_atom_swap,idum,idum,rng_stream,&
+                     start_atom_swap,idum,jdum,rng_stream,&
                      box=box_number,molecule_type_old=molecule_type_swap,&
                      error=error)
 
@@ -775,7 +775,7 @@ CONTAINS
                    IF(ionode) THEN
                       CALL find_mc_test_molecule(mc_molecule_info,&
                            start_atom,idum,&
-                           idum,rng_stream,&
+                           jdum,rng_stream,&
                            box=box_number,molecule_type_old=molecule_type,&
                            error=error)
 
