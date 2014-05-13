@@ -200,8 +200,9 @@ CONTAINS
 
     INTEGER                                  :: fft_library, istat, isuccess, &
                                                 iunit
-    LOGICAL                                  :: exist, fftw3_is_mkl_wrapper, &
-                                                mkl_is_safe
+    LOGICAL                                  :: exist
+
+!$  LOGICAL                                  :: fftw3_is_mkl_wrapper, mkl_is_safe
 
 !$  INTEGER :: omp_get_max_threads
 

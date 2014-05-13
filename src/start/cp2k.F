@@ -67,12 +67,13 @@ PROGRAM cp2k
   IMPLICIT NONE
 #if defined(__USE_PAT)
 #include "pat_apif.h"
+  INTEGER                              :: istat
 #endif
 
   CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,&
                                           arg_att, mpi_mapping
   CHARACTER(LEN=default_string_length) :: dev_flag
-  INTEGER                              :: output_unit,istat,l,mpi_mapping_method
+  INTEGER                              :: output_unit,l,mpi_mapping_method
   INTEGER                              :: ierr, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive,has_mpi_mapping
