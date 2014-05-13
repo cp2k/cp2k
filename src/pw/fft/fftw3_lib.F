@@ -301,7 +301,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   INTEGER                                            :: plan_style
   INTEGER                                            :: n1,n2,n3
   INTEGER                                            :: nt
-  INTEGER                                            :: rows_per_th, remaining 
+  INTEGER                                            :: rows_per_th
   INTEGER                                            :: rows_per_th_r
   INTEGER                                            :: fft_direction
   INTEGER                                            :: th_planA, th_planB

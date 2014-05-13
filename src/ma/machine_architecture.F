@@ -513,8 +513,8 @@ CONTAINS
 !> \brief Finalize the machine abstraction library
 ! *****************************************************************************
    SUBROUTINE ma_finalize_machine()
-   INTEGER  :: istat
 #if defined (__HWLOC) && !defined (__LIBNUMA)
+   INTEGER  :: istat
    istat = ma_final_interface(topology)
    IF( istat .NE. 0) THEN
      CALL ma_error_stop(ma_error_finalize)
@@ -584,7 +584,6 @@ CONTAINS
 !> \brief Get the process ID
 ! *****************************************************************************
 INTEGER FUNCTION ma_get_id() RESULT (pid)
-  INTEGER                                  :: getpid
 
   CALL m_getpid(pid)
 END FUNCTION ma_get_id
