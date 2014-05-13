@@ -526,7 +526,7 @@ CONTAINS
     DO ispin=1,SIZE(rho)/2
       re=2*ispin-1
       im=2*ispin
-      eps=MAX(rtp%filter_eps,10E-12)
+      eps=MAX(rtp%filter_eps,10E-12_dp)
       DO WHILE(eps<1.1_dp)
          CALL cp_dbcsr_filter(tmp(re)%matrix,eps,error=error)
          occ=cp_dbcsr_get_occupation(tmp(re)%matrix)
@@ -534,7 +534,7 @@ CONTAINS
                        ispin," eps ", eps, " real: ", occ
          eps=eps*10 
       ENDDO
-      eps=MAX(rtp%filter_eps,10E-12)
+      eps=MAX(rtp%filter_eps,10E-12_dp)
       DO WHILE(eps<1.1_dp)
          CALL cp_dbcsr_filter(tmp(im)%matrix,eps,error=error)
          occ=cp_dbcsr_get_occupation(tmp(im)%matrix)
