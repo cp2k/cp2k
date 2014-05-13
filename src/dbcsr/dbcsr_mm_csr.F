@@ -971,6 +971,7 @@ END SUBROUTINE flush_stacks
          RETURN
       ENDIF
    ENDDO
+   p=HUGE(p)
   END FUNCTION hash_table_get
 
 ! End of hashtable

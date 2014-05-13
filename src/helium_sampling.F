@@ -415,6 +415,7 @@ MODULE helium_sampling
 
   helium%num_accepted(2,n) = helium%num_accepted(2,n) + 1
   level = 1
+  res = 0
 
 IF (m==0) RETURN
    hbeads = helium%beads
