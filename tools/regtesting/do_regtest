@@ -852,6 +852,12 @@ if [[ ${leakcheck} == "YES" ]]; then
    esac
    (( n_leaks == 0 )) && echo "No memory leaks detected" >>${memory_description_file}
    printf "Number of memory  leaks %d\n" ${n_leaks} | tee -a ${summary}
+   if [[ -f ${dir_base}/suppr.txt ]]; then
+      echo "--------------------------------------------------------------------------" | tee -a ${summary}
+      printf "Note, that the following leak suppressions are currently active:\n" | tee -a ${summary}
+      cat ${dir_base}/suppr.txt | tee -a ${summary}
+   fi
+   echo "--------------------------------------------------------------------------" | tee -a ${summary}
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
 else
    echo "No memory leak check was performed" >>${memory_description_file}
