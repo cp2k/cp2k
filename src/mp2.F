@@ -77,8 +77,7 @@ MODULE mp2
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              init_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -146,7 +145,6 @@ MODULE mp2
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_mp2
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(mp2_biel_type)                      :: mp2_biel
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(particle_type), DIMENSION(:), &

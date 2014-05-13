@@ -25,7 +25,6 @@ MODULE qs_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_scf,                          ONLY: scf
   USE rt_propagation_methods,          ONLY: propagation_step,&
                                              s_matrices_create
@@ -102,7 +101,6 @@ CONTAINS
 
     INTEGER                                  :: handle
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
 

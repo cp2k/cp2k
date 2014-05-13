@@ -1157,7 +1157,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_powell_var',&
         routineP = moduleN//':'//routineN
 
-      TYPE(section_vals_type), POINTER         :: optbas_section,powell_section
+      TYPE(section_vals_type), POINTER         :: powell_section
 
       p_param%state=0
       p_param%nvar=0

@@ -168,7 +168,7 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -181,7 +181,6 @@ MODULE mp2_gpw
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist_sub
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules_sub, &

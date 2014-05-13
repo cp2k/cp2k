@@ -282,7 +282,6 @@ MODULE hfx_energy_potential
     INTEGER::ii,pbc_shells_dummy
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
-    TYPE(section_vals_type), POINTER         :: print_key
     LOGICAL                                  :: do_print_load_balance_info,is_anti_symmetric
 
 #if defined(__USE_PAT)

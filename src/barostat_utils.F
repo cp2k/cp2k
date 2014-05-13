@@ -36,7 +36,6 @@ MODULE barostat_utils
 
 ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'barostat_utils'
-  INTEGER, PRIVATE, SAVE               :: last_barostat_id_nr=0
 
 CONTAINS
 ! *****************************************************************************

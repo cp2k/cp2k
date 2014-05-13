@@ -706,8 +706,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
 
 ! a very small safety factor might be needed for roundoff issues

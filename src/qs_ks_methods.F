@@ -26,12 +26,11 @@ MODULE qs_ks_methods
                                              dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_filter, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_distribution_obj, dbcsr_type_symmetric
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_name, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
@@ -1638,11 +1637,9 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: ispin
-    TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 

@@ -69,8 +69,7 @@ MODULE rt_propagation_methods
                                              rt_convergence_density
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              get_rtp_hfx,&
-                                             rt_prop_type,&
-                                             rtp_hfx_type
+                                             rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -733,7 +732,6 @@ CONTAINS
       POINTER                                :: matrix_p_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(rtp_hfx_type), POINTER              :: rtp_hfx
 
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
     CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_p_im=matrix_p_im,error=error)

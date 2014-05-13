@@ -36,9 +36,6 @@ MODULE mixed_main
 ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_main'
 
-! *** Global variables ***
-  TYPE(mixed_environment_type), POINTER :: mixed_env
-
   PUBLIC :: mixed_create_force_env
 
 CONTAINS

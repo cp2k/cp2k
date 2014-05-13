@@ -43,7 +43,6 @@ MODULE rt_delta_pulse
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -102,7 +101,6 @@ CONTAINS
                                                 mat_tmp, momentum, oo_1, &
                                                 oo_2, S_chol, S_inv_fm, tmpS, &
                                                 virtuals
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp

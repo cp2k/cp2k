@@ -397,7 +397,6 @@ CONTAINS
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
     CALL timeset(routineN,handle)

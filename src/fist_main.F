@@ -37,7 +37,6 @@ MODULE fist_main
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_main'
 
 ! *** Global variables ***
-  TYPE(fist_environment_type), POINTER :: fist_env
   PUBLIC :: fist_create_force_env
 
 !!-----------------------------------------------------------------------------!
