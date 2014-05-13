@@ -228,7 +228,7 @@ CONTAINS
 
     IF (doguess) THEN
       ! initial guess
-      CALL slater_density(density%op,zcore=atom%z,state=atom%state,grid=atom%basis%grid,error=error)
+      CALL slater_density(density%op,density%op,atom%z,atom%state,atom%basis%grid,error)
       CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
       CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
       CALL wigner_slater_functional(density%op,cpot%op,error)
