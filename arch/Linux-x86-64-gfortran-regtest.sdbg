@@ -14,7 +14,10 @@ DFLAGS     = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2
 CPPFLAGS   = 
 FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds -ffree-form -ffree-line-length-none\
              -fno-omit-frame-pointer -g -mtune=generic\
-             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)\
+             -Waliasing -Wampersand -Wc-binding-type -Wline-truncation\
+             -Wintrinsics-std -Wno-tabs -Wunderflow -Wunused-but-set-variable\
+             -Wunused-variable
 LDFLAGS    = $(FCFLAGS) -static-libgfortran -fsanitize=leak
 LIBS       = $(LIBPATH)/liblapack-gnu-regtest.a\
              $(LIBPATH)/libblas-gnu-regtest.a\
