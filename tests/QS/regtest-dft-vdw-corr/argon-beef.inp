@@ -1,0 +1,55 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../POTENTIAL
+   
+    &MGRID
+      CUTOFF 250
+      NGRIDS 1
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_DIIS 0.1
+      EPS_SCF 1.0E-6
+      MAX_DIIS 4
+      MAX_SCF 100
+       
+      SCF_GUESS ATOMIC
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL  BEEFVDW
+      &END XC_FUNCTIONAL
+      &VDW_POTENTIAL
+        &NON_LOCAL
+            TYPE LMKLL
+            KERNEL_FILE_NAME ../vdW_kernel_table.dat
+        &END NON_LOCAL
+      &END VDW_POTENTIAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.3 5.3 5.3
+      ALPHA_BETA_GAMMA 90 90 90
+    &END CELL
+    &COORD
+      SCALED .TRUE.
+      Ar 0.0 0.0 0.0
+      Ar 0.5 0.5 0.0
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q8
+      POTENTIAL GTH-PBE-q8
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT H2O
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
