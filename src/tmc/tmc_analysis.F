@@ -1486,7 +1486,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: counter_tmp, file_ptr
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: diel_const, diel_const_norm, &
                                                 diel_const_sym, e0, kB
     REAL(KIND=dp), DIMENSION(3, 3)           :: tmp_dip

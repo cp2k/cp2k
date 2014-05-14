@@ -91,12 +91,11 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', moduleN='gopt_f77_methods',&
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ensemble, handle, i, idg, idir, ip, &
+    INTEGER                                  :: ensemble, handle, idg, idir, ip, &
                                                 nparticle, nsize, shell_index, stat
     LOGICAL                                  :: failure, explicit, my_final_evaluation
     REAL(KIND=dp)                            :: f_ts, potential_energy
-    REAL(KIND=dp), DIMENSION(3)              :: r, s
-    REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens, h_ref
+    REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_gradient, gradient_ts
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
