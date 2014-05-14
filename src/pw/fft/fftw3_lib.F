@@ -956,7 +956,6 @@ END SUBROUTINE fftw31dm
       SUBROUTINE fftw_export_wisdom_to_file(iunit)
     INTEGER                                  :: iunit
 
-         EXTERNAL fftw_write_char
 #if defined ( __FFTW3 )
          CALL dfftw_export_wisdom(fftw_write_char, iunit)
 #endif
@@ -998,7 +997,6 @@ END SUBROUTINE fftw31dm
       SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
     INTEGER                                  :: isuccess, iunit
 
-         EXTERNAL fftw_read_char
          isuccess=0
 #if defined ( __FFTW3 )
          CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
