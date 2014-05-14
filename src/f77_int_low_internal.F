@@ -18,7 +18,6 @@ SUBROUTINE cp_create_fenv_comm_int(new_env_id,input_file_path,input_declaration_
   IMPLICIT NONE
   CHARACTER(len=*)                     :: input_file_path, output_file_path
   INTEGER                              :: new_env_id, mpi_comm, ierr
-  TYPE(cp_error_type)                  :: error
   TYPE(c_ptr)                          :: input_declaration_cptr
   TYPE(section_type), POINTER          :: input_declaration
 
@@ -137,7 +136,6 @@ RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,input_declaration_cptr,ierr)
   USE iso_c_binding
   IMPLICIT NONE
   INTEGER :: ep_env_id, ierr
-  TYPE(cp_error_type)                  :: error
   TYPE(c_ptr)                          :: input_declaration_cptr
   TYPE(section_type), POINTER          :: input_declaration
   NULLIFY(input_declaration)
