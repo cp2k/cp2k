@@ -7,7 +7,7 @@
 SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign, scale )
 
   USE fft_kinds,                    ONLY: dp
-  USE mltfftsg_tools
+  USE mltfftsg_tools,               ONLY: ctrig, fftstp_cmplx, matmov, zgetmo, get_cache_size, scaled, fftpre_cmplx, fftrot_cmplx
   !$ USE OMP_LIB
 
 ! Arguments
@@ -62,10 +62,10 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
 
      NFFT = MIN ( M - ITR + 1, LOT )
      IF ( TRANSA == 'N' .OR. TRANSA == 'n' ) THEN
-        CALL fftpre ( NFFT, NFFT, LDAX, LOT, N, A ( 1, ITR ), Z ( 1, 1, id ), &
+        CALL fftpre_cmplx ( NFFT, NFFT, LDAX, LOT, N, A ( 1, ITR ), Z ( 1, 1, id ), &
              TRIG, NOW ( 1 ), AFTER ( 1 ), BEFORE ( 1 ), ISIG )
      ELSE
-        CALL fftstp ( LDAX, NFFT, N, LOT, N, A ( ITR, 1 ), Z ( 1, 1, id ), &
+        CALL fftstp_cmplx ( LDAX, NFFT, N, LOT, N, A ( ITR, 1 ), Z ( 1, 1, id ), &
              TRIG, NOW ( 1 ), AFTER ( 1 ), BEFORE ( 1 ), ISIG )
      ENDIF
      IF ( TSCAL ) THEN
@@ -86,16 +86,16 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
      ELSE
         INZEE=1
         DO I=2,IC-1
-           CALL fftstp(LOT,NFFT,N,LOT,N,Z(1,INZEE,id), &
+           CALL fftstp_cmplx(LOT,NFFT,N,LOT,N,Z(1,INZEE,id), &
                 Z(1,3-INZEE,id),TRIG,NOW(I),AFTER(I), &
                 BEFORE(I),ISIG)
            INZEE=3-INZEE
         ENDDO
         IF(TRANSB == 'N'.OR.TRANSB == 'n') THEN
-           CALL fftrot(LOT,NFFT,N,NFFT,LDBX,Z(1,INZEE,id), &
+           CALL fftrot_cmplx(LOT,NFFT,N,NFFT,LDBX,Z(1,INZEE,id), &
                 B(1,ITR),TRIG,NOW(IC),AFTER(IC),BEFORE(IC),ISIG)
         ELSE
-           CALL fftstp(LOT,NFFT,N,LDBX,N,Z(1,INZEE,id), &
+           CALL fftstp_cmplx(LOT,NFFT,N,LDBX,N,Z(1,INZEE,id), &
               B(ITR,1),TRIG,NOW(IC),AFTER(IC),BEFORE(IC),ISIG)
         ENDIF
      ENDIF

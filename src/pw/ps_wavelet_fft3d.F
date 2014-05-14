@@ -14,9 +14,12 @@ MODULE ps_wavelet_fft3d
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_fft3d'
 
+  ! longest fft supported, must be equal to the lenght of the ctrig array
+  INTEGER, PARAMETER :: ctrig_length=8192
+
   PUBLIC :: fourier_dim,&
             ctrig,&
-            fftstp
+            fftstp, ctrig_length
 
 CONTAINS
 
@@ -40,7 +43,8 @@ CONTAINS
       2025, 2048, 2160, 2250, 2304, 2400, 2430, 2500,2560, 2592, 2700, 2880, &
       3000, 3072, 3125, 3200, 3240, 3375,3456, 3600, 3750, 3840, 3888, 4000, &
       4050, 4096, 4320, 4500,4608, 4800, 5000, 5120, 5184, 5400, 5625, 5760, &
-      6000, 6144,6400, 6480, 6750, 6912, 7200, 7500, 7680, 8000, 8192 /)
+      6000, 6144,6400, 6480, 6750, 6912, 7200, 7500, 7680, 8000, ctrig_length &
+      /)
 
     INTEGER                                  :: i
 
@@ -100,7 +104,7 @@ CONTAINS
 
           IMPLICIT REAL(KIND=dp) (a-h,o-z)
           INTEGER after,before
-          DIMENSION now(7),after(7),before(7),trig(2,8192)
+          DIMENSION now(7),after(7),before(7),trig(2,ctrig_length)
           INTEGER, DIMENSION(7,149) :: idata
 ! The factor 6 is only allowed in the first place!
         DATA ((idata(i,j),i=1,7),j=1,76) /                        &
@@ -251,7 +255,7 @@ CONTAINS
 
         IMPLICIT REAL(KIND=dp) (a-h,o-z)
         INTEGER after,before,atn,atb
-        DIMENSION trig(2,8192),zin(2,mm,m),zout(2,nn,n)
+        DIMENSION trig(2,ctrig_length),zin(2,mm,m),zout(2,nn,n)
         atn=after*now
         atb=after*before
 

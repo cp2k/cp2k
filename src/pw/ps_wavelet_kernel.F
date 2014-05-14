@@ -14,6 +14,7 @@ MODULE ps_wavelet_kernel
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_base,                 ONLY: scramble_unpack
   USE ps_wavelet_fft3d,                ONLY: ctrig,&
+                                             ctrig_length,&
                                              fftstp
   USE ps_wavelet_scaling_function,     ONLY: scaling_function,&
                                              scf_recursion
@@ -362,7 +363,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   i_all = i_all + i_stat
   ALLOCATE(cossinarr(2,n3/2-1),stat=i_stat)
   i_all = i_all + i_stat
-  ALLOCATE(btrig(2,8192),stat=i_stat)
+  ALLOCATE(btrig(2,ctrig_length),stat=i_stat)
   i_all = i_all + i_stat
   ALLOCATE(after(7),stat=i_stat)
   i_all = i_all + i_stat
@@ -1142,14 +1143,14 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
   IF (MOD(n2,4).EQ.0) lzt=lzt+1
 
   !Allocations
-  ALLOCATE(trig1(2,8192),stat=i_all)
+  ALLOCATE(trig1(2,ctrig_length),stat=i_all)
   ALLOCATE(after1(7),stat=i_stat)
   i_all=i_all+i_stat
   ALLOCATE(now1(7),stat=i_stat)
   i_all=i_all+i_stat
   ALLOCATE(before1(7),stat=i_stat)
   i_all=i_all+i_stat
-  ALLOCATE(trig2(2,8192),stat=i_stat)
+  ALLOCATE(trig2(2,ctrig_length),stat=i_stat)
   i_all=i_all+i_stat
   ALLOCATE(after2(7),stat=i_stat)
   i_all=i_all+i_stat
@@ -1157,7 +1158,7 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
   i_all=i_all+i_stat
   ALLOCATE(before2(7),stat=i_stat)
   i_all=i_all+i_stat
-  ALLOCATE(trig3(2,8192),stat=i_stat)
+  ALLOCATE(trig3(2,ctrig_length),stat=i_stat)
   i_all=i_all+i_stat
   ALLOCATE(after3(7),stat=i_stat)
   i_all=i_all+i_stat

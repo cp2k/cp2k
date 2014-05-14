@@ -12,6 +12,7 @@ MODULE ps_wavelet_base
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_fft3d,                ONLY: ctrig,&
+                                             ctrig_length,&
                                              fftstp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -75,8 +76,8 @@ CONTAINS
     IF (MOD(n2,4).EQ.0) lzt=lzt+1 !maybe this is useless
 
     !Allocations
-    ALLOCATE(btrig1(2,8192),stat=i_all)
-    ALLOCATE(ftrig1(2,8192),stat=i_stat)
+    ALLOCATE(btrig1(2,ctrig_length),stat=i_all)
+    ALLOCATE(ftrig1(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after1(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -84,9 +85,9 @@ CONTAINS
     i_all=i_all+i_stat
     ALLOCATE(before1(7),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(btrig2(2,8192),stat=i_stat)
+    ALLOCATE(btrig2(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(ftrig2(2,8192),stat=i_stat)
+    ALLOCATE(ftrig2(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after2(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -94,9 +95,9 @@ CONTAINS
     i_all=i_all+i_stat
     ALLOCATE(before2(7),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(btrig3(2,8192),stat=i_stat)
+    ALLOCATE(btrig3(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(ftrig3(2,8192),stat=i_stat)
+    ALLOCATE(ftrig3(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after3(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -846,8 +847,8 @@ CONTAINS
     IF (MOD(n2,4).EQ.0) lzt=lzt+1 !maybe this is useless
 
     !Allocations
-    ALLOCATE(btrig1(2,8192),stat=i_all)
-    ALLOCATE(ftrig1(2,8192),stat=i_stat)
+    ALLOCATE(btrig1(2,ctrig_length),stat=i_all)
+    ALLOCATE(ftrig1(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after1(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -855,9 +856,9 @@ CONTAINS
     i_all=i_all+i_stat
     ALLOCATE(before1(7),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(btrig2(2,8192),stat=i_stat)
+    ALLOCATE(btrig2(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(ftrig2(2,8192),stat=i_stat)
+    ALLOCATE(ftrig2(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after2(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -865,9 +866,9 @@ CONTAINS
     i_all=i_all+i_stat
     ALLOCATE(before2(7),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(btrig3(2,8192),stat=i_stat)
+    ALLOCATE(btrig3(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(ftrig3(2,8192),stat=i_stat)
+    ALLOCATE(ftrig3(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after3(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -1580,8 +1581,8 @@ CONTAINS
     IF (MOD(n2/2,4).EQ.0) lzt=lzt+1
 
     !Allocations
-    ALLOCATE(btrig1(2,8192),stat=i_all)
-    ALLOCATE(ftrig1(2,8192),stat=i_stat)
+    ALLOCATE(btrig1(2,ctrig_length),stat=i_all)
+    ALLOCATE(ftrig1(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after1(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -1589,9 +1590,9 @@ CONTAINS
     i_all=i_all+i_stat
     ALLOCATE(before1(7),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(btrig2(2,8192),stat=i_stat)
+    ALLOCATE(btrig2(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(ftrig2(2,8192),stat=i_stat)
+    ALLOCATE(ftrig2(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after2(7),stat=i_stat)
     i_all=i_all+i_stat
@@ -1599,9 +1600,9 @@ CONTAINS
     i_all=i_all+i_stat
     ALLOCATE(before2(7),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(btrig3(2,8192),stat=i_stat)
+    ALLOCATE(btrig3(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
-    ALLOCATE(ftrig3(2,8192),stat=i_stat)
+    ALLOCATE(ftrig3(2,ctrig_length),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(after3(7),stat=i_stat)
     i_all=i_all+i_stat
