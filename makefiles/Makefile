@@ -191,7 +191,7 @@ instantiateddir:
 templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
 TOOL_HELP += "templates : instantiate all templates"
 
-$(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation
+$(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
 	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
 	@touch $@
 
