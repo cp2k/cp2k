@@ -185,10 +185,10 @@ CONTAINS
          7680,   6, 8, 8, 5, 4, 1,    8000,   8, 8, 5, 5, 5, 1,   &
          8192,   8, 8, 8, 4, 4, 1 /
 
-        DO 111,i=1,149
+        DO 111 i=1,149
         IF (n.eq.idata(1,i)) THEN
         ic=0
-        DO 11,j=1,6
+        DO 11 j=1,6
         itt=idata(1+j,i)
         IF (itt.gt.1) THEN
         ic=ic+1
@@ -208,9 +208,10 @@ CONTAINS
 
         after(1)=1
         before(ic)=1
-        DO 22,i=2,ic
-        after(i)=after(i-1)*now(i-1)
-22      before(ic-i+1)=before(ic-i+2)*now(ic-i+2)
+        DO i=2,ic
+          after(i)=after(i-1)*now(i-1)
+          before(ic-i+1)=before(ic-i+2)*now(ic-i+2)
+        ENDDO
 
         twopi=6.283185307179586_dp
         angle=isign*twopi/n
@@ -265,12 +266,12 @@ CONTAINS
         ia=1
         nin1=ia-after
         nout1=ia-atn
-        DO 2001,ib=1,before
+        DO ib=1,before
         nin1=nin1+after
         nin2=nin1+atb
         nout1=nout1+atn
         nout2=nout1+after
-        DO 2001,j=1,nfft
+        DO j=1,nfft
         r1=zin(1,j,nin1)
         s1=zin(2,j,nin1)
         r2=zin(1,j,nin2)
@@ -279,19 +280,19 @@ CONTAINS
         zout(2,j,nout1)= s2 + s1
         zout(1,j,nout2)= r1 - r2
         zout(2,j,nout2)= s1 - s2
-2001        CONTINUE
+        ENDDO ; ENDDO
         DO 2000,ia=2,after
         ias=ia-1
         IF (2*ias.eq.after) THEN
                 IF (isign.eq.1) THEN
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 2010,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nout1=nout1+atn
                         nout2=nout1+after
-                        DO 2010,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r2=zin(2,j,nin2)
@@ -300,16 +301,16 @@ CONTAINS
                         zout(2,j,nout1)= s2 + s1
                         zout(1,j,nout2)= r2 + r1
                         zout(2,j,nout2)= s1 - s2
-2010                        CONTINUE
+                        ENDDO ; ENDDO
                 ELSE
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 2020,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nout1=nout1+atn
                         nout2=nout1+after
-                        DO 2020,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r2=zin(2,j,nin2)
@@ -318,18 +319,18 @@ CONTAINS
                         zout(2,j,nout1)= s1 - s2
                         zout(1,j,nout2)= r1 - r2
                         zout(2,j,nout2)= s2 + s1
-2020                        CONTINUE
+                        ENDDO ; ENDDO
                 ENDIF
         ELSE IF (4*ias.eq.after) THEN
                 IF (isign.eq.1) THEN
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 2030,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nout1=nout1+atn
                         nout2=nout1+after
-                        DO 2030,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -340,16 +341,16 @@ CONTAINS
                         zout(2,j,nout1)= s2 + s1
                         zout(1,j,nout2)= r1 - r2
                         zout(2,j,nout2)= s1 - s2
-2030                        CONTINUE
+                        ENDDO ; ENDDO
                 ELSE
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 2040,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nout1=nout1+atn
                         nout2=nout1+after
-                        DO 2040,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -360,18 +361,18 @@ CONTAINS
                         zout(2,j,nout1)= s2 + s1
                         zout(1,j,nout2)= r1 - r2
                         zout(2,j,nout2)= s1 - s2
-2040                        CONTINUE
+                        ENDDO ; ENDDO
                 ENDIF
         ELSE IF (4*ias.eq.3*after) THEN
                 IF (isign.eq.1) THEN
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 2050,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nout1=nout1+atn
                         nout2=nout1+after
-                        DO 2050,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -382,16 +383,16 @@ CONTAINS
                         zout(2,j,nout1)= s2 + s1
                         zout(1,j,nout2)= r2 + r1
                         zout(2,j,nout2)= s1 - s2
-2050                        CONTINUE
+                        ENDDO ; ENDDO
                 ELSE
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 2060,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nout1=nout1+atn
                         nout2=nout1+after
-                        DO 2060,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -402,7 +403,7 @@ CONTAINS
                         zout(2,j,nout1)= s1 - s2
                         zout(1,j,nout2)= r1 - r2
                         zout(2,j,nout2)= s2 + s1
-2060                        CONTINUE
+                        ENDDO ; ENDDO
                 ENDIF
         ELSE
                 itrig=ias*before+1
@@ -410,12 +411,12 @@ CONTAINS
                 ci2=trig(2,itrig)
                 nin1=ia-after
                 nout1=ia-atn
-                DO 2090,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nout1=nout1+atn
                 nout2=nout1+after
-                DO 2090,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r=zin(1,j,nin2)
@@ -426,7 +427,7 @@ CONTAINS
                 zout(2,j,nout1)= s2 + s1
                 zout(1,j,nout2)= r1 - r2
                 zout(2,j,nout2)= s1 - s2
-2090                CONTINUE
+                ENDDO ; ENDDO
         ENDIF
 2000        CONTINUE
         ELSE IF (now.eq.4) THEN
@@ -434,7 +435,7 @@ CONTAINS
                 ia=1
                 nin1=ia-after
                 nout1=ia-atn
-                DO 4001,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
@@ -443,7 +444,7 @@ CONTAINS
                 nout2=nout1+after
                 nout3=nout2+after
                 nout4=nout3+after
-                DO 4001,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r2=zin(1,j,nin2)
@@ -468,13 +469,13 @@ CONTAINS
                 s=r2 - r4
                 zout(2,j,nout2) = r + s
                 zout(2,j,nout4) = r - s
-4001                CONTINUE
+                ENDDO ; ENDDO
                 DO 4000,ia=2,after
                 ias=ia-1
                 IF (2*ias.eq.after) THEN
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 4010,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -483,7 +484,7 @@ CONTAINS
                         nout2=nout1+after
                         nout3=nout2+after
                         nout4=nout3+after
-                        DO 4010,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -512,7 +513,7 @@ CONTAINS
                         s=r2 + r4
                         zout(2,j,nout2) = r + s
                         zout(2,j,nout4) = r - s
-4010                        CONTINUE
+                        ENDDO ; ENDDO
                 ELSE
                         itt=ias*before
                         itrig=itt+1
@@ -526,7 +527,7 @@ CONTAINS
                         ci4=trig(2,itrig)
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 4020,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -535,7 +536,7 @@ CONTAINS
                         nout2=nout1+after
                         nout3=nout2+after
                         nout4=nout3+after
-                        DO 4020,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -566,14 +567,14 @@ CONTAINS
                         s=r2 - r4
                         zout(2,j,nout2) = r + s
                         zout(2,j,nout4) = r - s
-4020                        CONTINUE
+                        ENDDO ; ENDDO
                 ENDIF
 4000                CONTINUE
         ELSE
                 ia=1
                 nin1=ia-after
                 nout1=ia-atn
-                DO 4101,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
@@ -582,7 +583,7 @@ CONTAINS
                 nout2=nout1+after
                 nout3=nout2+after
                 nout4=nout3+after
-                DO 4101,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r2=zin(1,j,nin2)
@@ -607,13 +608,13 @@ CONTAINS
                 s=r2 - r4
                 zout(2,j,nout2) = r - s
                 zout(2,j,nout4) = r + s
-4101                CONTINUE
+                ENDDO ; ENDDO
                 DO 4100,ia=2,after
                 ias=ia-1
                 IF (2*ias.eq.after) THEN
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 4110,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -622,7 +623,7 @@ CONTAINS
                         nout2=nout1+after
                         nout3=nout2+after
                         nout4=nout3+after
-                        DO 4110,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -651,7 +652,7 @@ CONTAINS
                         s=r2 - r4
                         zout(2,j,nout2) = r - s
                         zout(2,j,nout4) = r + s
-4110                        CONTINUE
+                        ENDDO ; ENDDO
                 ELSE
                         itt=ias*before
                         itrig=itt+1
@@ -665,7 +666,7 @@ CONTAINS
                         ci4=trig(2,itrig)
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 4120,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -674,7 +675,7 @@ CONTAINS
                         nout2=nout1+after
                         nout3=nout2+after
                         nout4=nout3+after
-                        DO 4120,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -705,7 +706,7 @@ CONTAINS
                         s=r2 - r4
                         zout(2,j,nout2) = r - s
                         zout(2,j,nout4) = r + s
-4120                        CONTINUE
+                        ENDDO ; ENDDO
                 ENDIF
 4100                CONTINUE
         ENDIF
@@ -714,7 +715,7 @@ CONTAINS
                 ia=1
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 8120,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -731,7 +732,7 @@ CONTAINS
                         nout6=nout5+after
                         nout7=nout6+after
                         nout8=nout7+after
-                        DO 8120,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r2=zin(1,j,nin2)
@@ -800,7 +801,7 @@ CONTAINS
                         zout(2,j,nout4) = bp + dpp
                         zout(1,j,nout8) = am - cp
                         zout(2,j,nout8) = bp - dpp
-8120                        CONTINUE
+                        ENDDO ; ENDDO
                 DO 8000,ia=2,after
                 ias=ia-1
                         itt=ias*before
@@ -827,7 +828,7 @@ CONTAINS
                         ci8=trig(2,itrig)
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 8020,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -844,7 +845,7 @@ CONTAINS
                         nout6=nout5+after
                         nout7=nout6+after
                         nout8=nout7+after
-                        DO 8020,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -926,16 +927,15 @@ CONTAINS
                         zout(1,j,nout4) = am + cp
                         zout(2,j,nout4) = bp + dpp
                         zout(1,j,nout8) = am - cp
-                        zout(2,j,nout8) = bp - dpp
-
-8020                        CONTINUE
+                        zout(2,j,nout8) = bp - dpp 
+                        ENDDO ; ENDDO
 8000                CONTINUE
 
         ELSE
                 ia=1
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 8121,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -952,7 +952,7 @@ CONTAINS
                         nout6=nout5+after
                         nout7=nout6+after
                         nout8=nout7+after
-                        DO 8121,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r2=zin(1,j,nin2)
@@ -1021,7 +1021,7 @@ CONTAINS
                         zout(2,j,nout4) = bp + dpp
                         zout(1,j,nout8) = am - cp
                         zout(2,j,nout8) = bp - dpp
-8121                        CONTINUE
+                        ENDDO ; ENDDO
 
                 DO 8001,ia=2,after
                 ias=ia-1
@@ -1049,7 +1049,7 @@ CONTAINS
                         ci8=trig(2,itrig)
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 8021,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -1066,7 +1066,7 @@ CONTAINS
                         nout6=nout5+after
                         nout7=nout6+after
                         nout8=nout7+after
-                        DO 8021,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -1149,7 +1149,7 @@ CONTAINS
                         zout(2,j,nout4) = bp + dpp
                         zout(1,j,nout8) = am - cp
                         zout(2,j,nout8) = bp - dpp
-8021                        CONTINUE
+                        ENDDO ; ENDDO
 8001                CONTINUE
 
         ENDIF
@@ -1159,14 +1159,14 @@ CONTAINS
         ia=1
         nin1=ia-after
         nout1=ia-atn
-        DO 3001,ib=1,before
+        DO ib=1,before
         nin1=nin1+after
         nin2=nin1+atb
         nin3=nin2+atb
         nout1=nout1+atn
         nout2=nout1+after
         nout3=nout2+after
-        DO 3001,j=1,nfft
+        DO j=1,nfft
         r1=zin(1,j,nin1)
         s1=zin(2,j,nin1)
         r2=zin(1,j,nin2)
@@ -1185,21 +1185,21 @@ CONTAINS
         zout(2,j,nout2) = s1 + r2
         zout(1,j,nout3) = r1 + s2
         zout(2,j,nout3) = s1 - r2
-3001        CONTINUE
+        ENDDO ; ENDDO
         DO 3000,ia=2,after
         ias=ia-1
         IF (4*ias.eq.3*after) THEN
         IF (isign.eq.1) THEN
                 nin1=ia-after
                 nout1=ia-atn
-                DO 3010,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
                 nout1=nout1+atn
                 nout2=nout1+after
                 nout3=nout2+after
-                DO 3010,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r2=zin(2,j,nin2)
@@ -1218,18 +1218,18 @@ CONTAINS
                 zout(2,j,nout2) = s1 - r2
                 zout(1,j,nout3) = r1 + s2
                 zout(2,j,nout3) = s1 + r2
-3010                CONTINUE
+                ENDDO ; ENDDO
         ELSE
                 nin1=ia-after
                 nout1=ia-atn
-                DO 3020,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
                 nout1=nout1+atn
                 nout2=nout1+after
                 nout3=nout2+after
-                DO 3020,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r2=zin(2,j,nin2)
@@ -1248,20 +1248,20 @@ CONTAINS
                 zout(2,j,nout2) = s1 + r2
                 zout(1,j,nout3) = r1 - s2
                 zout(2,j,nout3) = s1 - r2
-3020                CONTINUE
+                ENDDO ; ENDDO
         ENDIF
         ELSE IF (8*ias.eq.3*after) THEN
         IF (isign.eq.1) THEN
                 nin1=ia-after
                 nout1=ia-atn
-                DO 3030,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
                 nout1=nout1+atn
                 nout2=nout1+after
                 nout3=nout2+after
-                DO 3030,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r=zin(1,j,nin2)
@@ -1282,18 +1282,18 @@ CONTAINS
                 zout(2,j,nout2) = s1 + r2
                 zout(1,j,nout3) = r1 + s2
                 zout(2,j,nout3) = s1 - r2
-3030                CONTINUE
+                ENDDO ; ENDDO
         ELSE
                 nin1=ia-after
                 nout1=ia-atn
-                DO 3040,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
                 nout1=nout1+atn
                 nout2=nout1+after
                 nout3=nout2+after
-                DO 3040,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r=zin(1,j,nin2)
@@ -1314,7 +1314,7 @@ CONTAINS
                 zout(2,j,nout2) = s1 + r2
                 zout(1,j,nout3) = r1 + s2
                 zout(2,j,nout3) = s1 - r2
-3040                CONTINUE
+                ENDDO ; ENDDO
         ENDIF
         ELSE
         itt=ias*before
@@ -1326,14 +1326,14 @@ CONTAINS
         ci3=trig(2,itrig)
         nin1=ia-after
         nout1=ia-atn
-        DO 3090,ib=1,before
+        DO ib=1,before
         nin1=nin1+after
         nin2=nin1+atb
         nin3=nin2+atb
         nout1=nout1+atn
         nout2=nout1+after
         nout3=nout2+after
-        DO 3090,j=1,nfft
+        DO j=1,nfft
         r1=zin(1,j,nin1)
         s1=zin(2,j,nin1)
         r=zin(1,j,nin2)
@@ -1356,7 +1356,7 @@ CONTAINS
         zout(2,j,nout2) = s1 + r2
         zout(1,j,nout3) = r1 + s2
         zout(2,j,nout3) = s1 - r2
-3090        CONTINUE
+        ENDDO ; ENDDO
         ENDIF
 3000        CONTINUE
         ELSE IF (now.eq.5) THEN
@@ -1371,7 +1371,7 @@ CONTAINS
         ia=1
         nin1=ia-after
         nout1=ia-atn
-        DO 5001,ib=1,before
+        DO ib=1,before
         nin1=nin1+after
         nin2=nin1+atb
         nin3=nin2+atb
@@ -1382,7 +1382,7 @@ CONTAINS
         nout3=nout2+after
         nout4=nout3+after
         nout5=nout4+after
-        DO 5001,j=1,nfft
+        DO j=1,nfft
         r1=zin(1,j,nin1)
         s1=zin(2,j,nin1)
         r2=zin(1,j,nin2)
@@ -1419,14 +1419,14 @@ CONTAINS
         s = sin4*r25 - sin2*r34
         zout(2,j,nout3) = r + s
         zout(2,j,nout4) = r - s
-5001        CONTINUE
+        ENDDO ; ENDDO
         DO 5000,ia=2,after
         ias=ia-1
         IF (8*ias.eq.5*after) THEN
                 IF (isign.eq.1) THEN
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 5010,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -1437,7 +1437,7 @@ CONTAINS
                         nout3=nout2+after
                         nout4=nout3+after
                         nout5=nout4+after
-                        DO 5010,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -1478,11 +1478,11 @@ CONTAINS
                         s = sin4*r25 - sin2*r34
                         zout(2,j,nout3) = r + s
                         zout(2,j,nout4) = r - s
-5010                        CONTINUE
+                        ENDDO ; ENDDO
                 ELSE
                         nin1=ia-after
                         nout1=ia-atn
-                        DO 5020,ib=1,before
+                        DO ib=1,before
                         nin1=nin1+after
                         nin2=nin1+atb
                         nin3=nin2+atb
@@ -1493,7 +1493,7 @@ CONTAINS
                         nout3=nout2+after
                         nout4=nout3+after
                         nout5=nout4+after
-                        DO 5020,j=1,nfft
+                        DO j=1,nfft
                         r1=zin(1,j,nin1)
                         s1=zin(2,j,nin1)
                         r=zin(1,j,nin2)
@@ -1534,7 +1534,7 @@ CONTAINS
                         s = sin4*r25 - sin2*r34
                         zout(2,j,nout3) = r + s
                         zout(2,j,nout4) = r - s
-5020                        CONTINUE
+                        ENDDO ; ENDDO
                 ENDIF
         ELSE
                 ias=ia-1
@@ -1553,7 +1553,7 @@ CONTAINS
                 ci5=trig(2,itrig)
                 nin1=ia-after
                 nout1=ia-atn
-                DO 5100,ib=1,before
+                DO ib=1,before
                 nin1=nin1+after
                 nin2=nin1+atb
                 nin3=nin2+atb
@@ -1564,7 +1564,7 @@ CONTAINS
                 nout3=nout2+after
                 nout4=nout3+after
                 nout5=nout4+after
-                DO 5100,j=1,nfft
+                DO j=1,nfft
                 r1=zin(1,j,nin1)
                 s1=zin(2,j,nin1)
                 r=zin(1,j,nin2)
@@ -1609,7 +1609,7 @@ CONTAINS
                 s = sin4*r25 - sin2*r34
                 zout(2,j,nout3) = r + s
                 zout(2,j,nout4) = r - s
-5100                CONTINUE
+                ENDDO ; ENDDO
         ENDIF
 5000        CONTINUE
        ELSE IF (now.eq.6) THEN
@@ -1619,7 +1619,7 @@ CONTAINS
         ia=1
         nin1=ia-after
         nout1=ia-atn
-        DO 6120,ib=1,before
+        DO ib=1,before
         nin1=nin1+after
         nin2=nin1+atb
         nin3=nin2+atb
@@ -1632,7 +1632,7 @@ CONTAINS
         nout4=nout3+after
         nout5=nout4+after
         nout6=nout5+after
-        DO 6120,j=1,nfft
+        DO j=1,nfft
         r2=zin(1,j,nin3)
         s2=zin(2,j,nin3)
         r3=zin(1,j,nin5)
@@ -1683,10 +1683,8 @@ CONTAINS
         zout(2,j,nout2)=ui2-vi2
         zout(1,j,nout6)=ur3-vr3
         zout(2,j,nout6)=ui3-vi3
-6120        CONTINUE
-
+        ENDDO ; ENDDO
      ELSE
-        WRITE(*,*)'error here'
         STOP 'error fftstp'
      ENDIF
 
