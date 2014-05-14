@@ -36,6 +36,20 @@
         },
 
 #============================================================================
+        {'dirname':'cpdbcsr',
+         'requires': ["../dbcsrwrap","../common", "../base","../fm","../qstypes",
+                      "../mpiwrap", "../systemtypes", "../aobasis", "../input"],
+         'files': [
+           "cp_dbcsr_cholesky.F",
+           "cp_dbcsr_cp2k_link.F",
+           "cp_dbcsr_diag.F",
+           "cp_dbcsr_operations.F",
+           "cp_dbcsr_output.F",
+           "cp_dbcsr_util.F",
+         ]
+        },
+
+#============================================================================
         {'dirname':'tmc',
          'requires': ["../", "../base", "../common", "../input", "../mpiwrap", "../systemtypes"],
         },
@@ -43,7 +57,9 @@
 #============================================================================
 
         {'dirname':'start',
-         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsrwrap", "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion", "../pint", "../dbcsrwrap"],
+         'requires': ["../", "../acc", "../base", "../common", "../input", "../dbcsrwrap", "../cpdbcsr",
+                      "../pw", "../tmc", "../swarm", "../mpiwrap", "../vib", "../neb", "../motion",
+                      "../pint", "../dbcsrwrap"],
         },
 
 #============================================================================
@@ -56,6 +72,112 @@
          {'dirname':'aobasis',
           'requires': ["../base", "../common", "../mpiwrap", "../input"],
          },
+
+
+#============================================================================
+#        topology
+#============================================================================
+         {'dirname':'topology',
+          'requires':["../base", "../common", "../mpiwrap", "../input", "../systemtypes"],
+          'files': [ "topology_amber.F",
+             "topology_cif.F",
+             "topology_connectivity_util.F",
+             "topology_constraint_util.F",
+             "topology_coordinate_util.F",
+             "topology_cp2k.F",
+             "topology.F",
+             "topology_generate_util.F",
+             "topology_gromos.F",
+             "topology_input.F",
+             "topology_multiple_unit_cell.F",
+             "topology_pdb.F",
+             "topology_psf.F",
+             "topology_types.F",
+             "topology_util.F",
+             "topology_xtl.F",
+             "topology_xyz.F",
+             "graphcon.F",
+             "qmmm_topology_util.F",
+             "rd_amber_section_1.f90",
+            ],
+         },
+
+
+#============================================================================
+#        fist
+#============================================================================
+         {'dirname':'fist',
+          'requires':["../base", "../common", "../mpiwrap", "../input", "../systemtypes","../qstypes", "../pw", "../topology"],
+          'files': [ "fist_energy_types.F",
+            "fist_environment.F",
+            "fist_environment_types.F",
+            "fist_force.F",
+            "fist_intra_force.F",
+            "fist_main.F",
+            "fist_neighbor_list_control.F",
+            "fist_neighbor_lists.F",
+            "fist_neighbor_list_types.F",
+            "fist_nonbond_env_types.F",
+            "fist_nonbond_force.F",
+            "fist_pol_scf.F",
+            "manybody_potential.F",
+            "ewalds_multipole.F",
+            "eip_environment.F",
+            "eip_environment_types.F",
+            "manybody_eam.F",
+            "manybody_tersoff.F",
+            "manybody_siepmann.F",
+            "ewalds.F",
+            "ewald_pw_methods.F",
+            "mol_force.F",
+            "pme.F",
+            "spme.F",
+            "pme_tools.F",
+            "ewalds_multipole_sr.f90",
+            "ewalds_multipole_debug.h",
+            "ewalds_multipole_debug.F",
+            "pair_potential_types.F",
+            "splines_types.F",
+            "splines_methods.F",
+            "pair_potential_coulomb.F",
+            "pair_potential.F",
+            "pair_potential_util.F",
+            "damping_dipole_types.F",
+            "force_fields.F",
+            "force_field_types.F",
+            "force_fields_input.F",
+            "force_fields_all.F",
+            "force_fields_util.F",
+            "force_fields_ext.F",
+            ],
+         },
+
+#============================================================================
+#        qmmm
+#============================================================================
+        {'dirname':'qmmm',
+         'requires':["../base", "../common", "../mpiwrap", "../input", "../systemtypes",
+                     "../qstypes", "../pw", "../topology", "../fist", "../dbcsrwrap", "../cpdbcsr",
+                     "../gpw", "../aobasis"],
+         'files':[ "qmmm_elpot.F",
+           "qmmm_force_mixing.F",
+           "qmmm_gaussian_data.F",
+           "qmmm_gaussian_init.F",
+           "qmmm_gaussian_input.F",
+           "qmmm_gaussian_types.F",
+           "qmmm_gpw_energy.F",
+           "qmmm_gpw_forces.F",
+           "qmmm_image_charge.F",
+           "qmmm_init.F",
+           "qmmm_links_methods.F",
+           "qmmm_main.F",
+           "qmmm_per_elpot.F",
+           "qmmm_pw_grid.F",
+           "qmmm_se_energy.F",
+           "qmmm_se_forces.F",
+           "qmmm_types.F",
+           "qmmm_util.F"],
+        },
 
 #============================================================================
 # basic system level types....what types are needed to describe an atom (entangled for both first and qs and ...)
@@ -74,26 +196,28 @@
                     "molecule_kind_types.F",  
                     "molecule_types_new.F",
                     "mol_new_list_types.F",
-                    "soft_basis_set.F",
-                    "damping_dipole_types.F",
-                    "qs_dispersion_types.F",
-                    "qs_dftb_types.F",
-                    "force_field_types.F",
-                    "shell_potential_types.F",
-                    "external_potential_types.F",
-                    "colvar_types.F",
-                    "soft_basis_set.F",
-                    "damping_dipole_types.F",
-                    "qs_dispersion_types.F",
-                    "qs_dftb_types.F",
-                    "force_field_types.F",
-                    "shell_potential_types.F",
-                    "external_potential_types.F",
-                    "colvar_types.F",
-                    "pair_potential_types.F",
-                    "qs_neighbor_list_types.F",
-                    "paw_proj_set_types.F",
-                    "scptb_types.F"
+                    "multipole_types.F", 
+                    "cell_methods.F",
+                    "qmmm_ff_fist.F",
+                   #"soft_basis_set.F",
+                   #"damping_dipole_types.F",
+                   #"qs_dispersion_types.F",
+                   #"qs_dftb_types.F",
+                   #"force_field_types.F",
+                   "shell_potential_types.F",
+                   #"external_potential_types.F",
+                   #"colvar_types.F",
+                   #"soft_basis_set.F",
+                   #"damping_dipole_types.F",
+                   #"qs_dispersion_types.F",
+                   #"qs_dftb_types.F",
+                   #"force_field_types.F",
+                   #"shell_potential_types.F",
+                   #"external_potential_types.F",
+                   #"colvar_types.F",
+                   #"pair_potential_types.F",
+                   #"paw_proj_set_types.F",
+                   #"scptb_types.F"
                    ]
          },
 
@@ -125,6 +249,7 @@
                    "taper_types.F",
                    "semi_empirical_expns3_types.F",
                    "fist_neighbor_list_types.F",
+                    "qs_neighbor_list_types.F",
                    "exclusion_types.F",
                    "qs_ot_types.F",
                    "qs_block_davidson_types.F",
@@ -225,8 +350,10 @@
              "hfx_load_balance_methods.F",
              "hfx_pair_list_methods.F",
              "hfx_ri_gemopt.F",
+             "qs_geminals.F",
              "hfx_ri_methods.F",
              "hfx_screening_methods.F",
+             "input_cp2k_hfx.F",
            ]
          },
 
@@ -234,7 +361,9 @@
 #============================================================================
 
          {'dirname':'wfc',
-          'requires': ["../base", "../common", "../fm", "../mpiwrap", "../gpw", "../hfx", '../input', "../aobasis", "../systemtypes", "../pw", "../qstypes", "../dbcsrwrap"],
+          'requires': ["../base", "../common", "../fm", "../mpiwrap", "../gpw",
+                       "../hfx", '../input', "../aobasis", "../systemtypes",
+                        "../pw", "../qstypes", "../dbcsrwrap", "../cpdbcsr"],
           'files': [
             "input_cp2k_mp2.F",
             "mp2_cphf.F",
@@ -384,7 +513,8 @@
 
          {'dirname':'',
           'requires':  ["base", "common", "fm", "pw", "ma", "acc", "mpiwrap",
-                        "input", "xc", "hfx", "aobasis", "gpw", "systemtypes", "wfc", "qstypes", "dbcsrwrap"]
+                        "input", "xc", "hfx", "aobasis", "gpw", "systemtypes",
+                        "wfc", "qstypes", "dbcsrwrap", "cpdbcsr", "fist", "topology", "qmmm"]
          },
 
 #============================================================================
