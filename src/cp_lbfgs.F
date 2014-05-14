@@ -4217,11 +4217,12 @@ CONTAINS
          CASE = 1
          IF (MOD(job,10) /= 0) CASE = 2
          IF (MOD(job,100)/10 /= 0) CASE = CASE + 2
-         go to (20,50,80,110), CASE
+
+         SELECT CASE(CASE)
+         CASE(1)
 !
 !        solve t*x=b for t lower triangular
 !
-   20    CONTINUE
             b(1) = b(1)/t(1,1)
             IF (n < 2) go to 40
             DO 30 j = 2, n
@@ -4230,11 +4231,10 @@ CONTAINS
                b(j) = b(j)/t(j,j)
    30       CONTINUE
    40       CONTINUE
-         go to 140
+         CASE(2)
 !
 !        solve t*x=b for t upper triangular.
 !
-   50    CONTINUE
             b(n) = b(n)/t(n,n)
             IF (n < 2) go to 70
             DO 60 jj = 2, n
@@ -4244,11 +4244,10 @@ CONTAINS
                b(j) = b(j)/t(j,j)
    60       CONTINUE
    70       CONTINUE
-         go to 140
+         CASE(3)
 !
 !        solve trans(t)*x=b for t lower triangular.
 !
-   80    CONTINUE
             b(n) = b(n)/t(n,n)
             IF (n < 2) go to 100
             DO 90 jj = 2, n
@@ -4257,7 +4256,7 @@ CONTAINS
                b(j) = b(j)/t(j,j)
    90       CONTINUE
   100       CONTINUE
-         go to 140
+         CASE(4)
 !
 !        solve trans(t)*x=b for t upper triangular.
 !
@@ -4269,7 +4268,10 @@ CONTAINS
                b(j) = b(j)/t(j,j)
   120       CONTINUE
   130       CONTINUE
-  140    CONTINUE
+         CASE DEFAULT
+            STOP "dtrsl: unexpected case"
+         END SELECT
+
   150 CONTINUE
       RETURN
       END SUBROUTINE dtrsl
