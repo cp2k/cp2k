@@ -425,8 +425,7 @@ CONTAINS
     INTEGER                                  :: homo, ispin, stat
     LOGICAL                                  :: energy_consistency, failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools, &
-                                                ao_mo_fm_pools_aux_fit
+      POINTER                                :: ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
 
     SELECT CASE(rtp_control%initial_wfn)

@@ -159,7 +159,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order, handle
-    REAL(Kind=dp)                            :: delta_iter, eps_ener
+    REAL(Kind=dp)                            :: eps_ener
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp

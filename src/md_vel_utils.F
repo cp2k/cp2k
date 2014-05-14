@@ -1835,7 +1835,7 @@ CONTAINS
     LOGICAL                                  :: failure, init_cascade, is_ok, &
                                                 no_read_error
     REAL(KIND=dp)                            :: ecom, ekin, energy, norm, &
-                                                temp, temperature, v
+                                                temp, temperature
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: matom, weight
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vatom

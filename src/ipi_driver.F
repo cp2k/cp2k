@@ -102,13 +102,11 @@ MODULE ipi_driver
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: MSGLEN = 12
 
-    CHARACTER(LEN=1024)                      :: host
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, i_drv_unix, idir, &
                                                 ii, inet, ip, nat, nread, &
-                                                port, slock, socket, swait, &
-                                                uwait
+                                                slock, socket, swait, uwait
     LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
                                                 ionode = .FALSE., should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), pot, &

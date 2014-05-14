@@ -162,7 +162,6 @@ MODULE ep_methods
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_methods'
-  INTEGER, PRIVATE, SAVE :: last_ep_env_id=0
 
   PUBLIC :: ep_env_init_low, ep_env_transfer_psi0, &
        ep_env_localize_matrix, ep_env_calc_e_f_low

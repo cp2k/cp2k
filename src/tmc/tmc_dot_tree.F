@@ -362,7 +362,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=1000)                      :: label, list_of_nr
+    CHARACTER(len=1000)                      :: list_of_nr
     INTEGER                                  :: file_ptr, i, ref_count
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem

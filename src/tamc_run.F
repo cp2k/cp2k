@@ -169,7 +169,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
       nmccycles, output_unit, rand2skip, run_type_id
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, ehrenfest_md, &
-                                                explicit, failure, ionode, &
+                                                explicit, failure, &
                                                 my_rm_restart_info, save_mem, &
                                                 should_stop
     REAL(KIND=dp)                            :: auxRandom, inittime, rval, &
