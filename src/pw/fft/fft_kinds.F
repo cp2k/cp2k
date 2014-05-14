@@ -16,11 +16,6 @@ MODULE fft_kinds
   INTEGER, PARAMETER, PUBLIC :: dp = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER, PUBLIC :: sp = SELECTED_REAL_KIND ( 6, 30 )
 
-#if defined (__NAG)
-  INTEGER*8                  :: dummy_64_bit
-  INTEGER, PARAMETER, PUBLIC :: integer8_kind = KIND(dummy_64_bit)
-#else
-  INTEGER, PARAMETER, PUBLIC :: integer8_kind = 8
-#endif
+  INTEGER, PARAMETER, PUBLIC :: integer8_kind = SELECTED_INT_KIND(10)
 
 END MODULE fft_kinds
