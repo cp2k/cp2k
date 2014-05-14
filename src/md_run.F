@@ -181,18 +181,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_pos
-    INTEGER                                  :: handle, i, i_kinds, istep, &
-                                                md_stride, natom_plumed, &
-                                                nsp_plumed, run_type_id
-    INTEGER, DIMENSION(90)                   :: na_plumed
+    INTEGER                                  :: handle, i, istep, &
+                                                md_stride, &
+                                                run_type_id
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, ehrenfest_md, failure, &
                                                 save_mem, should_stop, &
                                                 write_binary_restart_file
     REAL(KIND=dp)                            :: dummy, time_iter_start, &
-                                                time_iter_stop, &
-                                                timestep_plumed
-    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
+                                                time_iter_stop
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(barostat_type), POINTER             :: barostat
@@ -211,6 +208,12 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
+#ifdef PLUMED_CP2K
+    INTEGER                                  :: natom_plumed, nsp_plumed
+    INTEGER, DIMENSION(90)                   :: na_plumed
+    REAL(KIND=dp)                            :: timestep_plumed
+    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
+#endif
 
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
