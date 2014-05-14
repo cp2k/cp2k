@@ -2152,11 +2152,11 @@ CONTAINS
                                                 rsdir(4,nrsdir), ur1, ur2, &
                                                 ur3, wva(3), wvk(3)
 
-    failure = .FALSE.
-!------------------------------------------------------------------------------!
-
     DATA iplace/ -2/
     !------------------------------------------------------------------------------!
+    failure = .FALSE.
+    !------------------------------------------------------------------------------!
+
     ntot = 0
     DO i = 1, nkpoint
        lrot(1,i) = 1
@@ -2803,8 +2803,8 @@ CONTAINS
     REAL(KIND=dp)                            :: b1len, b2len, b3len, bmax, &
                                                 bvec(3), projct
 
-    failure = .FALSE.
     DATA initlz/0/
+    failure = .FALSE.
     !------------------------------------------------------------------------------!
     IF (initlz/=0) RETURN
     !     Once initialized, we do not repeat the calculation
