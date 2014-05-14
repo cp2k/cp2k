@@ -2,30 +2,44 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 #if defined(__HAS_NO_OMP_3)
 #define __COLLAPSE3
 #else
 #define __COLLAPSE3 collapse(3)
 #endif
-
 #define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
 #define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d
 #define XFFTW_PLAN_GURU_DFT dfftw_plan_guru_dft
 #define XFFTW_EXECUTE_DFT dfftw_execute_dft
 #define XFFTW_DESTROY_PLAN dfftw_destroy_plan
 
-SUBROUTINE fftw3_do_cleanup()
+MODULE fftw3_lib
+
+  USE fft_kinds,                       ONLY: dp,&
+                                             integer8_kind
+  USE fft_plan,                        ONLY: fft_plan_type
+
+  !$ USE OMP_LIB
+
+  IMPLICIT NONE
+
+  PUBLIC :: fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm 
+  PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
+  PUBLIC :: fftw_import_wisdom_from_file, fftw3_is_mkl_wrapper
 
 #if defined ( __FFTW3 )
-
     INTERFACE
       SUBROUTINE fftw_cleanup() BIND(C,name="fftw_cleanup")
       END SUBROUTINE
     END INTERFACE
+#endif
 
+CONTAINS
+
+SUBROUTINE fftw3_do_cleanup()
+
+#if defined ( __FFTW3 )
     CALL fftw_cleanup()
-
 #endif
 
 END SUBROUTINE
@@ -43,17 +57,13 @@ END SUBROUTINE
 ! *****************************************************************************
 SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
-  IMPLICIT NONE
 
-  INTEGER, DIMENSION(*)                    :: DATA
-  INTEGER, INTENT(INOUT)                   :: max_length
+    INTEGER, DIMENSION(*)                    :: DATA
+    INTEGER, INTENT(INOUT)                   :: max_length
 
-  INTEGER, DIMENSION(:), ALLOCATABLE       :: dlocal, idx
-  INTEGER                                  :: h, i, j, k, m, maxn, &
-                                              maxn_elevens, maxn_fives, &
-                                              maxn_sevens, maxn_thirteens, &
-                                              maxn_threes, maxn_twos, &
-                                              ndata, nmax, number
+    INTEGER :: h, i, j, k, m, maxn, maxn_elevens, maxn_fives, maxn_sevens, &
+      maxn_thirteens, maxn_threes, maxn_twos, ndata, nmax, number
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: dlocal, idx
 
 !------------------------------------------------------------------------------
 ! compute ndata
@@ -123,6 +133,116 @@ SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftw3_get_lengths
 
+
+! *****************************************************************************
+SUBROUTINE sortint ( iarr, n, index )
+
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER, INTENT(INOUT)                   :: iarr(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
+
+    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+
+    INTEGER                                  :: a, i, ib, ir, &
+                                                istack(1:nstack), itemp, j, &
+                                                jstack, k, l, temp
+
+!------------------------------------------------------------------------------
+
+  DO i = 1, n
+     INDEX(i) = i
+  END DO
+  jstack = 0
+  l = 1
+  ir = n
+1 IF (ir-l<m) THEN
+     DO j = l + 1, ir
+        a = iarr(j)
+        ib = INDEX(j)
+        DO i = j - 1, 1, -1
+           IF (iarr(i)<=a) GO TO 2
+           iarr(i+1) = iarr(i)
+           INDEX(i+1) = INDEX(i)
+        END DO
+        i = 0
+2       iarr(i+1) = a
+        INDEX(i+1) = ib
+     END DO
+     IF (jstack==0) RETURN
+     ir = istack(jstack)
+     l = istack(jstack-1)
+     jstack = jstack - 2
+  ELSE
+     k = (l+ir)/2
+     temp = iarr(k)
+     iarr(k) = iarr(l+1)
+     iarr(l+1) = temp
+     itemp = INDEX(k)
+     INDEX(k) = INDEX(l+1)
+     INDEX(l+1) = itemp
+     IF (iarr(l+1)>iarr(ir)) THEN
+        temp = iarr(l+1)
+        iarr(l+1) = iarr(ir)
+        iarr(ir) = temp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(ir)
+        INDEX(ir) = itemp
+     END IF
+     IF (iarr(l)>iarr(ir)) THEN
+        temp = iarr(l)
+        iarr(l) = iarr(ir)
+        iarr(ir) = temp
+        itemp = INDEX(l)
+        INDEX(l) = INDEX(ir)
+        INDEX(ir) = itemp
+     END IF
+     IF (iarr(l+1)>iarr(l)) THEN
+        temp = iarr(l+1)
+        iarr(l+1) = iarr(l)
+        iarr(l) = temp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(l)
+        INDEX(l) = itemp
+     END IF
+     i = l + 1
+     j = ir
+     a = iarr(l)
+     ib = INDEX(l)
+3    CONTINUE
+     i = i + 1
+     IF (iarr(i)<a) GO TO 3
+4    CONTINUE
+     j = j - 1
+     IF (iarr(j)>a) GO TO 4
+     IF (j<i) GO TO 5
+     temp = iarr(i)
+     iarr(i) = iarr(j)
+     iarr(j) = temp
+     itemp = INDEX(i)
+     INDEX(i) = INDEX(j)
+     INDEX(j) = itemp
+     GO TO 3
+5    iarr(l) = iarr(j)
+     iarr(j) = a
+     INDEX(l) = INDEX(j)
+     INDEX(j) = ib
+     jstack = jstack + 2
+     IF (jstack>nstack) STOP ' Nstack too small in sortr'
+     IF (ir-i+1>=j-l) THEN
+        istack(jstack) = ir
+        istack(jstack-1) = i
+        ir = j - 1
+     ELSE
+        istack(jstack) = j - 1
+        istack(jstack-1) = l
+        l = i
+     END IF
+  END IF
+
+  GO TO 1
+
+END SUBROUTINE sortint
+
 ! *****************************************************************************
 
 SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
@@ -131,7 +251,6 @@ SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
                                   zin, zout, fft_direction, fftw_plan_type, &
                                   valid)
 
-  USE fft_kinds,                          ONLY : dp, integer8_kind
 
   IMPLICIT NONE
 
@@ -168,8 +287,6 @@ END SUBROUTINE
 ! *****************************************************************************
 
 FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
-
-  USE fft_kinds,                          ONLY : dp, integer8_kind
 
   IMPLICIT NONE
 
@@ -218,10 +335,10 @@ END FUNCTION
 SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,&
                                      th_planA, th_planB)
 
-         IMPLICIT NONE
-         INTEGER, INTENT(IN) :: nrows,nt 
-         INTEGER, INTENT(OUT)    :: rows_per_thread,rows_per_thread_r 
-         INTEGER, INTENT(OUT)    :: th_planA, th_planB
+    INTEGER, INTENT(IN)                      :: nrows, nt
+    INTEGER, INTENT(OUT)                     :: rows_per_thread, &
+                                                rows_per_thread_r, th_planA, &
+                                                th_planB
 
          IF (MOD(nrows,nt) .EQ. 0) THEN
             rows_per_thread = nrows/nt
@@ -245,21 +362,22 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
                                  input, output, &
                                  fft_direction, fftw_plan_type, rows_per_th, & 
                                  rows_per_th_r) 
-  USE fft_kinds,                          ONLY : dp, integer8_kind
 
-  IMPLICIT NONE
 
-  INTEGER(KIND=integer8_kind), INTENT ( INOUT )         :: plan, plan_r
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: input
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: output
-  INTEGER, INTENT(INOUT) :: dim_n(2), dim_istride(2), dim_ostride(2), &
-             hm_n(2), hm_istride(2), hm_ostride(2), &
-             fft_direction, fftw_plan_type
-  INTEGER, INTENT(IN)                    :: rows_per_th
-  INTEGER, INTENT(IN)                    :: rows_per_th_r
-  LOGICAL                                :: valid
+    INTEGER(KIND=integer8_kind), &
+      INTENT(INOUT)                          :: plan, plan_r
+    INTEGER, INTENT(INOUT)                   :: dim_n(2), dim_istride(2), &
+                                                dim_ostride(2), hm_n(2), &
+                                                hm_istride(2), hm_ostride(2)
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: input, output
+    INTEGER, INTENT(INOUT)                   :: fft_direction, fftw_plan_type
+    INTEGER, INTENT(IN)                      :: rows_per_th, rows_per_th_r
 
-    ! First plans will have an additional row
+    LOGICAL                                  :: valid
+
+! First plans will have an additional row
+
     hm_n(2) = rows_per_th
     CALL fftw3_create_guru_plan(plan,1, &
                                  dim_n,dim_istride,dim_ostride, &
@@ -289,12 +407,6 @@ END SUBROUTINE
 
 SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 
-  USE fft_plan,                           ONLY : fft_plan_type
-  USE fft_kinds,                          ONLY : dp
-!$  USE OMP_LIB
-
-  IMPLICIT NONE
-
   TYPE(fft_plan_type), INTENT ( INOUT )              :: plan
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
@@ -310,8 +422,6 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   ! GURU Interface
   INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
              howmany_n(2), howmany_istride(2), howmany_ostride(2)
-
-  LOGICAL :: fftw3_is_mkl_wrapper
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
@@ -470,11 +580,6 @@ END SUBROUTINE fftw3_create_plan_3d
 SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
                                        input, istride, output, ostride)
 
-   USE fft_kinds,                          ONLY : dp, integer8_kind
-!$ USE OMP_LIB 
-
-  IMPLICIT NONE 
-
   INTEGER, INTENT(IN)                           :: split_dim,nt, tid
   INTEGER, INTENT(IN)                           :: istride, ostride
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT) :: input, output
@@ -525,12 +630,6 @@ END SUBROUTINE
 ! *****************************************************************************
 
 SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
-
-  USE fft_plan,                           ONLY : fft_plan_type
-  USE fft_kinds,                          ONLY : dp
-!$ USE OMP_LIB
-
-  IMPLICIT NONE
 
   TYPE(fft_plan_type), INTENT(IN)                      :: plan
   REAL(KIND=dp), INTENT(IN)                            :: scale
@@ -617,10 +716,6 @@ END SUBROUTINE fftw33d
 ! *****************************************************************************
 
 SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
-
-  USE fft_plan,                           ONLY : fft_plan_type
-  USE fft_kinds,                          ONLY : dp
-  !$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -710,10 +805,6 @@ END SUBROUTINE fftw3_create_plan_1dm
 
 SUBROUTINE fftw3_destroy_plan ( plan )
 
-  USE fft_plan,                           ONLY: fft_plan_type
-
-  IMPLICIT NONE
-
   TYPE(fft_plan_type), INTENT (INOUT)   :: plan
 
 #if defined ( __FFTW3 )
@@ -740,9 +831,6 @@ END SUBROUTINE fftw3_destroy_plan
 
 SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
 
-  USE fft_plan,                 ONLY : fft_plan_type
-  USE fft_kinds,                          ONLY : dp
-  !$ USE OMP_LIB
 
   IMPLICIT NONE
 #if defined (__NAG)
@@ -857,22 +945,22 @@ END SUBROUTINE fftw31dm
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 ! *****************************************************************************
-      SUBROUTINE fftw_write_char(c, iunit)
-         IMPLICIT NONE
-         CHARACTER c
-         INTEGER iunit
+      SUBROUTINE fftw_write_char(c, iunit) BIND(C, name="fftw_write_char")
+    CHARACTER                                :: c
+    INTEGER                                  :: iunit
+
          WRITE(iunit,'(a)',ADVANCE="NO") c
-      END
+      END SUBROUTINE
 
 ! *****************************************************************************
       SUBROUTINE fftw_export_wisdom_to_file(iunit)
-         IMPLICIT NONE
-         INTEGER iunit
+    INTEGER                                  :: iunit
+
          EXTERNAL fftw_write_char
 #if defined ( __FFTW3 )
          CALL dfftw_export_wisdom(fftw_write_char, iunit)
 #endif
-      END
+      END SUBROUTINE
 
 !     Fortran 77 does not have any portable way to read an arbitrary
 !     file one character at a time [needs to wait for stream IO of F2003].
@@ -883,11 +971,11 @@ END SUBROUTINE fftw31dm
 !     simply fail.)  Ugh (and not thread safe).
 
 ! *****************************************************************************
-      SUBROUTINE fftw_read_char(ic, iunit)
-         IMPLICIT NONE
-         INTEGER ic
-         INTEGER iunit
-         CHARACTER(LEN=256) buf
+      SUBROUTINE fftw_read_char(ic, iunit) BIND(C, name="fftw_read_char")
+    INTEGER                                  :: ic, iunit
+
+    CHARACTER(LEN=256)                       :: buf
+
          SAVE buf
          INTEGER ibuf
          DATA ibuf/257/
@@ -904,17 +992,18 @@ END SUBROUTINE fftw31dm
  666     ic = -1
          ibuf = 257
  123     FORMAT(a256)
-      END
+      END SUBROUTINE
 
 ! *****************************************************************************
       SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
-         IMPLICIT NONE
-         INTEGER isuccess
-         INTEGER iunit
+    INTEGER                                  :: isuccess, iunit
+
          EXTERNAL fftw_read_char
          isuccess=0
 #if defined ( __FFTW3 )
          CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
 #endif
-      END
+      END SUBROUTINE
+
+END MODULE
 

@@ -28,7 +28,17 @@ MODULE fft_tools
   USE cp_files,                        ONLY: get_unit_number
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE fft_lib,                         ONLY: fft_1dm,&
+                                             fft_3d,&
+                                             fft_create_plan_1dm,&
+                                             fft_create_plan_3d,&
+                                             fft_destroy_plan,&
+                                             fft_do_cleanup,&
+                                             fft_get_lengths,&
+                                             fft_library
   USE fft_plan,                        ONLY: fft_plan_type
+  USE fftw3_lib,                       ONLY: fftw3_is_mkl_wrapper,&
+                                             fftw_import_wisdom_from_file
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size,&
@@ -198,11 +208,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fft', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: fft_library, istat, isuccess, &
-                                                iunit
+    INTEGER                                  :: istat, isuccess, iunit
     LOGICAL                                  :: exist
 
-!$  LOGICAL                                  :: fftw3_is_mkl_wrapper, mkl_is_safe
+!$  LOGICAL                                  :: mkl_is_safe
 
 !$  INTEGER :: omp_get_max_threads
 
@@ -294,7 +303,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_fft', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: fft_library, iunit
+    INTEGER                                  :: iunit
 
 ! release the FFT scratch pool
 
