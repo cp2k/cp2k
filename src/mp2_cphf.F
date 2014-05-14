@@ -21,8 +21,7 @@ MODULE mp2_cphf
        cp_dbcsr_scale, cp_dbcsr_set, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_upper_to_full
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
 ! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -34,6 +33,7 @@ MODULE mp2_cphf
                                              cp_fm_set_all,&
                                              cp_fm_to_fm_submat,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE hfx_energy_potential,            ONLY: integrate_four_center
@@ -465,7 +465,7 @@ MODULE mp2_cphf
     ! are symmetric (in principle), not need to symmetrize
     ! first W_mo
     CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                     mo_coeff,W_mo,0.0_dp,fm_back,&
                     error=error,&
                     a_first_row=1,&
@@ -474,7 +474,7 @@ MODULE mp2_cphf
                     c_first_col=1,&
                     c_first_row=1)
     CALL cp_fm_set_all(W_mo, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                     fm_back,mo_coeff,0.0_dp,W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -484,7 +484,7 @@ MODULE mp2_cphf
                     c_first_row=1)
     ! and P_mo
     CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                     mo_coeff,P_mo,0.0_dp,fm_back,&
                     error=error,&
                     a_first_row=1,&
@@ -493,7 +493,7 @@ MODULE mp2_cphf
                     c_first_col=1,&
                     c_first_row=1)
     CALL cp_fm_set_all(P_mo, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                     fm_back,mo_coeff,0.0_dp,P_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -691,7 +691,7 @@ MODULE mp2_cphf
       CASE(1)
         ! occ-occ block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,homo,homo,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,homo,homo,1.0_dp,&
                         mo_coeff_o,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -700,7 +700,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,homo,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,homo,1.0_dp,&
                         fm_back,mo_coeff_o,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -712,7 +712,7 @@ MODULE mp2_cphf
       CASE(2)
         ! virt-virt block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
                         mo_coeff_v,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -721,7 +721,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
                         fm_back,mo_coeff_v,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -732,7 +732,7 @@ MODULE mp2_cphf
 
       CASE(3)
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,virtual,homo,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,virtual,homo,1.0_dp,&
                         mo_coeff_o,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -741,7 +741,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
                         fm_back,mo_coeff_v,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -751,7 +751,7 @@ MODULE mp2_cphf
                         c_first_row=1)
         ! and symmetrize (here again multiply instead of transposing)
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,homo,virtual,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,homo,virtual,1.0_dp,&
                         mo_coeff_v,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -759,7 +759,7 @@ MODULE mp2_cphf
                         b_first_row=1,&
                         c_first_col=1,&
                         c_first_row=1)
-        CALL cp_fm_gemm('N','T',dimen,dimen,homo,0.5_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,homo,0.5_dp,&
                         fm_back,mo_coeff_o,0.5_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -787,7 +787,7 @@ MODULE mp2_cphf
       CASE(4)
         ! all-all block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                         mo_coeff,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -796,7 +796,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                         fm_back,mo_coeff,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -857,7 +857,7 @@ MODULE mp2_cphf
       CASE(1)
         ! occ-virt block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('T','N',homo,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('T','N',homo,dimen,dimen,1.0_dp,&
                         mo_coeff_o,fm_ao,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -865,7 +865,7 @@ MODULE mp2_cphf
                         b_first_row=1,&
                         c_first_col=1,&
                         c_first_row=1)
-        CALL cp_fm_gemm('N','N',homo,virtual,dimen,out_alpha,&
+        CALL cp_gemm('N','N',homo,virtual,dimen,out_alpha,&
                         fm_back,mo_coeff_v,1.0_dp,fm_mo_out,&
                         error=error,&
                         a_first_row=1,&
@@ -877,7 +877,7 @@ MODULE mp2_cphf
       CASE(2)
         ! occ-occ block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('T','N',homo,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('T','N',homo,dimen,dimen,1.0_dp,&
                         mo_coeff_o,fm_ao,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -885,7 +885,7 @@ MODULE mp2_cphf
                         b_first_row=1,&
                         c_first_col=1,&
                         c_first_row=1)
-        CALL cp_fm_gemm('N','N',homo,homo,dimen,out_alpha,&
+        CALL cp_gemm('N','N',homo,homo,dimen,out_alpha,&
                         fm_back,mo_coeff_o,1.0_dp,fm_mo_out,&
                         error=error,&
                         a_first_row=1,&

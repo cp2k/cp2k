@@ -56,6 +56,7 @@ MODULE cp_fm_types
   LOGICAL, PARAMETER          :: debug_this_module = .TRUE.
 
   INTEGER, SAVE :: last_fm_id_nr = 0
+  INTEGER, PRIVATE :: mm_type=1
 
   PUBLIC :: cp_fm_type, &
             cp_fm_p_type
@@ -80,7 +81,9 @@ MODULE cp_fm_types
             cp_fm_vectorsnorm,&          ! compute the norm of the column-vectors
             cp_fm_to_fm_submat,&          ! copy (parts of) a fm to a fm
             cp_fm_write_unformatted,&   ! writes a full matrix to an open unit
-            cp_fm_read_unformatted      ! reads a full matrix from an open unit
+            cp_fm_read_unformatted,&     ! reads a full matrix from an open unit
+            cp_fm_setup,&               ! allows to set flags for fms
+            cp_fm_get_mm_type
 
   PUBLIC :: cp_fm_indxg2p, &
             cp_fm_indxg2l, &
@@ -1004,7 +1007,7 @@ CPSourceFileRef,&
        nrow_locals => matrix%matrix_struct%nrow_locals
     END IF
     IF (PRESENT(ncol_locals)) THEN
-       nrow_locals => matrix%matrix_struct%ncol_locals
+       ncol_locals => matrix%matrix_struct%ncol_locals
     END IF
 
     CALL cp_fm_struct_get(matrix%matrix_struct, nrow_local=nrow_local,&
@@ -1934,5 +1937,17 @@ CPSourceFileRef,&
 #endif
 
  END FUNCTION  cp_fm_indxl2g
+
+ SUBROUTINE cp_fm_setup(mult_type)
+    INTEGER                                  :: mult_type
+
+   mm_type=mult_type
+ END SUBROUTINE cp_fm_setup
+
+ FUNCTION cp_fm_get_mm_type()  RESULT(res)
+    INTEGER                                  :: res
+
+   res=mm_type
+ END FUNCTION
 
 END MODULE cp_fm_types

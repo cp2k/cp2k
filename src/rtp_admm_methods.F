@@ -29,8 +29,7 @@ MODULE rtp_admm_methods
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_upper_to_full
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
@@ -40,6 +39,7 @@ MODULE rtp_admm_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_admm_block_density_matrix,&
                                              do_admm_purify_none,&
@@ -341,7 +341,7 @@ CONTAINS
       !! Symmetrize the guy
       CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
       !! Calculate A=S'^(-1)*P
-      CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
+      CALL cp_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
                     1.0_dp,admm_env%S_inv,admm_env%Q,0.0_dp,&
                     admm_env%A,error)
    END IF
@@ -356,10 +356,10 @@ CONTAINS
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,&
            occupation_numbers=occ_num_aux)
 
-      CALL cp_fm_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
+      CALL cp_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
                       1.0_dp,admm_env%A,mos_new(2*ispin-1)%matrix,0.0_dp,&
                       rtp_coeff_aux_fit(2*ispin-1)%matrix,error)
-      CALL cp_fm_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
+      CALL cp_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
                       1.0_dp,admm_env%A,mos_new(2*ispin)%matrix,0.0_dp,&
                       rtp_coeff_aux_fit(2*ispin)%matrix,error)
 
@@ -516,11 +516,11 @@ CONTAINS
     CALL copy_dbcsr_to_fm(matrix_ks_nosym,admm_env%K(ispin)%matrix,error)
 
     !! K*A
-    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
+    CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                     1.0_dp,admm_env%K(ispin)%matrix,admm_env%A,0.0_dp,&
                     admm_env%work_aux_orb,error)
     !! A^T*K*A
-    CALL cp_fm_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
+    CALL cp_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
                     1.0_dp,admm_env%A,admm_env%work_aux_orb,0.0_dp,&
                     admm_env%work_orb_orb,error)
 
@@ -649,23 +649,23 @@ CONTAINS
        CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix,mos_admm(re)%matrix,tmp_aux_mo(im)%matrix,nmo,4.0_dp,1.0_dp,error)
  
 ! Next step compute S-1*H
-       CALL cp_fm_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(re)%matrix,0.0_dp,tmp_aux_mo1(re)%matrix,error)
-       CALL cp_fm_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(im)%matrix,0.0_dp,tmp_aux_mo1(im)%matrix,error)
+       CALL cp_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(re)%matrix,0.0_dp,tmp_aux_mo1(re)%matrix,error)
+       CALL cp_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(im)%matrix,0.0_dp,tmp_aux_mo1(im)%matrix,error)
 
 ! Here we go on with Ws=S-1*H * C^H (take care of sign of the imaginary part!!!)
 
-       CALL cp_fm_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(re)%matrix, mos(re)%matrix, 0.0_dp,&
+       CALL cp_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(re)%matrix, mos(re)%matrix, 0.0_dp,&
                        tmp_aux_nao(re)%matrix, error)
-       CALL cp_fm_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(im)%matrix, mos(im)%matrix, 1.0_dp,&
+       CALL cp_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(im)%matrix, mos(im)%matrix, 1.0_dp,&
                        tmp_aux_nao(re)%matrix, error)
-       CALL cp_fm_gemm("N","T",naux,nao,nmo,1.0_dp,tmp_aux_mo1(re)%matrix, mos(im)%matrix, 0.0_dp,&
+       CALL cp_gemm("N","T",naux,nao,nmo,1.0_dp,tmp_aux_mo1(re)%matrix, mos(im)%matrix, 0.0_dp,&
                        tmp_aux_nao(im)%matrix, error)
-       CALL cp_fm_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(im)%matrix, mos(re)%matrix, 1.0_dp,&
+       CALL cp_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(im)%matrix, mos(re)%matrix, 1.0_dp,&
                        tmp_aux_nao(im)%matrix, error)
 
 ! Let's do the final bit  Wq=S-1*H * C^H * A^T
-       CALL cp_fm_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(re)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(re)%matrix,error)     
-       CALL cp_fm_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(im)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(im)%matrix,error)     
+       CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(re)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(re)%matrix,error)     
+       CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(im)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(im)%matrix,error)     
 
     ! *** copy to sparse matrix
     CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q,keep_sparsity=.TRUE.,&

@@ -40,3 +40,4 @@ H2O-ls-rtp.inp 1
 H2O-ls-emd-scf-restart.inp 1
 H2O-ls-emd-mcweeny.inp 1
 emd-KG.inp                        1     1e-11
+H2O_rtp_dbcsr_gemm.inp 2

@@ -18,8 +18,7 @@ MODULE rt_propagator_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_upper_to_full
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -27,6 +26,7 @@ MODULE rt_propagator_init
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE dm_ls_scf_methods,               ONLY: density_matrix_trs4
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
@@ -285,9 +285,9 @@ CONTAINS
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
        CALL cp_fm_scale(t,H_fm,error)
 
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
+       CALL cp_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
             tmp_mat_H,error)
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat_H,zero,&
+       CALL cp_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat_H,zero,&
             H_fm,error)
 
        CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H,error=error)

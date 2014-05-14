@@ -657,13 +657,11 @@ CONTAINS
        CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
                                matrix_v=mos(re)%matrix,&
-                               matrix_g=mos(re)%matrix,&
                                ncol=ncol,&
                                alpha=alpha,error=error)
        ! It is actually complex conjugate but i*i=-1 therfore it must be added
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
                         matrix_v=mos(im)%matrix,&
-                        matrix_g=mos(im)%matrix,&
                         ncol=ncol,&
                         alpha=alpha,error=error)
     END DO

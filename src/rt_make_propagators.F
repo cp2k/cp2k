@@ -259,17 +259,18 @@ CONTAINS
        IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
           CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                eps_arnoldi,Him=propagator_matrix_fm(im)%matrix,&
-               mos_next=mos_next(re:im),error=error)
+               mos_next=mos_next(re:im),narn_old=rtp%narn_old,error=error)
        ELSE
           CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                eps_arnoldi,Hre=propagator_matrix_fm(re)%matrix,&
-               Him=propagator_matrix_fm(im)%matrix,mos_next=mos_next(re:im),error=error)
+               Him=propagator_matrix_fm(im)%matrix,mos_next=mos_next(re:im),&
+               narn_old=rtp%narn_old,error=error)
        END IF
     END DO
 
-    DO i=1,SIZE(propagator_matrix)
-         CALL copy_fm_to_dbcsr(propagator_matrix_fm(i)%matrix,propagator_matrix(i)%matrix,error=error)
-    END DO
+!    DO i=1,SIZE(propagator_matrix)
+!         CALL copy_fm_to_dbcsr(propagator_matrix_fm(i)%matrix,propagator_matrix(i)%matrix,error=error)
+!    END DO
     CALL cp_fm_vect_dealloc(propagator_matrix_fm,error=error)
 
     CALL timestop(handle)

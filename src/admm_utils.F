@@ -19,7 +19,7 @@ MODULE admm_utils
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE input_constants,                 ONLY: do_admm_basis_set_projection,&
                                              do_admm_block_density_matrix,&
                                              do_admm_purify_cauchy,&
@@ -79,10 +79,10 @@ MODULE admm_utils
         CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
 
         ! ** calculate A^T*H_tilde*A
-        CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
+        CALL cp_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
                         1.0_dp, admm_env%K(ispin)%matrix,admm_env%A, 0.0_dp,&
                         admm_env%work_aux_orb,error)
-        CALL cp_fm_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
+        CALL cp_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
                         1.0_dp, admm_env%A, admm_env%work_aux_orb ,0.0_dp,&
                         admm_env%H_corr(ispin)%matrix,error)
 
@@ -108,10 +108,10 @@ MODULE admm_utils
              error=error)
 
         ! ** calculate A^T*H_tilde*A
-        CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
+        CALL cp_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
                         1.0_dp, admm_env%K(ispin)%matrix,admm_env%A, 0.0_dp,&
                         admm_env%work_aux_orb,error)
-        CALL cp_fm_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
+        CALL cp_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
                         1.0_dp, admm_env%A, admm_env%work_aux_orb ,0.0_dp,&
                         admm_env%H_corr(ispin)%matrix,error)
 

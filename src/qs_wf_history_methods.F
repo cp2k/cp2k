@@ -31,8 +31,7 @@ MODULE qs_wf_history_methods
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pools_create_fm_vect,&
@@ -45,6 +44,7 @@ MODULE qs_wf_history_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -868,12 +868,12 @@ END FUNCTION wfi_get_method_label
 
                 IF ( use_overlap ) THEN
                   CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
-                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
+                  CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
                 ELSE
-                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                  CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
                                   t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
                 END IF
-                CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
+                CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
                 CALL cp_fm_release(csc,error=error)
                 CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
                 CALL qs_env_reorthogonalize_vectors(qs_env,&
@@ -923,12 +923,12 @@ END FUNCTION wfi_get_method_label
                 t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
                 IF ( use_overlap ) THEN
                   CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
-                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+                  CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
                 ELSE
-                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                  CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
                                   t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
                 END IF
-                CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
+                CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
                 alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
                 CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
              ENDDO
@@ -995,12 +995,12 @@ END FUNCTION wfi_get_method_label
             t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
             IF ( use_overlap ) THEN
               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k,error=error)
-              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+              CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
             ELSE
-              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+              CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
                               t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
             END IF
-            CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
+            CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
             alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                     binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
             IF (output_unit>0) THEN

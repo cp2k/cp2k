@@ -9,6 +9,7 @@
 !>      10.2013 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_grad_util
+! USE f77_blas
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_dbcsr_interface,              ONLY: &
@@ -21,8 +22,6 @@ MODULE mp2_ri_grad_util
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_type_no_symmetry, &
        dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -34,6 +33,7 @@ MODULE mp2_ri_grad_util
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -367,7 +367,7 @@ MODULE mp2_ri_grad_util
     CALL cp_fm_set_all(matrix=fm_Gamma,alpha=0.0_dp,error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
     ! performe the matrix multiplication
-    CALL cp_fm_gemm(transa="N",transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
+    CALL cp_gemm(transa="N",transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
                     matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp,&
                     matrix_c=fm_Gamma, error=error)
     ! release the Y matrix
@@ -381,7 +381,7 @@ MODULE mp2_ri_grad_util
     ! create temp matrix
     CALL cp_fm_create(fm_Gamma_PQ_temp,fm_struct,name="fm_Gamma_PQ_temp",error=error)
     CALL cp_fm_set_all(matrix=fm_Gamma_PQ_temp,alpha=0.0_dp,error=error)
-    CALL cp_fm_gemm(transa="T",transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp,&
+    CALL cp_gemm(transa="T",transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp,&
                     matrix_a=fm_Gamma, matrix_b=fm_ia_P, beta=0.0_dp,&
                     matrix_c=fm_Gamma_PQ_temp, error=error)
     CALL cp_fm_release(fm_ia_P,error=error)
@@ -391,7 +391,7 @@ MODULE mp2_ri_grad_util
     CALL cp_fm_struct_release(fm_struct,error=error)
     CALL cp_fm_set_all(matrix=fm_Gamma_PQ,alpha=0.0_dp,error=error)
     ! perfome matrix multiplication
-    CALL cp_fm_gemm(transa="N",transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
+    CALL cp_gemm(transa="N",transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
                     matrix_a=fm_Gamma_PQ_temp, matrix_b=PQ_half, beta=0.0_dp,&
                     matrix_c=fm_Gamma_PQ, error=error)
     CALL cp_fm_release(fm_Gamma_PQ_temp,error=error)

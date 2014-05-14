@@ -25,8 +25,7 @@ MODULE rt_delta_pulse
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
@@ -43,6 +42,7 @@ MODULE rt_delta_pulse
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -166,7 +166,7 @@ CONTAINS
           ENDIF
        ENDDO
 
-       CALL cp_fm_gemm('T','N',nvirt,nmo,nao,1.0_dp, virtuals, mos_new(2*ispin-1)%matrix,0.0_dp,momentum,error=error)
+       CALL cp_gemm('T','N',nvirt,nmo,nao,1.0_dp, virtuals, mos_new(2*ispin-1)%matrix,0.0_dp,momentum,error=error)
 
 
        ! the tricky bit ... rescale by the eigenvalue difference
@@ -184,7 +184,7 @@ CONTAINS
 
        ! now obtain the initial condition in mos_old
        CALL cp_fm_to_fm(eigenvectors,mos_old(2*ispin-1)%matrix,nmo,1,1)
-       CALL cp_fm_gemm("N","N",nao,nmo,nvirt,1.0_dp,virtuals,momentum,0.0_dp,mos_old(2*ispin)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nvirt,1.0_dp,virtuals,momentum,0.0_dp,mos_old(2*ispin)%matrix,error=error)
 
        CALL cp_fm_release(virtuals, error=error)
        CALL cp_fm_release(momentum, error=error)
@@ -202,13 +202,13 @@ CONTAINS
        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mos_old(2*ispin-1)%matrix,&
                                           mat_tmp,ncol=nmo,error=error)
 
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,0.0_dp,oo_1,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,0.0_dp,oo_2,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,0.0_dp,oo_1,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,0.0_dp,oo_2,error=error)
 
        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mos_old(2*ispin)%matrix,&
                                           mat_tmp,ncol=nmo,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,1.0_dp,oo_1,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,1.0_dp,oo_2,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,1.0_dp,oo_1,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,1.0_dp,oo_2,error=error)
        CALL cp_fm_release(mat_tmp, error=error)
 
        CALL cp_cfm_create ( oo_c, oo_1 % matrix_struct,error=error)
@@ -234,13 +234,13 @@ CONTAINS
        CALL cp_cfm_release(oo_vt,error=error)
 
        ! use this to compute the orthonormal vectors
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_1,0.0_dp,mos_new(2*ispin-1)%matrix,error=error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_2,0.0_dp,mos_new(2*ispin)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_1,0.0_dp,mos_new(2*ispin-1)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_2,0.0_dp,mos_new(2*ispin)%matrix,error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*ispin)%matrix,oo_2,0.0_dp,mos_old(2*ispin-1)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*ispin)%matrix,oo_2,0.0_dp,mos_old(2*ispin-1)%matrix,error=error)
        CALL cp_fm_scale_and_add(1.0_dp,mos_old(2*ispin-1)%matrix,1.0_dp,mos_new(2*ispin-1)%matrix,error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin)%matrix,oo_1,1.0_dp,mos_new(2*ispin)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin)%matrix,oo_1,1.0_dp,mos_new(2*ispin)%matrix,error=error)
        CALL cp_fm_to_fm(mos_new(2*ispin)%matrix,mos_old(2*ispin)%matrix,error)
 
        CALL cp_fm_release(oo_1,error=error)
@@ -336,8 +336,8 @@ CONTAINS
        CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i-1)%matrix, ncol=nmo, error=error)
        CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_set%mo_coeff, mos_new(2*i)%matrix, ncol=nmo, error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i-1)%matrix,0.0_dp,mos_old(2*i-1)%matrix,error=error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i)%matrix,0.0_dp,mos_old(2*i)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i-1)%matrix,0.0_dp,mos_old(2*i-1)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i)%matrix,0.0_dp,mos_old(2*i)%matrix,error=error)
 
        ! in a finite basis, unfortunately, inv(S)*operator is not unitary, so orthonormalize afterwards
        CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
@@ -349,13 +349,13 @@ CONTAINS
        CALL cp_fm_create(tmp, matrix_struct=mos_old(2*i-1)%matrix%matrix_struct, name="tmp_mat", error=error)
        ! get the complex overlap matrix
        ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i-1)%matrix,0.0_dp,tmp,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,0.0_dp,oo_1,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*i)%matrix,tmp,0.0_dp,oo_2,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i-1)%matrix,0.0_dp,tmp,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,0.0_dp,oo_1,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*i)%matrix,tmp,0.0_dp,oo_2,error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i)%matrix,0.0_dp,tmp,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i)%matrix,tmp,1.0_dp,oo_1,error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,1.0_dp,oo_2,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i)%matrix,0.0_dp,tmp,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i)%matrix,tmp,1.0_dp,oo_1,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,1.0_dp,oo_2,error=error)
        CALL cp_fm_release(tmp, error=error)
 
        CALL cp_cfm_create ( oo_c, oo_1 % matrix_struct,error=error)
@@ -381,13 +381,13 @@ CONTAINS
        CALL cp_cfm_release(oo_vt,error=error)
 
        ! use this to compute the orthonormal vectors
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_1,0.0_dp,mos_new(2*i-1)%matrix,error=error)
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_2,0.0_dp,mos_new(2*i)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_1,0.0_dp,mos_new(2*i-1)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_2,0.0_dp,mos_new(2*i)%matrix,error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*i)%matrix,oo_2,0.0_dp,mos_old(2*i-1)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*i)%matrix,oo_2,0.0_dp,mos_old(2*i-1)%matrix,error=error)
        CALL cp_fm_scale_and_add(1.0_dp,mos_old(2*i-1)%matrix,1.0_dp,mos_new(2*i-1)%matrix,error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i)%matrix,oo_1,1.0_dp,mos_new(2*i)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i)%matrix,oo_1,1.0_dp,mos_new(2*i)%matrix,error=error)
        CALL cp_fm_to_fm(mos_new(2*i)%matrix,mos_old(2*i)%matrix,error)
 
        CALL cp_fm_release(oo_1,error=error)

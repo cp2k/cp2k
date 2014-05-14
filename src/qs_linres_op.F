@@ -37,8 +37,7 @@ MODULE qs_linres_op
        dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
        dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -46,6 +45,7 @@ MODULE qs_linres_op
        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
        cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -818,10 +818,10 @@ CONTAINS
         CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
 
         CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(1,ispin)%matrix, ncol=nmo, error=error)
-        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(1,ispin)%matrix,0.0_dp,&
+        CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(1,ispin)%matrix,0.0_dp,&
            op_fm_set(1,ispin)%matrix,error=error)
         CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(2,ispin)%matrix, ncol=nmo, error=error)
-        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(2,ispin)%matrix,0.0_dp,&
+        CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(2,ispin)%matrix,0.0_dp,&
                op_fm_set(2,ispin)%matrix,error=error)
 
       ENDDO
@@ -848,14 +848,14 @@ CONTAINS
              inv_work(1,i,ispin)%matrix%local_data(:,z)=REAL(inv_mat(i,ispin)%matrix%local_data(:,z),dp)
              inv_work(2,i,ispin)%matrix%local_data(:,z)=AIMAG(inv_mat(i,ispin)%matrix%local_data(:,z))
           END DO
-          CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,opvec(1,ispin)%matrix,inv_work(2,i,ispin)%matrix,&
+          CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,opvec(1,ispin)%matrix,inv_work(2,i,ispin)%matrix,&
               0.0_dp,mo_derivs(i,ispin)%matrix,error)
-          CALL cp_fm_gemm("N","N",nao,nmo,nmo,-1.0_dp,opvec(2,ispin)%matrix,inv_work(1,i,ispin)%matrix,&
+          CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,opvec(2,ispin)%matrix,inv_work(1,i,ispin)%matrix,&
               1.0_dp,mo_derivs(i,ispin)%matrix,error)
 
-          CALL cp_fm_gemm("N","N",nao,nmo,nmo,-1.0_dp,opvec(1,ispin)%matrix,inv_work(2,i,ispin)%matrix,&
+          CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,opvec(1,ispin)%matrix,inv_work(2,i,ispin)%matrix,&
                0.0_dp,dBerry_psi0(i,ispin)%matrix,error)
-          CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,opvec(2,ispin)%matrix,inv_work(1,i,ispin)%matrix,&
+          CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,opvec(2,ispin)%matrix,inv_work(1,i,ispin)%matrix,&
                1.0_dp,dBerry_psi0(i,ispin)%matrix,error)
 
 

@@ -12,8 +12,7 @@ MODULE rpa_ri_gpw
 ! USE f77_blas
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_syrk
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -26,6 +25,7 @@ MODULE rpa_ri_gpw
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -1444,7 +1444,7 @@ MODULE rpa_ri_gpw
       SELECT CASE(mm_style)
       CASE(wfc_mm_style_gemm)
          ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
-         CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+         CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
                          matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
                          matrix_c=fm_mat_Q_gemm,error=error)
       CASE(wfc_mm_style_syrk)
@@ -1529,7 +1529,7 @@ MODULE rpa_ri_gpw
         t_start=m_walltime()
         SELECT CASE(mm_style)
         CASE(wfc_mm_style_gemm)
-           CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+           CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
                            matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
                            matrix_c=fm_mat_Q_gemm_beta,error=error)
         CASE(wfc_mm_style_syrk)

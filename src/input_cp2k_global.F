@@ -471,6 +471,10 @@ CONTAINS
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
     NULLIFY(sub_section)
+    ! FM section
+    CALL create_fm_section(sub_section,error)
+    CALL section_add_subsection(section,sub_section,error=error)
+    CALL section_release(sub_section,error=error)
     ! Machine arch
     CALL create_march_section(sub_section,error)
     CALL section_add_subsection(section,sub_section,error=error)
@@ -814,6 +818,70 @@ CONTAINS
     CALL section_release(subsection, error=error)
     !
   END SUBROUTINE create_dbcsr_section
+
+! *****************************************************************************
+!> \brief   Creates the dbcsr section for configuring FM
+!> \author  Florian Schiffmann
+!> \date    2011-04-05
+! *****************************************************************************
+  SUBROUTINE create_fm_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_fm_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="FM",&
+         description="Configuration options for the full matrices.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY (keyword)
+
+    CALL keyword_create(keyword, name="NROW_BLOCKS",&
+         description="Defines the number of rows per scalapack block in "//&
+         "the creation of block cyclic dense matrices ",&
+         default_i_val=32,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="NCOL_BLOCKS",&
+         description="Defines the number of columns per scalapack block in "//&
+         "the creation of vlock cyclic dense matrices ",&
+         default_i_val=32,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="FORCE_BLOCK_SIZE",&
+         description="Ensure for small matrices that the layout is compatible "//&
+                     "with bigger ones, i.e. no subdivision is performed (can break LAPACK!!!).",&
+         usage="FORCE_BLOCK_SIZE",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="TYPE_OF_MATRIX_MULTIPLICATION",&
+         description="Allows to switch between scalapack pdgemm and dbcsr_multiply. "//&
+                     "On normal systems pdgemm is recommended on system with GPU "//&
+                     "is optimized and can give better performance. NOTE: if DBCSR is employed "//&
+                     "FORCE_BLOCK_SIZE should be set. The perfomance on GPU's dependes "//&
+                     "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.",&
+         usage="TYPE_OF_MATRIX_MULTIPLICATION ELPA",&
+         default_i_val=do_pdgemm, &
+         enum_i_vals=(/do_pdgemm,do_dbcsr/),&
+         enum_c_vals=s2a("PDGEMM","DBCSR_MM"),&
+         enum_desc=s2a("Standard scalapack: pdgemm",&
+                       "DBCSR_MM is employed. This needs local transformation of the matrices"),&
+         supported_feature=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    !
+  END SUBROUTINE create_fm_section
 
 
 END MODULE input_cp2k_global

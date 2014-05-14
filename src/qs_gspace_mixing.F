@@ -16,9 +16,9 @@ MODULE qs_gspace_mixing
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_trace,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
                                              cp_fm_upper_to_full
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
@@ -264,7 +264,7 @@ CONTAINS
 
        CALL cp_dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
             scf_env%scf_work2, nao,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
+       CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
             scf_env%scf_work2,0.0_dp,scf_env%scf_work1(ispin)%matrix,error=error )
 
 !       a_mix = 1.0_dp-scf_env%p_mix_alpha

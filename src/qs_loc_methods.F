@@ -26,7 +26,6 @@ MODULE qs_loc_methods
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -36,6 +35,7 @@ MODULE qs_loc_methods
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
        cp_fm_to_fm, cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -187,7 +187,7 @@ CONTAINS
        DO j=1,SIZE ( zij_fm_set, 1 )
           CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
           CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
-          CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
+          CALL cp_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
                zij_fm_set(j,i)%matrix,error=error)
        ENDDO
     ENDDO
@@ -241,7 +241,7 @@ CONTAINS
           DO j=1,SIZE ( zij_fm_set, 1 )
              CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
              CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
-             CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
+             CALL cp_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
                   zij_fm_set(j,i)%matrix,error=error)
           ENDDO
        ENDDO
@@ -340,15 +340,15 @@ CONTAINS
        isgf = first_sgf(iatom)
        ncol = nsgf(iatom)
        ! multiply fmxfm, using only part of the ao : Ct x S
-       CALL cp_fm_gemm('N','N',nao,nmoloc,nao,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
+       CALL cp_gemm('N','N',nao,nmoloc,nao,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
             b_first_col=1,a_first_row=1,b_first_row=1,error=error)
-       CALL cp_fm_gemm('T','N',nmoloc,nmoloc,ncol,0.5_dp,vectors,opvec,&
+       CALL cp_gemm('T','N',nmoloc,nmoloc,ncol,0.5_dp,vectors,opvec,&
             0.0_dp,zij_fm_set(iatom,1)%matrix,&
             b_first_col=1,a_first_row=isgf,b_first_row=isgf,error=error)
 
-       CALL cp_fm_gemm('N','N',nao,nmoloc,ncol,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
+       CALL cp_gemm('N','N',nao,nmoloc,ncol,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
             b_first_col=1,a_first_row=isgf,b_first_row=isgf,error=error)
-       CALL cp_fm_gemm('T','N',nmoloc,nmoloc,nao,0.5_dp,vectors,opvec,&
+       CALL cp_gemm('T','N',nmoloc,nmoloc,nao,0.5_dp,vectors,opvec,&
             1.0_dp,zij_fm_set(iatom,1)%matrix,&
             b_first_col=1,a_first_row=1,b_first_row=1,error=error)
     END DO  ! iatom

@@ -176,8 +176,6 @@ SUBROUTINE qs_env_setup(qs_env,error)
        IF (ASSOCIATED(qs_env%mos)) THEN
            CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
                   blacs_env=qs_env%blacs_env, para_env=para_env,&
-                  nrow_block=scf_control%nrow_block,&
-                  ncol_block=scf_control%ncol_block,&
                   error=error)
        ENDIF
 
@@ -188,9 +186,6 @@ SUBROUTINE qs_env_setup(qs_env,error)
                                   basis_set_id=use_aux_fit_basis_set)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
               blacs_env=qs_env%blacs_env, para_env=para_env,&
-              nrow_block=scf_control%nrow_block,&
-!              ncol_block=n_ao_aux_fit,&
-              ncol_block=scf_control%ncol_block,&
               error=error)
         END IF
 

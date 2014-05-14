@@ -21,7 +21,6 @@ MODULE qs_pdos
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -32,6 +31,7 @@ MODULE qs_pdos
                                              cp_fm_init_random,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -263,7 +263,7 @@ CONTAINS
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
          nrow_global=nrow_global,ncol_global=ncol_global,error=error)
     CALL cp_fm_create(matrix_shalfc,fm_struct_tmp,name="matrix_shalfc",error=error)
-    CALL cp_fm_gemm("N","N",nrow_global,ncol_global,nrow_global, &
+    CALL cp_gemm("N","N",nrow_global,ncol_global,nrow_global, &
                    1.0_dp,matrix_shalf,mo_coeff,0.0_dp,matrix_shalfc,error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
@@ -273,7 +273,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
             nrow_global=nrow_global,ncol_global=nvirt,error=error)
       CALL cp_fm_create(matrix_work,fm_struct_tmp,name="matrix_shalfc",error=error)
-      CALL cp_fm_gemm("N","N",nrow_global,nvirt,nrow_global, &
+      CALL cp_gemm("N","N",nrow_global,nvirt,nrow_global, &
                      1.0_dp,matrix_shalf,mo_virt,0.0_dp,matrix_work,error=error)
       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     END IF

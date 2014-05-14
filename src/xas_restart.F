@@ -21,13 +21,13 @@ MODULE xas_restart
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type,&
                                              cp_fm_write_unformatted
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -467,7 +467,7 @@ CPSourceFileRef,&
 
   ! ** use the maximum overlap criterion to find the index of the excited orbital
     CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
-    CALL cp_fm_gemm("T","N",1,xas_env%nexc_search,nao,1.0_dp,excvec_coeff,&
+    CALL cp_gemm("T","N",1,xas_env%nexc_search,nao,1.0_dp,excvec_coeff,&
          fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
     CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
          nrow_global = m, ncol_global = n ,error=error)

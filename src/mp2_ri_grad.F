@@ -9,6 +9,7 @@
 !>      10.2013 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_grad
+! USE f77_blas
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -21,8 +22,6 @@ MODULE mp2_ri_grad
        cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -34,6 +33,7 @@ MODULE mp2_ri_grad
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -1451,7 +1451,7 @@ MODULE mp2_ri_grad
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     CALL cp_fm_set_all(fm_P_ij, 0.0_dp,error=error)
 
-    CALL cp_fm_gemm('T','N',homo,homo,dimen,1.0_dp,&
+    CALL cp_gemm('T','N',homo,homo,dimen,1.0_dp,&
                     mo_coeff,L_mu_q,0.0_dp,fm_P_ij,&
                     error=error,&
                     a_first_row=1,&
@@ -1461,7 +1461,7 @@ MODULE mp2_ri_grad
                     c_first_row=1)
     ! don't know if it is better to transpose (for communication reasons)
     ! or just recompute the transposed matrix
-    CALL cp_fm_gemm('T','N',homo,homo,dimen,-2.0_dp,&
+    CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp,&
                     L_mu_q,mo_coeff,2.0_dp,fm_P_ij,&
                     error=error,&
                     a_first_row=1,&
@@ -1613,7 +1613,7 @@ MODULE mp2_ri_grad
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     ! all block
-    CALL cp_fm_gemm('T','N',dimen,dimen,dimen,2.0_dp,&
+    CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp,&
                     L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -1623,7 +1623,7 @@ MODULE mp2_ri_grad
                     c_first_row=1)
 
     ! occ-occ block
-    CALL cp_fm_gemm('T','N',homo,homo,dimen,-2.0_dp,&
+    CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp,&
                     L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -1633,7 +1633,7 @@ MODULE mp2_ri_grad
                     c_first_row=1)
 
     ! occ-virt block
-    CALL cp_fm_gemm('T','N',homo,virtual,dimen,2.0_dp,&
+    CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp,&
                     mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -1655,7 +1655,7 @@ MODULE mp2_ri_grad
     CALL cp_fm_set_all(mp2_env%ri_grad%L_jb, 0.0_dp,error=error)
  
     ! first Virtual
-    CALL cp_fm_gemm('T','N',homo,virtual,dimen,1.0_dp,&
+    CALL cp_gemm('T','N',homo,virtual,dimen,1.0_dp,&
                     L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb,&
                     error=error,&
                     a_first_row=1,&
@@ -1664,7 +1664,7 @@ MODULE mp2_ri_grad
                     c_first_col=1,&
                     c_first_row=1)
     ! then occupied
-    CALL cp_fm_gemm('T','N',homo,virtual,dimen,2.0_dp,&
+    CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp,&
                     mo_coeff,L_mu_q,2.0_dp,mp2_env%ri_grad%L_jb,&
                     error=error,&
                     a_first_row=1,&

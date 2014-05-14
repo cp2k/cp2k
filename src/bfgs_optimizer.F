@@ -20,7 +20,6 @@ MODULE bfgs_optimizer
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_transpose
   USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -34,6 +33,7 @@ MODULE bfgs_optimizer
                                              cp_fm_to_fm,&
                                              cp_fm_type,&
                                              cp_fm_write_unformatted
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -204,7 +204,7 @@ CONTAINS
           END DO
           CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
           CALL cp_fm_column_scale(eigvec_mat,eigval)
-          CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
+          CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
        ENDIF
     ELSE
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
@@ -686,7 +686,7 @@ CONTAINS
     CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct,error=error)
     CALL cp_fm_create(tmp, matrix_struct ,name="tmp",error=error)
 
-    CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,tmp,error=error)
+    CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,tmp,error=error)
 
     CALL cp_fm_transpose(tmp,hess_tmp,error)
     CALL cp_fm_release(tmp,error)

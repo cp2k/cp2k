@@ -35,7 +35,6 @@ MODULE qs_moments
        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
        cp_dbcsr_trace, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -46,6 +45,7 @@ MODULE qs_moments
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
@@ -1232,10 +1232,10 @@ CONTAINS
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
        CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(1,i)%matrix,error=error)
        CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(2,i)%matrix,error=error)
     ENDDO
 
@@ -1302,7 +1302,7 @@ CONTAINS
 
        CALL cp_fm_create(work1,matrix_struct=newstruct1,error=error)
 
-       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
+       CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
             work,0.0_dp,work1,error=error)
 
        DO icol=1,lcol
@@ -1311,7 +1311,7 @@ CONTAINS
        END DO
 
 
-       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
+       CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
             work,0.0_dp,work1,error=error)
 
        DO icol=1,lcol

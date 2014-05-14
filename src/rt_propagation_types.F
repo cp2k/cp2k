@@ -108,6 +108,7 @@ MODULE rt_propagation_types
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
     INTEGER                                     :: nsteps,istep,i_start
     INTEGER                                     :: iter
+    INTEGER                                     :: narn_old
     LOGICAL                                     :: converged
     LOGICAL                                     :: matrix_update
     TYPE(rtp_history_type),POINTER              :: history
@@ -298,6 +299,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rtp_control%converged=.FALSE.
     rtp%matrix_update=.TRUE.
+    rtp%narn_old=0
     rtp%istep=0
     rtp%iter=0
     rtp%do_hfx=.FALSE.

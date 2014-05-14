@@ -300,8 +300,6 @@ MODULE mp2
                                  mos=mos_mp2,&
                                  blacs_env=qs_env%blacs_env,&
                                  para_env=para_env,&
-                                 nrow_block=nrow_block,&
-                                 ncol_block=ncol_block,&
                                  error=error)
 
     DO ispin=1, nspins

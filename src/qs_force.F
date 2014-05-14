@@ -129,8 +129,7 @@ CONTAINS
                                                 matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb, &
                                                 matrix_w, mo_derivs
-    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff, &
-                                                mo_coeff_aux_fit
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -248,7 +247,7 @@ CONTAINS
        END DO
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
-       CALL calc_c_mat_force(qs_env,dp_imag,error)
+       CALL calc_c_mat_force(qs_env,error)
        IF(qs_env%dft_control%do_admm)&
           CALL rt_admm_force(qs_env,error)
     END IF

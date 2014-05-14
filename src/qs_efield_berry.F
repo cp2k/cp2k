@@ -35,8 +35,7 @@ MODULE qs_efield_berry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_transpose
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -45,6 +44,7 @@ MODULE qs_efield_berry
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
@@ -437,10 +437,10 @@ CONTAINS
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff_tmp(ispin)%matrix,nmo=nmo)
              END IF
              CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff_tmp(ispin)%matrix, opvec(1,ispin)%matrix, ncol=nmo, error=error)
-             CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,0.0_dp,&
+             CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,0.0_dp,&
                   op_fm_set(1,ispin)%matrix,error=error)
              CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff_tmp(ispin)%matrix, opvec(2,ispin)%matrix, ncol=nmo, error=error)
-             CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,0.0_dp,&
+             CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,0.0_dp,&
                   op_fm_set(2,ispin)%matrix,error=error)
           ENDDO
           !second step invert C^T S_berry C
@@ -471,9 +471,9 @@ CONTAINS
                 inv_work(1,ispin)%matrix%local_data(:,icol_local)=REAL(inv_mat(ispin)%matrix%local_data(:,icol_local),dp)
                 inv_work(2,ispin)%matrix%local_data(:,icol_local)=AIMAG(inv_mat(ispin)%matrix%local_data(:,icol_local))
              END DO
-             CALL cp_fm_gemm("N","N",nao,nmo,nmo,fieldfac(idir)/(occ),opvec(1,ispin)%matrix,inv_work(2,ispin)%matrix,&
+             CALL cp_gemm("N","N",nao,nmo,nmo,fieldfac(idir)/(occ),opvec(1,ispin)%matrix,inv_work(2,ispin)%matrix,&
                   1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
-             CALL cp_fm_gemm("N","N",nao,nmo,nmo,-fieldfac(idir)/(occ),opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
+             CALL cp_gemm("N","N",nao,nmo,nmo,-fieldfac(idir)/(occ),opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
                   1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
 
           END DO
@@ -485,13 +485,13 @@ CONTAINS
                 CALL cp_fm_get_info(dcos_full,ncol_local=ncol_local,nrow_local=nrow_local,&
                       row_indices=row_indices, col_indices=col_indices,error=error)
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
-                CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(1,ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(1,ispin)%matrix,0.0_dp,&
                      opvec(1,ispin)%matrix,error=error)
-                CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(2,ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(2,ispin)%matrix,0.0_dp,&
                      opvec(2,ispin)%matrix,error=error)
-                CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(1,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(1,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
                      tmp_re,error=error)
-                CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(2,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(2,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
                      tmp_im,error=error)
                 myfac=-0.25_dp*SQRT(DOT_PRODUCT(cell%hmat(idir,:),cell%hmat(idir,:)))/twopi*fieldfac(idir)
                 DO fdir=1,3

@@ -39,6 +39,7 @@ MODULE library_tests
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -1908,9 +1909,9 @@ CONTAINS
                                   ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
 
        NULLIFY (matrix_a)
-       CALL cp_fm_create(matrix=matrix_a, matrix_struct=fmstruct_a, name="MATRIX A", error=error)
+       CALL cp_fm_create(matrix=matrix_a, matrix_struct=fmstruct_a, name="MATRIX A",  error=error)
        NULLIFY (matrix_b)
-       CALL cp_fm_create(matrix=matrix_b, matrix_struct=fmstruct_b, name="MATRIX B", error=error)
+       CALL cp_fm_create(matrix=matrix_b, matrix_struct=fmstruct_b, name="MATRIX B",  error=error)
        NULLIFY (matrix_c)
        CALL cp_fm_create(matrix=matrix_c, matrix_struct=fmstruct_c, name="MATRIX C", error=error)
 
@@ -1923,7 +1924,7 @@ CONTAINS
        t1=m_walltime()
        DO i_loop=1,N_loop
           t3=m_walltime()
-          CALL cp_fm_gemm(transa,transb,k,n,m,1.0_dp,matrix_a,matrix_b,0.0_dp,matrix_c,error=error)
+          CALL cp_gemm(transa,transb,k,n,m,1.0_dp,matrix_a,matrix_b,0.0_dp,matrix_c,error=error)
           t4=m_walltime()
           IF (iw>0) THEN
              WRITE(iw,'(T2,A,T50,F12.6)')     "cp_fm_gemm timing: ",(t4-t3)

@@ -24,8 +24,7 @@ MODULE qs_linres_methods
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -39,6 +38,7 @@ MODULE qs_linres_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -375,7 +375,7 @@ CONTAINS
        mo_coeff => psi0_order(ispin)%matrix
        CALL cp_fm_get_info(mo_coeff,ncol_global=ncol,error=error)
        CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_coeff,buf,ncol,error=error)
-       CALL cp_fm_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix,error)
+       CALL cp_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix,error)
        !
        ! S * C0
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
@@ -829,7 +829,7 @@ CONTAINS
     ! H * v
     CALL cp_dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol,error=error)
     ! v * e  (chc already multiplied by -1)
-    CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
+    CALL cp_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
     ! S * ve
     CALL cp_dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp,error=error)
     !Results is H*C1 - S*<iHj>*C1
@@ -1420,9 +1420,9 @@ CONTAINS
        CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
        !
        ! buf = v' * S_psi0
-       CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf,error)
+       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf,error)
        ! v = v - psi0 * buf'
-       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
        !
     ENDDO
     !
@@ -1468,9 +1468,9 @@ CONTAINS
        CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
        !
        ! buf = v' * psi0
-       CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
+       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
        ! v = v - S_psi0 * buf'
-       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
        !
     ENDDO
     !

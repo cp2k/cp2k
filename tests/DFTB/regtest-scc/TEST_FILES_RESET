@@ -242,3 +242,6 @@ h2o_atprop.inp
 # forgot to specify test type
 h2o_emd.inp         
 h2o_rtp.inp         
+# new force routines (numerics)
+h2o_emd.inp
+c2h2_emd_mix.inp

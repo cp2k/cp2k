@@ -21,6 +21,8 @@ MODULE environment
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_diag,                      ONLY: diag_init
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_config
+  USE cp_fm_types,                     ONLY: cp_fm_setup
   USE cp_ma_interface,                 ONLY: &
        cp_ma_config, cp_ma_current_thread_run, cp_ma_mempol, cp_ma_mpi_sched, &
        cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
@@ -554,7 +556,9 @@ CONTAINS
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-         
+    
+    CALL fm_setup(global_section,error)
+     
     IF(trace .AND. (.NOT. trace_master .OR. para_env%mepos==0)) THEN
        unit_nr = -1
        IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) &
@@ -1007,6 +1011,32 @@ CONTAINS
     END IF
   
   END SUBROUTINE diag_setup_library
+
+  SUBROUTINE fm_setup(glob_section,error)
+    TYPE(section_vals_type), POINTER         :: glob_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_setup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: multiplication_type, ncb, nrb
+    LOGICAL                                  :: force_me
+    TYPE(section_vals_type), POINTER         :: fm_section
+
+    fm_section => section_vals_get_subs_vals(glob_section,"FM",error=error)
+
+    CALL section_vals_val_get(fm_section,"NROW_BLOCKS",i_val=nrb,error=error)
+    CALL section_vals_val_get(fm_section,"NCOL_BLOCKS",i_val=ncb,error=error)
+    CALL section_vals_val_get(fm_section,"FORCE_BLOCK_SIZE",l_val=force_me,error=error)
+
+    CALL cp_fm_struct_config(nrow_block=nrb,ncol_block=ncb,force_block=force_me)
+
+    CALL section_vals_val_get(fm_section,"TYPE_OF_MATRIX_MULTIPLICATION",&
+                              i_val=multiplication_type,error=error)
+
+    CALL cp_fm_setup(multiplication_type)
+
+  END SUBROUTINE fm_setup
 ! *****************************************************************************
 !> \brief reads the Walltime also in format HH:MM:SS
 !> \par History

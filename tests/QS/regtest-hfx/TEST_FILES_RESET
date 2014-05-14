@@ -377,3 +377,6 @@ H2O-hfx-ls-emd.inp
 H2O-hfx-ls-rtp.inp
 H2O-hfx-ls-rtp-bch.inp
 H2O-hfx-ls-emd-bch.inp
+# new force routines(numerics)
+H2O-hfx-emd.inp
+H2O-hfx-emd-restart.inp

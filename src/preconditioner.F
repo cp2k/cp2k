@@ -42,7 +42,6 @@ MODULE preconditioner
        packed_vec_bif_tech2, packed_vec_build_u, packed_vec_ini, &
        packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
@@ -61,6 +60,7 @@ MODULE preconditioner
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
@@ -710,7 +710,7 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
   CALL timeset(routineN,handle)
 
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
-  CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
+  CALL cp_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_in,0.0_dp,matrix_out,error=error)
   CALL timestop(handle)
 
@@ -852,7 +852,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",use_sp=mixed_precision,error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     ! since we only use diagonal elements this is a bit of a waste
-    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
+    CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
     ALLOCATE(diag(k))
     CALL cp_fm_get_diag(matrix_s1,diag,error=error)
     error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
@@ -865,7 +865,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     ALLOCATE(c0_shift(k))
     c0_shift=SQRT(-(c0_evals-c0_evals(k))+eval_shift)
     CALL cp_fm_column_scale(matrix_sc0,c0_shift)
-    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm,error=error)
+    CALL cp_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm,error=error)
     CALL cp_fm_release(matrix_sc0,error=error)
     DEALLOCATE(c0_shift)
 
@@ -972,7 +972,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
        CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
        ! since we only use diagonal elements this is a bit of a waste
-       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
+       CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
        ALLOCATE(diag(k))
        CALL cp_fm_get_diag(matrix_s1,diag,error=error)
        error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
@@ -987,16 +987,16 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
        CALL copy_dbcsr_to_fm(matrix_h,matrix_tmp,error=error)
        CALL cp_fm_upper_to_full(matrix_tmp,matrix_pre,error=error)
     ! tmp = H ( 1 - PS )
-    CALL cp_fm_gemm('N','T',n,n,k,-1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('N','T',n,n,k,-1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
 
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=n, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
     CALL cp_fm_create(matrix_left,fm_struct_tmp,name="matrix_left",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL cp_fm_gemm('T','N',k,n,n,1.0_dp,matrix_c0,matrix_tmp,0.0_dp,matrix_left,error=error)
+    CALL cp_gemm('T','N',k,n,n,1.0_dp,matrix_c0,matrix_tmp,0.0_dp,matrix_left,error=error)
     ! tmp = (1 - PS)^T H (1-PS)
-    CALL cp_fm_gemm('N','N',n,n,k,-1.0_dp,matrix_sc0,matrix_left,1.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('N','N',n,n,k,-1.0_dp,matrix_sc0,matrix_left,1.0_dp,matrix_tmp,error=error)
     CALL cp_fm_release(matrix_left,error=error)
 
     ALLOCATE(shifted_evals(k))
@@ -1004,7 +1004,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     shifted_evals=c0_evals - lambda
     CALL cp_fm_to_fm(matrix_sc0,matrix_hc0,error=error)
     CALL cp_fm_column_scale(matrix_hc0,shifted_evals)
-    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('N','T',n,n,k,1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
 
     ! 2) diagonalize this operator
     CALL cp_fm_cholesky_reduce(matrix_tmp,ortho,error=error)
@@ -1021,7 +1021,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
         CALL cp_fm_create(matrix_s2,fm_struct_tmp,name="matrix_s2",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ALLOCATE(norms(k))
-        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
+        CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
         CALL choose_eigv_solver(matrix_s1,matrix_s2,norms,error=error)
         WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
         DEALLOCATE(norms)
@@ -1074,7 +1074,7 @@ SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out, error)
                              row_indices=row_indices, col_indices=col_indices, local_data=local_data,error=error)
 
   !
-  CALL cp_fm_gemm('T','N',n,k,n,1.0_dp,preconditioner_env%fm, &
+  CALL cp_gemm('T','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_in,0.0_dp,matrix_tmp,error=error)
 
   ! do the right scaling
@@ -1087,7 +1087,7 @@ SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out, error)
   ENDDO
 
   ! mult back
-  CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
+  CALL cp_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_tmp,0.0_dp,matrix_out,error=error)
 
   CALL cp_fm_release(matrix_tmp,error=error)
@@ -1193,7 +1193,7 @@ SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
   ENDDO
   CALL cp_fm_to_fm(fm_h,fm,error=error)
   CALL cp_fm_column_scale(fm,evals)
-  CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm,fm_h,0.0_dp,fm_s,error=error)
+  CALL cp_gemm('N','T',n,n,n,1.0_dp,fm,fm_h,0.0_dp,fm_s,error=error)
   CALL cp_fm_to_fm(fm_s,fm,error=error)
 
   DEALLOCATE(evals)
@@ -1488,7 +1488,7 @@ SUBROUTINE make_full_single_ortho(preconditioner_env, fm, matrix_h, &
   ENDDO
   CALL cp_fm_to_fm(fm,fm_h,error=error)
   CALL cp_fm_column_scale(fm,evals)
-  CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm,fm_h,0.0_dp,fm_s,error=error)
+  CALL cp_gemm('N','T',n,n,n,1.0_dp,fm,fm_h,0.0_dp,fm_s,error=error)
   CALL cp_fm_to_fm(fm_s,fm,error=error)
 
   DEALLOCATE(evals)
@@ -1550,7 +1550,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
     CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     ! since we only use diagonal elements this is a bit of a waste
-    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_hc0,matrix_hc0,0.0_dp,matrix_s1,error=error)
+    CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_hc0,matrix_hc0,0.0_dp,matrix_s1,error=error)
     ALLOCATE(diag(k))
     CALL cp_fm_get_diag(matrix_s1,diag,error=error)
     error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
@@ -1562,7 +1562,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
     ALLOCATE(c0_shift(k))
     c0_shift=SQRT(-(c0_evals-c0_evals(k))+eval_shift)
     CALL cp_fm_column_scale(matrix_sc0,c0_shift)
-    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm,error=error)
+    CALL cp_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm,error=error)
     CALL cp_fm_release(matrix_sc0,error=error)
     DEALLOCATE(c0_shift)
 
@@ -1648,7 +1648,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
        CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
        ! since we only use diagonal elements this is a bit of a waste
-       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_hc0,matrix_hc0,0.0_dp,matrix_s1,error=error)
+       CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_hc0,matrix_hc0,0.0_dp,matrix_s1,error=error)
        ALLOCATE(diag(k))
        CALL cp_fm_get_diag(matrix_s1,diag,error=error)
        error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
@@ -1663,16 +1663,16 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
     CALL copy_dbcsr_to_fm(matrix_h,matrix_tmp,error=error)
     CALL cp_fm_upper_to_full(matrix_tmp,matrix_pre,error=error)
     ! tmp = H ( 1 - PS )
-    CALL cp_fm_gemm('N','T',n,n,k,-1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('N','T',n,n,k,-1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
 
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=n, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
     CALL cp_fm_create(matrix_left,fm_struct_tmp,name="matrix_left",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL cp_fm_gemm('T','N',k,n,n,1.0_dp,matrix_c0,matrix_tmp,0.0_dp,matrix_left,error=error)
+    CALL cp_gemm('T','N',k,n,n,1.0_dp,matrix_c0,matrix_tmp,0.0_dp,matrix_left,error=error)
     ! tmp = (1 - PS)^T H (1-PS)
-    CALL cp_fm_gemm('N','N',n,n,k,-1.0_dp,matrix_sc0,matrix_left,1.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('N','N',n,n,k,-1.0_dp,matrix_sc0,matrix_left,1.0_dp,matrix_tmp,error=error)
     CALL cp_fm_release(matrix_left,error=error)
 
     ALLOCATE(shifted_evals(k))
@@ -1680,7 +1680,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
     shifted_evals=c0_evals - lambda
     CALL cp_fm_to_fm(matrix_sc0,matrix_hc0,error=error)
     CALL cp_fm_column_scale(matrix_hc0,shifted_evals)
-    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('N','T',n,n,k,1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
 
     ! 2) diagonalize this operator
      CALL choose_eigv_solver(matrix_tmp,matrix_pre,preconditioner_env%full_evals,error=error)
@@ -1696,7 +1696,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
         CALL cp_fm_create(matrix_s2,fm_struct_tmp,name="matrix_s2",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ALLOCATE(norms(k))
-        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
+        CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
         CALL choose_eigv_solver(matrix_s1,matrix_s2,norms,error=error)
 
         WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))

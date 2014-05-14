@@ -29,8 +29,7 @@ MODULE ep_methods
                                              cp_dbcsr_sm_fm_multiply
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -49,6 +48,7 @@ MODULE ep_methods
                                              cp_fm_write
   USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
                                              cp_fm_vect_write
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: &
        cp_add_iter_level, cp_iter_string, cp_iterate, cp_p_file, cp_p_store, &
        cp_print_key_finished_output, cp_print_key_log, &
@@ -2176,7 +2176,7 @@ CONTAINS
                 CALL cp_dbcsr_sm_fm_multiply(snapshot%overlap,&
                      tmp_snap%wf(ispin)%matrix,dc_dr(ispin)%matrix,&
                      ncol=ep_env%sub_nmo(ispin),error=new_error)
-                CALL cp_fm_gemm(transa='T',transb='N',m=ep_env%sub_nmo(ispin),&
+                CALL cp_gemm(transa='T',transb='N',m=ep_env%sub_nmo(ispin),&
                      n=ep_env%sub_nmo(ispin),k=ep_env%sub_nao(ispin),alpha=1.0_dp,&
                      matrix_a=snapshot%wf(ispin)%matrix,&
                      matrix_b=dc_dr(ispin)%matrix,beta=0._dp,&
@@ -2184,7 +2184,7 @@ CONTAINS
                 CALL cp_fm_scale_and_add(matrix_a=dc_dr(ispin)%matrix,&
                      matrix_b=tmp_snap%wf(ispin)%matrix,alpha=0.0_dp,beta=1.0_dp,&
                      error=new_error)
-                CALL cp_fm_gemm(transa='N',transb='N',m=ep_env%sub_nao(ispin),&
+                CALL cp_gemm(transa='N',transb='N',m=ep_env%sub_nao(ispin),&
                      n=ep_env%sub_nmo(ispin),k=ep_env%sub_nmo(ispin),alpha=-1.0_dp/dr,&
                      matrix_a=snapshot%wf(ispin)%matrix,&
                      matrix_b=mo_mo_m(ispin)%matrix,beta=1._dp/dr,&
@@ -2370,7 +2370,7 @@ CONTAINS
 !           name="ao_ao_work1",error=error)
 !      DO ispin=1,ep_env%nspins
 !         CALL copy_sm_to_fm(local_P_H_pi(ispin,irep_local)%matrix,aoao_work1,error=new_error)
-!         CALL cp_fm_gemm(transa="T",transb="N",m=ep_env%sub_nao(ispin),&
+!         CALL cp_gemm(transa="T",transb="N",m=ep_env%sub_nao(ispin),&
 !              n=ep_env%sub_nmo(ispin),k=ep_env%sub_nao(ispin),alpha=1._dp,&
 !              matrix_a=aoao_work1,matrix_b=ep_env%sub_p_env%S_psi0(ispin)%matrix,&
 !              beta=0._dp,matrix_c=coeffs_cr(ispin)%matrix,error=new_error)

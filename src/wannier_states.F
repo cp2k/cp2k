@@ -10,7 +10,6 @@
 MODULE wannier_states
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -20,6 +19,7 @@ MODULE wannier_states
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -146,7 +146,7 @@ CONTAINS
     DO i=1,ns
       CALL cp_fm_to_fm ( mo_localized, b, 1, states ( i ), 1)
       CALL cp_dbcsr_sm_fm_multiply(Hks,b,c,1,error=error)
-      CALL cp_fm_gemm('T','N',1,1,nrow_global,1.0_dp, &
+      CALL cp_gemm('T','N',1,1,nrow_global,1.0_dp, &
           b,c,0.0_dp,d,error=error)
       CALL cp_fm_get_element(d,1,1,WannierCentres%WannierHamDiag(i))
   !               if (iproc==para_env%mepos) WRITE(unit_mat,'(f16.8,2x)', advance='no')WannierCentres%WannierHamDiag(i)

@@ -23,8 +23,7 @@ MODULE qs_p_env_methods
                                              cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -48,6 +47,7 @@ MODULE qs_p_env_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -528,7 +528,7 @@ END SUBROUTINE p_env_did_change
                   my_psi0(spin)%matrix,&
                   p_env%S_psi0(spin)%matrix,&
                   ncol=p_env%n_mo(spin), alpha=1.0_dp,error=error)
-             CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
+             CALL cp_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
                   m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_dp,&
                   matrix_a=my_psi0(spin)%matrix, &
                   matrix_b=p_env%S_psi0(spin)%matrix,&
@@ -626,7 +626,7 @@ END SUBROUTINE p_env_did_change
                   error=error)
           END IF
           ! m_epsilon = -1 times S_psi0^T times psi0d
-          CALL cp_fm_gemm('T', 'N', &
+          CALL cp_gemm('T', 'N', &
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
                0.0_dp, p_env%m_epsilon(spin)%matrix,error=error)
@@ -972,12 +972,12 @@ END SUBROUTINE p_env_did_change
 
           IF (.NOT. failure) THEN
              ! tmp_matrix = v^T (S psi0)
-             CALL cp_fm_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
+             CALL cp_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
                   k=p_env%n_ao(spin),alpha=1.0_dp,matrix_a=v(spin)%matrix,&
                   matrix_b=p_env%S_psi0(spin)%matrix,beta=0.0_dp,&
                   matrix_c=tmp_matrix,error=error)
              ! v = v- psi0d tmp_matrix^T = v - psi0d psi0^T S v
-             CALL cp_fm_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
+             CALL cp_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
                   k=p_env%n_mo(spin),alpha=-1.0_dp,&
                   matrix_a=p_env%psi0d(spin)%matrix,matrix_b=tmp_matrix,&
                   beta=1.0_dp,matrix_c=v(spin)%matrix,error=error)
@@ -1089,12 +1089,12 @@ END SUBROUTINE p_env_did_change
 
           IF (.NOT. failure) THEN
              ! tmp_matrix = v^T psi0d
-             CALL cp_fm_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
+             CALL cp_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
                   k=p_env%n_ao(spin),alpha=1.0_dp,matrix_a=v(spin)%matrix,&
                   matrix_b=p_env%psi0d(spin)%matrix,beta=0.0_dp,&
                   matrix_c=tmp_matrix,error=error)
              ! v = v- (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
-             CALL cp_fm_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
+             CALL cp_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
                   k=p_env%n_mo(spin),alpha=-1.0_dp,&
                   matrix_a=p_env%S_psi0(spin)%matrix,matrix_b=tmp_matrix,&
                   beta=1.0_dp,matrix_c=v(spin)%matrix,error=error)

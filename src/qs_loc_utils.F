@@ -30,8 +30,7 @@ MODULE qs_loc_utils
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -40,6 +39,7 @@ MODULE qs_loc_utils
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -181,10 +181,10 @@ CONTAINS
 
     ! o1 = (mo_new)^T matrix_S mo_ref
     CALL cp_dbcsr_sm_fm_multiply(matrix_S,mo_ref,smo,ncol,error=error)
-    CALL cp_fm_gemm('T','N',ncol,ncol,nrow,1.0_dp, mo_new,smo,0.0_dp,o1,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,nrow,1.0_dp, mo_new,smo,0.0_dp,o1,error=error)
 
     ! o2 = (o1^T o1)
-    CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp, o1,o1,0.0_dp,o2,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,ncol,1.0_dp, o1,o1,0.0_dp,o2,error=error)
 
     ! o2 = (o1^T o1)^-1/2
     ALLOCATE(eigenvalues(ncol))
@@ -192,19 +192,19 @@ CONTAINS
     CALL cp_fm_to_fm(o3,o4,error=error)
     eigenvalues=1.0_dp/SQRT(eigenvalues)
     CALL cp_fm_column_scale(o4,eigenvalues)
-    CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o4,0.0_dp,o2,error=error)
+    CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o4,0.0_dp,o2,error=error)
 
     ! o3 = o1 (o1^T o1)^-1/2
-    CALL cp_fm_gemm('N','N',ncol,ncol,ncol,1.0_dp,o1,o2,0.0_dp,o3,error=error)
+    CALL cp_gemm('N','N',ncol,ncol,ncol,1.0_dp,o1,o2,0.0_dp,o3,error=error)
 
     ! mo_new o1 (o1^T o1)^-1/2
-    CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,mo_new,o3,0.0_dp,smo,error=error)
+    CALL cp_gemm('N','N',nrow,ncol,ncol,1.0_dp,mo_new,o3,0.0_dp,smo,error=error)
     CALL cp_fm_to_fm(smo,mo_new,error=error)
 
     ! XXXXXXX testing
-    ! CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
+    ! CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
     ! WRITE(6,*) o1%local_data
-    ! CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
+    ! CALL cp_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
     ! WRITE(6,*) o1%local_data
 
     CALL cp_fm_release(o1,error=error)

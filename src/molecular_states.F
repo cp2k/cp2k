@@ -15,7 +15,6 @@ MODULE molecular_states
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -26,6 +25,7 @@ MODULE molecular_states
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -253,7 +253,7 @@ CONTAINS
 
        CALL cp_dbcsr_sm_fm_multiply(Hks,b,c,ns,error=error)
 
-       CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
+       CALL cp_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
             b,c,0.0_dp,d,error=error)
 
        CALL choose_eigv_solver( d, e_vectors, evals , error=error)
@@ -280,7 +280,7 @@ CONTAINS
           ENDDO
        ENDIF
 
-       CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
+       CALL cp_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
             b,e_vectors,0.0_dp,rot_e_vectors,error=error)
 
        DO i=1,ns
@@ -295,7 +295,7 @@ CONTAINS
               context=mo_localized%matrix_struct%context,error=error)
          CALL cp_fm_create(D_igk,fm_struct_tmp,error=error)
          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-         CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
+         CALL cp_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
               rot_e_vectors,smo,0.0_dp,D_igk,error=error)
             DO i=1,ns
                DO k=1,ncol_global

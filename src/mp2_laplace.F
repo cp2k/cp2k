@@ -10,10 +10,10 @@
 ! *****************************************************************************
 MODULE mp2_laplace
 ! USE f77_blas
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
@@ -220,7 +220,7 @@ MODULE mp2_laplace
       END IF
 
       t_start=m_walltime()
-      CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=1.0_dp,&
+      CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=1.0_dp,&
                       matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
                       matrix_c=fm_mat_Q_gemm,error=error)
       t_end=m_walltime()
@@ -292,7 +292,7 @@ MODULE mp2_laplace
         END IF
 
         t_start=m_walltime()
-        CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=1.0_dp,&
+        CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=1.0_dp,&
                         matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
                         matrix_c=fm_mat_Q_gemm_beta,error=error)
         t_end=m_walltime()

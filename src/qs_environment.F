@@ -51,8 +51,6 @@ MODULE qs_environment
                                              write_dft_control,&
                                              write_qs_control
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
-  USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -755,10 +753,6 @@ CONTAINS
     !   *** SCF parameters ***
     CALL scf_c_create(scf_control,error=error)
     CALL scf_c_read_parameters(scf_control,dft_section,error=error)
-
-    !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
-    optimal_blacs_row_block_size=scf_control%nrow_block
-    optimal_blacs_col_block_size=scf_control%ncol_block
 
     !   *** Allocate the data structure for Quickstep energies ***
     CALL allocate_qs_energy(energy)

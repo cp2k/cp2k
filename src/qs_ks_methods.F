@@ -37,7 +37,6 @@ MODULE qs_ks_methods
                                              cp_dbcsr_sm_fm_multiply
   USE cp_ddapc,                        ONLY: qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_transpose,&
@@ -51,6 +50,7 @@ MODULE qs_ks_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -1522,7 +1522,7 @@ CONTAINS
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of
     ! internally in qs_core_hamiltonian
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
+    CALL cp_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
                     mo_set%mo_coeff,weighted_vectors,0.0_dp,h_block,error=error)
 
     IF (do_symm) THEN
@@ -1533,7 +1533,7 @@ CONTAINS
     ENDIF
 
     ! this could overwrite the mo_derivs to save the weighted_vectors
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+    CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                     mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors,error=error)
 
     CALL cp_dbcsr_set(w_matrix,0.0_dp,error=error)
@@ -1609,7 +1609,7 @@ CONTAINS
     CALL copy_dbcsr_to_fm(matrix_p,p,error=error)
     CALL cp_fm_upper_to_full(p,work,error)
     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work,error=error)
-    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
+    CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
     CALL cp_dbcsr_set(matrix_w,0.0_dp,error=error)
     CALL copy_fm_to_dbcsr(ks,matrix_w,keep_sparsity=.TRUE., error=error)
 

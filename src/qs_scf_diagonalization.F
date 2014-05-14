@@ -22,8 +22,7 @@ MODULE qs_scf_diagonalization
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -35,6 +34,7 @@ MODULE qs_scf_diagonalization
                                              cp_fm_create,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -381,12 +381,12 @@ CONTAINS
          c0 => subspace_env%c0(ispin)%matrix
          CALL cp_fm_to_fm(mo_coeff,c0,error=error)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,c0,work,nmo,error=error)
-         CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
+         CALL cp_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
         !diagonalize C'HC
          CALL choose_eigv_solver(chc,evec,mo_eigenvalues,error=error)
 
         !rotate the mos by the eigenvectors of C'HC
-         CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,mo_coeff,error=error)
+         CALL cp_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,mo_coeff,error=error)
 
          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
                            smear=scf_control%smear,&
@@ -826,10 +826,10 @@ END SUBROUTINE diag_subspace_allocate
       ! from AO basis to MO basis: K(MO) = C(T)*K(AO)*C
 
       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
+      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
 
       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,moa,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksb,error=error)
+      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksb,error=error)
 
       ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
       ! in the MO basis
@@ -861,8 +861,8 @@ END SUBROUTINE diag_subspace_allocate
 
       ! K(AO) = Q*K(MO)*Q(T)
 
-      CALL cp_fm_gemm("N","T",nao,nao,nao,1.0_dp,ksa,mo2ao,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,mo2ao,work,0.0_dp,ksa,error=error)
+      CALL cp_gemm("N","T",nao,nao,nao,1.0_dp,ksa,mo2ao,0.0_dp,work,error=error)
+      CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,mo2ao,work,0.0_dp,ksa,error=error)
 
     ELSE
 
@@ -926,7 +926,7 @@ END SUBROUTINE diag_subspace_allocate
       ! for level-shifting using the current MO set
 
       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
+      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
 
       ! Apply level-shifting using 50:50 split of the shift (could be relaxed)
 
@@ -957,7 +957,7 @@ END SUBROUTINE diag_subspace_allocate
                "MULTIPLY",pos="LEFT",transa="T",error=error)
       CASE(cholesky_off)
         CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work,error=error)
-        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa,error=error)
+        CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa,error=error)
       END SELECT
 
     END IF
@@ -971,7 +971,7 @@ END SUBROUTINE diag_subspace_allocate
     IF (level_shift_loc /= 0.0_dp) THEN
       ! Use old MO set for back-transformation if level-shifting was applied
       CALL cp_fm_to_fm(moa,ortho,error=error)
-      CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
+      CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
     ELSE
       IF (orthogonal_basis) THEN
         CALL cp_fm_to_fm(work,moa,error=error)
@@ -982,7 +982,7 @@ END SUBROUTINE diag_subspace_allocate
         CASE(cholesky_inverse)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"MULTIPLY",error=error)
         CASE(cholesky_off)
-          CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
+          CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
         END SELECT
       END IF
     END IF
@@ -1179,12 +1179,12 @@ END SUBROUTINE diag_subspace_allocate
            NULLIFY( chc, evec)
            chc => scf_env%krylov_space%chc_mat(ispin)%matrix
            evec => scf_env%krylov_space%c_vec(ispin)%matrix
-           CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
-           CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
+           CALL cp_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
+           CALL cp_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
            !Diagonalize  (C^t)HC
            CALL choose_eigv_solver(chc,evec,mo_eigenvalues,error=error)
            !Rotate the C vectors
-           CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
+           CALL cp_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
            c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
          END IF
 

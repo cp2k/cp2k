@@ -20,7 +20,6 @@ MODULE qs_diis
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -32,6 +31,7 @@ MODULE qs_diis
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -354,8 +354,8 @@ CONTAINS
         ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
         ! or for an orthogonal basis
         ! new_errors <- KC*C^T - C*(KC)^T = K*P - P*K with S = I
-        CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
-        CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors,error=error)
+        CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
+        CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors,error=error)
 
         DEALLOCATE (occ,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"occ")
@@ -378,12 +378,12 @@ CONTAINS
           ! sc <- S*C
           CALL cp_fm_symm("L","U",nao,homo,2.0_dp,new_errors,c,0.0_dp,sc,error=error)
           ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors,error=error)
+          CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
+          CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors,error=error)
         ELSE
           ! new_errors <- KC*(C)^T - C*(KC)^T = K*P - P*K
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,c,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,c,-1.0_dp,new_errors,error=error)
+          CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,c,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
+          CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,c,-1.0_dp,new_errors,error=error)
         END IF
 
       END IF

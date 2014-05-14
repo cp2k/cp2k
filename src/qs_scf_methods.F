@@ -19,8 +19,7 @@ MODULE qs_scf_methods
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
        cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -33,6 +32,7 @@ MODULE qs_scf_methods
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: cholesky_inverse,&
@@ -223,7 +223,7 @@ CONTAINS
     ELSE IF (use_jacobi) THEN
 
        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
-       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
+       CALL cp_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
                        0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
 
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
@@ -234,7 +234,7 @@ CONTAINS
     ELSE ! full S^(-1/2) has been computed
 
        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work,error=error)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks,error=error)
+       CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks,error=error)
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
@@ -247,7 +247,7 @@ CONTAINS
 
        CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff,error=error)
 
        IF (do_level_shift) THEN
@@ -308,7 +308,7 @@ CONTAINS
 
     IF ( use_jacobi ) THEN
        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
-       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
+       CALL cp_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
                        0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
        CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,jacobi_threshold,homo+1)

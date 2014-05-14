@@ -14,7 +14,6 @@ MODULE s_square_methods
   USE cp_control_types,                ONLY: s2_restraint_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -23,6 +22,7 @@ MODULE s_square_methods
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE f77_blas
@@ -119,7 +119,7 @@ CONTAINS
           CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp,nrow_global=nrow,error=error)
           CALL cp_fm_create(matrix_sc_b, fm_struct_tmp,name="matrix_sc_beta",error=error)
           CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc_b,nb,error=error)
-          CALL cp_fm_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc_b,0.0_dp,matrix_overlap,error=error)
+          CALL cp_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc_b,0.0_dp,matrix_overlap,error=error)
           ! invoke formula 2.271
           CALL cp_fm_get_info(matrix_overlap,&
                               local_data=local_data,&
@@ -140,12 +140,12 @@ CONTAINS
             CPPrecondition(uniform_occupation,cp_failure_level,routineP,error,failure)
             CALL get_mo_set(mo_set=mos(2)%mo_set,uniform_occupation=uniform_occupation)
             CPPrecondition(uniform_occupation,cp_failure_level,routineP,error,failure)
-            CALL cp_fm_gemm('N','T',nrow,na,nb,-1.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix,error=error)
+            CALL cp_gemm('N','T',nrow,na,nb,-1.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix,error=error)
             CALL cp_fm_release(matrix_sc_b,error=error)
             CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp,error=error)
             CALL cp_fm_create(matrix_sc_a, fm_struct_tmp,name="matrix_sc_alpha",error=error)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,c_alpha,matrix_sc_a,na,error=error)
-            CALL cp_fm_gemm('N','N',nrow,nb,na,-1.0_dp*strength,matrix_sc_a,matrix_overlap,1.0_dp,mo_derivs(2)%matrix,error=error)
+            CALL cp_gemm('N','N',nrow,nb,na,-1.0_dp*strength,matrix_sc_a,matrix_overlap,1.0_dp,mo_derivs(2)%matrix,error=error)
             CALL cp_fm_release(matrix_sc_a,error=error)
             CALL cp_fm_release(matrix_overlap,error=error)
           ELSE

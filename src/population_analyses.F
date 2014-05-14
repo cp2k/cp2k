@@ -27,7 +27,6 @@ MODULE population_analyses
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -36,6 +35,7 @@ MODULE population_analyses
                                              cp_fm_get_diag,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -183,7 +183,7 @@ CONTAINS
       sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
       CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
-      CALL cp_fm_gemm(transa="N",&
+      CALL cp_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
                       n=nsgf,&

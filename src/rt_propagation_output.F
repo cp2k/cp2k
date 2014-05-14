@@ -22,8 +22,7 @@ MODULE rt_propagation_output
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -34,6 +33,7 @@ MODULE rt_propagation_output
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: ehrenfest,&
@@ -159,16 +159,27 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
     IF(rtp%converged)THEN
-       !TODO: make a restart for density propagation
-       IF (rtp%linear_scaling) THEN
-          CALL write_mo_free_results(qs_env,error)
+       IF(qs_env%dft_control%qs_control%dftb)THEN
+          IF (rtp%linear_scaling) THEN
+            !TODO: make a restart for density propagation
+          ELSE
+             CALL make_moment(qs_env,error)
+             CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
+          END IF
        ELSE
-          CALL make_moment(qs_env,error)
-          CALL write_available_results(qs_env=qs_env,error=error)
-          CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-          CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
-       ENDIF
+          IF (rtp%linear_scaling) THEN
+             CALL write_mo_free_results(qs_env,error)
+             !TODO: make a restart for density propagation
+          ELSE
+             CALL make_moment(qs_env,error)
+             CALL write_available_results(qs_env=qs_env,error=error)
+             CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
+          ENDIF
+       END IF
     END IF
 
   END SUBROUTINE rt_prop_output
@@ -227,9 +238,9 @@ CONTAINS
 
       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(re)%matrix,&
+      CALL cp_gemm('T','N',k,k,n,1.0_dp, mos_new(re)%matrix,&
            svec_re,0.0_dp,overlap_re,error=error)
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(im)%matrix,&
+      CALL cp_gemm('T','N',k,k,n,1.0_dp, mos_new(im)%matrix,&
            svec_im,1.0_dp,overlap_re,error=error)
 
       CALL cp_fm_release(svec_re,error=error)
@@ -351,10 +362,10 @@ CONTAINS
       CALL cp_fm_create(work2,matrix_struct=newstruct1,error=error)
 
 
-      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re)%matrix,&
+      CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re)%matrix,&
            work1,0.0_dp,work,error=error)
 
-      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im)%matrix,&
+      CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im)%matrix,&
            work1,0.0_dp,work2,error=error)
 
       CALL cp_fm_get_info(work,nrow_local=lrow,error=error)

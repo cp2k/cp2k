@@ -36,14 +36,15 @@ MODULE cp_fm_struct
 ! consider using #ifdefs to give them the optimal values
 ! these can be changed using scf_control
 ! *** these are used by default
-  INTEGER :: optimal_blacs_col_block_size=32
-  INTEGER :: optimal_blacs_row_block_size=32
+  INTEGER, PRIVATE :: optimal_blacs_col_block_size=32
+  INTEGER, PRIVATE :: optimal_blacs_row_block_size=32
+  LOGICAL, PRIVATE :: force_block_size=.FALSE.
 
   PUBLIC :: cp_fm_struct_type,cp_fm_struct_p_type
-  PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
   PUBLIC :: cp_fm_struct_create,cp_fm_struct_retain, cp_fm_struct_release,&
        cp_fm_struct_equivalent, cp_fm_struct_compatible, cp_fm_struct_write,&
-       cp_fm_struct_get,cp_fm_struct_double
+       cp_fm_struct_get,cp_fm_struct_double, cp_fm_struct_config,&
+       cp_fm_struct_get_nrow_block, cp_fm_struct_get_ncol_block
 !***
 
 ! *****************************************************************************
@@ -181,7 +182,7 @@ CPSourceFileRef,&
      END IF
 
   END IF
-  my_force_block=.FALSE.
+  my_force_block=force_block_size
   IF (PRESENT(force_block)) my_force_block=force_block
   IF (.NOT.failure) THEN
 
@@ -760,6 +761,29 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
          error=error)
 
   END SUBROUTINE cp_fm_struct_double
+! *****************************************************************************
+!> \brief allows o modify the default settings for matrix creation
+! *****************************************************************************
+  SUBROUTINE cp_fm_struct_config(nrow_block,ncol_block,force_block)
+    INTEGER, OPTIONAL                        :: nrow_block, ncol_block
+    LOGICAL, OPTIONAL                        :: force_block
 
+    IF(PRESENT(ncol_block))optimal_blacs_col_block_size=ncol_block
+    IF(PRESENT(nrow_block))optimal_blacs_row_block_size=nrow_block
+    IF(PRESENT(force_block))force_block_size=force_block
+
+  END SUBROUTINE cp_fm_struct_config
+
+  FUNCTION cp_fm_struct_get_nrow_block()     RESULT(res) 
+    INTEGER                                  :: res
+
+     res=optimal_blacs_row_block_size
+  END FUNCTION cp_fm_struct_get_nrow_block 
+
+  FUNCTION cp_fm_struct_get_ncol_block()     RESULT(res)
+    INTEGER                                  :: res
+
+     res=optimal_blacs_col_block_size
+  END FUNCTION cp_fm_struct_get_ncol_block 
 
 END MODULE cp_fm_struct

@@ -36,14 +36,14 @@ MODULE dft_plus_u
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_transpose
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -427,7 +427,7 @@ CONTAINS
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
       CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
-      CALL cp_fm_gemm(transa="N",&
+      CALL cp_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
                       n=nsgf,&

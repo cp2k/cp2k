@@ -297,3 +297,5 @@ H2O-ls-emd.inp
 H2O-ls-rtp-bch.inp
 #Bugfix of sparse rtp with ETRS and bch
 H2O-ls-rtp-bch.inp
+# new force routine for MO EMD (numerics)
+wfn_mix_loc-1.inp
