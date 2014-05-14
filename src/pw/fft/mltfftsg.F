@@ -11,7 +11,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   !$ USE OMP_LIB
 
 ! Arguments
-  CHARACTER ( LEN = 1 ), INTENT ( IN ) :: transa*1, transb*1
+  CHARACTER ( LEN = 1 ), INTENT ( IN ) :: transa, transb
   INTEGER, INTENT ( IN ) :: ldax, lday, ldbx, ldby, n, m, isign
   COMPLEX ( dp ), INTENT ( INOUT ) :: a ( ldax, lday ), b ( ldbx, ldby )
   REAL ( dp ), INTENT ( IN ) :: scale

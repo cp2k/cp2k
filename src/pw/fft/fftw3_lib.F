@@ -887,7 +887,7 @@ END SUBROUTINE fftw31dm
          IMPLICIT NONE
          INTEGER ic
          INTEGER iunit
-         CHARACTER*256 buf
+         CHARACTER(LEN=256) buf
          SAVE buf
          INTEGER ibuf
          DATA ibuf/257/

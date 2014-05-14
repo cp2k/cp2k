@@ -1189,7 +1189,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: iunit = 78
 
-    CHARACTER*20                             :: iter_type
+    CHARACTER(LEN=20)                        :: iter_type
     INTEGER :: cg_iteration, fixed_line_search_niter, handle, ispin, &
       iteration, line_search_iteration, max_iter, my_special_case, ndomains, &
       outer_iteration, outer_max_iter, prec_type, precond_domain_projector, &

@@ -53,10 +53,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: lmax = 6
 
-    CHARACTER*11, DIMENSION(0:lmax)          :: i2g
-    CHARACTER*5, DIMENSION(0:lmax)           :: i2c
-    CHARACTER*7, DIMENSION(0:lmax)           :: i2e
-    CHARACTER*9, DIMENSION(0:lmax)           :: i2f
+    CHARACTER(LEN=11), DIMENSION(0:lmax)     :: i2g
+    CHARACTER(LEN=5), DIMENSION(0:lmax)      :: i2c
+    CHARACTER(LEN=7), DIMENSION(0:lmax)      :: i2e
+    CHARACTER(LEN=9), DIMENSION(0:lmax)      :: i2f
     INTEGER                                  :: i, ii, istat, l, la_max, &
                                                 la_min, lc_max, lc_min, ll, &
                                                 n, na, nb, npgfa, npgfb, &
