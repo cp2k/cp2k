@@ -489,7 +489,8 @@ MODULE input_constants
                                               xc_none=8,&
                                               xc_funct_xwpbe=9,&
                                               xc_funct_b3lyp=10,&
-                                              xc_funct_pbe0=11
+                                              xc_funct_pbe0=11,&
+                                              xc_funct_beefvdw=12
   INTEGER, PARAMETER, PUBLIC               :: sic_none=0,&
                                               sic_mauri_us=1,&
                                               sic_mauri_spz=2,&

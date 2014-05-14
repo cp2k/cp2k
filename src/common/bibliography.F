@@ -69,7 +69,7 @@ MODULE bibliography
        Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013,    &
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
-       Kantorovich2008a
+       Kantorovich2008a, Wellendorff2012
 
 CONTAINS
 
@@ -84,6 +84,24 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Wellendorff2012, ISI_record=s2a(&
+         "AU Wellendorff, J",&
+         "   Lundgaard, K",&
+         "   Mogelhoj, A",&
+         "   Petzold, V",&
+         "   Landis, D",&
+         "   Norskov, J",&
+         "   Bligaard, T",&
+         "   Jacobsen, K",&
+         "TI Density functionals for surface science: Exchange-correlation model development with Bayesian error estimation",&
+         "SO PHYSICAL REVIEW B",&
+         "PY 2012",&
+         "VL 85",&
+         "IS 23",&
+         "BP 235149",&
+         "ER"),&
+          DOI="10.1103/PhysRevB.85.235149")
 
     CALL add_reference(key=Brelaz1979, ISI_record=s2a(&
          "PT J",&

@@ -84,6 +84,10 @@ MODULE xc_derivatives
   USE xc_xalpha,                       ONLY: xalpha_info,&
                                              xalpha_lda_eval,&
                                              xalpha_lsd_eval
+  USE xc_xbeef   ,                     ONLY: xbeef_lda_eval,&
+                                             xbeef_lda_info,&
+                                             xbeef_lsd_eval,&
+                                             xbeef_lsd_info
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
                                              xb88_lda_info,&
                                              xb88_lsd_eval,&
@@ -188,6 +192,14 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
                 needs=needs, max_deriv=max_deriv, error=error)
         ELSE
            CALL lyp_adiabatic_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        END IF
+     CASE("BEEF")
+        IF (lsd) THEN
+           CALL xbeef_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        ELSE
+           CALL xbeef_lda_info(reference=reference,shortform=shortform,&
                 needs=needs, max_deriv=max_deriv, error=error)
         END IF
      CASE("BECKE88")
@@ -434,6 +446,12 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL xb88_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
            CALL xb88_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
+     CASE("BEEF")
+        IF (lsd) THEN
+           CALL xbeef_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL xbeef_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         END IF
      CASE("BECKE88_LR")
         IF (lsd) THEN

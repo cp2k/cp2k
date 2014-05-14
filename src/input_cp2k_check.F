@@ -22,10 +22,11 @@ MODULE input_cp2k_check
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
        do_thermo_nose, do_thermo_same_as_part, id_release_version, &
-       npt_f_ensemble, npt_i_ensemble, xc_funct_b3lyp, xc_funct_blyp, &
+       npt_f_ensemble, npt_i_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, &
+       xc_funct_beefvdw, xc_funct_blyp, &
        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
        xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, &
-       xc_funct_xwpbe, xc_none
+       xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
@@ -176,6 +177,35 @@ CONTAINS
           ! Hartree Fock Exact Exchange
           CALL section_vals_val_set(xc_section,"HF%FRACTION",&
                r_val=0.25_dp,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_beefvdw)       
+          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",& !40% PBEc
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
+               r_val=0.3998335231_dp,error=error)
+          CALL section_vals_val_set(functionals,"PBE%SCALE_X",&  !no PBEx
+               r_val=0.0000000000_dp,error=error)
+
+               !PW92 correlation functional from libxc is required.
+               !The cp2k-native PW92 gives disagreeing results (in the 0.01E_H
+               !decimal) and yields inconsistent forces in a DEBUG run.
+               !(rk, 6.3.2014)
+          CALL section_vals_val_set(functionals,"LIBXC%_SECTION_PARAMETERS_",& !60%LDA
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"LIBXC%FUNCTIONAL",&
+               c_val="XC_LDA_C_PW",error=error)
+          CALL section_vals_val_set(functionals,"LIBXC%SCALE",&
+               r_val=0.6001664769_dp,error=error)
+
+          CALL section_vals_val_set(functionals,"BEEF%_SECTION_PARAMETERS_",& !BEEF exchange
+               l_val=.TRUE.,error=error)
+
+               !NONLOCAL, LMKLL.
+          CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%DISPERSION_FUNCTIONAL",&
+               i_val=xc_vdw_fun_nonloc,error=error)
+          CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%NON_LOCAL%TYPE",&
+               i_val=vdw_nl_LMKLL,error=error)
           CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
                i_val=xc_funct_no_shortcut,error=error)
        CASE(xc_funct_b3lyp)

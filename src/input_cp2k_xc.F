@@ -14,7 +14,7 @@ MODULE input_cp2k_xc
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
        Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, &
-       Zhang1998
+       Wellendorff2012, Zhang1998
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -71,16 +71,17 @@ CONTAINS
             description="The xc functional to use",&
             n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
             citations=(/Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
-                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981,Tao2003/),&
+                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981,&
+                        Tao2003,Wellendorff2012/),&
             error=error)
 
        NULLIFY(subsection,keyword)
        CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
             description="Shortcut for the most common functional combinations.",&
             usage="&xc_functional BLYP",&
-            enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT","NONE"),&
+            enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","BEEFVDW","NO_SHORTCUT","NONE"),&
             enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pbe,&
-            xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_no_shortcut,xc_none/),&
+            xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_beefvdw,xc_funct_no_shortcut,xc_none/),&
             default_i_val=xc_funct_no_shortcut,lone_keyword_i_val=xc_funct_no_shortcut,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -685,6 +686,24 @@ CONTAINS
        CALL keyword_create(keyword,"GAMMA",&
             description="Parameter for Becke Roussel hole",&
             default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+      CALL section_create(subsection,name="BEEF",& !rk: BEEF Exchange
+            description="Uses the BEEFvdW exchange functional",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Wellendorff2012/),&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
