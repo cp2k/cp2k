@@ -338,9 +338,9 @@ MODULE dbcsr_mm_sched
        ! Check if homogenous stacks are indeed homogenous
        IF(stack_descr%defined_mnk) THEN
          DO sp = 1, stack_fillcount
-           IF(stack_data(p_m,sp) /= stack_descr%m) CALL abort()
-           IF(stack_data(p_n,sp) /= stack_descr%n) CALL abort()
-           IF(stack_data(p_k,sp) /= stack_descr%k) CALL abort()
+           IF(stack_data(p_m,sp) /= stack_descr%m) CALL mp_abort("homogenous stacks check failed")
+           IF(stack_data(p_n,sp) /= stack_descr%n) CALL mp_abort("homogenous stacks check failed")
+           IF(stack_data(p_k,sp) /= stack_descr%k) CALL mp_abort("homogenous stacks check failed")
          END DO
        ENDIF
      ENDIF
