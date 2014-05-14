@@ -136,7 +136,7 @@ CONTAINS
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
     INTEGER, DIMENSION(:), POINTER           :: marked_states
-    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, ionode, &
+    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, &
       my_localized_wfn, p_loc, p_molstates, p_wanstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues

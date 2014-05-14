@@ -134,7 +134,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dev_flag
-    INTEGER                                  :: ipe, my_output_unit
+    INTEGER                                  :: my_output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -501,8 +501,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
-      nforce_eval, nid, num_threads, output_unit, print_level, trace_max, &
-      unit_nr
+      nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
+
+!$  INTEGER :: nid
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &

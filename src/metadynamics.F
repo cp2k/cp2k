@@ -59,7 +59,6 @@ MODULE metadynamics
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics'
-  INTEGER, SAVE, PRIVATE :: last_meta_env_id=0
 
   PUBLIC :: metadyn_forces, metadyn_integrator
   PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar
@@ -83,12 +82,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_integrator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i_part, natom_plumed
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
+#ifdef PLUMED_CP2K
+    INTEGER                                  :: i_part, natom_plumed
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force_plumed, pos_plumed
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
+#endif
 
     CALL timeset(routineN,handle)
 

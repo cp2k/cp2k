@@ -1726,7 +1726,7 @@ CONTAINS
                   lstb(0:myspace-1),rel(5,0:myspace-1)
 
         INTEGER       :: jat, k1, k2, k3, jj
-        REAL(KIND=dp) :: rr2, tt, tti, xrel, yrel, zrel, coord2, cut
+        REAL(KIND=dp) :: rr2, tt, tti, xrel, yrel, zrel
 
         DO 6003,k3=l3-1,l3+1
         DO 6002,k2=l2-1,l2+1
@@ -1807,8 +1807,8 @@ CONTAINS
                          tcoord2, tener, tener2
         INTEGER       :: i, iam, iat, iat1, iat2, ii, il, in, indlst, indlstx,&
                          istop, istopg, l1, l2, l3, ll1, ll2, ll3, lot, ncx, nn, &
-                         nnbrx, npjkx, npjx, laymx, npr, rlc1i, rlc2i, rlc3i, jat, &
-                         jj, myspace, myspaceout
+                         nnbrx, npjkx, npjx, laymx, npr, rlc1i, rlc2i, rlc3i, &
+                         myspace, myspaceout
 
 !        tmax_phi= 0.4500000e+01_dp
 !        cut=tmax_phi

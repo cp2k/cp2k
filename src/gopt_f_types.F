@@ -47,7 +47,7 @@ MODULE gopt_f_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_types'
-  INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
+  INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0
 
   PUBLIC :: gopt_f_type, gopt_f_create, gopt_f_retain, gopt_f_release
 

@@ -5182,8 +5182,8 @@ CPSourceFileRef,&
     INTEGER                                  :: Od, H, Oa
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
-                                                x,y,s(3),xv(3),dmin,amin,aux
-    INTEGER                                  :: idmin, iamin,i,j,ai
+                                                x,y,s(3),xv(3),dmin,amin
+    INTEGER                                  :: idmin, iamin,i,j
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -5293,8 +5293,8 @@ CPSourceFileRef,&
     INTEGER                                  :: Od, H, Oa
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
-                                                x,y,s(3),xv(3),dmin,amin,aux
-    INTEGER                                  :: idmin, iamin,i,j,ai,il,output_unit
+                                                x,y,s(3),xv(3),dmin,amin
+    INTEGER                                  :: idmin, iamin,i,j,il,output_unit
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles

@@ -296,7 +296,7 @@ CONTAINS
     INTEGER                                  :: handle, iaspc, &
                                                 initial_guess_type, ispin, &
                                                 istore, naspc, unit_nr
-    REAL(KIND=dp)                            :: alpha, cs_pos, energy
+    REAL(KIND=dp)                            :: alpha, cs_pos
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -791,8 +791,7 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, &
                                                 nelectron_spin_real, nspin, &
                                                 unit_nr
-    LOGICAL                                  :: check_convergence, converged, &
-                                                should_stop
+    LOGICAL                                  :: check_convergence, should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
