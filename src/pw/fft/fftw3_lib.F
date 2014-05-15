@@ -15,6 +15,8 @@
 
 MODULE fftw3_lib
 
+  USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                             C_INT
   USE fft_kinds,                       ONLY: dp,&
                                              integer8_kind
   USE fft_plan,                        ONLY: fft_plan_type
@@ -946,8 +948,8 @@ END SUBROUTINE fftw31dm
 
 ! *****************************************************************************
       SUBROUTINE fftw_write_char(c, iunit) BIND(C, name="fftw_write_char")
-    CHARACTER                                :: c
-    INTEGER                                  :: iunit
+    CHARACTER(KIND=C_CHAR)                   :: c
+    INTEGER(KIND=C_INT)                      :: iunit
 
          WRITE(iunit,'(a)',ADVANCE="NO") c
       END SUBROUTINE
@@ -971,7 +973,7 @@ END SUBROUTINE fftw31dm
 
 ! *****************************************************************************
       SUBROUTINE fftw_read_char(ic, iunit) BIND(C, name="fftw_read_char")
-    INTEGER                                  :: ic, iunit
+    INTEGER(KIND=C_INT)                      :: ic, iunit
 
     CHARACTER(LEN=256)                       :: buf
 
