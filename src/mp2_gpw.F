@@ -148,7 +148,7 @@ MODULE mp2_gpw
 
     INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, &
       handle, homo, homo_beta, i, i_multigrid, local_unit_nr, my_group_L_end, &
-      my_group_L_size, my_group_L_start, n_multigrid, nao, natom, nelectron, &
+      my_group_L_size, my_group_L_start, n_multigrid, natom, nelectron, &
       nelectron_beta, nkind, nmo, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       ends_B_virtual_beta, sizes_array, sizes_B_virtual, &

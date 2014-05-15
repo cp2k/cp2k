@@ -618,7 +618,7 @@ END FUNCTION wfi_get_method_label
                                                 nmo, nvec, output_unit
     LOGICAL                                  :: failure, my_orthogonal_wf, &
                                                 use_overlap
-    REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
+    REAL(KIND=dp)                            :: alpha, t0, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &

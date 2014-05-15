@@ -529,8 +529,8 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_ls', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, im, ispin, n, &
-                                                natom, re, stat
+    INTEGER                                  :: handle, i, im, ispin, natom, &
+                                                re, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: one = 1.0_dp, zero = 0.0_dp

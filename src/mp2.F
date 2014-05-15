@@ -110,7 +110,7 @@ MODULE mp2
     INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, &
       iatom, ikind, irep, ispin, max_nset, my_bin_size, n_rep_hf, n_threads, &
       nao, natom, ncol_block, nelec_alpha, nelec_beta, nelectron, &
-      nfullcols_total, nfullrows_total, nkind, nmo, nrow_block, nspins, stat, &
+      nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, stat, &
       unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
@@ -765,11 +765,11 @@ MODULE mp2
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: zero = 0.D+00
 
-    INTEGER :: a, batch_number, color_sub, comm_sub, counter, &
-      elements_ij_proc, group_counter, handle, i, i_batch, i_batch_start, &
-      i_group_counter, j, j_batch_start, j_group_counter, last_batch, &
-      max_batch_number, max_batch_size, max_set, minimum_memory_needed, &
-      my_batch_size, my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
+    INTEGER :: batch_number, color_sub, comm_sub, counter, elements_ij_proc, &
+      group_counter, handle, i, i_batch, i_batch_start, i_group_counter, j, &
+      j_batch_start, j_group_counter, last_batch, max_batch_number, &
+      max_batch_size, max_set, minimum_memory_needed, my_batch_size, &
+      my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
       my_J_batch_size, my_J_occupied_end, my_J_occupied_start, natom, &
       Ni_occupied, Nj_occupied, number_groups, number_i_subset, &
       number_j_subset, one, sqrt_number_groups, stat, &

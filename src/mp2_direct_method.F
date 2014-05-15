@@ -1638,7 +1638,7 @@ MODULE mp2_direct_method
 
     INTEGER                                  :: a, a_global, b, b_global, &
                                                 handle, i, i_global, &
-                                                index_ij, j, j_global, n, stat
+                                                index_ij, j, j_global, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: iajb, ibja, parz, two
     REAL(KIND=dp), ALLOCATABLE, &

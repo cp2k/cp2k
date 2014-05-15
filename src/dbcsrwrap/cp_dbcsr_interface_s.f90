@@ -212,7 +212,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_scalar_type)                  :: trace_scalar
 
@@ -233,7 +232,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum, dbcsr_error)
@@ -266,8 +264,6 @@
 
     CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
                                                 trans_b
-    INTEGER                                  :: timing_handle, &
-                                                timing_handle_detail
     LOGICAL                                  :: new_a_is_new, new_b_is_new
     REAL(kind=real_4)                       :: cs_b, cs_c
     TYPE(cp_dbcsr_type)                      :: new_a, new_b
@@ -322,7 +318,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_s ', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: timing_handle
     TYPE(dbcsr_error_type)                    :: dbcsr_error
 
     CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
@@ -338,7 +333,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
@@ -353,7 +347,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
@@ -369,7 +362,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)

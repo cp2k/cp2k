@@ -149,8 +149,7 @@ MODULE mp2_ri_grad
       natom, ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: comp
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, nsgfa
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, map_it_here, &
                                                 skip_shell, use_virial
@@ -164,7 +163,7 @@ MODULE mp2_ri_grad
                                                 my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, pab, rpgfa, sphi_a, &
-                                                zeta, zetb
+                                                zeta
     TYPE(cp_dbcsr_p_type)                    :: Lag_mu_i_1, Lag_nu_a_2, &
                                                 matrix_P_inu, matrix_P_munu, &
                                                 matrix_P_munu_nosym

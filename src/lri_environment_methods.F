@@ -108,7 +108,7 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, stat
-    LOGICAL                                  :: calc_abb, failure
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: rab
     TYPE(cell_type), POINTER                 :: cell

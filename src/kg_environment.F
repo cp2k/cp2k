@@ -259,7 +259,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, nkind, stat
-    LOGICAL                                  :: failure, mic, molecule_only
+    LOGICAL                                  :: failure, molecule_only
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, tpot_present
     REAL(dp)                                 :: subcells
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, tpot_radius
