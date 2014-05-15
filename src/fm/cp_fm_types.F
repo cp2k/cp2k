@@ -984,9 +984,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_get_info',&
          routineP=moduleN//':'//routineN
-    INTEGER i,nprow,npcol,myprow,mypcol, stat
-    TYPE(cp_blacs_env_type), POINTER :: ctxt
-    LOGICAL :: failure
 #if defined(__SCALAPACK)
     INTEGER , EXTERNAL :: indxl2g
 #endif

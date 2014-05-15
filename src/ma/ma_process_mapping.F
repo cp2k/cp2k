@@ -120,7 +120,7 @@ FUNCTION ma_find_min_square_grid(numtask) RESULT (n)
 #if !defined(__parallel)
    n = numtask
 #else
-    INTEGER                                  :: stat, tmp_n, square
+    INTEGER                                  :: tmp_n, square
     REAL                                     :: ntasks
     LOGICAL                                  :: power_two
 
@@ -150,31 +150,32 @@ END FUNCTION ma_find_min_square_grid
 !> \par History
 !>      6.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
-FUNCTION ma_find_max_square_grid(numtask) RESULT (n)
-   INTEGER, INTENT(IN)    :: numtask
-   INTEGER                :: n
+FUNCTION ma_find_max_square_grid(numtask) RESULT(n)
+   INTEGER, INTENT(IN)                      :: numtask
+   INTEGER                                  :: n
 
-#if !defined(__parallel)
-   n = numtask
+#if defined(__parallel)
+   INTEGER                                  :: tmp_n, square, old
+
+   IF (numtask .NE. 0) THEN
+
+     n = CEILING(SQRT(REAL((numtask),KIND=dp)))
+     old = n
+     tmp_n = 1
+     square = (2**tmp_n)*(2**tmp_n)
+     DO WHILE (square .LE. n*n)
+       tmp_n = tmp_n + 1
+       old = square 
+       square = (2**tmp_n)*(2**tmp_n)
+     END DO
+     n = old
+   ELSE
+     n = 0
+   END IF
 #else 
-    INTEGER                                  :: stat, tmp_n, square, old
-
-  IF (numtask .NE. 0) THEN
-
-    n = CEILING(SQRT(REAL((numtask),KIND=dp)))
-    old = n
-    tmp_n = 1
-    square = (2**tmp_n)*(2**tmp_n)
-    DO WHILE (square .LE. n*n)
-      tmp_n = tmp_n + 1
-      old = square 
-      square = (2**tmp_n)*(2**tmp_n)
-    ENDDO
-    n = old
-  ELSE
-   n = 0
-  ENDIF  
+   n = numtask
 #endif
+
 END FUNCTION ma_find_max_square_grid
 
 
@@ -193,7 +194,7 @@ FUNCTION ma_find_grid_level(numtask) RESULT (n)
 #if !defined(__parallel)
    n = numtask
 #else 
-    INTEGER                                  :: stat, level,grid
+    INTEGER                                  :: level,grid
 
     level = 1
     grid = (3**level)*(3**level)
@@ -400,7 +401,7 @@ SUBROUTINE ma_packed(mp_new_comm,mp_comm)
     mp_new_comm = mp_comm
 #else
     INTEGER :: i
-    INTEGER, DIMENSION(:), POINTER           :: ranks_order,tmp_order
+    INTEGER, DIMENSION(:), POINTER           :: ranks_order
     INTEGER                                  :: numtask,taskid,stat
 
     ! Get a new MPI rank ordering, reduce comm costs
@@ -430,14 +431,19 @@ END SUBROUTINE ma_packed
 !>      4.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
 SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
-    INTEGER, INTENT(IN)                   :: mp_comm
-    INTEGER, INTENT(out)                  :: mp_new_comm
+    INTEGER, INTENT(out)                     :: mp_new_comm
+    INTEGER, INTENT(IN)                      :: mp_comm
 
-    INTEGER                                  :: i, n, nnodes, ncores, unit_nr
-    INTEGER, DIMENSION(:), POINTER           :: ranks_order,tmp_order
-    INTEGER                                  :: numtask,taskid,stat, ind, rounds
+#if defined(__parallel)
+    INTEGER                                  :: unit_nr
+#if defined(__HWLOC)
+    INTEGER                                  :: i, ind, n, ncores, nnodes, &
+                                                numtask, rounds, stat, taskid
+    INTEGER, DIMENSION(:), POINTER           :: ranks_order
+#endif
+#endif
 
-#if !defined (__parallel)
+#if ! defined (__parallel)
    mp_new_comm = mp_comm
 #else
 #if defined __HWLOC
@@ -509,9 +515,8 @@ SUBROUTINE ma_hilbert_bits(ranks_order,ntask,mp_comm)
     INTEGER                                :: numtask,taskid,stat
 
     INTEGER                                :: mask,notx,noty,heven,&
-                                              hodd,temp,v1,v0,k,h,i,j
+                                              hodd,temp,v1,v0,k,i
     INTEGER                                :: grid_dim,pos,x,y,z
-
 
     IF(.NOT. PRESENT(ntask)) THEN
      ! Get a new MPI rank ordering, reduce comm costs
@@ -767,8 +772,9 @@ END FUNCTION distance
 
 SUBROUTINE ma_hilbert_order(tmp_order,grid_dim)
   INTEGER, DIMENSION(:)                  :: tmp_order
-  INTEGER                                :: x,y,grid_dim,s,rx,ry, &
-                                            d, pos, tmp, countx, county
+  INTEGER                                :: grid_dim
+
+  INTEGER                                :: pos, countx, county
 
 #if defined(__parallel)
   tmp_order(:) = 0  
@@ -807,13 +813,13 @@ RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,&
                                           row_counter, col_counter, current_ncol, &
                                           ncol,nrow,numtask, current_numtask,&
                                           start_grid, current_nrow, &
-                                          col_childs,col_rest,i,j, &
+                                          col_childs,col_rest,i, &
                                           last_grid, row_child, row_rest,ntasks, &
-                                          taskid, mp_comm, last_dim,stat
+                                          taskid, mp_comm, stat
  LOGICAL                               :: working_col                                           
 
  INTEGER                               :: local_start_grid, local_current_numtask,&
-                                          local_numtask,local_current_ncol,tmp, jump
+                                          local_numtask,local_current_ncol
 
 
 #if defined(__parallel)
@@ -1293,13 +1299,18 @@ END SUBROUTINE ma_hilbert_peano
 !>      6.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
 SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
-  INTEGER, INTENT(IN)                                    :: mp_comm
   INTEGER, INTENT(OUT)                                   :: mp_new_comm
-  INTEGER, DIMENSION(:),POINTER                          :: ordering
-  INTEGER, DIMENSION(:),POINTER,INTENT(IN), OPTIONAL     :: order
+  INTEGER, INTENT(IN)                                    :: mp_comm
+  INTEGER, DIMENSION(:), POINTER, INTENT(IN), OPTIONAL   :: order
   INTEGER, INTENT(IN), OPTIONAL                          :: kernel
 
-#if !defined(__parallel) 
+#if defined(__parallel) 
+#if defined __GEMINI || __SEASTAR || __NET
+  INTEGER, DIMENSION(:), POINTER                         :: ordering
+#endif
+#endif
+
+#if ! defined(__parallel) 
   mp_new_comm = mp_comm
 #else
 #if defined __GEMINI || __SEASTAR || __NET

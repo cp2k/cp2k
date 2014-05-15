@@ -31,8 +31,6 @@ MODULE cp_external_control
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_external_control'
 
-  INTEGER :: error_unit
-
   PUBLIC :: external_control
   PUBLIC :: set_external_comm
 

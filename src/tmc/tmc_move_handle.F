@@ -79,8 +79,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: inp_kind_name
-    INTEGER                                  :: i, i_rep, i_rep_val, i_tmp, &
-                                                ind, n_items, n_NMC_items, &
+    INTEGER                                  :: i, i_rep, i_tmp, ind, &
+                                                n_items, n_NMC_items, &
                                                 n_rep_val, nmc_steps
     LOGICAL                                  :: explicit, flag
     REAL(KIND=dp) :: delta_x, init_acc_prob, mv_prob, mv_prob_sum, &

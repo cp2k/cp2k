@@ -277,7 +277,7 @@ MODULE dbcsr_mm_csr
     LOGICAL, PARAMETER                       :: dbg = .FALSE., &
                                                 local_timing = .FALSE.
 
-    INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c, c_blk_id, &
+    INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c_blk_id, &
       c_col_logical, c_nze, c_row_logical, ithread, k_size, m_size, &
       mapped_col_size, mapped_k_size, mapped_row_size, n_a_norms, n_b_norms, &
       n_size, nstacks, s_dp, ws

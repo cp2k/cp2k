@@ -532,8 +532,7 @@ CONTAINS
     CHARACTER(LEN=120)                       :: line
     CHARACTER(LEN=5)                         :: label, labelp
     INTEGER                                  :: i, id(3), ii, iix, iiy, iiz, &
-                                                ix, iy, iz, mesh(3), natoms, &
-                                                np
+                                                ix, iy, iz, natoms, np
     INTEGER, DIMENSION(:), POINTER           :: izat
     REAL(KIND=dp)                            :: cell(3,3), delta(3), dr(3), &
                                                 residual, rt(3)

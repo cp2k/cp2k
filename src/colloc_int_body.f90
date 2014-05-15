@@ -47,7 +47,7 @@
 #define IF_FLAT(x,y) y
 #endif
 
-
+    ig = 0
     ithread = 0
 !$  ithread = omp_get_thread_num()
 

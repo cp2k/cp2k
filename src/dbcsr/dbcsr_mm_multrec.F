@@ -187,8 +187,9 @@ MODULE dbcsr_mm_multrec
     INTEGER                                  :: c_nblkcols_local, &
                                                 c_nblkrows_local, &
                                                 error_handler, i, ithread
-    INTEGER, DIMENSION(:), POINTER           :: c_local_cols, c_local_rows, &
-                                                product_thread_dist
+    INTEGER, DIMENSION(:), POINTER           :: c_local_cols, c_local_rows
+
+!$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
 
 !   ---------------------------------------------------------------------------
 

@@ -99,8 +99,6 @@ MODULE cp_output_handling
        cp_out_store_each=IBSET(0,cp_p_store_each),&
        cp_out_default=cp_out_file_if
 
-  INTEGER, SAVE, PRIVATE :: last_flags_id=0
-
 ! *****************************************************************************
 !> \brief stores the flags_env controlling the output of properties
 !> \param ref_count reference count (see doc/ReferenceCounting.html)

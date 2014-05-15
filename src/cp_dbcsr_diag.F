@@ -75,7 +75,6 @@ CONTAINS
 
     INTEGER                                  :: handle, nfullrows_total
     LOGICAL                                  :: failure
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
 
@@ -187,7 +186,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
 

@@ -71,7 +71,7 @@ CONTAINS
                                                 nfullcols_total, &
                                                 nfullrows_total
     INTEGER, DIMENSION(9)                    :: desca
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
@@ -246,7 +246,6 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n, nfullrows_total, nfullcols_total
-    INTEGER                                   :: nprow,npcol,myprow,mypcol
     INTEGER, DIMENSION(9)                     :: desca,descb
     REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
@@ -331,9 +330,9 @@ CPSourceFileRef,&
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b,out
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp,b_sp,out_sp
-    INTEGER                                   :: info,itype,handle
+    INTEGER                                   :: itype,handle
     INTEGER                                   :: n
-    LOGICAL                                   :: ionode, failure
+    LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha
     INTEGER                                   :: myprow, mypcol, i, nfullrows_total, &
          nfullcols_total

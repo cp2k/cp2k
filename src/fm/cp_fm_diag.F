@@ -182,19 +182,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: fake_descriptor(9), handle, istat, liwork, lwork, mepos_old, &
+    INTEGER :: fake_descriptor(9), handle, istat, mepos_old, &
       myinfo, n, ngroups, nmo, num_pe_new, num_pe_old, subgroup
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
-                                                group_partition, iwork
+                                                group_partition
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fake_local_data(1,1)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
     TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_new
+#if ! defined(__SCALAPACK)
+    INTEGER                                  :: liwork, lwork
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+#endif
 
 ! -------------------------------------------------------------------------
 
@@ -476,16 +480,16 @@ CONTAINS
 
     REAL(KIND = dp) :: abstol, work_syevx_local
     INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
-                nn,np0,npcol,npe,nprow,nq0,nz,output_unit,itype, neig_local
+                nn,np0,npcol,npe,nprow,nq0,nz,output_unit,neig_local
     LOGICAL  :: failure, ionode, needs_evecs
 
-    INTEGER, DIMENSION(9) :: desca,descz,descb
+    INTEGER, DIMENSION(9) :: desca,descz
 
     TYPE(cp_blacs_env_type), POINTER           :: context
     TYPE(cp_logger_type), POINTER              :: logger
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: gap,w,work
     INTEGER, DIMENSION(:), ALLOCATABLE         :: iclustr,ifail,iwork
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,z,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,z
     CHARACTER(LEN=1)                           :: job_type
 
     REAL(KIND = dp), EXTERNAL :: dlamch
@@ -711,11 +715,10 @@ CONTAINS
                                    vu = 0.0_dp
 
     CHARACTER(LEN=1)                           :: job_type
-    INTEGER :: handle, ilow_local, info, istat, iup_local, lwork, liwork, m, mypcol,myprow, n, neig, nb, nz
-    INTEGER, DIMENSION(9) :: desca,descz,descb
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail, iwork
+    INTEGER :: handle, ilow_local, info, istat, iup_local, lwork, liwork, mypcol,myprow, n, neig
+    INTEGER, DIMENSION(9) :: desca, descz
+    INTEGER, DIMENSION(:), ALLOCATABLE  :: iwork
     LOGICAL :: failure, ionode, needs_evecs
-    REAL(dp) :: abstol
     REAL(dp), DIMENSION(:), ALLOCATABLE :: w, work
     REAL(dp), DIMENSION(:,:), POINTER :: a, z
 
@@ -726,7 +729,13 @@ CONTAINS
 
 #if defined(__SCALAPACK)
 #else
-    INTEGER, EXTERNAL  :: ilaenv
+    REAL(dp)                            :: abstol
+    INTEGER                             :: m, nb
+    INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail
+    INTEGER, EXTERNAL                   :: ilaenv
+#if defined(__SCALAPACK2)
+    INTEGER                             :: nz
+#endif
 #endif
 
     ! -------------------------------------------------------------------------
@@ -1159,23 +1168,17 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,ev
 
     REAL(KIND = dp) :: tan_theta,tau,c,s
-    INTEGER  :: I,J,q,p,bs,N,q_loc
+    INTEGER  :: q,p,N,q_loc
     REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip
 
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER :: context
 
     INTEGER :: myprow,mypcol,nprow,npcol,ictxt_loc,block_dim_row,block_dim_col,&
-               info,ev_row_block_size,iam,counter,status,ierr
-    INTEGER :: source,allgrp,mynumrows,ictxt,temp_row,temp_col,temp_nprow,&
-               temp_npcol,mype,npe,a_row,a_col,a_nb,a_mb,iglob,jglob,&
-               i_loc,j_loc
-
+               info,ev_row_block_size,iam,source,allgrp,mynumrows,ictxt,mype,npe
     REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: a_loc, ev_loc
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE   :: diagonale
     INTEGER, DIMENSION(9)                        :: desca,descz,desc_a_block,&
                                                     desc_ev_loc
-
     INTEGER, EXTERNAL :: numroc,indxl2g,indxg2l
 #endif
 

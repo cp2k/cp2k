@@ -82,33 +82,29 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
-      ico, icoef, ig, j, jco, k, l, la, la_max_local, la_min_local, lb, &
-      lb_cube_min, lb_max_local, lb_min_local, length, lx, lx_max, lxa, lxb, lxy, &
-      lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start, ub_cube_max, handle
+      ico, icoef, ig, j, jco, la, la_max_local, la_min_local, lb, &
+      lb_cube_min, lb_max_local, lb_min_local, length, lxa, lxb, lxy, &
+      lxyz, lya, lyb, lza, lzb, offset, start, ub_cube_max
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                 ub_cube
-    INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
+    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
     LOGICAL                                  :: my_collocate_rho0, &
                                                 my_compute_tau, &
                                                 my_map_consistent, &
                                                 my_use_virial,&
                                                 subpatch_integrate
-    REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
-      der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, pg, &
-      prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
+    REAL(KIND=dp) :: axpm0, cutoff, &
+      der_a(3), der_b(3), f, ftza, ftzb, pabval, pg, &
+      prefactor, radius, rpg, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
     INTEGER :: lxp,lyp,lzp,lp,iaxis
     INTEGER,       ALLOCATABLE, DIMENSION(:,:) :: map
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: coef_ttz
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: coef_tyz
-
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x

@@ -178,17 +178,16 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, itype, error)
-   TYPE(cp_fm_type), POINTER           :: matrix,matrixb
+   TYPE(cp_fm_type), POINTER           :: matrix, matrixb
    INTEGER, OPTIONAL                   :: itype
    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_reduce',&
          routineP=moduleN//':'//routineN
-    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b
-    INTEGER                                   :: info,handle
+    REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a, b
+    INTEGER                                   :: info, handle
     INTEGER                                   :: n, my_itype
-    INTEGER                                   :: nprow,npcol,myprow,mypcol
-    INTEGER, DIMENSION(9)                     :: desca,descb
+    INTEGER, DIMENSION(9)                     :: desca, descb
     REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
 
@@ -249,7 +248,7 @@ CPSourceFileRef,&
          routineP=moduleN//':'//routineN
     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b,out
     REAL(KIND = sp), DIMENSION(:,:), POINTER         :: a_sp,b_sp,out_sp
-    INTEGER                                   :: info,itype,handle
+    INTEGER                                   :: itype, handle
     INTEGER                                   :: n
     LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha

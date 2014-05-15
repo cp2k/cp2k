@@ -70,7 +70,6 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    CHARACTER                                :: matrix_type
     CHARACTER(LEN=1)                         :: transa2, transb2
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
@@ -252,7 +251,7 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, n, nloop, stat
+    INTEGER                                  :: handle, i, nloop, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, Tres_im, Tres_re
