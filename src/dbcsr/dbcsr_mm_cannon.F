@@ -1133,7 +1133,7 @@ MODULE dbcsr_mm_cannon
       mp_group, ncol_images, nrow_images, nsymmetries, nthreads, numproc, &
       nze, pcol, prev_blk_p, prev_dst_p, prow, row, row_img, row_size, &
       sd_pos, sm_pos, src_p, stored_blk_p, stored_col, stored_row, &
-      symmetry_i, t, tr_col_size, tr_row_size, vcol, vrow
+      symmetry_i, tr_col_size, tr_row_size, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
@@ -1275,7 +1275,7 @@ MODULE dbcsr_mm_cannon
 !$omp          tr_row_size, tr_col_size, &
 !$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
 !$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
-!$omp          lsmp, lsdp, t) &
+!$omp          lsmp, lsdp) &
 !$omp shared (nthreads, dbcsr_error, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, scale_value, error,&
 !$omp         ums, sm, ism, target_dist, predistribute, predist_type, &
@@ -1883,7 +1883,8 @@ MODULE dbcsr_mm_cannon
     LOGICAL                                  :: keep_sparsity, list_indexing, &
                                                 my_use_plasma, otf_filtering
     REAL(KIND=dp)                            :: checksum
-    REAL(KIND=real_8)                        :: left_fill, right_fill
+
+!$  REAL(KIND=real_8)                        :: left_fill, right_fill
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
                                                 row_max_epss
     TYPE(dbcsr_2d_array_type), POINTER :: left_buffer_2, left_buffer_calc, &
@@ -3060,7 +3061,9 @@ MODULE dbcsr_mm_cannon
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: error_handler, i_col, i_row, &
-                                                ithread, t_f, t_l, t_size
+                                                t_f, t_l, t_size
+
+!$  INTEGER                                  :: ithread
     LOGICAL                                  :: thread_redist
 
 !   ---------------------------------------------------------------------------

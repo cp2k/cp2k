@@ -2505,7 +2505,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: amode_status
     INTEGER, INTENT(IN), OPTIONAL            :: info
 
+#if ! defined(__parallel)
     CHARACTER(len=10)                        :: fstatus
+#endif
     INTEGER                                  :: ierr, my_info
 
     ierr = 0

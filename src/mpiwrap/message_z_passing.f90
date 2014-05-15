@@ -141,7 +141,10 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_z11v', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen, i
+    INTEGER                                  :: handle, ierr, msglen
+#if ! defined(__parallel)
+    INTEGER                                  :: i
+#endif
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
@@ -800,7 +803,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_zm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, m1, m2, msglen, step
+    INTEGER                                  :: handle, ierr, m1, msglen, step
     INTEGER, PARAMETER :: max_msg=2**25
 
     ierr = 0
@@ -835,7 +838,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_zm3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, m1, m2, m3, &
+    INTEGER                                  :: handle, ierr, &
                                                 msglen
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
@@ -865,7 +868,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_zm4', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, m1, m2, m3, m4, &
+    INTEGER                                  :: handle, ierr, &
                                                 msglen
 
     ierr = 0
@@ -896,7 +899,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_zm5', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, m1, m2, m3, m4, m5, &
+    INTEGER                                  :: handle, ierr, &
                                                 msglen
 
     ierr = 0
@@ -927,7 +930,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_zm6', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, m1, m2, m3, m4, m5, m6, &
+    INTEGER                                  :: handle, ierr, &
                                                 msglen
 
     ierr = 0
@@ -2295,7 +2298,9 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_put_z', &
          routineP = moduleN//':'//routineN
     INTEGER                        :: ierr, handle
+#if ! defined(__parallel)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: win_data
+#endif
 !   ---------------------------------------------------------------------------
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
@@ -2622,5 +2627,3 @@
        CALL mp_abort (routineN//": Vectors and indices NYI")
     ENDIF
   END FUNCTION mp_type_make_z
-
-

@@ -197,6 +197,7 @@ FUNCTION acc_event_query(this) RESULT(res)
     LOGICAL                                  :: res
 
 #if ! defined (__ACC)
+    res = .FALSE.
     STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat, has_occured

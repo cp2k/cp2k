@@ -42,9 +42,9 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: lb_new, lb_orig, stat, &
+    INTEGER                                  :: lb_new, lb_orig, &
                                                 ub_new, ub_orig, old_size,&
-                                                size_increase, error_handler
+                                                size_increase
     TYPE(dbcsr_memtype_type)                 :: mem_type
     LOGICAL                                  :: dbg, docopy, &
                                                 pad

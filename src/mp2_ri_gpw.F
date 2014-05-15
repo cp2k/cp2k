@@ -162,13 +162,12 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, handle, handle2, handle3, i, i_counter, iproc, itmp(2), &
-      LLL, max_row_col_local, max_row_col_local_beta, my_B_size, &
-      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-      my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
-      nfullrows_total, ngroup, nrow_local, num_small_eigen, stat, virtual, &
-      virtual_beta
+    INTEGER :: handle, handle2, handle3, i, i_counter, iproc, itmp(2), LLL, &
+      max_row_col_local, max_row_col_local_beta, my_B_size, my_B_size_beta, &
+      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
+      my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
+      my_group_L_start, ncol_local, nfullcols_total, nfullrows_total, ngroup, &
+      nrow_local, num_small_eigen, stat, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta
@@ -576,8 +575,7 @@ MODULE mp2_ri_gpw
                                                 sub_sizes_array, &
                                                 sub_starts_array
     INTEGER, DIMENSION(:), POINTER           :: col_indices, la_max, la_min, &
-                                                lb_max, lb_min, npgfa, nsgfa, &
-                                                row_indices
+                                                npgfa, nsgfa, row_indices
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, map_it_here
     REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
@@ -588,8 +586,7 @@ MODULE mp2_ri_gpw
                                                 L_local_col
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, rpgfa, sphi_a, zeta, &
-                                                zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell

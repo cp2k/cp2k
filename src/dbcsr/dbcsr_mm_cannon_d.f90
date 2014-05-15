@@ -56,8 +56,7 @@
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_rows
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_cols
 
-    INTEGER                                  :: blk, bp, bpe, row, col, &
-                                                row_size
+    INTEGER                                  :: blk, bp, bpe, row, col
 
 !   ---------------------------------------------------------------------------
 
