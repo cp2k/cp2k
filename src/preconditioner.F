@@ -725,7 +725,7 @@ SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_single', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n
+    INTEGER                                  :: handle
 
   CALL timeset(routineN,handle)
 
@@ -2707,8 +2707,10 @@ WRITE(*,*) 'tend',t(13)-t(12)
 
     CHARACTER(LEN=default_string_length)     :: msg
     INTEGER                                  :: handle, ispin
-    LOGICAL :: do_co_rotate, do_rotation, failure, my_has_unit_metric, &
-      my_mixed_precision, use_mo_coeff_b
+    LOGICAL                                  :: do_co_rotate, failure, &
+                                                my_has_unit_metric, &
+                                                my_mixed_precision, &
+                                                use_mo_coeff_b
     TYPE(cp_dbcsr_type), POINTER             :: matrix_t, mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 

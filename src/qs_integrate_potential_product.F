@@ -33,7 +33,6 @@ MODULE qs_integrate_potential_product
                                              gto_basis_set_type
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add_block_node, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
@@ -130,10 +129,10 @@ CONTAINS
                                                 max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, idir, &
-      igrid_level, ikind, ikind_old, ilevel, ipair, ipgf, ipgf_new, iset, &
-      iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, &
-      jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, &
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, igrid_level, &
+      ikind, ikind_old, ilevel, ipair, ipgf, ipgf_new, iset, iset_new, &
+      iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, jpgf_new, &
+      jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, &
       my_basis_set_id, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nseta, &
       nsetb, nthread, offs_dv, sgfa, sgfb, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
@@ -147,9 +146,9 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
-      found, h_duplicated, had_thread_dist, map_consistent, my_compute_tau, &
-      my_gapw, new_set_pair_coming, p_duplicated, pab_required, scatter, &
-      use_subpatch, use_virial
+      found, h_duplicated, map_consistent, my_compute_tau, my_gapw, &
+      new_set_pair_coming, p_duplicated, pab_required, scatter, use_subpatch, &
+      use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
@@ -168,14 +167,12 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ddv
     TYPE(cp_dbcsr_type), POINTER             :: deltap, dh
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dbcsr_distribution_obj), POINTER    :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -191,7 +188,9 @@ CONTAINS
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
+!$  TYPE(dbcsr_distribution_obj), POINTER    :: dist
+!$  INTEGER                                  :: omp_get_max_threads, &
+!$                                              omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -397,10 +396,10 @@ CONTAINS
 !$omp private(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$omp private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found,error,atom_a,atom_b), &
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
-!$omp private(dv_block,p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
+!$omp private(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
-!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,idir,dist), &
-!$omp private(had_thread_dist,itask)
+!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,dist), &
+!$omp private(itask)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()

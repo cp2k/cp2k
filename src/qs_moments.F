@@ -634,8 +634,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &

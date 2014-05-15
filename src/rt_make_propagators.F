@@ -221,7 +221,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, im, ispin, nspin, &
                                                 re
-    REAL(dp)                                 :: dt, eps_arnoldi, t
+    REAL(dp)                                 :: eps_arnoldi, t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: propagator_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &

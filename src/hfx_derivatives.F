@@ -197,10 +197,8 @@ MODULE hfx_derivatives
     INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
     INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
     INTEGER                                  :: atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
-                                                atomic_offset_ac, nneighbors, max_pgf, &
-                                                atomic_offset_ab, atomic_offset_cd
+                                                atomic_offset_ac, nneighbors, max_pgf
     INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
-    INTEGER, DIMENSION(:,:), POINTER         :: offset_ab_set, offset_cd_set
     TYPE(hfx_pgf_list), DIMENSION(:), &
                             ALLOCATABLE      :: pgf_list_ij, pgf_list_kl
     TYPE(hfx_pgf_product_list), DIMENSION(:), &
@@ -217,21 +215,19 @@ MODULE hfx_derivatives
     TYPE(lib_deriv)                          :: private_deriv
     LOGICAL                                  :: do_dynamic_load_balancing, bins_left, do_it
     TYPE(hfx_distribution), POINTER          :: distribution_forces
-    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id ,&
-                                                storage_id
+    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id
     TYPE(hfx_task_list_type), DIMENSION(:), &
                               POINTER        :: shm_task_list, tmp_task_list
     INTEGER(int_8), DIMENSION(:), &
                     ALLOCATABLE              :: tmp_task_list_cost
     INTEGER, DIMENSION(:), ALLOCATABLE       :: tmp_index
-    INTEGER(int_8)                           :: current_ram_counter
     INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
     INTEGER                                  :: sphi_d_u1,sphi_d_u2,sphi_d_u3
     INTEGER                                  :: sphi_c_u1,sphi_c_u2,sphi_c_u3
     INTEGER                                  :: sphi_b_u1,sphi_b_u2,sphi_b_u3
     INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
     INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
-                                                katom_end, latom_start, latom_end, my_process_id
+                                                katom_end, latom_start, latom_end
     TYPE(hfx_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches
     TYPE(hfx_cache_type), POINTER            :: maxval_cache
@@ -248,16 +244,15 @@ MODULE hfx_derivatives
     REAL(dp)                                 :: spherical_estimate, eps_storage
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
                                                 shm_storage_counter_integrals, shm_neris_incore, &
-                                                shm_neris_disk, shm_stor_count_int_disk, shm_stor_count_max_val,&
+                                                shm_stor_count_max_val,&
                                                 tmp_i8(6), mem_eris, mem_max_val, shm_nprim_ints, stor_count_max_val,&
                                                 storage_counter_integrals
-    REAL(dp)                                 :: compression_factor, cartesian_estimate_orig
+    REAL(dp)                                 :: compression_factor
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: treat_forces_in_core
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
 
     TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: rho_ao_mp2
-    INTEGER::ii
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work_virial, ede_work2_virial,&
                                                 ede_primitives_tmp_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:), &

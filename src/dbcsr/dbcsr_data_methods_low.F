@@ -255,7 +255,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handle
+    INTEGER                                  :: error_handle
 
 !   ---------------------------------------------------------------------------
 
@@ -1035,7 +1035,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_any', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler
+    INTEGER                                  :: error_handler
 
 !   ---------------------------------------------------------------------------
 
@@ -1107,7 +1107,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler
+    INTEGER                                  :: error_handler
     INTEGER, DIMENSION(2)                    :: s
 
 !   ---------------------------------------------------------------------------
@@ -1148,7 +1148,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler
+    INTEGER                                  :: error_handler
     INTEGER, DIMENSION(1)                    :: s
 
 !   ---------------------------------------------------------------------------
@@ -1192,7 +1192,7 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
-    !
+
     CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN,&
          "Invalid data area", __LINE__, error=error)

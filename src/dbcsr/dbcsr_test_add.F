@@ -379,7 +379,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c, error_handler, r, test
+    INTEGER                                  :: c, error_handler, r
     LOGICAL                                  :: success
     REAL(real_8)                             :: occ_a_in, occ_a_out, occ_b
     TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &

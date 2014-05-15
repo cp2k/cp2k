@@ -168,7 +168,7 @@ MODULE mp2_cphf
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
 
-!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

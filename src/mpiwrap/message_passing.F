@@ -79,8 +79,10 @@ MODULE message_passing
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
 
+#if defined(__parallel)
   ! internal reference counter used to debug communicator leaks
   INTEGER, PRIVATE, SAVE :: debug_comm_count
+#endif
 
   ! init and error
   PUBLIC :: mp_world_init, mp_world_finalize
@@ -538,7 +540,9 @@ MODULE message_passing
      "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
      "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
      "MP_Window_Lock      ", "MP_Window_Misc      "/)
+#if defined(__parallel)
   REAL(KIND=dp) :: t_start, t_end
+#endif
 
   ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
   INTEGER, PARAMETER :: intlen=BIT_SIZE ( 0 ) / 8
@@ -640,8 +644,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, newcomm, &
-                                                newgroup, oldgroup
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: newcomm, newgroup, oldgroup
+#endif
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
     ierr = 0
@@ -789,8 +795,10 @@ CONTAINS
     TYPE(mp_perf_env_type), POINTER          :: perf_env
     INTEGER, INTENT(IN)                      :: iw
 
+#if defined(__parallel)
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: per, vol
+#endif
 
     IF (.NOT.ASSOCIATED(perf_env)) THEN
        CALL mp_abort ("unassociated perf_env : message_passing @ mp_perf_env_describe" )
@@ -874,9 +882,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: time
     INTEGER, INTENT(in), OPTIONAL            :: msg_size
 
+#if defined(__parallel)
     TYPE(mp_perf_type), POINTER              :: mp_perf
 
-#if defined(__parallel)
     mp_perf => mp_perf_stack (stack_pointer)%mp_perf_env%mp_perfs( perf_id )
     IF (PRESENT(count)) THEN
        mp_perf%count = mp_perf%count + count
@@ -900,6 +908,7 @@ CONTAINS
 
     INTEGER                                  :: ierr, numtask, taskid
 
+    ierr = 0
 #if defined(__parallel)
     CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
 #else
@@ -931,12 +940,11 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ierr
     CHARACTER(LEN=*)                         :: prg_code
 
-    INTEGER                                  :: istat, len
 #if defined(__parallel)
-    CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
+    INTEGER                                  :: istat, len
+    CHARACTER(LEN=MPI_MAX_ERROR_STRING )     :: error_string
     CHARACTER(LEN=MPI_MAX_ERROR_STRING+512)  :: full_error
 #else
-    CHARACTER ( LEN = 512 )                  :: error_string
     CHARACTER(LEN=512)                       :: full_error
 #endif
 
@@ -1021,7 +1029,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
-    LOGICAL                                  :: periods( 2 )
+#if defined(__parallel)
+    LOGICAL, DIMENSION(2)                    :: periods
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
@@ -1055,7 +1065,6 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
     task_coor = 0
     dims = 1
     periods=.FALSE.
@@ -1079,11 +1088,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, nodes
-    LOGICAL                                  :: period(1:ndims), reorder
+#if defined(__parallel)
+    LOGICAL, DIMENSION(1:ndims)              :: period, reorder
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
+    nodes = 0
     pos ( 1:ndims ) = -1
     comm_cart = comm_old
 #if defined(__parallel)
@@ -1136,7 +1148,6 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
     m = SIZE ( coords )
 #if defined(__parallel)
     CALL mpi_cart_coords ( comm, rank, m, coords, ierr )
@@ -1163,7 +1174,6 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
 #if defined(__parallel)
     CALL mpi_cart_shift ( comm, dir, disp, source, dest, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_shift @ mp_cart_shift" )
@@ -1177,10 +1187,10 @@ CONTAINS
 
 !..mp_comm_compare
 ! *****************************************************************************
-  SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
+  SUBROUTINE mp_comm_compare ( comm1, comm2, res)
 
     INTEGER, INTENT(IN)                      :: comm1, comm2
-    INTEGER, INTENT(OUT)                     :: RESULT
+    INTEGER, INTENT(OUT)                     :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare', &
       routineP = moduleN//':'//routineN
@@ -1190,22 +1200,22 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
-    RESULT = 0
+    iout = 0
+    res = 0
 #if defined(__parallel)
     CALL mpi_comm_compare ( comm1, comm2, iout, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_compare @ mp_comm_compare" )
     SELECT CASE(iout)
     CASE(MPI_IDENT)
-       RESULT=0
+       res = 0
     CASE(MPI_CONGRUENT)
-       RESULT=1
+       res = 1
     CASE(MPI_SIMILAR)
-       RESULT=2
+       res = 2
     CASE (MPI_UNEQUAL)
-       RESULT=3
+       res = 3
     CASE default
-       RESULT=4
+       res = 4
     END SELECT
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
@@ -1227,7 +1237,6 @@ CONTAINS
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
 
     sub_comm = 0
 #if defined(__parallel)
@@ -1253,7 +1262,6 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
 #if defined(__parallel)
     CALL mpi_comm_free ( comm, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_free @ mp_comm_free" )
@@ -1278,13 +1286,12 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
 #if defined(__parallel)
     CALL mpi_comm_dup ( comm1, comm2, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_dup @ mp_comm_dup" )
     debug_comm_count = debug_comm_count + 1
 #else
-    comm2=comm1
+    comm2 = comm1
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
 
@@ -1300,9 +1307,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: g1, g2, handle, i, ierr, n, &
-                                                n1, n2
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: g1, g2, i, n, n1, n2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
@@ -1352,9 +1361,8 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
+    ndim = SIZE(dims)
 #if defined(__parallel)
-    ndim = SIZE ( dims )
     IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndim,dims,ierr)
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_dims_create" )
 #else
@@ -1406,14 +1414,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
+#if defined(__parallel)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
+    ALLOCATE (status(MPI_STATUS_SIZE))
     t_start = m_walltime ( )
 
     CALL mpi_wait(request,status,ierr)
@@ -1422,7 +1431,7 @@ CONTAINS
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-    DEALLOCATE(status)
+    DEALLOCATE (status)
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_wait
@@ -1441,16 +1450,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: count, handle, ierr
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: count
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
 #if defined(__parallel)
-    count=SIZE(requests)
-    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    count = SIZE(requests)
+    ALLOCATE (status(MPI_STATUS_SIZE,count))
     t_start = m_walltime ( )
 
     CALL mpi_waitall(count,requests,status,ierr)
@@ -1459,7 +1470,7 @@ CONTAINS
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-    DEALLOCATE(status)
+    DEALLOCATE (status)
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_waitall_1
@@ -1478,16 +1489,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: count, handle, ierr
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: count
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
 
 #if defined(__parallel)
-    count=SIZE(requests)
-    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    count = SIZE(requests)
+    ALLOCATE (status(MPI_STATUS_SIZE,count))
     t_start = m_walltime ( )
 
     CALL mpi_waitall(count,requests,status,ierr)
@@ -1496,7 +1510,7 @@ CONTAINS
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-    DEALLOCATE(status)
+    DEALLOCATE (status)
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_waitall_2
@@ -1514,16 +1528,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitany', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: count, handle, ierr
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: count
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-
 #if defined(__parallel)
-    count=SIZE(requests)
-    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    count = SIZE(requests)
+    ALLOCATE (status(MPI_STATUS_SIZE,count))
     t_start = m_walltime ( )
 
     CALL mpi_waitany(count,requests,completed,status,ierr)
@@ -1532,7 +1548,7 @@ CONTAINS
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-    DEALLOCATE(status)
+    DEALLOCATE (status)
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_waitany
@@ -1551,15 +1567,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: completed_l, count, ierr
+    INTEGER                                  :: ierr
+#if defined(__parallel)
+    INTEGER                                  :: completed_l, count
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
     LOGICAL                                  :: flag_l
+#endif
 
     ierr = 0
 
 #if defined(__parallel)
-    count=SIZE(requests)
-    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    count = SIZE(requests)
+    ALLOCATE (status(MPI_STATUS_SIZE,count))
 
     CALL mpi_testany(count,requests,completed_l,flag_l,status,ierr)
     ! we do not check the status
@@ -1568,7 +1587,7 @@ CONTAINS
     IF (PRESENT(completed)) completed = completed_l
     IF (PRESENT(flag)) flag = flag_l
 
-    DEALLOCATE(status)
+    DEALLOCATE (status)
 #endif
   END SUBROUTINE mp_testany
 
@@ -1591,9 +1610,9 @@ CONTAINS
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
+    my_key = 0
 #if defined(__parallel)
     t_start = m_walltime ( )
-    my_key = 0
     IF(PRESENT(key)) my_key = key
     CALL mpi_comm_split(comm,color,my_key,sub_comm,ierr)
     debug_comm_count = debug_comm_count + 1
@@ -1640,13 +1659,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, handle, i, ierr, j, k, &
-                                                mepos, my_subgroup_min_size, &
-                                                nnodes
+    INTEGER                                  :: handle, ierr, mepos, nnodes
+#if defined(__parallel)
+    INTEGER                                  :: color, i, j, k, &
+                                                my_subgroup_min_size
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
 
     ! actual number of groups
 
@@ -1735,9 +1755,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_proc_name', &
          routineP = moduleN//':'//routineN
     CHARACTER(LEN=default_string_length)     :: host_name
-    INTEGER                                  :: ierr,len_name
 
 #if defined(__parallel)
+    INTEGER                                  :: ierr, len_name
     CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME)    :: hname
     CALL mpi_get_processor_name(hname,len_name,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_get_processor_name @ "//routineN )
@@ -1765,9 +1785,9 @@ CONTAINS
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
+    ierr = 0
 #if defined(__parallel)
     t_start = m_walltime()
-    ierr = 0
     CALL MPI_WIN_FREE(window, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ mp_window_destroy")
     t_end = m_walltime()
@@ -1796,16 +1816,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_lock', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: assertion, exclusivity, &
-                                                handle, ierr
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: assertion, exclusivity
+#endif
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
+    ierr = 0
 #if defined(__parallel)
     t_start = m_walltime()
-    ierr = 0
     exclusivity = MPI_LOCK_EXCLUSIVE
     IF (PRESENT (shared)) THEN
        IF (shared) exclusivity = MPI_LOCK_SHARED
@@ -1841,9 +1863,9 @@ CONTAINS
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
+    ierr = 0
 #if defined(__parallel)
     t_start = m_walltime()
-    ierr = 0
     CALL MPI_WIN_UNLOCK (remote, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock @ mp_window_unlock")
     t_end = m_walltime()
@@ -1886,10 +1908,10 @@ CONTAINS
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
-#if defined(__parallel)
-    t_start = m_walltime()
     ierr = 0
     assertion = 0
+#if defined(__parallel)
+    t_start = m_walltime()
     IF (PRESENT (nothing_stored)) THEN
        IF (nothing_stored) assertion = assertion + MPI_MODE_NOSTORE
     ENDIF
@@ -1909,7 +1931,6 @@ CONTAINS
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_window_fence
-
 
 ! *****************************************************************************
 !> \brief probes for an incomming message with any tag
@@ -1931,15 +1952,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
+#if defined(__parallel)
     INTEGER, DIMENSION(mp_status_size)       :: status_single
     LOGICAL                                  :: flag
+#endif
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
 
+    ierr = 0
 #if defined(__parallel)
-
     IF(source .EQ. mp_any_source) THEN
       CALL mpi_probe(mp_any_source, mp_any_tag, comm, status_single, ierr)
       IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_probe @ mp_probe" )
@@ -1956,11 +1979,9 @@ CONTAINS
         tag = status_single(MPI_TAG)
       END IF
     END IF
-
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_probe
-
 
 ! *****************************************************************************
 ! Here come the data routines with none of the standard data types.
@@ -2019,9 +2040,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, msglen, &
-                                                numtask, taskid
-    INTEGER, ALLOCATABLE                     :: imsg( : )
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: i, msglen, numtask, taskid
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: imsg
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)

@@ -1057,8 +1057,7 @@ CONTAINS
 
     CHARACTER                                :: red_type
     INTEGER :: data_type, dst_p, error_handler, half_spread, most_spread, &
-      mp_group, my_norm_node, mynode, nsteps, numnodes, spread, src_p, step, &
-      tag
+      mp_group, my_norm_node, mynode, nsteps, numnodes, spread, src_p, step
     INTEGER, DIMENSION(2)                    :: get_sizes, my_sizes
     LOGICAL                                  :: i_recv, i_send
     REAL(kind=dp)                            :: cs1, cs2

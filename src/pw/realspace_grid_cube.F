@@ -47,7 +47,7 @@ CONTAINS
 
     INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, &
       L3, my_rank, my_stride(3), np, num_pe, rank(2), source, stat, tag, U1, &
-      U2, U3, z
+      U2, U3
     LOGICAL                                  :: failure, my_zero_tails
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
 

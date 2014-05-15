@@ -290,7 +290,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, max_iter, unit_nr
+    INTEGER                                  :: handle, i, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
                                                 flop5
     LOGICAL                                  :: converged, failure

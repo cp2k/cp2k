@@ -92,7 +92,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: hmt, umt
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab, R, rij
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a, sto_exponents_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsmat, h_block, h_blocka, &
                                                 pabmat, pamat, s_block
@@ -115,6 +115,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
+
+!   REAL(KIND=dp), DIMENSION(3)              :: R
 
     CALL timeset(routineN,handle)
 

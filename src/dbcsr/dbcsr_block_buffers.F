@@ -493,7 +493,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, ibuff, nthreads
-    LOGICAL                                  :: reap, valid
+    LOGICAL                                  :: reap
 
 !   ---------------------------------------------------------------------------
 

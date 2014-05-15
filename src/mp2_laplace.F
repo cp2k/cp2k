@@ -78,9 +78,9 @@ MODULE mp2_laplace
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, first_cycle, &
                                                 my_open_shell
-    REAL(KIND=dp) :: actual_flop_rate, alpha, alpha_old, E_Range, Emax, &
-      Emax_beta, Emin, Emin_beta, laplace_transf, my_flop_rate, t_end, &
-      t_start, trace_XX, w_old
+    REAL(KIND=dp) :: actual_flop_rate, alpha_old, E_Range, Emax, Emax_beta, &
+      Emin, Emin_beta, laplace_transf, my_flop_rate, t_end, t_start, &
+      trace_XX, w_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: aj, awj, wj
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_rec_beta, &

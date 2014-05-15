@@ -57,13 +57,12 @@ MODULE rpa_communication
 
     INTEGER :: dummy_proc, handle, handle2, i, i_global, i_local, iiB, iii, &
       j_global, j_local, jjB, mypcol_d, mypcol_s, myprow_d, myprow_s, &
-      ncol_block, ncol_block_d, ncol_block_s, ncol_local, ncol_local_d, &
-      ncol_local_s, npcol_d, npcol_s, nprow_d, nprow_s, nrow_block, &
-      nrow_block_d, nrow_block_s, nrow_local, nrow_local_d, nrow_local_s, &
-      proc_receive, proc_send, proc_shift, rec_counter, rec_local_col, &
-      rec_local_row, rec_pcol, rec_prow, ref_rec_pcol, ref_rec_prow, &
-      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
-      stat
+      ncol_block_d, ncol_block_s, ncol_local_d, ncol_local_s, npcol_d, &
+      npcol_s, nprow_d, nprow_s, nrow_block_d, nrow_block_s, nrow_local_d, &
+      nrow_local_s, proc_receive, proc_send, proc_shift, rec_counter, &
+      rec_local_col, rec_local_row, rec_pcol, rec_prow, ref_rec_pcol, &
+      ref_rec_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
+      size_send_buffer, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index_counter, proc2counter
     INTEGER, DIMENSION(:), POINTER           :: col_indices_d, col_indices_s, &
                                                 row_indices_d, row_indices_s
@@ -318,12 +317,11 @@ MODULE rpa_communication
 
     INTEGER :: dummy_proc, handle, handle2, i_global, i_local, iiB, iii, &
       j_global, j_local, jjB, mypcol_d, mypcol_s, myprow_d, myprow_s, &
-      ncol_block, ncol_block_d, ncol_block_s, ncol_local, ncol_local_d, &
-      ncol_local_s, npcol_d, npcol_s, nprow_d, nprow_s, nrow_block, &
-      nrow_block_d, nrow_block_s, nrow_local, nrow_local_d, nrow_local_s, &
-      proc_receive, proc_send, proc_shift, rec_counter, rec_local_col, &
-      rec_local_row, rec_pcol, rec_prow, ref_rec_pcol, ref_rec_prow, &
-      send_counter, size_rec_buffer, size_send_buffer, stat
+      ncol_block_d, ncol_block_s, ncol_local_d, ncol_local_s, npcol_d, &
+      npcol_s, nprow_d, nprow_s, nrow_block_d, nrow_block_s, nrow_local_d, &
+      nrow_local_s, proc_receive, proc_send, proc_shift, rec_counter, &
+      rec_local_col, rec_local_row, rec_pcol, rec_prow, ref_rec_pcol, &
+      ref_rec_prow, send_counter, size_rec_buffer, size_send_buffer, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: req_send
     INTEGER, DIMENSION(:), POINTER           :: col_indices_d, col_indices_s, &
                                                 row_indices_d, row_indices_s

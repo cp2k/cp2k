@@ -229,9 +229,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: info, unit_nr
-    REAL(KIND=dp)                            :: a, e_pred, param(6), s1, &
-                                                s1sq, s2, s2sq, &
-                                                sys_lin_eq(6,6), tmp_e, v1, v2
+    REAL(KIND=dp)                            :: e_pred, param(6), s1, s1sq, &
+                                                s2, s2sq, sys_lin_eq(6,6), &
+                                                tmp_e, v1, v2
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)

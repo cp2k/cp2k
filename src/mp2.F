@@ -155,7 +155,7 @@ MODULE mp2
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
 
-!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

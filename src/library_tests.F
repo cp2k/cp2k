@@ -1565,8 +1565,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eigensolver_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: diag_method, group, i, i_loop, i_rep, init_method, j, n, &
-      n_loop, n_rep, neig, nrow_global, source, unit_number
+    INTEGER                                  :: diag_method, group, i, &
+                                                i_loop, i_rep, init_method, &
+                                                j, n, n_loop, n_rep, neig, &
+                                                source, unit_number
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1967,7 +1969,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_tests', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1)                         :: transa, transb
     CHARACTER, DIMENSION(3)                  :: types
     INTEGER                                  :: data_type, i_rep, k, m, n, &
                                                 N_loop, n_rep

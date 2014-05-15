@@ -103,8 +103,6 @@ MODULE cp_dbcsr_operations
 
   PRIVATE
 
-  INTEGER, SAVE, PRIVATE :: last_matrix_id=0
-
 CONTAINS
 
 ! *****************************************************************************

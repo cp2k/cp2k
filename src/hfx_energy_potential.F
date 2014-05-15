@@ -259,14 +259,12 @@ MODULE hfx_energy_potential
                                              :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
     LOGICAL                                  :: do_dynamic_load_balancing, bins_left, do_it
     TYPE(hfx_distribution), POINTER          :: distribution_energy
-    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id ,&
-                                                storage_id
+    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id
     TYPE(hfx_task_list_type), DIMENSION(:), &
                               POINTER        :: shm_task_list, tmp_task_list
     INTEGER(int_8), DIMENSION(:), &
                     ALLOCATABLE              :: tmp_task_list_cost
     INTEGER, DIMENSION(:), ALLOCATABLE       :: tmp_index
-    INTEGER(int_8)                           :: current_ram_counter
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: ee_work, ee_work2, &
                                                 ee_buffer1, ee_buffer2, &
                                                 ee_primitives_tmp
@@ -276,10 +274,9 @@ MODULE hfx_energy_potential
     INTEGER                                  :: sphi_b_u1, sphi_b_u2, sphi_b_u3
     INTEGER                                  :: sphi_a_u1, sphi_a_u2, sphi_a_u3
     INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
-                                                katom_end, latom_start, latom_end, my_process_id
+                                                katom_end, latom_start, latom_end
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom, shm_pmax_block
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl, pmax_blocks,afac
-    INTEGER::ii,pbc_shells_dummy
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     LOGICAL                                  :: do_print_load_balance_info,is_anti_symmetric

@@ -492,7 +492,7 @@
 
     TYPE(btree_2d_data_c)          :: data_block
     INTEGER                                  :: stored_row, stored_col, iw, nwms
-    TYPE(dbcsr_error_type)                   :: error
+!$  TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -855,8 +855,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
-    LOGICAL                                  :: cont_p
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
 
 !   ---------------------------------------------------------------------------
 
@@ -865,4 +863,3 @@
          lb=base_offset, ub=base_offset+rsize*csize-1)
     IF (careful_mod) CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_1d_c
-

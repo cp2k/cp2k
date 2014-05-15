@@ -77,9 +77,7 @@ MODULE qs_integrate_potential_single
 
   PRIVATE
 
-  INTEGER :: debug_count=0
-
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential_single'
 
@@ -862,8 +860,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, ipgf, iset, j, &
-      m1, maxco, maxsgf_set, na1, natom, natom_of_kind, ncoa, nkind, npme, &
-      nseta, sgfa, stat
+      m1, maxco, maxsgf_set, na1, natom_of_kind, ncoa, nkind, npme, nseta, &
+      sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, la_max, &
                                                 la_min, npgfa, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa

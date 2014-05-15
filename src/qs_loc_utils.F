@@ -342,9 +342,11 @@ CONTAINS
       POINTER                                :: zij
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: iatom, natom, nstate, stride
+    INTEGER                                  :: iatom, natom, nstate
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desc
+#else
+    INTEGER                                  :: stride
 #endif
     LOGICAL                                  :: failure
 

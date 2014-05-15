@@ -411,10 +411,12 @@ CONTAINS
     REAL ( KIND = dp ), INTENT ( IN ) :: st, ct
 ! Locals
     TYPE ( cp_error_type ) :: error
-    INTEGER :: idim, nstate, stride
+    INTEGER :: idim, nstate
     COMPLEX ( KIND = dp ) :: st_cmplx
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
+#else
+    INTEGER :: stride
 #endif
 
     st_cmplx = CMPLX ( st, 0.0_dp, dp )

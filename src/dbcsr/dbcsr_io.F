@@ -933,7 +933,6 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER        :: row_p, col_i, blk_p, ginfo,&
                                              proc_nblks, proc_darea_sizes
-    INTEGER, DIMENSION(:,:), POINTER      :: pgrid
     INTEGER, DIMENSION(4)                 :: values
     INTEGER, ALLOCATABLE, DIMENSION(:)    :: linfo_lens, bdata_lens
     INTEGER, ALLOCATABLE, DIMENSION(:), TARGET     :: ginfo_vec, linfo_vec, &

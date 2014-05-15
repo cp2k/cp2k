@@ -27,9 +27,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize, pos
-    REAL(kind=real_4), DIMENSION(:), POINTER :: rbp
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize
 
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
@@ -91,8 +89,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_2d_block_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize, pos,&
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize, &
                                                 block_row_size, block_col_size
     REAL(kind=real_4), DIMENSION(:), POINTER           :: lin_blk_p
     INTEGER                                  :: error_handle

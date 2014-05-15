@@ -54,8 +54,6 @@ MODULE dbcsr_mm_hostdrv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
 
-  INTEGER :: multrec_calls = 0
-
   LOGICAL, PARAMETER, PUBLIC :: show_levels = .FALSE.
   LOGICAL, PARAMETER :: verbose_acc = .FALSE.
 

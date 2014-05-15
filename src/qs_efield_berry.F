@@ -603,7 +603,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, istat, j, &
       jatom, jkind, jset, ldab, ldsa, ldsb, ldwork, m, natom, ncoa, ncob, &
-      nkind, nseta, nsetb, sgfa, sgfb, stat
+      nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb

@@ -1174,10 +1174,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_col, blk_col_offset, blk_col_size, blk_row, &
-      blk_row_offset, blk_row_size, dense_col, dense_row, error_handle, &
-      target_col_offset, target_cs, target_offset, target_row_offset, &
-      target_rs, tco, tro
+    INTEGER :: blk_col, blk_col_size, blk_row, blk_row_size, dense_col, &
+      dense_row, error_handle, target_col_offset, target_cs, target_offset, &
+      target_row_offset, target_rs, tco, tro
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_error_type)                   :: error
@@ -1200,7 +1199,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(none) &
 !$OMP PRIVATE (block, iter, &
 !$OMP         target_rs, target_cs, blk_row, blk_col, tr, blk_row_size, blk_col_size,&
-!$OMP         blk_row_offset, blk_col_offset, tro, tco, target_offset,&
+!$OMP         tro, tco, target_offset,&
 !$OMP         target_row_offset, target_col_offset,&
 !$OMP         dense_row, dense_col) &
 !$OMP SHARED (error,&

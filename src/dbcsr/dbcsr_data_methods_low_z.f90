@@ -67,7 +67,7 @@
 
     INTEGER                        :: l, u
     TYPE(dbcsr_error_type)         :: error
-    COMPLEX(kind=real_8)                        :: tmp
+
 !   ---------------------------------------------------------------------------
 
     ! The coersion argument is needed to make this function unique

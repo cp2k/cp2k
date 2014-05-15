@@ -616,7 +616,7 @@ CONTAINS
       1,1,1,1,1,1,1/)
 
     CHARACTER(LEN=32)                        :: symmetry_string
-    CHARACTER(LEN=default_string_length)     :: mname, name
+    CHARACTER(LEN=default_string_length)     :: mname
     INTEGER :: handle, i, iatom, iblock, icol, ikind, inode, irow, iset, &
       istat, jatom, jkind, jset, last_jatom, ldai, ldsab, max_maxco, &
       max_maxlgto, max_maxsgf, maxblock, maxco, maxdco, maxdcoa, maxdcob, &

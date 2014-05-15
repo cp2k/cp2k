@@ -17,8 +17,9 @@
                                              main_rs, main_cs
     TYPE(dbcsr_data_obj)                  :: buff_area
     logical :: valid
-    [type1], DIMENSION(:), POINTER        :: target_pointer
+
 !   ---------------------------------------------------------------------------
+
     CALL dbcsr_error_set (routineN, error_handler, error)
     ibuff = dbcsr_buffers_which_is_my (buffers)
     buff_area = dbcsr_buffers_get_area (buffers, ibuff, error=error)

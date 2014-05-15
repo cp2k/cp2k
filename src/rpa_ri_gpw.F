@@ -95,16 +95,16 @@ MODULE rpa_ri_gpw
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: occ_chunk = 128
 
-    INTEGER :: a, best_integ_group_size, best_num_integ_point, &
-      color_rpa_group, dimen_ia, dimen_ia_beta, handle, handle2, i, &
-      ia_global, ierr, iiB, input_integ_group_size, integ_group_size, iproc, &
-      itmp(2), jjB, min_integ_group_size, my_B_size, my_B_size_beta, &
-      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
-      my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
-      my_group_L_start, my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, &
-      my_ia_size_beta, my_ia_start, my_ia_start_beta, ngroup, &
-      num_integ_group, num_integ_points, occ_high, occ_low, pos_integ_group, &
-      proc_receive, proc_send, proc_shift, rec_B_size
+    INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, &
+      dimen_ia, dimen_ia_beta, handle, handle2, i, ia_global, ierr, iiB, &
+      input_integ_group_size, integ_group_size, iproc, itmp(2), jjB, &
+      min_integ_group_size, my_B_size, my_B_size_beta, my_B_virtual_end, &
+      my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
+      my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, &
+      my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
+      my_ia_start_beta, ngroup, num_integ_group, num_integ_points, occ_high, &
+      occ_low, pos_integ_group, proc_receive, proc_send, proc_shift, &
+      rec_B_size
     INTEGER :: rec_B_virtual_end, rec_B_virtual_start, stat, virtual, &
       virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_ia, ends_ia_beta, &

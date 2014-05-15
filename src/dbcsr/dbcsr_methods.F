@@ -1301,17 +1301,18 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
     LOGICAL                                  :: assigned, found, heap_error
     REAL(kind=sp)                            :: load_fraction, rn, soft_thr
-    TYPE(dbcsr_error_type)                   :: error
+
+!$  TYPE(dbcsr_error_type)                   :: error
     TYPE(heap_t)                             :: t_heap
 
 !   ---------------------------------------------------------------------------
 
     nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS () ;
+!$  nthreads = OMP_GET_NUM_THREADS () ;
 
-    !$  CALL dbcsr_assert (dist%d%num_threads, "EQ", nthreads,&
-    !$     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-    !$     "Thread number has changed", __LINE__, error=error)
+!$  CALL dbcsr_assert (dist%d%num_threads, "EQ", nthreads,&
+!$                     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+!$                     "Thread number has changed", __LINE__, error=error)
     nrows = dbcsr_distribution_nrows (dist)
     nlrows = dbcsr_distribution_nlocal_rows (dist)
     lrows => array_data (dbcsr_distribution_local_rows (dist))

@@ -887,8 +887,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, first_sgf, handle, iatom, ierr, igrid_level, ikind, &
-      ipgf, iset, j, m1, maxco, n, na1, natom, ncoa, nkind, npme, nseta, sgfa
+    INTEGER :: atom_a, handle, iatom, ierr, igrid_level, ikind, ipgf, iset, &
+      j, m1, maxco, na1, natom, ncoa, nkind, npme, nseta, sgfa
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, la_max, &
                                                 la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
@@ -1631,13 +1631,13 @@ END SUBROUTINE calculate_rho_resp_all
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
+    INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
       igrid_level, igrid_level_dummy, ikind, ikind_old, ipair, ipgf, iset, &
       iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, &
-      jset, jset_old, lb, lb_l, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
+      jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, &
-      nb1, nb2, nblock, ncoa, ncob, nkind, nn, nr, nrlevel, nseta, nsetb, &
-      ntasks, nthread, nxy, nz, nzsize, segment, sgfa, sgfb, stat, ub
+      nb1, nb2, nblock, ncoa, ncob, nkind, nr, nrlevel, nseta, nsetb, ntasks, &
+      nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1677,7 +1677,7 @@ END SUBROUTINE calculate_rho_resp_all
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
 
-!$    INTEGER :: omp_get_thread_num, omp_get_max_threads
+!$  INTEGER :: omp_get_thread_num, omp_get_max_threads
 
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &
@@ -1868,7 +1868,7 @@ END SUBROUTINE calculate_rho_resp_all
 !$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
-!$omp          private(lb_l,nn,segment,itask,i,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
+!$omp          private(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -2856,23 +2856,23 @@ END SUBROUTINE calculate_rho_resp_all
 
       INTEGER :: cmax, gridbounds(2,3), i, ico, icoef, ider1, ider2, ig, ithread_l, &
         jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
-        length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, lya, lyb, &
+        length, lxa, lxb, lxy, lxyz, lya, lyb, &
         lza, lzb, o1_local, o2_local, offset, start
       INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                   ub_cube
-      INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
+      INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
       LOGICAL                                  :: failure, my_collocate_rho0, &
                                                   my_map_consistent,subpatch_collocate
       REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
-        prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
+        prefactor, radius, rpg, zetp
       REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab_local
       REAL(KIND=dp), DIMENSION(:, :, :), &
         POINTER                                :: grid
 
-      INTEGER :: lxp,lyp,lzp,lp,lxpm,lypm,iaxis
+      INTEGER :: lxp,lyp,lzp,lp,lxpm,iaxis
       INTEGER, ALLOCATABLE, DIMENSION(:,:) :: map
-      REAL(kind=dp) :: p_ele,ax,ay,az
+      REAL(kind=dp) :: p_ele
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
