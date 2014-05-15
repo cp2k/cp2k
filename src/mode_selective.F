@@ -39,8 +39,8 @@ MODULE mode_selective
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit,&
                                              vibfac
-  USE replica_types,                   ONLY: rep_env_calc_e_f,&
-                                             replica_env_type
+  USE replica_methods,                 ONLY: rep_env_calc_e_f
+  USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort

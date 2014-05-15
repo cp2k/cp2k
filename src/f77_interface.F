@@ -102,7 +102,7 @@ MODULE f77_interface
   USE physcon,                         ONLY: init_physcon
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
-  USE qmmm_main,                       ONLY: qmmm_create_force_env
+  USE qmmm_create,                     ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE reference_manager,               ONLY: remove_all_references
   USE string_table,                    ONLY: string_table_allocate,&

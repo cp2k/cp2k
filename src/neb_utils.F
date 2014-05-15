@@ -40,7 +40,8 @@ MODULE neb_utils
                                              f_env_type,&
                                              get_energy,&
                                              get_force,&
-                                             get_pos
+                                             get_pos,&
+                                             set_pos
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get
   USE geo_opt,                         ONLY: cp_geo_opt
@@ -65,8 +66,8 @@ MODULE neb_utils
                                              neb_var_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: bohr
-  USE replica_types,                   ONLY: rep_env_calc_e_f,&
-                                             rep_env_sync,&
+  USE replica_methods,                 ONLY: rep_env_calc_e_f
+  USE replica_types,                   ONLY: rep_env_sync,&
                                              replica_env_type
   USE rmsd,                            ONLY: rmsd3
   USE timings,                         ONLY: timeset,&
@@ -547,7 +548,7 @@ CPSourceFileRef,&
        n_el = 3*rep_env%nparticle
        Mmatrix = 0.0_dp
        ! Syncronize position on the replica procs
-       CALL cp_set_pos_int(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+       CALL set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        !
        IF (irep+j <= n_rep_neb) THEN
@@ -625,7 +626,7 @@ CPSourceFileRef,&
        n_el = 3*rep_env%nparticle
        Mmatrix = 0.0_dp
        ! Syncronize position on the replica procs
-       CALL cp_set_pos_int(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+       CALL set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        IF (irep+j <= n_rep_neb) THEN
           logger%iter_info%iteration(2)=irep+j

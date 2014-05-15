@@ -16,7 +16,7 @@ MODULE topology_gromos
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_cp2k_restarts,             ONLY: section_velocity_val_set
+  USE input_cp2k_restarts_util,        ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: section_get_rval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type

@@ -62,8 +62,8 @@ MODULE neb_methods
                                              reparametrize_images
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit
-  USE replica_types,                   ONLY: rep_env_create,&
-                                             rep_env_release,&
+  USE replica_methods,                 ONLY: rep_env_create
+  USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop

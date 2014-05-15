@@ -91,9 +91,9 @@ MODULE pint_methods
                                              thermostat_gle,&
                                              thermostat_none,&
                                              thermostat_nose
-  USE replica_types,                   ONLY: rep_env_calc_e_f,&
-                                             rep_env_create,&
-                                             rep_env_release,&
+  USE replica_methods,                 ONLY: rep_env_calc_e_f,&
+                                             rep_env_create
+  USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop

@@ -48,6 +48,7 @@ MODULE input_cp2k_restarts
        do_band_collective, do_coord_cp2k, do_thermo_al, do_thermo_csvr, &
        do_thermo_gle, do_thermo_no_communication, do_thermo_nose, ehrenfest, &
        mol_dyn_run, mon_car_run, pint_run, use_rt_restart
+  USE input_cp2k_restarts_util,        ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -112,7 +113,6 @@ MODULE input_cp2k_restarts
 
   PUBLIC :: write_restart,&
             update_subsys,&
-            section_velocity_val_set,&
             write_restart_header,&
             update_input
 
@@ -2591,98 +2591,6 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE section_coord_val_set
-
-! *****************************************************************************
-!> \brief routine to dump velocities.. fast implementation
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      02.2006 created [teo]
-!> \author Teodoro Laino
-! *****************************************************************************
-  SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, conv_factor, error)
-
-    TYPE(section_vals_type), POINTER         :: velocity_section
-    TYPE(particle_list_type), OPTIONAL, &
-      POINTER                                :: particles
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: velocity
-    REAL(KIND=dp)                            :: conv_factor
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'section_velocity_val_set', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ik, irk, Nlist, &
-                                                nloop, stat
-    LOGICAL                                  :: check, failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
-    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
-    TYPE(section_type), POINTER              :: section
-    TYPE(val_type), POINTER                  :: my_val, old_val
-
-    CALL timeset(routineN,handle)
-    failure=.FALSE.
-    NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(velocity_section%ref_count>0,cp_failure_level,routineP,error,failure)
-    section => velocity_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
-
-    ! At least one of the two arguments must be present..
-    check = PRESENT(particles).NEQV.PRESENT(velocity)
-    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-    IF(PRESENT(particles)) nloop = particles%n_els
-    IF(PRESENT(velocity))  nloop = SIZE(velocity,2)
-
-    DO
-       IF (SIZE(velocity_section%values,2)==1) EXIT
-       CALL section_vals_add_values(velocity_section,error=error)
-    END DO
-    vals  => velocity_section%values(ik,1)%list
-    Nlist = 0
-    IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
-    END IF
-    DO irk=1,nloop
-       ALLOCATE(vel(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Always stored in A.U.
-       IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)*conv_factor
-       IF(PRESENT(velocity))  vel = velocity(1:3,irk)*conv_factor
-
-       CALL val_create(my_val,r_vals_ptr=vel,error=error)
-
-       IF (Nlist /= 0) THEN
-          IF (irk==1) THEN
-             new_pos => vals
-          ELSE
-             new_pos => new_pos%rest
-          END IF
-          old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
-          new_pos%first_el => my_val
-       ELSE
-          IF (irk==1) THEN
-             NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
-             vals => new_pos
-          ELSE
-             NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
-             new_pos => new_pos%rest
-          END IF
-       END IF
-       NULLIFY(my_val)
-    END DO
-    velocity_section%values(ik,1)%list => vals
-
-    CALL timestop(handle)
-  END SUBROUTINE section_velocity_val_set
 
 ! *****************************************************************************
 !> \brief routine to dump dipoles.. fast implementation
