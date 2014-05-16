@@ -33,6 +33,7 @@ PROGRAM dbcsr_test_driver
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_cart_create,&
                                              mp_cart_rank,&
+                                             mp_comm_free,&
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
@@ -118,6 +119,7 @@ PROGRAM dbcsr_test_driver
 
   !
   ! finalize mpi
+  CALL mp_comm_free(group)
   CALL mp_world_finalize ()
 
   !

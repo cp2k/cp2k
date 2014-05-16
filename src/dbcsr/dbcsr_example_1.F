@@ -33,6 +33,7 @@ PROGRAM dbcsr_example_1
   USE dbcsr_work_operations
   USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&
+                                             mp_comm_free,&
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
@@ -181,6 +182,9 @@ PROGRAM dbcsr_example_1
   !
   ! finalize libdbcsr
   CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+
+  ! free comm
+  CALL mp_comm_free(group)
 
   !
   ! finalize mpi

@@ -572,6 +572,7 @@ CONTAINS
 #else
     mp_comm = 0
 #endif
+    CALL add_mp_perf_env()
   END SUBROUTINE mp_world_init
 
 ! *****************************************************************************
@@ -630,9 +631,11 @@ CONTAINS
 !>      2.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE mp_world_finalize()
+
 #if defined(__parallel)
     INTEGER                                  :: ierr
     CALL mpi_barrier ( MPI_COMM_WORLD,ierr ) ! call mpi directly to avoid 0 stack pointer
+    CALL rm_mp_perf_env()
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_world_finalize" )
     debug_comm_count = debug_comm_count - 1
     IF (debug_comm_count .NE. 0) THEN
@@ -642,7 +645,10 @@ CONTAINS
     ENDIF
     CALL mpi_finalize ( ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_world_finalize" )
+#else
+    CALL rm_mp_perf_env()
 #endif
+
   END SUBROUTINE mp_world_finalize
 
 ! all the following routines should work for a given communicator, not MPI_WORLD

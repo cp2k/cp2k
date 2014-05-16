@@ -36,6 +36,7 @@ PROGRAM dbcsr_example_2
   USE kinds,                           ONLY: real_8
   USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&
+                                             mp_comm_free,&
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
@@ -202,6 +203,7 @@ PROGRAM dbcsr_example_2
 
   !
   ! finalize mpi
+  CALL mp_comm_free(group)
   CALL mp_world_finalize()
 
   !***************************************************************************************
