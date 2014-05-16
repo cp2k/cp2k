@@ -238,19 +238,11 @@ How to compile CP2K code
      In addition, some flags are used to declare compiler support for
      additional language features that the compiler supports.
 
-     Subparts of Fortran 2003 or later that help various aspects of the code:
-     -D__PTR_RANK_REMAP    - compiler supports pointer rank remapping
-     -D__HAS_NO_ISO_C_BINDING - compiler does not support all needed
-                             ISO_C_BINDING features. The default is to
-                             assume support.  (At least g95 0.91
-                             silently fails with segfaults since it
-                             does not support C_F_POINTER.)
      Other language capabilities and support:
      -D__HAS_NO_OMP_3      - CP2K assumes that compilers support OpenMP 3.0.
                              If this is not the case specify this flag to
                              compile.  Runtime performance will be poorer on
                              low numbers of processors
-     -D__CRAY_POINTERS     - compiler supports CRAY pointers
      -D__HAS_NO_CUDA_STREAM_PRIORITIES - Needed for CUDA sdk version < 5.5
 
  3d) Additional esoteric, development, and debugging options.  This
@@ -263,14 +255,6 @@ How to compile CP2K code
                               the NAG, gfortran, compilers.
      -D__mp_timeset__       - Timing of MPI routines.
      -D__USE_LEGACY_WEIGHTS - Use legacy atomic weights (?)
-     -D__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION - Do not assume that
-                              assumed-sized dummy arguments will
-                              always be passed in by reference.
-                              Unless the ISO_C_BINDINGS is present,
-                              CP2K will not compile with this option.
-     -D__cray_pointers      - cray pointers will be be used in preference
-                              to the ISO_C_BINDINGS call to
-                              MPI_ALLOC_MEM.
      -D__USE_PAT            - craypat profiling (?)
      -D__HMD                - ?
      -D__HPM                - ?
