@@ -223,8 +223,6 @@ How to compile CP2K code
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
                              not declare they are thread safe but you want to
                              use them with OpenMP code anyways.
-     -D__NO_MPI_MEMORY     - Do not use MPI memory allocation/deallocation
-                             routines.
 
  3c) CP2K currently assumes full Fortran 95 compliance and expects the
      ISO_C_BINDING module of Fortran 2003 to be present, which
