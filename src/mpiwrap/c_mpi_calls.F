@@ -22,9 +22,13 @@
 ! *****************************************************************************
 
 MODULE c_mpi_calls
-  USE kinds,                           ONLY: dp, sp, real_4, real_8,&
-                                             int_4, int_8
   USE ISO_C_BINDING
+  USE kinds,                           ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
 
   IMPLICIT NONE
 
@@ -61,14 +65,15 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_i(DATA, len, stat)
-     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: DATA
-     INTEGER, INTENT(IN)                        :: len
-     INTEGER, INTENT(OUT), OPTIONAL             :: stat
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     TYPE(C_PTR)              :: mp_baseptr
-     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
-     INTEGER                            :: mp_info, mp_res
-     INTEGER                  :: integer_size, length, ierr
+    INTEGER                                  :: ierr, integer_size, length, &
+                                                mp_info, mp_res
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_INTEGER, integer_size, ierr)
@@ -88,14 +93,15 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_l(DATA, len, stat)
-     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: DATA
-     INTEGER, INTENT(IN)                        :: len
-     INTEGER, INTENT(OUT), OPTIONAL             :: stat
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     TYPE(C_PTR)              :: mp_baseptr
-     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
-     INTEGER                            :: mp_info, mp_res
-     INTEGER                  :: integer_size, length, ierr
+    INTEGER                                  :: ierr, integer_size, length, &
+                                                mp_info, mp_res
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_INTEGER8, integer_size, ierr)
@@ -116,14 +122,14 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_d(DATA, len, stat)
-     REAL(KIND=real_8), DIMENSION(:), POINTER  :: DATA
-     INTEGER, INTENT(IN)                   :: len
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     TYPE(C_PTR)                           :: mp_baseptr
-     INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
-     INTEGER                               :: mp_info, mp_res
-     INTEGER                               :: double_size, length, ierr
+    INTEGER                                  :: double_size, ierr, length, &
+                                                mp_info, mp_res
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
@@ -143,13 +149,15 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_z(DATA, len, stat)
-     COMPLEX(KIND=real_8), DIMENSION(:), POINTER :: DATA
-     INTEGER, INTENT(IN)                     :: len
-     INTEGER, INTENT(OUT), OPTIONAL          :: stat
-     TYPE(C_PTR)                             :: mp_baseptr
-     INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
-     INTEGER                                 :: mp_info, mp_res
-     INTEGER                                 :: double_size, length, ierr
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
+    INTEGER                                  :: double_size, ierr, length, &
+                                                mp_info, mp_res
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_DOUBLE_COMPLEX, double_size, ierr)
@@ -169,14 +177,14 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_s(DATA, len, stat)
-     REAL(KIND=real_4), DIMENSION(:), POINTER  :: DATA
-     INTEGER, INTENT(IN)                   :: len
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     TYPE(C_PTR)                           :: mp_baseptr
-     INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
-     INTEGER                               :: mp_info, mp_res
-     INTEGER                               :: single_size, length, ierr
+    INTEGER                                  :: ierr, length, mp_info, &
+                                                mp_res, single_size
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_REAL, single_size, ierr)
@@ -196,14 +204,15 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_c(DATA, len, stat)
-     COMPLEX(KIND=real_4), DIMENSION(:), POINTER :: DATA
-     INTEGER, INTENT(IN)                     :: len
-     INTEGER, INTENT(OUT), OPTIONAL          :: stat
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     TYPE(C_PTR)                             :: mp_baseptr
-     INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
-     INTEGER                                 :: mp_info, mp_res
-     INTEGER                                 :: single_size, length, ierr
+    INTEGER                                  :: ierr, length, mp_info, &
+                                                mp_res, single_size
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_COMPLEX, single_size, ierr)
