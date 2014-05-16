@@ -314,7 +314,6 @@
   END SUBROUTINE mem_dealloc_c_2d
 
 
-#if defined(__PTR_RANK_REMAP)
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        rank remapping.
@@ -328,52 +327,3 @@
 
     r2p(1:d1,1:d2) => r1p(1:d1*d2)
   END SUBROUTINE pointer_c_rank_remap2
-#elif !defined(__HAS_NO_ISO_C_BINDING)
-! *****************************************************************************
-!> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
-!>        ISO_C_BINDING.
-! *****************************************************************************
-  SUBROUTINE pointer_c_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, INTENT(IN)                      :: d1, d2
-    COMPLEX(kind=real_4), DIMENSION(:, :), &
-      POINTER                                :: r2p
-    COMPLEX(kind=real_4), DIMENSION(:), &
-      POINTER                                :: r1p
-    TYPE(C_PTR)                              :: fe_loc
-
-    IF (SIZE(r1p) .EQ. 0) THEN
-       fe_loc = C_NULL_PTR
-    ELSE
-       fe_loc = C_LOC (r1p(1))
-    ENDIF
-    CALL C_F_POINTER (fe_loc, r2p, (/ d1, d2 /))
-  END SUBROUTINE pointer_c_rank_remap2
-#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-! *****************************************************************************
-!> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
-! *****************************************************************************
-  SUBROUTINE pointer_c_rank_remap2 (r2p, d1, d2, r1p)
-    COMPLEX(kind=real_4), DIMENSION(:, :), &
-      POINTER                                :: r2p
-    INTEGER, INTENT(IN)                      :: d1, d2
-    COMPLEX(kind=real_4), DIMENSION(d1, *), &
-      TARGET                                 :: r1p
-
-    r2p => r1p(1:d1, 1:d2)
-  END SUBROUTINE pointer_c_rank_remap2
-#else
-! *****************************************************************************
-!> \brief Not supported
-! *****************************************************************************
-  SUBROUTINE pointer_c_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, INTENT(IN)                      :: d1, d2
-    COMPLEX(kind=real_4), DIMENSION(:, :), &
-      POINTER                                :: r2p
-    COMPLEX(kind=real_4), DIMENSION(d1*d2), &
-      TARGET                                 :: r1p
-
-!    r2p(1:d1,1:d2) => r1p(1:d1*d2)
-    STOP "Pointer rank remapping needed but not supported directly or with hacks."
-    NULLIFY (r2p)
-  END SUBROUTINE pointer_c_rank_remap2
-#endif

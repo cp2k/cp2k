@@ -14,24 +14,23 @@
 !> - 2010-06-18 Moved all pointer methods into here.
 ! *****************************************************************************
 MODULE dbcsr_ptr_util
-#if !defined (__HAS_NO_ISO_C_BINDING)
-  USE ISO_C_BINDING
-#endif
-
   USE acc_hostmem,                     ONLY: acc_hostmem_allocate,&
                                              acc_hostmem_deallocate
   USE dbcsr_error_handling
-  USE kinds,                     ONLY: real_4,int_4, int_8, real_8, dp
-  USE message_passing,           ONLY: mp_allocate,&
-                                             mp_deallocate
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                             dbcsr_memtype_type,&
                                              dbcsr_memtype_default,&
+                                             dbcsr_memtype_type,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE dbcsr_config,                    ONLY: default_resize_factor
+  USE kinds,                           ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8
+  USE message_passing,                 ONLY: mp_allocate,&
+                                             mp_deallocate
 
   !$ USE OMP_LIB
 
@@ -43,29 +42,15 @@ MODULE dbcsr_ptr_util
 
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-#if defined(__PTR_RANK_REMAP) || !defined(__HAS_NO_ISO_C_BINDING)
-  ! True pointer rank remapping or safe pointer rank remapping using
-  ! ISO_C_BINDING can be used.
   LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
-#elif defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-  ! Use buffers
-  LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .FALSE.
-  ERROR "CP2K must have some way of mapping rank-2 pointers onto rank-1 pointers."
-#else
-  ! Use crazy Fortran hacks.
-  ! This can be very unsafe!
-  LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
-#endif
-
 
   PUBLIC :: ensure_array_size
   PUBLIC :: memory_allocate, memory_deallocate
   PUBLIC :: memory_copy, memory_zero
-  PUBLIC :: pointer_replace, pointer_view
+  PUBLIC :: pointer_view
   PUBLIC :: pointer_rank_remap2, dbcsr_ptr_remapping,&
             pointer_s_rank_remap2, pointer_d_rank_remap2,&
             pointer_c_rank_remap2, pointer_z_rank_remap2
-
 
   INTERFACE ensure_array_size
      MODULE PROCEDURE ensure_array_size_i, ensure_array_size_l
@@ -73,16 +58,11 @@ MODULE dbcsr_ptr_util
                       ensure_array_size_c, ensure_array_size_z
   END INTERFACE
 
-  ! Ugly fortran hack
   INTERFACE pointer_view
      MODULE PROCEDURE pointer_view_s, pointer_view_d,&
                       pointer_view_c, pointer_view_z
      MODULE PROCEDURE pointer_view_i, pointer_view_l
      MODULE PROCEDURE pointer_view_a
-  END INTERFACE
-
-  INTERFACE pointer_replace
-     MODULE PROCEDURE pointer_replace_i
   END INTERFACE
 
   INTERFACE pointer_rank_remap2
@@ -111,22 +91,6 @@ MODULE dbcsr_ptr_util
   END INTERFACE
 
  CONTAINS
-
-! *****************************************************************************
-!> \brief Replaces an existing pointer with a new one, freeing memory as
-!>        required.
-!> \param[in,out] original_p  original pointer, to be replaced
-!> \param[in] new_p           replacement pointer
-! *****************************************************************************
-  SUBROUTINE pointer_replace_i (original_p, new_p)
-    INTEGER, DIMENSION(:), POINTER           :: original_p, new_p
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED (original_p)) DEALLOCATE (original_p)
-    original_p => new_p
-  END SUBROUTINE pointer_replace_i
-
 
 ! *****************************************************************************
 !> \brief Repoints a pointer into a part of a data area
