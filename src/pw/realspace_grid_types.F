@@ -16,7 +16,8 @@
 MODULE realspace_grid_types
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp, int_8
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathlib,                         ONLY: det_3x3
   USE message_passing,                 ONLY: &
        mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
