@@ -2,11 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#if defined(__HAS_NO_OMP_3)
-#define __COLLAPSE3
-#else
-#define __COLLAPSE3 collapse(3)
-#endif
 #define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
 #define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d
 #define XFFTW_PLAN_GURU_DFT dfftw_plan_guru_dft
@@ -688,7 +683,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
                                         xout, n2*n3, tmp1, n2*n3)        
       !$OMP BARRIER
 
-      !$OMP DO __COLLAPSE3 
+      !$OMP DO collapse(3) 
       DO i = 1,n1
         DO j = 1,n2
           DO k = 1,n3

@@ -57,13 +57,6 @@ MODULE fft_tools
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_tools'
 
-#if defined(__HAS_NO_OMP_3)
-#define __COLLAPSE2
-#else
-#define __COLLAPSE2 collapse(2)
-#endif
-
-
   ! Types for the pool of scratch data needed in FFT routines
   ! keep the subroutine "is_equal" up-to-date
   ! needs a default initialization
@@ -1496,7 +1489,7 @@ CONTAINS
     END IF
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
-!$omp parallel do default(none) __COLLAPSE2 &
+!$omp parallel do default(none) collapse(2) &
 !$omp             private(ixx,ir,iy,iz,ix) &
 !$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
     DO ip = 0, np - 1
@@ -1572,7 +1565,7 @@ CONTAINS
     END IF
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
-!$omp parallel do default(none) __COLLAPSE2 &
+!$omp parallel do default(none) collapse(2) &
 !$omp             private(ip, ixx, ir, iy, iz, ix) &
 !$omp             shared(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
     DO ip = 0, np - 1
@@ -2093,7 +2086,7 @@ CONTAINS
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
-!$omp parallel do default(none) __COLLAPSE2 &
+!$omp parallel do default(none) collapse(2) &
 !$omp             private(ip,ipl,nz,iz,is,ir) &
 !$omp             shared(nx,ny,np,pgrid,boin,sout,rbuf)
     DO ixy = 1, nx * ny
@@ -2159,7 +2152,7 @@ CONTAINS
 !$omp parallel default(none), &
 !$omp          private(ip,ipl,nz,iz,ir), &
 !$omp          shared(nx,ny,np,pgrid,boout,rbuf,cin,scount,sdispl,mz)
-!$omp do __COLLAPSE2
+!$omp do collapse(2)
     DO ixy = 1, nx * ny
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 2 )
@@ -2280,7 +2273,7 @@ CONTAINS
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
-!$omp parallel do default(none) __COLLAPSE2 &
+!$omp parallel do default(none) collapse(2) &
 !$omp             private(ip,ipl,ny,iy,is,ir) &
 !$omp             shared(nx,nz,np,pgrid,boin,rbuf,sout)
     DO ixz = 1, nx * nz
@@ -2359,7 +2352,7 @@ CONTAINS
     END IF
 !$omp barrier
 
-!$omp do __COLLAPSE2
+!$omp do collapse(2)
     DO izx = 1, nz * nx
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 1 )
@@ -2472,7 +2465,7 @@ CONTAINS
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, group )
 
-!$omp parallel do default(none) __COLLAPSE2 &
+!$omp parallel do default(none) collapse(2) &
 !$omp             private(ip,ny,iy,is,ir) &
 !$omp             shared(nx,nz,np,boin,sout,rbuf)
     DO ixz = 1, nx * nz
@@ -2543,7 +2536,7 @@ CONTAINS
     END IF
 !$omp barrier
 
-!$omp do __COLLAPSE2
+!$omp do collapse(2)
     DO izx = 1, nz * nx
        DO ip = 0, np - 1
           ny = boout ( 2, 2, ip ) - boout ( 1, 2, ip ) + 1

@@ -36,12 +36,6 @@ MODULE realspace_grid_types
   USE util,                            ONLY: get_limit
 #include "../common/cp_common_uses.f90"
 
-#if defined(__HAS_NO_OMP_3)
-#define __COLLAPSE3
-#else
-#define __COLLAPSE3 collapse(3)
-#endif
-
   IMPLICIT NONE
 
   PRIVATE
@@ -1899,7 +1893,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     l(1) = LBOUND( rs % r, 1 );l(2) = LBOUND( rs % r, 2 );l(3) = LBOUND( rs % r, 3 )
     u(1) = UBOUND( rs % r, 1 );u(2) = UBOUND( rs % r, 2 );u(3) = UBOUND( rs % r, 3 )
-!$omp parallel do default(none) __COLLAPSE3 &
+!$omp parallel do default(none) collapse(3) &
 !$omp             private(i,j,k) &
 !$omp             shared(rs,l,u)
     DO k = l(3),u(3)
@@ -1936,7 +1930,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
    IF(scalar.NE.0.0_dp) THEN
       l(1) = LBOUND( rs1 % r, 1 );l(2) = LBOUND( rs1 % r, 2 );l(3) = LBOUND( rs1 % r, 3 )
       u(1) = UBOUND( rs1 % r, 1 );u(2) = UBOUND( rs1 % r, 2 );u(3) = UBOUND( rs1 % r, 3 )
-!$omp parallel do default(none) __COLLAPSE3 &
+!$omp parallel do default(none) collapse(3) &
 !$omp             private(i,j,k) &
 !$omp             shared(rs1,rs2,rs3,scalar,l,u)
       DO k = l(3),u(3)
