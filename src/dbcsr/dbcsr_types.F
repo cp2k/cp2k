@@ -24,7 +24,6 @@ MODULE dbcsr_types
   USE kinds,                           ONLY: &
        default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
        real_4, real_4_size, real_8, real_8_size
-  USE message_passing,                 ONLY: mp_window_type
 
   !$ USE OMP_LIB
 
@@ -671,7 +670,6 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_array_type
      TYPE(dbcsr_obj), DIMENSION(:), POINTER :: mats
-     TYPE(mp_window_type), DIMENSION(:), POINTER :: data_windows, index_windows
      TYPE(dbcsr_imagedistribution_type) :: image_dist
   END TYPE dbcsr_array_type
 

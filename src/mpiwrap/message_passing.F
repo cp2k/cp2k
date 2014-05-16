@@ -110,13 +110,6 @@ MODULE message_passing
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
 
-  ! RMA
-  PUBLIC :: mp_window_type
-  PUBLIC :: mp_window_create, mp_window_destroy
-  PUBLIC :: mp_window_lock, mp_window_unlock
-  PUBLIC :: mp_window_fence
-  PUBLIC :: mp_rma_get, mp_rma_put
-
   ! Memory management
   PUBLIC :: mp_allocate, mp_deallocate
 
@@ -365,33 +358,6 @@ MODULE message_passing
      MODULE PROCEDURE mp_irecv_custom
   END INTERFACE
 
-  INTERFACE mp_window_create
-     MODULE PROCEDURE mp_win_create_i,&
-                      mp_win_create_l,&
-                      mp_win_create_r,&
-                      mp_win_create_d,&
-                      mp_win_create_c,&
-                      mp_win_create_z
-  END INTERFACE
-
-  INTERFACE mp_rma_get
-     MODULE PROCEDURE mp_rma_get_i,&
-                      mp_rma_get_l,&
-                      mp_rma_get_r,&
-                      mp_rma_get_d,&
-                      mp_rma_get_c,&
-                      mp_rma_get_z
-  END INTERFACE
-
-  INTERFACE mp_rma_put
-     MODULE PROCEDURE mp_rma_put_i,&
-                      mp_rma_put_l,&
-                      mp_rma_put_r,&
-                      mp_rma_put_d,&
-                      mp_rma_put_c,&
-                      mp_rma_put_z
-  END INTERFACE
-
   INTERFACE mp_allocate
      MODULE PROCEDURE mp_allocate_i,&
                       mp_allocate_l,&
@@ -459,25 +425,6 @@ MODULE message_passing
 
 
 ! Type declarations
-! *****************************************************************************
-!> \brief Windows used for MPI RMA operations
-!> \var id          MPI window identifier
-!> \var info        MPI window info
-! *****************************************************************************
-  TYPE mp_window_type
-#if defined(__parallel)
-     INTEGER        :: id
-#else
-     INTEGER(KIND=int_4), DIMENSION(:), POINTER       :: src_i
-     INTEGER(KIND=int_8), DIMENSION(:), POINTER       :: src_l
-     REAL(KIND=real_4), DIMENSION(:), POINTER         :: src_r
-     REAL(KIND=real_8), DIMENSION(:), POINTER         :: src_d
-     COMPLEX(KIND=real_4), DIMENSION(:), POINTER      :: src_c
-     COMPLEX(KIND=real_8), DIMENSION(:), POINTER      :: src_z
-#endif
-  END TYPE mp_window_type
-
-
   TYPE mp_indexing_meta_type
      INTEGER, DIMENSION(:), POINTER :: index, chunks
   END TYPE mp_indexing_meta_type
@@ -1767,170 +1714,6 @@ CONTAINS
     host_name = "localhost"
 #endif
   END SUBROUTINE mp_proc_name
-
-! *****************************************************************************
-!> \brief Destroys an MPI RMA window.
-!> \author UB
-!> \param[in] window       window to free and destroy
-! *****************************************************************************
-  SUBROUTINE mp_window_destroy(window)
-    TYPE(mp_window_type), INTENT(INOUT)      :: window
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_destroy', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
-    ierr = 0
-#if defined(__parallel)
-    t_start = m_walltime()
-    CALL MPI_WIN_FREE(window, ierr)
-    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ mp_window_destroy")
-    t_end = m_walltime()
-    CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
-#else
-    NULLIFY(window%src_d, window%src_i)
-#endif
-    IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
-  END SUBROUTINE mp_window_destroy
-
-
-! *****************************************************************************
-!> \brief Initiates an RMA access
-!> \author UB
-!> \param window       RMA access window
-!> \param[in] remote   process to which access is initiated (target)
-!> \param[in] shared   (optional) access is shared (default is exclusive)
-!> \param[in] nocheck  (optional) don't check for others' locks (default is
-!>                     to be careful and check)
-! *****************************************************************************
-  SUBROUTINE mp_window_lock(window, remote, shared, nocheck)
-    TYPE(mp_window_type), INTENT(INOUT)      :: window
-    INTEGER, INTENT(IN)                      :: remote
-    LOGICAL, INTENT(IN), OPTIONAL            :: shared, nocheck
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_lock', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr
-#if defined(__parallel)
-    INTEGER                                  :: assertion, exclusivity
-#endif
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
-    ierr = 0
-#if defined(__parallel)
-    t_start = m_walltime()
-    exclusivity = MPI_LOCK_EXCLUSIVE
-    IF (PRESENT (shared)) THEN
-       IF (shared) exclusivity = MPI_LOCK_SHARED
-    ENDIF
-    assertion = 0
-    IF (PRESENT (nocheck)) THEN
-       IF (nocheck) assertion = MPI_MODE_NOCHECK
-    ENDIF
-    CALL MPI_WIN_LOCK (exclusivity, remote, assertion, window%id, ierr)
-    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_lock @ mp_window_lock")
-    t_end = m_walltime()
-    CALL add_perf(perf_id=19, count=1, time=t_end-t_start)
-#endif
-    IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
-  END SUBROUTINE mp_window_lock
-
-! *****************************************************************************
-!> \brief Terminates an RMA access
-!> \author UB
-!> \param[in] window   RMA access window
-!> \param[in] remote   process to which access is initiated (target)
-! *****************************************************************************
-  SUBROUTINE mp_window_unlock(window, remote)
-    TYPE(mp_window_type), INTENT(INOUT)      :: window
-    INTEGER, INTENT(IN)                      :: remote
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_unlock', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
-    ierr = 0
-#if defined(__parallel)
-    t_start = m_walltime()
-    CALL MPI_WIN_UNLOCK (remote, window%id, ierr)
-    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock @ mp_window_unlock")
-    t_end = m_walltime()
-    CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
-#endif
-    IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
-  END SUBROUTINE mp_window_unlock
-
-
-! *****************************************************************************
-!> \brief Creates an RMA window epoch
-!> \author UB
-!> \param[in] window       RMA access window
-!> \param[in] nothing_stored  (optional) asserts that there were no local
-!>                            window updates since last sync (default is
-!>                            .FALSE.)
-!> \param[in] no_put_follows  (optional) asserts that nobody will put or
-!>                            accumulate data in local data of window until
-!>                            next fence (default is .FALSE.)
-!> \param[in] no_pre_access   (optional) asserts that no RMA access calls
-!>                            were made. All procesess must specify the same
-!>                            flag (default is .FALSE.)
-!> \param[in] no_post_access  (optional) asserts that no RMA access will be
-!>                            issued. All processess must specify the same
-!>                            flag (default is .FALSE.)
-! *****************************************************************************
-  SUBROUTINE mp_window_fence(window, nothing_stored, no_put_follows,&
-       no_pre_access, no_post_access)
-    TYPE(mp_window_type), INTENT(INOUT)      :: window
-    LOGICAL, INTENT(IN), OPTIONAL            :: nothing_stored, &
-                                                no_put_follows, &
-                                                no_pre_access, no_post_access
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_fence', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: assertion, handle, ierr
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
-    ierr = 0
-    assertion = 0
-#if defined(__parallel)
-    t_start = m_walltime()
-    IF (PRESENT (nothing_stored)) THEN
-       IF (nothing_stored) assertion = assertion + MPI_MODE_NOSTORE
-    ENDIF
-    IF (PRESENT (no_put_follows)) THEN
-       IF (no_put_follows) assertion = assertion + MPI_MODE_NOPUT
-    ENDIF
-    IF (PRESENT (no_pre_access)) THEN
-       IF (no_pre_access) assertion = assertion + MPI_MODE_NOPRECEDE
-    ENDIF
-    IF (PRESENT (no_post_access)) THEN
-       IF (no_post_access) assertion = assertion + MPI_MODE_NOSUCCEED
-    ENDIF
-    CALL MPI_WIN_FENCE (assertion, window%id, ierr)
-    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_fence @ mp_window_fence")
-    t_end = m_walltime()
-    CALL add_perf(perf_id=18, count=1, time=t_end-t_start)
-#endif
-    IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
-  END SUBROUTINE mp_window_fence
 
 ! *****************************************************************************
 !> \brief probes for an incomming message with any tag
