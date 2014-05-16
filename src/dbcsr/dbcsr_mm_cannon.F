@@ -1908,8 +1908,7 @@ MODULE dbcsr_mm_cannon
     ENDIF
     otf_filtering = PRESENT (filter_eps)
 
-!$omp parallel 
-!$omp default (none) &
+!$omp parallel default (none) &
 !$omp shared (nthreads, product_matrix, error)
 !$omp master
     nthreads = 1
@@ -2722,8 +2721,7 @@ MODULE dbcsr_mm_cannon
              threads_finished = 0
 
 
-!$omp parallel 
-!$omp default (none) &
+!$omp parallel default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &
 !$omp         product_matrix, &
