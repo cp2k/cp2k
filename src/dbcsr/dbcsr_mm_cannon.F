@@ -40,8 +40,6 @@ MODULE dbcsr_mm_cannon
                                              mm_async,&
                                              mm_driver,&
                                              mm_driver_acc,&
-                                             mm_driver_blas,&
-                                             mm_driver_plasma,&
                                              use_combined_types,&
                                              use_comm_thread
   USE dbcsr_data_methods,              ONLY: &
@@ -117,8 +115,6 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_crop_matrix,&
                                              dbcsr_filter,&
                                              dbcsr_scale
-  USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
-                                             dbcsr_plasma_init
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: uppercase
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
@@ -349,8 +345,7 @@ MODULE dbcsr_mm_cannon
       ithread, l_col, l_k, l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
-      new_right, plasma_is_set, product_reindex, release_tdist, &
-      use_dense_mult, use_plasma
+      new_right, product_reindex, release_tdist, use_dense_mult
     REAL(KIND=dp)                            :: cs
     TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, &
       k_vmap, m_map, n_map, old_product_col_blk_offsets, &
@@ -743,16 +738,6 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_distribution_release (dense_product_distribution)
     ENDIF
     !
-    ! if we need a special core gemm, we set it here
-    !
-    ! initialize plasma
-    IF (mm_driver .EQ. mm_driver_plasma) THEN
-       CALL dbcsr_plasma_init(plasma_is_set, error)
-       use_plasma = plasma_is_set.AND.use_dense_mult
-    ELSE
-       use_plasma = .FALSE.
-    ENDIF
-    !
     IF (.TRUE. .OR. use_local_indexing) THEN
        ! This is needed to build the hash tables because they are
        ! locally indexed.
@@ -772,7 +757,7 @@ MODULE dbcsr_mm_cannon
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Product matrix should be finalized!", __LINE__, error=error)
        CALL dbcsr_make_untransposed_blocks (product_matrix, error=error)
-!$omp parallel if( .NOT. use_plasma ) &
+!$omp parallel &
 !$omp default (none) shared (product_matrix, error)
        ! For the multiply logic to work correctly, existing data must
        ! be added only after the index has been transformed into the
@@ -780,7 +765,7 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
 !$omp end parallel
     ELSE
-       !$omp parallel if (.NOT. use_plasma)
+       !$omp parallel 
        CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., &
                memory_type=memtype_product_wm, error=error)
        !$omp end parallel
@@ -1032,10 +1017,6 @@ MODULE dbcsr_mm_cannon
        ENDIF
     ENDIF
     !
-    IF (mm_driver .EQ. mm_driver_plasma) THEN
-       ! finalize special core gemm
-       CALL dbcsr_plasma_finalize(error)
-    ENDIF
     IF (.FALSE.) WRITE(*,*)"Finished with one multiplication."
     output_unit = default_output_unit
     CALL dbcsr_error_stop(error_handler, error)
@@ -1881,7 +1862,7 @@ MODULE dbcsr_mm_cannon
       right_data_sr, right_index_rr, right_index_sr, right_pgrid
     INTEGER, SAVE                            :: mult_id = 0
     LOGICAL                                  :: keep_sparsity, list_indexing, &
-                                                my_use_plasma, otf_filtering
+                                                otf_filtering
     REAL(KIND=dp)                            :: checksum
 
 !$  REAL(KIND=real_8)                        :: left_fill, right_fill
@@ -1920,7 +1901,6 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (left_buffer_2, right_buffer_2)
     mult_id=mult_id+1
 
-    my_use_plasma = mm_driver_blas .EQ. mm_driver_plasma
     IF (PRESENT (retain_sparsity)) THEN
        keep_sparsity = retain_sparsity
     ELSE
@@ -1928,7 +1908,7 @@ MODULE dbcsr_mm_cannon
     ENDIF
     otf_filtering = PRESENT (filter_eps)
 
-!$omp parallel if( .NOT. my_use_plasma ) &
+!$omp parallel 
 !$omp default (none) &
 !$omp shared (nthreads, product_matrix, error)
 !$omp master
@@ -2742,7 +2722,7 @@ MODULE dbcsr_mm_cannon
              threads_finished = 0
 
 
-!$omp parallel if( .NOT. my_use_plasma ) &
+!$omp parallel 
 !$omp default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &
@@ -3321,21 +3301,6 @@ MODULE dbcsr_mm_cannon
        blas_mat_type = 'N'
     ENDIF
   END FUNCTION blas_mat_type
-
-#ifdef __PLASMA
-  ELEMENTAL FUNCTION plasma_mat_type (t)
-    LOGICAL, INTENT(IN)                      :: t
-    INTEGER                                  :: plasma_mat_type
-
-    INCLUDE 'plasmaf.h'
-
-    IF (t) THEN
-       plasma_mat_type = PlasmaTrans
-    ELSE
-       plasma_mat_type = PlasmaNoTrans
-    ENDIF
-  END FUNCTION plasma_mat_type
-#endif
 
   ELEMENTAL FUNCTION flip_type (t)
     CHARACTER, INTENT(IN)                    :: t

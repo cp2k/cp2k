@@ -53,7 +53,6 @@ MODULE dbcsr_config
   PUBLIC :: has_MPI
   PUBLIC :: has_blas,&
             has_smm_gemm,&
-            has_plasma,&
             has_acc
   PUBLIC :: has_omp_2_5
   PUBLIC :: use_subcommunicators
@@ -64,13 +63,11 @@ MODULE dbcsr_config
             mm_driver_blas,&
             mm_driver_matmul,&
             mm_driver_smm,&
-            mm_driver_plasma,&
             mm_driver_acc
   PUBLIC :: mm_async
   PUBLIC :: mm_name_blas,&
             mm_name_matmul,&
             mm_name_smm,&
-            mm_name_plasma,&
             mm_name_acc
   PUBLIC :: nm_stacks, nn_stacks, nk_stacks
   PUBLIC :: use_comm_thread, comm_thread_load
@@ -94,13 +91,11 @@ MODULE dbcsr_config
   INTEGER, PARAMETER :: mm_driver_matmul     = 1
   INTEGER, PARAMETER :: mm_driver_blas       = 2
   INTEGER, PARAMETER :: mm_driver_smm        = 3
-  INTEGER, PARAMETER :: mm_driver_plasma     = 4
   INTEGER, PARAMETER :: mm_driver_acc       = 5
 
   CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
                                  mm_name_matmul = "MATMUL",&
                                  mm_name_smm    = "SMM",&
-                                 mm_name_plasma = "PLASMA",&
                                  mm_name_acc   = "ACC"
 
   ! Then the capabilities are specified.
@@ -117,12 +112,6 @@ MODULE dbcsr_config
   LOGICAL, PARAMETER :: has_smm_vec = .TRUE.
 #else
   LOGICAL, PARAMETER :: has_smm_vec = .FALSE.
-#endif
-
-#if defined(__PLASMA)
-  LOGICAL, PARAMETER :: has_plasma = .TRUE.
-#else
-  LOGICAL, PARAMETER :: has_plasma = .FALSE.
 #endif
 
 #if defined (__DBCSR_ACC)
@@ -233,11 +222,6 @@ CONTAINS
        mm_driver = mm_driver_blas
     CASE (mm_driver_smm)
        mm_driver = mm_driver_smm
-    CASE (mm_driver_plasma)
-       CALL dbcsr_assert (has_plasma,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Support for PLASMA not compiled in.", __LINE__, error=error)
-       mm_driver = mm_driver_plasma
     CASE (mm_driver_acc)
        CALL dbcsr_assert (has_acc,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&

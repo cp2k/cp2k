@@ -45,9 +45,8 @@ MODULE dbcsr_api
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
        dbcsr_set_conf_use_comm_thread, has_acc, has_mpi, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
-       mm_name_smm, multrec_limit
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data, dbcsr_get_data_p, dbcsr_scalar, &
@@ -332,12 +331,10 @@ MODULE dbcsr_api
            mm_driver_blas ,&
            mm_driver_acc ,&
            mm_driver_matmul ,&
-           mm_driver_plasma ,&
            mm_driver_smm ,&
            mm_name_blas ,&
            mm_name_acc ,&
            mm_name_matmul ,&
-           mm_name_plasma ,&
            mm_name_smm ,&
            multrec_limit ,&
            swap

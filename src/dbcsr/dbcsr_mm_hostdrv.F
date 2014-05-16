@@ -17,7 +17,6 @@ MODULE dbcsr_mm_hostdrv
                                              mm_driver_acc,&
                                              mm_driver_blas,&
                                              mm_driver_matmul,&
-                                             mm_driver_plasma,&
                                              mm_driver_smm,&
                                              mm_host_driver
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
@@ -248,32 +247,6 @@ CONTAINS
                error=error)
        CASE (dbcsr_type_complex_8)
           CALL smm_process_mm_stack_z (stack_descr, params,&
-               stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp,&
-               error=error)
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
-    CASE (mm_driver_plasma)
-       SELECT CASE (this%data_area%d%data_type)
-       CASE (dbcsr_type_real_4)
-          CALL plasma_process_mm_stack_s (params,&
-               stack_size,&
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp,&
-               error=error)
-       CASE (dbcsr_type_real_8)
-          CALL plasma_process_mm_stack_d (params,&
-               stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp,&
-               error=error)
-       CASE (dbcsr_type_complex_4)
-          CALL plasma_process_mm_stack_c (params,&
-               stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp,&
-               error=error)
-       CASE (dbcsr_type_complex_8)
-          CALL plasma_process_mm_stack_z (params,&
                stack_size,&
                left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp,&
                error=error)

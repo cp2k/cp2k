@@ -271,7 +271,6 @@ How to compile CP2K code
      -D__cray_pointers      - cray pointers will be be used in preference
                               to the ISO_C_BINDINGS call to
                               MPI_ALLOC_MEM.
-     -D__PLASMA             - plasma support for DBCSR (neglected, may not work)
      -D__USE_PAT            - craypat profiling (?)
      -D__HMD                - ?
      -D__HPM                - ?

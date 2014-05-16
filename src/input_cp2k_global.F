@@ -23,9 +23,8 @@ MODULE input_cp2k_global
        dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
-       mm_name_smm, multrec_limit
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -684,14 +683,13 @@ CONTAINS
          usage="mm_driver blas",&
          default_i_val=dbcsr_get_conf_mm_driver(),&
          enum_c_vals=s2a(mm_name_blas,mm_name_matmul,mm_name_smm,&
-                         mm_name_plasma,mm_name_acc),&
+                         mm_name_acc),&
          enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,&
-                       mm_driver_plasma,mm_driver_acc/),&
+                       mm_driver_acc/),&
          enum_desc=s2a("BLAS (requires the BLAS library at link time)",&
                        "Fortran MATMUL",&
                        "Library optimised for Small Matrix Multiplies "//&
                        "(requires the SMM library at link time)",&
-                       "PLASMA (requires the PLASMA library at link time)",&
                        "ACC (requires an accelerator backend)"),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)

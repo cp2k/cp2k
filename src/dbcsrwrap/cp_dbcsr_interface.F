@@ -80,9 +80,8 @@ MODULE cp_dbcsr_interface
        dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
        dbcsr_work_create, has_acc, has_mpi, heap_fill, heap_get_first, &
        heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
-       mm_name_smm, multrec_limit, swap
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -210,8 +209,8 @@ MODULE cp_dbcsr_interface
        dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_subcomm, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_plasma, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+       mm_name_acc, mm_name_blas, mm_name_matmul, &
        mm_name_smm, multrec_limit
   PUBLIC :: heap_fill,&
                                              heap_get_first,&
