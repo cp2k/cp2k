@@ -23,8 +23,7 @@ MODULE dbcsr_data_methods_low
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
-                                             memory_allocate,&
+  USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate,&
                                              memory_zero,&
                                              pointer_c_rank_remap2,&
@@ -618,10 +617,6 @@ MODULE dbcsr_data_methods_low
     ENDIF
     ! There's a remap if the ranks are compatible but not equal.
     rmp = dt1 .NE. dt2
-    IF (.NOT. dbcsr_ptr_remapping) &
-         CALL dbcsr_assert (.NOT. rmp, dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Compiler does not support pointer rank remapping.",&
-         __LINE__, error=error)
     SELECT CASE (dt2)
     CASE (dbcsr_type_real_4_2d)
        area%d%r2_sp => pointee%d%r2_sp(1:rsize,1:csize)

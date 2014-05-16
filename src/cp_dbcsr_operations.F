@@ -30,7 +30,7 @@ MODULE cp_dbcsr_operations
        cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_put_block, &
        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
        cp_dbcsr_type, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, &
-       cp_dbcsr_work_create, create_bl_distribution, dbcsr_access_flush, &
+       cp_dbcsr_work_create, create_bl_distribution, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
@@ -1747,7 +1747,6 @@ END FUNCTION cp_dbcsr_get_id_nr
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
-    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
 
     my_beta=0._dp
@@ -2124,7 +2123,6 @@ END FUNCTION cp_dbcsr_get_id_nr
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
-    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
 
     group = fm%matrix_struct%para_env%group
@@ -2276,7 +2274,6 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL timeset(routineN,handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
-    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -2421,7 +2418,6 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL timeset(routineN,handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
-    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group

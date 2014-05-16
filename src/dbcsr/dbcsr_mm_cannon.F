@@ -30,7 +30,6 @@ MODULE dbcsr_mm_cannon
                                              array_i1d_obj,&
                                              array_release
   USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
-  USE dbcsr_block_access,              ONLY: dbcsr_access_flush
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                              dbcsr_block_copy,&
                                              dbcsr_block_real_neg,&
@@ -428,11 +427,7 @@ MODULE dbcsr_mm_cannon
           CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
        ENDIF
     ENDIF
-    !
-    CALL dbcsr_access_flush (matrix_a, error=error)
-    CALL dbcsr_access_flush (matrix_b, error=error)
-    CALL dbcsr_access_flush (matrix_c, error=error)
-    !
+
     ! transpose/conjg left and/or right matrices if needed
     SELECT CASE(transa_l)
     CASE(dbcsr_no_transpose)
@@ -919,15 +914,6 @@ MODULE dbcsr_mm_cannon
     f_col = 0 ; l_col = 0
     f_k = 0 ; l_k = 0
     !
-    ! Flush
-    DO i = 1, SIZE (m2s_right%mats,1)
-       CALL dbcsr_access_flush (m2s_right%mats(i,1), error=error)
-    ENDDO
-    DO i = 1, SIZE (m2s_left%mats,2)
-       CALL dbcsr_access_flush (m2s_left%mats(1,i), error=error)
-    ENDDO
-    CALL dbcsr_access_flush (product_matrix, error=error)
-    !
     my_flop = 0
     CALL cannon_multiply_low(m2s_left, m2s_right, product_matrix,&
          retain_sparsity=retain_sparsity,&
@@ -1060,7 +1046,6 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_assert (dbcsr_valid_index (source),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Matrix not initialized.",__LINE__,error)
-    CALL dbcsr_access_flush (source, error=error)
     CALL make_images(source, normalized,&
          target_image_dist, desymmetrize=dbcsr_has_symmetry(source),&
          predistribute=predistribute,&

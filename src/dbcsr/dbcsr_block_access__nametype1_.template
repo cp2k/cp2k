@@ -55,8 +55,6 @@
     IF (PRESENT (col_size)) col_size = csize
 
     IF(found) THEN
-       IF (dbcsr_buffers_2d_needed) &
-            CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
        nze = rsize*csize
        IF (nze .GT. 0) THEN
           !
@@ -159,8 +157,6 @@
 
     NULLIFY (block)
     IF(found) THEN
-       IF (dbcsr_buffers_2d_needed) &
-            CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
        nze = rsize*csize
        IF(nze.eq.0) then
           found = .true.
@@ -250,10 +246,6 @@
     IF (PRESENT (col_size)) col_size = csize
 
     IF(found) THEN
-       IF (dbcsr_buffers_2d_needed) THEN
-          buffers = matrix%m%buffers
-          CALL dbcsr_buffers_flush (buffers, error=error)
-       ENDIF
        nze = rsize*csize
        IF (nze .GT. 0) THEN
           !
@@ -351,10 +343,6 @@
 
     NULLIFY (block)
     IF(found) THEN
-       IF (dbcsr_buffers_2d_needed) THEN
-          buffers = matrix%m%buffers
-          CALL dbcsr_buffers_flush (buffers, error=error)
-       ENDIF
        nze = rsize*csize
        !
        block => pointer_view (&
@@ -633,11 +621,6 @@
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
     IF(found) THEN
-       ! This buffer flush is to prevent having a stale buffer overwrite
-       ! newer data.
-       IF (dbcsr_buffers_2d_needed) &
-            CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-       !
        ! let's copy the block
        offset = ABS (offset)
        ! Fix the index if the new block's transpose flag is different
@@ -792,34 +775,10 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler, error)
-    IF (dbcsr_buffers_2d_needed) THEN
-       IF (PRESENT (contiguous_pointers)) THEN
-          cont_p = contiguous_pointers
-       ELSE
-          cont_p = .TRUE.
-       ENDIF
-       buffers = matrix%m%buffers
-       CALL dbcsr_buffers_flush (buffers, error=error)
-       IF (buffer_tr) THEN
-          CALL dbcsr_buffers_resize (buffers, row_size=csize, col_size=rsize,&
-               minimum=.NOT.cont_p, error=error)
-       ELSE
-          CALL dbcsr_buffers_resize (buffers, row_size=rsize, col_size=csize,&
-               minimum=.NOT.cont_p, error=error)
-       ENDIF
-       CALL dbcsr_buffers_set_pointer_2d (pointer_any, row, col,&
-            rsize, csize, main_tr, base_offset, buffers, buffer_tr, error=error)
-       IF (PRESENT (read_only)) THEN
-          IF (read_only) THEN
-             CALL dbcsr_buffers_mark_dirty (buffers, dirty=.FALSE., error=error)
-          ENDIF
-       ENDIF
-    ELSE
-       CALL dbcsr_get_data (matrix%m%data_area, lin_blk_p,&
-            lb=base_offset, ub=base_offset+rsize*csize-1)
-       CALL pointer_[nametype1]_rank_remap2 (pointer_any, rsize, csize,&
-            lin_blk_p)
-    ENDIF
+    CALL dbcsr_get_data (matrix%m%data_area, lin_blk_p,&
+         lb=base_offset, ub=base_offset+rsize*csize-1)
+    CALL pointer_[nametype1]_rank_remap2 (pointer_any, rsize, csize,&
+         lin_blk_p)
     IF (careful_mod) CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_2d_[nametype1]
 

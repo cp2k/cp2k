@@ -25,11 +25,6 @@ MODULE dbcsr_work_operations
   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d
   USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d
-  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
-                                             dbcsr_buffers_flush,&
-                                             dbcsr_buffers_init,&
-                                             dbcsr_buffers_new,&
-                                             dbcsr_buffers_release
   USE dbcsr_block_operations,          ONLY: block_copy_c,&
                                              block_copy_d,&
                                              block_copy_s,&
@@ -197,9 +192,6 @@ CONTAINS
     IF (.NOT.hijack) THEN
        CALL dbcsr_init (matrix%m)
        matrix%m%refcount = 1
-    ELSEIF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-       CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
     ENDIF
     !$OMP CRITICAL
     matrix%m%serial_number = dbcsr_matrix_counter
@@ -397,11 +389,6 @@ CONTAINS
     matrix%m%has_global_rows = .FALSE.
     matrix%m%has_local_cols  = .FALSE.
     matrix%m%has_global_cols = .FALSE.
-    CALL dbcsr_buffers_init (matrix%m%buffers)
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
-            error=error)
-    ENDIF
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
     CALL dbcsr_make_index_exist (matrix%m, error=error)
     matrix%m%valid = .TRUE.
@@ -711,9 +698,6 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-    ENDIF
 
     ! If the matrix is not marked as dirty then skip the work.
     IF (dbcsr_valid_index(matrix)) THEN
@@ -898,10 +882,6 @@ CONTAINS
        DEALLOCATE (empty_row_p)
     ENDIF
 !$OMP END MASTER
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
-            error=error)
-    ENDIF
 !$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
@@ -940,9 +920,6 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Optimized finalize requires single work matrix",__LINE__,error)
 
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-    ENDIF
     !
     ! If possible, data copying is avoided.
     IF (PRESENT (reshuffle)) THEN
@@ -997,10 +974,6 @@ CONTAINS
        !$OMP SINGLE
        CALL dbcsr_verify_matrix (matrix, error=error)
        !$OMP END SINGLE
-    ENDIF
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
-            error=error)
     ENDIF
     !$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)

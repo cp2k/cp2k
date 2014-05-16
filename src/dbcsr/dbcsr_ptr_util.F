@@ -42,13 +42,11 @@ MODULE dbcsr_ptr_util
 
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
-
   PUBLIC :: ensure_array_size
   PUBLIC :: memory_allocate, memory_deallocate
   PUBLIC :: memory_copy, memory_zero
   PUBLIC :: pointer_view
-  PUBLIC :: pointer_rank_remap2, dbcsr_ptr_remapping,&
+  PUBLIC :: pointer_rank_remap2, &
             pointer_s_rank_remap2, pointer_d_rank_remap2,&
             pointer_c_rank_remap2, pointer_z_rank_remap2
 

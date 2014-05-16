@@ -29,11 +29,6 @@ MODULE dbcsr_methods
                                              btree_new_s => btree_new
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
-  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
-                                             dbcsr_buffers_flush,&
-                                             dbcsr_buffers_init,&
-                                             dbcsr_buffers_new,&
-                                             dbcsr_buffers_release
   USE dbcsr_config,                    ONLY: comm_thread_load,&
                                              use_subcommunicators
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
@@ -51,14 +46,13 @@ MODULE dbcsr_methods
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
-       dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
-       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_memtype_type, dbcsr_mp_obj, &
-       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
-       dbcsr_work_type
+       dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
+       dbcsr_imagedistribution_obj, dbcsr_imagedistribution_type, &
+       dbcsr_memtype_type, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
+       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
+       dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
   USE kinds,                           ONLY: default_string_length,&
                                              int_8,&
                                              real_8,&
@@ -483,10 +477,6 @@ CONTAINS
        IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
           CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%wms), dbcsr_warning_level,&
                dbcsr_caller_error, routineN, "Destroying unfinalized matrix",__LINE__,error)
-          IF (dbcsr_buffers_2d_needed) THEN
-             CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-             CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
-          ENDIF
           CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type,&
                error=error)
           CALL dbcsr_data_release (matrix%m%data_area)
@@ -1782,19 +1772,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
-    IF (dbcsr_buffers_2d_needed) THEN
-       buffers = matrix%m%buffers
-       CALL dbcsr_buffers_flush (buffers, error=error)
-       CALL dbcsr_buffers_release (buffers, error=error)
-       CALL dbcsr_buffers_init (buffers)
-       CALL dbcsr_buffers_new (buffers, data_area, error=error)
-       matrix%m%buffers = buffers
-    ENDIF
     IF (PRESENT (previous_data_area)) THEN
        previous_data_area = matrix%m%data_area
     ELSE

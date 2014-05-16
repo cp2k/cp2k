@@ -18,8 +18,7 @@ MODULE dbcsr_operations_low
                                              array_get
   USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy,&
                                              dbcsr_blas_gemm
-  USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
-                                             dbcsr_get_block_p,&
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
                                              dbcsr_reserve_blocks
@@ -1075,7 +1074,6 @@ CONTAINS
     CALL dbcsr_assert (operation, "EQ", "+", dbcsr_fatal_level,&
          dbcsr_unimplemented_error_nr, routineN,&
          "Reduction operation not yet implemented.", __LINE__, error=error)
-    CALL dbcsr_access_flush (matrix, error=error)
     IF (reduce_rows .AND. reduce_columns) THEN
        red_type = dbcsr_repl_full
     ELSEIF (reduce_rows .AND. .NOT. reduce_columns) THEN
@@ -1930,7 +1928,6 @@ CONTAINS
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
-    CALL dbcsr_access_flush (matrix_a, error=error)
     CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Target matrix must be initialized",__LINE__,error)
@@ -2417,7 +2414,6 @@ CONTAINS
     ELSE
        shallow = .FALSE.
     ENDIF
-    CALL dbcsr_access_flush (matrix_a, error=error)
     ! Verify assumptions.
     IF (PRESENT (block_row_bounds)) THEN
        CALL dbcsr_assert (SIZE(block_row_bounds), "EQ", 2, dbcsr_fatal_level,&
@@ -2550,7 +2546,6 @@ CONTAINS
     ELSE
        shallow = .FALSE.
     ENDIF
-    CALL dbcsr_access_flush (matrix_a, error=error)
     block_row_bounds = 0
     block_col_bounds = 0
     part_col = .FALSE.
@@ -3496,7 +3491,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_access_flush (matrix, error=error)
     mp = dbcsr_distribution_mp (dbcsr_distribution (matrix))
     comm = dbcsr_mp_group (mp)
     numnodes = dbcsr_mp_numnodes (mp)

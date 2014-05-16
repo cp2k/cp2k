@@ -27,11 +27,6 @@ MODULE dbcsr_block_access
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
                                              btree_add_z => btree_add,&
                                              btree_get_z => btree_find
-  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
-                                             dbcsr_buffers_flush,&
-                                             dbcsr_buffers_mark_dirty,&
-                                             dbcsr_buffers_resize,&
-                                             dbcsr_buffers_set_pointer_2d
   USE dbcsr_block_operations,          ONLY: dbcsr_block_copy,&
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
@@ -39,11 +34,9 @@ MODULE dbcsr_block_access
   USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_ensure_size,&
-                                             dbcsr_data_get_type,&
                                              dbcsr_data_set_pointer,&
                                              dbcsr_get_data,&
-                                             dbcsr_get_data_p,&
-                                             dbcsr_type_is_2d
+                                             dbcsr_get_data_p
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
@@ -86,8 +79,6 @@ MODULE dbcsr_block_access
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_access'
-
-  PUBLIC :: dbcsr_access_start, dbcsr_access_stop, dbcsr_access_flush
 
   PUBLIC :: dbcsr_get_block, dbcsr_get_block_p,&
             dbcsr_put_block, dbcsr_remove_block
@@ -172,71 +163,6 @@ MODULE dbcsr_block_access
 
 CONTAINS
 
-  SUBROUTINE dbcsr_access_start (matrix, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_access_start', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
-
-!   ---------------------------------------------------------------------------
-
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_error_set (routineN, error_handle, error)
-       buffers = matrix%m%buffers
-       CALL dbcsr_buffers_flush (buffers, error=error)
-       CALL dbcsr_error_stop (error_handle, error)
-    ENDIF
-  END SUBROUTINE dbcsr_access_start
-
-  SUBROUTINE dbcsr_access_stop (matrix, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_access_stop', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
-
-!   ---------------------------------------------------------------------------
-
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_error_set (routineN, error_handle, error)
-       buffers = matrix%m%buffers
-       CALL dbcsr_buffers_flush (buffers, error=error)
-       CALL dbcsr_error_stop (error_handle, error)
-    ENDIF
-  END SUBROUTINE dbcsr_access_stop
-
-  SUBROUTINE dbcsr_access_flush (matrix, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_access_flush', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
-
-!   ---------------------------------------------------------------------------
-
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_error_set (routineN, error_handle, error)
-       buffers = matrix%m%buffers
-       CALL dbcsr_buffers_flush (buffers, error=error)
-       CALL dbcsr_error_stop (error_handle, error)
-    ENDIF
-  END SUBROUTINE dbcsr_access_flush
-
-
-! *****************************************************************************
-! Block access functions
-! *****************************************************************************
-
 ! *****************************************************************************
 !> \brief Marks a block for removal from a DBCSR matrix. Handles
 !>        symmetric matrices.
@@ -270,8 +196,6 @@ CONTAINS
     ENDIF
     b = ABS (b)
     IF (found .AND. b .GT. 0) THEN
-       IF (dbcsr_buffers_2d_needed) &
-            CALL dbcsr_buffers_flush (matrix%m%buffers, error)
        ! Mark the block for deletion.
        matrix%m%blk_p(b) = 0
        matrix%m%valid = .FALSE.
@@ -432,12 +356,6 @@ CONTAINS
     ENDIF
     CALL dbcsr_assert (ASSOCIATED (block%d), dbcsr_fatal_level, dbcsr_wrong_args_error,&
          routineN, "Can only add valid data block!",__LINE__,error)
-    !CALL dbcsr_assert (data_type_m .EQ. dbcsr_type_2d_to_1d(block%d%data_type),&
-    !     dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-    !     "Incompatible data types matrix="//&
-    !        data_type_m//" block="//block%d%data_type)
-    IF (dbcsr_buffers_2d_needed) &
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
     SELECT CASE(block%d%data_type)
     CASE (dbcsr_type_real_4)
        IF (do_scale) THEN
@@ -662,8 +580,6 @@ CONTAINS
     CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(columns), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
          "Size of rows and columns array must match.", __LINE__, error=error)
-    IF (dbcsr_buffers_2d_needed) &
-         CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
     IF (PRESENT (blk_pointers)) THEN
        CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(blk_pointers),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -801,35 +717,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_block_pointer_any', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: cont_p
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
-
 !   ---------------------------------------------------------------------------
 
-    buffer_is_2d: IF (dbcsr_type_is_2d (dbcsr_data_get_type (pointer_any))&
-         .AND. dbcsr_buffers_2d_needed) THEN
-       IF (PRESENT (contiguous_pointers)) THEN
-          cont_p = contiguous_pointers
-       ELSE
-          cont_p = .TRUE.
-       ENDIF
-       buffers = matrix%m%buffers
-       CALL dbcsr_buffers_flush (buffers, error=error)
-       IF (buffer_tr) THEN
-          CALL dbcsr_buffers_resize (buffers, row_size=csize, col_size=rsize,&
-               minimum=.NOT.contiguous_pointers, error=error)
-       ELSE
-          CALL dbcsr_buffers_resize (buffers, row_size=rsize, col_size=csize,&
-               minimum=.NOT.contiguous_pointers, error=error)
-       ENDIF
-       CALL dbcsr_buffers_set_pointer_2d (pointer_any, row, col,&
-            rsize, csize, main_tr, base_offset, buffers, buffer_tr, error=error)
-       IF (PRESENT (read_only)) THEN
-          IF (read_only) THEN
-             CALL dbcsr_buffers_mark_dirty (buffers, dirty=.FALSE., error=error)
-          ENDIF
-       ENDIF
-    ELSE
        IF (main_tr) THEN
           CALL dbcsr_data_set_pointer (pointer_any, csize, rsize,&
                matrix%m%data_area, source_lb = base_offset)
@@ -837,7 +726,6 @@ CONTAINS
           CALL dbcsr_data_set_pointer (pointer_any, rsize, csize,&
                matrix%m%data_area, source_lb = base_offset)
        ENDIF
-    ENDIF buffer_is_2d
   END SUBROUTINE dbcsr_set_block_pointer_any
 
 

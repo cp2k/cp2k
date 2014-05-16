@@ -22,10 +22,10 @@ MODULE cp_dbcsr_interface
        array_release, array_size, block_add_on_diag, block_chol_inv, &
        block_set, convert_offsets_to_sizes, convert_sizes_to_offsets, &
        cp_dbcsr_iterator=>dbcsr_iterator, cp_test_multiplies, &
-       create_bl_distribution, dbcsr_access_flush, dbcsr_add, &
-       dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, &
-       dbcsr_checksum, dbcsr_clear_mempools, dbcsr_complete_redistribute, &
-       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+       create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
+       dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
+       dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
+       dbcsr_copy_into_existing, dbcsr_create, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
@@ -103,7 +103,7 @@ MODULE cp_dbcsr_interface
             dbcsr_set_conf_combtypes,dbcsr_set_conf_external_timing,dbcsr_set_conf_mm_stacksize,dbcsr_set_conf_mpi_mem
   PUBLIC :: dbcsr_set_conf_comm_thread_load,dbcsr_set_conf_max_ele_block,dbcsr_set_conf_mm_driver,dbcsr_set_conf_nstacks,&
             dbcsr_set_conf_subcomm,dbcsr_set_conf_use_comm_thread,has_mpi,add_work_coordinate,block_set,&
-            create_bl_distribution,dbcsr_access_flush
+            create_bl_distribution
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_distribution_local_rows,&
             dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p, dbcsr_mp_get_coordinates,&

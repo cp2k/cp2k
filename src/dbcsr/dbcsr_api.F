@@ -19,8 +19,7 @@ MODULE dbcsr_api
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
-                                             dbcsr_get_block,&
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_reserve_all_blocks,&
@@ -160,7 +159,6 @@ MODULE dbcsr_api
            accdrv_posterior_streams ,&
            accdrv_priority_buffers ,&
            accdrv_priority_streams ,&
-           dbcsr_access_flush ,&
            dbcsr_add ,&
            dbcsr_add_on_diag ,&
            dbcsr_binary_read ,&
