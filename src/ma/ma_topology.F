@@ -160,15 +160,30 @@ CONTAINS
 !>      2.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
  SUBROUTINE ma_net_topology (mp_group)
-  INTEGER                                  :: rst_unit,istat,i,j,nfields  
-  INTEGER,DIMENSION(:), POINTER            :: nid,x,y,z
-  INTEGER                                  :: fnid,fx,fy,fz,endoffile,myid
-  INTEGER                                  :: mp_group,source, numtask, req(2)
-  CHARACTER(LEN=default_string_length)     :: host_name,name_file,myid_str
+    INTEGER                                :: mp_group
+    
   CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_net_topology', &
       routineP = moduleN//':'//routineN
-  REAL, DIMENSION(:), POINTER              :: msgin,msgout
-  REAL(KIND=dp)                            :: startTime,endTime
+
+  INTEGER                                  :: istat
+  INTEGER                                  :: source, numtask
+#if defined __SEASTAR && __parallel
+  CHARACTER(LEN=default_string_length)     :: name_file, myid_str
+  INTEGER                                  :: endoffile, fnid, fx, fy, fz, &
+                                              myid, nfields, rst_unit
+#elif __GEMINI  && __parallel
+  CHARACTER(LEN=default_string_length)     :: name_file, myid_str
+  INTEGER                                  :: endoffile, fnid, fx, fy, fz, &
+                                              myid, nfields, rst_unit
+  INTEGER, DIMENSION(:), POINTER           :: nid,x,y,z
+#elif defined __NET && __parallel
+  INTEGER                                  :: i, j
+  REAL(KIND=dp)                            :: startTime, endTime
+  INTEGER, DIMENSION(2)                    :: req
+  REAL, DIMENSION(:), POINTER              :: msgin, msgout
+#elif defined __parallel 
+  CHARACTER(LEN=default_string_length)     :: host_name
+#endif
 
 !if it is the seastar connection
 #if defined __SEASTAR && __parallel

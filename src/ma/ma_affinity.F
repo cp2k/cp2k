@@ -97,9 +97,9 @@ END FUNCTION ma_init_affinity
 ! *****************************************************************************
 SUBROUTINE ma_finalize_affinity()
 #if defined (__LIBNUMA) || defined (__HWLOC)
-  INTEGER  :: istat
-     DEALLOCATE(thread_mapping,STAT=istat)
-     IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
+   INTEGER  :: istat
+   DEALLOCATE(thread_mapping,STAT=istat)
+   IF (istat /= 0) CALL ma_error_stop(ma_error_allocation)
 #endif
 END SUBROUTINE ma_finalize_affinity
 
@@ -108,12 +108,11 @@ END SUBROUTINE ma_finalize_affinity
 !> devices to avoid overheads. It maps process, threads, memory  and gpu.
 ! *****************************************************************************
 SUBROUTINE ma_set_default_affinity()
-  INTEGER :: node,id, gpus_numa
-
-
 #if defined (__LIBNUMA) || defined (__HWLOC)
-!Place MPI closer to GPU
+! Place MPI closer to GPU
+!$ INTEGER :: id
 #if defined (__DBCSR_ACC) || defined (__PW_CUDA)
+   INTEGER :: node
    IF (my_info%nr_neighbors .GT. topology%ngpus) THEN
      CALL ma_group_place(my_info%mp_info%myproc, mpi)
    ELSE
@@ -124,7 +123,7 @@ SUBROUTINE ma_set_default_affinity()
       CALL ma_set_mempol(local)
    ELSE
       CALL ma_set_mempol(interleave)
-   ENDIF
+   END IF
 #else
    CALL ma_group_place(my_info%mp_info%myproc, mpi)
    IF (my_info%nr_neighbors .GT. 1) THEN
@@ -132,8 +131,8 @@ SUBROUTINE ma_set_default_affinity()
    ELSE
      IF ( my_info%nr_threads .GT. topology%ncores/topology%nnodes) THEN
        CALL ma_set_mempol(interleave)
-     ENDIF
-   ENDIF
+     END IF
+   END IF
 #endif
 !$omp parallel private(id)
 !$ id = omp_get_thread_num()
@@ -142,7 +141,6 @@ SUBROUTINE ma_set_default_affinity()
 #endif
 isdefault = .TRUE.
 END SUBROUTINE ma_set_default_affinity
-
 
 ! *****************************************************************************
 !> \brief To convert a memory policy descriptor to a string
@@ -176,14 +174,16 @@ SUBROUTINE  ma_set_mempol (mempol)
 
     INTEGER                                  :: istat, realnode, unit_nr
 
+    istat = 0
+    unit_nr = 6
+
   IF (mempol .EQ. manual) THEN
     realnode = memory(MOD(my_info%mp_info%myproc,my_info%nr_neighbors)+1)
-  ENDIF
+  END IF
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (.NOT. isdefault) THEN
   istat = ma_hw_set_mempol(mempol,realnode)
-  unit_nr = 6
   IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
    WRITE(unit_nr,'(T2,A,A)') "WARNING: Memory binding not supported", &
             " or can not be enforced - Using OS memory policy"
@@ -193,7 +193,6 @@ SUBROUTINE  ma_set_mempol (mempol)
 #if defined (__LIBNUMA) && !defined (__HWLOC)
  IF (.NOT. isdefault) THEN
   istat = ma_linux_set_mempol(mempol,realnode)
-  unit_nr = 6
   IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
    WRITE(unit_nr,'(T2,A,A)') "WARNING: Memory binding not supported", &
             " or can not be enforced - Using OS memory policy"
@@ -1083,14 +1082,21 @@ END SUBROUTINE ma_get_mempol
     LOGICAL                                  :: print_proc, print_mem
     INTEGER                                  :: unit_nr
 
+#if defined (__HWLOC) || defined (__LIBNUMA)
     CHARACTER(len=1)                         :: mem_pol
     CHARACTER(len=10)                        :: all_cores, mempolicy
     CHARACTER(len=4)                         :: first_core, second_core
     INTEGER                                  :: core, ipe, istat
     INTEGER(KIND=int_4), ALLOCATABLE, &
-      DIMENSION(:)                           :: all_core, all_gpu, &
+      DIMENSION(:)                           :: all_core, &
                                                 all_memory, all_node, &
                                                 all_node_mem, all_pid
+#if defined (__DBCSR_ACC) || defined (__PW_CUDA)
+    INTEGER(KIND=int_4), ALLOCATABLE, &
+      DIMENSION(:)                           :: all_gpu
+#endif
+#endif
+
 #if defined (__HWLOC) || defined (__LIBNUMA)
 
     IF ((.NOT. my_info%mp_info%all_proc) .AND. print_proc) THEN

@@ -1219,12 +1219,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'order_mask', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, i2, icount, ierr, j, &
-                                                j1, j2
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, icol, irow, rindex
-    LOGICAL                                  :: failure
+    INTEGER                                  :: i1, i2, icount
 !NB load balance
     INTEGER                                  :: im, ic, jc, ii, jj
+#ifdef ORIGINAL_RAY_DISTRIBUTION
+    INTEGER                                  :: i, ierr, j, j1, j2
+    LOGICAL                                  :: failure
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, icol, irow, rindex
+#endif
 
 !------------------------------------------------------------------------------
 

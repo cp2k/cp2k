@@ -218,12 +218,14 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: counter, handle, i, info, &
-                                                lda, n, nrow_local
+                                                n, nrow_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(9)                    :: desca
     INTEGER, DIMENSION(:), POINTER           :: row_indices
-
-! *** locals ***
+#if defined(__SCALAPACK)
+#else
+    INTEGER                                  :: lda
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -290,8 +292,12 @@ CPSourceFileRef,&
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b, c
-    INTEGER                                  :: handle, j, lda, ldb, ldc
+    INTEGER                                  :: handle, j
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
+#if defined(__SCALAPACK)
+#else
+    INTEGER                                  :: lda, ldb, ldc
+#endif
 
     CALL timeset(routineN,handle)
     a => matrix_a%local_data
@@ -337,10 +343,14 @@ CPSourceFileRef,&
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: i, icol_global, icol_local, &
+    INTEGER                                  :: icol_global, icol_local, &
                                                 ipcol, iprow, irow_local, k, &
                                                 mypcol, myprow, n, npcol, &
                                                 nprow
+#if defined(__SCALAPACK)
+#else
+    INTEGER                                  :: i
+#endif
 
     myprow=matrixa%matrix_struct%context%mepos(1)
     mypcol=matrixa%matrix_struct%context%mepos(2)
@@ -352,7 +362,6 @@ CPSourceFileRef,&
     k =  SIZE(scaling)
 
 #if defined(__SCALAPACK)
-
     DO icol_global=1,k
        CALL infog2l(1,icol_global,matrixa%matrix_struct%descriptor,&
             nprow,npcol,myprow,mypcol,&
@@ -360,12 +369,13 @@ CPSourceFileRef,&
        IF ((ipcol == mypcol)) THEN
            CALL ZSCAL(n,scaling(icol_global),a(1,icol_local),1)
        END IF
-    ENDDO
+    END DO
 #else
     DO i=1,k
       CALL ZSCAL(n,scaling(i),a(1,i),1)
-    ENDDO
+    END DO
 #endif
+
   END SUBROUTINE cp_cfm_column_scale
 
 ! *****************************************************************************
@@ -387,12 +397,14 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, a_general
     INTEGER                                  :: counter, handle, i, info, &
-                                                lda, ldb, n, nrow_local
+                                                n, nrow_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(9)                    :: desca, descb
     INTEGER, DIMENSION(:), POINTER           :: row_indices
-
-! *** locals ***
+#if defined(__SCALAPACK)
+#else
+    INTEGER                                  :: lda, ldb
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -426,7 +438,6 @@ CPSourceFileRef,&
     END IF
     CALL pzgetrs("N" , n , n , a(1,1), 1, 1, desca ,ipivot, a_general(1,1) ,&
                  1, 1, descb, info )
-
 #else
     lda=SIZE(a,1)
     ldb=SIZE(a_general,1)
@@ -441,13 +452,14 @@ CPSourceFileRef,&
        IF(MOD(counter,2)==1)determinant=-1.0_dp*determinant
     END IF
     CALL zgetrs("N",n,n,a(1,1),lda,ipivot,a_general,ldb,info)
-
 #endif
     ! info is allowed to be zero
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     CALL timestop(handle)
+
   END SUBROUTINE cp_cfm_solve
+
 ! *****************************************************************************
 !> \brief used to replace a symmetric positive def. matrix M with its cholesky
 !>      decomposition U: M = U^T * U, with U upper triangular
