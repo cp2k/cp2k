@@ -396,6 +396,7 @@ MODULE message_passing
   INTERFACE mp_file_write_at_all
      MODULE PROCEDURE mp_file_write_at_all_ch, mp_file_write_at_all_chv,&
                       mp_file_write_at_all_i, mp_file_write_at_all_iv,&
+                      mp_file_write_at_all_l, mp_file_write_at_all_lv,&
                       mp_file_write_at_all_r, mp_file_write_at_all_rv,&
                       mp_file_write_at_all_d, mp_file_write_at_all_dv,&
                       mp_file_write_at_all_c, mp_file_write_at_all_cv,&
@@ -415,6 +416,7 @@ MODULE message_passing
   INTERFACE mp_file_read_at_all
      MODULE PROCEDURE mp_file_read_at_all_ch, mp_file_read_at_all_chv,&
                       mp_file_read_at_all_i, mp_file_read_at_all_iv,&
+                      mp_file_read_at_all_l, mp_file_read_at_all_lv,&
                       mp_file_read_at_all_r, mp_file_read_at_all_rv,&
                       mp_file_read_at_all_d, mp_file_read_at_all_dv,&
                       mp_file_read_at_all_c, mp_file_read_at_all_cv,&
