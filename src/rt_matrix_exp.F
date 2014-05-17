@@ -822,66 +822,50 @@ CONTAINS
     END DO
     CALL cp_fm_get_info(V_mats(1)%matrix,ncol_global=newdim,error=error)
 
-! XXXXXXX OMP should be improved with better regions XXXXXX !
-! Nevertheless, this already hides some of the boring local stuff
-
     norm1=0.0_dp
-!$OMP PARALLEL 
-!$OMP DO PRIVATE(icol_local)
+!$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,mos_old,ncol_local)
     DO icol_local=1,ncol_local
        V_mats(1)%matrix%local_data(:,icol_local)=mos_old(1)%matrix%local_data(:,icol_local)
        V_mats(1)%matrix%local_data(:,icol_local+ncol_local)=mos_old(2)%matrix%local_data(:,icol_local)
        norm1(icol_local)=SUM(V_mats(1)%matrix%local_data(:,icol_local)**2)+SUM(V_mats(1)%matrix%local_data(:,icol_local)**2)
     END DO
-!$OMP BARRIER
-!$OMP MASTER
+
     CALL mp_sum(norm1,col_group)
     !!! normalize the mo vectors
     norm1(:)=SQRT(norm1(:))
-!$OMP END MASTER
-!$OMP BARRIER
 
-!$OMP DO PRIVATE(icol_local)
+!$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,ncol_local)
     DO icol_local=1,ncol_local
        V_mats(1)%matrix%local_data(:,icol_local)=V_mats(1)%matrix%local_data(:,icol_local)/norm1(icol_local)
        V_mats(1)%matrix%local_data(:,icol_local+ncol_local)=V_mats(1)%matrix%local_data(:,icol_local+ncol_local)/norm1(icol_local)
     END DO
-!$OMP END PARALLEL
 
     ! arnoldi subspace procedure to get H_approx
     DO i=2,narnoldi+1
        !Be careful, imaginary matrix multiplied with complex. Unfortunately requires a swap of arrays afterwards
        CALL cp_gemm("N","N",nao,newdim,nao,1.0_dp,Him,V_mats(i-1)%matrix,0.0_dp,V_mats(i)%matrix,error)
 
-!$OMP PARALLEL PRIVATE(icol_local)         
-!$OMP DO
+!$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(mos_new,V_mats,ncol_local,i)
        DO icol_local=1,ncol_local
           mos_new(1)%matrix%local_data(:,icol_local)=-V_mats(i)%matrix%local_data(:,icol_local)
           V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local+ncol_local)
           V_mats(i)%matrix%local_data(:,icol_local+ncol_local)=mos_new(1)%matrix%local_data(:,icol_local)
        END DO
-!$OMP BARRIER
-!$OMP MASTER
+
        IF(PRESENT(Hre))THEN
            CALL cp_gemm("N","N",nao,newdim,nao,1.0_dp,Hre,V_mats(i-1)%matrix,1.0_dp,V_mats(i)%matrix,error)
        END IF
-!$OMP END MASTER
-!$OMP BARRIER
-
 
        DO l=1,i-1
-!$OMP DO          
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(results,V_mats,ncol_local,l,i)
           DO icol_local=1,ncol_local
              results(icol_local)=SUM(V_mats(l)%matrix%local_data(:,icol_local)*V_mats(i)%matrix%local_data(:,icol_local))+&
                 SUM(V_mats(l)%matrix%local_data(:,icol_local+ncol_local)*V_mats(i)%matrix%local_data(:,icol_local+ncol_local))
           END DO
 
-!$OMP MASTER
           CALL mp_sum(results,col_group)
-!$OMP END MASTER
-!$OMP BARRIER
 
-!$OMP DO   
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(H_approx_save,V_mats,ncol_local,l,i,results)
           DO icol_local=1,ncol_local
              H_approx_save(l,i-1,icol_local)=results(icol_local)
              V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local)-&
@@ -889,24 +873,20 @@ CONTAINS
              V_mats(i)%matrix%local_data(:,icol_local+ncol_local)=V_mats(i)%matrix%local_data(:,icol_local+ncol_local)-&
                   results(icol_local) * V_mats(l)%matrix%local_data(:,icol_local+ncol_local)
           END DO
-!$OMP BARRIER
        END DO
 
-!$OMP DO          
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(ncol_local,V_mats,results,i)
        DO icol_local=1,ncol_local
           results(icol_local)=SUM(V_mats(i)%matrix%local_data(:,icol_local)**2)+&
                                SUM(V_mats(i)%matrix%local_data(:,icol_local+ncol_local)**2)
        END DO
-!$OMP BARRIER
 
-!$OMP MASTER
        CALL mp_sum(results,col_group)
-!$OMP END MASTER
-!$OMP BARRIER
 
 
        IF(i.LE.narnoldi)THEN
-!$OMP DO          
+
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(H_approx_save,last_norm,V_mats,ncol_local,i,results)
           DO icol_local=1,ncol_local
              H_approx_save(i,i-1,icol_local)=SQRT(results(icol_local))
              last_norm(icol_local)=SQRT(results(icol_local))
@@ -915,12 +895,11 @@ CONTAINS
                   V_mats(i)%matrix%local_data(:,icol_local+ncol_local)/SQRT(results(icol_local))
           END DO
        ELSE
-!$OMP DO
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(ncol_local,last_norm,results)
           DO icol_local=1,ncol_local
              last_norm(icol_local)=SQRT(results(icol_local))
           END DO
        END IF
-!$OMP END PARALLEL
 
        H_approx=H_approx_save
 
