@@ -50,8 +50,10 @@ MODULE machine_internal
 #elif defined ( __SX )
 #include "machine_sx.f90"
 
+! use POSIX per default
 #else
-Error: Missing machine-TYPE (e.g. -D__GFORTRAN).
+#include "machine_posix.f90"
+
 #endif
 
 END MODULE machine_internal
