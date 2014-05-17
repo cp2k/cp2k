@@ -15,13 +15,19 @@ re_pub     = re.compile(r"\n\s*public\s*::\s*(.*)(?=\n)")
 
 #=============================================================================
 def main():
+    src_dir = "../src"
     parsed_files = {}
-    for root, dir, files in os.walk("../src"):
+    for root, dir, files in os.walk(src_dir):
+        if("preprettify" in root):
+            continue
+        if(".svn" in root):
+            continue
         for fn in files:
             if(not fn.endswith(".F")):
                 continue
             absfn = root+"/"+fn
-            parsed_files[fn] =  parse_file(absfn)
+
+            parsed_files[absfn] =  parse_file(absfn)
 
     all_used_symboles = set()
     for p in parsed_files.values():
@@ -30,18 +36,23 @@ def main():
                 all_used_symboles.add(m+"@"+s)
 
     n = 0
-    for p in parsed_files.values():
+    for fn, p in parsed_files.items():
         if(len(p['mod']) != 1):
             continue
         m = p['mod'][0]
         if(m+"@*" in all_used_symboles):
             continue
+        unused = []
         for s in p['pub']:
             if(m+"@"+s not in all_used_symboles):
-                print("Public symbole %s in module %s is never used elsewhere."%(s,m))
+                unused.append(s)
                 n += 1
+        if(len(unused) > 0):
+            print("File %s has the following unused public symbols:"%fn)
+            print("    " + ", ".join(unused) + "\n")
 
-    print("Found %d unused public symboles."%n)
+
+    print("Found %d unused public symbols."%n)
 
 
 #=============================================================================
