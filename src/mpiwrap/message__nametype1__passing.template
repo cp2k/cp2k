@@ -2493,3 +2493,66 @@
        CALL mp_abort (routineN//": Vectors and indices NYI")
     ENDIF
   END FUNCTION mp_type_make_[nametype1]
+
+
+! *****************************************************************************
+!> \brief Allocates an array, using MPI_ALLOC_MEM ... this is hackish
+!>        as the Fortran version returns an integer, which we take to be a C_PTR
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_alloc_mem_[nametype1](DATA, len, stat)
+    [type1], DIMENSION(:), POINTER           :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
+#if defined(__parallel)
+    INTEGER                                  :: size, ierr, length, &
+                                                mp_info, mp_res
+    INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
+    TYPE(C_PTR)                              :: mp_baseptr
+
+     length = MAX(len,1)
+     CALL MPI_TYPE_SIZE([mpi_type1], size, ierr)
+     mp_size = length * size
+     mp_info = MPI_INFO_NULL
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
+     CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
+     IF (PRESENT (stat)) stat = mp_res
+#else
+     INTEGER                                 :: length
+     length = MAX(len,1)
+     IF (PRESENT (stat)) THEN
+        ALLOCATE(DATA(length), stat=stat)
+     ELSE
+        ALLOCATE(DATA(length))
+     ENDIF
+#endif
+   END SUBROUTINE mp_alloc_mem_[nametype1]
+
+
+! *****************************************************************************
+!> \brief Deallocates am array, ... this is hackish 
+!>        as the Fortran version takes an integer, which we hope to get by reference
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+   SUBROUTINE mp_free_mem_[nametype1](DATA, stat)
+    [type1], DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
+#if defined(__parallel)
+    INTEGER                                  :: mp_res
+    CALL MPI_FREE_MEM(DATA, mp_res)
+    IF (PRESENT (stat)) stat = mp_res
+#else
+     IF (PRESENT (stat)) THEN
+        DEALLOCATE(DATA, stat=stat)
+     ELSE
+        DEALLOCATE(DATA)
+     ENDIF
+#endif
+   END SUBROUTINE mp_free_mem_[nametype1]
+
