@@ -48,16 +48,15 @@ def main():
                 unused.append(s)
                 n += 1
         if(len(unused) > 0):
-            print("File %s has the following unused public symbols:"%fn)
-            print("    " + ", ".join(unused) + "\n")
+            print("%s USElessly declares PUBLIC: "%fn+ ", ".join(unused)+"\n")
 
 
-    print("Found %d unused public symbols."%n)
+    print("Found %d unUSEd PUBLIC symbols."%n)
 
 
 #=============================================================================
 def parse_file(fn):
-    print("parsing "+fn)
+    # print("parsing "+fn)
     content = open(fn).read()
     # re.IGNORECASE is horribly expensive. Converting to lower-case upfront
     content = content.lower()
