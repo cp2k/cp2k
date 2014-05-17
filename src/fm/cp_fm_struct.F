@@ -12,12 +12,12 @@
 MODULE cp_fm_struct
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
+                                             cp_blacs_env_type,&
                                              cp_blacs_env_write
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain,&
                                              cp_para_env_write
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp

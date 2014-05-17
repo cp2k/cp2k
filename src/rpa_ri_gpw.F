@@ -11,7 +11,8 @@
 MODULE rpa_ri_gpw
 ! USE f77_blas
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_syrk
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -28,8 +29,7 @@ MODULE rpa_ri_gpw
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                              wfc_mm_style_syrk
   USE kinds,                           ONLY: dp

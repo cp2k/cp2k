@@ -13,7 +13,8 @@ MODULE mp2_gpw
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
                                              cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
@@ -40,8 +41,7 @@ MODULE mp2_gpw
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type

@@ -55,8 +55,7 @@ MODULE cp_dbcsr_operations
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp,&

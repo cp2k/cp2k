@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE dkh_main
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_schur_product,&
@@ -23,7 +24,6 @@ MODULE dkh_main
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: a_fine
   USE qs_environment_types,            ONLY: qs_environment_type

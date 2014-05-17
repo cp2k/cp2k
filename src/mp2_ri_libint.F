@@ -20,7 +20,8 @@ MODULE mp2_ri_libint
                                              init_aux_basis_set
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -32,8 +33,7 @@ MODULE mp2_ri_libint
                                              cp_fm_release,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
   USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&

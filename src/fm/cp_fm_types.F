@@ -17,6 +17,7 @@ MODULE cp_fm_types
                                              cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
                                              cp_blacs_gridinit
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
@@ -25,8 +26,7 @@ MODULE cp_fm_types
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type,&
                                              cp_fm_struct_write
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp,&
                                              sp

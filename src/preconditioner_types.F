@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE preconditioner_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_retain
+                                             cp_blacs_env_retain,&
+                                             cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_release_p,&
                                              cp_dbcsr_type
@@ -19,8 +20,7 @@ MODULE preconditioner_types
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&

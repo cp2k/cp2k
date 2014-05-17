@@ -11,7 +11,8 @@
 MODULE mp2_ri_grad_util
 ! USE f77_blas
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_release, cp_create_bl_distribution, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_distribution, &
@@ -34,8 +35,7 @@ MODULE mp2_ri_grad_util
                                              cp_fm_set_all,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_irecv,&
                                              mp_isend,&

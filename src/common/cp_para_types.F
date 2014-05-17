@@ -20,9 +20,7 @@ MODULE cp_para_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_para_types'
 
-  PUBLIC :: cp_para_env_type, cp_blacs_env_type, cp_para_env_p_type,&
-       cp_para_cart_type
-!***
+  PUBLIC :: cp_para_env_type, cp_para_env_p_type, cp_para_cart_type
 
 ! *****************************************************************************
 !> \brief stores all the informations relevant to an mpi environement
@@ -81,31 +79,5 @@ MODULE cp_para_types
      LOGICAL, DIMENSION(:), POINTER :: periodic
      INTEGER :: group, ref_count
   END TYPE cp_para_cart_type
-
-! *****************************************************************************
-!> \brief represent a blacs multidimensional parallel environment
-!>      (for the mpi corrispective see cp_paratypes/cp_para_cart_type)
-!> \param mepos the position of the actual processor (2D)
-!> \param group id of the actual group (context, communicator)
-!> \param num_pe number of processors in the group in each dimension
-!> \param ref_count the reference count, when it is zero this object gets
-!>        deallocated
-!> \param my_pid process id of the actual processor
-!> \param n_pid number of process ids
-!> \param the para env associated (and compatible) with this blacs_env
-!> \param blacs 2mpi: maps mepos(1)-mepos(2) of blacs to its mpi rank
-!> \param mpi 2blacs(i,rank): maps the mpi rank to the mepos(i)
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  TYPE cp_blacs_env_type
-     INTEGER, DIMENSION(2) :: mepos, num_pe
-     INTEGER :: group, my_pid, n_pid, ref_count
-     TYPE(cp_para_env_type), POINTER :: para_env
-     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
-     INTEGER, DIMENSION(:,:), POINTER :: mpi2blacs
-     LOGICAL :: repeatable
-  END TYPE cp_blacs_env_type
 
 END MODULE cp_para_types

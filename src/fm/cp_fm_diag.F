@@ -29,8 +29,8 @@ MODULE cp_fm_diag
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length, dp,&
                                              dp_size,&
                                              int_size

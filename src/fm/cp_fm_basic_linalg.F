@@ -10,12 +10,12 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_fm_basic_linalg
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
        cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              sp

@@ -17,6 +17,7 @@ MODULE ep_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
@@ -56,8 +57,7 @@ MODULE ep_methods
        cp_print_key_should_output, cp_print_key_unit_nr, cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type

@@ -18,6 +18,7 @@ MODULE qs_pdos
                                              gto_basis_set_type
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
@@ -36,8 +37,7 @@ MODULE qs_pdos
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&

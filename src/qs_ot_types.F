@@ -15,7 +15,8 @@ MODULE qs_ot_types
                                              Weber2008,&
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_retain
+                                             cp_blacs_env_retain,&
+                                             cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_release, cp_create_bl_distribution, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
@@ -32,8 +33,7 @@ MODULE qs_ot_types
                                              cp_fm_struct_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &

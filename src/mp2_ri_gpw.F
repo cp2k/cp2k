@@ -17,7 +17,8 @@ MODULE mp2_ri_gpw
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_release, cp_create_bl_distribution, &
@@ -28,7 +29,6 @@ MODULE mp2_ri_gpw
        dbcsr_mp_nprows, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
-! USE f77_blas
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -42,8 +42,7 @@ MODULE mp2_ri_gpw
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&

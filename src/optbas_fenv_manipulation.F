@@ -8,6 +8,7 @@ MODULE optbas_fenv_manipulation
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE basis_set_types,                 ONLY: gto_basis_set_type,&
                                              init_orb_basis_set
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
                                              cp_dbcsr_p_type,&
@@ -23,8 +24,7 @@ MODULE optbas_fenv_manipulation
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: debug_print_level,&
                                              do_admm_basis_set_projection,&

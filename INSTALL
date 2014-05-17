@@ -182,7 +182,7 @@ How to compile CP2K code
 
  3b) The following flags should be present (or not) in the arch file
      (see also 3c, next)
-     -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
+     -D__parallel -D__SCALAPACK: parallel runs
      -D__LIBINT: use libint (needed for HF exchange)
      -D__LIBXC: use libxc
      -D__ELPA: use ELPA in place of SYEVD  to solve the eigenvalue problem
@@ -221,6 +221,8 @@ How to compile CP2K code
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
                              not declare they are thread safe (funneled) but you want to
                              use them with OpenMP code anyways.
+     -D__HAS_NO_MPI_MOD - workaround if mpi has been built for a different (version of the) Fortran compiler,
+                          rendering the MPI module unreadable (reverts to f77 style mpif.h includes)
 
  3c) CP2K currently assumes Fortran2003 compliance, even though few features are used. 
      Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.

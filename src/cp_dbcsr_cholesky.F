@@ -25,8 +25,7 @@ MODULE cp_dbcsr_cholesky
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              sp
   USE timings,                         ONLY: timeset,&

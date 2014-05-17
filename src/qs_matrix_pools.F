@@ -10,6 +10,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_matrix_pools
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -24,8 +25,7 @@ MODULE qs_matrix_pools
                                              cp_fm_struct_get_nrow_block,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type

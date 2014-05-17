@@ -18,15 +18,14 @@ MODULE cp_blacs_env
                                              cp_blacs_set
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: gcd
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -42,6 +41,33 @@ MODULE cp_blacs_env
   PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
   PUBLIC :: cp_blacs_env_write, get_blacs_info
+
+! *****************************************************************************
+!> \brief represent a blacs multidimensional parallel environment
+!>      (for the mpi corrispective see cp_paratypes/cp_para_cart_type)
+!> \param mepos the position of the actual processor (2D)
+!> \param group id of the actual group (context, communicator)
+!> \param num_pe number of processors in the group in each dimension
+!> \param ref_count the reference count, when it is zero this object gets
+!>        deallocated
+!> \param my_pid process id of the actual processor
+!> \param n_pid number of process ids
+!> \param the para env associated (and compatible) with this blacs_env
+!> \param blacs 2mpi: maps mepos(1)-mepos(2) of blacs to its mpi rank
+!> \param mpi 2blacs(i,rank): maps the mpi rank to the mepos(i)
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+  TYPE cp_blacs_env_type
+     INTEGER, DIMENSION(2) :: mepos, num_pe
+     INTEGER :: group, my_pid, n_pid, ref_count
+     TYPE(cp_para_env_type), POINTER :: para_env
+     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
+     INTEGER, DIMENSION(:,:), POINTER :: mpi2blacs
+     LOGICAL :: repeatable
+  END TYPE cp_blacs_env_type
+
 !***
 CONTAINS
 
@@ -116,10 +142,10 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
   failure=.FALSE.
 
 #ifdef __parallel
-#ifndef __BLACS
+#ifndef __SCALAPACK
   CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
        fromWhere=routineP,message="to USE the blacs environment "//&
-       "you need the blacs library : recompile with -D__BLACS (and link blacs) "//&
+       "you need the blacs/scalapack library : recompile with -D__SCALAPACK (and link scalapack and blacs) "//&
 CPSourceFileRef,&
        error=error)
 #endif
@@ -138,7 +164,7 @@ CPSourceFileRef,&
      CALL cp_para_env_retain(para_env,error=error)
      blacs_env%para_env => para_env
 
-#ifdef __BLACS
+#ifdef __SCALAPACK
      ! get the number of cpus for this blacs grid
      blacs_env%my_pid = para_env%mepos
      blacs_env%n_pid  = para_env%num_pe

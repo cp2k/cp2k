@@ -16,7 +16,7 @@
 MODULE cp_blacs_calls
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'
@@ -55,7 +55,7 @@ SUBROUTINE cp_blacs_gridinit(context,order,nprow,npcol)
    INTEGER, INTENT(INOUT) :: context
    CHARACTER(len=1), INTENT(IN):: order
    INTEGER, INTENT(IN)    :: nprow, npcol
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    CALL blacs_gridinit(context,order,nprow,npcol)
 #endif
 END SUBROUTINE cp_blacs_gridinit
@@ -63,7 +63,7 @@ END SUBROUTINE cp_blacs_gridinit
 ! *****************************************************************************
 SUBROUTINE cp_blacs_gridexit(context)
    INTEGER, INTENT(IN) :: context
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    CALL blacs_gridexit(context)
 #endif
 END SUBROUTINE cp_blacs_gridexit
@@ -72,7 +72,7 @@ END SUBROUTINE cp_blacs_gridexit
 SUBROUTINE cp_blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
    INTEGER, INTENT(IN)  :: context
    INTEGER, INTENT(OUT) :: nprow,npcol,myprow,mypcol
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
 #else
    nprow = 1
@@ -86,7 +86,7 @@ END SUBROUTINE cp_blacs_gridinfo
 FUNCTION cp_blacs_pnum(context,myprow,mypcol) RESULT(pnum)
    INTEGER, INTENT(IN) :: context,myprow,mypcol
    INTEGER :: pnum
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    INTEGER, EXTERNAL :: blacs_pnum
    pnum = blacs_pnum(context,myprow,mypcol)
 #else
@@ -104,7 +104,7 @@ END FUNCTION cp_blacs_pnum
 SUBROUTINE cp_blacs_get(context,what,val)
    INTEGER, INTENT(IN)  :: context,what
    INTEGER, INTENT(OUT) :: val
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    CALL blacs_get(context,what,val)
 #else
    val = 0
@@ -121,7 +121,7 @@ END SUBROUTINE cp_blacs_get
 ! *****************************************************************************
 SUBROUTINE cp_blacs_set(context,what,val)
    INTEGER, INTENT(IN)  :: context,what,val
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    CALL blacs_set(context,what,val)
 #endif
 END SUBROUTINE cp_blacs_set
@@ -130,7 +130,7 @@ END SUBROUTINE cp_blacs_set
 ! *****************************************************************************
 SUBROUTINE cp_blacs_pinfo(mype,npe)
    INTEGER, INTENT(OUT) :: mype,npe
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
    CALL blacs_pinfo(mype,npe)
 #else
    npe = 1
@@ -146,7 +146,7 @@ SUBROUTINE cp_blacs_zgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA 
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   COMPLEX(KIND=dp), DIMENSION(LDA,*) :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL zgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
 END SUBROUTINE
@@ -157,7 +157,7 @@ SUBROUTINE cp_blacs_zgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   COMPLEX(KIND=dp), DIMENSION(LDA,*) :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL zgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
 END SUBROUTINE
@@ -167,7 +167,7 @@ SUBROUTINE cp_blacs_zgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   COMPLEX(KIND=dp)            :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL zgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
 END SUBROUTINE
@@ -178,7 +178,7 @@ SUBROUTINE cp_blacs_zgebr2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   COMPLEX(KIND=dp)            :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL zgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
 END SUBROUTINE
@@ -189,7 +189,7 @@ SUBROUTINE cp_blacs_dgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA 
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   REAL(KIND=dp), DIMENSION(LDA,*) :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL dgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
 END SUBROUTINE
@@ -200,7 +200,7 @@ SUBROUTINE cp_blacs_dgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   REAL(KIND=dp), DIMENSION(LDA,*) :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL dgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
 END SUBROUTINE
@@ -210,7 +210,7 @@ SUBROUTINE cp_blacs_dgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   REAL(KIND=dp)               :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL dgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
 END SUBROUTINE
@@ -221,7 +221,7 @@ SUBROUTINE cp_blacs_dgebr2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   REAL(KIND=dp)               :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL dgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
 END SUBROUTINE
@@ -233,7 +233,7 @@ SUBROUTINE cp_blacs_igsum2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RDEST,CDEST
   INTEGER, DIMENSION(LDA,*) :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL igsum2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RDEST, CDEST )
 #endif
 END SUBROUTINE
@@ -244,7 +244,7 @@ SUBROUTINE cp_blacs_igsum2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RDEST,CDEST
   INTEGER                 :: A
-#if defined(__BLACS)
+#if defined(__SCALAPACK)
   CALL igsum2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RDEST, CDEST )
 #endif
 END SUBROUTINE

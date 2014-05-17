@@ -19,7 +19,8 @@ MODULE qs_environment_types
                                              cell_retain,&
                                              cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_retain,&
                                              dft_control_type,&
@@ -41,8 +42,7 @@ MODULE qs_environment_types
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_release,&
                                              cp_result_type
