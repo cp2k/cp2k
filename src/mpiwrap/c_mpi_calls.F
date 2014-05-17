@@ -29,17 +29,15 @@ MODULE c_mpi_calls
                                              real_4,&
                                              real_8,&
                                              sp
+#if defined(__parallel)
+  USE mpi
+#endif
 
   IMPLICIT NONE
 
   PRIVATE
 
   PUBLIC :: mp_alloc_mem, mp_free_mem
-
-#if defined(__parallel)
-  INCLUDE "mpif.h"
-#endif
-
 
   INTERFACE mp_alloc_mem
      MODULE PROCEDURE mp_alloc_mem_i, mp_alloc_mem_l,&

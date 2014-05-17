@@ -104,6 +104,9 @@ MODULE library_tests
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#if defined(__parallel)
+  USE mpi
+#endif
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1064,7 +1067,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
-    INCLUDE 'mpif.h'
     INTEGER :: I, ierr, ierror, itask, itests, J, jtask, left, nbufmax, &
       ncount, Ngrid, Nloc, npow, nprocs, Ntot, partner, right, &
       status(MPI_STATUS_SIZE), taskid

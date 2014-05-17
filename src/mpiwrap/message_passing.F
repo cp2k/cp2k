@@ -28,13 +28,15 @@ MODULE message_passing
                                              m_abort,&
                                              m_flush,&
                                              m_walltime
+#if defined(__parallel)
+  USE mpi
+#endif
 
   IMPLICIT NONE
   PRIVATE
 
   ! parameters that might be needed
 #if defined(__parallel)
-  INCLUDE "mpif.h"
   INTEGER, PARAMETER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
   INTEGER, PARAMETER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
   INTEGER, PARAMETER     :: MP_STD_HALF_REAL = MPI_REAL
