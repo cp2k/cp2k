@@ -1789,6 +1789,7 @@ CONTAINS
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_bcast_b
+
 ! *****************************************************************************
   SUBROUTINE mp_bcast_bv(msg,source,gid)
     LOGICAL                                  :: msg(:)
@@ -1865,10 +1866,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, j, k, &
-                                                msglen, msgsiz, numtask, &
-                                                taskid
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: i, j, k, msglen, msgsiz, &
+                                                numtask, taskid
     INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
+#endif
 
     ierr = 0
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
@@ -1915,8 +1918,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_bcast_am
 
-
-
 ! *****************************************************************************
 !> \brief Finds the location of the minimal element in a vector.
 !> \par MPI mapping
@@ -1934,8 +1935,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     REAL(kind=real_8), ALLOCATABLE           :: res( : )
+#endif
 
     ierr = 0
     IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
@@ -1959,7 +1963,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_minloc_dv
 
-
 ! *****************************************************************************
 !> \brief Finds the location of the minimal element in a vector.
 !> \par MPI mapping
@@ -1977,8 +1980,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     INTEGER(KIND=int_4), ALLOCATABLE         :: res( : )
+#endif
 
     ierr = 0
     IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
@@ -2002,8 +2008,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_minloc_iv
 
-
-
 ! *****************************************************************************
 !> \brief Finds the location of the minimal element in a vector.
 !> \par MPI mapping
@@ -2021,8 +2025,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     INTEGER(KIND=int_8), ALLOCATABLE         :: res( : )
+#endif
 
     ierr = 0
     IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
@@ -2046,7 +2053,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_minloc_lv
 
-
 ! *****************************************************************************
 !> \brief Finds the location of the minimal element in a vector.
 !> \par MPI mapping
@@ -2064,8 +2070,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     REAL(kind=real_4), ALLOCATABLE           :: res( : )
+#endif
 
     ierr = 0
     IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
@@ -2089,8 +2098,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_minloc_rv
 
-
-
 ! *****************************************************************************
 !> \brief Finds the location of the maximal element in a vector.
 !> \par MPI mapping
@@ -2108,8 +2115,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     REAL(kind=real_8), ALLOCATABLE           :: res( : )
+#endif
 
     ierr = 0
     IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
@@ -2150,8 +2160,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     INTEGER(KIND=int_4), ALLOCATABLE         :: res( : )
+#endif
 
     ierr = 0
     IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
@@ -2192,8 +2205,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     INTEGER(KIND=int_8), ALLOCATABLE         :: res( : )
+#endif
 
     ierr = 0
     IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
@@ -2234,8 +2250,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
     REAL(kind=real_4), ALLOCATABLE           :: res( : )
+#endif
 
     ierr = 0
     IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
@@ -2275,7 +2294,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
+#if defined(__parallel)
     LOGICAL                                  :: res
+#endif
 
     IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
     ierr = 0
@@ -2308,10 +2329,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: amode_status
     INTEGER, INTENT(IN), OPTIONAL            :: info
 
-#if ! defined(__parallel)
-    CHARACTER(len=10)                        :: fstatus
+    INTEGER                                  :: ierr
+#if defined(__parallel)
+    INTEGER                                  :: my_info
+#else
+    CHARACTER(LEN=10)                        :: fstatus
 #endif
-    INTEGER                                  :: ierr, my_info
 
     ierr = 0
 #if defined(__parallel)
@@ -2397,13 +2420,15 @@ CONTAINS
     CHARACTER, INTENT(IN)                      :: msg(:)
     INTEGER, INTENT(IN)                        :: fh
     INTEGER, INTENT(IN), OPTIONAL              :: msglen
-    INTEGER                                    :: ierr, msg_len
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_chv', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
     ALLOCATE(status(MPI_STATUS_SIZE))
@@ -2418,13 +2443,15 @@ CONTAINS
   SUBROUTINE mp_file_write_at_ch(fh, offset, msg)
     CHARACTER(LEN=*), INTENT(IN)               :: msg
     INTEGER, INTENT(IN)                        :: fh
-    INTEGER                                    :: ierr
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_ch', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_ch @ "//routineN)
@@ -2444,13 +2471,15 @@ CONTAINS
     CHARACTER, INTENT(IN)                      :: msg(:)
     INTEGER, INTENT(IN)                        :: fh
     INTEGER, INTENT(IN), OPTIONAL              :: msglen
-    INTEGER                                    :: ierr, msg_len
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_chv', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
     ALLOCATE(status(MPI_STATUS_SIZE))
@@ -2465,13 +2494,15 @@ CONTAINS
   SUBROUTINE mp_file_write_at_all_ch(fh, offset, msg)
     CHARACTER(LEN=*), INTENT(IN)               :: msg
     INTEGER, INTENT(IN)                        :: fh
-    INTEGER                                    :: ierr
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+    
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_ch', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_ch @ "//routineN)
@@ -2495,13 +2526,15 @@ CONTAINS
     CHARACTER, INTENT(OUT)                     :: msg(:)
     INTEGER, INTENT(IN)                        :: fh
     INTEGER, INTENT(IN), OPTIONAL              :: msglen
-    INTEGER                                    :: ierr, msg_len
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_chv', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
     ALLOCATE(status(MPI_STATUS_SIZE))
@@ -2514,15 +2547,17 @@ CONTAINS
   END SUBROUTINE mp_file_read_at_chv
 
   SUBROUTINE mp_file_read_at_ch(fh, offset, msg)
-    CHARACTER(LEN=*), INTENT(OUT)               :: msg
+    CHARACTER(LEN=*), INTENT(OUT)              :: msg
     INTEGER, INTENT(IN)                        :: fh
-    INTEGER                                    :: ierr
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_ch', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_ch @ "//routineN)
@@ -2542,13 +2577,15 @@ CONTAINS
     CHARACTER, INTENT(OUT)                     :: msg(:)
     INTEGER, INTENT(IN)                        :: fh
     INTEGER, INTENT(IN), OPTIONAL              :: msglen
-    INTEGER                                    :: ierr, msg_len
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_chv', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr, msg_len
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
     ALLOCATE(status(MPI_STATUS_SIZE))
@@ -2561,15 +2598,17 @@ CONTAINS
   END SUBROUTINE mp_file_read_at_all_chv
 
   SUBROUTINE mp_file_read_at_all_ch(fh, offset, msg)
-    CHARACTER(LEN=*), INTENT(OUT)               :: msg
+    CHARACTER(LEN=*), INTENT(OUT)              :: msg
     INTEGER, INTENT(IN)                        :: fh
-    INTEGER                                    :: ierr
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-    INTEGER(kind=file_offset), INTENT(IN)        :: offset
+    INTEGER(kind=file_offset), INTENT(IN)      :: offset
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_ch', &
                                    routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
+    INTEGER                                    :: ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
+
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
     IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_ch @ "//routineN)
@@ -2636,8 +2675,7 @@ CONTAINS
 #endif
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lengths, old_types
 
-!   ---------------------------------------------------------------------------
-
+    ierr = 0
     n = SIZE (subtypes)
     !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
     type_descriptor%length = 1
@@ -2680,8 +2718,9 @@ CONTAINS
 
     INTEGER                                  :: i, ierr
 
-!   ---------------------------------------------------------------------------
-! If the subtype is associated, then it's a user-defined data type.
+    ierr = 0
+
+    ! If the subtype is associated, then it's a user-defined data type.
 
     IF (ASSOCIATED (type_descriptor%subtype)) THEN
         DO i = 1, SIZE(type_descriptor%subtype)
@@ -2712,9 +2751,9 @@ CONTAINS
     INTEGER                                  :: ierr, my_tag
 
     ierr = 0
+    my_tag = 0
 
 #if defined(__parallel)
-    my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
     CALL mpi_isend(MPI_BOTTOM,1,msgin%type_handle,dest,my_tag,&
@@ -2743,9 +2782,9 @@ CONTAINS
     INTEGER                                  :: ierr, my_tag
 
     ierr = 0
+    my_tag = 0
 
 #if defined(__parallel)
-    my_tag = 0
     IF (PRESENT(tag)) my_tag=tag
 
     CALL mpi_irecv(MPI_BOTTOM,1,msgout%type_handle,source, my_tag,&
