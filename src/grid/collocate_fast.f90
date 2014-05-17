@@ -5,25 +5,9 @@
 #ifdef __HAS_LIBGRID
 ! Nothing here, we use libgrid.a
 #else
+
 #if !defined(__GRID_CORE)
-
-#if defined(__G95)
-#define __GRID_CORE 1
-#elif defined(__INTEL)
-#define __GRID_CORE 2
-#elif defined(__PGI)
-#define __GRID_CORE 3
-#elif defined(__GFORTRAN)
 #define __GRID_CORE 4
-#elif defined(__PATHSCALE)
-#define __GRID_CORE 5
-#elif defined(__AIX)
-#define __GRID_CORE 6
-#else
-!if nothing else is known, use this one
-#define __GRID_CORE 2
-#endif
-
 #endif
 
 #if __GRID_CORE == 1
