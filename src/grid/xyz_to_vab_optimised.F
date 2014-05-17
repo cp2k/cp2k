@@ -2,7 +2,7 @@
 !> \\brief provides specific implementations for common cases of xyz_to_vab routine.
 !> 
 !> \\note
-!>      Specific implemenations for la_max_local,lb_max_local <=4 are contained
+!>      Specific implementations for la_max_local,lb_max_local <=4 are contained
 !>      in the this file, tuned for AMD Interlagos processor using the
 !>      gfortran compiler
 !>      If grid operations (subroutines integrate_v_rspace, calculate_rho_elec and similar)
@@ -266,15 +266,9 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
-   
+       INTEGER :: ico,jco
 
-    REAL(kind=dp) :: alpha_1(0:(0+0),0:0,0:0)
-    REAL(kind=dp) :: alpha_2(0:(0+0),0:0,0:0)
-    REAL(kind=dp) :: alpha_3(0:(0+0),0:0,0:0)
     coef_xyz=coef_xyz*prefactor
-
 
              jco=1 ! coset(0,0,0)
                 ico=1 ! coset(0,0,0)
@@ -308,8 +302,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp
    
 
     REAL(kind=dp) :: alpha_1(0:(0+1),0:0,0:1)
@@ -519,8 +513,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp
    
 
     REAL(kind=dp) :: alpha_1(0:(0+2),0:0,0:2)
@@ -764,8 +758,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp
    
 
     REAL(kind=dp) :: alpha_1(0:(0+3),0:0,0:3)
@@ -1118,8 +1112,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp
    
 
     REAL(kind=dp) :: alpha_1(0:(0+4),0:0,0:4)
@@ -1605,8 +1599,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_ra
    
 
     REAL(kind=dp) :: alpha_1(0:(1+0),0:1,0:0)
@@ -1820,7 +1814,7 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
    
 
@@ -2168,7 +2162,7 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
    
 
@@ -2767,7 +2761,7 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
    
 
@@ -3690,8 +3684,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(1+4),0:1,0:4,3)
@@ -3828,8 +3822,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_ra
    
 
     REAL(kind=dp) :: alpha_1(0:(2+0),0:2,0:0)
@@ -4100,7 +4094,7 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
    
 
@@ -4732,7 +4726,7 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
    
 
@@ -5868,8 +5862,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(2+3),0:2,0:3,3)
@@ -6006,8 +6000,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(2+4),0:2,0:4,3)
@@ -6144,8 +6138,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_ra
    
 
     REAL(kind=dp) :: alpha_1(0:(3+0),0:3,0:0)
@@ -6552,7 +6546,7 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
    
 
@@ -7555,8 +7549,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(3+2),0:3,0:2,3)
@@ -7693,8 +7687,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(3+3),0:3,0:3,3)
@@ -7831,8 +7825,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(3+4),0:3,0:4,3)
@@ -7969,8 +7963,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_ra
    
 
     REAL(kind=dp) :: alpha_1(0:(4+0),0:4,0:0)
@@ -8550,8 +8544,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(4+1),0:4,0:1,3)
@@ -8688,8 +8682,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(4+2),0:4,0:2,3)
@@ -8826,8 +8820,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(4+3),0:4,0:3,3)
@@ -8964,8 +8958,8 @@
        REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
-       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
-       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
+       INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp,l,k,lya,lyb,lza,lzb
+       REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb
  
 
     REAL(kind=dp) :: alpha(0:(4+4),0:4,0:4,3)

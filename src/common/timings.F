@@ -264,7 +264,7 @@ MODULE timings
 
     CHARACTER(LEN=400)                       :: line, mystring
     CHARACTER(LEN=60)                        :: sformat
-    INTEGER                                  :: a, routine_id, stack_size
+    INTEGER                                  :: routine_id, stack_size
     INTEGER(KIND=int_8)                      :: gpumem_free, gpumem_total
     INTEGER, DIMENSION(2)                    :: routine_tuple
     REAL(KIND=dp)                            :: en_elapsed, en_now, &

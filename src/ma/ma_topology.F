@@ -402,9 +402,14 @@ CONTAINS
  SUBROUTINE ma_allocated_topology (mp_group)
     INTEGER                                  :: mp_group
 
-    CHARACTER(LEN=default_string_length)     :: host_name
-    INTEGER                                  :: host_code, i, istat, numtask, &
+    INTEGER                                  :: istat, numtask, &
                                                 source
+#if defined __GEMINI || __SEASTAR
+    CHARACTER(LEN=default_string_length)     :: host_name
+#elif defined __NET
+    CHARACTER(LEN=default_string_length)     :: host_name
+    INTEGER                                  :: host_code, i
+#endif
 
   CALL mp_environ(numtask,source,mp_group) 
   ALLOCATE (allocated_topology(numtask),STAT=istat)
@@ -565,13 +570,15 @@ CONTAINS
 !> \var dest  the id of the dest node
 ! *****************************************************************************
   FUNCTION ma_hops (src,dest) RESULT (nhops)
-   INTEGER, INTENT(IN)          :: src,dest
-   INTEGER                      :: x,y,z,nhops
+   INTEGER, INTENT(IN)          :: src, dest
+
+   INTEGER                      :: nhops
+
+#if defined __GEMINI || __SEASTAR  
    INTEGER                      :: src_x, src_y, src_z,&
                                    dest_x, dest_y, dest_z
    REAL                         :: tmp
 
-#if defined __GEMINI || __SEASTAR  
    CALL ma_get_host_coordinates(src,src_x, src_y, src_z)
    CALL ma_get_host_coordinates(dest,dest_x, dest_y, dest_z)   
 
@@ -834,11 +841,12 @@ ENDIF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !Get the direction to for each communication
- SUBROUTINE get_direction(src, dest,xdir,ydir,zdir)
-   INTEGER                        ::  xdir, ydir, zdir
-   INTEGER                        ::  x,y,z, src, dest
+ SUBROUTINE get_direction(src,dest,xdir,ydir,zdir)
+   INTEGER                        :: src, dest, xdir, ydir, zdir
 
 #if defined __GEMINI || __SEASTAR   
+   INTEGER                        :: x,y,z
+
    x = MOD((net_topology(dest)%coord_x - net_topology(src)%coord_x),ma_nodes_x())
    IF(x .LT. ma_nodes_x()/2) THEN
      xdir = 1 

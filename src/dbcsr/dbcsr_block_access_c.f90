@@ -229,8 +229,9 @@
     LOGICAL                                  :: stored_tr
     TYPE(btree_2d_data_c)          :: data_block
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
 !   ---------------------------------------------------------------------------
+
     IF (debug_mod) THEN
        CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_4,&
             dbcsr_fatal_level, dbcsr_caller_error,&
@@ -324,8 +325,9 @@
                                                 rsize, stored_row,&
                                                 stored_col
     LOGICAL                                  :: stored_tr
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
 !   ---------------------------------------------------------------------------
+
     IF (debug_mod) THEN
        CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_4,&
             dbcsr_fatal_level, dbcsr_caller_error,&
@@ -768,8 +770,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
-    LOGICAL                                  :: cont_p
-    TYPE(dbcsr_block_buffer_obj)             :: buffers
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: lin_blk_p
 
 !   ---------------------------------------------------------------------------

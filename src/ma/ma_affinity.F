@@ -302,7 +302,8 @@ END SUBROUTINE ma_get_mempol
 
     INTEGER                                  :: core
 
-  isdefault = .FALSE.
+    core = 0
+    isdefault = .FALSE.
 #if defined (__HWLOC)  && !defined (__LIBNUMA)
  IF ( sched_unit .EQ. threads ) THEN
   CALL ma_set_thread_cores(topology%ncores,0)
@@ -358,7 +359,8 @@ END SUBROUTINE ma_get_mempol
 
     INTEGER                                  :: core
 
-  isdefault = .FALSE.
+    core = 0
+    isdefault = .FALSE.
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
    IF (sched_unit .EQ. threads .AND. my_info%nr_threads .GT. 1) THEN
@@ -433,7 +435,9 @@ END SUBROUTINE ma_get_mempol
 
     INTEGER                                  :: core, distance
 
-  isdefault = .FALSE.
+    core = 0
+    distance = 0
+    isdefault = .FALSE.
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
@@ -498,7 +502,11 @@ END SUBROUTINE ma_get_mempol
 
     INTEGER                                  :: core, distance, new_id, node
 
-  isdefault = .FALSE.
+    core = 0
+    distance = 0
+    new_id = 0
+    node = 0
+    isdefault = .FALSE.
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
@@ -597,8 +605,11 @@ END SUBROUTINE ma_get_mempol
 ! *****************************************************************************
 ! Group the MPI processes in a NUMA way following the machine topology
   SUBROUTINE ma_numa_node_place(node,id,sched_unit)
-  INTEGER :: id, node, core, sched_unit
+    INTEGER                                  :: node, id, sched_unit
 
+    INTEGER                                  :: core
+
+    core = 0
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
     core = MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_get_ncores())
@@ -658,7 +669,9 @@ END SUBROUTINE ma_get_mempol
 
     INTEGER                                  :: core, node
 
-   isdefault = .FALSE.
+    core = 0
+    node = 0
+    isdefault = .FALSE.
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
@@ -738,18 +751,18 @@ END SUBROUTINE ma_get_mempol
 !> \brief Update for all processes where the threads are running, also print
 !> \var unit_num the output console
 ! *****************************************************************************
-  SUBROUTINE ma_thread_running_on (unit_num)
-    INTEGER                                  :: unit_num,istat
+  SUBROUTINE ma_thread_running_on(unit_num)
+    INTEGER                                  :: unit_num
 
-    INTEGER                                  :: id, p, core
+#if defined (__HWLOC) || defined (__LIBNUMA)
+    INTEGER                                  :: id, istat, p, core
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: thread_send
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: thread_recv
     CHARACTER(len=4)                         :: first_core, second_core
-    CHARACTER(len=10)                        :: all_cores
     CHARACTER(LEN=default_string_length)     :: host_name
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
+    CHARACTER(len=10)                        :: all_cores
 
-#if defined (__HWLOC) || defined (__LIBNUMA)
   ! If not all MPI are present
   IF (.NOT. my_info%mp_info%all_proc) THEN
     CALL ma_show_threads(unit_num)
@@ -805,8 +818,8 @@ END SUBROUTINE ma_get_mempol
    ENDIF
   ENDIF
 #endif
-  END SUBROUTINE ma_thread_running_on
 
+  END SUBROUTINE ma_thread_running_on
 
 ! *****************************************************************************
 !> \brief Shows threads of each MPI process
