@@ -51,7 +51,7 @@ MODULE mp2_direct_method
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE t_sh_p_s_c,                      ONLY: free,&
+  USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1219,7 +1219,7 @@ MODULE mp2_direct_method
 
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       init_TShPSC_lmax = -1
-      CALL FREE()
+      CALL free_C0()
     END IF
 
     CALL timestop(handle)

@@ -62,7 +62,7 @@ MODULE mp2_ri_libint
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE t_sh_p_s_c,                      ONLY: free,&
+  USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -1348,7 +1348,7 @@ MODULE mp2_ri_libint
 
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       init_TShPSC_lmax = -1
-      CALL FREE()
+      CALL free_C0()
     END IF
 
     CALL timestop(handle)

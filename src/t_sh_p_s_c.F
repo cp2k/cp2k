@@ -29,7 +29,7 @@ MODULE t_sh_p_s_c
 
  IMPLICIT NONE
  PRIVATE
- PUBLIC :: trunc_CS_poly_n20, init, free
+ PUBLIC :: trunc_CS_poly_n20, init, free_C0
  REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE,  SAVE :: C0
  INTEGER, PARAMETER :: degree=15
  REAL(KIND=dp), PARAMETER :: target_error=      0.100000E-08
@@ -1104,10 +1104,10 @@ SUBROUTINE INIT(Nder,iunit,mepos,group)
 END SUBROUTINE INIT
 
 
-SUBROUTINE FREE()
+SUBROUTINE free_C0()
   IF(ALLOCATED(C0)) DEALLOCATE(C0)
   nderiv_init=-1
-END SUBROUTINE FREE
+END SUBROUTINE free_C0
 SUBROUTINE PD2VAL(RES,NDERIV,TG1,TG2,C0)
     REAL(KIND=dp), INTENT(OUT)               :: res(*)
     INTEGER, INTENT(IN)                      :: NDERIV
