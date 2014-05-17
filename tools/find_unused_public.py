@@ -7,9 +7,10 @@ from os.path import dirname, basename, normpath
 import os
 
 # pre-compiled regular expressions
-re_module = re.compile(r"(?:^|\n)\s*module\s+(\w+)\s.*\n\s*end\s*module",re.DOTALL)
-re_use    = re.compile(r"\n\s*use\s+(\w+)\s*,\s*only\s*:(.*)(?=\n)")
-re_pub    = re.compile(r"\n\s*public\s*::\s*(.*)(?=\n)")
+re_module  = re.compile(r"(?:^|\n)\s*module\s+(\w+)\s.*\n\s*end\s*module",re.DOTALL)
+re_useonly = re.compile(r"\n\s*use\s+(\w+)\s*,\s*only\s*:(.*)(?=\n)")
+re_use     = re.compile(r"\n\s*use\s+(\w+)\s*(?=\n)")
+re_pub     = re.compile(r"\n\s*public\s*::\s*(.*)(?=\n)")
 
 
 #=============================================================================
@@ -23,7 +24,6 @@ def main():
             parsed_files[fn] =  parse_file(absfn)
 
     all_used_symboles = set()
-
     for p in parsed_files.values():
         for m, syms in p['use']:
             for s in syms:
@@ -34,6 +34,8 @@ def main():
         if(len(p['mod']) != 1):
             continue
         m = p['mod'][0]
+        if(m+"@*" in all_used_symboles):
+            continue
         for s in p['pub']:
             if(m+"@"+s not in all_used_symboles):
                 print("Public symbole %s in module %s is never used elsewhere."%(s,m))
@@ -56,6 +58,10 @@ def parse_file(fn):
 
     uses = []
     matches = re_use.findall(content)
+    for m in matches:
+        uses.append((m.strip(), ("*",)))
+
+    matches = re_useonly.findall(content)
     for m in matches:
         syms = [p.strip() for p in m[1].split(",")]
         uses.append((m[0].strip(), syms))
