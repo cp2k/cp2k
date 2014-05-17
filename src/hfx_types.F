@@ -59,7 +59,7 @@ MODULE hfx_types
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers
   USE string_utilities,                ONLY: compress
-  USE t_c_g0,                          ONLY: free
+  USE t_c_g0,                          ONLY: free_C0
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -1230,7 +1230,7 @@ MODULE hfx_types
     IF(x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
        x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc ) THEN
       init_t_c_g0_lmax = -1
-      CALL free()
+      CALL free_C0()
     END IF
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf

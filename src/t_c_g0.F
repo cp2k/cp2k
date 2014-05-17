@@ -52,7 +52,7 @@ MODULE t_c_g0
 
  IMPLICIT NONE
  PRIVATE
- PUBLIC :: t_c_g0_n, init, free
+ PUBLIC :: t_c_g0_n, init, free_C0
  REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE,  SAVE :: C0
  INTEGER, PARAMETER :: degree=13
  REAL(KIND=dp), PARAMETER :: target_error=      0.100000E-08
@@ -1350,10 +1350,10 @@ SUBROUTINE init(Nder,iunit,mepos,group)
   CALL mp_bcast(C0,0,group)
 
 END SUBROUTINE init
-SUBROUTINE free()
+SUBROUTINE free_C0()
   IF(ALLOCATED(C0)) DEALLOCATE(C0)
   nderiv_init=-1
-END SUBROUTINE free
+END SUBROUTINE free_C0
 SUBROUTINE PD2VAL(RES,NDERIV,TG1,TG2,C0)
     REAL(KIND=dp), INTENT(OUT)               :: res(*)
     INTEGER, INTENT(IN)                      :: NDERIV
