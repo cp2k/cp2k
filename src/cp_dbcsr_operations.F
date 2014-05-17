@@ -1412,83 +1412,6 @@ CONTAINS
 
   END SUBROUTINE packed_vec_bcast
 
-  SUBROUTINE packed_vec_reduce(pkd_vec, to, scope, vec_blk_size, n, mp_obj, error)
-    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
-    INTEGER, INTENT(IN)                      :: to
-    CHARACTER(LEN=*), INTENT(IN)             :: scope
-    INTEGER, DIMENSION(:), INTENT(IN)        :: vec_blk_size
-    INTEGER, INTENT(IN)                      :: n
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_reduce', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: icol, irow, mp_group, mynode, &
-                                                mypcol, myprow, npcols, &
-                                                nprows, numnodes, src, &
-                                                timing_handle
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff, sums
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
-
-    numnodes = dbcsr_mp_numnodes (mp_obj)
-    mynode = dbcsr_mp_mynode (mp_obj)
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
-    npcols = dbcsr_mp_npcols (mp_obj)
-    nprows = dbcsr_mp_nprows (mp_obj)
-    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-
-    IF (pkd_vec(n+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                             "a_offset_last.LE.0!!!!!!!")
-
-    ALLOCATE(buff(SIZE(pkd_vec)),sums(SIZE(pkd_vec)))
-    sums = 0.0_dp
-    SELECT CASE(scope)
-    CASE('rowise')
-       CALL stop_program(routineN,moduleN,__LINE__,"more work here")
-       !
-       ! simple hack
-       DO icol = 0,npcols-1
-          buff = pkd_vec
-          src = blacs2mpi(to,icol)
-          CALL mp_bcast(buff,src,mp_group)
-          IF(mypcol.EQ.icol) THEN
-             pkd_vec = buff
-             CALL packed_vec_add(sums,buff,vec_blk_size,n,error=error)
-          ENDIF
-       ENDDO
-    CASE('columnwise')
-       !
-       ! simple hack
-       DO irow = 0,nprows-1
-          buff = pkd_vec
-          src = blacs2mpi(irow,to)
-          CALL mp_bcast(buff,src,mp_group)
-          IF(myprow.EQ.irow) THEN
-             CALL packed_vec_add(sums,buff,vec_blk_size,n,error=error)
-          ENDIF
-       ENDDO
-    CASE('all')
-       CALL stop_program(routineN,moduleN,__LINE__,"more work here")
-    CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"how do you wanna reduce")
-    END SELECT
-    pkd_vec = sums
-    DEALLOCATE(buff,sums)
-
-    IF(pkd_vec(n+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                            "a_offset_last.LE.0!!!!!!!")
-
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE packed_vec_reduce
-
   SUBROUTINE packed_vec_add(pkd_vec_a,pkd_vec_b,vec_blk_size,n,do_summation,error)
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec_a
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec_b
@@ -1628,35 +1551,6 @@ FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
      res=0
   END IF
 END FUNCTION cp_dbcsr_get_id_nr
-
-! *****************************************************************************
-!> \brief Maps sparse_matrix_type symmetry to DBCSR matrix type
-!> \param[out] dbcsr_matrix_type        matrix_type of the DBCSR matrix
-!> \param[in] sm_symmetry               sparse_matrix_symmetry
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, sm_symmetry)
-    CHARACTER, INTENT(OUT)                   :: dbcsr_matrix_type
-    CHARACTER(LEN=*), INTENT(IN)             :: sm_symmetry
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_type_from_sm_symmetry', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (sm_symmetry)
-    CASE ("symmetric")
-       dbcsr_matrix_type = dbcsr_type_symmetric
-    CASE ("antisymmetric")
-       dbcsr_matrix_type = dbcsr_type_antisymmetric
-    CASE ("none", "no symmetry")
-       dbcsr_matrix_type = dbcsr_type_no_symmetry
-    CASE default
-       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
-            "Unknown matrix type "//sm_symmetry)
-    END SELECT
-  END SUBROUTINE cp_dbcsr_type_from_sm_symmetry
-
 
 ! *****************************************************************************
 !> \brief Converts a cp2k full matrix into a DBCSR matrix.

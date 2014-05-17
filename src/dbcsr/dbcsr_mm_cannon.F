@@ -3196,34 +3196,6 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE rec_split
 
 ! *****************************************************************************
-!> \brief Ensures a real variable is in the range [0, 1].
-! *****************************************************************************
-  ELEMENTAL SUBROUTINE crop_0_1(v)
-    REAL(KIND=real_8), INTENT(INOUT)         :: v
-
-    v = MIN (v, 1.0_real_8)
-    v = MAX (v, 0.0_real_8)
-  END SUBROUTINE crop_0_1
-
-
-! *****************************************************************************
-!> \brief Switches pointers between two matrices
-!> \param[in,out] set1p, set2p
-! *****************************************************************************
-  SUBROUTINE dbcsr_switch_m_ptrs (m1p, m2p)
-    TYPE(dbcsr_type)                         :: m1p, m2p
-
-    TYPE(dbcsr_type)                         :: tmp_p
-
-!   ---------------------------------------------------------------------------
-
-    tmp_p = m1p
-    m1p = m2p
-    m2p = tmp_p
-  END SUBROUTINE dbcsr_switch_m_ptrs
-
-
-! *****************************************************************************
 !> \brief Switches pointers between two matrix sets
 !> \param[in,out] set1p, set2p
 ! *****************************************************************************
@@ -3254,22 +3226,6 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE dbcsr_switch_d_ptrs
 
 ! *****************************************************************************
-!> \brief Makes an MPI tag
-!> \param[in,out] set1p, set2p
-! *****************************************************************************
-  ELEMENTAL SUBROUTINE make_tag (tag, to, from, seq)
-    INTEGER, INTENT(OUT)                     :: tag
-    INTEGER, INTENT(IN)                      :: to, from, seq
-
-    INTEGER, PARAMETER                       :: s = 8
-
-!   ---------------------------------------------------------------------------
-
-    tag = ISHFT (to, s) + from + ISHFT (seq, 2*s)
-  END SUBROUTINE make_tag
-
-
-! *****************************************************************************
 ! The following routines are helped here to help the compiler optimize them
 ! out.
 ! *****************************************************************************
@@ -3298,20 +3254,6 @@ MODULE dbcsr_mm_cannon
        flip_type = '@'
     END SELECT
   END FUNCTION flip_type
-
-  ELEMENTAL FUNCTION select_n_or_t (t, n1, n2) RESULT (val)
-    LOGICAL, INTENT(in)                      :: t
-    INTEGER, INTENT(in)                      :: n1, n2
-    INTEGER                                  :: val
-
-    IF (.NOT. t) THEN
-       val = n1
-    ELSE
-       val = n2
-    ENDIF
-  END FUNCTION select_n_or_t
-
-
 
 ! *****************************************************************************
 !> \brief Calculates per-block norms.

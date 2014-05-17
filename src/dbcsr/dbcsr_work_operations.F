@@ -389,7 +389,6 @@ CONTAINS
     matrix%m%has_global_rows = .FALSE.
     matrix%m%has_local_cols  = .FALSE.
     matrix%m%has_global_cols = .FALSE.
-!$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
     CALL dbcsr_make_index_exist (matrix%m, error=error)
     matrix%m%valid = .TRUE.
     CALL dbcsr_error_stop(error_handler, error)
@@ -1378,35 +1377,6 @@ CONTAINS
     IF (PRESENT (index)) index = matrix%lastblk
     IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE add_work_coordinate
-
-
-! *****************************************************************************
-!> \brief Count actual size taken by work matrix
-!> \param[in] row_i           row indices
-!> \param[in] col_i           column indices
-!> \param[in] row_block_sizes  offsets of rows
-!> \param[in] col_block_sizes  offsets of columns
-!> \param[in] nblks              number of blocks
-!> \param[out] nze               counted data size
-! *****************************************************************************
-  PURE SUBROUTINE dbcsr_count_wm(row_i, col_i,&
-       row_block_sizes, col_block_sizes, nblks, nze)
-    INTEGER, INTENT(IN)                      :: nblks
-    INTEGER, DIMENSION(:), INTENT(IN)        :: col_block_sizes, &
-                                                row_block_sizes
-    INTEGER, DIMENSION(nblks), INTENT(IN)    :: col_i, row_i
-    INTEGER, INTENT(OUT)                     :: nze
-
-    INTEGER                                  :: blk
-
-!   ---------------------------------------------------------------------------
-
-    nze = 0
-    DO blk = 1, nblks
-       nze = nze + row_block_sizes(row_i(blk)) * col_block_sizes(col_i(blk))
-    ENDDO
-  END SUBROUTINE dbcsr_count_wm
-
 
 ! *****************************************************************************
 !> \brief Merge data from matrix and work matrices into the final matrix.

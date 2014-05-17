@@ -173,60 +173,6 @@ MODULE dbcsr_data_methods_low
     END SELECT
   END FUNCTION dbcsr_data_get_type_size
 
-
-! *****************************************************************************
-! \brief Data type transformations
-! *****************************************************************************
-  FUNCTION data_type_2d_from_1d (type_1d) RESULT (type_2d)
-    INTEGER, INTENT(in)                      :: type_1d
-    INTEGER                                  :: type_2d
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'data_type_2d_from_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-    SELECT CASE (type_1d)
-    CASE (dbcsr_type_real_4)
-       type_2d = dbcsr_type_real_4_2d
-    CASE (dbcsr_type_real_8)
-       type_2d = dbcsr_type_real_8_2d
-    CASE (dbcsr_type_complex_4)
-       type_2d = dbcsr_type_complex_4_2d
-    CASE (dbcsr_type_complex_8)
-       type_2d = dbcsr_type_complex_8_2d
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Invalid data type.",__LINE__,error)
-    END SELECT
-  END FUNCTION data_type_2d_from_1d
-
-! Data type transformations
-  FUNCTION data_type_1d_from_2d (type_2d) RESULT (type_1d)
-    INTEGER, INTENT(IN)                      :: type_2d
-    INTEGER                                  :: type_1d
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'data_type_1d_from_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-    SELECT CASE (type_2d)
-    CASE (dbcsr_type_real_4_2d)
-       type_1d = dbcsr_type_real_4
-    CASE (dbcsr_type_real_8_2d)
-       type_1d = dbcsr_type_real_8
-    CASE (dbcsr_type_complex_4_2d)
-       type_1d = dbcsr_type_complex_4
-    CASE (dbcsr_type_complex_8_2d)
-       type_1d = dbcsr_type_complex_8
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Invalid data type.",__LINE__,error)
-    END SELECT
-  END FUNCTION data_type_1d_from_2d
-
-
 ! *****************************************************************************
 !> \brief Initializes a data area
 !> \param[inout] area         data area

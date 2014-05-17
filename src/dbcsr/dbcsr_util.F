@@ -232,28 +232,6 @@ CONTAINS
     ENDIF
   END SUBROUTINE convert_offsets_to_sizes
 
-
-! *****************************************************************************
-!> \brief Determines the correct transposed type of a DBCSR matrix.
-!> \param[out] new_type       new matrix type
-!> \param[in] old_type        current matrix_type
-! *****************************************************************************
-  ELEMENTAL SUBROUTINE dbcsr_transposed_type (new_type, old_type)
-    CHARACTER, INTENT(OUT)                   :: new_type
-    CHARACTER, INTENT(IN)                    :: old_type
-
-    SELECT CASE (old_type)
-    CASE ('N')
-       new_type = 'T'
-    CASE ('T')
-       new_type = 'N'
-    CASE DEFAULT
-       new_type = old_type
-    END SELECT
-  END SUBROUTINE dbcsr_transposed_type
-
-
-
 ! *****************************************************************************
 !> \brief Converts global offsets to local
 !> \par Global vs. Local Indexing

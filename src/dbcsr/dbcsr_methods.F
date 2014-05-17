@@ -31,13 +31,10 @@ MODULE dbcsr_methods
                                              btree_new_z => btree_new
   USE dbcsr_config,                    ONLY: comm_thread_load,&
                                              use_subcommunicators
-  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
-                                             dbcsr_data_get_size_referenced,&
-                                             dbcsr_data_get_type,&
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size_referenced,&
                                              dbcsr_data_hold,&
                                              dbcsr_data_init,&
-                                             dbcsr_data_release,&
-                                             dbcsr_data_set_size_referenced
+                                             dbcsr_data_release
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -134,10 +131,6 @@ MODULE dbcsr_methods
             dbcsr_mutable_release, dbcsr_mutable_hold,&
             dbcsr_mutable_instantiated
 
-  PUBLIC :: dbcsr_modify_lock, dbcsr_modify_unlock
-
-
-
   INTERFACE dbcsr_init
      MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
   END INTERFACE
@@ -159,22 +152,18 @@ MODULE dbcsr_methods
   !END INTERFACE
 
   INTERFACE dbcsr_get_data_size
-     !MODULE PROCEDURE get_data_size_area, get_data_size_matrix
      MODULE PROCEDURE get_data_size_matrix
   END INTERFACE
 
   INTERFACE dbcsr_get_data_size_used
-     !MODULE PROCEDURE get_data_size_ref_area
      MODULE PROCEDURE dbcsr_get_data_size_used
   END INTERFACE
 
   INTERFACE dbcsr_get_data_size_referenced
-     !MODULE PROCEDURE get_data_size_ref_area, get_data_size_ref_matrix
      MODULE PROCEDURE get_data_size_ref_matrix
   END INTERFACE
 
   INTERFACE dbcsr_get_data_type
-     !MODULE PROCEDURE dbcsr_get_data_type_obj, data_get_data_type
      MODULE PROCEDURE dbcsr_get_data_type_obj
   END INTERFACE
 
@@ -501,7 +490,6 @@ CONTAINS
           ENDIF
           CALL dbcsr_release_locals (matrix, error)
           matrix%m%valid = .FALSE.
-!$        CALL OMP_DESTROY_LOCK (matrix%m%modification_lock)
           CALL dbcsr_init (matrix%m)
        ENDIF
     ENDIF
@@ -710,48 +698,6 @@ CONTAINS
        CALL mp_comm_free (mp_env%mp%pcol_group)
     ENDIF
   END SUBROUTINE dbcsr_mp_grid_remove
-
-! *****************************************************************************
-!> \brief Locks the DBCSR data structure for modification.
-!> \param[in,out] matrix      the matrix to lock
-! *****************************************************************************
-  SUBROUTINE dbcsr_modify_lock (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-
-    !$ CALL OMP_SET_LOCK (matrix%m%modification_lock)
-  END SUBROUTINE dbcsr_modify_lock
-
-
-! *****************************************************************************
-!> \brief Releases the modification lock on a DBCSR data structure.
-!> \param[in,out] matrix      the matrix to lock
-! *****************************************************************************
-  SUBROUTINE dbcsr_modify_unlock (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-
-    !$ CALL OMP_UNSET_LOCK (matrix%m%modification_lock)
-  END SUBROUTINE dbcsr_modify_unlock
-
-! *****************************************************************************
-!> \brief Locks the DBCSR data structure for reading.
-!> \param[in,out] matrix      the matrix to lock
-! *****************************************************************************
-  SUBROUTINE dbcsr_read_lock (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-
-    !$ CALL OMP_SET_LOCK (matrix%m%modification_lock)
-  END SUBROUTINE dbcsr_read_lock
-
-! *****************************************************************************
-!> \brief Releases the reading lock on a DBCSR data structure.
-!> \param[in,out] matrix      the matrix to lock
-! *****************************************************************************
-  SUBROUTINE dbcsr_read_unlock (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-
-    !$ CALL OMP_UNSET_LOCK (matrix%m%modification_lock)
-  END SUBROUTINE dbcsr_read_unlock
-
 
 ! *****************************************************************************
 !> \brief Marks another use of the mp_env
@@ -1864,19 +1810,6 @@ CONTAINS
   END FUNCTION dbcsr_get_data_type_obj
 
 ! *****************************************************************************
-!> \brief Returns data type of a data area
-!> \param[in] area         data area
-!> \result data_type       data type of the data area
-! *****************************************************************************
-  PURE FUNCTION data_get_data_type (area) RESULT (data_type)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    INTEGER                                  :: data_type
-
-    data_type = dbcsr_data_get_type (area)
-  END FUNCTION data_get_data_type
-
-
-! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is real
 !> \param[in]  matrix              query this matrix
 !> \param[out] is_real
@@ -1973,34 +1906,6 @@ CONTAINS
 !
 
 ! *****************************************************************************
-!> \brief Returns the allocated data size
-!> \param[in] area       data area
-!> \retval data_size      size of data
-! *****************************************************************************
-  FUNCTION get_data_size_area (area) RESULT (data_size)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    INTEGER                                  :: data_size
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_data_size_area', &
-      routineP = moduleN//':'//routineN
-
-    data_size = dbcsr_data_get_size (area)
-  END FUNCTION get_data_size_area
-
-! *****************************************************************************
-!> \brief Returns data type of a data area
-!> \param[in] area         data area
-!> \result data_type       data type of the data area
-! *****************************************************************************
-  PURE FUNCTION data_data_get_type (area) RESULT (data_type)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    INTEGER                                  :: data_type
-
-    data_type = dbcsr_data_get_type (area)
-  END FUNCTION data_data_get_type
-
-
-! *****************************************************************************
 !> \brief Returns the allocated data size of a DBCSR matrix
 !> \param[in] matrix      matrix
 !> \retval data_size      size of data
@@ -2051,31 +1956,6 @@ CONTAINS
 
     data_size_referenced = dbcsr_data_get_size_referenced (matrix%m%data_area)
   END FUNCTION get_data_size_ref_matrix
-
-! *****************************************************************************
-!> \brief Get actual data storage used for matrix
-!> \param[in] area            Count data of this matrix
-!> \result data_size          Data size used by matrix
-! *****************************************************************************
-  PURE FUNCTION get_data_size_ref_area (area) RESULT (data_size_referenced)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    INTEGER                                  :: data_size_referenced
-
-    data_size_referenced = dbcsr_data_get_size_referenced (area)
-  END FUNCTION get_data_size_ref_area
-
-! *****************************************************************************
-!> \brief Sets the referenced size of the data area
-!> \param[in,out] data_area  area for which to set referenced data size
-!> \param[in]                set referenced data size to this value
-! *****************************************************************************
-  PURE SUBROUTINE set_data_size_ref_area (data_area, referenced_size)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: data_area
-    INTEGER, INTENT(IN)                      :: referenced_size
-
-    CALL dbcsr_data_set_size_referenced (data_area, referenced_size)
-  END SUBROUTINE set_data_size_ref_area
-
 
 ! *****************************************************************************
 !> \brief Count actual data storage used for matrix data.

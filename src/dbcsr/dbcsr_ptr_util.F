@@ -65,12 +65,14 @@ MODULE dbcsr_ptr_util
 
   INTERFACE pointer_rank_remap2
      MODULE PROCEDURE pointer_s_rank_remap2, pointer_d_rank_remap2,&
-                      pointer_c_rank_remap2, pointer_z_rank_remap2
+                      pointer_c_rank_remap2, pointer_z_rank_remap2,&
+                      pointer_l_rank_remap2, pointer_i_rank_remap2
   END INTERFACE
 
   INTERFACE memory_copy
-     MODULE PROCEDURE mem_copy_i, mem_copy_l
-     MODULE PROCEDURE mem_copy_s, mem_copy_d, mem_copy_c, mem_copy_z
+     MODULE PROCEDURE mem_copy_i, mem_copy_l, &
+                      mem_copy_s, mem_copy_d, &
+                      mem_copy_c, mem_copy_z
   END INTERFACE
 
   INTERFACE memory_zero
@@ -79,13 +81,13 @@ MODULE dbcsr_ptr_util
   END INTERFACE
 
   INTERFACE memory_allocate
-     MODULE PROCEDURE mem_alloc_i,mem_alloc_l, mem_alloc_s,    mem_alloc_d,    mem_alloc_c,    mem_alloc_z
-     MODULE PROCEDURE mem_alloc_i_2d, mem_alloc_s_2d, mem_alloc_d_2d, mem_alloc_c_2d, mem_alloc_z_2d
+     MODULE PROCEDURE mem_alloc_i,    mem_alloc_l,    mem_alloc_s,    mem_alloc_d,    mem_alloc_c,    mem_alloc_z
+     MODULE PROCEDURE mem_alloc_i_2d, mem_alloc_l_2d, mem_alloc_s_2d, mem_alloc_d_2d, mem_alloc_c_2d, mem_alloc_z_2d
   END INTERFACE
 
   INTERFACE memory_deallocate
-     MODULE PROCEDURE mem_dealloc_i, mem_dealloc_l, mem_dealloc_s, mem_dealloc_d, mem_dealloc_c, mem_dealloc_z
-     MODULE PROCEDURE mem_dealloc_i_2d, mem_dealloc_s_2d, mem_dealloc_d_2d, mem_dealloc_c_2d, mem_dealloc_z_2d
+     MODULE PROCEDURE mem_dealloc_i,    mem_dealloc_l,     mem_dealloc_s,    mem_dealloc_d,    mem_dealloc_c,    mem_dealloc_z
+     MODULE PROCEDURE mem_dealloc_i_2d, mem_dealloc_l_2d,  mem_dealloc_s_2d, mem_dealloc_d_2d, mem_dealloc_c_2d, mem_dealloc_z_2d
   END INTERFACE
 
  CONTAINS

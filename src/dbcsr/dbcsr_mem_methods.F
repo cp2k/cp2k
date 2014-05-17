@@ -152,31 +152,6 @@ MODULE dbcsr_mem_methods
  END SUBROUTINE dbcsr_mempool_add
 
 ! *****************************************************************************
-! \brief Returns the number of data_areas currently stored in the given mempool.
-! \author Ole Schuett
-! *****************************************************************************
- FUNCTION mempool_size(pool, error) RESULT(n)
-    TYPE(dbcsr_mempool_type), POINTER        :: pool
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    INTEGER                                  :: n
-
-    TYPE(dbcsr_mempool_entry_type), POINTER  :: cur
-
-    IF(.NOT.ASSOCIATED(pool)) STOP "mempool_size: pool not allocated"
-
-    !$ CALL OMP_SET_LOCK(pool%lock)
-    cur => pool%root
-    n = 0
-    DO WHILE(ASSOCIATED(cur%next))
-       n = n + 1
-       cur => cur%next
-    ENDDO
-    !$ CALL OMP_UNSET_LOCK(pool%lock)
- END FUNCTION mempool_size
-
-
-
-! *****************************************************************************
 ! \brief Ensures that pool_size < max_size, e.g. that there is a free slot.
 ! \author Ole Schuett
 ! *****************************************************************************

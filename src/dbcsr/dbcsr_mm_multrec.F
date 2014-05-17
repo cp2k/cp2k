@@ -740,26 +740,6 @@ MODULE dbcsr_mm_multrec
     END FORALL
   END SUBROUTINE remap_local2global
 
-  !> \brief Maps between locally-indexed arrays with different local indexing.
-  PURE SUBROUTINE remap_local2local(n_local_src, local_remap, local_src, &
-       n_globals, global_dst)
-    INTEGER, INTENT(IN)                      :: n_local_src
-    INTEGER, DIMENSION(1:n_local_src), &
-      INTENT(OUT)                            :: local_remap
-    INTEGER, DIMENSION(1:n_local_src), &
-      INTENT(IN)                             :: local_src
-    INTEGER, INTENT(IN)                      :: n_globals
-    INTEGER, DIMENSION(1:n_globals), &
-      INTENT(IN)                             :: global_dst
-
-    INTEGER                                  :: i
-
-    FORALL (i = 1 : n_local_src)
-       local_remap(i) = global_dst (local_src (i))
-    END FORALL
-  END SUBROUTINE remap_local2local
-
-
 ! *****************************************************************************
 !> \brief Gathers the local elements from all data (full_data)
 !>

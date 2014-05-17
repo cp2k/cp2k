@@ -247,66 +247,6 @@
   END SUBROUTINE dbcsr_trace_ab_[nametype1]
 
 
-  SUBROUTINE bcast_block_[nametype1](blk, source, scope, mp_obj, error)
-    [type1], DIMENSION(:), INTENT(INOUT)     :: blk
-    INTEGER, INTENT(IN)                      :: source
-    CHARACTER(LEN=*), INTENT(IN)             :: scope
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'bcast_block_[nametype1]', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: icol, irow, mp_group, &
-                                                mypcol, myprow, npcols, &
-                                                nprows, src
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    [type1], ALLOCATABLE, DIMENSION(:)       :: buff
-
-!   ---------------------------------------------------------------------------
-
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
-    npcols = dbcsr_mp_npcols (mp_obj)
-    nprows = dbcsr_mp_nprows (mp_obj)
-    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-
-    ALLOCATE(buff(SIZE(blk)))
-    SELECT CASE(scope)
-    CASE('rowise')
-       !
-       ! simple hack
-       DO icol = 0,npcols-1
-          buff = blk
-          src = blacs2mpi(source,icol)
-          CALL mp_bcast(buff,src,mp_group)
-          IF(mypcol.EQ.icol) THEN
-             blk = buff
-          ENDIF
-       ENDDO
-    CASE('columnwise')
-       !
-       ! simple hack
-       DO irow = 0,nprows-1
-          buff = blk
-          src = blacs2mpi(irow,source)
-          CALL mp_bcast(buff,src,mp_group)
-          IF(myprow.EQ.irow) THEN
-             blk = buff
-          ENDIF
-       ENDDO
-    CASE('all')
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN, "combination of types NYI",__LINE__,error)
-    CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "how do you wanna bcast",__LINE__,error)
-    END SELECT
-    DEALLOCATE(buff)
-
-  END SUBROUTINE bcast_block_[nametype1]
-
   !> \brief Interface for matrix scaling by a scalar
   SUBROUTINE dbcsr_scale_[nametype1](matrix_a, alpha_scalar, last_column, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -384,39 +324,6 @@
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
   END SUBROUTINE dbcsr_set_[nametype1]
-
-  !> \brief Interface for dbcsr_add THIS IS NOT NEEDED ANYMORE (alpha and beta ALWAYS REQUESTED)
-  SUBROUTINE dbcsr_add_alpha_[nametype1](matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    [type1], INTENT(IN)                      :: alpha_scalar
-    [type1], INTENT(IN), OPTIONAL            :: beta_scalar
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    IF (PRESENT(beta_scalar)) THEN
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            alpha_scalar=dbcsr_scalar(alpha_scalar),&
-            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
-    ELSE
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            alpha_scalar=dbcsr_scalar(alpha_scalar), error=error)
-    ENDIF
-  END SUBROUTINE dbcsr_add_alpha_[nametype1]
-  !> \brief Interface for dbcsr_add THIS IS NOT NEEDED ANYMORE (alpha and beta ALWAYS REQUESTED)
-  SUBROUTINE dbcsr_add_beta_[nametype1](matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    [type1], INTENT(IN), OPTIONAL            :: alpha_scalar
-    [type1], INTENT(IN)                      :: beta_scalar
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    IF (PRESENT(alpha_scalar)) THEN
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            alpha_scalar=dbcsr_scalar(alpha_scalar),&
-            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
-    ELSE
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
-    ENDIF
-  END SUBROUTINE dbcsr_add_beta_[nametype1]
 
   SUBROUTINE dbcsr_filter_[nametype1] (matrix, eps, method, use_absolute, &
        filter_diag, quick, error)

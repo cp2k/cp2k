@@ -1783,60 +1783,6 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Matches row/block sizes and offsets to a given distribution, inplace.
-!> \note Used for making matrices dense/undense
-! *****************************************************************************
-  SUBROUTINE make_sizes_dense_old (new_distribution, old_distribution,&
-       blk_sizes, blk_offsets, nbins,&
-       old_image_dist, nimages)
-    TYPE(array_i1d_obj), INTENT(IN)          :: new_distribution, &
-                                                old_distribution
-    TYPE(array_i1d_obj), INTENT(INOUT)       :: blk_sizes, blk_offsets
-    INTEGER, INTENT(IN)                      :: nbins
-    INTEGER, DIMENSION(:), INTENT(in), &
-      OPTIONAL                               :: old_image_dist
-    INTEGER, INTENT(IN), OPTIONAL            :: nimages
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense_old', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: nvbins
-    INTEGER, DIMENSION(:), POINTER           :: bo, bs, new_bin_dist, &
-                                                old_bin_dist, old_bo
-    LOGICAL                                  :: images
-    TYPE(array_i1d_obj)                      :: old_blk_offsets, old_blk_sizes
-
-!   ---------------------------------------------------------------------------
-
-    images = PRESENT (old_image_dist) .AND. PRESENT (nimages)
-    ! Save old data
-    old_bin_dist => array_data (old_distribution)
-    old_blk_sizes = blk_sizes
-    old_blk_offsets = blk_offsets
-    old_bo => array_data (blk_offsets)
-    CALL array_nullify (blk_sizes)
-    CALL array_nullify (blk_offsets)
-    new_bin_dist => array_data (new_distribution)
-    IF (images) THEN
-       nvbins = nbins * nimages
-       ALLOCATE (bs(nvbins), bo(nvbins+1))
-       CALL match_sizes_to_el_dist(bs, old_bo, new_bin_dist,&
-            old_bin_dist, old_image_dist, nimages)
-    ELSE
-       nvbins = nbins
-       ALLOCATE (bs(nvbins), bo(nvbins+1))
-       CALL match_sizes_to_el_dist (bs, old_bo, new_bin_dist,&
-            old_bin_dist)
-    ENDIF
-    CALL convert_sizes_to_offsets (bs, bo)
-    CALL array_new (blk_sizes, bs, gift=.TRUE.)
-    CALL array_new (blk_offsets, bo, gift=.TRUE.)
-    CALL array_release (old_blk_sizes)
-    CALL array_release (old_blk_offsets)
-  END SUBROUTINE make_sizes_dense_old
-
-
-! *****************************************************************************
 !> \brief Determines block sizes from old offsets and old and new
 !>        distributions.
 !> \note Used for making matrices dense/undense

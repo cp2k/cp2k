@@ -126,10 +126,6 @@ MODULE dbcsr_block_access
                       dbcsr_set_block_pointer_2d_d,&
                       dbcsr_set_block_pointer_2d_c,&
                       dbcsr_set_block_pointer_2d_z
-     MODULE PROCEDURE dbcsr_set_block_pointer_1d_s,&
-                      dbcsr_set_block_pointer_1d_d,&
-                      dbcsr_set_block_pointer_1d_c,&
-                      dbcsr_set_block_pointer_1d_z
   END INTERFACE
 
 

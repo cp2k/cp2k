@@ -247,6 +247,10 @@ MODULE cp_dbcsr_interface
                       cp_dbcsr_trace_ab_s
      MODULE PROCEDURE cp_dbcsr_trace_a_d,&
                       cp_dbcsr_trace_a_s
+     MODULE PROCEDURE cp_dbcsr_trace_ab_z,&
+                      cp_dbcsr_trace_ab_c
+     MODULE PROCEDURE cp_dbcsr_trace_a_z,&
+                      cp_dbcsr_trace_a_c
   END INTERFACE
 
   INTERFACE cp_dbcsr_set

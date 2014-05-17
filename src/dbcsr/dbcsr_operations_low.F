@@ -44,49 +44,41 @@ MODULE dbcsr_operations_low
                                              dbcsr_find_column,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling
-  USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
-                                             dbcsr_index_checksum,&
+  USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
                                              dbcsr_repoint_index
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_col_block_offsets, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
        dbcsr_distribution_row_dist, dbcsr_get_data_size, &
        dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
        dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
        dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_mp_grid_setup, dbcsr_mp_group, &
-       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_offsets, &
-       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_valid_index
-  USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
-                                             dbcsr_send_any
+       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_row_block_offsets, &
+       dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
-  USE dbcsr_toollib,                   ONLY: ceil_log2,&
-                                             swap
+  USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_filter_frobenius, &
        dbcsr_func_artanh, dbcsr_func_asin, dbcsr_func_cos, dbcsr_func_ddsin, &
        dbcsr_func_ddtanh, dbcsr_func_dsin, dbcsr_func_dtanh, &
        dbcsr_func_inverse, dbcsr_func_inverse_special, dbcsr_func_sin, &
        dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, &
-       dbcsr_iterator, dbcsr_memtype_MPI, dbcsr_mp_obj, dbcsr_norm_column, &
-       dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, &
-       dbcsr_repl_row, dbcsr_scalar_type, dbcsr_type_antihermitian, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: dbcsr_checksum,&
-                                             find_block_of_element
+       dbcsr_iterator, dbcsr_mp_obj, dbcsr_norm_column, dbcsr_norm_frobenius, &
+       dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, dbcsr_obj, &
+       dbcsr_repl_full, dbcsr_repl_none, dbcsr_scalar_type, &
+       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: find_block_of_element
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
@@ -95,10 +87,7 @@ MODULE dbcsr_operations_low
                                              real_8,&
                                              sp
   USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast,&
                                              mp_max,&
-                                             mp_recv,&
-                                             mp_send,&
                                              mp_sum
 
   !$ USE OMP_LIB
@@ -808,100 +797,6 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_anytype
 
-! *****************************************************************************
-!> \brief add and scale matrices
-!>    A = alpha*A + beta*B or
-!> \par Internal implementation
-!>      This routine avoids using work matrices. Instead, it pre-sizes the
-!>      matrix so that the add functions
-!> \param[in,out] matrix_a   DBCSR matrix
-!> \param[in] matrix_b       DBCSR matrix
-!> \param[in] alpha_scalar   (optional) scale matrix_a by this factor
-!> \param[in] beta_scalar    (optional) scale matrix_b by this factor
-!>                           before adding
-!> \param[in,out] error      error
-! *****************************************************************************
-  SUBROUTINE dbcsr_add_reserved(matrix_a, matrix_b,&
-       alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    TYPE(dbcsr_scalar_type), INTENT(IN), &
-      OPTIONAL                               :: alpha_scalar, beta_scalar
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_reserved', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, col, data_type_a, &
-                                                data_type_b, error_handler, &
-                                                nblkrows, nblks, row
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: b_row_i
-    LOGICAL                                  :: do_scale, tr
-    TYPE(dbcsr_data_obj)                     :: data_block
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_scalar_type)                  :: my_alpha_scalar, &
-                                                my_beta_scalar
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    ! Checks for validity
-    CALL dbcsr_assert (dbcsr_valid_index (matrix_a),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Target matrix A must be valid.", __LINE__, error)
-    CALL dbcsr_assert (dbcsr_valid_index (matrix_b),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Source matrix B must be valid.", __LINE__, error)
-    ! Shortcuts
-    data_type_a = dbcsr_get_data_type(matrix_a)
-    data_type_b = dbcsr_get_data_type(matrix_b)
-    ! Process arguments
-    my_alpha_scalar = dbcsr_scalar_one (data_type_a)
-    IF(PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
-    my_beta_scalar = dbcsr_scalar_one (data_type_b)
-    IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
-    ! Scale target matrix
-    do_scale = dbcsr_scalar_are_equal (&
-         my_beta_scalar, dbcsr_scalar_one (data_type_b))
-    CALL dbcsr_scale(matrix_a, alpha_scalar=my_alpha_scalar, error=error)
-    !
-    IF(.NOT.dbcsr_scalar_are_equal(my_beta_scalar,&
-         dbcsr_scalar_zero(data_type_b))) THEN
-       ! Reserve the blocks to be added
-       nblks = dbcsr_get_num_blocks (matrix_b)
-       nblkrows = dbcsr_nblkrows_total (matrix_b)
-       ALLOCATE (b_row_i(nblks))
-       CALL dbcsr_expand_row_index (matrix_b%m%row_p, b_row_i, nblkrows, nblks)
-       CALL dbcsr_reserve_blocks (matrix_a, b_row_i, matrix_b%m%col_i,&
-            error=error)
-       DEALLOCATE (b_row_i)
-       ! Now add the blocks
-       CALL dbcsr_data_init (data_block)
-       CALL dbcsr_data_new (data_block, data_type_b)
-       CALL dbcsr_iterator_start(iter, matrix_b)
-       DO WHILE (dbcsr_iterator_blocks_left(iter))
-          CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
-             IF (do_scale) THEN
-                CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
-                     summation=.TRUE.)
-             ELSE
-                CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
-                     summation=.TRUE., scale=my_beta_scalar)
-             ENDIF
-       ENDDO
-       CALL dbcsr_assert (dbcsr_valid_index (matrix_a),&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Block reservations seem to be incompletely done.", __LINE__,&
-            error=error)
-       CALL dbcsr_iterator_stop(iter)
-       CALL dbcsr_data_clear_pointer (data_block)
-       CALL dbcsr_data_release (data_block)
-       !CALL dbcsr_finalize (matrix_a, error=error)
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_add_reserved
-
-
   !> \brief Interface for dbcsr_add
   SUBROUTINE dbcsr_add_d(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -1018,218 +913,6 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_c
-
-
-! *****************************************************************************
-!> \brief Performs a non-scattering reduction on a DBCSR matrix.
-!> \par Meaning
-!>      The blocks on all processes are incorporated according to the
-!>      reduction operation into a block located in the target
-!>      process, process row, or process column. E.g., if all
-!>      processes have block (1,1) and the target is process 0, then
-!>      the sum of all (1,1) blocks is placed onto process 0.
-!> \param[in] matrix             matrix to reduce
-!> \param[in,out] reduced        reduced version of input matrix
-!> \param[in] reduction_ target  target process, process row, or process column
-!> \param[in] reduce_rows        reduce by rows
-!> \param[in] reduce_columns     reduce by columns
-!> \param[in] operation          reduction operation
-!> \param[in,out] error          error
-!> \par Operation types
-!>      Specified as a string; currently supported are <ul>
-!>      <li> "+" or "SUM" for summation</li></ul>
-! *****************************************************************************
-  SUBROUTINE dbcsr_reduce (matrix, reduced,&
-       reduction_target, reduce_rows, reduce_columns, &
-       operation, error)
-    TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: reduced
-    INTEGER, INTENT(IN)                      :: reduction_target
-    LOGICAL, INTENT(IN)                      :: reduce_rows, reduce_columns
-    CHARACTER(LEN=*), INTENT(IN)             :: operation
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reduce', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: i_d = 2, i_i = 1
-    REAL(kind=dp), PARAMETER                 :: comp_eps = 1.0E-06_dp
-
-    CHARACTER                                :: red_type
-    INTEGER :: data_type, dst_p, error_handler, half_spread, most_spread, &
-      mp_group, my_norm_node, mynode, nsteps, numnodes, spread, src_p, step
-    INTEGER, DIMENSION(2)                    :: get_sizes, my_sizes
-    LOGICAL                                  :: i_recv, i_send
-    REAL(kind=dp)                            :: cs1, cs2
-    TYPE(dbcsr_data_obj)                     :: data_ptr
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_obj), POINTER                 :: mat_comm
-    TYPE(dbcsr_obj), TARGET                  :: mat_recv
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handler, error)
-    CALL dbcsr_assert (dbcsr_valid_index (matrix%m), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Source matrix not initialized.",&
-         __LINE__, error=error)
-    CALL dbcsr_assert (operation, "EQ", "+", dbcsr_fatal_level,&
-         dbcsr_unimplemented_error_nr, routineN,&
-         "Reduction operation not yet implemented.", __LINE__, error=error)
-    IF (reduce_rows .AND. reduce_columns) THEN
-       red_type = dbcsr_repl_full
-    ELSEIF (reduce_rows .AND. .NOT. reduce_columns) THEN
-       red_type = dbcsr_repl_row
-    ELSEIF (reduce_columns .AND. .NOT. reduce_rows) THEN
-       red_type = dbcsr_repl_col
-    ELSE
-       red_type = dbcsr_repl_none
-       CALL dbcsr_assert(reduce_rows, "OR", reduce_columns, &
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "At least one of row or column reduction must be specified",&
-            __LINE__, error=error)
-    ENDIF
-    ! Remember stuff for easier handling.
-    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (matrix))
-    data_type = dbcsr_get_data_type (matrix)
-    ! Set communication variables.
-    SELECT CASE (red_type)
-    CASE (dbcsr_repl_full)
-       numnodes = dbcsr_mp_numnodes (mp_obj)
-       mp_group = dbcsr_mp_group (mp_obj)
-       mynode = dbcsr_mp_mynode (mp_obj)
-    CASE (dbcsr_repl_row)
-       numnodes = dbcsr_mp_npcols (mp_obj)
-       CALL dbcsr_mp_grid_setup (mp_obj, force=.TRUE.)
-       mp_group = dbcsr_mp_my_row_group (mp_obj)
-       mynode = dbcsr_mp_mypcol (mp_obj)
-    CASE (dbcsr_repl_col)
-       numnodes = dbcsr_mp_nprows (mp_obj)
-       CALL dbcsr_mp_grid_setup (mp_obj, force=.TRUE.)
-       mp_group = dbcsr_mp_my_col_group (mp_obj)
-       mynode = dbcsr_mp_myprow (mp_obj)
-    CASE (dbcsr_repl_none)
-       numnodes = 1
-       mp_group = dbcsr_mp_group (mp_obj)
-       mynode = dbcsr_mp_mynode (mp_obj)
-    END SELECT
-    ! Check that we actually have the row/column communicators when
-    ! doing row or column-limited reduction.
-    CALL dbcsr_assert (red_type.EQ.dbcsr_repl_row &
-         .OR. red_type.EQ.dbcsr_repl_col,&
-         "IMP", dbcsr_mp_has_subgroups (mp_obj), dbcsr_fatal_level,&
-         dbcsr_unimplemented_error_nr, routineN,&
-         "Only full reduction supported when subcommunicators are turned off.",&
-         __LINE__, error=error)
-    ! Check the reduction_target is sane
-    CALL dbcsr_assert (reduction_target, "GE", 0, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "Can not have non-negative target.",&
-         __LINE__, error=error)
-    CALL dbcsr_assert (reduction_target, "LT", numnodes, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "Target must fit process grid.", &
-         __LINE__, error=error)
-    !
-    ! Send/receive buffer setup
-    CALL dbcsr_init (mat_recv)
-    CALL dbcsr_create (reduced, "Reduced "//matrix%m%name,&
-         dbcsr_distribution (matrix), dbcsr_get_matrix_type (matrix),&
-         dbcsr_row_block_sizes (matrix), dbcsr_col_block_sizes (matrix),&
-         data_type=data_type, error=error)
-    CALL dbcsr_finalize (reduced, error=error)
-    CALL dbcsr_create (mat_recv, "Recv buffer for "//matrix%m%name,&
-         dbcsr_distribution (matrix), dbcsr_get_matrix_type (matrix),&
-         dbcsr_row_block_sizes (matrix), dbcsr_col_block_sizes (matrix),&
-         data_type=data_type, data_memory_type=dbcsr_memtype_MPI,&
-         index_memory_type=dbcsr_memtype_MPI, error=error)
-    CALL dbcsr_data_init (data_ptr)
-    CALL dbcsr_data_new (data_ptr, data_type)
-    !
-    IF (debug_mod) THEN
-       cs1 = dbcsr_checksum (matrix, error=error)
-    ENDIF
-    CALL dbcsr_insert_blocks (reduced, matrix, error=error)
-    ! Now do the iterative folding in ceil(log_2(numnodes)) steps.
-    nsteps = ceil_log2 (numnodes)
-    ! Write folding info.
-    !write(*,*)routineN//" ceil_log2", numnodes, nsteps,&
-    !     32, ceil_log2(32), 7, ceil_log2(7), 2, ceil_log2(2)
-    !write(*,*)routineN//" Reduction target:", reduction_target
-    most_spread = ISHFT(1, nsteps)
-    my_norm_node = MODULO (mynode-reduction_target, numnodes)
-    step = 1
-    NULLIFY (mat_comm)
-    log_steps: DO WHILE (step .LE. nsteps)
-       !
-       half_spread = ISHFT (1, step-1)
-       spread = 2 * half_spread
-       ! Write step info
-       !WRITE(*,*)routineN//" Step", step, half_spread, spread
-       ! Check whether we participate in a send/recv according to the
-       ! rules and according to the number of nodes.
-       !---
-       i_recv = MODULO (my_norm_node, spread) .EQ. 0
-       src_p = MODULO (mynode+half_spread, numnodes)
-       i_recv = i_recv .AND. (my_norm_node+half_spread) .LT. numnodes
-       i_send = MODULO (my_norm_node, spread) .EQ. half_spread
-       dst_p = MODULO (mynode-half_spread, numnodes)
-       i_send = i_send .AND. MODULO(my_norm_node,spread)-half_spread .GE. 0
-       ! Write comm info
-       !WRITE(*,*)routineN//" i_recv,send", i_recv, src_p, i_send, dst_p
-       CALL dbcsr_assert ("NOT", i_recv .AND. i_send, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN, &
-            "Can not send and receive in the same step.", __LINE__, error=error)
-       !
-       if_recv: IF (i_recv) THEN
-          mat_comm => mat_recv
-          CALL mp_recv (get_sizes, src_p, step, mp_group)
-          CALL dbcsr_data_ensure_size (mat_comm%m%data_area, get_sizes(i_d),&
-               nocopy=.TRUE., zero_pad=.FALSE., error=error)
-          CALL ensure_array_size (mat_comm%m%index, lb=1, ub=get_sizes(i_i),&
-               nocopy=.TRUE.,&
-               memory_type=dbcsr_get_index_memory_type(mat_comm),&
-               zero_pad=.TRUE., error=error)
-          CALL mp_recv (mat_comm%m%index(1:get_sizes(i_i)), &
-               src_p, step, mp_group)
-          IF (get_sizes(i_d) .GT. 0) THEN
-             CALL dbcsr_data_set_pointer (area=data_ptr,&
-                  rsize=get_sizes(i_d), csize=1,&
-                  pointee=mat_comm%m%data_area)
-             CALL dbcsr_recv_any (data_ptr, src_p, tag=step, comm=mp_group,&
-                  error=error)
-          ENDIF
-          CALL dbcsr_repoint_index (mat_comm%m)
-          mat_comm%m%valid = .TRUE.
-          ! Now add the new data into the receiving matrix.
-          CALL dbcsr_add_reserved (reduced, mat_comm, error=error)
-       ENDIF if_recv
-       if_send: IF (i_send) THEN
-          mat_comm => reduced
-          my_sizes(i_i) = SIZE (mat_comm%m%index)
-          my_sizes(i_d) = dbcsr_get_data_size (mat_comm)
-          CALL mp_send (my_sizes, dst_p, step, mp_group)
-          CALL mp_send (mat_comm%m%index(1:my_sizes(i_i)), dst_p,&
-               step, mp_group)
-          IF (my_sizes(i_d) .GT. 0) THEN
-             CALL dbcsr_data_set_pointer (area=data_ptr,&
-                  rsize=my_sizes(i_d), csize=1,&
-                  pointee=mat_comm%m%data_area)
-             CALL dbcsr_send_any (data_ptr, dst_p, tag=step, comm=mp_group,&
-                  error=error)
-          ENDIF
-       ENDIF if_send
-       step = step + 1
-    ENDDO log_steps
-    CALL dbcsr_data_clear_pointer (data_ptr)
-    CALL dbcsr_data_release (data_ptr)
-    CALL dbcsr_release (mat_recv)
-    IF (debug_mod .AND. (mynode .EQ. reduction_target)) THEN
-       cs2 = dbcsr_checksum (reduced, local=.TRUE., error=error)
-       IF (ABS(cs1) .GT. comp_eps) THEN
-          CALL dbcsr_assert (ABS((cs2 - cs1) / cs1) .LT. comp_eps,&
-               dbcsr_warning_level, dbcsr_internal_error, routineN,&
-               "Reduced checksum differs", __LINE__, error=error)
-       ENDIF
-    ENDIF
-    CALL dbcsr_error_stop (error_handler, error)
-  END SUBROUTINE dbcsr_reduce
 
 ! *****************************************************************************
 !> \brief Computes varios functions (defined by func) of matrix elements
@@ -3612,70 +3295,6 @@ CONTAINS
        IF (col .GT. block_column_limits(2)) dbcsr_block_in_limits = .FALSE.
     ENDIF
   END FUNCTION dbcsr_block_in_limits
-
-
-! *****************************************************************************
-!> \brief Adds blocks to a matrix
-!>
-!>        Existing blocks are replaced (overwritten).
-!> \param[in,out] matrix_a   DBCSR matrix into which blocks are added
-!> \param[in] matrix_b       DBCSR matrix from which blocks are added
-!> \param[in,out] error      error
-!> <b>Modification history:</b>
-!>  - 2013-01    moved here from dbcsr_internal_operations.F  (Ole Schuett)
-! *****************************************************************************
-  SUBROUTINE dbcsr_insert_blocks(matrix_a, matrix_b, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_insert_blocks', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, col, data_type_b, &
-                                                error_handler, nblkrows, &
-                                                nblks, row
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: b_row_i
-    LOGICAL                                  :: tr
-    TYPE(dbcsr_data_obj)                     :: data_block
-    TYPE(dbcsr_iterator)                     :: iter
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    ! Checks for validity
-    CALL dbcsr_assert (dbcsr_valid_index (matrix_a),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Target matrix A must be valid.", __LINE__, error)
-    CALL dbcsr_assert (dbcsr_valid_index (matrix_b),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Source matrix B must be valid.", __LINE__, error)
-    ! Reserve the blocks to be added
-    nblks = dbcsr_get_num_blocks (matrix_b)
-    nblkrows = dbcsr_nblkrows_total (matrix_b)
-    ALLOCATE (b_row_i(nblks))
-    CALL dbcsr_expand_row_index (matrix_b%m%row_p, b_row_i, nblkrows, nblks)
-    CALL dbcsr_reserve_blocks (matrix_a, b_row_i, matrix_b%m%col_i, error=error)
-    DEALLOCATE (b_row_i)
-    ! Prepare data structures
-    data_type_b = dbcsr_get_data_type (matrix_b)
-    ! Now add the blocks
-    CALL dbcsr_data_init (data_block)
-    CALL dbcsr_data_new (data_block, data_type_b)
-    CALL dbcsr_iterator_start(iter, matrix_b)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
-       CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
-            summation=.FALSE.)
-    ENDDO
-    CALL dbcsr_iterator_stop(iter)
-    CALL dbcsr_data_clear_pointer (data_block)
-    CALL dbcsr_data_release (data_block)
-    !
-    CALL dbcsr_finalize (matrix_a, error=error)
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_insert_blocks
-
 
 
 #include "dbcsr_operations_low_d.f90"

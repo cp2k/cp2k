@@ -63,11 +63,6 @@ MODULE dbcsr_io
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_io'
 
 
-  INTERFACE dbcsr_printmat
-     MODULE PROCEDURE printmat_s, printmat_d, printmat_c, printmat_z
-     MODULE PROCEDURE printmat_s_2d, printmat_d_2d, printmat_c_2d, printmat_z_2d
-  END INTERFACE
-
   ! Main
   PUBLIC :: dbcsr_print
   ! Low-level printing
@@ -81,6 +76,10 @@ MODULE dbcsr_io
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+
+  INTERFACE dbcsr_printmat
+     MODULE PROCEDURE printmat_s, printmat_d, printmat_c, printmat_z
+  END INTERFACE
 
 CONTAINS
 
@@ -508,20 +507,6 @@ CONTAINS
     ENDDO
   END SUBROUTINE printmat_s
 
-  SUBROUTINE printmat_s_2d(matrix, title, iunit, tr)
-    REAL(KIND=real_4), DIMENSION(:, :), &
-      INTENT(IN)                             :: matrix
-    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    INTEGER                                  :: iunit
-    LOGICAL, INTENT(IN), OPTIONAL            :: tr
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
-  END SUBROUTINE printmat_s_2d
-
-
   SUBROUTINE printmat_d(matrix, rows, cols, iunit, title, tr)
     REAL(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
@@ -543,20 +528,6 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE printmat_d
-
-  SUBROUTINE printmat_d_2d(matrix, title, iunit, tr)
-    REAL(KIND=real_8), DIMENSION(:, :), &
-      INTENT(IN)                             :: matrix
-    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    INTEGER                                  :: iunit
-    LOGICAL, INTENT(IN), OPTIONAL            :: tr
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
-  END SUBROUTINE printmat_d_2d
-
 
   SUBROUTINE printmat_c(matrix, rows, cols, iunit, title, tr)
     COMPLEX(KIND=real_4), DIMENSION(:), &
@@ -580,19 +551,6 @@ CONTAINS
     ENDIF
   END SUBROUTINE printmat_c
 
-  SUBROUTINE printmat_c_2d(matrix, title, iunit, tr)
-    COMPLEX(KIND=real_4), DIMENSION(:, :), &
-      INTENT(IN)                             :: matrix
-    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    INTEGER                                  :: iunit
-    LOGICAL, INTENT(IN), OPTIONAL            :: tr
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
-  END SUBROUTINE printmat_c_2d
-
   SUBROUTINE printmat_z(matrix, rows, cols, iunit, title, tr)
     COMPLEX(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
@@ -614,68 +572,6 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE printmat_z
-
-  SUBROUTINE printmat_z_2d(matrix, title, iunit, tr)
-    COMPLEX(KIND=real_8), DIMENSION(:, :), &
-      INTENT(IN)                             :: matrix
-    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    INTEGER                                  :: iunit
-    LOGICAL, INTENT(IN), OPTIONAL            :: tr
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
-  END SUBROUTINE printmat_z_2d
-
-
-! *****************************************************************************
-!> \brief Prints the elements of a matrix.
-!> rows and columns is the matrix size. tr specifies whether
-!> the elements are stored transposed
-! *****************************************************************************
-  SUBROUTINE dbcsr_print2dmat(matrix, title, iunit, tr)
-    REAL(KIND=real_8), DIMENSION(:, :), &
-      INTENT(IN)                             :: matrix
-    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    INTEGER                                  :: iunit
-    LOGICAL, INTENT(IN), OPTIONAL            :: tr
-
-    CHARACTER(30)                            :: f
-    INTEGER                                  :: cols, m, n, r, rows
-    LOGICAL                                  :: t
-
-!   ---------------------------------------------------------------------------
-
-    rows = SIZE(matrix,1)
-    cols = SIZE(matrix,2)
-    m = rows
-    n = cols
-    t = .FALSE.
-    IF(PRESENT(title)) WRITE(iunit,*)title
-    IF(PRESENT(tr)) THEN
-       IF(tr) THEN
-          t = .TRUE.
-          m = cols
-          n = rows
-       ENDIF
-    ENDIF
-    WRITE(iunit,*)'Print Matrix 2D:',rows,cols,t,'range',&
-         LBOUND(matrix),':',UBOUND(matrix)
-    IF(m.GT.10000) m=0
-    IF(n.GT.10000) n=0
-    IF(m*n.LT.1 .OR. m*n.GT.SIZE(matrix)) RETURN
-    WRITE(f,FMT="('(',I4,'(F9.4))')")cols
-    DO r = 1, rows
-       !WRITE(iunit,FMT=f)matrix(r,1:(n-1)*m+r:n)
-       IF(.NOT.t) THEN
-          WRITE(iunit,FMT=f)matrix(r,:)
-       ELSE
-          WRITE(iunit,FMT=f)matrix(:,r)
-       ENDIF
-    ENDDO
-  END SUBROUTINE dbcsr_print2dmat
-
 
 ! *****************************************************************************
 !> \brief Prints the values from all processors
