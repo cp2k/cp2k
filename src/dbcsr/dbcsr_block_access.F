@@ -61,8 +61,8 @@ MODULE dbcsr_block_access
   USE dbcsr_toollib,                   ONLY: make_coordinate_tuple,&
                                              swap
   USE dbcsr_types,                     ONLY: &
-       dbcsr_block_buffer_obj, dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
+       dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_slot_blk_p, &
+       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
