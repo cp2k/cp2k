@@ -109,7 +109,7 @@ MODULE message_passing
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
-  PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
+  PUBLIC :: mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
@@ -1128,32 +1128,6 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
 
   END SUBROUTINE mp_cart_coords
-
-!..mp_cart_shift
-! *****************************************************************************
-  SUBROUTINE mp_cart_shift ( comm, dir, disp, source, dest )
-
-    INTEGER, INTENT(IN)                      :: comm, dir, disp
-    INTEGER, INTENT(OUT)                     :: source, dest
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_shift', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr
-
-    ierr = 0
-    IF (ASSOCIATED(mp_external_timeset)) CALL mp_external_timeset(routineN,handle)
-
-#if defined(__parallel)
-    CALL mpi_cart_shift ( comm, dir, disp, source, dest, ierr )
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_shift @ mp_cart_shift" )
-#else
-    source = 0
-    dest = 0
-#endif
-    IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
-
-  END SUBROUTINE mp_cart_shift
 
 !..mp_comm_compare
 ! *****************************************************************************
