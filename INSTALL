@@ -186,9 +186,7 @@ How to compile CP2K code
      -D__LIBINT: use libint (needed for HF exchange)
      -D__LIBXC: use libxc
      -D__ELPA: use ELPA in place of SYEVD  to solve the eigenvalue problem
-     various FFTs (use __FFTW3 if possible) :
-     -D__FFTSG: Stefan Goedecker FFT (should always be there)
-     -D__FFTW3: FFTW version 3
+     -D__FFTW3: FFTW version 3 : recommended
      -D__PW_CUDA: CUDA FFT and associated gather/scatter on the GPU
      various compilers/architectures needing their own machine_* file
      -D__MKL: link the MKL library for linear algebra and/or FFT
@@ -221,13 +219,12 @@ How to compile CP2K code
                              The optimal value depends on hardware (GPU?) and precise problem.
      Some options controlling MPI behavior and capabilities:
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
-                             not declare they are thread safe but you want to
+                             not declare they are thread safe (funneled) but you want to
                              use them with OpenMP code anyways.
 
- 3c) CP2K currently assumes full Fortran 95 compliance and expects the
-     ISO_C_BINDING module of Fortran 2003 to be present, which
-     commonly is available even in current compilers.  For OpenMP,
-     version 3.0 is assumed.
+ 3c) CP2K currently assumes Fortran2003 compliance, even though few features are used. 
+     Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.
+     For OpenMP, version 3.1 is assumed.
 
      If you you get compilation errors about unsupported language
      features, then some flags may be used to reduce the language

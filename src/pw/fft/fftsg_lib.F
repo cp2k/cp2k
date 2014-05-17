@@ -55,20 +55,19 @@ CONTAINS
   ! *****************************************************************************
   SUBROUTINE fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
   
-    LOGICAL, INTENT(IN)                                  :: fft_in_place
-    INTEGER, INTENT(INOUT)                               :: fsign
-    REAL(KIND=dp), INTENT(IN)                            :: scale
-    INTEGER, DIMENSION(*), INTENT(IN)                    :: n
-    COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
-    COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
-  
-    INTEGER                                              :: nx, ny, nz
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)          :: xf, yf
-  
-  !------------------------------------------------------------------------------
-  
-#if defined ( __FFTSG )
-  
+    LOGICAL, INTENT(IN)                      :: fft_in_place
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(KIND=dp), INTENT(IN)                :: scale
+    INTEGER, DIMENSION(*), INTENT(IN)        :: n
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: zin, zout
+
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: xf, yf
+    INTEGER                                  :: nx, ny, nz
+
+!------------------------------------------------------------------------------
+
     nx = n ( 1 )
     ny = n ( 2 )
     nz = n ( 3 )
@@ -101,28 +100,22 @@ CONTAINS
   
     END IF
   
-#else
-  
-    fsign = 0
-  
-#endif
-  
   END SUBROUTINE fftsg3d
   
   ! *****************************************************************************
   SUBROUTINE fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
   
-    INTEGER, INTENT ( INOUT )                          :: fsign
-    LOGICAL, INTENT ( IN )                             :: trans
-    INTEGER, INTENT ( IN )                             :: n, m
-    COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
-    COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
-    REAL (KIND=dp), INTENT ( IN )                      :: scale
-  
-  !------------------------------------------------------------------------------
-  
-#if defined ( __FFTSG )
-  
+    INTEGER, INTENT(INOUT)                   :: fsign
+    LOGICAL, INTENT(IN)                      :: trans
+    INTEGER, INTENT(IN)                      :: n, m
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: zin
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(OUT)                            :: zout
+    REAL(KIND=dp), INTENT(IN)                :: scale
+
+!------------------------------------------------------------------------------
+
     IF ( trans ) THEN
       IF ( fsign > 0 ) THEN
         CALL mltfftsg ( "T", "N", zin, m, n, zout, n, m, n, m, fsign, scale )
@@ -132,12 +125,6 @@ CONTAINS
     ELSE
       CALL mltfftsg ( "N", "N", zin, n, m, zout, n, m, n, m, fsign, scale )
     END IF
-  
-#else
-  
-    fsign = 0
-  
-#endif
   
   END SUBROUTINE fftsg1dm
 
