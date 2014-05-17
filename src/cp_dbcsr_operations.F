@@ -2034,7 +2034,9 @@ END FUNCTION cp_dbcsr_get_id_nr
        ENDDO bc_cols
     ENDDO bc_rows
 
-!$OMP PARALLEL DO PRIVATE(my_blk,nze,row_l,col_l,row,col,blk_1d_dp,blk_1d_sp)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(my_blk,nze,row_l,col_l,row,col,blk_1d_dp,blk_1d_sp) &
+!$OMP SHARED(local_rows, nblkcols_local, local_cols, blk_map, fm, bc_mat,&
+!$OMP        last_row, first_row, last_col, first_col, fm_block, fm_block_sp)
     bc_rows1: DO row_l = 1, nblkrows_local
        row = local_rows (row_l)
        bc_cols1: DO col_l = 1, nblkcols_local
