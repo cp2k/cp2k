@@ -107,7 +107,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_distribution_local_rows,&
             dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p, dbcsr_mp_get_coordinates,&
-            dbcsr_mp_hold, dbcsr_mp_pgrid, dbcsr_wm_use_mutable
+            dbcsr_mp_hold, dbcsr_mp_pgrid
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
@@ -126,7 +126,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_iterator
   PUBLIC :: cp_dbcsr_type 
   PUBLIC :: cp_dbcsr_p_type
-  PUBLIC :: cp_dbcsr_conform_scalar
   PUBLIC :: cp_dbcsr_init_lib, cp_dbcsr_finalize_lib
   PUBLIC :: cp_dbcsr_set
   PUBLIC :: cp_dbcsr_add
