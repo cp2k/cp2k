@@ -182,6 +182,10 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,&
                se_control,se_taper,ga_env,pbuff_a, &
@@ -634,6 +638,10 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
@@ -1046,6 +1054,9 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper, &
             efield0, efield1, efield2,ga_env)
@@ -1467,6 +1478,9 @@ CONTAINS
 
       failure=.FALSE.
     CALL timeset(routineN,handle)
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
 
     CALL get_qs_env(qs_env=qs_env, error=error)!sm->dbcsr
 
