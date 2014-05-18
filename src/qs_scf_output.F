@@ -165,7 +165,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_energy_type), POINTER            :: energy
     INTEGER                                  :: total_steps
-    LOGICAL, INTENT(OUT)                     :: should_stop, &
+    LOGICAL, INTENT(IN)                      :: should_stop, &
                                                 outer_loop_converged
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_outer_loop_info', &
