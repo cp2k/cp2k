@@ -1291,8 +1291,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_kgpot', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER :: t23 = 2._dp/3._dp, &
-      cf = 0.3_dp*(3.0_dp*pi*pi)**t23
+    REAL(KIND=dp), PARAMETER :: t23 = 2._dp/3._dp
 
     INTEGER                                  :: i, ierr, ig, ip, iw, j, n10
     LOGICAL                                  :: failure
@@ -1316,8 +1315,8 @@ CONTAINS
     CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
                      atom%state%maxl_occ,atom%state%maxn_occ,error)
     CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
-    ! target functional
-    density%op = t23*cf*density%op**t23
+    ! target functional 
+    density%op = t23*(0.3_dp*(3.0_dp*pi*pi)**t23)*density%op**t23
 
     ! initiallize parameter
     ostate%nf = 0
