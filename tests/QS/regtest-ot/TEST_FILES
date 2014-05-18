@@ -20,7 +20,7 @@ He2_lumos.inp 0
 H2O-geo-ot-evals.inp              1     3e-13
 H2O-geo-ot-mols.inp               1     1e-13
 H2O-geo-ot-pdos.inp               1     2e-13
-H2O-geo-pdos.inp                  1     2e-14
+H2O-geo-pdos.inp                  1     5e-14
 H2O-geo-pdos_comp.inp             1     3e-14
 H2O-geo-ot-pdos-lumo-comp.inp     1     3e-13
 H2O-geo-pdos_comp_list.inp        1     3e-14

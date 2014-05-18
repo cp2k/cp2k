@@ -3,7 +3,7 @@ water_3_dist_2.inp        2
 water_3_dist_3.inp        2
 water32_hbonds_3.inp      2
 water32_hbonds_4.inp      2
-water_massive.inp                 2     5e-10
+water_massive.inp                 2     2e-09
 # applying constraint to the 0 step of MD
 water_3_dist_startC.inp   2
 # just keep echo_input alive
@@ -63,7 +63,7 @@ argon_opt_cell_ks.inp             7     3e-05
 argon_opt_cell_md.inp     7
 Si_tersoff.inp            7
 #initial orthorombic cells under npt_f dynamics
-nptf_ortho.inp                    2     2e-09
+nptf_ortho.inp                    2     4e-09
 nptf_ortho_screen.inp             2     3e-09
 # morse and cubic bonded potentials
 bonded-1.inp              2

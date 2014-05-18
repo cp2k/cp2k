@@ -37,9 +37,9 @@ H2_curvy-1.inp                   11     1e-13
 H2_curvy-2.inp                   11     1e-13
 H2_curvy-3.inp                   11     1e-13
 H2O-chebyshev-01.inp 11
-H2O-dft-ecube.inp                11     2e-14
+H2O-dft-ecube.inp                11     1e-13
 H2O-dipole.inp 39
-H2O-restart-write.inp            11     2e-14
-H2O-restart-read.inp             11     1e-13
+H2O-restart-write.inp            11     1e-13
+H2O-restart-read.inp             11     3e-13
 H2O-restart-read-curvy.inp       11     8e-14
 H2O-curvy-prop.inp               11     1e-13

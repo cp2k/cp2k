@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 CH3-HSE06.inp                     1     3e-13
 CH3-PBE0.inp                      1     1e-13
-CH3-PBE0_TC.inp                   1     6e-14
+CH3-PBE0_TC.inp                   1     1e-13
 CH4-HSE06.inp                     1     2e-13
 CH4-PBE0.inp                      1     2e-13
 CH4-PBE0_TC.inp                   1     2e-13

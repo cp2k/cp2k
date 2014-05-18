@@ -1,4 +1,4 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-C.inp                             1     6e-14
+C.inp                             1     1e-13

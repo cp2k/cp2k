@@ -4,7 +4,7 @@ bug_ai_moments.inp     39
 si8_broy_stm.inp                  1     2e-13
 si8_broy_wc.inp                  23     8e-07
 si8_broy_wc_crazy.inp            23     1e-06
-si8_broy_wc_crazy_ene.inp 23 1E-12
+si8_broy_wc_crazy_ene.inp        23     3e-12
 # block Davidson diagonalization
 si8_broy_dav_t300.inp             1     2e-12
 si8_broy_dav_t300_r.inp           1     7e-14
