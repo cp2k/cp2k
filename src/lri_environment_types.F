@@ -164,7 +164,7 @@ MODULE lri_environment_types
   TYPE lri_force_type
     REAL(KIND=dp), DIMENSION(:), POINTER                     :: st
     REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: dssn,&
-                                                                sdssn,&                                                               
+                                                                sdssn,&
                                                                 dsst,&
                                                                 sdsst,&
                                                                 sdt
