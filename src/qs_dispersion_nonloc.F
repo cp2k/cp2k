@@ -123,13 +123,13 @@ CONTAINS
           dispersion_env%nr_points = nr_points
           IF(para_env%source==para_env%mepos) THEN
             !! Read in the values of the q points used to generate this kernel
-            READ(funit,"(1p4e23.14)") dispersion_env%q_mesh
+            READ(funit,"(1p, 4e23.14)") dispersion_env%q_mesh
             !! For each pair of q values, read in the function phi_q1_q2(k).
             !! That is, the fourier transformed kernel function assuming q1 and q2
             !! for all the values of r used.
             DO q1_i = 1, nqs
                DO q2_i = 1, q1_i
-                  READ(funit,"(1p4e23.14)") dispersion_env%kernel(0:nr_points, q1_i, q2_i)
+                  READ(funit,"(1p, 4e23.14)") dispersion_env%kernel(0:nr_points, q1_i, q2_i)
                   dispersion_env%kernel(0:nr_points, q2_i, q1_i) = dispersion_env%kernel(0:nr_points, q1_i, q2_i)
                END DO
             END DO
@@ -139,7 +139,7 @@ CONTAINS
             !! interpolation of the Fourier transformed kernel.
             DO q1_i = 1, nqs
                DO q2_i = 1, q1_i
-                  READ(funit,"(1p4e23.14)") dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
+                  READ(funit,"(1p, 4e23.14)") dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
                   dispersion_env%d2phi_dk2(0:nr_points, q2_i, q1_i) = dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
                END DO
             END DO

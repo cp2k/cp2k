@@ -1008,7 +1008,7 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') "recalled with a <I>${VAR}</I> statement. There can be only one @SET statement per line.</DD>"
        WRITE(unit_nr,FMT='(A)') "<DT><B>${VAR}</B></DT>"
        WRITE(unit_nr,FMT='(A)') "<DD>Expand the variable <I>VAR</I>. The text <I>${VAR}</I> is replaced with the value assigned "
-       WRITE(unit_nr,FMT='(A)') "to <I>VAR</I> in the last corresponding @SET directive. There can be multiple variables per line. "
+       WRITE(unit_nr,FMT='(A)') "to <I>VAR</I> in the last corresponding @SET directive. There can be multiple variables per line."
        WRITE(unit_nr,FMT='(A)') "The expansion process is repeated until no more variables are found.</DD>"
        WRITE(unit_nr,FMT='(A)') "<DT><B>@IF / @ENDIF</B></DT>"
        WRITE(unit_nr,FMT='(A)') "<DD>Conditional block. The text from the @IF line up to the next line with a valid "
