@@ -4,20 +4,20 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # Martyna-Tuckerman 3D
-H+.inp             1
-H+.TI.inp          1
-He2H-.inp          1
+H+.inp                            1     3e-11
+H+.TI.inp                         1     3e-11
+He2H-.inp                         1     9e-12
 # Bloechl decoupling technique
 H+-bloechl.inp                    1     3e-11
 He2H-bloechl-md.inp               1     2e-11
 He2H-bloechl.inp                  1     4e-12
-H2O-bloechl.inp                   1     2e-14
+H2O-bloechl.inp                   1     1e-13
 H2O-bloechl-Spl.inp               1     2e-14
 H2O-bloechl-restraint.inp         1     3e-12
 # S**2
 CN.inp             4
 # testing of distributed rs grids
-rsgrid-dist-1.inp  1
+rsgrid-dist-1.inp                 1     4e-14
 #BSSE
 2H2O_bsse.inp      5
 2H2O_bsse_r.inp    5
@@ -30,36 +30,36 @@ H2O-langevin-1.inp 1
 H2O-langevin-2.inp 1
 #Ref grid
 H2O-ref-1.inp      1
-H2O-ref-2.inp      1
+H2O-ref-2.inp                     1     3e-14
 # All-to-all single communication in parallel runs
 H2O-ata.inp                       1     1e-08
 # Lowdin charges
 CN-lowdin.inp 41
 # High-spin restricted open Kohn-Sham
-H-ROKS.inp         1
-N-ROKS.inp         1
+H-ROKS.inp                        1     4e-14
+N-ROKS.inp                        1     2e-13
 O2-ROKS.inp        1
 # Onsager Model
 H+solv1.inp                       1     1e-12
-H2O-solv.inp       1
+H2O-solv.inp                      1     1e-13
 #XC_FUN NONE
-H2O-xc_none.inp    1
+H2O-xc_none.inp                   1     2e-14
 # ghost atom dynamics
 dynamics.inp                      1     2e-11
 # RESP charges
 CH3OH.inp          0
 # distributed non-ortho grids
-rsgrid-dist-2.inp  1
+rsgrid-dist-2.inp                 1     3e-14
 # also write wavefunctions
 rsgrid-dist-3.inp                 1     3e-14
 # ghost atom dynamics at high cutoff highlights problems
-dynamics-2.inp       1
-ghost_overlap.inp                 1     2e-14
-ghost_overlap_vdw.inp 1
+dynamics-2.inp                    1     2e-13
+ghost_overlap.inp                 1     7e-14
+ghost_overlap_vdw.inp             1     7e-14
 # Population analyses
 NO2-mulliken.inp 41
 NO2-lowdin.inp 41
 # Test the new option relax_multiplicity
 O2-UKS-GPW-relax_multip.inp  1
-H2O-UKS-GPW-relax_multip.inp 1
-O2-UKS-OTdiag-relax_multip.inp 1
+H2O-UKS-GPW-relax_multip.inp      1     1e-13
+O2-UKS-OTdiag-relax_multip.inp    1     5e-14

@@ -6,12 +6,12 @@
 #normal mode analysis
 H2-vib.inp         8
 # test thermostats
-H2O-2.inp          1
-H2O-3.inp          1
-H2O-4.inp          1
+H2O-2.inp                         1     3e-14
+H2O-3.inp                         1     4e-14
+H2O-4.inp                         1     3e-14
 # core ham bug
-ZrO.inp            1
+ZrO.inp                           1     5e-14
 # new xc routines
-Ar-12.inp          1
-Ar-13.inp          1
+Ar-12.inp                         1     3e-13
+Ar-13.inp                         1     8e-13
 # Metadynamics and restart of metadynamics

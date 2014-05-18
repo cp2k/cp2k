@@ -4,22 +4,22 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 extrap-1.inp 1
-extrap-2.inp 1
+extrap-2.inp                      1     3e-14
 extrap-3.inp 1
-extrap-4.inp 1
+extrap-4.inp                      1     4e-14
 extrap-5.inp 1
-extrap-6.inp 1
-extrap-7.inp                      1     2e-14
+extrap-6.inp                      1     3e-14
+extrap-7.inp                      1     4e-14
 extrap-8.inp 1
 extrap-9.inp 1
 extrap-10.inp 1
 extrap-1-far.inp 1
 extrap-2-far.inp 1
-extrap-3-far.inp 1
+extrap-3-far.inp                  1     3e-14
 extrap-4-far.inp                  1     3e-12
-extrap-5-far.inp 1
-extrap-6-far.inp 1
+extrap-5-far.inp                  1     3e-14
+extrap-6-far.inp                  1     8e-14
 extrap-7-far.inp 1
 extrap-8-far.inp 1
-extrap-9-far.inp 1
-extrap-10-far.inp 1
+extrap-9-far.inp                  1     2e-14
+extrap-10-far.inp                 1     3e-14

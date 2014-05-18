@@ -1,7 +1,7 @@
 # complex torsion potential
 TNF2.inp                  7
 # isolated system 
-H+.inp                   11 
+H+.inp                           11     3e-11
 ef.inp                   11
 h2o-32-g3x3-mult.inp      2
 # multipoles

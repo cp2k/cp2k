@@ -4,4 +4,4 @@
 H2O-hybrid-bhandh.inp         1
 H2O-hybrid-bhandhlyp.inp      1
 H2O-hybrid-pbe0.inp           1
-H2O-hybrid-b3lyp.inp          1
+H2O-hybrid-b3lyp.inp              1     4e-14

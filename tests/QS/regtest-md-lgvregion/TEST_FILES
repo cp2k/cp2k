@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-langevin_regions-1.inp   1
-langevin_regions-2.inp   1
-langevin_regions-3.inp   1
-langevin_regions-4.inp   1
+langevin_regions-1.inp            1     4e-14
+langevin_regions-2.inp            1     4e-14
+langevin_regions-3.inp            1     4e-14
+langevin_regions-4.inp            1     3e-14

@@ -1,18 +1,18 @@
 H2O-rks-diag.inp 24 1E-11
-H2O-rks-otcg.inp                 24     5e-09
+H2O-rks-otcg.inp                 24     1e-07
 H2O-uks-diag.inp                 24     3e-12
-H2O-uks-otcg.inp                 24     2e-09
+H2O-uks-otcg.inp                 24     1e-07
 H2O-rks-diag-mulliken.inp        24     2e-12
-H2O-rks-otcg-mulliken.inp        24     3e-09
+H2O-rks-otcg-mulliken.inp        24     3e-08
 H2O-uks-diag-mulliken.inp        24     5e-13
-H2O-uks-otcg-mulliken.inp        24     2e-10
+H2O-uks-otcg-mulliken.inp        24     2e-09
 H2O-rks-diag-lowdin.inp 24 1E-12
 H2O-rks-otcg-lowdin.inp 24
 H2O-uks-diag-lowdin.inp 24
-H2O-uks-otcg-lowdin.inp          24     2e-10
+H2O-uks-otcg-lowdin.inp          24     4e-09
 # U ramping
-H2O-rks-u_ramping.inp            24     2e-07
-H2O-uks-u_ramping.inp            24     7e-09
+H2O-rks-u_ramping.inp            24     1e-06
+H2O-uks-u_ramping.inp            24     7e-08
 # U ramping with reset
-H2O-rks-u_ramping_reset.inp      24     2e-07
-H2O-uks-u_ramping_reset.inp      24     7e-09
+H2O-rks-u_ramping_reset.inp      24     1e-06
+H2O-uks-u_ramping_reset.inp      24     1e-07

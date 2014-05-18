@@ -16,14 +16,14 @@ C4H10-qmmm-gauss-9.inp 7
 C4H10-qmmm-gauss-10.inp 7
 C4H10-qmmm-gauss-11.inp 7
 C11H24-qmmm-gauss-0.inp 7
-sio2-qmmm-gauss-1.inp 1
-sio2-qmmm-gauss-2.inp 1
-sio2-qmmm-gauss-3.inp 1
+sio2-qmmm-gauss-1.inp             1     7e-14
+sio2-qmmm-gauss-2.inp             1     2e-14
+sio2-qmmm-gauss-3.inp             1     3e-14
 constr.inp                        7     7e-12
 # different parallel scheme
 C4H10-qmmm-gauss-12.inp 1 1E-13
 # hbonds selective constraints on QM and MM subsystems
-constr_hb_mm.inp  1
-constr_hb_qm.inp  1
+constr_hb_mm.inp                  1     7e-14
+constr_hb_qm.inp                  1     8e-14
 #constraints
 water_3_dist.inp               2

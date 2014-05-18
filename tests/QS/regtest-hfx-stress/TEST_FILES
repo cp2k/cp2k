@@ -3,5 +3,5 @@
 # see regtest/TEST_FILES
 ch3-admm.inp      31
 ch3.inp           31
-ch4-admm.inp      31
+ch4-admm.inp                     31     6e-09
 h2o.inp           31

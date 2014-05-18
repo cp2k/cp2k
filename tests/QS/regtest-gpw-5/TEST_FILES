@@ -4,12 +4,12 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # mixing procedures nr. 1
-si8_pmix.inp            1
-si8_kerker.inp          1
+si8_pmix.inp                      1     3e-14
+si8_kerker.inp                    1     4e-14
 si8_pulay.inp                     1     1e-13
 si8_broy.inp            1
 si8_pulay_md.inp        1
-si8_pulay_skip.inp      1
+si8_pulay_skip.inp                1     2e-14
 # cholesky methods
 si8_pulay_reduce.inp              1     1e-13
 si8_pulay_restore.inp             1     1e-13

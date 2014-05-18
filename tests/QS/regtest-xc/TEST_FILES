@@ -13,6 +13,6 @@
 1Ne_PBE0.inp                            35
 1Ne_PBEsol0.inp                         35
 1H2_PBE.inp                              1
-3H2_PBE.inp                              1
-1H2_PBEsol.inp                           1
-3H2_PBEsol.inp                    1     3e-14
+3H2_PBE.inp                       1     8e-13
+1H2_PBEsol.inp                    1     2e-13
+3H2_PBEsol.inp                    1     8e-14

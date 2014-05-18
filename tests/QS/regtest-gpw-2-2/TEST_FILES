@@ -1,13 +1,13 @@
-H2O-meta_kinds.inp 1
+H2O-meta_kinds.inp                1     4e-14
 H2O-meta.inp       1
-H2O-meta_res0.inp  1
-H2O-meta_res1.inp  1
+H2O-meta_res0.inp                 1     4e-14
+H2O-meta_res1.inp                 1     3e-14
 H2O-meta_res2.inp  1
-H2O-meta_res3.inp  1
+H2O-meta_res3.inp                 1     3e-14
 # tpss
-H2O-tpss.inp       1
+H2O-tpss.inp                      1     2e-13
 # tpss new input   
-H2O-tpss_new.inp   1
+H2O-tpss_new.inp                  1     2e-13
 # farming
 farming.inp        0
 #more checking on metadynamics RESTART

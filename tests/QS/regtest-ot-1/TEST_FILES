@@ -7,40 +7,40 @@ H2O.inp            1
 #restart
 H2O-OT-1.inp                      1     3e-14
 #restart
-H2O-OT-2.inp       1
+H2O-OT-2.inp                      1     7e-14
 #restart
 H2O-OT-3.inp       1
 #restart
-H2O-OT-4.inp       1
+H2O-OT-4.inp                      1     1e-13
 # restart, state selective
-H2O-OT-5.inp       1
+H2O-OT-5.inp                      1     5e-14
 # LSD 
-H2-1.inp           1
-H2-2.inp           1
-H2-3.inp           1
+H2-1.inp                          1     4e-13
+H2-2.inp                          1     8e-13
+H2-3.inp                          1     6e-13
 # more complete OT testing
-Ar-14.inp          1
-Ar-15.inp          1
-Ar-16.inp          1
-Ar-17.inp          1
-Ar-18.inp          1
-Ar-19.inp          1
-Ar-20.inp          1
-Ar-21.inp          1
+Ar-14.inp                         1     4e-13
+Ar-15.inp                         1     3e-13
+Ar-16.inp                         1     4e-13
+Ar-17.inp                         1     4e-13
+Ar-18.inp                         1     4e-13
+Ar-19.inp                         1     4e-13
+Ar-20.inp                         1     4e-13
+Ar-21.inp                         1     3e-13
 # OT and occuation
 H2O-7.inp          1
 H2O-8.inp                         1     2e-07
 H2O-9.inp                         1     3e-09
 H2O-10.inp                        1     2e-10
 # OT ASPC
-H2O-OT-ASPC-1.inp  1
-H2O-OT-ASPC-2.inp  1
+H2O-OT-ASPC-1.inp                 1     4e-14
+H2O-OT-ASPC-2.inp                 1     3e-14
 H2O-OT-ASPC-3.inp  1
-H2O-OT-ASPC-4.inp  1
-H2O-OT-ASPC-5.inp  1
+H2O-OT-ASPC-4.inp                 1     3e-14
+H2O-OT-ASPC-5.inp                 1     3e-14
 H2O-OT-ASPC-6.inp  1
 # Input driven basis set and potential
-H2O-bs_input.inp   1
+H2O-bs_input.inp                  1     4e-14
 # Mode selectiv vibrational analysis and intensities
 H2O-VIB-MS-INT-1.inp   21
 H2O-VIB-MS-INT-2.inp   21
@@ -48,5 +48,5 @@ vib-mixed.inp           8
 dip-mixed.inp          11
 vib-int-mixed.inp       8
 #broyden
-H2O-broyden-1.inp 1
-H2O-broyden-2.inp 1
+H2O-broyden-1.inp                 1     3e-14
+H2O-broyden-2.inp                 1     6e-14

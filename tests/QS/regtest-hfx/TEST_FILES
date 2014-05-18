@@ -10,12 +10,12 @@ H2O_pw.inp           22
 4H2O-disk.inp                     1     2e-13
 4H2O-mix-disk-ram.inp             1     2e-13
 4H2O-mix-disk-ram-on-the-fly.inp    1     2e-13
-H2O-geminal-1.inp     1
-He-ri.inp             1
+H2O-geminal-1.inp                 1     2e-13
+He-ri.inp                         1     1e-13
 H2O-hfx-emd.inp       2
 H2O-hfx-emd-restart.inp  2 1E-11
-He-gemopt.inp         1
-H2O-hfx-atprop.inp    1
+He-gemopt.inp                     1     3e-13
+H2O-hfx-atprop.inp                1     8e-14
 H2O-hfx-ls-emd.inp    2
 H2O-hfx-ls-rtp.inp    1
 H2O-hfx-ls-rtp-bch.inp 1

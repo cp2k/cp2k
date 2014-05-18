@@ -3,6 +3,6 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-Ar-ep.inp        1
-Ar2.inp          1
+Ar-ep.inp                         1     5e-13
+Ar2.inp                           1     6e-13
 3H2O-ep.inp      2

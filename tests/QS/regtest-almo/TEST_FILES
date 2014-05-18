@@ -1,4 +1,4 @@
 almo-x.inp      11
-almo-guess.inp      11
-almo-scf.inp      11
+almo-guess.inp                   11     7e-14
+almo-scf.inp                     11     8e-14
 almo-d.inp                       11     4e-14

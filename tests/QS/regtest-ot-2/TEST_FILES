@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # some tests of restricted
-N3-1.inp           1
+N3-1.inp                          1     1e-13
 N3-2.inp                          1     4e-12
 # some tests of SIC needs restarting from N3-1 for stability
 # teo: no need anymore due to the new way of handling the restart
@@ -18,13 +18,13 @@ N3-8.inp                          1     5e-12
 N3-9.inp                          1     8e-07
 N3-10.inp          1 1E-12
 # further sics
-H2O-sic-ad-1.inp   1
-H2O-sic-ad-2.inp   1
+H2O-sic-ad-1.inp                  1     6e-14
+H2O-sic-ad-2.inp                  1     4e-14
 # running H LSD
-H-1.inp            1
-H-2.inp            1
+H-1.inp                           1     1e-13
+H-2.inp                           1     8e-14
 # elec_conf
-H2O-1.inp          1
+H2O-1.inp                         1     5e-14
 # outer scf with FULL_ALL
 H2O.inp                           1     3e-13
 # different parallel distributions
@@ -33,19 +33,19 @@ H2O-dist-2.inp     1
 H2O-dist-3.inp     1
 H2O-dist-4.inp     1
 H2O-dist-5.inp     1
-H2O-dist-8.inp     1
-H2_trip.inp                       1     3e-14
-C-sic-1.inp                       1     2e-14
-C-sic-2.inp        1
+H2O-dist-8.inp                    1     8e-14
+H2_trip.inp                       1     2e-12
+C-sic-1.inp                       1     5e-13
+C-sic-2.inp                       1     1e-13
 # ot with fractional occupations
-C_ot.inp           1
+C_ot.inp                          1     1e-13
 # use of the fermi distribution
-C_fermi.inp        1
-Al_fermi.inp       1
+C_fermi.inp                       1     1e-13
+Al_fermi.inp                      1     5e-14
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 H2O-plan-2.inp     0
 H2O-plan-3.inp     0
 #broyden minimization
 H2O-broy.inp       1
 #BASIC_SPATIAL_DISTRIBUTION test
-H2O-dist-17.inp     1
+H2O-dist-17.inp                   1     8e-14

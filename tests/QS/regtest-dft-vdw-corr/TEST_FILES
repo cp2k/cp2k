@@ -20,20 +20,20 @@ dftd3_t8.inp                33
 #
 dftd3_t9.inp                33
 dftd3_t10.inp               33
-dftd3_t11.inp                7
+dftd3_t11.inp                     7     2e-12
 dftd3_t12.inp               33
 #
-argon01.inp                  1
-argon02.inp                  1
-argon03.inp                  1
-argon04.inp                  1
-argon05.inp                  1
-argon06.inp                  1
-argon07.inp                  1
-argon08.inp                  1
-argon09.inp                  1
-argon10.inp                  1
-argon11.inp                  1
-argon12.inp                  1
+argon01.inp                       1     3e-13
+argon02.inp                       1     2e-13
+argon03.inp                       1     9e-14
+argon04.inp                       1     2e-13
+argon05.inp                       1     4e-13
+argon06.inp                       1     4e-13
+argon07.inp                       1     5e-13
+argon08.inp                       1     4e-13
+argon09.inp                       1     4e-13
+argon10.inp                       1     3e-13
+argon11.inp                       1     3e-13
+argon12.inp                       1     1e-12
 # beef functional
-argon-beef.inp               1
+argon-beef.inp                    1     4e-13

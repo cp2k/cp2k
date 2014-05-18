@@ -3,38 +3,38 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-Ar.inp             1
-NO2_lsd.inp        1
+Ar.inp                            1     3e-13
+NO2_lsd.inp                       1     5e-14
 #Harris funcional 
-H2O-harris.inp     1
-H2O-MD-harris.inp  1
+H2O-harris.inp                    1     4e-14
+H2O-MD-harris.inp                 1     5e-14
 #Force consistency via FDs
 H2O-Harris-Debug-SCF.inp 1
 H2O-Harris-Debug-NoSCF.inp 1
 #QS
-Ar-2.inp           1
-Ar-3.inp           1
+Ar-2.inp                          1     3e-13
+Ar-3.inp                          1     7e-13
 H2O_tddfpt.inp     0
-H2O-tddfpt-saop.inp 1
-Ar-4.inp           1
-Ar-5.inp           1
-pyridine.inp       1
+H2O-tddfpt-saop.inp               1     1e-13
+Ar-4.inp                          1     4e-13
+Ar-5.inp                          1     4e-13
+pyridine.inp                      1     2e-13
 Ar-12.inp          1
 # these should in fact have all 'identical' energies
-Ar-6.inp           1
-Ar-7.inp           1
-Ar-8.inp           1
+Ar-6.inp                          1     2e-13
+Ar-7.inp                          1     2e-13
+Ar-8.inp                          1     2e-13
 # 
-Ar-9.inp           1
-Ar-10.inp          1
-Ar-11.inp          1
+Ar-9.inp                          1     2e-13
+Ar-10.inp                         1     2e-13
+Ar-11.inp                         1     2e-13
 # b97grimme and electronic kineitc energy
-Ar-13.inp          1
+Ar-13.inp                         1     8e-13
 # different pseudo style
-K2.inp             1
+K2.inp                            1     1e-12
 H2.inp             1
 # printing of structure data
-H2O-geoopt.inp     1
+H2O-geoopt.inp                    1     4e-14
 H2O-fixed.inp      1
 h2o_dip_berry.inp  17
 h2o_dip_iso.inp    17
@@ -43,23 +43,23 @@ H2-inpp.inp        0
 # vdW correction
 vdW_PP_GRIMME.inp  33
 # core_ppl on grid
-core_pp_1.inp     1
-core_pp_2.inp     1
+core_pp_1.inp                     1     8e-14
+core_pp_2.inp                     1     3e-14
 # vdW correction
 vdW_PP_GRIMME_p1.inp 33
 vdW_PP_GRIMME_p2.inp 33
 # finer xc grids
-Ar-fine-1.inp 1
+Ar-fine-1.inp                     1     4e-14
 # a basis none first kind
-H2O-none.inp 1
+H2O-none.inp                      1     3e-14
 # extended pseudopotentials
 h4.t1.inp 1
-h4.t2.inp 1
-h4.t3.inp 1
+h4.t2.inp                         1     2e-13
+h4.t3.inp                         1     9e-14
 h4.t4.inp                         1     5e-14
 h4.t5.inp 1
-h2.t1.inp 1
-h2.t2.inp 1
+h2.t1.inp                         1     9e-14
+h2.t2.inp                         1     5e-14
 # EV93 xc functional
 Li2-0-SCF-PBE.inp 53
 Li2-1-nSCF-EV.inp 53
@@ -67,4 +67,4 @@ Li2-2-nSCF-EV93.inp 53
 Li2-3-nSCF-EV93.inp 52
 Li2-4-nSCF-EV93.inp 48
 # debug
-Ne_debug.inp 1
+Ne_debug.inp                      1     1e-13

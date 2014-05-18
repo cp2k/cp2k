@@ -1,15 +1,15 @@
-H2-big-1.inp   11
-H2-big-2.inp   11
-H2-big-3.inp   11
-H2-big-4.inp   11
-H2-big-5.inp   11
-H2-big-6.inp   11
-H2-big-7.inp   11
-H2-big-8.inp   11
-H2-big-9.inp   11
+H2-big-1.inp                     11     2e-13
+H2-big-2.inp                     11     1e-13
+H2-big-3.inp                     11     2e-13
+H2-big-4.inp                     11     6e-14
+H2-big-5.inp                     11     2e-13
+H2-big-6.inp                     11     2e-13
+H2-big-7.inp                     11     2e-13
+H2-big-8.inp                     11     2e-13
+H2-big-9.inp                     11     2e-13
 H2-big-10.inp                    11     1e-07
 H2-big-11.inp                    11     4e-07
-H2-big-12.inp  11
+H2-big-12.inp                    11     2e-13
 H2O-32-se-ls-2.inp               11     1e-12
 H2O-32-dftb-ls-2.inp 11
 H2O-32-dftb-ls-2-2.inp 11
@@ -33,13 +33,13 @@ H2O-32-dftb-ls-6.inp 11
 H2O-32-dftb-ls-7.inp 11
 H2O-32-dftb-ls-8.inp 11
 H2O-32-dftb-trs4-dyn.inp 11
-H2_curvy-1.inp 11
-H2_curvy-2.inp 11
-H2_curvy-3.inp 11
+H2_curvy-1.inp                   11     1e-13
+H2_curvy-2.inp                   11     1e-13
+H2_curvy-3.inp                   11     1e-13
 H2O-chebyshev-01.inp 11
-H2O-dft-ecube.inp 11
+H2O-dft-ecube.inp                11     2e-14
 H2O-dipole.inp 39
-H2O-restart-write.inp 11
-H2O-restart-read.inp 11
-H2O-restart-read-curvy.inp 11
-H2O-curvy-prop.inp 11
+H2O-restart-write.inp            11     2e-14
+H2O-restart-read.inp             11     1e-13
+H2O-restart-read-curvy.inp       11     8e-14
+H2O-curvy-prop.inp               11     1e-13

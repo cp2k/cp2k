@@ -24,7 +24,7 @@ ethene-restraint2.inp     2             5e-11
 ethene-no-restraint.inp   2
 ethene-ck-restraint.inp   2
 #restraint 3x3
-H2O-restraint_3x3.inp     2
+H2O-restraint_3x3.inp             2     3e-12
 #restraint 4x6
 nh3-restraint4x6.inp      2
 #restraint fixed_atoms

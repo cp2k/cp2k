@@ -5,32 +5,32 @@
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
 C2H4-init.inp      1
-C2H4.inp           1
+C2H4.inp                          1     3e-14
 # test ddapc constraints
-He2_ddapc_constraint.inp 1 1E-13
-He2_ddapc_constraint-2.inp        1     2e-08
-He2_ddapc_constraint-3.inp        1     8e-11
+He2_ddapc_constraint.inp          1     5e-13
+He2_ddapc_constraint-2.inp        1     4e-07
+He2_ddapc_constraint-3.inp        1     3e-10
 # outer scf loop none
-He2_none.inp 1
-He2_none_full_all.inp 1
+He2_none.inp                      1     3e-13
+He2_none_full_all.inp             1     1e-13
 He2_none_full_single.inp 1 1E-13
-He2_none_full_inverse.inp         1     2e-11
+He2_none_full_inverse.inp         1     3e-10
 He2_lumos.inp 0
 # check that ot / geo / mo / pdos can be used together
-H2O-geo-ot-evals.inp              1     4e-14
-H2O-geo-ot-mols.inp 1
-H2O-geo-ot-pdos.inp  1
-H2O-geo-pdos.inp  1
-H2O-geo-pdos_comp.inp 1
-H2O-geo-ot-pdos-lumo-comp.inp 1
-H2O-geo-pdos_comp_list.inp   1
+H2O-geo-ot-evals.inp              1     3e-13
+H2O-geo-ot-mols.inp               1     1e-13
+H2O-geo-ot-pdos.inp               1     2e-13
+H2O-geo-pdos.inp                  1     2e-14
+H2O-geo-pdos_comp.inp             1     3e-14
+H2O-geo-ot-pdos-lumo-comp.inp     1     3e-13
+H2O-geo-pdos_comp_list.inp        1     3e-14
 # sic ddapc decoupled
 sic_ddapc_rt.inp   1 1E-11
 # introduce coeff
-He2_ddapc_constraint-4.inp 1 1E-13
+He2_ddapc_constraint-4.inp        1     1e-12
 #test constraint on becke wight population
 H2-BECKE-MD.inp                   1     3e-04
-H2-diffBECKE-ET_coupling.inp 1
+H2-diffBECKE-ET_coupling.inp      1     1e-13
 # just energy with sic
 sic_energy.inp 1
 # elf
