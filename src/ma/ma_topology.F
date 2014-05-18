@@ -576,7 +576,8 @@ CONTAINS
 
 #if defined __GEMINI || __SEASTAR  
    INTEGER                      :: src_x, src_y, src_z,&
-                                   dest_x, dest_y, dest_z
+                                   dest_x, dest_y, dest_z,&
+                                   x, y, z
    REAL                         :: tmp
 
    CALL ma_get_host_coordinates(src,src_x, src_y, src_z)
