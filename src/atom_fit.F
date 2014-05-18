@@ -1291,7 +1291,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_kgpot', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER :: t23 = 2._dp/3._dp
+    REAL(KIND=dp), PARAMETER                 :: t23 = 2._dp/3._dp
 
     INTEGER                                  :: i, ierr, ig, ip, iw, j, n10
     LOGICAL                                  :: failure

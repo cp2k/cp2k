@@ -639,8 +639,7 @@ CONTAINS
   SUBROUTINE count_prepared_nodes_in_trees(global_tree_ptr, counters, error)
     TYPE(global_tree_type), INTENT(IN), &
       POINTER                                :: global_tree_ptr
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: counters
+    INTEGER, DIMENSION(:), POINTER           :: counters
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -748,8 +747,7 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: global_tree_ptr
     TYPE(elem_array_type), DIMENSION(:), &
       POINTER                                :: end_of_clean_trees
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: counters, head_elements_nr
+    INTEGER, DIMENSION(:), POINTER           :: counters, head_elements_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_trees', &
