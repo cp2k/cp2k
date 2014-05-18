@@ -7,7 +7,7 @@
 !> \brief Implemenation of machine interface based on Fortran 2003 and POSIX
 !> \author Ole Schuett
 ! *****************************************************************************
-  USE kinds,                           ONLY: dp, int_8
+  USE kinds,                           ONLY: dp, int_8, default_path_length
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -287,7 +287,7 @@ END FUNCTION m_loc_c
     CHARACTER(len=*), INTENT(OUT)            :: hname
 
     INTEGER                                  :: istat, i
-    CHARACTER(len=1024)                      :: buf
+    CHARACTER(len=default_path_length)       :: buf
 
     INTERFACE
       FUNCTION  gethostname(buf, buflen) BIND(C,name="gethostname") RESULT(errno)
@@ -311,7 +311,7 @@ END FUNCTION m_loc_c
     CHARACTER(len=*), INTENT(OUT)            :: curdir
     TYPE(C_PTR)                              :: stat
     INTEGER                                  :: i
-    CHARACTER(len=1024), TARGET              :: tmp
+    CHARACTER(len=default_path_length), TARGET  :: tmp
 
     INTERFACE
       FUNCTION  getcwd(buf, buflen) BIND(C,name="getcwd") RESULT(stat)
@@ -323,9 +323,12 @@ END FUNCTION m_loc_c
     END INTERFACE
 
     stat = getcwd(tmp, LEN(tmp))
-    IF(.NOT. C_ASSOCIATED(C_LOC(tmp) , stat)) STOP "m_getcwd failed"
-    i = INDEX(tmp, c_null_char) -1
-    curdir = tmp(1:i)
+    IF(.NOT. C_ASSOCIATED(stat)) THEN
+      STOP "m_getcwd failed"
+    ELSE
+      i = INDEX(tmp, c_null_char) -1
+      curdir = tmp(1:i)
+    ENDIF
   END SUBROUTINE m_getcwd
 
 
@@ -352,7 +355,7 @@ END FUNCTION m_loc_c
   SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
     INTEGER                                  :: istat, i
-    CHARACTER(len=1024)                      :: buf
+    CHARACTER(len=default_path_length)       :: buf
 
     INTERFACE
       FUNCTION   getlogin_r(buf, buflen) BIND(C,name="getlogin_r") RESULT(errno)
