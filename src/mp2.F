@@ -389,7 +389,8 @@ MODULE mp2
            !    integral_containers => actual_x_data%integral_containers(:,bin)
            !    CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
            !    DO i=1,64
-           !      CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+           !      CALL hfx_init_container(integral_containers(i), &
+           !               actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
            !    END DO
            !  END DO
           END IF

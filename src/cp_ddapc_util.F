@@ -425,7 +425,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           AmI_bv = MATMUL(cp_ddapc_env%AmI,bv)
 
-          !NB call routine to precompute sin(g.r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix_rows()
+          !NB call routine to precompute sin(g.r) and cos(g.r),
+          ! so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix_rows()
           CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
           !NB do build_der_A_matrix_rows in blocks, for more efficient use of DGEMM
 #define NPSET 100

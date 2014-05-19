@@ -377,7 +377,8 @@ CONTAINS
           CALL rt_prop_setup(force_env,error)
           force_env%qs_env%rtp%dt=simpar%dt
        ELSE
-          ![NB] Lets let all methods, even ones without consistent energies, succeed here.  They'll fail in actual integrator if needed
+          ![NB] Lets let all methods, even ones without consistent energies, succeed here.
+          !     They'll fail in actual integrator if needed
           CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., require_consistent_energy_force=.FALSE., error=error)
        END IF
 

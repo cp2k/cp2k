@@ -1140,7 +1140,8 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
         ENDDO
         IF (output_unit > 0) THEN
           WRITE(output_unit,'(a,1x,i0)')"HMC|end mini-trajectory",i+ishift
-!!!!!!!! this prints z and theta(x) --ss0,ss-- needed to determine an acceptable k then the instanteneous force and some instanteneous average for force
+!!!!!!!! this prints z and theta(x) --ss0,ss-- needed to determine an acceptable k then
+       !  the instanteneous force and some instanteneous average for force
           WRITE(output_unit,'(a,1x,i0,1x)',advance="no")"#HMC|1 ",i+ishift
           DO j=1,force_env%meta_env%n_colvar
             WRITE(output_unit,'(f16.8,1x,f16.8,1x,f16.8,1x,f16.8)',advance="no")force_env%meta_env%metavar(j)%ss0,&

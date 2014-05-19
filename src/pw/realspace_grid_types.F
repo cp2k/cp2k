@@ -182,7 +182,8 @@ CONTAINS
 !>        creation of a descriptor and the actual grid itself (see rs_grid_create)
 !> \par History
 !>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
-!>      Iain Bethune (05-Sep-2008) : modified cut heuristic (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      Iain Bethune (05-Sep-2008) : modified cut heuristic
+!>      (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE rs_grid_create_descriptor ( desc, pw_grid, input_settings, error)

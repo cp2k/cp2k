@@ -635,7 +635,8 @@ MODULE  rt_propagation_utils
           IF(found) THEN
              ikind=kind_of(col_atom)
              kind_atom=atom_of_kind(col_atom)
-             !The block_values are in a vector format, so the dot_product is the sum over all elements of the hamand product, that I need
+             !The block_values are in a vector format,
+             ! so the dot_product is the sum over all elements of the hamand product, that I need
              force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
              2.0_dp*DOT_PRODUCT(block_values,block_values2)
           ENDIF
@@ -653,7 +654,8 @@ MODULE  rt_propagation_utils
           IF(found) THEN
              ikind=kind_of(col_atom)
              kind_atom=atom_of_kind(col_atom)
-             !The block_values are in a vector format, so the dot_product is the sum over all elements of the hamand product, that I need
+             !The block_values are in a vector format, so the dot_product is
+             ! the sum over all elements of the hamand product, that I need
              force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
              2.0_dp*DOT_PRODUCT(block_values,block_values2)
           ENDIF

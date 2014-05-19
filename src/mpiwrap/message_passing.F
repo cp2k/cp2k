@@ -77,7 +77,8 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_address_kind=int_8
 #endif
 
-  ! we need to fix this to a given number (crossing fingers) so that the serial code using Fortran stream IO and the MPI have the same sizes.
+  ! we need to fix this to a given number (crossing fingers)
+  ! so that the serial code using Fortran stream IO and the MPI have the same sizes.
   INTEGER, PARAMETER, PUBLIC :: mpi_character_size=1
   INTEGER, PARAMETER, PUBLIC :: mpi_integer_size=4
 

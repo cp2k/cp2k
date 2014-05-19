@@ -1490,7 +1490,8 @@ CONTAINS
         CALL mp_sum ( exc, v_rspace_new(1)%pw%pw_grid%para%group )
      END IF
 
-!     IF (v_rspace_new(1)%pw%pw_grid%para%my_pos==0)  WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
+!     IF (v_rspace_new(1)%pw%pw_grid%para%my_pos==0) &
+!           WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
 !Note that this is not the xc energy but \int(\rho*v_xc)
 !Vxc---> v_rspace_new
 !Exc---> energy%exc

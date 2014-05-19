@@ -156,7 +156,8 @@
     !maxr2=0.0_dp
     !DO j=0,2
     !    DO i=0,2
-    !        maxr2=maxr2+(scaled_h(i,j))**2 ! guarantee at least the nearest points (this increases the sphere, increase just the box?)
+    !        ! guarantee at least the nearest points (this increases the sphere, increase just the box?)
+    !        maxr2=maxr2+(scaled_h(i,j))**2 
     !    END DO
     !END DO
     maxr2=max_r2 !MAX(max_r2,maxr2)
