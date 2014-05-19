@@ -2016,7 +2016,8 @@
 !>      temporaries. They must point to contiguous memory.
 !> \author fawzi
 !> \par History
-!>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      9.2008 added _rm3 subroutine [Iain Bethune]
+!>     (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \sa mp_isendrecv_zv
 !> \sa mp_isend_zv

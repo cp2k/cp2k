@@ -136,7 +136,8 @@
     INTEGER                                  :: col, row
 
 !   ---------------------------------------------------------------------------
-! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
+! Factors out the 4 combinations to remove branches from the inner loop.
+!  rs is the logical row size so it always remains the leading dimension.
     IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &

@@ -313,7 +313,8 @@ CONTAINS
        im=2*ispin
 
        IF(rtp%iter==1) THEN
-          !For EM I have to copy rho_old onto rho_next and for ETRS, this is the first term of the series of commutators that result in rho_next
+          ! For EM I have to copy rho_old onto rho_next and for ETRS,
+          ! this is the first term of the series of commutators that result in rho_next
           CALL cp_dbcsr_copy(rho_next(re)%matrix,rho_old(re)%matrix,error=error)
           CALL cp_dbcsr_copy(rho_next(im)%matrix,rho_old(im)%matrix,error=error)
           IF(rtp_control%propagator==do_etrs) THEN

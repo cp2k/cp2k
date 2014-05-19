@@ -492,7 +492,8 @@ CONTAINS
                      cp_ddapc_env%AmI,SIZE(cp_ddapc_env%AmI,1),tv,SIZE(tv,1),0.0_dp,dqv,SIZE(dqv,1))
           !NB deallocate g_dot_rvec_sin and g_dot_rvec_cos
           CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
-          !NB moved reduction out to where dqv is used to compute a force contribution (smaller array to reduce, just size(particle_set) x 3)
+          !NB moved reduction out to where dqv is used to compute
+          !NB  a force contribution (smaller array to reduce, just size(particle_set) x 3)
           !NB namely ewald_ddapc_force(), cp_decl_ddapc_forces(), restraint_functional_force()
           CPPostcondition(PRESENT(dq_out),cp_failure_level,routineP,error,failure)
           IF (.NOT.ASSOCIATED(dq_out)) THEN
