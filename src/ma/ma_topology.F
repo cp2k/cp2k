@@ -13,32 +13,26 @@
 
 MODULE ma_topology
 
-#if defined (__HAS_NO_ISO_C_BINDING)
-#if defined __GEMINI || __SEASTAR || __NET 
- !Compile-time error. These two flags are incompatible
-  STOP "The topology needs ISO_C_BINDING.Compile without __HAS_NO_ISO_C_BINDING"
-#endif
-#endif
-
-#if !defined (__HAS_NO_ISO_C_BINDING)
-      USE ISO_C_BINDING
-#endif
-
- USE machine,                      ONLY: m_walltime,m_getpid
- USE machine_architecture_types,   ONLY: net_topo,ma_mp_type,has_MPI,&
-                                         cannon_graph,complete_graph
- USE ma_errors,                    ONLY: ma_error_stop, &
-                                         ma_error_allocation, &
-                                         ma_error_finalize, &
-                                         ma_error_option, &
-                                         ma_error_database, &
-                                          ma_error_remove 
- USE ma_kinds,                     ONLY: dp,default_string_length
- USE mathlib,                      ONLY: gcd
- USE message_passing,              ONLY: mp_environ, mp_reordering, &
-                                         mp_proc_name,mp_scatter,mp_sync,&
-                                         mp_sum, mp_isendrecv,mp_waitall
- USE string_utilities,             ONLY: integer_to_string
+  USE ISO_C_BINDING
+  USE ma_errors,                       ONLY: ma_error_allocation,&
+                                             ma_error_database,&
+                                             ma_error_option,&
+                                             ma_error_remove,&
+                                             ma_error_stop
+  USE ma_kinds,                        ONLY: default_string_length,&
+                                             dp
+  USE machine,                         ONLY: m_getpid,&
+                                             m_walltime
+  USE machine_architecture_types,      ONLY: cannon_graph,&
+                                             complete_graph,&
+                                             net_topo
+  USE mathlib,                         ONLY: gcd
+  USE message_passing,                 ONLY: mp_environ,&
+                                             mp_isendrecv,&
+                                             mp_proc_name,&
+                                             mp_sum,&
+                                             mp_waitall
+  USE string_utilities,                ONLY: integer_to_string
 
 IMPLICIT NONE
 

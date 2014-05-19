@@ -13,29 +13,17 @@
 !> <b>Modification history:</b>
 !> - Created 2011-11-08
 MODULE ma_affinity
-
-#if defined (__HAS_NO_ISO_C_BINDING)
-#if defined (__HWLOC) || defined(__LIBNUMA)
-  !Compile-time error. These two flags are incompatible
-  STOP "The machine abstraction needs ISO_C_BINDING. Compile without __HAS_NO_ISO_C_BINDING"
-#endif
-#endif
-
-#if !defined (__HAS_NO_ISO_C_BINDING)
-      USE ISO_C_BINDING
-#endif
-
- USE machine_architecture
- USE machine_architecture_types
- USE machine_architecture_utils
- USE ma_config
- USE ma_dummy_c_bindings
- USE ma_kinds
- USE ma_errors,                    ONLY: ma_error_stop, &
-                                         ma_error_allocation, &
-                                         ma_error_finalize
- USE message_passing,              ONLY: mp_allgather,mp_sum, &
-                                         mp_proc_name
+  USE ISO_C_BINDING
+  USE ma_config
+  USE ma_errors,                       ONLY: ma_error_allocation,&
+                                             ma_error_stop
+  USE ma_kinds
+  USE machine_architecture
+  USE machine_architecture_types
+  USE machine_architecture_utils
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_proc_name,&
+                                             mp_sum
 
 !$ USE OMP_LIB
  IMPLICIT NONE

@@ -13,25 +13,17 @@
 !> - Modified 2011-08-09 - Adding interfaces to C functions
 MODULE machine_architecture
 
-#if defined (__HAS_NO_ISO_C_BINDING)
-#if defined (__HWLOC) || defined(__LIBNUMA)
-  !Compile-time error. These two flags are incompatible
-  STOP "The machine abstraction needs ISO_C_BINDING. Compile without __HAS_NO_ISO_C_BINDING"
-#endif
-#endif
-
-#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#endif
-
-  USE machine,                      ONLY: m_getpid
+  USE ma_errors,                       ONLY: ma_error_allocation,&
+                                             ma_error_finalize,&
+                                             ma_error_stop
+  USE ma_kinds
+  USE machine,                         ONLY: m_getpid
   USE machine_architecture_types
   USE machine_architecture_utils
-  USE ma_dummy_c_bindings
-  USE ma_kinds
-  USE ma_errors,                    ONLY: ma_error_stop, ma_error_allocation, &
-                                          ma_error_finalize
-  USE message_passing,              ONLY:  mp_proc_name, mp_sum, mp_environ  
+  USE message_passing,                 ONLY: mp_environ,&
+                                             mp_proc_name,&
+                                             mp_sum
 
   IMPLICIT NONE
 
@@ -491,8 +483,8 @@ CONTAINS
 !> \var ma_env            The parallel environment
 !> \var num_threads       The number of threads of each process
 ! *****************************************************************************
-  INTEGER FUNCTION ma_init_machine(core,node) RESULT(istat)
-  INTEGER                          :: core,node
+  FUNCTION ma_init_machine(core,node) RESULT(istat)
+    INTEGER                                  :: core, node, istat
 
    istat = -1
 #if defined (__HWLOC) || defined (__LIBNUMA)
@@ -525,8 +517,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Count the number of machines used in an execution
 ! *****************************************************************************
-  INTEGER FUNCTION ma_get_nmachines (group) RESULT (nmachines)
+  FUNCTION ma_get_nmachines (group) RESULT (nmachines)
     INTEGER                                  :: group
+    INTEGER                                  :: nmachines
 #if defined (__parallel)
     TYPE(ma_mp_type)                         :: ma_env
 
@@ -572,7 +565,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Get the first core where a MPI process is running
 ! *****************************************************************************
-  INTEGER FUNCTION ma_my_first_core() RESULT (core)
+  FUNCTION ma_my_first_core() RESULT (core)
+    INTEGER                                  :: core
+
     core = 0
 #if defined (__HWLOC)
   core = ma_get_first_core()
@@ -583,7 +578,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Get the process ID
 ! *****************************************************************************
-INTEGER FUNCTION ma_get_id() RESULT (pid)
+FUNCTION ma_get_id() RESULT (pid)
+    INTEGER                                  :: pid
 
   CALL m_getpid(pid)
 END FUNCTION ma_get_id
@@ -619,7 +615,9 @@ END FUNCTION ma_get_id
 ! *****************************************************************************
 ! Functions to extract the machine information
 ! *****************************************************************************
-  INTEGER FUNCTION ma_get_mycore() RESULT (core)
+  FUNCTION ma_get_mycore() RESULT (core)
+    INTEGER                                  :: core
+
    core = -1
 #if defined (__HWLOC)  && !defined (__LIBNUMA)
    core = ma_get_core()
@@ -641,8 +639,9 @@ END FUNCTION ma_get_id
 #endif
   END FUNCTION ma_get_mynode
 
-  INTEGER FUNCTION ma_get_proc_core(flag) RESULT (core)
-   INTEGER  :: flag
+  FUNCTION ma_get_proc_core(flag) RESULT (core)
+    INTEGER                                  :: flag, core
+
    core = -1
 #if defined (__HWLOC)  && !defined (__LIBNUMA)
    core = ma_get_proccore(flag)
@@ -674,31 +673,45 @@ SUBROUTINE ma_set_proc_node(node)
 #endif
   END SUBROUTINE ma_set_proc_node
 
- INTEGER FUNCTION ma_get_nnodes() RESULT (nnodes)
+  FUNCTION ma_get_nnodes() RESULT (nnodes)
+    INTEGER                                  :: nnodes
+
      nnodes = topology%nnodes
   END FUNCTION ma_get_nnodes
 
- INTEGER FUNCTION ma_get_nsockets() RESULT (nsockets)
+  FUNCTION ma_get_nsockets() RESULT (nsockets)
+    INTEGER                                  :: nsockets
+
      nsockets = topology%nsockets
   END FUNCTION ma_get_nsockets
 
-  INTEGER FUNCTION ma_get_ncores() RESULT (ncores)
+  FUNCTION ma_get_ncores() RESULT (ncores)
+    INTEGER                                  :: ncores
+
      ncores = topology%ncores
   END FUNCTION ma_get_ncores
 
- INTEGER FUNCTION ma_get_ncaches() RESULT (ncaches)
+  FUNCTION ma_get_ncaches() RESULT (ncaches)
+    INTEGER                                  :: ncaches
+
      ncaches = topology%ncaches
   END FUNCTION ma_get_ncaches
 
- INTEGER FUNCTION ma_get_nshared_caches() RESULT (nshared_caches)
+  FUNCTION ma_get_nshared_caches() RESULT (nshared_caches)
+    INTEGER                                  :: nshared_caches
+
      nshared_caches = topology%nshared_caches
   END FUNCTION ma_get_nshared_caches
 
- INTEGER FUNCTION ma_get_nsiblings() RESULT (nsiblings)
+  FUNCTION ma_get_nsiblings() RESULT (nsiblings)
+    INTEGER                                  :: nsiblings
+
      nsiblings = topology%nsiblings
   END FUNCTION ma_get_nsiblings
 
- INTEGER FUNCTION ma_get_nnet_cards() RESULT (netcards)
+  FUNCTION ma_get_nnet_cards() RESULT (netcards)
+    INTEGER                                  :: netcards
+
     netcards = topology%nnetcards
   END FUNCTION ma_get_nnet_cards
 

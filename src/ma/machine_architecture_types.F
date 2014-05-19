@@ -14,10 +14,7 @@
 !> - Created 2011-08-09
 ! *****************************************************************************
 MODULE machine_architecture_types
-#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#endif
-  USE ma_dummy_c_bindings
 
  IMPLICIT NONE
 
@@ -28,11 +25,7 @@ MODULE machine_architecture_types
  PUBLIC :: arch_topology, thread_inf, machine_output
 
 !Interface with the Machine Abstraction
-#if !defined (__HAS_NO_ISO_C_BINDING)
  TYPE, BIND(C) :: arch_topology
-#else
- TYPE :: arch_topology
-#endif
    INTEGER(C_INT)         :: nnodes, nsockets
    INTEGER(C_INT)         :: ncores, npus
    INTEGER(C_INT)         :: ngpus, ncaches
@@ -41,13 +34,8 @@ MODULE machine_architecture_types
   END TYPE arch_topology
 
 !Interface with the console output
-#if !defined (__HAS_NO_ISO_C_BINDING)
  TYPE, BIND(C) :: machine_output
    CHARACTER(C_CHAR)           :: console_output(8192)
-#else
- TYPE :: machine_output
-   CHARACTER                   :: console_output(8192)
-#endif
    INTEGER(C_INT)              :: len
  END TYPE machine_output
 
