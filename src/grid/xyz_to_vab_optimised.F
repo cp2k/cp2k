@@ -29,9 +29,10 @@
               USE lib_kinds,                        ONLY: dp
       
              REAL(KIND=dp), INTENT(IN) :: prefactor
+             INTEGER, INTENT(IN) :: lp
              REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
                                   INTENT(INOUT) :: coef_xyz
-             INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local,&
+             INTEGER, INTENT(IN) :: la_max_local, lb_max_local,&
                                     la_min_local, lb_min_local
              INTEGER, INTENT(IN) :: maxl, lvab, hvab
              REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab

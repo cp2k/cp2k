@@ -103,6 +103,7 @@ CONTAINS
 !     Factoring 64 as 4*4*4 might for example be faster on some machines than 8*8.
 
           IMPLICIT REAL(KIND=dp) (a-h,o-z)
+          IMPLICIT INTEGER (i,j,m,n)
           INTEGER after,before
           DIMENSION now(7),after(7),before(7),trig(2,ctrig_length)
           INTEGER, DIMENSION(7,149) :: idata
@@ -255,6 +256,7 @@ CONTAINS
 !  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 
         IMPLICIT REAL(KIND=dp) (a-h,o-z)
+        IMPLICIT INTEGER (i,j,m,n)
         INTEGER after,before,atn,atb
         DIMENSION trig(2,ctrig_length),zin(2,mm,m),zout(2,nn,n)
         atn=after*now

@@ -136,75 +136,75 @@ CONTAINS
  SUBROUTINE ZAXPY
  END SUBROUTINE ZAXPY
 ! *****************************************************************************
- FUNCTION SDOT()
+ REAL FUNCTION SDOT()
    SDOT=0
  END FUNCTION SDOT
 ! *****************************************************************************
- FUNCTION DDOT()
+ DOUBLE PRECISION FUNCTION DDOT()
    DDOT=0
  END FUNCTION DDOT
 ! *****************************************************************************
- FUNCTION CDOTU()
+ COMPLEX FUNCTION CDOTU()
    CDOTU=0
  END FUNCTION CDOTU
 ! *****************************************************************************
- FUNCTION ZDOTU()
+ COMPLEX(KIND=KIND(0.0D0)) FUNCTION ZDOTU()
    ZDOTU=0
  END FUNCTION ZDOTU
 ! *****************************************************************************
- FUNCTION CDOTC()
+ COMPLEX FUNCTION CDOTC()
    CDOTC=0
  END FUNCTION CDOTC
 ! *****************************************************************************
- FUNCTION ZDOTC()
+ COMPLEX(KIND=KIND(0.0D0)) FUNCTION ZDOTC()
    ZDOTC=0
  END FUNCTION ZDOTC
 ! *****************************************************************************
- FUNCTION SNRM2()
+ REAL FUNCTION SNRM2()
    SNRM2=0
  END FUNCTION SNRM2
 ! *****************************************************************************
- FUNCTION DNRM2()
+ DOUBLE PRECISION FUNCTION DNRM2()
    DNRM2=0
  END FUNCTION DNRM2
 ! *****************************************************************************
- FUNCTION SCNRM2()
+ REAL FUNCTION SCNRM2()
    SCNRM2=0
  END FUNCTION SCNRM2
 ! *****************************************************************************
- FUNCTION DZNRM2()
+ DOUBLE PRECISION FUNCTION DZNRM2()
    DZNRM2=0
  END FUNCTION DZNRM2
 ! *****************************************************************************
- FUNCTION SASUM()
+ REAL FUNCTION SASUM()
    SASUM=0
  END FUNCTION SASUM
 ! *****************************************************************************
- FUNCTION SCASUM()
+ REAL FUNCTION SCASUM()
    SCASUM=0
  END FUNCTION SCASUM
 ! *****************************************************************************
- FUNCTION DASUM()
+ DOUBLE PRECISION FUNCTION DASUM()
    DASUM=0
  END FUNCTION DASUM
 ! *****************************************************************************
- FUNCTION DZASUM()
+ DOUBLE PRECISION FUNCTION DZASUM()
    DZASUM=0
  END FUNCTION DZASUM
 ! *****************************************************************************
- FUNCTION ISAMAX()
+ INTEGER FUNCTION ISAMAX()
    ISAMAX=0
  END FUNCTION ISAMAX
 ! *****************************************************************************
- FUNCTION IDAMAX()
+ INTEGER FUNCTION IDAMAX()
    IDAMAX=0
  END FUNCTION IDAMAX
 ! *****************************************************************************
- FUNCTION ICAMAX()
+ INTEGER FUNCTION ICAMAX()
    ICAMAX=0
  END FUNCTION ICAMAX
 ! *****************************************************************************
- FUNCTION IZAMAX()
+ INTEGER FUNCTION IZAMAX()
    IZAMAX=0
  END FUNCTION IZAMAX
 ! *****************************************************************************
@@ -496,23 +496,23 @@ CONTAINS
  SUBROUTINE ZTRSM
  END SUBROUTINE ZTRSM
 ! *****************************************************************************
- FUNCTION SDSDOT()
+ REAL FUNCTION SDSDOT()
    SDSDOT=0
  END FUNCTION SDSDOT
 ! *****************************************************************************
- FUNCTION DSDOT()
+ DOUBLE PRECISION FUNCTION DSDOT()
    DSDOT=0
  END FUNCTION DSDOT
 ! *****************************************************************************
- FUNCTION DCABS1()
+ DOUBLE PRECISION FUNCTION DCABS1()
    DCABS1=0
  END FUNCTION DCABS1
 ! *****************************************************************************
- FUNCTION LSAME()
-   LSAME=0
+ LOGICAL FUNCTION LSAME()
+   LSAME=.TRUE.
  END FUNCTION LSAME
 ! *****************************************************************************
- FUNCTION SCABS1()
+ REAL FUNCTION SCABS1()
    SCABS1=0
  END FUNCTION SCABS1
 END MODULE f77_blas_poison
