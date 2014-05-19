@@ -13,6 +13,7 @@ MODULE mltfftsg_tools
 
   PRIVATE
   INTEGER, PARAMETER :: ctrig_length=1024
+  INTEGER, PARAMETER :: cache_size = 2048
   PUBLIC :: mltfftsg
 
 CONTAINS
@@ -34,19 +35,17 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
     INTEGER :: after( 20 ), before( 20 ), chunk, i, ic, id, iend, ierr, &
       inzee, isig, istart, iterations, itr, length, lot, nfft, now( 20 ), &
       num_threads
-    INTEGER, SAVE                            :: ncache
     LOGICAL                                  :: tscal
     REAL(dp)                                 :: trig( 2, 1024 )
 
 ! Variables
 
-  ncache = get_cache_size ( )
-  LENGTH = 2 * ( NCACHE / 4 + 1 )
+  LENGTH = 2 * ( cache_size / 4 + 1 )
 
   ISIG = -ISIGN
   TSCAL = ( ABS ( SCALE -1._dp ) > 1.e-12_dp )
   CALL ctrig ( N, TRIG, AFTER, BEFORE, NOW, ISIG, IC )
-  LOT = NCACHE / ( 4 * N )
+  LOT = cache_size / ( 4 * N )
   LOT = LOT - MOD ( LOT + 1, 2 )
   LOT = MAX ( 1, LOT )
 
@@ -3505,29 +3504,5 @@ SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
     CALL dscal(n,sc,a,1)
 
   END SUBROUTINE scaled
-
-! *****************************************************************************
-  FUNCTION get_cache_size ( )
-
-    IMPLICIT NONE
-    INTEGER :: get_cache_size
-
-#if defined ( __T3E )
-    get_cache_size = 1024*8
-#elif defined ( __SX5 ) || defined ( __T90 )
-    get_cache_size = 1024*128
-#elif defined ( __ALPHA )
-    get_cache_size = 1024*8
-#elif defined ( __SGI )
-    get_cache_size = 1024*4
-#elif defined ( __POWER2 )
-    get_cache_size = 1024*10
-#elif defined ( __HP )
-    get_cache_size = 1024*64
-#else
-    get_cache_size = 1024*2
-#endif
-
-  END FUNCTION get_cache_size
 
 END MODULE mltfftsg_tools
