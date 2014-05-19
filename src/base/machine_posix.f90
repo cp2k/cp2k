@@ -34,13 +34,13 @@ END FUNCTION m_loc_r
 ! *****************************************************************************
 ! only used for debugging
 ! *****************************************************************************
-FUNCTION m_loc_c(a) RESULT(res)
+  FUNCTION m_loc_c(a) RESULT(res)
     COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
     res = -1
-END FUNCTION m_loc_c
+  END FUNCTION m_loc_c
 
 ! *****************************************************************************
 ! can be used to get a nice core
@@ -90,24 +90,28 @@ END FUNCTION m_loc_c
 ! returns if a process is running on the local machine
 ! 1 if yes and 0 if not
 ! *****************************************************************************
-  INTEGER FUNCTION m_procrun(id) RESULT (run_on)
-    INTEGER           ::   id, ios
-    CHARACTER(len=80) ::   filename, tmp
-    CHARACTER(len=8)  ::   id_s
+  FUNCTION m_procrun(pid) RESULT (run_on)
+    INTEGER, INTENT(IN)       ::   pid
+    INTEGER                   ::   run_on
+    INTEGER                   ::   istat
 
-    WRITE(id_s,'(I8)') id
+    INTERFACE
+      FUNCTION kill(pid, sig) BIND(C,name="kill") RESULT(errno)
+        USE ISO_C_BINDING
+        INTEGER(KIND=C_INT),VALUE                :: pid, sig
+        INTEGER(KIND=C_INT)                      :: errno
+      END FUNCTION
+    END INTERFACE
 
-    id_s = ADJUSTL(id_s)
+    ! If sig is 0, then no signal is sent, but error checking is still
+    ! performed; this can be used to check for the existence of a process
+    ! ID or process group ID.
 
-    tmp = "/proc/" // TRIM(id_s) // "/stat"
-    filename = TRIM(tmp)
-
-    OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
-    IF (ios /= 0) THEN
-        run_on = 0
+    istat = kill(pid=pid, sig=0)
+    IF(istat == 0) THEN
+       run_on = 1 ! no error, process exists
     ELSE
-       run_on = 1
-       CLOSE(87)
+       run_on = 0 ! error, process probably does not exist
     ENDIF
 
   END FUNCTION m_procrun
@@ -125,7 +129,7 @@ END FUNCTION m_loc_c
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
-#if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
+#if defined(__NO_STATM_ACCESS)
       m_memory=0
 #else
       CHARACTER(LEN=80) :: DATA
@@ -300,7 +304,7 @@ END FUNCTION m_loc_c
 
     istat = gethostname(buf, LEN(buf))
     IF(istat /= 0) STOP "m_hostnm failed"
-    i = INDEX(buf, c_null_char) -1 
+    i = INDEX(buf, c_null_char) -1
     hname = buf(1:i)
   END SUBROUTINE m_hostnm
 
@@ -323,12 +327,9 @@ END FUNCTION m_loc_c
     END INTERFACE
 
     stat = getcwd(tmp, LEN(tmp))
-    IF(.NOT. C_ASSOCIATED(stat)) THEN
-      STOP "m_getcwd failed"
-    ELSE
-      i = INDEX(tmp, c_null_char) -1
-      curdir = tmp(1:i)
-    ENDIF
+    IF(.NOT. C_ASSOCIATED(stat)) STOP "m_getcwd failed"
+    i = INDEX(tmp, c_null_char) -1
+    curdir = tmp(1:i)
   END SUBROUTINE m_getcwd
 
 
