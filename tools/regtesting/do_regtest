@@ -96,7 +96,7 @@
 # - cp2k_dir: normally cp2k
 # - maxtasks: Maximum number of CP2K threads to execute concurrently (== total number of CPU cores to be used for regtesting)
 # - emptycheck: useful for automatic testers, no testing if nothing changed in SVN (YES|NO)
-# - leakcheck: if using g95, set this variable to "YES" in order to get memory leak checking
+# - leakcheck: if using gfortran with the LeakSanitizer, set this variable to "YES" in order to get memory leak checking
 #
 # The following variable definitions can now be loaded from a
 # site-specific configuration using the -config option. Create one
@@ -773,7 +773,6 @@ for dir in ${dirs}; do
            (( nerror > 0 )) && dum=${nerror}
         else
            case ${FORT_C_NAME} in
-              g95*     ) leak_error_string="Remaining memory";;
               gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
            esac
            dum=`grep -l "${leak_error_string}" ${output_file}`
@@ -841,9 +840,6 @@ printf "Total number of   tests %d\n" ${n_tests}         | tee -a ${summary}
 if [[ ${leakcheck} == "YES" ]]; then
    echo "--------------------------------------------------------------------------" | tee -a ${summary}
    case ${FORT_C_NAME} in
-      g95*     )
-       n_leaks=`grep -v "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
-       ;;
       gfortran*)
        n_leaking_tests=`grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
        n_leaks=`grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}'`
@@ -852,7 +848,7 @@ if [[ ${leakcheck} == "YES" ]]; then
    esac
    (( n_leaks == 0 )) && echo "No memory leaks detected" >>${memory_description_file}
    printf "Number of memory  leaks %d\n" ${n_leaks} | tee -a ${summary}
-   if [[ -f ${dir_base}/suppr.txt ]]; then
+   if [[ -s ${dir_base}/suppr.txt ]]; then
       echo "--------------------------------------------------------------------------" | tee -a ${summary}
       printf "Note, that the following leak suppressions are currently active:\n" | tee -a ${summary}
       cat ${dir_base}/suppr.txt | tee -a ${summary}
