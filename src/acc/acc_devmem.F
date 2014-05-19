@@ -8,22 +8,19 @@
 !> \author  Ole Schuett
 ! *****************************************************************************
 MODULE acc_devmem
-#if defined (__ACC)
   USE ISO_C_BINDING
-  USE acc_stream,                      ONLY: acc_stream_cptr
-#endif
-
-  USE acc_stream,                      ONLY: acc_stream_type,&
-                                             acc_stream_synchronize,&
-                                             acc_stream_associated
-  USE acc_kinds,                       ONLY: int_4,int_8,&
+  USE acc_kinds,                       ONLY: int_4,&
                                              int_4_size,&
+                                             int_8,&
                                              int_8_size,&
                                              real_4,&
                                              real_4_size,&
                                              real_8,&
                                              real_8_size
-  USE dummy_c_bindings
+  USE acc_stream,                      ONLY: acc_stream_associated,&
+                                             acc_stream_cptr,&
+                                             acc_stream_synchronize,&
+                                             acc_stream_type
 
   IMPLICIT NONE
 
@@ -39,6 +36,7 @@ MODULE acc_devmem
   PUBLIC :: acc_devmem_dev2host, acc_devmem_host2dev
   PUBLIC :: acc_devmem_size_in_bytes
   PUBLIC :: acc_devmem_ensure_size_bytes
+  PUBLIC :: acc_devmem_cptr
 
  INTERFACE acc_devmem_dev2host
   MODULE PROCEDURE dev2host_i4_1D
@@ -64,22 +62,13 @@ MODULE acc_devmem
   MODULE PROCEDURE host2dev_c8_2D
  END INTERFACE acc_devmem_host2dev
 
+ TYPE acc_devmem_type
+   PRIVATE
+   INTEGER                      :: size_in_bytes = -1
+   TYPE(C_PTR)                  :: cptr = C_NULL_PTR
+ END TYPE acc_devmem_type
 
-#if ! defined (__ACC)
-  TYPE acc_devmem_type
-     PRIVATE
-     INTEGER                      :: size_in_bytes = -1
-  END TYPE acc_devmem_type
-
-#else
-
-  PUBLIC :: acc_devmem_cptr
-
-  TYPE acc_devmem_type
-     PRIVATE
-     INTEGER                      :: size_in_bytes = -1
-     TYPE(C_PTR)                  :: cptr = C_NULL_PTR
-  END TYPE acc_devmem_type
+#if  defined (__ACC)
 
   INTERFACE
      FUNCTION dc_dev_mem_info_cu(free, avail) RESULT (istat) BIND(C, name="acc_dev_mem_info")
@@ -261,7 +250,6 @@ CONTAINS
 !> \brief Returns C-pointer to data of give devmem.
 !> \author  Ole Schuett
 ! *****************************************************************************
-#if defined (__ACC)
   FUNCTION acc_devmem_cptr(this) RESULT(res)
     TYPE(acc_devmem_type), INTENT(IN)        :: this
     TYPE(C_PTR)                              :: res
@@ -269,7 +257,6 @@ CONTAINS
      IF(this%size_in_bytes < 0) STOP "acc_devmem_cptr: not allocated"
      res = this%cptr
   END FUNCTION acc_devmem_cptr
-#endif
 
 
 ! *****************************************************************************

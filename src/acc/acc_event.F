@@ -9,13 +9,9 @@
 !> \date    2013-04
 ! *****************************************************************************
 MODULE acc_event
-#if defined (__ACC)
   USE ISO_C_BINDING
-  USE acc_stream, ONLY: acc_stream_cptr
-#endif
-
-  USE dummy_c_bindings
-  USE acc_stream, ONLY: acc_stream_type
+  USE acc_stream,                      ONLY: acc_stream_cptr,&
+                                             acc_stream_type
 
   IMPLICIT NONE
 
@@ -28,21 +24,13 @@ MODULE acc_event
   PUBLIC :: acc_event_record, acc_event_query
   PUBLIC :: acc_stream_wait_event, acc_event_synchronize
 
-  !PUBLIC :: acc_event_elapsed_time
-
-#if !defined (__ACC)
-  TYPE acc_event_type
-    PRIVATE
-    !nothing, except for g95
-    INTEGER :: dummy = 0
-  END TYPE acc_event_type
-
-#else
 
   TYPE acc_event_type
     PRIVATE
     TYPE(C_PTR) :: cptr = C_NULL_PTR
   END TYPE acc_event_type
+
+#if defined (__ACC)
 
   INTERFACE
      FUNCTION cuda_event_create(event_ptr) RESULT (istat) BIND(C, name="acc_event_create")

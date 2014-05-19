@@ -9,10 +9,7 @@
 !> \date    2013-04
 ! *****************************************************************************
 MODULE acc_stream
-#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#endif
- USE dummy_c_bindings
 
   IMPLICIT NONE
 
@@ -25,14 +22,6 @@ MODULE acc_stream
   PUBLIC :: acc_stream_synchronize
   PUBLIC :: acc_stream_priority_range
   PUBLIC :: acc_stream_equal, acc_stream_associated
-
-#if !defined (__ACC)
-  TYPE acc_stream_type
-!MK PRIVATE                  ! workaround for g95
-    INTEGER     :: dummy = 0 ! needed to make g95 happy
-  END TYPE acc_stream_type
-
-#else
   PUBLIC :: acc_stream_cptr
 
   TYPE acc_stream_type
@@ -40,7 +29,7 @@ MODULE acc_stream
     TYPE(C_PTR) :: cptr = C_NULL_PTR
   END TYPE acc_stream_type
 
-  TYPE(acc_stream_type), SAVE :: acc_stream_default
+#if defined (__ACC)
 
   INTERFACE
      FUNCTION cuda_stream_create(stream_ptr, name, priority) RESULT (istat) BIND(C, name="acc_stream_create")
@@ -89,14 +78,12 @@ CONTAINS
 !> \brief Returns C-pointer of given stream.
 !> \author  Ole Schuett
 ! *****************************************************************************
-#if defined (__ACC)
 FUNCTION acc_stream_cptr(this) RESULT(res)
     TYPE(acc_stream_type), INTENT(in)        :: this
     TYPE(C_PTR)                              :: res
 
     res = this%cptr
 END FUNCTION acc_stream_cptr
-#endif
 
 
 ! *****************************************************************************
