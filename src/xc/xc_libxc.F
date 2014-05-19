@@ -58,7 +58,7 @@ This version of CP2K ONLY works with libxc version 2.0.1
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
   USE termination,                     ONLY: stop_program
-  USE xc_f90_types_m
+  USE xc_f90_types_m,                  ONLY: xc_f90_pointer_t
   USE xc_f90_lib_m
 
 #include "../common/cp_common_uses.f90"
