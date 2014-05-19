@@ -135,9 +135,10 @@ How to compile CP2K code
      * Add -D__LIBXC2 to DFLAGS and -L$(LIBXC_DIR)/lib -lxc to LIBS.
 
  2l) Library ELPA for the solution of the eigenvalue problem
-     * One version of ELPA need to be downloaded (http://elpa.rzg.mpg.de/software)
-       and installed. During the installation the libelpa.a (or libelpa_mt.a if omp active) is created. 
-       we tested the version of November 2013, with generic kernel and with/without omp
+     * One version of ELPA need to be downloaded (http://elpa.rzg.mpg.de/software or directly 
+       http://elpa.rzg.mpg.de/elpa-tar-archive ) and installed.
+       During the installation the libelpa.a (or libelpa_mt.a if omp active) is created. 
+       We tested the version of November 2013, with generic kernel and with/without omp
      * Add -D__ELPA to  DFLAGS and -L$(ELPA_DIR) -lelpa to LIBS
      * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
      * For specific architectures it can be better to install specifically 
@@ -221,8 +222,9 @@ How to compile CP2K code
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
                              not declare they are thread safe (funneled) but you want to
                              use them with OpenMP code anyways.
-     -D__HAS_NO_MPI_MOD - workaround if mpi has been built for a different (version of the) Fortran compiler,
-                          rendering the MPI module unreadable (reverts to f77 style mpif.h includes)
+     -D__HAS_NO_MPI_MOD - workaround if mpi has been built for a different (version
+                          of the) Fortran compiler, rendering the MPI module
+                          unreadable (reverts to f77 style mpif.h includes)
 
  3c) CP2K currently assumes Fortran2003 compliance, even though few features are used. 
      Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.
