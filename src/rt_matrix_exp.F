@@ -901,7 +901,7 @@ CONTAINS
           END DO
        END IF
 
-       H_approx=H_approx_save
+       H_approx(:,:,:)=H_approx_save
 
        ! PADE approximation for exp(H_approx), everything is done locally
 
@@ -934,8 +934,8 @@ CONTAINS
                 N(idim,idim)=1.0_dp
                 D(idim,idim)=one
              END DO
-             N=N+0.5_dp*mat1
-             D=D-0.5_dp*mat1
+             N(:,:)=N+0.5_dp*mat1
+             D(:,:)=D-0.5_dp*mat1
              pade_step=1
              DO idim=1,4
                 pade_step=pade_step+1
@@ -945,8 +945,8 @@ CONTAINS
                      (fac(2*npade )*fac(pade_step )*fac(npade -pade_step )),dp)
                 scaleD=REAL((-1.0_dp)**pade_step  * fac(2*npade -pade_step )*fac(npade)/&
                      (fac(2*npade )*fac(pade_step )*fac(npade -pade_step)),dp)
-                N=N+scaleN*mat2
-                D=D+scaleD*mat2
+                N(:,:)=N+scaleN*mat2
+                D(:,:)=D+scaleD*mat2
                 pade_step=pade_step+1
                 CALL dgemm("N",'N',mydim,mydim,mydim,one,mat2(1,1),&
                      mydim,mat1(1,1),mydim,zero,mat3(1,1),mydim)
@@ -954,8 +954,8 @@ CONTAINS
                      (fac(2*npade )*fac(pade_step )*fac(npade -pade_step )),dp)
                 scaleD=REAL((-1.0_dp)**pade_step  * fac(2*npade -pade_step )*fac(npade)/&
                      (fac(2*npade )*fac(pade_step )*fac(npade -pade_step)),dp)
-                N=N+scaleN*mat3
-                D=D+scaleD*mat3
+                N(:,:)=N+scaleN*mat3
+                D(:,:)=D+scaleD*mat3
              END DO
    
              CALL dgetrf(mydim,mydim,D(1,1),mydim,ipivot,info)
