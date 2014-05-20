@@ -16,16 +16,9 @@ MODULE btree_[nametype1]_k_[nametype2]_v
 
   IMPLICIT NONE
 
-  PUBLIC :: btree
-  PUBLIC :: btree_new, btree_add, btree_remove, btree_find,&
-       btree_print_short, btree_delete, btree_get_entries
-
-  !PUBLIC keyt, valt
-
-  !INTEGER*8 :: ex_int64
-  !INTEGER*4 :: ex_int32
-  !INTEGER, PARAMETER :: keyt = KIND(ex_int64)
-  !INTEGER, PARAMETER :: valt = KIND(ex_int32)
+  !API
+  PUBLIC :: btree, btree_new, btree_add, btree_remove, btree_find, &
+            btree_print_short, btree_delete, btree_get_entries
 
   [type1setup]
   [type2setup]

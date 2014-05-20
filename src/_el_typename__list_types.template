@@ -44,9 +44,10 @@ MODULE [el_typename]_list_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='[el_typename]_list_types'
   INTEGER, PRIVATE, SAVE :: last_[el_typename]_list_id=0
 
-  PUBLIC :: [el_typename]_list_type, [el_typename]_list_p_type
-  PUBLIC :: [el_typename]_list_create, [el_typename]_list_retain,&
-       [el_typename]_list_release
+  !API
+  PUBLIC :: [el_typename]_list_type, [el_typename]_list_p_type,&
+            [el_typename]_list_create, [el_typename]_list_retain,&
+            [el_typename]_list_release
 
 !***
 

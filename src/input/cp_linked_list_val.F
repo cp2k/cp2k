@@ -55,21 +55,21 @@ MODULE cp_linked_list_val
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_val'
 
-! type
+!API type
   PUBLIC :: cp_sll_val_type, cp_sll_val_p_type
-! common methods
+!API common methods
   PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next
-! special get
+!API special get
   PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
        cp_get_element_at, cp_to_array
-! special set
+!API special set
   PUBLIC :: cp_set_element_at
-! structure manipulation
+!API structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
-! low level
+!API low level
   PUBLIC :: cp_dealloc_node
 
-  ! underlying routines
+  !API underlying routines
   PUBLIC :: cp_sll_val_create, cp_sll_val_dealloc,&
        cp_sll_val_dealloc_node,cp_sll_val_set,&
        cp_sll_val_get,cp_sll_val_next,&

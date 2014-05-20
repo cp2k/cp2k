@@ -45,9 +45,10 @@ MODULE atomic_kind_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_list_types'
   INTEGER, PRIVATE, SAVE :: last_atomic_kind_list_id=0
 
-  PUBLIC :: atomic_kind_list_type, atomic_kind_list_p_type
-  PUBLIC :: atomic_kind_list_create, atomic_kind_list_retain,&
-       atomic_kind_list_release
+  !API
+  PUBLIC :: atomic_kind_list_type, atomic_kind_list_p_type,&
+            atomic_kind_list_create, atomic_kind_list_retain,&
+            atomic_kind_list_release
 
 !***
 

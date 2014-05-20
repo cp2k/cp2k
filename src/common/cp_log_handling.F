@@ -61,19 +61,19 @@ MODULE cp_log_handling
   IMPLICIT NONE
   PRIVATE
 
-  ! types
+  !API types
   PUBLIC :: cp_logger_type
-  ! parameter vars
+  !API parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level
-  ! default loggers
+  !API default loggers
   PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger,&
             cp_default_logger_stack_size
-  ! logger routines
+  !API logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
             cp_logger_would_log, cp_logger_set, cp_logger_get_default_unit_nr,&
             cp_logger_get_default_io_unit, cp_logger_get_unit_nr, &
-            cp_logger_set_log_level, cp_logger_generate_filename
-  PUBLIC :: cp_to_string, cp_log
+            cp_logger_set_log_level, cp_logger_generate_filename, &
+            cp_to_string, cp_log
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.

@@ -16,16 +16,9 @@ MODULE btree_i8_k_sp2d_v
 
   IMPLICIT NONE
 
-  PUBLIC :: btree
-  PUBLIC :: btree_new, btree_add, btree_remove, btree_find,&
-       btree_print_short, btree_delete, btree_get_entries
-
-  !PUBLIC keyt, valt
-
-  !INTEGER*8 :: ex_int64
-  !INTEGER*4 :: ex_int32
-  !INTEGER, PARAMETER :: keyt = KIND(ex_int64)
-  !INTEGER, PARAMETER :: valt = KIND(ex_int32)
+  !API
+  PUBLIC :: btree, btree_new, btree_add, btree_remove, btree_find, &
+            btree_print_short, btree_delete, btree_get_entries
 
   INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)
   INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);

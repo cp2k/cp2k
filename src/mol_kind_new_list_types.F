@@ -45,9 +45,10 @@ MODULE mol_kind_new_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_kind_new_list_types'
   INTEGER, PRIVATE, SAVE :: last_mol_kind_new_list_id=0
 
-  PUBLIC :: mol_kind_new_list_type, mol_kind_new_list_p_type
-  PUBLIC :: mol_kind_new_list_create, mol_kind_new_list_retain,&
-       mol_kind_new_list_release
+  !API
+  PUBLIC :: mol_kind_new_list_type, mol_kind_new_list_p_type,&
+            mol_kind_new_list_create, mol_kind_new_list_retain,&
+            mol_kind_new_list_release
 
 !***
 

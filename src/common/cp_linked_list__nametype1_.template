@@ -51,21 +51,21 @@ MODULE cp_linked_list_[nametype1]
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_[nametype1]'
 
-! type
+!API type
   PUBLIC :: cp_sll_[nametype1]_type, cp_sll_[nametype1]_p_type
-! common methods
+!API common methods
   PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next
-! special get
+!API special get
   PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
        cp_get_element_at, cp_to_array
-! special set
+!API special set
   PUBLIC :: cp_set_element_at
-! structure manipulation
+!API structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
-! low level
+!API low level
   PUBLIC :: cp_dealloc_node
 
-  ! underlying routines
+  !API underlying routines
   PUBLIC :: cp_sll_[nametype1]_create, cp_sll_[nametype1]_dealloc,&
        cp_sll_[nametype1]_dealloc_node,cp_sll_[nametype1]_set,&
        cp_sll_[nametype1]_get,cp_sll_[nametype1]_next,&

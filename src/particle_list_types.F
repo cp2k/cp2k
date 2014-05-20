@@ -45,9 +45,10 @@ MODULE particle_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_list_types'
   INTEGER, PRIVATE, SAVE :: last_particle_list_id=0
 
-  PUBLIC :: particle_list_type, particle_list_p_type
-  PUBLIC :: particle_list_create, particle_list_retain,&
-       particle_list_release
+  !API
+  PUBLIC :: particle_list_type, particle_list_p_type,&
+            particle_list_create, particle_list_retain,&
+            particle_list_release
 
 !***
 
