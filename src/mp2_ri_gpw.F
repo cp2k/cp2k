@@ -926,7 +926,7 @@ MODULE mp2_ri_gpw
       DEALLOCATE(L_local_col)
       ALLOCATE(L_local_col(dimen_RI,rec_L_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      L_local_col=L_external_col
+      L_local_col(:,:)=L_external_col
 
       DEALLOCATE(L_external_col)
 
@@ -1142,7 +1142,7 @@ MODULE mp2_ri_gpw
         END IF
       END DO
 
-      local_col_row_info=rec_col_row_info
+      local_col_row_info(:,:)=rec_col_row_info
       DEALLOCATE(local_L)
       ALLOCATE(local_L(nrow_rec,ncol_rec),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1196,7 +1196,7 @@ MODULE mp2_ri_gpw
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
-    rec_col_row_info=local_col_row_info
+    rec_col_row_info(:,:)=local_col_row_info
 
     nrow_rec=rec_col_row_info(0,1)
     ncol_rec=rec_col_row_info(0,2)
@@ -1516,7 +1516,7 @@ MODULE mp2_ri_gpw
       iiB=SIZE(sizes_array)
       ALLOCATE(sizes_array_orig(0:iiB-1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      sizes_array_orig=sizes_array
+      sizes_array_orig(:)=sizes_array
     END IF  
  
     my_group_L_size_orig=my_group_L_size
@@ -1533,7 +1533,7 @@ MODULE mp2_ri_gpw
 
     ALLOCATE(sizes_array(0:integ_group_size-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    sizes_array=new_sizes_array
+    sizes_array(:)=new_sizes_array
       
     DEALLOCATE(new_sizes_array)
 
@@ -2027,7 +2027,7 @@ MODULE mp2_ri_gpw
                                     external_ab,proc_receive,&
                                     para_env_sub%group)
 
-                  mp2_env%ri_grad%P_ab=mp2_env%ri_grad%P_ab+external_ab
+                  mp2_env%ri_grad%P_ab(:,:)=mp2_env%ri_grad%P_ab+external_ab
 
                   DEALLOCATE(external_ab)
                   DEALLOCATE(send_ab)
@@ -2803,7 +2803,7 @@ MODULE mp2_ri_gpw
       iiB=SIZE(sizes_array_orig)
       ALLOCATE(sizes_array(0:iiB-1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      sizes_array=sizes_array_orig
+      sizes_array(:)=sizes_array_orig
       DEALLOCATE(sizes_array_orig)
 
       ! make a copy of the original integrals (ia|Q)
@@ -2837,11 +2837,11 @@ MODULE mp2_ri_gpw
                                     mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)+BIb_C
 
       END DO
-      BIb_C=mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)
+      BIb_C(:,:,:)=mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)
       DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia)
       ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      mp2_env%ri_grad%Gamma_P_ia=BIb_C
+      mp2_env%ri_grad%Gamma_P_ia(:,:,:)=BIb_C
       DEALLOCATE(BIb_C)
 
       CALL complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,color_sub,&
@@ -3012,7 +3012,7 @@ MODULE mp2_ri_gpw
       ! replication scheme using mp_sendrecv
       ALLOCATE(BIb_C_copy(my_group_L_size,my_B_size,homo),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      BIb_C_copy=BIb_C
+      BIb_C_copy(:,:,:)=BIb_C
 
       DEALLOCATE(BIb_C)
 

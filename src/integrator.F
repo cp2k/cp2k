@@ -522,7 +522,7 @@ CONTAINS
     ! Update forces
     ! In case of ehrenfest dynamics, velocities need to be iterated
     IF(ehrenfest_md)THEN
-       v_old=tmp%vel
+       v_old(:,:)=tmp%vel
        CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
        CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &

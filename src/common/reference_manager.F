@@ -236,7 +236,7 @@ CONTAINS
     ALLOCATE(indx(nref))
 
     IF (PRESENT(list)) THEN
-       indx=list
+       indx(:)=list
     ELSE
        DO I=1,nref
           indx(I)=I

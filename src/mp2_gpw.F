@@ -383,7 +383,7 @@ MODULE mp2_gpw
     n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
     ALLOCATE(e_cutoff_old(n_multigrid), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    e_cutoff_old=qs_env%dft_control%qs_control%e_cutoff
+    e_cutoff_old(:)=qs_env%dft_control%qs_control%e_cutoff
     cutoff_old=qs_env%dft_control%qs_control%cutoff
 
     qs_env%dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
@@ -1415,7 +1415,7 @@ MODULE mp2_gpw
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
-    rec_col_row_info=local_col_row_info
+    rec_col_row_info(:,:)=local_col_row_info
 
     nrow_rec=rec_col_row_info(0,1)
     ncol_rec=rec_col_row_info(0,2)
@@ -1652,7 +1652,7 @@ MODULE mp2_gpw
         END IF
       END DO
 
-      local_col_row_info=rec_col_row_info
+      local_col_row_info(:,:)=rec_col_row_info
       DEALLOCATE(local_C)
       ALLOCATE(local_C(nrow_rec,ncol_rec),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

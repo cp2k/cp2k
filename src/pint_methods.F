@@ -586,7 +586,7 @@ CONTAINS
      IF (ASSOCIATED(pint_env)) THEN
         ALLOCATE(x1(pint_env%ndim,pint_env%p),stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        x1=pint_env%x
+        x1(:,:)=pint_env%x
         CALL pint_x2u(pint_env,error=error)
         pint_env%x=0._dp
         CALL pint_u2x(pint_env,error=error)

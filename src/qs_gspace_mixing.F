@@ -1213,7 +1213,7 @@ CONTAINS
         ELSE
           b=0.0_dp
           ALLOCATE(work(ib-1,ib-1),aval(ib-1),av(ib-1,ib-1),au(ib-1,ib-1))
-          work=a
+          work(:,:)=a
           ALLOCATE(iwork(8*(ib-1)),work_dgesdd(1))
              lwork=-1
              CALL DGESDD('S',ib-1,ib-1,work,ib-1,aval,au,ib-1,av,ib-1,work_dgesdd,lwork,iwork,info)

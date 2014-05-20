@@ -189,7 +189,7 @@ MODULE glbopt_minhop
        !init (first real report)
        this%worker_state(wid)%Epot        = report_Epot
        ALLOCATE(this%worker_state(wid)%pos(SIZE(report_positions)))
-       this%worker_state(wid)%pos         = report_positions
+       this%worker_state(wid)%pos(:)         = report_positions
        this%worker_state(wid)%fp          = report_fp
     END IF
 
@@ -215,7 +215,7 @@ MODULE glbopt_minhop
           this%worker_state(wid)%Epot_hop = report_Epot
           IF(.NOT. ALLOCATED(this%worker_state(wid)%pos_hop))&
              ALLOCATE(this%worker_state(wid)%pos_hop(SIZE(report_positions)))
-          this%worker_state(wid)%pos_hop  = report_positions
+          this%worker_state(wid)%pos_hop(:)  = report_positions
           this%worker_state(wid)%fp_hop   = report_fp
        ENDIF
 
@@ -223,7 +223,7 @@ MODULE glbopt_minhop
           ! accept
           IF(this%iw>0) WRITE(this%iw,'(A)') " MINHOP| Accept"
           this%worker_state(wid)%Epot = this%worker_state(wid)%Epot_hop
-          this%worker_state(wid)%pos  = this%worker_state(wid)%pos_hop
+          this%worker_state(wid)%pos(:)  = this%worker_state(wid)%pos_hop
           this%worker_state(wid)%fp   = this%worker_state(wid)%fp_hop
           this%worker_state(wid)%Epot_hop = HUGE(1.0)
 

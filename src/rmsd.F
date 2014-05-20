@@ -74,7 +74,7 @@ CONTAINS
        ALLOCATE(w(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (PRESENT(weights)) THEN
-          w = weights
+          w(:) = weights
        ELSE
           ! All atoms have a weight proportional to their mass in the RMSD unless
           ! differently requested

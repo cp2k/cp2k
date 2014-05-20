@@ -384,7 +384,7 @@ CONTAINS
     ! Compute the 'external' electrostatic field (all inducible dipoles
     ! equal to zero). this is required for the conjugate gradient solver.
     ! We assume that all dipoles are inducible dipoles.
-    tmp_dipoles = multipoles%dipoles ! backup of dipoles
+    tmp_dipoles(:,:) = multipoles%dipoles ! backup of dipoles
     multipoles%dipoles = 0.0_dp
     CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
          particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo, &
@@ -421,7 +421,7 @@ CONTAINS
        END DO
     END DO
     ! The first conjugate residual is equal to the residual.
-    conjugate = residual
+    conjugate(:,:) = residual
 
     IF (iw>0) WRITE(iw,FMT='(/,T5,"POL_SCF|","Method: conjugate-gradient")')
     IF (iw>0) WRITE(iw,FMT='(T5,"POL_SCF|","  Iteration",7X,"Conv.",T49,"Electrostatic & Induction Energy")')
@@ -470,7 +470,7 @@ CONTAINS
 
        ! Apply the hardness kernel to the conjugate residual.
        ! We assume that all non-zero dipoles are inducible dipoles.
-       tmp_dipoles = multipoles%dipoles ! backup of dipoles
+       tmp_dipoles(:,:) = multipoles%dipoles ! backup of dipoles
        multipoles%dipoles = conjugate
        CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
             particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo, &
@@ -479,7 +479,7 @@ CONTAINS
             atomic_kind_set=atomic_kind_set, mm_section=mm_section, &
             efield1=conjugate_applied, error=error)
        multipoles%dipoles = tmp_dipoles ! restore backup
-       conjugate_applied = efield1_ext - conjugate_applied
+       conjugate_applied(:,:) = efield1_ext - conjugate_applied
 
        ! Finish conjugate_applied and compute alpha from the conjugate gradient algorithm.
        alpha = 0.0_dp

@@ -605,7 +605,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(AmE(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          Amw = Am
+          Amw(:,:) = Am
           CALL diamat_all(Amw, AmE,error=error)
           condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
           WRITE(iw,'(T3,A)')" Eigenvalues of Matrix A:"

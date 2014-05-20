@@ -345,7 +345,7 @@ MODULE mp2_ri_grad_util
     ! since we will need (P|Q)^(-1/2) in the future, make a copy
     ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    mp2_env%ri_grad%Gamma_PQ=mp2_env%ri_grad%PQ_half
+    mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
     
     CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
                   my_P_size,my_P_start,my_P_end,&

@@ -179,7 +179,7 @@ CONTAINS
           CALL section_vals_val_set(gopt_env%geo_section,"STEP_START_VAL",i_val=its,error=error)
           CALL gopt_f_ii(its, output_unit)
 
-          xold = x0
+          xold(:) = x0
 
           ! Line minimization
           CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv, error)

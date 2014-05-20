@@ -651,7 +651,7 @@ CONTAINS
                     trq = trq - q_eigval(iloc(1))
                   END DO
                 END DO
-                q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
+                q_matrix(:,:) = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
                 DEALLOCATE (orb_occ,STAT=stat)
                 CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
                 DEALLOCATE (q_eigval,STAT=stat)
@@ -1301,7 +1301,7 @@ CONTAINS
                     trq = trq - q_eigval(iloc(1))
                   END DO
                 END DO
-                q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
+                q_matrix(:,:) = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
                 DEALLOCATE (orb_occ,STAT=stat)
                 CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
                 DEALLOCATE (q_eigval,STAT=stat)

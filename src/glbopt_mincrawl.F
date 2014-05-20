@@ -365,7 +365,7 @@ MODULE glbopt_mincrawl
          CALL update_tempdist(this, start_minima%tempdist, tempstep, -1)
       ELSE
          CALL update_tempdist(this, start_minima%tempdist, tempstep, +1)
-         start_minima%escape_hist = EOSHIFT(start_minima%escape_hist, 1)
+         start_minima%escape_hist(:) = EOSHIFT(start_minima%escape_hist, 1)
          start_minima%escape_hist(1) = report_Epot
       ENDIF
 
@@ -374,7 +374,7 @@ MODULE glbopt_mincrawl
     IF(.NOT. minima_known) THEN
        this%n_minima = this%n_minima + 1
        IF(this%n_minima > SIZE(this%minimas)) THEN
-          minimas_tmp = this%minimas
+          minimas_tmp(:) = this%minimas
           DEALLOCATE(this%minimas)
           ALLOCATE(this%minimas(SIZE(minimas_tmp) + 1000))
           this%minimas(:SIZE(minimas_tmp)) = minimas_tmp
@@ -390,15 +390,15 @@ MODULE glbopt_mincrawl
        new_minima%escape_hist(:) = report_Epot !init with Epot
 
        IF(ASSOCIATED(start_minima)) THEN
-          new_minima%tempdist = start_minima%tempdist ! inherit tempdist
+          new_minima%tempdist(:) = start_minima%tempdist ! inherit tempdist
        ELSE
-          new_minima%tempdist = this%tempdist_init
+          new_minima%tempdist(:) = this%tempdist_init
        ENDIF
 
        new_minima%Epot = report_Epot
        new_minima%fp   = report_fp
        ALLOCATE(new_minima%pos(SIZE(report_positions)))
-       new_minima%pos  = report_positions
+       new_minima%pos(:)  = report_positions
 
        IF(ASSOCIATED(start_minima))THEN
          IF(report_Epot < start_minima%Epot) THEN

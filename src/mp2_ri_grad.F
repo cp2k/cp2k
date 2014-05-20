@@ -551,7 +551,7 @@ MODULE mp2_ri_grad
         ! hartree potential derivatives
         CALL timeset(routineN//"_Virial",handle3)
         wf_vector=0.0_dp
-        wf_vector=-2.0_dp*G_PQ_local(:,L_counter)
+        wf_vector(:)=-2.0_dp*G_PQ_local(:,L_counter)
         CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
                                     atomic_kind_set,cell,dft_control,particle_set, &
                                     pw_env_sub,basis_set_id=use_ri_aux_basis_set,&

@@ -287,8 +287,8 @@ CONTAINS
        END IF
 
        ! Setting the present positions & gradients as old
-       xold = x0
-       gold = g
+       xold(:) = x0
+       gold(:) = g
 
        ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
@@ -306,7 +306,7 @@ CONTAINS
 
        IF(use_rfo)THEN
           CALL set_hes_eig(ndf,eigval,work)
-          dx = eigval
+          dx(:) = eigval
           CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
        END IF
        CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo,error)

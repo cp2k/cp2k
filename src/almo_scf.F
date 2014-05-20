@@ -259,7 +259,7 @@ CONTAINS
           END SELECT
        ENDDO 
     ELSE 
-       main_objectM1%domain_index_of_atom=(/(i, i=1,natoms)/)
+       main_objectM1%domain_index_of_atom(:)=(/(i, i=1,natoms)/)
     ENDIF
     
     ao=1

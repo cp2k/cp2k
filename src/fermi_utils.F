@@ -224,7 +224,7 @@ CONTAINS
        ! this should write three times the same number
        ! write(6,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
        ! and the symmetric finite difference
-       ex=e
+       ex(:)=e
        ex(i)=e(i)+h
        CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc,estate,festate)
        dfde(:,I)=fx

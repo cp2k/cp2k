@@ -275,7 +275,7 @@ CONTAINS
 
        ALLOCATE(uv(SIZE(M,1)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       uv   = MATMUL(M,charges)
+       uv(:) = MATMUL(M,charges)
        DO k = 1, natom
           DO j = 1, 3
              chf(j,k) =  DOT_PRODUCT(uv,dq(:,k,j))

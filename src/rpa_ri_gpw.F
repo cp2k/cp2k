@@ -1192,7 +1192,7 @@ MODULE rpa_ri_gpw
         DEALLOCATE(BIb_C_2D)
         ALLOCATE(BIb_C_2D(rec_ia_size,rec_L_size),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-        BIb_C_2D=BIb_C_rec
+        BIb_C_2D(:,:)=BIb_C_rec
 
         DEALLOCATE(BIb_C_rec)
       END DO

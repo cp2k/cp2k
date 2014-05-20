@@ -572,7 +572,7 @@ CONTAINS
                   al = potential%gth_pot%alpha_lsd(k)
                   DO i=1,potential%gth_pot%nct_lsd(k)
                     ii = 2*(i-1)
-                    cpot = cpot + potential%gth_pot%cval_lsd(i,k)*(rad/al)**ii * EXP(-0.5_dp*(rad/al)**2)
+                    cpot(:) = cpot + potential%gth_pot%cval_lsd(i,k)*(rad/al)**ii * EXP(-0.5_dp*(rad/al)**2)
                   END DO
                 END DO
                 CALL numpot_matrix(integrals%clsd,cpot,basis,0,error)
@@ -587,7 +587,7 @@ CONTAINS
                 k = potential%gth_pot%nl(l)
                 DO i=1,k
                   rc = potential%gth_pot%rcnl(l)
-                  cpot = sqrt2/SQRT(gamma1(l+2*i-1))*rad**(l+2*i-2) * EXP(-0.5_dp*(rad/rc)**2) / rc**(l+2*i-0.5_dp)
+                  cpot(:) = sqrt2/SQRT(gamma1(l+2*i-1))*rad**(l+2*i-2) * EXP(-0.5_dp*(rad/rc)**2) / rc**(l+2*i-0.5_dp)
                   DO j=1,basis%nbas(l)
                     spmat(j,i) = integrate_grid(cpot,basis%bf(:,j,l),basis%grid)
                   END DO
@@ -698,7 +698,7 @@ CONTAINS
           IF( reltyp == do_sczoramp_atom ) THEN
              ALLOCATE (hmat(n,n,0:3),wfn(n,n,0:3),ener(n,0:3),pvp(n,n,0:3),sps(n,n),STAT=ierr)
              CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-             hmat = integrals%kin + integrals%tzora
+             hmat(:,:,:) = integrals%kin + integrals%tzora
              ! model potential
              CALL numpot_matrix(hmat,modpot,basis,0,error)
              ! eigenvalues and eigenvectors

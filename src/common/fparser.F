@@ -495,7 +495,7 @@ CONTAINS
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
     lstr = LEN_TRIM(str)
-    ipos = (/ (k,k=1,lstr) /)
+    ipos(:) = (/ (k,k=1,lstr) /)
     k = 1
     DO WHILE (str(k:lstr) /= ' ')
        IF (str(k:k) == ' ') THEN

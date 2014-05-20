@@ -860,7 +860,7 @@ CONTAINS
      average=SUM(load)/SIZE(load)
      tolerance=Tolerance_factor*average
 
-     optimized_load=load
+     optimized_load(:)=load
      DO k=1,Max_iter
        max_load_shift=0.0_dp
        DO iflux=1,Nflux
@@ -962,7 +962,7 @@ CONTAINS
     ALLOCATE (list_global(2,maxdest,ncpu),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    load_all=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
+    load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
     CALL mp_gather(load_all,load_per_source,0,group)
 
     IF (my_pos==0) THEN
@@ -970,7 +970,7 @@ CONTAINS
        ! collect the load of all CPUs
        load_all=0
        DO icpu=1,ncpu
-          load_all=load_all+load_per_source(maxdest*ncpu*(icpu-1)+1:maxdest*ncpu*icpu)
+          load_all(:)=load_all+load_per_source(maxdest*ncpu*(icpu-1)+1:maxdest*ncpu*icpu)
        ENDDO
        list_global(1,:,:)=list(1,:,:)
        list_global(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
@@ -1411,7 +1411,7 @@ CONTAINS
     recv_buf_i = 0
     DO i = 1, SIZE(rs_descs)
       CALL get_current_loads ( loads, rs_descs, i, ntasks, natoms,maxset,maxpgf, tasks, use_reordered_ranks=.TRUE. ,error=error )
-      recv_buf_i = recv_buf_i + loads
+      recv_buf_i(:) = recv_buf_i + loads
     END DO
 
     total_cost_global = SUM(recv_buf_i)
@@ -1429,7 +1429,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "index",int_size*desc%group_size)
 
-    load_imbalance = recv_buf_i - average_cost
+    load_imbalance(:) = recv_buf_i - average_cost
     no_overloaded = 0
     no_underloaded = 0
 
@@ -1798,7 +1798,7 @@ CONTAINS
 
            CALL get_current_loads( loads(:,igrid_level), rs_descs, igrid_level, ntasks, natoms, maxset,maxpgf, &
                                    tasks, use_reordered_ranks=.FALSE. , error=error)
-           total_loads=total_loads+loads(:,igrid_level)
+           total_loads(:)=total_loads+loads(:,igrid_level)
 
          END IF
        END DO
@@ -1826,14 +1826,14 @@ CONTAINS
          DO igrid_level=1,SIZE(rs_descs)
            IF (rs_descs(igrid_level)%rs_desc%distributed ) THEN
              IF (fixed_first_grid .EQV. .FALSE.) THEN
-               total_loads = loads(:,igrid_level)
+               total_loads(:) = loads(:,igrid_level)
                fixed_first_grid = .TRUE.
              ELSE
                ALLOCATE (trial_loads(0:desc%group_size-1),STAT=stat)
                IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                "trial_loads",int_8_size*desc%group_size)
 
-               trial_loads = total_loads + loads(:,igrid_level)
+               trial_loads(:) = total_loads + loads(:,igrid_level)
                max_load = MAXVAL(trial_loads)
                load_gap = 0
                DO irank=0, desc%group_size-1
@@ -1857,7 +1857,7 @@ CONTAINS
                  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "real2virtual",int_size*desc%group_size)
 
-                 total_loads_tmp = total_loads
+                 total_loads_tmp(:) = total_loads
                  CALL sort(total_loads_tmp, desc%group_size, total_index)
                  CALL sort(loads(:,igrid_level), desc%group_size, index)
 
@@ -1880,7 +1880,7 @@ CONTAINS
                  DEALLOCATE (real2virtual,STAT=stat)
                  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"real2virtual")
                ELSE
-                 total_loads = trial_loads
+                 total_loads(:) = trial_loads
                ENDIF
 
                DEALLOCATE (trial_loads,STAT=stat)
@@ -1967,7 +1967,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "index",int_size*ntasks_recv)
 
-    taskid=tasks_recv(3,1:ntasks_recv)
+    taskid(:)=tasks_recv(3,1:ntasks_recv)
     CALL sort(taskid,SIZE(taskid),index)
 
     DO k=1,SIZE(tasks_recv,1)

@@ -364,7 +364,7 @@ CONTAINS
        CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
        c1 = DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,bv))-ch_dens
        c1 = c1 / cp_ddapc_env%c0
-       qv = - MATMUL(cp_ddapc_env%AmI,(bv-c1*cv))
+       qv(:) = - MATMUL(cp_ddapc_env%AmI,(bv-c1*cv))
        j  = 0
        qtot = 0.0_dp
        DO i = 1, ndim, num_gauss
@@ -417,13 +417,13 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(AmI_cv(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          cvT_AmI = MATMUL(cv, cp_ddapc_env%AmI)
-          AmI_cv = MATMUL(cp_ddapc_env%AmI,cv)
+          cvT_AmI(:) = MATMUL(cv, cp_ddapc_env%AmI)
+          AmI_cv(:) = MATMUL(cp_ddapc_env%AmI,cv)
           ALLOCATE(dAmj_qv(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(AmI_bv(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          AmI_bv = MATMUL(cp_ddapc_env%AmI,bv)
+          AmI_bv(:) = MATMUL(cp_ddapc_env%AmI,bv)
 
           !NB call routine to precompute sin(g.r) and cos(g.r),
           ! so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix_rows()
@@ -608,8 +608,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        sfac = -1.0_dp/Vol
        fac  = DOT_PRODUCT(cv, MATMUL(AmI,cv))
        fac2 = DOT_PRODUCT(cv, MATMUL(AmI,uv))
-       cv   = uv - cv * fac2/fac
-       cv   = MATMUL(AmI,cv)
+       cv(:) = uv - cv * fac2/fac
+       cv(:) = MATMUL(AmI,cv)
        IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
        DO ig = g_hartree % pw_grid % first_gne0, g_hartree % pw_grid % ngpts_cut_local
           g2 = g_hartree % pw_grid % gsq ( ig )
@@ -679,12 +679,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        ALLOCATE(uv(SIZE(M,1)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        cv   = 1.0_dp/Vol
-       uv   = MATMUL(M,charges)
+       uv(:)   = MATMUL(M,charges)
        sfac = -1.0_dp/Vol
        fac  = DOT_PRODUCT(cv, MATMUL(AmI,cv))
        fac2 = DOT_PRODUCT(cv, MATMUL(AmI,uv))
-       cv   = uv - cv * fac2/fac
-       cv   = MATMUL(AmI,cv)
+       cv(:)   = uv - cv * fac2/fac
+       cv(:)   = MATMUL(AmI,cv)
        IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
        DO ig = g_hartree % pw_grid % first_gne0, g_hartree % pw_grid % ngpts_cut_local
           g2 = g_hartree % pw_grid % gsq ( ig )
@@ -767,7 +767,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
           CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
                particle_set, radii, rho_tot_g, gcut, error);  bv2 = bv2 / Vol
           CALL mp_sum(bv2,rho_tot_g%pw_grid%para%group)
-          ddbv = (bv1 - bv2)/(2.0_dp*dx)
+          ddbv(:) = (bv1 - bv2)/(2.0_dp*dx)
           DO kk = 1, SIZE(ddbv)
              IF (ddbv(kk).GT.1.0E-8_dp) THEN
                 v0 = ABS(dbv(kk,i)-ddbv(kk))/ddbv(kk)*100.0_dp
@@ -853,7 +853,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
                particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, &
                error);  Am2 = Am2 /(Vol*Vol)
           CALL mp_sum(Am2,rho_tot_g%pw_grid%para%group)
-          ddAm = (Am1 - Am2)/(2.0_dp*dx)
+          ddAm(:,:) = (Am1 - Am2)/(2.0_dp*dx)
           DO kk = 1, SIZE(ddAm,1)
              DO ll = 1, SIZE(ddAm,2)
                 IF (ddAm(kk,ll).GT.1.0E-8_dp) THEN
@@ -932,7 +932,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              particle_set(iparticle)%r(i) = rvec(i) - dx
              CALL get_ddapc(qs_env,.FALSE.,density_fit_section, qout1=qtot2,&
                   ext_rho_tot_g=rho_tot_g,Itype_of_density=type_of_density,error=error)
-             ddqv = (qtot1 - qtot2)/(2.0_dp*dx)
+             ddqv(:) = (qtot1 - qtot2)/(2.0_dp*dx)
              DO kk = 1, SIZE(qtot1)-1, SIZE(radii)
                 IF (ANY(ddqv(kk:kk+2).GT.1.0E-8_dp)) THEN
                    WRITE(*,'(A,2F12.6,F12.2)')"Error :",SUM(dqv(kk:kk+2,iparticle,i)),SUM(ddqv(kk:kk+2)),&

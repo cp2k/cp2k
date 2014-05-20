@@ -664,7 +664,7 @@ CONTAINS
         new_elem%parent   => tmp_elem
 
         !-- adopt acceptance flags of elements (old)
-        new_elem%conf_n_acc = new_elem%parent%conf_n_acc
+        new_elem%conf_n_acc(:) = new_elem%parent%conf_n_acc
         !-- set acceptance flag of modified configuration 
         !    depending on the direction of attaching new element
         IF(.NOT.new_elem%parent%swaped)THEN

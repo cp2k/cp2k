@@ -718,21 +718,21 @@ CONTAINS
       a(k) = a(k) - delta
       CALL g2gemint(iabc1m,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       a(k) = a(k) + 0.5_dp*delta
-      iabc1p = (iabc1p-iabc1m)/delta
+      iabc1p(:,:,:,:,:,:) = (iabc1p-iabc1m)/delta
 
       c(k) = c(k) + 0.5_dp*delta
       CALL g2gemint(iabc2p,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       c(k) = c(k) - delta
       CALL g2gemint(iabc2m,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       c(k) = c(k) + 0.5_dp*delta
-      iabc2p = (iabc2p-iabc2m)/delta
+      iabc2p(:,:,:,:,:,:) = (iabc2p-iabc2m)/delta
 
       rb(k) = rb(k) + 0.5_dp*delta
       CALL g2gemint(iabc3p,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       rb(k) = rb(k) - delta
       CALL g2gemint(iabc3m,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       rb(k) = rb(k) + 0.5_dp*delta
-      iabc3p = (iabc3p-iabc3m)/delta
+      iabc3p(:,:,:,:,:,:) = (iabc3p-iabc3m)/delta
 
       DO ma=0,la
         DO mc=0,lc

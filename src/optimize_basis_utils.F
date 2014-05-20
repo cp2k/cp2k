@@ -390,7 +390,7 @@ CONTAINS
       DO iset=1,basis%nsets
          IF(info_new%in_use_set(iset))THEN
             jset=jset+1
-            basis_new%subset(jset)%exps=basis%subset(iset)%exps
+            basis_new%subset(jset)%exps(:)=basis%subset(iset)%exps
             jcont=0
             DO icont=1,basis%subset(iset)%ncon_tot
                IF(info_new%use_contr(iset)%in_use(icont))THEN
@@ -501,11 +501,11 @@ CONTAINS
 ! copy the reference information on the new set
 
       ALLOCATE(info_new%in_use_set(SIZE(info_ref%in_use_set)))
-      info_new%in_use_set=info_ref%in_use_set
+      info_new%in_use_set(:)=info_ref%in_use_set
       ALLOCATE(info_new%use_contr(SIZE(info_ref%in_use_set)))
       DO i=1,SIZE(info_ref%in_use_set)
          ALLOCATE(info_new%use_contr(i)%in_use(SIZE(info_ref%use_contr(i)%in_use)))
-         info_new%use_contr(i)%in_use=info_ref%use_contr(i)%in_use
+         info_new%use_contr(i)%in_use(:)=info_ref%use_contr(i)%in_use
       END DO
       DO i=1,info_new%nsets
          info_new%in_use_set(info_new%remove_set(i))=.FALSE.
@@ -551,7 +551,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_l
 
       ALLOCATE(tmp_l(SIZE(subset%l)))
-      tmp_l=subset%l
+      tmp_l(:)=subset%l
       subset_new%lmin=subset%lmin
       subset_new%lmax=subset%lmin-1
       subset_new%nexp=subset%nexp
@@ -568,7 +568,7 @@ CONTAINS
       ALLOCATE(subset_new%l(subset_new%nl))
       ALLOCATE(subset_new%coeff(subset_new%nexp,subset_new%ncon_tot))
       ALLOCATE(subset_new%exps(subset_new%nexp))
-      subset_new%exps=subset%exps
+      subset_new%exps(:)=subset%exps
       DO il=1,SIZE(subset%l)
         IF(tmp_l(il)==0)EXIT
         subset_new%l(il)=tmp_l(il)

@@ -1358,7 +1358,7 @@ CONTAINS
        !
        ! simple hack
        DO icol = 0,npcols-1
-          buff = pkd_vec
+          buff(:) = pkd_vec
           src = blacs2mpi(source,icol)
           CALL mp_bcast(buff,src,mp_group)
           IF(mypcol.EQ.icol) THEN
@@ -1369,7 +1369,7 @@ CONTAINS
        !
        ! simple hack
        DO irow = 0,nprows-1
-          buff = pkd_vec
+          buff(:) = pkd_vec
           src = blacs2mpi(irow,source)
           CALL mp_bcast(buff,src,mp_group)
           IF(myprow.EQ.irow) THEN

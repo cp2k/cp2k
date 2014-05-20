@@ -368,7 +368,7 @@ CONTAINS
           ALLOCATE(tmp1(object00_env%buffer_length+1,1))
           ALLOCATE(coeff(object00_env%buffer_length+1,1))
           tmp1(:,1)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
-          coeff=MATMUL(m_b_copy,tmp1)
+          coeff(:,:)=MATMUL(m_b_copy,tmp1)
           DEALLOCATE(tmp1)
 
           checksum=0.0_dp

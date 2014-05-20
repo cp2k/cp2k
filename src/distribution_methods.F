@@ -1307,10 +1307,10 @@ CONTAINS
     IF (natoms<=nbins) THEN
        ! assign the most expensive atom to the least costly bin
        ALLOCATE(bin_costs_sorted(nbins),permutation(nbins))
-       bin_costs_sorted=bin_costs
+       bin_costs_sorted(:)=bin_costs
        CALL sort(bin_costs_sorted,nbins,permutation)
        ALLOCATE(atom_costs_sorted(natoms),atom_permutation(natoms))
-       atom_costs_sorted=costs
+       atom_costs_sorted(:)=costs
        CALL sort(atom_costs_sorted,natoms,atom_permutation)
        ibin=0
        ! WRITE(6,*) "Dealing with a new bunch of atoms "
@@ -1327,7 +1327,7 @@ CONTAINS
        ! divide atoms in two subsets, sorting according to their coordinates, alternatively x,y,z
        ! recursively do this for both subsets
        ALLOCATE(coord(natoms),permutation(natoms))
-       coord=pbc_scaled_coords(MOD(level,3)+1,:)
+       coord(:)=pbc_scaled_coords(MOD(level,3)+1,:)
        CALL sort(coord,natoms,permutation)
        CALL spatial_recurse(pbc_scaled_coords(:,permutation(1:nhalf)), costs(permutation(1:nhalf)),&
                             indices(permutation(1:nhalf)), bin_costs, distribution, level+1)

@@ -3744,7 +3744,7 @@ CPSourceFileRef,&
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-    f_vals=colvar%reaction_path_param%f_vals
+    f_vals(:,:)=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -4172,7 +4172,7 @@ CPSourceFileRef,&
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-    f_vals=colvar%reaction_path_param%f_vals
+    f_vals(:,:)=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -4771,7 +4771,7 @@ CPSourceFileRef,&
       r(ii+2) = my_particles(i)%r(2)
       r(ii+3) = my_particles(i)%r(3)
     END DO
-    r0 = colvar%rmsd_param%r_ref
+    r0(:,:) = colvar%rmsd_param%r_ref
     rmsd = 0.0_dp
 
     CALL rmsd3(my_particles,r,r0(:,1),output_unit=-1,weights=weights,my_val=rmsd(1),rotate=.FALSE.,drmsd3=drmsd(:,:,1),error=error)

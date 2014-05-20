@@ -297,7 +297,7 @@ CONTAINS
           CPPrecondition(check, cp_failure_level, routineP, error, failure)
           ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          bwrk = Bmatrix
+          bwrk(:,:) = Bmatrix
           DO i = 1, SIZE(wrk)
              Bmatrix(:,i) = bwrk(:,wrk(i))
           END DO
@@ -321,7 +321,7 @@ CONTAINS
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
           ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          Gmatrix = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
+          Gmatrix(:,:) = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
           CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error, error=error)
           CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
                "Error in inverting the Gmatrix larger than 1.0E-8!"//&

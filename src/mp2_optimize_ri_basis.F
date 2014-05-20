@@ -296,8 +296,8 @@ MODULE mp2_optimize_ri_basis
                               open_shell_case,homo_beta,virtual_beta,Auto_beta,C_beta,&
                               para_env,para_env_sub,number_groups,color_sub,unit_nr,&
                               deriv,error,error_sub)
-    g=deriv
-    xi=-g
+    g(:)=deriv
+    xi(:)=-g
 
     ! get the atomic kind set for writing the basis
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
@@ -306,7 +306,7 @@ MODULE mp2_optimize_ri_basis
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,I5)') 'OPTIMIZATION STEP NUMBER',iiter
 
       ! perform step
-      pnew=p+xi
+      pnew(:)=p+xi
       CALL p2basis(nkind,ndof,basis_set_RI,RI_basis_parameter,pnew)
 
       ! calculate energy at the new point
@@ -320,8 +320,8 @@ MODULE mp2_optimize_ri_basis
  
       ! update energy and direction
       DI=DI_new
-      xi=pnew-p
-      p=pnew
+      xi(:)=pnew-p
+      p(:)=pnew
 
       ! check for convergence
       IF (unit_nr>0) THEN
@@ -363,9 +363,9 @@ MODULE mp2_optimize_ri_basis
                                 deriv,error,error_sub)
 
       ! g is the vector containing the old gradient
-      dg=deriv-g
-      g=deriv
-      hdg=MATMUL(hessin,dg)
+      dg(:)=deriv-g
+      g(:)=deriv
+      hdg(:)=MATMUL(hessin,dg)
 
       fac=SUM(dg*xi)
       fae=SUM(dg*hdg)
@@ -375,7 +375,7 @@ MODULE mp2_optimize_ri_basis
       IF(fac**2>sumdg*sumxi*3.0E-8_dp) THEN
         fac=1.0_dp/fac
         fad=1.0_dp/fae
-        dg=fac*xi-fad*hdg
+        dg(:)=fac*xi-fad*hdg
         DO i=1, ndof
           DO j=1, ndof
             hessin(i,j)=hessin(i,j)+fac*xi(i)*xi(j)&
@@ -398,7 +398,7 @@ MODULE mp2_optimize_ri_basis
       !XXXXXXXXXXXXX
 
       ! new direction
-      xi=-MATMUL(hessin,g)
+      xi(:)=-MATMUL(hessin,g)
 
     END DO
 
@@ -728,7 +728,7 @@ MODULE mp2_optimize_ri_basis
         ij_counter=ij_counter+1
         IF (MOD(ij_counter,para_env%num_pe)/=para_env%mepos) CYCLE
         mat_ab=0.0_dp
-        mat_ab=MATMUL(TRANSPOSE(Lai(:,:,i)),Lai_beta(:,:,j))
+        mat_ab(:,:)=MATMUL(TRANSPOSE(Lai(:,:,i)),Lai_beta(:,:,j))
         DO b=1, virtual_beta
           DO a=1, virtual
             IF(calc_ex) THEN

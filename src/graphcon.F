@@ -173,9 +173,9 @@ CONTAINS
         ENDIF
 
         ! generate the classes of equivalent atoms, i.e. the groups of atoms of the same topological kind
-        kind_ref_ordered=kind_ref
+        kind_ref_ordered(:)=kind_ref
         CALL sort(kind_ref_ordered,N,index_ref)
-        kind_un_ordered=kind_un
+        kind_un_ordered(:)=kind_un
         CALL sort(kind_un_ordered,N,index_un)
         IF (ANY(kind_ref_ordered.NE.kind_un_ordered)) THEN
            matches=.FALSE.

@@ -1801,12 +1801,12 @@ CONTAINS
        test(jj,:)=Asqrtinv(:,jj)*SQRT(eigenvalues(jj))
     ENDDO
     ALLOCATE(testN(N,N))
-    testN=MATMUL(Asqrtinv,test)
+    testN(:,:)=MATMUL(Asqrtinv,test)
     Asqrt=testN
     DO jj=1, N
        test(jj,:)=Asqrtinv(:,jj)/SQRT(eigenvalues(jj))
     ENDDO
-    testN=MATMUL(Asqrtinv,test)
+    testN(:,:)=MATMUL(Asqrtinv,test)
     Asqrtinv=testN
     DEALLOCATE(test,testN)
     
@@ -1938,7 +1938,7 @@ CONTAINS
           ENDDO
        ENDIF
        ALLOCATE(testN(N,N))
-       testN=MATMUL(Ainv,test)
+       testN(:,:)=MATMUL(Ainv,test)
        Ainv=testN
        DEALLOCATE(test,testN)
        DEALLOCATE(eigenvalues)

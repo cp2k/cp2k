@@ -103,7 +103,7 @@ MODULE glbopt_history
 
     !copy pointer to allocatable
     ALLOCATE(fp%goedecker(SIZE(tmp)))
-    fp%goedecker = tmp
+    fp%goedecker(:) = tmp
     DEALLOCATE(tmp)
 
     CALL timestop(handle)

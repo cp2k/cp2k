@@ -612,7 +612,7 @@ MODULE replica_methods
           ALLOCATE(f1(rep_env%ndim,rep_env%nrep),e1(rep_env%nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           f1=rep_env%f(:rep_env%ndim,:)
-          e1=rep_env%f(rep_env%ndim+1,:)
+          e1(:)=rep_env%f(rep_env%ndim+1,:)
        END IF
        CALL rep_env_release(rep_env,error=error)
 
@@ -627,7 +627,7 @@ MODULE replica_methods
           ALLOCATE(f2(rep_env%ndim,rep_env%nrep),e2(rep_env%nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           f2=rep_env%f(:rep_env%ndim,:)
-          e2=rep_env%f(rep_env%ndim+1,:)
+          e2(:)=rep_env%f(rep_env%ndim+1,:)
        END IF
        CALL rep_env_release(rep_env,error=error)
 
@@ -643,7 +643,7 @@ MODULE replica_methods
           ALLOCATE(f3(rep_env%ndim,rep_env%nrep),e3(rep_env%nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           f3=rep_env%f(:rep_env%ndim,:)
-          e3=rep_env%f(rep_env%ndim+1,:)
+          e3(:)=rep_env%f(rep_env%ndim+1,:)
        END IF
        CALL rep_env_release(rep_env,error=error)
 

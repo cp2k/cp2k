@@ -717,12 +717,12 @@ CPSourceFileRef,&
           CALL sort(pot_par(:,1),ndim,Iwork1)
           ! Sort all the other components of the potential
           DO k = 2, nvar
-             Rwork = pot_par(:,k)
+             Rwork(:) = pot_par(:,k)
              DO i = 1, ndim
                 pot_par(i,k)=Rwork(Iwork1(i))
              END DO
           END DO
-          Iwork2  = my_index
+          Iwork2(:) = my_index
           DO i = 1, ndim
              my_index(i) = Iwork2(Iwork1(i))
           END DO
@@ -754,12 +754,12 @@ CPSourceFileRef,&
              IF (.NOT.at_least_one) EXIT
              ! Sort other components
              DO j = k+1, nvar
-                Rwork = pot_par(:,j)
+                Rwork(:) = pot_par(:,j)
                 DO i = 1, ndim
                    pot_par(i,j)=Rwork(Iwork1(i))
                 END DO
              END DO
-             Iwork2  = my_index
+             Iwork2(:) = my_index
              DO i = 1, ndim
                 my_index(i) = Iwork2(Iwork1(i))
              END DO
@@ -777,7 +777,7 @@ CPSourceFileRef,&
           !
           ALLOCATE(Cwork(nvar),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          Cwork = pot_par(1,:)
+          Cwork(:) = pot_par(1,:)
           locij = my_index(1)
           CALL get_indexes(locij,ntype,tmpij0)
           istart = 1
@@ -813,7 +813,7 @@ CPSourceFileRef,&
                 check = .TRUE.
              END SELECT
              IF (ALL(Cwork==pot_par(j,:)).AND.check) CYCLE
-             Cwork = pot_par(j,:)
+             Cwork(:) = pot_par(j,:)
              nunique = nunique + 1
              iend    = j - 1
              CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &

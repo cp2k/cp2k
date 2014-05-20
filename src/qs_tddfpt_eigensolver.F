@@ -422,7 +422,7 @@ CONTAINS
        evals_difference =  1.0_dp
        IF (iter/=1) THEN
 
-          evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter)))
+          evals_difference(:) = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter)))
           ! For debugging
           IF (output_unit>0) THEN
              WRITE (output_unit,*)

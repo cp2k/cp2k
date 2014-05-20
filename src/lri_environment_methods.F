@@ -583,7 +583,7 @@ CONTAINS
                                lca_max(kaset),npgfca(kaset),zetca(:,kaset),rpgfca(:,kaset),lca_min(kaset),&
                                rab,dab,rac,dac,rbc,dbc,saba,sdaba,sabda,error=error)
                  !d(a,b,a)/dA = (da/dA,b,a) + (a,b,da/dA)
-                 sdabda = sdaba + sabda
+                 sdabda(:,:,:,:) = sdaba + sabda
 
                  DO i=1,3
                   CALL abc_contract(dabdaint(sgfa:m1,sgfb:m2,sgfc:m3,i),sdabda(:,:,:,i),& 

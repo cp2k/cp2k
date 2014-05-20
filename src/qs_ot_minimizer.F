@@ -1562,18 +1562,18 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
             ENDIF
 
             ! get dx-Gdf
-            x = tmp*x - MATMUL(G, f)
+            x(:) = tmp*x - MATMUL(G, f)
             ! dfSdf
             ! we calculate matmul(S, f) twice. They're small...
             tmp = DOT_PRODUCT(f, MATMUL(S, f))
             ! NOTE THAT S IS SYMMETRIC !!!
-            f = MATMUL(S, f)/tmp
+            f(:) = MATMUL(S, f)/tmp
             ! the spread is an outer vector product
-            G = G + SPREAD(x,dim=2,ncopies=SIZE(f))*SPREAD(f,dim=1,ncopies=SIZE(x))
+            G(:,:) = G + SPREAD(x,dim=2,ncopies=SIZE(f))*SPREAD(f,dim=1,ncopies=SIZE(x))
         ENDDO
         f = 0.0_dp
         f(2*diis_bound)=1.0_dp
-        x = -beta*MATMUL(G,f)
+        x(:) = -beta*MATMUL(G,f)
 
         ! OK, add the vectors now, this sums up to the proposed step
         DO ispin=1,nspin
@@ -1702,10 +1702,10 @@ SUBROUTINE hess_G(G, S, H, n)
 
 
     DO i=1,k
-        v = MATMUL(G, Q(:,i))
+        v(:) = MATMUL(G, Q(:,i))
         DO j=1,i
             H(j,i) = DOT_PRODUCT(Q(:,j), MATMUL(S,v) )
-            v = v - H(j,i) * Q(:,j)
+            v(:) = v - H(j,i) * Q(:,j)
         ENDDO
         IF (i .LT. k) THEN
             tmp = DOT_PRODUCT(v, MATMUL(S, v))

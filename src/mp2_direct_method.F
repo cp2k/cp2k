@@ -551,7 +551,7 @@ MODULE mp2_direct_method
 
      IF(PRESENT(occupied_beta).AND.PRESENT(C_beta).AND.PRESENT(Auto_beta)) THEN
        ALLOCATE(C_beta_T(dimen,dimen))
-       C_beta_T=TRANSPOSE(C_beta)
+       C_beta_T(:,:)=TRANSPOSE(C_beta)
        alpha_beta_case=.TRUE.
      END IF
 

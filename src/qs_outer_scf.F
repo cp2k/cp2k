@@ -256,7 +256,7 @@ CONTAINS
           b(nb+1,nb+1)=0.0_dp
 
           CALL diamat_all(b,ev,error=error)
-          a=b
+          a(:,:)=b
           DO I=1,nb+1
              IF (ABS(ev(I)).LT.1.0E-12_dp) THEN
                 a(:,I)=0.0_dp
@@ -264,7 +264,7 @@ CONTAINS
                 a(:,I)=a(:,I)/ev(I)
              ENDIF
           END DO
-          ev=-MATMUL(a,b(nb+1,:))
+          ev(:)=-MATMUL(a,b(nb+1,:))
 
           scf_env%outer_scf%variables(:,ihistory+1)=0.0_dp
           DO i=1,nb
@@ -411,11 +411,11 @@ CONTAINS
     nvec=MIN(nhistory,outer_scf_ihistory)
     alpha=nvec
     ivec=1+MODULO(outer_scf_ihistory-1,nhistory)
-    extrapolation=alpha*outer_scf_history(:,ivec)
+    extrapolation(:)=alpha*outer_scf_history(:,ivec)
     DO ihis=2,nvec
        alpha = -1.0_dp * alpha * REAL(nvec - ihis + 1 , dp ) / REAL(ihis , dp )
        ivec=1+MODULO(outer_scf_ihistory-ihis,nhistory)
-       extrapolation=extrapolation+alpha*outer_scf_history(:,ivec)
+       extrapolation(:)=extrapolation+alpha*outer_scf_history(:,ivec)
     ENDDO
 
     ! update qs_env to use this extrapolation

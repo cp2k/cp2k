@@ -54,7 +54,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pos
 
     ALLOCATE(pos(ndim))
-    pos = pos0
+    pos(:) = pos0
     DO i = 1, ndim
        der(i) = 0.0_dp
        DO j = 1,-1,-2

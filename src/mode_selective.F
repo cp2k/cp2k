@@ -878,8 +878,8 @@ CONTAINS
        ALLOCATE(tmp_s(3*natoms,ms_vib%mat_size),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       tmp_b=ms_vib%b_mat
-       tmp_s=ms_vib%s_mat
+       tmp_b(:,:)=ms_vib%b_mat
+       tmp_s(:,:)=ms_vib%s_mat
 
        DEALLOCATE(ms_vib%b_mat,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -932,7 +932,7 @@ CONTAINS
 
     CALL dgemm('T','N',ms_vib%mat_size,ms_vib%mat_size,SIZE(ms_vib%s_mat,1),1._dp,ms_vib%b_mat,SIZE(ms_vib%b_mat,1),&
          ms_vib%s_mat,SIZE(ms_vib%s_mat,1),0._dp,approx_H,ms_vib%mat_size)
-    H_save=approx_H
+    H_save(:,:)=approx_H
 
     CALL diamat_all(approx_H,eigenval,error=error)
 

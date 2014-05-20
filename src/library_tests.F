@@ -375,7 +375,7 @@ CONTAINS
           ntim = MIN ( ntim, siz * 200 )
           tstart = m_walltime ( )
           DO j = 1, ntim
-             mc = MATMUL ( ma, mb )
+             mc(:,:) = MATMUL ( ma, mb )
              ma ( 1, 1 ) = REAL ( j,KIND=dp)
           END DO
           tend = m_walltime ( )
@@ -387,7 +387,7 @@ CONTAINS
           END IF
           tstart = m_walltime ( )
           DO j = 1, ntim
-             mc = mc + MATMUL ( ma, mb )
+             mc(:,:) = mc + MATMUL ( ma, mb )
              ma ( 1, 1 ) = REAL ( j,KIND=dp)
           END DO
           tend = m_walltime ( )
@@ -405,7 +405,7 @@ CONTAINS
 
           tstart = m_walltime ( )
           DO j = 1, ntim
-             mc = mc + MATMUL ( ma, TRANSPOSE ( mb ) )
+             mc(:,:) = mc + MATMUL ( ma, TRANSPOSE ( mb ) )
              ma ( 1, 1 ) = REAL ( j,KIND=dp)
           END DO
           tend = m_walltime ( )
@@ -423,7 +423,7 @@ CONTAINS
 
           tstart = m_walltime ( )
           DO j = 1, ntim
-             mc = mc + MATMUL ( TRANSPOSE ( ma ), mb )
+             mc(:,:) = mc + MATMUL ( TRANSPOSE ( ma ), mb )
              ma ( 1, 1 ) = REAL ( j,KIND=dp)
           END DO
           tend = m_walltime ( )
@@ -621,9 +621,9 @@ CONTAINS
                                  "ca",2*dp_size*len*len*len)
              ELSE
                 CALL RANDOM_NUMBER ( ra )
-                ca = ra
+                ca(:,:,:) = ra
                 CALL RANDOM_NUMBER ( ra )
-                ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
+                ca(:,:,:) = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
                 flops = REAL ( len**3,KIND=dp) * 15.0_dp * LOG ( REAL ( len,KIND=dp) )
                 ntim = NINT ( siz * 1.e7_dp / flops )
                 ntim = MAX ( ntim, 1 )
@@ -669,10 +669,10 @@ CONTAINS
           IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "cc",2*dp_size*len*len*len)
           CALL RANDOM_NUMBER ( ra )
-          ca = ra
+          ca(:,:,:) = ra
           CALL RANDOM_NUMBER ( ra )
-          ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
-          cc = ca
+          ca(:,:,:) = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
+          cc(:,:,:) = ca
           CALL fft3d ( FWFFT, n, ca, cb )
           tdiff = MAXVAL ( ABS ( ca - cc ) )
           IF ( tdiff > 1.0E-12_dp ) THEN
@@ -684,7 +684,7 @@ CONTAINS
                   WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
                   "         Input array is not changed in out-of-place FFT !"
           END IF
-          ca = cc
+          ca(:,:,:) = cc
           CALL fft3d ( BWFFT, n, ca, cb )
           tdiff = MAXVAL ( ABS ( ca - cc ) )
           IF ( tdiff > 1.0E-12_dp ) THEN

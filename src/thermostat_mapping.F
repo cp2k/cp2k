@@ -670,7 +670,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(wrk(itmp),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp = map_loc_thermo_gen
+       tmp(:) = map_loc_thermo_gen
        CALL sort(tmp, itmp, wrk)
        number = 1
        map_info%index(number)     = tmp(1)

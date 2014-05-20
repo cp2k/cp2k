@@ -563,7 +563,7 @@ MODULE dbcsr_mm_sched
 
     !sorting stat entries by flops per multiplication
     ALLOCATE(sort_key(SIZE(stats_num_mnk_stacks,1)-1))
-    sort_key = 2*PRODUCT(stats_num_mnk_stacks(2:,1:3), DIM=2)
+    sort_key(:) = 2*PRODUCT(stats_num_mnk_stacks(2:,1:3), DIM=2)
     ALLOCATE(sort_idx(SIZE(sort_key)))
     CALL sort(sort_key, SIZE(sort_key), sort_idx)
 

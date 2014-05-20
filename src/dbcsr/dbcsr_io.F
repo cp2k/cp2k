@@ -694,7 +694,7 @@ CONTAINS
              subh2_disps(numnodes), subh2_offsets(numnodes),&
              subh3_disps(numnodes), subh3_offsets(numnodes),&
              bdata_disps(numnodes), bdata_offsets(numnodes))
-    subh2_disps = (/((i-1)*2,i=1,numnodes)/)
+    subh2_disps(:) = (/((i-1)*2,i=1,numnodes)/)
     subh3_disps = BOF
     bdata_disps = BOF
     linfo_sizes = BOF
@@ -709,14 +709,14 @@ CONTAINS
     sendbuf = linfo_size
     CALL mp_allgather(sendbuf,linfo_sizes,mp_group)
     CALL cumsum_l(INT(linfo_sizes,kind=file_offset),subh3_disps)
-    subh3_disps = CSHIFT(subh3_disps,shift=-1)+ginfo_size+2*numnodes
+    subh3_disps(:) = CSHIFT(subh3_disps,shift=-1)+ginfo_size+2*numnodes
     subh3_disps(1)=ginfo_size+2*numnodes
 
     data_area_size = dbcsr_get_data_size_referenced(matrix)
     sendbuf = data_area_size
     CALL mp_allgather(sendbuf,da_sizes,mp_group) 
     CALL cumsum_l(INT(da_sizes,kind=file_offset),bdata_disps)
-    bdata_disps = CSHIFT(bdata_disps,shift=-1)+SUM(INT(linfo_sizes,KIND=file_offset))+&
+    bdata_disps(:) = CSHIFT(bdata_disps,shift=-1)+SUM(INT(linfo_sizes,KIND=file_offset))+&
                     ginfo_size+numnodes*2
     bdata_disps(1)=SUM(INT(linfo_sizes,KIND=file_offset))+ginfo_size+numnodes*2
 
@@ -734,17 +734,17 @@ CONTAINS
     END IF
 !> write sub-header2 
     subh2_disps = subh2_disps+ginfo_size
-    subh2_offsets = BOF + (subh2_disps-char_count)*mpi_integer_size +&
+    subh2_offsets(:) = BOF + (subh2_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
     CALL mp_file_write_at_all(thefile, subh2_offsets(mynode+1), (/nblks, data_area_size/))
 !> write sub-header3 
-    subh3_offsets = BOF + (subh3_disps-char_count)*mpi_integer_size +&
+    subh3_offsets(:) = BOF + (subh3_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
     CALL mp_file_write_at_all(thefile, subh3_offsets(mynode+1), (/row_p, col_i, blk_p/))
 !> write block data 
     mp_type = dbcsr_mp_type_from_anytype(data_area)
     CALL mp_type_size(mp_type,type_size)
-    bdata_offsets = BOF + (/((bdata_disps(i)-bdata_disps(1))*type_size,i=1,numnodes)/)+&
+    bdata_offsets(:) = BOF + (/((bdata_disps(i)-bdata_disps(1))*type_size,i=1,numnodes)/)+&
                      (bdata_disps(1)-char_count)*mpi_integer_size+ &
                      char_count*mpi_character_size
     SELECT CASE (data_type)
@@ -945,9 +945,9 @@ CONTAINS
     END DO
     CALL mp_sum(linfo_lens,group_id)
     CALL cumsum_l(INT(linfo_lens,kind=file_offset),subh3_disps)
-    subh3_disps = CSHIFT(subh3_disps,shift=-1)
+    subh3_disps(:) = CSHIFT(subh3_disps,shift=-1)
     subh3_disps(1) = BOF
-    subh3_offsets = subh3_start+subh3_disps*mpi_integer_size
+    subh3_offsets(:) = subh3_start+subh3_disps*mpi_integer_size
 
     sum_nblks = INT(nblks,kind=file_offset)  
     CALL mp_sum(sum_nblks,group_id)
@@ -997,7 +997,7 @@ CONTAINS
     END DO
     CALL mp_sum(bdata_lens,group_id)
     CALL cumsum_l(INT(bdata_lens,kind=file_offset),bdata_disps)
-    bdata_disps = CSHIFT(bdata_disps,shift=-1)
+    bdata_disps(:) = CSHIFT(bdata_disps,shift=-1)
     bdata_disps(1) = BOF
 
     bdata_start = subh3_start+subh3_length*mpi_integer_size
@@ -1011,7 +1011,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
          type_size = 2*real_8_size
     END SELECT
-    bdata_offsets = bdata_start+bdata_disps*type_size  
+    bdata_offsets(:) = bdata_start+bdata_disps*type_size  
 
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)

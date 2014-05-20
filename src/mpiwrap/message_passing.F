@@ -2944,7 +2944,7 @@ CONTAINS
           send_timings(itask,jtask)=MPI_WTIME()-t1+threshold
        ENDDO
     ENDDO
-    send_timings2=send_timings
+    send_timings2(:,:)=send_timings
     CALL MPI_REDUCE(send_timings2, send_timings, nprocs**2, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
     IF (ionode) THEN
        DO itask=0,nprocs-1
@@ -3106,7 +3106,7 @@ CONTAINS
        t3=MPI_WTIME()
        lgrid2=0.0E0_dp
        DO i=1,Nprocs
-          lgrid2=lgrid2+grid(:,MODULO(taskid-i,Nprocs)+1)
+          lgrid2(:)=lgrid2+grid(:,MODULO(taskid-i,Nprocs)+1)
           IF (i.EQ.nprocs) EXIT
           CALL MPI_SENDRECV_REPLACE(lgrid2,nloc,MPI_DOUBLE_PRECISION,right,0,left,0,comm,status,ierr)
        ENDDO
@@ -3150,7 +3150,7 @@ CONTAINS
        t3=MPI_WTIME()
        lgrid3=0.0E0_dp
        DO i=1,Nprocs,2
-          lgrid3=lgrid3+grid3(:,MODULO(taskid-i-1,Nprocs)+1)
+          lgrid3(:)=lgrid3+grid3(:,MODULO(taskid-i-1,Nprocs)+1)
           IF (i.EQ.nprocs-1) EXIT
           CALL MPI_SENDRECV_REPLACE(lgrid3,nloc,MPI_DOUBLE_PRECISION,right,0,left,0,comm,status,ierr)
        ENDDO

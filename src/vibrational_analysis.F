@@ -369,14 +369,14 @@ CONTAINS
              ALLOCATE(intensities(SIZE(D,2)),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              intensities=  0._dp
-             Hint1      = Hessian
+             Hint1(:,:) = Hessian
              CALL diamat_all(Hint1,H_eigval1,error=error)
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| Cartesian Low frequencies ---",4G12.5)')&
                      (H_eigval1(i),i=1,MIN(9,ncoord))
              END IF
              IF (nvib/=0) THEN
-                Hint2=MATMUL(TRANSPOSE(D),MATMUL(Hessian,D))
+                Hint2(:,:)=MATMUL(TRANSPOSE(D),MATMUL(Hessian,D))
                 IF(calc_intens)THEN
                    DO i=1,3
                       dip_deriv(i,:)=MATMUL(tmp_dip(:,i,1),D)
@@ -675,7 +675,7 @@ CONTAINS
           ! Gram Schmidt orthogonalization
           DO i = 1, dof+ifound
              norm = DOT_PRODUCT(work,D(:,i))
-             work = work - norm * D(:,i)
+             work(:) = work - norm * D(:,i)
           END DO
           ! Check norm of the new generated vector
           norm = SQRT(DOT_PRODUCT(work,work))

@@ -101,7 +101,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     ALLOCATE(a(n2),stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    x = ix
+    x(:) = ix
     CALL sort(x, n, itmp)
     ! Check for zero range
     IF (.NOT.failure ) THEN

@@ -468,7 +468,7 @@ CONTAINS
           ALLOCATE(color_present(color_limit))
           DO i=1,nnodes
             IF(graph(i)%vertex%degree==0) CYCLE
-            color_present=graph(i)%vertex%color_present
+            color_present(:)=graph(i)%vertex%color_present
             DEALLOCATE(graph(i)%vertex%color_present)
             ALLOCATE(graph(i)%vertex%color_present(color_limit*2))
             DO j=1,color_limit

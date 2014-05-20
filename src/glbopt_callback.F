@@ -65,7 +65,7 @@ MODULE glbopt_callback
     CALL get_md_env(md_env=md_env, md_ener=md_ener, itimes=itimes, force_env=force_env, error=error)
     mdctrl_data%itimes = itimes
 
-    mdctrl_data%epot_history = EOSHIFT(mdctrl_data%epot_history, shift=-1)
+    mdctrl_data%epot_history(:) = EOSHIFT(mdctrl_data%epot_history, shift=-1)
     mdctrl_data%epot_history(1) = md_ener%epot
 
     ! check if we passed a minimum

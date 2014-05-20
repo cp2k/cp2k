@@ -796,7 +796,7 @@ CONTAINS
     ALLOCATE(charges(natom),stat=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     dqv = 1._dp/SQRT(4._dp*pi)
-    charges = mcharge*dqv
+    charges(:) = mcharge*dqv
     scptb_control => dft_control%qs_control%scptb_control
 
     NULLIFY(cvec,cpol,cself,cp,cw)

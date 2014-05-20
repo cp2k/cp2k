@@ -362,7 +362,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL section_vals_val_get(diis_section,"NP_LS", i_val=np, error=error)
        CALL section_vals_val_get(diis_section,"MAX_STEPSIZE", r_val=max_stepsize, error=error)
-       Icoord = coords%wrk
+       Icoord(:,:) = coords%wrk
        xa = 0.0_dp
        ya = SUM(sline%wrk*forces%wrk)
        xb = xa + MIN(ya*stepsize,max_stepsize)

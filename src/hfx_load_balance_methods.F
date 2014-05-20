@@ -1045,8 +1045,8 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
     ALLOCATE(p_atom_blocks(sizeP))
     ALLOCATE(q_atom_blocks(sizeQ))
 
-    p_atom_blocks = permute( (sumP+1):(sumP+sizeP) )
-    q_atom_blocks = permute( (sumQ+1):(sumQ+sizeQ) )
+    p_atom_blocks(:) = permute( (sumP+1):(sumP+sizeP) )
+    q_atom_blocks(:) = permute( (sumQ+1):(sumQ+sizeQ) )
 
     ! from here on, we are actually finished, each process has been
     ! assigned a (p_atom_blocks,q_atom_blocks) pair list.

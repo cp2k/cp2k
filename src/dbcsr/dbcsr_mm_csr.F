@@ -579,7 +579,7 @@ MODULE dbcsr_mm_csr
     ENDDO
 
     CALL sort(flop_list, nstacks-1, flop_index)
-    tmp_descr = this%stacks_descr
+    tmp_descr(:) = this%stacks_descr
     DO istack=1,nstacks-1
        this%stacks_descr(istack) = tmp_descr(flop_index(istack)) 
     ENDDO
@@ -914,7 +914,7 @@ END SUBROUTINE flush_stacks
 
     IF (hash_table%nele*inv_hash_table_fill>hash_table%nmax) THEN
        ALLOCATE(tmp_hash(LBOUND(hash_table%table,1):UBOUND(hash_table%table,1)))
-       tmp_hash=hash_table%table
+       tmp_hash(:)=hash_table%table
        CALL hash_table_release(hash_table)
        CALL hash_table_create(hash_table,INT((UBOUND(tmp_hash,1)+8)*hash_table_expand))
        DO i=LBOUND(tmp_hash,1),UBOUND(tmp_hash,1)

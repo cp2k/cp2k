@@ -2376,7 +2376,7 @@ CONTAINS
                    bfun = 0._dp
                    DO ispin = 1,dft_control%nspins
                       IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
-                         bfun = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
+                         bfun(:,:) = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
                       END IF
                    END DO
                    CALL mp_sum(bfun,para_env%group)

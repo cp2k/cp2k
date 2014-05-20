@@ -946,7 +946,7 @@ MODULE mp2
     DEALLOCATE(batch_sizes)
     ALLOCATE(batch_sizes(batch_number),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    batch_sizes=batch_sizes_tmp
+    batch_sizes(:)=batch_sizes_tmp
     DEALLOCATE(batch_sizes_tmp)
 
     max_batch_size=MAXVAL(batch_sizes)

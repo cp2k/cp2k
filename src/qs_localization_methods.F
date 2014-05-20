@@ -1672,7 +1672,7 @@ CONTAINS
         DO ip = 0,para_env%num_pe-1
 
           ip_recv_from=MOD(para_env%mepos-IP+para_env%num_pe,para_env%num_pe)
-          rmat_recv=rmat_recv_all(:,:,ip_recv_from)
+          rmat_recv(:,:)=rmat_recv_all(:,:,ip_recv_from)
 
           ns_recv_from = ns_bound(ip_recv_from,2)-ns_bound(ip_recv_from,1)+1
 

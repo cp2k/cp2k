@@ -553,7 +553,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    desc%real2virtual = real2virtual
+    desc%real2virtual(:) = real2virtual
 
     DO i=0, desc % group_size - 1
       desc % virtual2real(desc % real2virtual(i)) = i
