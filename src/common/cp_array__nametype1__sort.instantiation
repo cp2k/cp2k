@@ -9,13 +9,6 @@
 'defines':"#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )\n"},
 
 {'libname':'cp',
-'nametype1':'i',
-'type1':'integer',
-'USE':'',
-'lessQ':'CP_I_LESS_Q',
-'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
-
-{'libname':'cp',
 'nametype1':'i4',
 'type1':'integer(kind=int_4)',
 'USE':'USE kinds,       ONLY:int_4',
