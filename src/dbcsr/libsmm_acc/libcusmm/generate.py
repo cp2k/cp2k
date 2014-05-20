@@ -208,13 +208,23 @@ def gen_transpose(plan):
         idx = m_vals.index(m)*len(n_vals) + n_vals.index(n)
         idx_map[idx] = (m,n)
 
-    output += "switch(idx){\n"
+    output += "typedef void (*kernel)(int *, int , double*);\n"
     for idx in sorted(idx_map.keys()):
         mn = idx_map[idx]
-        output += "case %d:\n"%idx
         output += "// m=%d, n=%d\n"%mn
-        output += "transpose_d<%d,%d> <<<nblks, 128, 0, *stream>>>"%mn
-        output += "(trs_stack+offset, nblks, buffer);\n"
+        output += "static kernel kern_func_%d = transpose_d<%d,%d>;\n"%(idx, mn[0], mn[1])
+        output += "static bool configured_%d = false;\n"%idx
+    output += "\n\n"
+
+    output += "switch(idx){\n"
+    for idx in sorted(idx_map.keys()):
+        output += "case %d:\n"%idx
+        output += "if(configured_%d == false){\n"%idx
+        output += "  cudaError_t err = cudaFuncSetSharedMemConfig(kern_func_%d, cudaSharedMemBankSizeEightByte);\n"%idx
+        output += "  if(err != cudaSuccess) return(-1);\n"
+        output += "  configured_%d = true;\n"%idx
+        output += "}\n"
+        output += "kern_func_%d<<<nblks, 128, 0, *stream>>>(trs_stack+offset, nblks, buffer);\n"%idx
         output += "break;\n"
 
     output += "// If there is no kernel for these blocks, we don't need to transpose them.\n"

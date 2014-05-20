@@ -28,8 +28,15 @@ class Kernel_dnt_small(object):
        output += "//%s\n"%str(self.__dict__)
        output += "int careful = (stack_size / %(grouping)d);\n"%self.__dict__
        output += "int nruns = stack_size - careful * %(grouping)d;\n"%self.__dict__
-       output += "cusmm_dnt_small<%(m)d,%(n)d,%(k)d,%(tile_m)d,%(tile_n)d,%(threads)d,%(grouping)d,%(minblocks)d> "%self.__dict__
-       output += "<<< ((stack_size + %(grouping)d - 1) / %(grouping)d), %(threads)d, shared_size, stream >>>\n"%self.__dict__
+       output += "typedef void (*kernel)(const int*, int, int, double*, double*, double*);\n"
+       output += "static kernel kern_func = cusmm_dnt_small<%(m)d,%(n)d,%(k)d,%(tile_m)d,%(tile_n)d,%(threads)d,%(grouping)d,%(minblocks)d>;\n"%self.__dict__
+       output += "static bool configured = false;\n"
+       output += "if(configured == false){\n"
+       output += "  cudaError_t err = cudaFuncSetSharedMemConfig(kern_func, cudaSharedMemBankSizeEightByte);\n"
+       output += "  if(err != cudaSuccess) return(-1);\n"
+       output += "  configured = true;\n"
+       output += "}\n"
+       output += "kern_func<<< ((stack_size + %(grouping)d - 1) / %(grouping)d), %(threads)d, shared_size, stream >>>\n"%self.__dict__
        output += "(param_stack, careful, nruns, \n"
        output += "a_data, b_data, c_data);\n"
        output += "return(0);\n"

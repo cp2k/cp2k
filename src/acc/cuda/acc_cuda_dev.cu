@@ -24,7 +24,6 @@ extern "C" int acc_get_ndevices(int *n_devices){
 extern "C" int acc_set_active_device(int device_id){
   cudaError_t cErr;
   int myDevice;
-  struct cudaDeviceProp devProperties;
 
   cErr = cudaSetDevice (device_id);
   if (cuda_error_check (cErr))
@@ -36,14 +35,6 @@ extern "C" int acc_set_active_device(int device_id){
 
   if (myDevice != device_id)
     return -1;
-
-  cErr = cudaGetDeviceProperties (&devProperties, myDevice);
-  if (cuda_error_check (cErr))
-    return -1;
-
-  cErr = cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-  if (cuda_error_check (cErr))
-      return -1;
 
   return 0;
 }

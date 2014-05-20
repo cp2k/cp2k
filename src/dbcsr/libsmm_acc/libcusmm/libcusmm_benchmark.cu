@@ -211,8 +211,6 @@ const int stack_n = 16005;
  cudaEventCreate(&t_start);
  cudaEventCreate(&t_stop);
 
- cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-
  for(int ikern=0; ikern < nkernels; ikern++){
     //warmup run
     launchers[ikern](d_stack, stack_n, stream, mat_m, mat_n, mat_k, d_mat_a, d_mat_b, d_mat_c);
