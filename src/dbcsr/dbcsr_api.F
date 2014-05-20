@@ -43,9 +43,10 @@ MODULE dbcsr_api
        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, has_acc, has_mpi, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
-       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+       dbcsr_set_conf_use_comm_thread, dbcsr_set_default_config, has_acc, &
+       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
+       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
+       multrec_limit
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data, dbcsr_get_data_p, dbcsr_scalar, &
@@ -67,24 +68,24 @@ MODULE dbcsr_api
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
-       dbcsr_blk_row_size, dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
-       dbcsr_init, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_blk_row_size, dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_get_occupation, dbcsr_init, dbcsr_max_col_size, &
+       dbcsr_max_row_size, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
+       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_clear_mempools, &
        dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
@@ -335,6 +336,6 @@ MODULE dbcsr_api
            mm_name_matmul ,&
            mm_name_smm ,&
            multrec_limit ,&
-           swap
+           swap, dbcsr_set_default_config, dbcsr_row_block_sizes, dbcsr_col_block_sizes
 
 END MODULE dbcsr_api

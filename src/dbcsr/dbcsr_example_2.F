@@ -14,25 +14,17 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_example_2
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
-  USE dbcsr_block_access
-  USE dbcsr_config,                    ONLY: dbcsr_set_default_config
-  USE dbcsr_data_methods
-  USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_methods
-  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
-                                             dbcsr_init_lib
-  USE dbcsr_ptr_util
-  USE dbcsr_transformations
-  USE dbcsr_types
-  USE dbcsr_util
-  USE dbcsr_work_operations
+  USE dbcsr_api,                       ONLY: &
+       array_data, array_i1d_obj, array_new, array_nullify, array_release, &
+       dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
+       dbcsr_finalize_lib, dbcsr_get_stored_coordinates, dbcsr_init, &
+       dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, dbcsr_print, &
+       dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
   USE kinds,                           ONLY: real_8
   USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&

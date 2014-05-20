@@ -14,23 +14,13 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_example_1
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
-  USE dbcsr_block_access
-  USE dbcsr_config,                    ONLY: dbcsr_set_default_config
-  USE dbcsr_data_methods
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_methods
-  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
-                                             dbcsr_init_lib
-  USE dbcsr_ptr_util
-  USE dbcsr_transformations
-  USE dbcsr_types
-  USE dbcsr_util
-  USE dbcsr_work_operations
+  USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, dbcsr_create, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
+       dbcsr_finalize_lib, dbcsr_init, dbcsr_init_lib, dbcsr_mp_new, &
+       dbcsr_mp_obj, dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, &
+       dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
   USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&
                                              mp_comm_free,&
