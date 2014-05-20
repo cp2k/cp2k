@@ -483,7 +483,7 @@ END SUBROUTINE pw_cuda_finalize
 !--------------------------------------------------------------------------
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
-          "Not implemented (no ray_distr.) in: pw_cuda_c1dr3d_3d_ps.")
+          "Not implemented (no ray_distr.) in: pw_cuda_r3dc1d_3d_ps.")
        !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
        !     pw1%pw_grid%para%bo, scale = scale, debug=test )
     END IF

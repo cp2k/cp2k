@@ -1343,7 +1343,7 @@ CONTAINS
                                                 nrays, nsize, out_space, stat
     INTEGER, DIMENSION(3)                    :: nloc
     INTEGER, DIMENSION(:), POINTER           :: n
-    LOGICAL                                  :: failure, test
+    LOGICAL                                  :: failure, test, use_pw_cuda
     REAL(KIND=dp)                            :: norm
 
     failure = .FALSE.
@@ -1543,33 +1543,39 @@ CONTAINS
           CALL pw_gather ( pw2, grays, error=error)
        CASE ( "FW_R3DC1D" )
 #if defined (__PW_CUDA)
-          CALL pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale = norm, error = error)
+         ! (no ray dist. is not efficient in CUDA)
+          use_pw_cuda = pw1%pw_grid%para%ray_distribution
 #else
-          !..prepare input
-          nloc = pw1%pw_grid%npts_local
-          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
-          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "c_in",2*dp_size*PRODUCT(nloc(1:3)))
-          nsize=nloc(1)*nloc(2)*nloc(3)
-          CALL copy_rc(nsize,pw1%cr3d,c_in)
-          CALL zero_c(SIZE(grays),grays)
-          !..transform
-          IF ( pw1%pw_grid%para%ray_distribution ) THEN
-             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
-                  pw1%pw_grid%para%rs_group, &
-                  pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                  pw1%pw_grid%para%bo, scale = norm, debug=test )
-          ELSE
-             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
-                  pw1%pw_grid%para%bo, scale = norm, debug=test )
-          END IF
-          !..prepare output
-          IF ( test .AND. pw1%pw_grid%para%group_head ) &
-               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
-          CALL pw_gather ( pw2, grays, error=error)
-          DEALLOCATE ( c_in, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          use_pw_cuda = .FALSE.
 #endif
+          IF (use_pw_cuda) THEN
+             CALL pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale = norm, error = error)
+          ELSE
+             !..prepare input
+             nloc = pw1%pw_grid%npts_local
+             ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
+             IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                             "c_in",2*dp_size*PRODUCT(nloc(1:3)))
+             nsize=nloc(1)*nloc(2)*nloc(3)
+             CALL copy_rc(nsize,pw1%cr3d,c_in)
+             CALL zero_c(SIZE(grays),grays)
+             !..transform
+             IF ( pw1%pw_grid%para%ray_distribution ) THEN
+                CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+                     pw1%pw_grid%para%rs_group, &
+                     pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                     pw1%pw_grid%para%bo, scale = norm, debug=test )
+             ELSE
+                CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                     pw1%pw_grid%para%bo, scale = norm, debug=test )
+             END IF
+             !..prepare output
+             IF ( test .AND. pw1%pw_grid%para%group_head ) &
+                  WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+             CALL pw_gather ( pw2, grays, error=error)
+             DEALLOCATE ( c_in, STAT = stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
        CASE ( "BW_C1DC3D" )
           !..prepare input
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
@@ -1590,35 +1596,41 @@ CONTAINS
           !..prepare output (nothing to do)
        CASE ( "BW_C1DR3D" )
 #if defined (__PW_CUDA)
-          CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale = norm, error = error)
+         ! (no ray dist. is not efficient in CUDA)
+          use_pw_cuda = pw1%pw_grid%para%ray_distribution
 #else
-          !..prepare input
-          IF ( test .AND. pw1%pw_grid%para%group_head ) &
-               WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-          CALL zero_c(SIZE(grays),grays)
-          CALL pw_scatter ( pw1, grays, error=error)
-          nloc = pw2%pw_grid%npts_local
-          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
-          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "c_in",2*dp_size*PRODUCT(nloc(1:3)))
-          nsize=nloc(1)*nloc(2)*nloc(3)
-          !..transform
-          IF ( pw1%pw_grid%para%ray_distribution ) THEN
-             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
-                  pw1%pw_grid%para%rs_group, &
-                  pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                  pw1%pw_grid%para%bo, scale = norm, debug=test )
-          ELSE
-             CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
-                  pw1%pw_grid%para%bo, scale = norm, debug=test )
-          END IF
-          !..prepare output
-          IF ( test .AND. pw1%pw_grid%para%group_head ) &
-               WRITE ( *,'(A)') "  Real part "
-          CALL copy_cr(nsize,c_in,pw2%cr3d)
-          DEALLOCATE ( c_in, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          use_pw_cuda = .FALSE.
 #endif
+          IF (use_pw_cuda) THEN
+             CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale = norm, error = error)
+          ELSE
+             !..prepare input
+             IF ( test .AND. pw1%pw_grid%para%group_head ) &
+                  WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+             CALL zero_c(SIZE(grays),grays)
+             CALL pw_scatter ( pw1, grays, error=error)
+             nloc = pw2%pw_grid%npts_local
+             ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
+             IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                             "c_in",2*dp_size*PRODUCT(nloc(1:3)))
+             nsize=nloc(1)*nloc(2)*nloc(3)
+             !..transform
+             IF ( pw1%pw_grid%para%ray_distribution ) THEN
+                CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+                     pw1%pw_grid%para%rs_group, &
+                     pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                     pw1%pw_grid%para%bo, scale = norm, debug=test )
+             ELSE
+                CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                     pw1%pw_grid%para%bo, scale = norm, debug=test )
+             END IF
+             !..prepare output
+             IF ( test .AND. pw1%pw_grid%para%group_head ) &
+                  WRITE ( *,'(A)') "  Real part "
+             CALL copy_cr(nsize,c_in,pw2%cr3d)
+             DEALLOCATE ( c_in, STAT = stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
        END SELECT
 
     END IF

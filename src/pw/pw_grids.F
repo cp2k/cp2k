@@ -1761,9 +1761,9 @@ CONTAINS
     nmaps = 1
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    length = INT(int_size * ng * nmaps, KIND=C_SIZE_T)
+    length = INT(int_size * MAX(ng,1) * MAX(nmaps,1), KIND=C_SIZE_T)
     allocstat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
-    CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/ng, nmaps/))
+    CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/MAX(ng,1), MAX(nmaps,1)/))
 #elif defined ( __PW_CUDA ) && defined ( __PW_CUDA_NO_HOSTALLOC )
     ALLOCATE(pw_grid%g_hatmap(ng, nmaps), STAT = allocstat)
 #else
