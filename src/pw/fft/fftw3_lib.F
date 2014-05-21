@@ -40,12 +40,13 @@ SUBROUTINE fftw3_do_cleanup(wisdom_file,ionode)
     LOGICAL                                  :: ionode
 
     INTEGER                                  :: iunit,istat
+
 #if defined ( __FFTW3 )
     ! Write out FFTW3 wisdom to file (if we can)
     ! only the ionode updates the wisdom
     IF (ionode) THEN
        iunit=get_unit_number()
-       OPEN(UNIT=iunit,FILE="wisdom_file",STATUS="UNKNOWN",FORM="FORMATTED",ACTION="WRITE",IOSTAT=istat)
+       OPEN(UNIT=iunit,FILE=wisdom_file,STATUS="UNKNOWN",FORM="FORMATTED",ACTION="WRITE",IOSTAT=istat)
        IF (istat==0) THEN
           CALL fftw_export_wisdom_to_file(iunit)
           CLOSE(iunit)
@@ -522,7 +523,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   CASE DEFAULT
          STOP "fftw3_create_plan_3d"
   END SELECT
- 
+
 #if defined (__FFTW3_UNALIGNED)
   fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
 #endif
@@ -655,7 +656,6 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 
 #endif
 
-
 END SUBROUTINE fftw3_create_plan_3d
 
 
@@ -727,6 +727,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
   INTEGER                                              :: i,j,k
 
 !------------------------------------------------------------------------------
+
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
