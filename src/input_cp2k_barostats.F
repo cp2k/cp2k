@@ -89,7 +89,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
-            description="Maximum oscillation of the Barostat temperature imposed by recaling.",&
+            description="Maximum oscillation of the Barostat temperature imposed by rescaling.",&
             usage="TEMP_TOL real",default_r_val=0._dp, &
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
