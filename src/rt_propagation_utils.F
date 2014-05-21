@@ -18,24 +18,20 @@ MODULE  rt_propagation_utils
        array_i1d_obj, array_release, cp_dbcsr_add, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_filter, cp_dbcsr_get_block, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_type_no_symmetry
+       cp_dbcsr_filter, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_create_dist_r_unrot, &
+       dbcsr_distribution_obj, dbcsr_distribution_release, &
+       dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
-                                             cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
-  USE cp_gemm_interface,               ONLY: cp_gemm
+                                             cp_fm_to_fm
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_restart_wfn,&
                                              use_rt_restart
@@ -52,7 +48,6 @@ MODULE  rt_propagation_utils
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type,&
                                              read_mo_set,&
                                              read_rt_mos_from_restart
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -68,7 +63,6 @@ MODULE  rt_propagation_utils
 
   PUBLIC:: calc_S_derivs,&
            get_restart_wfn,&
-           calculate_dp_imag,&
            calc_c_mat_force
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
@@ -319,49 +313,6 @@ MODULE  rt_propagation_utils
 
 
   END SUBROUTINE get_restart_wfn
-
-! *****************************************************************************
-!> \brief calculates the imaginary part of the density matrix
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE calculate_dp_imag(dp_imag,mos_new,mo_set,error)
-    TYPE(cp_fm_type), POINTER                :: dp_imag
-    TYPE(cp_fm_p_type), DIMENSION(2)         :: mos_new
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dp_imag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nao, nmo
-    REAL(KIND=dp)                            :: alpha
-    TYPE(cp_fm_type), POINTER                :: fm_tmp
-
-    CALL timeset(routineN,handle)
-
-    IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
-       NULLIFY(fm_tmp)
-       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)
-       CALL cp_fm_to_fm(mos_new(2)%matrix,fm_tmp,error=error)
-       CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
-       alpha=1.0_dp
-    ELSE
-       alpha=mo_set%maxocc
-       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)
-       CALL cp_fm_to_fm(mos_new(2)%matrix,fm_tmp,error=error)
-    ENDIF
-    CALL get_mo_set(mo_set, nao=nao,nmo=nmo)
-
-    CALL cp_gemm("N","T",nao,nao,nmo,alpha,mos_new(1)%matrix,fm_tmp,0.0_dp,dp_imag,error)
-
-    CALL cp_gemm("N","T",nao,nao,nmo,-alpha,fm_tmp,mos_new(1)%matrix,1.0_dp,dp_imag,error)
-
-    CALL cp_fm_release(fm_tmp,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calculate_dp_imag
 
 ! *****************************************************************************
 !> \brief calculates the three additional force contributions needed in EMD
@@ -630,8 +581,7 @@ MODULE  rt_propagation_utils
        CALL cp_dbcsr_iterator_start(iter, tmp)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
           CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-          ALLOCATE(block_values2(SIZE(block_values)))
-          CALL cp_dbcsr_get_block(S_der(i)%matrix, row_atom, col_atom, block_values2, found=found)
+          CALL cp_dbcsr_get_block_p(S_der(i)%matrix, row_atom, col_atom, block_values2, found=found)
           IF(found) THEN
              ikind=kind_of(col_atom)
              kind_atom=atom_of_kind(col_atom)
@@ -640,7 +590,6 @@ MODULE  rt_propagation_utils
              force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
              2.0_dp*DOT_PRODUCT(block_values,block_values2)
           ENDIF
-          DEALLOCATE(block_values2)
        END DO
        CALL cp_dbcsr_iterator_stop (iter)
 
@@ -649,8 +598,7 @@ MODULE  rt_propagation_utils
        CALL cp_dbcsr_iterator_start(iter, rho_im)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
           CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-          ALLOCATE(block_values2(SIZE(block_values)))
-          CALL cp_dbcsr_get_block(C_mat(i)%matrix,row_atom,col_atom,block_values2,found=found)
+          CALL cp_dbcsr_get_block_p(C_mat(i)%matrix,row_atom,col_atom,block_values2,found=found)
           IF(found) THEN
              ikind=kind_of(col_atom)
              kind_atom=atom_of_kind(col_atom)
@@ -659,7 +607,6 @@ MODULE  rt_propagation_utils
              force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
              2.0_dp*DOT_PRODUCT(block_values,block_values2)
           ENDIF
-          DEALLOCATE(block_values2)
        END DO
        CALL cp_dbcsr_iterator_stop (iter)
     END DO

@@ -23,7 +23,7 @@ MODULE rt_propagation_methods
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
        cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
@@ -526,17 +526,15 @@ CONTAINS
     CALL cp_dbcsr_iterator_start(iter, tmp)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
        CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-       ALLOCATE(block_values2(SIZE(block_values)))
-       CALL cp_dbcsr_get_block(mat_re, row_atom, col_atom, block_values2, found=found)
+       CALL cp_dbcsr_get_block_p(mat_re, row_atom, col_atom, block_values2, found=found)
        IF(found) THEN
           block_values=block_values2*block_values2
        ENDIF
-       CALL cp_dbcsr_get_block(mat_im, row_atom, col_atom, block_values2, found=found)
+       CALL cp_dbcsr_get_block_p(mat_im, row_atom, col_atom, block_values2, found=found)
        IF(found) THEN
           block_values=block_values+block_values2*block_values2
        ENDIF
        block_values=SQRT(block_values)
-       DEALLOCATE(block_values2)
     END DO
     CALL cp_dbcsr_iterator_stop (iter)
     frob_norm=cp_dbcsr_frobenius_norm(tmp)
