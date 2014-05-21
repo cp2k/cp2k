@@ -7,7 +7,8 @@
 !> \brief Implemenation of machine interface based on Fortran 2003 and POSIX
 !> \author Ole Schuett
 ! *****************************************************************************
-  USE kinds,                           ONLY: dp, int_8, default_path_length
+  USE kinds,                           ONLY: dp, int_8, default_path_length,&
+                                             default_string_length
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -355,22 +356,45 @@ END FUNCTION m_loc_r
 ! *****************************************************************************
   SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
-    INTEGER                                  :: istat, i
-    CHARACTER(len=default_path_length)       :: buf
+
+    TYPE, BIND(C) :: passwd_struct
+      TYPE(C_PTR)             :: name
+      !... more fields, which we don't need and where Linux deviates from POSIX
+    END TYPE passwd_struct
+
+    INTEGER                                  :: uid, i
+    TYPE(passwd_struct), POINTER             :: pwd
+    TYPE(C_PTR)                              :: pwd_cptr
+    CHARACTER, DIMENSION(:), POINTER         :: pwd_name_p
+    CHARACTER(len=default_string_length)     :: name_long
 
     INTERFACE
-      FUNCTION   getlogin_r(buf, buflen) BIND(C,name="getlogin_r") RESULT(errno)
-        USE ISO_C_BINDING
-        CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: buf
-        INTEGER(KIND=C_INT), VALUE               :: buflen
-        INTEGER(KIND=C_INT)                      :: errno
-      END FUNCTION
+     FUNCTION getpwuid(uid) BIND(C,name="getpwuid") RESULT(result)
+       USE ISO_C_BINDING
+       INTEGER(KIND=C_INT), VALUE               :: uid
+       TYPE(C_PTR)                              :: result
+     END FUNCTION
     END INTERFACE
 
-    istat = getlogin_r(buf, LEN(buf))
-    IF(istat /= 0) STOP "m_getlog failed"
-    i = INDEX(buf, c_null_char) -1
-    user = buf(1:i)
+    pwd_cptr = C_NULL_PTR
+    NULLIFY(pwd, pwd_name_p)
+    name_long = ""
+
+    CALL m_getuid(uid)
+    pwd_cptr = getpwuid(uid)
+
+    IF(.NOT.C_ASSOCIATED(pwd_cptr)) STOP "m_getlog failed (1)"
+    CALL C_F_POINTER(pwd_cptr, pwd)
+    IF(.NOT.C_ASSOCIATED(pwd%name)) STOP "m_getlog failed (2)"
+    CALL C_F_POINTER(pwd%name, pwd_name_p, (/LEN(name_long)/) )
+
+    DO i=1, LEN(name_long)
+      IF(pwd_name_p(i) .EQ. C_NULL_CHAR) EXIT
+      name_long(i:i) = pwd_name_p(i)
+    END DO
+    IF(i > LEN(name_long)) STOP "m_getlog failed (3)"
+
+    user = TRIM(name_long)
   END SUBROUTINE m_getlog
 
 
