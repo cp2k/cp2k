@@ -12,6 +12,7 @@ MODULE fftw3_lib
 
   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                              C_INT
+  USE cp_files,                        ONLY: get_unit_number
   USE fft_kinds,                       ONLY: dp,&
                                              integer8_kind
   USE fft_plan,                        ONLY: fft_plan_type
@@ -20,7 +21,7 @@ MODULE fftw3_lib
 
   IMPLICIT NONE
 
-  PUBLIC :: fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm 
+  PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm 
   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
   PUBLIC :: fftw_import_wisdom_from_file, fftw3_is_mkl_wrapper
 
@@ -33,11 +34,97 @@ MODULE fftw3_lib
 
 CONTAINS
 
-SUBROUTINE fftw3_do_cleanup()
+SUBROUTINE fftw3_do_cleanup(wisdom_file,ionode)
 
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+    LOGICAL                                  :: ionode
+
+    INTEGER                                  :: iunit,istat
 #if defined ( __FFTW3 )
+    ! Write out FFTW3 wisdom to file (if we can)
+    ! only the ionode updates the wisdom
+    IF (ionode) THEN
+       iunit=get_unit_number()
+       OPEN(UNIT=iunit,FILE="wisdom_file",STATUS="UNKNOWN",FORM="FORMATTED",ACTION="WRITE",IOSTAT=istat)
+       IF (istat==0) THEN
+          CALL fftw_export_wisdom_to_file(iunit)
+          CLOSE(iunit)
+       ENDIF
+    ENDIF
+
     CALL fftw_cleanup()
 #endif
+
+END SUBROUTINE
+
+SUBROUTINE fftw3_do_init(wisdom_file)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+
+    INTEGER                                  :: istat, isuccess, iunit
+    LOGICAL                                  :: exist
+
+!$  LOGICAL                                  :: mkl_is_safe
+
+!$  INTEGER :: omp_get_max_threads
+
+! If using the Intel compiler then we need to declare
+! a C interface to a global variable in MKL that sets
+! the number of threads which can concurrently execute
+! an FFT
+#if defined (__INTEL) && defined (__MKL) && defined (__FFTW3) && !defined(__HAS_NO_ISO_C_BINDING)
+!$    include "mkl.fi"
+!DEC$ IF DEFINED (INTEL_MKL_VERSION)
+!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
+!DIR$ ATTRIBUTES ALIGN : 8 :: fftw3_mkl
+!$    COMMON/fftw3_mkl/ignore(4),mkl_dft_number_of_user_threads,ignore2(7)
+!$    INTEGER*4 :: ignore, mkl_dft_number_of_user_threads, ignore2 
+!$    BIND (c) :: /fftw3_mkl/
+!DEC$ ENDIF
+!DEC$ ENDIF
+#endif
+
+#if defined ( __FFTW3 )
+    ! Read FFTW wisdom (if available)
+    ! all nodes are opening the file here...
+    INQUIRE(FILE=wisdom_file,exist=exist)
+    IF (exist) THEN
+       iunit=get_unit_number()
+       OPEN(UNIT=iunit,FILE=wisdom_file,STATUS="OLD",FORM="FORMATTED",POSITION="REWIND",&
+            ACTION="READ",IOSTAT=istat)
+       IF (istat==0) THEN
+          CALL fftw_import_wisdom_from_file(isuccess,iunit)
+          ! write(6,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
+          CLOSE(iunit)
+       ENDIF
+    ENDIF
+#endif
+
+
+    ! Now check if we have a real FFTW3 library, or are using MKL wrappers
+
+!$  IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
+! If we are not using the Intel compiler, there is no way to tell which
+! MKL version is in use, so fail safe...
+!$     mkl_is_safe = .FALSE.
+#if defined (__INTEL) && defined (__MKL) && defined (__FFTW3) && !defined (__HAS_NO_ISO_C_BINDING)
+!DEC$ IF DEFINED (INTEL_MKL_VERSION)
+!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
+!$     mkl_dft_number_of_user_threads=omp_get_max_threads() 
+!DEC$ ENDIF
+!DEC$ IF INTEL_MKL_VERSION .GE. 110100
+!$     mkl_is_safe = .TRUE.
+!DEC$ ENDIF
+!DEC$ ENDIF
+#endif
+!$     IF (.NOT.mkl_is_safe) THEN
+!$        STOP  "Intel's FFTW3 interface to MKL is not "//&
+!$              "thread-safe prior to MKL 11.1.0!  Please "//&
+!$              "rebuild CP2K, linking against FFTW 3 from "//&
+!$              "www.fftw.org or a newer version of MKL. "//&
+!$              "Now exiting..."
+!$     ENDIF
+!$  ENDIF
 
 END SUBROUTINE
 

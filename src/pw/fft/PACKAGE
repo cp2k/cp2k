@@ -1,4 +1,4 @@
 {
 "description": "Fast Fourier transform",
-"requires": []
+"requires": ["../../common"]
 }

@@ -9,6 +9,7 @@ MODULE fft_lib
   USE fftsg_lib,                       ONLY: fftsg1dm,&
                                              fftsg3d,&
                                              fftsg_do_cleanup,&
+                                             fftsg_do_init,&
                                              fftsg_get_lengths
   USE fftw3_lib,                       ONLY: fftw31dm,&
                                              fftw33d,&
@@ -16,6 +17,7 @@ MODULE fft_lib
                                              fftw3_create_plan_3d,&
                                              fftw3_destroy_plan,&
                                              fftw3_do_cleanup,&
+                                             fftw3_do_init,&
                                              fftw3_get_lengths
 
   IMPLICIT NONE
@@ -48,8 +50,25 @@ CONTAINS
 
 END FUNCTION fft_library
 
-SUBROUTINE fft_do_cleanup(fft_type)
+SUBROUTINE fft_do_init(fft_type, wisdom_file)
     INTEGER, INTENT(IN)                      :: fft_type
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+
+  SELECT CASE ( fft_type )
+    CASE DEFAULT
+      STOP "fft_do_init"
+    CASE ( 1 )
+      CALL fftsg_do_init ()
+    CASE ( 3 )
+      CALL fftw3_do_init (wisdom_file)
+  END SELECT
+
+END SUBROUTINE
+
+SUBROUTINE fft_do_cleanup(fft_type, wisdom_file, ionode)
+    INTEGER, INTENT(IN)                      :: fft_type
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+    LOGICAL, INTENT(IN)                      :: ionode
 
   SELECT CASE ( fft_type )
     CASE DEFAULT
@@ -57,7 +76,7 @@ SUBROUTINE fft_do_cleanup(fft_type)
     CASE ( 1 )
       CALL fftsg_do_cleanup ( )
     CASE ( 3 )
-      CALL fftw3_do_cleanup ( )
+      CALL fftw3_do_cleanup (wisdom_file, ionode)
   END SELECT
 
 END SUBROUTINE

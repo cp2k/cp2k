@@ -707,7 +707,7 @@ CONTAINS
           DEALLOCATE ( cc , STAT = ierr )
           IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cc")
        END IF
-       CALL finalize_fft(para_env,error)
+       CALL finalize_fft(para_env, wisdom_file="",error=error)
     END DO
 
   END SUBROUTINE fft_test
@@ -820,7 +820,7 @@ CONTAINS
     CALL pw_release ( ca%pw ,error=error)
     CALL pw_grid_release ( grid ,error=error)
     CALL cell_release(box,error=error)
-    CALL finalize_fft(para_env,error)
+    CALL finalize_fft(para_env,wisdom_file="",error=error)
 
     CALL timestop(handle)
 
@@ -1046,7 +1046,7 @@ CONTAINS
 
     ! cleanup
     CALL cell_release(box,error=error)
-    CALL finalize_fft(para_env,error)
+    CALL finalize_fft(para_env, wisdom_file="",error=error)
 
   END SUBROUTINE pw_fft_test
 

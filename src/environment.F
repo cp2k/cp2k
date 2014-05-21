@@ -1132,8 +1132,8 @@ CONTAINS
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
 
-    ! finalize the fft (i.e. writes the wisdom)
-    CALL finalize_fft(para_env,error)
+    ! finalize the fft (i.e. writes the wisdom if FFTW3 )
+    CALL finalize_fft(para_env,globenv%fftw_wisdom_file_name, error)
 
     ! Write message passing performance info
 

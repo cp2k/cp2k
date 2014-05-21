@@ -12,9 +12,15 @@ MODULE fftsg_lib
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fftsg_lib'
 
-  PUBLIC :: fftsg_do_cleanup, fftsg_get_lengths, fftsg3d, fftsg1dm
+  PUBLIC :: fftsg_do_init, fftsg_do_cleanup, fftsg_get_lengths, fftsg3d, fftsg1dm
 
 CONTAINS
+
+  SUBROUTINE fftsg_do_init()
+
+   ! no init needed
+
+  END SUBROUTINE
 
   SUBROUTINE fftsg_do_cleanup()
   
