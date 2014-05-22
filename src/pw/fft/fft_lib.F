@@ -121,9 +121,8 @@ SUBROUTINE fft_create_plan_3d ( plan, fft_type, fft_in_place, fsign, n, zin, zou
   ! Planning only needed for FFTW3
   IF (fft_type .EQ. 3) THEN 
     CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style)
+    plan % valid = .TRUE.
   END IF
-
-  plan % valid = .TRUE.
 
 END SUBROUTINE fft_create_plan_3d
 
@@ -183,10 +182,12 @@ SUBROUTINE fft_create_plan_1dm ( plan, fft_type, fsign, trans, n, m, zin, zout, 
 !$ plan % need_alt_plan = .FALSE.
 
   ! Planning only needed for FFTW3
-  IF (fft_type .EQ. 3) THEN
+  IF (( fft_type .EQ. 3 ) .AND. ( n * m .NE. 0 )) THEN
     CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style)
+    plan % valid = .TRUE.
+  ELSE
+    plan % valid = .FALSE.
   END IF
-  plan % valid = .TRUE.
 
 END SUBROUTINE fft_create_plan_1dm
 
