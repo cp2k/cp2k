@@ -56,7 +56,8 @@ MODULE mp2_ri_gpw
                                              mp_max,&
                                              mp_min,&
                                              mp_sendrecv,&
-                                             mp_sum
+                                             mp_sum,&
+                                             mp_sync
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE mp2_ri_grad_util,                ONLY: complete_gamma
@@ -420,6 +421,8 @@ MODULE mp2_ri_gpw
 
     IF (unit_nr>0) THEN
       WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+               "RI_INFO| Occupied  basis set size:", homo,&
+               "RI_INFO| Virtual   basis set size:", virtual,&
                "RI_INFO| Auxiliary basis set size:", dimen_RI 
 
       mem_for_iaK=dimen_RI*REAL(homo,KIND=dp)*virtual*8.0_dp/(1024_dp**2)
@@ -431,6 +434,8 @@ MODULE mp2_ri_gpw
       CALL m_flush(unit_nr)
     ENDIF
 
+    CALL timeset(routineN//"_alloc",handle2)
+    CALL mp_sync(para_env%group) ! sync to see memory output
 
     ! array that will store the (ia|K) integrals
     ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo),STAT=stat)
@@ -442,6 +447,8 @@ MODULE mp2_ri_gpw
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
       BIb_C_beta=0.0_dp
     END IF
+
+    CALL timestop(handle2)
 
     CALL timeset(routineN//"_loop",handle2)
     i_counter=0
