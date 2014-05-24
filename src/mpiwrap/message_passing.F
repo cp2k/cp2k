@@ -1060,7 +1060,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ierr, nodes
 #if defined(__parallel)
-    LOGICAL, DIMENSION(1:ndims)              :: period, reorder
+    LOGICAL, DIMENSION(1:ndims)              :: period
+    LOGICAL                                  :: reorder
 #endif
 
     ierr = 0
@@ -1197,7 +1198,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE mp_comm_free ( comm )
 
-    INTEGER, INTENT(IN)                      :: comm
+    INTEGER, INTENT(INOUT)                   :: comm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free', &
       routineP = moduleN//':'//routineN
@@ -1476,7 +1477,7 @@ CONTAINS
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
     INTEGER                                  :: count
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+    INTEGER                                  :: status(MPI_STATUS_SIZE)
 #endif
 
     ierr = 0
@@ -1484,7 +1485,6 @@ CONTAINS
 
 #if defined(__parallel)
     count = SIZE(requests)
-    ALLOCATE (status(MPI_STATUS_SIZE,count))
     t_start = m_walltime ( )
 
     CALL mpi_waitany(count,requests,completed,status,ierr)
@@ -1493,7 +1493,6 @@ CONTAINS
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-    DEALLOCATE (status)
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_waitany
@@ -2367,7 +2366,7 @@ CONTAINS
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! *****************************************************************************
   SUBROUTINE mp_file_close(fh)
-    INTEGER, INTENT(IN)                      :: fh
+    INTEGER, INTENT(INOUT)                   :: fh
 
     INTEGER                                  :: ierr
 
