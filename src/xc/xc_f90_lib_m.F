@@ -19,16 +19,13 @@
 !-------------------------------------------------------------------
 MODULE xc_f90_lib_m
 
-  USE libxc_funcs_m
-  USE xc_f90_types_m,                  ONLY: xc_f90_kind,&
-                                             xc_f90_pointer_t
-
   IMPLICIT NONE
+  PRIVATE
 
-  PUBLIC
+  PUBLIC :: xc_f90_info_family, xc_f90_info_kind
 
   ! Families of xc functionals
-  INTEGER, PARAMETER :: &
+  INTEGER, PARAMETER, PUBLIC :: &
     XC_FAMILY_UNKNOWN = -1, &
     XC_FAMILY_NONE = 0, &
     XC_FAMILY_LDA = 1, &
@@ -38,7 +35,7 @@ MODULE xc_f90_lib_m
     XC_FAMILY_OEP = 16, &
     XC_FAMILY_HYB_GGA = 32
 
-  INTEGER, PARAMETER :: &
+  INTEGER, PARAMETER, PUBLIC :: &
     XC_UNPOLARIZED = 1, & ! Spin unpolarized
     XC_POLARIZED = 2 ! Spin polarized
 
@@ -47,7 +44,7 @@ MODULE xc_f90_lib_m
     XC_RELATIVISTIC = 1 ! corrections. Only available in some functionals.
 
   ! Kinds
-  INTEGER, PARAMETER :: &
+  INTEGER, PARAMETER, PUBLIC :: &
     XC_EXCHANGE = 0, &
     XC_CORRELATION = 1, &
     XC_EXCHANGE_CORRELATION = 2, &
