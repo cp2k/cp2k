@@ -1423,8 +1423,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief waits for completion of the given requests
-!> \note
-!>      see isendrecv
 !> \par History
 !>      08.2003 created [f&j]
 !> \author joost & fawzi
@@ -1450,7 +1448,7 @@ CONTAINS
     ALLOCATE (status(MPI_STATUS_SIZE,count))
     t_start = m_walltime ( )
 
-    CALL mpi_waitall(count,requests,status,ierr)
+    CALL mpi_waitall_internal(count,requests,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall_2" )
 
@@ -1460,6 +1458,24 @@ CONTAINS
 #endif
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_waitall_2
+
+! *****************************************************************************
+!> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
+!>        the issue is with the rank or requests
+!> \author Joost VandeVondele 
+! *****************************************************************************
+#if defined(__parallel)
+  SUBROUTINE mpi_waitall_internal(count, array_of_requests, array_of_statuses, ierr)
+    INTEGER, INTENT(in)                      :: count
+    INTEGER, DIMENSION(count), INTENT(inout) :: array_of_requests
+    INTEGER, DIMENSION(MPI_STATUS_SIZE, *), &
+      INTENT(out)                            :: array_of_statuses
+    INTEGER, INTENT(out)                     :: ierr
+
+     CALL mpi_waitall(count,array_of_requests,array_of_statuses,ierr)
+
+  END SUBROUTINE mpi_waitall_internal
+#endif
 
 ! *****************************************************************************
 !> \brief waits for completion of any of the given requests
@@ -1497,6 +1513,7 @@ CONTAINS
     IF (ASSOCIATED(mp_external_timestop)) CALL mp_external_timestop(handle)
   END SUBROUTINE mp_waitany
 
+
 ! *****************************************************************************
 !> \brief tests for completion of the given requests
 !> \par History
@@ -1514,7 +1531,7 @@ CONTAINS
     INTEGER                                  :: ierr
 #if defined(__parallel)
     INTEGER                                  :: completed_l, count
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+    INTEGER                                  :: status(MPI_STATUS_SIZE)
     LOGICAL                                  :: flag_l
 #endif
 
@@ -1522,18 +1539,33 @@ CONTAINS
 
 #if defined(__parallel)
     count = SIZE(requests)
-    ALLOCATE (status(MPI_STATUS_SIZE,count))
 
-    CALL mpi_testany(count,requests,completed_l,flag_l,status,ierr)
+    CALL mpi_testany_internal(count,requests,completed_l,flag_l,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testany @ mp_testany" )
 
     IF (PRESENT(completed)) completed = completed_l
     IF (PRESENT(flag)) flag = flag_l
 
-    DEALLOCATE (status)
 #endif
   END SUBROUTINE mp_testany
+! *****************************************************************************
+!> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
+!>        the issue is with the rank or requests
+!> \author Joost VandeVondele 
+! *****************************************************************************
+#if defined(__parallel)
+  SUBROUTINE mpi_testany_internal(count, array_of_requests, index, flag, status, ierr)
+    INTEGER, INTENT(in)                      :: count
+    INTEGER, DIMENSION(count), INTENT(inout) :: array_of_requests
+    INTEGER, INTENT(out)                     :: index
+    LOGICAL, INTENT(out)                     :: flag
+    INTEGER, DIMENSION(MPI_STATUS_SIZE), &
+      INTENT(out)                            :: status
+    INTEGER, INTENT(out)                     :: ierr
+
+  END SUBROUTINE mpi_testany_internal
+#endif
 
 ! *****************************************************************************
 !> \brief the direct way to split a communicator each color is a sub_comm,
