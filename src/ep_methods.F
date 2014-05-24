@@ -16,7 +16,7 @@
 MODULE ep_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_array_utils,                  ONLY: cp_2d_r_p_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&

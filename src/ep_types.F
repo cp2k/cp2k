@@ -10,7 +10,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE ep_types
-  USE cp_array_utils,                  ONLY: cp_2d_r_p_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
