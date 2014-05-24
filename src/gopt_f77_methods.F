@@ -75,7 +75,7 @@
                                                virial_create,&
                                                virial_release,&
                                                virial_type
-    USE physcon
+
 #include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(gopt_f_type), POINTER               :: gopt_env

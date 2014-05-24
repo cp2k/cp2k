@@ -14,17 +14,16 @@
 !> - 2014-04, Ole Schuett: generalized into acc-framework
 ! *****************************************************************************
 MODULE dbcsr_acc_operations
-  USE acc_devmem,                      ONLY: acc_devmem_type
-  USE acc_stream,                      ONLY: acc_stream_type
-  USE dbcsr_error_handling
-  USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
-  USE message_passing,           ONLY: mp_abort
-
-#if defined (__DBCSR_ACC)
   USE ISO_C_BINDING
-  USE acc_devmem,                      ONLY: acc_devmem_cptr
-  USE acc_stream,                      ONLY: acc_stream_cptr
-#endif
+  USE acc_devmem,                      ONLY: acc_devmem_cptr,&
+                                             acc_devmem_type
+  USE acc_stream,                      ONLY: acc_stream_cptr,&
+                                             acc_stream_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
+  USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
+  USE message_passing,                 ONLY: mp_abort
 
   IMPLICIT NONE
 
