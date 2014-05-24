@@ -20,7 +20,22 @@ MODULE cp_control_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       constant_env, do_admm_block_aux_basis_on, &
+       do_admm_block_density_matrix, do_admm_purify_cauchy, &
+       do_admm_purify_cauchy_subspace, do_admm_purify_mo_diag, &
+       do_admm_purify_mo_no_diag, do_admm_purify_none, do_ddapc_constraint, &
+       do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
+       do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
+       do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+       do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
+       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+       do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
+       do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
+       do_se_lr_ewald_r3, do_se_lr_none, gaussian_env, numerical, ramp_env, &
+       real_time_propagation, sic_ad, sic_eo, sic_list_all, &
+       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+       tddfpt_excitations
   USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                              create_qs_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -39,7 +54,13 @@ MODULE cp_control_utils
                                              timestop
   USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-  USE xc_input_constants
+  USE xc_input_constants,              ONLY: &
+       xc_debug_new_routine, xc_deriv_collocate, xc_deriv_nn10_smooth, &
+       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
+       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
+       xc_new_f_routine, xc_old_f_routine, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
+       xc_test_lsd_f_routine
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_write_output,                 ONLY: xc_write
 #include "./common/cp_common_uses.f90"

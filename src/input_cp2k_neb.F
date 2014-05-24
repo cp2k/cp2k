@@ -19,7 +19,11 @@ MODULE input_cp2k_neb
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, band_diis_opt, band_md_opt, do_b_neb, do_ci_neb, &
+       do_d_neb, do_eb, do_it_neb, do_rep_blocked, do_rep_interleaved, do_sm, &
+       high_print_level, low_print_level, medium_print_level, pot_neb_fe, &
+       pot_neb_full, pot_neb_me
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                              create_velocity_section
   USE input_keyword_types,             ONLY: keyword_create,&

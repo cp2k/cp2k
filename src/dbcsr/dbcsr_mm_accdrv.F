@@ -54,7 +54,9 @@ MODULE dbcsr_mm_accdrv
                                              dbcsr_data_get_type,&
                                              dbcsr_data_new,&
                                              dbcsr_data_release
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                              dbcsr_mempool_ensure_capacity,&
                                              dbcsr_memtype_setup

@@ -14,13 +14,26 @@
 !> - Created 2011-11-08
 MODULE ma_affinity
   USE ISO_C_BINDING
-  USE ma_config
+  USE ma_config,                       ONLY: &
+       hasnet, isdefault, ma_get_conf_mempol, ma_get_conf_mpisched, memory, &
+       print_proc, print_thread, process, thread
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_stop
-  USE ma_kinds
-  USE machine_architecture
-  USE machine_architecture_types
-  USE machine_architecture_utils
+  USE ma_kinds,                        ONLY: default_string_length,&
+                                             int_4
+  USE machine_architecture,            ONLY: &
+       ma_get_id, ma_get_mycore, ma_get_mynode, ma_get_ncores, ma_get_nnodes, &
+       ma_get_proc_core, ma_get_proc_node, ma_my_first_core, &
+       ma_set_proc_node, topology
+  USE machine_architecture_types,      ONLY: &
+       def, group, has_mpi, interleave, linear, local, ma_mp_type, &
+       ma_process, manual, mpi, nosched, os, scatter, thread_inf, threads
+  USE machine_architecture_utils,      ONLY: ascii_to_string,&
+                                             integer_to_string,&
+                                             ma_create_process,&
+                                             ma_pack_threads,&
+                                             ma_unpack_threads,&
+                                             string_to_ascii
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_proc_name,&
                                              mp_sum

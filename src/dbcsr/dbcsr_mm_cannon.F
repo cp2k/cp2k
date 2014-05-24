@@ -58,7 +58,11 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_reset_vlocals,&
                                              image_calculator,&
                                              make_sizes_dense
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                              dbcsr_has_local_row_index,&
                                              dbcsr_index_compact,&

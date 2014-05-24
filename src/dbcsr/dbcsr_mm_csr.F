@@ -25,7 +25,13 @@ MODULE dbcsr_mm_csr
   USE dbcsr_config,                    ONLY: dbcsr_get_conf_nstacks,&
                                              default_resize_factor,&
                                              mm_stack_size
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_mm_sched,                  ONLY: &
        dbcsr_mm_sched_barrier, dbcsr_mm_sched_begin_burst, &
        dbcsr_mm_sched_end_burst, dbcsr_mm_sched_finalize, &

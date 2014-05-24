@@ -12,7 +12,14 @@
 MODULE input_cp2k_mixed
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: add_last_numeric,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             mix_coupled,&
+                                             mix_generic,&
+                                             mix_linear_combination,&
+                                             mix_minimum,&
+                                             mix_restrained
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

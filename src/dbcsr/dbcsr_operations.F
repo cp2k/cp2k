@@ -19,7 +19,13 @@ MODULE dbcsr_operations
   USE dbcsr_config,                    ONLY: is_initialized
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &

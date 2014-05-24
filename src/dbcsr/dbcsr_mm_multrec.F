@@ -21,7 +21,13 @@ MODULE dbcsr_mm_multrec
   USE array_types,                     ONLY: array_data,&
                                              array_equality
   USE dbcsr_config,                    ONLY: multrec_limit
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_local_cols,&

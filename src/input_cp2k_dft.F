@@ -22,7 +22,68 @@ MODULE input_cp2k_dft
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, almo_scf_guess, atomic_guess, broy_mix, &
+       broy_mix_new, cholesky_inverse, cholesky_off, cholesky_reduce, &
+       cholesky_restore, constant_env, core_guess, debug_print_level, &
+       densities_guess, diag_block_davidson, diag_block_krylov, diag_ot, &
+       diag_standard, direct_p_mix, do_admm_basis_set_projection, &
+       do_admm_block_aux_basis_off, do_admm_block_aux_basis_on, &
+       do_admm_block_density_matrix, do_admm_block_purify_blocked, &
+       do_admm_block_purify_full, do_admm_block_purify_off, &
+       do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
+       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+       do_admm_purify_none, do_arnoldi, do_bch, do_cn, do_ddapc_constraint, &
+       do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
+       do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, &
+       do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, &
+       do_loc_max, do_loc_min, do_loc_none, do_method_am1, do_method_dftb, &
+       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
+       do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
+       do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
+       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+       do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
+       do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
+       do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+       ehrenfest, gaussian, gaussian_env, general_roks, high_print_level, &
+       high_spin_roks, history_guess, kerker_mix, kg_color_dsatur, &
+       kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, low_print_level, &
+       ls_2pnt, ls_3pnt, ls_gold, ls_none, medium_print_level, mopac_guess, &
+       multisec_mix, no_excitations, no_guess, no_mix, numerical, oe_gllb, &
+       oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
+       op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
+       orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+       ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
+       ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
+       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_solver_default, ot_precond_solver_direct, &
+       ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
+       ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
+       ot_precond_sparse_kinetic_sainv, outer_scf_becke_constraint, &
+       outer_scf_ddapc_constraint, outer_scf_none, &
+       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+       outer_scf_s2_constraint, outer_scf_scp, plus_u_lowdin, &
+       plus_u_mulliken, plus_u_mulliken_charges, pulay_mix, pw_interp, &
+       ramp_env, random_guess, real_time_propagation, rel_dkh, rel_none, &
+       rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
+       rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, &
+       rel_zora_mp, restart_guess, sic_ad, sic_eo, sic_list_all, &
+       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+       silent_print_level, slater, smear_energy_window, smear_fermi_dirac, &
+       smear_list, sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, &
+       tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
+       tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, &
+       use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit, &
+       wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
+       wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+       wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, &
+       xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
+       xas_none, xas_scf_default, xas_scf_general, xas_tp_fh, xas_tp_hh, &
+       xas_tp_xfh, xas_tp_xhh, xes_tp_val
   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
   USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section

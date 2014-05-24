@@ -37,7 +37,6 @@ MODULE topology
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type

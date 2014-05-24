@@ -26,8 +26,7 @@ MODULE hfx_screening_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: default_output_unit
-  USE mathconstants
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: ncoset
   USE powell,                          ONLY: opt_state_type,&
                                              powell_optimize
   USE qs_environment_types,            ONLY: get_qs_env,&

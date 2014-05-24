@@ -41,7 +41,11 @@ MODULE dbcsr_work_operations
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_build_row_index,&
                                              dbcsr_clearfrom_index_array,&

@@ -17,7 +17,6 @@ MODULE qs_energy
   USE f77_blas
   USE input_constants,                 ONLY: ehrenfest
   USE kinds,                           ONLY: dp
-  USE mp2
   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
                                              qs_energies_init,&
                                              qs_energies_mp2,&

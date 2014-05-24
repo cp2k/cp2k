@@ -41,7 +41,7 @@ MODULE qs_tddfpt_eigensolver
                                              p_postortho,&
                                              p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_tddfpt_types
+  USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                              normalize,&
                                              reorthogonalize

@@ -13,7 +13,7 @@
 
 MODULE ma_errors
 
-  USE ma_kinds
+  USE ma_kinds,                        ONLY: default_output_unit
 
   IMPLICIT NONE
 

@@ -52,13 +52,15 @@ MODULE mp2_ri_libint
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
+  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                              mp2_biel_type,&
                                              mp2_type,&
                                              pair_list_type_mp2
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset,&
+                                             nso
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

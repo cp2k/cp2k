@@ -10,7 +10,15 @@
 MODULE input_cp2k_atom
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       atom_basis_run, atom_energy_run, atom_no_run, atom_pseudo_run, &
+       contracted_gto, debug_print_level, do_analytic, do_dkh0_atom, &
+       do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, &
+       do_gapw_gcs, do_gapw_gct, do_gapw_log, do_nonrel_atom, do_numeric, &
+       do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, &
+       do_semi_analytic, do_uhf_atom, do_uks_atom, do_zoramp_atom, gaussian, &
+       geometrical_gto, gth_pseudo, high_print_level, medium_print_level, &
+       no_pseudo, numerical, silent_print_level, slater
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

@@ -20,7 +20,6 @@ MODULE input_cp2k_read
                                              cp_unit_set_release,&
                                              cp_unit_set_type
   USE f77_blas
-  USE input_constants
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&

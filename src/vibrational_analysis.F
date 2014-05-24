@@ -31,7 +31,7 @@ MODULE vibrational_analysis
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: vib_header
-  USE input_constants
+  USE input_constants,                 ONLY: do_rep_blocked
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&

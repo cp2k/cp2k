@@ -38,7 +38,8 @@ MODULE  rt_propagation_utils
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants
+  USE mathconstants,                   ONLY: one,&
+                                             zero
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_matrices,                ONLY: build_dftb_overlap

@@ -38,7 +38,7 @@ MODULE mp2_direct_method
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
+  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sendrecv,&
                                              mp_sum
@@ -46,7 +46,8 @@ MODULE mp2_direct_method
                                              mp2_biel_type,&
                                              mp2_type,&
                                              pair_list_type_mp2
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

@@ -20,7 +20,13 @@ MODULE dbcsr_mm_hostdrv
                                              mm_driver_smm,&
                                              mm_host_driver
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
                                              p_a_first,&
                                              p_b_first,&

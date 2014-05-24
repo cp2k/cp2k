@@ -10,7 +10,11 @@
 MODULE input_cp2k_almo
   USE bibliography,                    ONLY: Khaliullin2013
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       almo_deloc_full_scf, almo_deloc_none, almo_deloc_qscf, almo_deloc_qx, &
+       almo_deloc_x, almo_deloc_x_then_full_scf, almo_scf_diag, almo_scf_pcg, &
+       cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, &
+       cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, cg_zero
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

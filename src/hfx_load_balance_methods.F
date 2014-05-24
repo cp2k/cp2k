@@ -24,7 +24,6 @@ MODULE hfx_load_balance_methods
                                              hfx_do_eval_forces
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_gatherv,&
                                              mp_isendrecv,&
@@ -32,7 +31,6 @@ MODULE hfx_load_balance_methods
                                              mp_sum,&
                                              mp_sync,&
                                              mp_waitall
-  USE orbital_pointers
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&

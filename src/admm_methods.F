@@ -67,7 +67,6 @@ MODULE admm_methods
                                              section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
-  USE mathconstants
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

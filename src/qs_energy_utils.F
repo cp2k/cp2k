@@ -35,7 +35,7 @@ MODULE qs_energy_utils
   USE kinds,                           ONLY: dp
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
-  USE mp2
+  USE mp2,                             ONLY: mp2_main
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type

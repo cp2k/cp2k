@@ -16,7 +16,11 @@ MODULE input_cp2k
                                              dbcsr_type_real_8
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_diag_syevd, do_diag_syevx, do_mat_random, &
+       do_mat_read, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
+       do_pwgrid_spherical, ehrenfest, low_print_level, medium_print_level, &
+       numerical, silent_print_level
   USE input_cp2k_atom,                 ONLY: create_atom_section
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
   USE input_cp2k_global,               ONLY: create_global_section

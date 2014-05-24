@@ -13,7 +13,12 @@ MODULE input_cp2k_ls
                                              VandeVondele2012
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       high_print_level, ls_cluster_atomic, ls_cluster_molecular, &
+       ls_s_inversion_hotelling, ls_s_inversion_sign_sqrt, &
+       ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
+       ls_s_preconditioner_none, ls_scf_line_search_3point, &
+       ls_scf_line_search_3point_2d, ls_scf_ns, ls_scf_trs4
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

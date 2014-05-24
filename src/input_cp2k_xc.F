@@ -17,7 +17,15 @@ MODULE input_cp2k_xc
        Wellendorff2012, Zhang1998
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, &
+       gaussian, high_print_level, slater, vdw_nl_drsll, vdw_nl_lmkll, &
+       vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_funct_b3lyp, &
+       xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+       xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, &
+       xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_cp2k_mp2,                  ONLY: create_mp2_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -32,7 +40,18 @@ MODULE input_cp2k_xc
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-  USE xc_input_constants
+  USE xc_input_constants,              ONLY: &
+       c_pw92, c_pw92dmc, c_pw92vmc, c_pz, c_pzdmc, c_pzvmc, do_vwn3, &
+       do_vwn5, ke_lc, ke_llp, ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, &
+       ke_t92, pz_orig, xalpha, xc_b97_grimme, xc_b97_mardirossian, &
+       xc_b97_orig, xc_debug_new_routine, xc_deriv_collocate, &
+       xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
+       xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
+       xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
+       xc_test_lsd_f_routine, xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, &
+       xgga_pw86, xgga_pw91, xgga_revpbe
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

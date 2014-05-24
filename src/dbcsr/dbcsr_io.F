@@ -22,7 +22,12 @@ MODULE dbcsr_io
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
                                              dbcsr_get_data
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_warning_level
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_get_data_size, dbcsr_get_data_size_referenced, &

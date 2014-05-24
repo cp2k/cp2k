@@ -22,7 +22,10 @@ MODULE dbcsr_data_operations
                                              dbcsr_data_hold,&
                                              dbcsr_data_set_size_referenced,&
                                              dbcsr_get_data
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&

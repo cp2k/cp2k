@@ -16,7 +16,10 @@ MODULE dbcsr_mp_operations
 
   USE dbcsr_config,                    ONLY: has_MPI
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &

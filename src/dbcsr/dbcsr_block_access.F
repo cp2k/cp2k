@@ -40,7 +40,10 @@ MODULE dbcsr_block_access
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_expand_row_index,&

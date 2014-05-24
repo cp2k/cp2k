@@ -26,7 +26,6 @@ MODULE input_cp2k_binary_restarts
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE machine
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom

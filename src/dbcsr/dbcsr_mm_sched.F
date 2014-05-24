@@ -28,7 +28,9 @@ MODULE dbcsr_mm_sched
                                              mm_driver_acc
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
   USE dbcsr_mm_accdrv,                 ONLY: dbcsr_mm_accdrv_barrier,&
                                              dbcsr_mm_accdrv_finalize,&
                                              dbcsr_mm_accdrv_init,&

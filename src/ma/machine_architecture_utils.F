@@ -15,8 +15,11 @@
 ! *****************************************************************************
 MODULE machine_architecture_utils
 
-  USE ma_kinds
-  USE machine_architecture_types
+  USE machine_architecture_types,      ONLY: ma_mp_type,&
+                                             ma_process,&
+                                             mpi,&
+                                             thread_inf,&
+                                             threads
 
  IMPLICIT NONE
 

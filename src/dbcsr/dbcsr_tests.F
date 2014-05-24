@@ -17,8 +17,7 @@ MODULE dbcsr_tests
                                              array_i1d_obj,&
                                              array_release,&
                                              array_size
-  USE dbcsr_block_access
-  USE dbcsr_data_methods
+  USE dbcsr_data_methods,              ONLY: dbcsr_scalar
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -26,14 +25,25 @@ MODULE dbcsr_tests
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_methods
-  USE dbcsr_operations
-  USE dbcsr_ptr_util
-  USE dbcsr_test_methods
-  USE dbcsr_transformations
-  USE dbcsr_types
-  USE dbcsr_util
-  USE dbcsr_work_operations
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_get_data_type, dbcsr_init, dbcsr_mp_active, dbcsr_mp_group, &
+       dbcsr_mp_init, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_release, dbcsr_row_block_sizes
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_multiply
+  USE dbcsr_test_methods,              ONLY: dbcsr_make_random_block_sizes,&
+                                             dbcsr_make_random_matrix
+  USE dbcsr_transformations,           ONLY: dbcsr_redistribute
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_mp_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_scalar_type,&
+                                             dbcsr_type_no_symmetry
+  USE dbcsr_util,                      ONLY: dbcsr_checksum
+  USE dbcsr_work_operations,           ONLY: dbcsr_create
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              real_8

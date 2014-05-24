@@ -58,9 +58,11 @@ MODULE hfx_derivatives
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_walltime
-  USE mathconstants
+  USE mathconstants,                   ONLY: fac
   USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset,&
+                                             nso
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

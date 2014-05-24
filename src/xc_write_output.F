@@ -8,7 +8,7 @@
 ! *****************************************************************************
 MODULE xc_write_output
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: xc_none
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -16,7 +16,6 @@ MODULE xc_write_output
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
   USE xc_derivatives,                  ONLY: xc_functional_get_info
-  USE xc_input_constants
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

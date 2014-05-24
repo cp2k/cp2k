@@ -27,13 +27,11 @@ MODULE hfx_communication
                                              hfx_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_isendrecv,&
                                              mp_max,&
                                              mp_sync,&
                                              mp_waitall
-  USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

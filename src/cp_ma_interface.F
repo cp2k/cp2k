@@ -14,7 +14,10 @@
 ! *****************************************************************************
 MODULE cp_ma_interface
   USE cp_dbcsr_interface,              ONLY: dbcsr_get_conf_use_comm_thread
-  USE cp_error_handling
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error_nr
   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                              cp_logger_type,&
                                              cp_logger_would_log,&
@@ -24,8 +27,26 @@ MODULE cp_ma_interface
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE ma_affinity
-  USE ma_config
+  USE ma_affinity,                     ONLY: &
+       ma_current_thread_run, ma_finalize_affinity, ma_get_neighbors, &
+       ma_init_affinity, ma_mpi_ngpus, ma_print_proc_affinity, ma_sched_mpi, &
+       ma_sched_threads, ma_set_default_affinity, ma_set_gpu_affinity, &
+       ma_set_mempol, ma_set_neighbors, ma_set_net_affinity, &
+       ma_thread_running_on, ma_verify_place
+  USE ma_config,                       ONLY: &
+       comm_thread, isconfigured, isdefault, ma_get_conf_comm_thread, &
+       ma_get_conf_mempol, ma_get_conf_mpi_reordering, ma_get_conf_mpisched, &
+       ma_get_conf_print_branch, ma_get_conf_print_full, &
+       ma_get_conf_print_proc, ma_get_conf_print_resume, &
+       ma_get_conf_print_thread, ma_get_conf_print_thread_cur, &
+       ma_get_conf_sched, ma_set_all_affinty, ma_set_conf_comm_thread, &
+       ma_set_conf_mempol, ma_set_conf_mpi_reordering, ma_set_conf_mpisched, &
+       ma_set_conf_print_branch, ma_set_conf_print_full, &
+       ma_set_conf_print_proc, ma_set_conf_print_resume, &
+       ma_set_conf_print_thread, ma_set_conf_print_thread_cur, &
+       ma_set_conf_sched, ma_valid_inputs, memory, mpi_reorder, mpi_sched, &
+       print_branch, print_full, print_proc, print_resume, print_thread, &
+       print_thread_cur, process, thread, use_mempol, use_sched
   USE ma_process_mapping,              ONLY: ma_mpi_reordering
   USE ma_topology,                     ONLY: ma_destroy_topology
   USE machine,                         ONLY: m_getpid
@@ -33,7 +54,11 @@ MODULE cp_ma_interface
        ma_finalize_machine, ma_get_nnodes, ma_hwloc, ma_init_machine, &
        ma_int_hwloc, ma_int_libnuma, ma_int_none, ma_interface, ma_libnuma, &
        ma_show_machine_branch, ma_show_machine_full, ma_show_topology
-  USE machine_architecture_types
+  USE machine_architecture_types,      ONLY: &
+       cannon, def, group, has_ma, has_ma_topology, hilbert, hilbert_peano, &
+       interleave, linear, local, ma_mp_type, manual, mpi, none_order, &
+       none_pol, nosched, os, own, packed, peano, round_robin, scatter, &
+       snake, switch
   USE message_passing,                 ONLY: mp_environ
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&

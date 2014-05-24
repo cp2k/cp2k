@@ -14,7 +14,13 @@ MODULE input_cp2k_mp2
                                              DelBen2013
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, debug_print_level, do_hfx_potential_coulomb, &
+       do_mp2_potential_tshpsc, gaussian, high_print_level, low_print_level, &
+       medium_print_level, mp2_method_direct, mp2_method_gpw, &
+       mp2_method_none, mp2_ri_optimize_basis, numerical, ri_mp2_laplace, &
+       ri_mp2_method_gpw, ri_rpa_method_gpw, silent_print_level, &
+       wfc_mm_style_gemm, wfc_mm_style_syrk
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

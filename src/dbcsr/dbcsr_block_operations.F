@@ -23,7 +23,10 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, &
        dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &

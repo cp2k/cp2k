@@ -28,7 +28,6 @@ MODULE admm_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE mathconstants
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
 #include "./common/cp_common_uses.f90"

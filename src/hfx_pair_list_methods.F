@@ -25,7 +25,7 @@ MODULE hfx_pair_list_methods
        do_hfx_potential_short, do_hfx_potential_truncated, &
        do_mp2_potential_TShPSC
   USE kinds,                           ONLY: dp
-  USE mathconstants
+  USE mathconstants,                   ONLY: pi
   USE mp2_types,                       ONLY: pair_list_type_mp2
   USE particle_types,                  ONLY: particle_type
   USE t_c_g0,                          ONLY: t_c_g0_n

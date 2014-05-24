@@ -24,7 +24,11 @@ MODULE atom_utils
                                              open_file
   USE erf_fn,                          ONLY: erf
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: do_rhf_atom,&
+                                             do_rks_atom,&
+                                             do_rohf_atom,&
+                                             do_uhf_atom,&
+                                             do_uks_atom
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack

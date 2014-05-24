@@ -66,7 +66,10 @@ MODULE environment
                                              m_flush_internal,&
                                              m_memory_details,&
                                              m_procrun
-  USE machine_architecture_types
+  USE machine_architecture_types,      ONLY: group,&
+                                             has_ma,&
+                                             local,&
+                                             threads
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_max,&

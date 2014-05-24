@@ -16,7 +16,11 @@
 MODULE dbcsr_ptr_util
   USE acc_hostmem,                     ONLY: acc_hostmem_allocate,&
                                              acc_hostmem_deallocate
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_memtype_default,&
                                              dbcsr_memtype_type,&

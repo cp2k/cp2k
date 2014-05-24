@@ -12,10 +12,31 @@
 ! *****************************************************************************
 
 MODULE list
-  USE list_callstackentry
-  USE list_routinereport
-  USE list_routinestat
-  USE list_timerenv
+  USE list_callstackentry,             ONLY: &
+       list_callstackentry_clear, list_callstackentry_del, &
+       list_callstackentry_destroy, list_callstackentry_get, &
+       list_callstackentry_init, list_callstackentry_insert, &
+       list_callstackentry_isready, list_callstackentry_peek, &
+       list_callstackentry_pop, list_callstackentry_push, &
+       list_callstackentry_set, list_callstackentry_size
+  USE list_routinereport,              ONLY: &
+       list_routinereport_clear, list_routinereport_del, &
+       list_routinereport_destroy, list_routinereport_get, &
+       list_routinereport_init, list_routinereport_isready, &
+       list_routinereport_peek, list_routinereport_pop, &
+       list_routinereport_push, list_routinereport_set, &
+       list_routinereport_size
+  USE list_routinestat,                ONLY: &
+       list_routinestat_clear, list_routinestat_del, &
+       list_routinestat_destroy, list_routinestat_get, list_routinestat_init, &
+       list_routinestat_insert, list_routinestat_isready, &
+       list_routinestat_peek, list_routinestat_pop, list_routinestat_push, &
+       list_routinestat_set, list_routinestat_size
+  USE list_timerenv,                   ONLY: &
+       list_timerenv_clear, list_timerenv_del, list_timerenv_destroy, &
+       list_timerenv_get, list_timerenv_init, list_timerenv_insert, &
+       list_timerenv_isready, list_timerenv_peek, list_timerenv_pop, &
+       list_timerenv_push, list_timerenv_set, list_timerenv_size
 
   IMPLICIT NONE
 

@@ -10,7 +10,6 @@
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
 MODULE dimer_methods
-  USE cg_optimizer
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&

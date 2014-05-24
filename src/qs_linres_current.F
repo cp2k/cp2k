@@ -71,7 +71,6 @@ MODULE qs_linres_current
   USE lgrid_types,                     ONLY: lgrid_type
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing
   USE orbital_pointers,                ONLY: ncoset
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: get_particle_set,&

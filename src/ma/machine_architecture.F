@@ -17,10 +17,14 @@ MODULE machine_architecture
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_finalize,&
                                              ma_error_stop
-  USE ma_kinds
+  USE ma_kinds,                        ONLY: default_string_length
   USE machine,                         ONLY: m_getpid
-  USE machine_architecture_types
-  USE machine_architecture_utils
+  USE machine_architecture_types,      ONLY: arch_topology,&
+                                             group,&
+                                             ma_mp_type,&
+                                             machine_output
+  USE machine_architecture_utils,      ONLY: ascii_to_string,&
+                                             string_to_ascii
   USE message_passing,                 ONLY: mp_environ,&
                                              mp_proc_name,&
                                              mp_sum

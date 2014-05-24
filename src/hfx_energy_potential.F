@@ -71,11 +71,13 @@ MODULE hfx_energy_potential
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE mathconstants
+  USE mathconstants,                   ONLY: fac
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum,&
                                              mp_sync
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset,&
+                                             nso
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&

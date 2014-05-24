@@ -12,7 +12,13 @@
 MODULE input_cp2k_distribution
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: add_last_numeric,&
+                                             low_print_level,&
+                                             model_block_count,&
+                                             model_block_lmax,&
+                                             model_block_surface,&
+                                             opt_target_median,&
+                                             opt_target_minimum
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

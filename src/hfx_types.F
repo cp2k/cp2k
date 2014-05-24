@@ -57,7 +57,9 @@ MODULE hfx_types
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
   USE mathconstants,                   ONLY: pi
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset,&
+                                             nso
   USE string_utilities,                ONLY: compress
   USE t_c_g0,                          ONLY: free_C0
   USE timings,                         ONLY: timeset,&

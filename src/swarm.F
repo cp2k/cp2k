@@ -15,7 +15,6 @@ MODULE swarm
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
-  USE swarm_input
   USE swarm_master,                    ONLY: swarm_master_finalize,&
                                              swarm_master_init,&
                                              swarm_master_steer,&

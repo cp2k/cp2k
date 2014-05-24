@@ -19,7 +19,10 @@ MODULE dbcsr_util
                                              array_i1d_obj
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_get_data
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_row_offset, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &

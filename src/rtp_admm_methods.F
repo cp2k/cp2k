@@ -49,7 +49,8 @@ MODULE rtp_admm_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants
+  USE mathconstants,                   ONLY: one,&
+                                             zero
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&

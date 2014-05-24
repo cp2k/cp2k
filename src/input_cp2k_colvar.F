@@ -12,7 +12,11 @@ MODULE input_cp2k_colvar
   USE bibliography,                    ONLY: Branduardi2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_clv_fix_point, do_clv_geo_center, do_clv_x, &
+       do_clv_xy, do_clv_xyz, do_clv_xz, do_clv_y, do_clv_yz, do_clv_z, &
+       gaussian, high_print_level, low_print_level, numerical, &
+       plane_def_atoms, plane_def_vec, rmsd_all, rmsd_list, rmsd_weightlist
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

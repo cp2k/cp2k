@@ -43,7 +43,11 @@ MODULE dbcsr_operations_low
                                              checker_tr,&
                                              dbcsr_find_column,&
                                              dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
                                              dbcsr_repoint_index
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&

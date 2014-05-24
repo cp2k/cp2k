@@ -20,7 +20,6 @@ MODULE hfx_helpers
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
   USE message_passing,                 ONLY: mp_sum
 #include "./common/cp_common_uses.f90"
 

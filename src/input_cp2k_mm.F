@@ -18,7 +18,13 @@ MODULE input_cp2k_mm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       debug_print_level, do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, &
+       do_ff_g87, do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, &
+       do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic, &
+       do_ff_undef, high_print_level, low_print_level, medium_print_level, &
+       silent_print_level, use_mom_ref_coac, use_mom_ref_com, &
+       use_mom_ref_user, use_mom_ref_zero
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

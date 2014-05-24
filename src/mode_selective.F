@@ -23,7 +23,11 @@ MODULE mode_selective
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: get_results
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants
+  USE input_constants,                 ONLY: ms_guess_atomic,&
+                                             ms_guess_bfgs,&
+                                             ms_guess_molden,&
+                                             ms_guess_restart,&
+                                             ms_guess_restart_vec
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

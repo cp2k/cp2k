@@ -12,8 +12,17 @@
 ! *****************************************************************************
 
 MODULE dict
-  USE dict_i4tuple_callstat
-  USE dict_str_i4
+  USE dict_i4tuple_callstat,           ONLY: &
+       dict_i4tuple_callstat_del, dict_i4tuple_callstat_destroy, &
+       dict_i4tuple_callstat_get, dict_i4tuple_callstat_haskey, &
+       dict_i4tuple_callstat_init, dict_i4tuple_callstat_isready, &
+       dict_i4tuple_callstat_items, dict_i4tuple_callstat_set, &
+       dict_i4tuple_callstat_size, dict_i4tuple_callstat_update
+  USE dict_str_i4,                     ONLY: &
+       dict_str_i4_del, dict_str_i4_destroy, dict_str_i4_get, &
+       dict_str_i4_haskey, dict_str_i4_init, dict_str_i4_isready, &
+       dict_str_i4_items, dict_str_i4_set, dict_str_i4_size, &
+       dict_str_i4_update
 
   IMPLICIT NONE
 

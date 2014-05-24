@@ -19,7 +19,14 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_data_release,&
                                              dbcsr_data_set_pointer,&
                                              dbcsr_get_data
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_num_threads,&
