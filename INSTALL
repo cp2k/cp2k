@@ -225,6 +225,8 @@ How to compile CP2K code
      -D__HAS_NO_MPI_MOD - workaround if mpi has been built for a different (version
                           of the) Fortran compiler, rendering the MPI module
                           unreadable (reverts to f77 style mpif.h includes)
+     -D__NO_IPI_DRIVER disables the socket interface in case of troubles compiling 
+                       on systems that do not support POSIX sockets
 
  3c) CP2K currently assumes Fortran2003 compliance, even though few features are used. 
      Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.
