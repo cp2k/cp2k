@@ -28,7 +28,6 @@ MODULE ipi_driver
                                              mp_sync
   USE termination,                     ONLY: stop_program
   USE virial_types,                    ONLY: virial_type
-
 #include "./common/cp_common_uses.f90"                                               
 
   IMPLICIT NONE
@@ -45,6 +44,7 @@ MODULE ipi_driver
       USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: psockfd, inet, port
     CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
+
     END SUBROUTINE open_socket
 
     SUBROUTINE writebuffer(psockfd, pdata, plen) BIND(C)
@@ -52,11 +52,13 @@ MODULE ipi_driver
     INTEGER(KIND=C_INT)                      :: psockfd
     CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: pdata
     INTEGER(KIND=C_INT)                      :: plen
+
     END SUBROUTINE writebuffer       
 
     SUBROUTINE writebuffer_i(psockfd, pdata, plen) BIND(C)
       USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: psockfd, pdata, plen
+
     END SUBROUTINE writebuffer_i
 
     SUBROUTINE writebuffer_d(psockfd, pdata, plen) BIND(C)
@@ -64,6 +66,7 @@ MODULE ipi_driver
     INTEGER(KIND=C_INT)                      :: psockfd
     REAL(KIND=C_DOUBLE)                      :: pdata
     INTEGER(KIND=C_INT)                      :: plen
+
     END SUBROUTINE writebuffer_d       
 
     INTEGER (KIND=C_INT) FUNCTION readbuffer(psockfd, pdata, plen) BIND(C)
@@ -108,7 +111,8 @@ MODULE ipi_driver
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, i_drv_unix, idir, &
-                                                ii, inet, ip, nat, nread, socket
+                                                ii, inet, ip, nat, nread, &
+                                                socket
     LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
                                                 ionode = .FALSE., should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), pot, &
