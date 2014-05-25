@@ -26,7 +26,9 @@ MODULE ipi_driver
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync
+  USE termination,                     ONLY: stop_program
   USE virial_types,                    ONLY: virial_type
+
 #include "./common/cp_common_uses.f90"                                               
 
   IMPLICIT NONE
@@ -43,26 +45,25 @@ MODULE ipi_driver
       USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: psockfd, inet, port
     CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
-
     END SUBROUTINE open_socket
+
     SUBROUTINE writebuffer(psockfd, pdata, plen) BIND(C)
       USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: psockfd
     CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: pdata
     INTEGER(KIND=C_INT)                      :: plen
-
     END SUBROUTINE writebuffer       
+
     SUBROUTINE writebuffer_i(psockfd, pdata, plen) BIND(C)
       USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: psockfd, pdata, plen
-
     END SUBROUTINE writebuffer_i
+
     SUBROUTINE writebuffer_d(psockfd, pdata, plen) BIND(C)
       USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: psockfd
     REAL(KIND=C_DOUBLE)                      :: pdata
     INTEGER(KIND=C_INT)                      :: plen
-
     END SUBROUTINE writebuffer_d       
 
     INTEGER (KIND=C_INT) FUNCTION readbuffer(psockfd, pdata, plen) BIND(C)
@@ -71,12 +72,14 @@ MODULE ipi_driver
       CHARACTER (KIND=C_CHAR), DIMENSION(*) :: pdata
       INTEGER (KIND=C_INT) :: plen
     END FUNCTION readbuffer 
+
     INTEGER (KIND=C_INT) FUNCTION readbuffer_i(psockfd, pdata, plen) BIND(C)
       USE ISO_C_BINDING
       INTEGER (KIND=C_INT) :: psockfd
       INTEGER (KIND=C_INT) :: pdata
       INTEGER (KIND=C_INT) :: plen
     END FUNCTION readbuffer_i
+
     INTEGER (KIND=C_INT) FUNCTION readbuffer_d(psockfd, pdata, plen) BIND(C)
       USE ISO_C_BINDING
       INTEGER (KIND=C_INT) :: psockfd
@@ -105,8 +108,7 @@ MODULE ipi_driver
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, i_drv_unix, idir, &
-                                                ii, inet, ip, nat, nread, &
-                                                slock, socket, swait, uwait
+                                                ii, inet, ip, nat, nread, socket
     LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
                                                 ionode = .FALSE., should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), pot, &
@@ -117,7 +119,6 @@ MODULE ipi_driver
     TYPE(section_vals_type), POINTER         :: drv_section, motion_section
     TYPE(virial_type), POINTER               :: virial
 
-!MIK DRIVER
 ! server address parsing
 ! buffers and temporaries for communication
 ! access cp2k structures
@@ -132,6 +133,9 @@ MODULE ipi_driver
     CALL section_vals_val_get(drv_section,"PORT",i_val=drv_port,error=error)
     CALL section_vals_val_get(drv_section,"UNIX",l_val=drv_unix,error=error)
 
+#ifdef __NO_IPI_DRIVER
+    CALL stop_program(routineN,moduleN,__LINE__,"CP2K was compiled with the __NO_IPI_DRIVER option!")
+#else
     
     ! opens the socket
     socket=0    
@@ -148,20 +152,14 @@ MODULE ipi_driver
     !now we have a socket, so we can initialize the CP2K environments. 
     NULLIFY(cpcell)
     CALL cell_create(cpcell,error=error)
-    uwait=10000  ! number of MICROseconds to be waited in filesystem lock
     driver_loop: DO
       ! do communication on master node only...
       header = ""
 
-      ! this syncs the processes, possibly (see sockets.c) without calling MPI_Barrier, 
-      ! which is nice as MPI_barrier eats up a lot of CPU for nothing
-      inet=slock(default_para_env%source, default_para_env%mepos) 
       CALL mp_sync(default_para_env%group)
 
       IF (ionode) nread=readbuffer(socket, header, MSGLEN)
-      IF (ionode)  WRITE(0,*) "returned from readbuffer" 
-
-      inet=swait(uwait, default_para_env%source, default_para_env%mepos)
+      
       CALL mp_sync(default_para_env%group)
 
       CALL mp_bcast(nread,default_para_env%source, default_para_env%group)
@@ -175,7 +173,6 @@ MODULE ipi_driver
       IF (ionode) WRITE(*,*) " @ DRIVER MODE: Message from server: ", TRIM(header)
       IF (TRIM(header) == "STATUS") THEN          
 
-         inet=slock(default_para_env%source, default_para_env%mepos) 
          CALL mp_sync(default_para_env%group)
          IF (ionode) THEN  ! does not  need init (well, maybe it should, just to check atom numbers and the like... )
             IF (hasdata) THEN
@@ -184,7 +181,6 @@ MODULE ipi_driver
                CALL writebuffer(socket,"READY       ",MSGLEN)
             ENDIF
          ENDIF
-         inet=swait(uwait,default_para_env%source, default_para_env%mepos)
          CALL mp_sync(default_para_env%group)
       ELSE IF (TRIM(header) == "POSDATA") THEN              
          IF (ionode) THEN        
@@ -203,7 +199,7 @@ MODULE ipi_driver
          
          CALL force_env_get(force_env,subsys=subsys,error=error)
          IF (nat/=subsys%particles%n_els) WRITE(*,*) &
-                " @DRIVER MODE: Uh-oh! Particle number mismatch between i-pi and cp2k input!"
+                " @DRIVER MODE: Uh-oh! Particle number mismatch between i-PI and cp2k input!"
          ii=0
          DO ip=1,subsys%particles%n_els
           DO idir=1,3
@@ -230,7 +226,7 @@ MODULE ipi_driver
          CALL force_env_get(force_env,cell=cpcell, virial=virial, error=error)
          vir = TRANSPOSE(virial%pv_virial)
          
-         CALL external_control(should_stop,"DPI",globenv=globenv,error=error)
+         CALL external_control(should_stop,"IPI",globenv=globenv,error=error)
          IF (should_stop) EXIT
        
          hasdata=.TRUE.
@@ -256,7 +252,7 @@ MODULE ipi_driver
          EXIT
       ENDIF
     ENDDO driver_loop  
+#endif
     
   END SUBROUTINE run_driver
-  
 END MODULE ipi_driver
