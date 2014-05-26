@@ -63,7 +63,9 @@ MODULE machine_architecture
 
   ! For the machine representation
   TYPE(arch_topology)                            :: topology
+#if defined (__HWLOC)
   TYPE(machine_output)                           :: console_out
+#endif
 
 #if defined (__LIBNUMA)
   LOGICAL, PARAMETER :: ma_libnuma = .TRUE.
