@@ -11,20 +11,7 @@
 ! *****************************************************************************
 MODULE hfx_libint_wrapper_types
 
-#if defined (__LIBINT)
-
-#if !defined (__HAS_NO_ISO_C_BINDING)
-#if !defined (__HAS_ISO_C_BINDING)
-#define __HAS_ISO_C_BINDING
-#endif
-#endif
-
-#if defined (__HAS_ISO_C_BINDING)
   USE, INTRINSIC :: ISO_C_BINDING
-#endif
-
-#endif
-
   USE kinds,                           ONLY: dp, int_8
 
   IMPLICIT NONE
@@ -34,16 +21,9 @@ MODULE hfx_libint_wrapper_types
          prim_data,&
          prim_data_f_size,&
          build_eri_size,&
-         build_deriv1_eri_size,&
-         has_iso_c_binding
+         build_deriv1_eri_size
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper_types'
-
-#if defined (__HAS_ISO_C_BINDING)
-  LOGICAL, PARAMETER                   :: has_iso_c_binding = .TRUE.
-#else
-  LOGICAL, PARAMETER                   :: has_iso_c_binding = .FALSE.
-#endif
 
 ! *** Set default libint parameters if not specified via arch file
 
@@ -62,9 +42,6 @@ MODULE hfx_libint_wrapper_types
   INTEGER, PARAMETER :: build_eri_size = libint_max_am - 1
   INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1 - 1
 
-#if defined (__LIBINT)
-
-#if defined (__HAS_ISO_C_BINDING)
   TYPE, BIND(C) :: prim_data
     REAL(C_DOUBLE) :: F(prim_data_f_size)
     REAL(C_DOUBLE) :: U(3,6)
@@ -102,85 +79,5 @@ MODULE hfx_libint_wrapper_types
     TYPE(C_PTR)     :: dvrr_classes(libint_dvrr_classes_size,libint_dvrr_classes_size)
     TYPE(C_PTR)     :: dvtt_stack
   END TYPE lib_deriv
-#else
-  TYPE prim_data
-    REAL(dp)        :: F(prim_data_f_size)
-    REAL(dp)        :: U(3,6)
-    REAL(dp)        :: twozeta_a
-    REAL(dp)        :: twozeta_b
-    REAL(dp)        :: twozeta_c
-    REAL(dp)        :: twozeta_d
-    REAL(dp)        :: oo2z
-    REAL(dp)        :: oo2n
-    REAL(dp)        :: oo2zn
-    REAL(dp)        :: poz
-    REAL(dp)        :: pon
-    REAL(dp)        :: oo2p
-    REAL(dp)        :: ss_r12_ss
-  END TYPE prim_data
-
-  TYPE lib_int
-    INTEGER(int_8)  :: int_stack
-    INTEGER(int_8)  :: PrimQuartet
-    REAL(dp)        :: AB(3)
-    REAL(dp)        :: CD(3)
-    INTEGER(int_8)  :: vrr_classes(libint_vrr_classes_size,libint_vrr_classes_size)
-    INTEGER(int_8)  :: vrr_stack
-  END TYPE lib_int
-
-  TYPE lib_deriv
-    INTEGER(int_8)  :: int_stack
-    INTEGER(int_8)  :: PrimQuartet
-    INTEGER(int_8)  :: zero_stack
-    REAL(dp)        :: ABCD(156)
-    REAL(dp)        :: AB(3)
-    REAL(dp)        :: CD(3)
-    INTEGER(int_8)  :: deriv_classes(12,libint_dvrr_classes_size,libint_dvrr_classes_size)
-    INTEGER(int_8)  :: deriv2_classes(144,libint_dvrr_classes_size,libint_dvrr_classes_size)
-    INTEGER(int_8)  :: dvrr_classes(libint_dvrr_classes_size,libint_dvrr_classes_size)
-    INTEGER(int_8)  :: dvtt_stack
-  END TYPE lib_deriv
-#endif
-
-#else
-  TYPE prim_data
-    REAL(dp)        :: F(prim_data_f_size)
-    REAL(dp)        :: U(3,6)
-    REAL(dp)        :: twozeta_a
-    REAL(dp)        :: twozeta_b
-    REAL(dp)        :: twozeta_c
-    REAL(dp)        :: twozeta_d
-    REAL(dp)        :: oo2z
-    REAL(dp)        :: oo2n
-    REAL(dp)        :: oo2zn
-    REAL(dp)        :: poz
-    REAL(dp)        :: pon
-    REAL(dp)        :: oo2p
-    REAL(dp)        :: ss_r12_ss
-  END TYPE prim_data
-
-  TYPE lib_int
-    REAL(dp)        :: int_stack
-    TYPE(prim_data) :: PrimQuartet
-    REAL(dp)        :: AB(3)
-    REAL(dp)        :: CD(3)
-    REAL(dp)        :: vrr_classes(libint_vrr_classes_size,libint_vrr_classes_size)
-    REAL(dp)        :: vrr_stack
-  END TYPE lib_int
-
-  TYPE lib_deriv
-    REAL(dp)        :: int_stack
-    TYPE(prim_data) :: PrimQuartet
-    REAL(dp)        :: zero_stack
-    REAL(dp)        :: ABCD(156)
-    REAL(dp)        :: AB(3)
-    REAL(dp)        :: CD(3)
-    REAL(dp)        :: deriv_classes(12,libint_dvrr_classes_size,libint_dvrr_classes_size)
-    REAL(dp)        :: deriv2_classes(144,libint_dvrr_classes_size,libint_dvrr_classes_size)
-    REAL(dp)        :: dvrr_classes(libint_dvrr_classes_size,libint_dvrr_classes_size)
-    REAL(dp)        :: dvtt_stack
-  END TYPE lib_deriv
-#endif
-
 
 END MODULE hfx_libint_wrapper_types

@@ -1,7 +1,6 @@
 How to compile and link Libint
 ==============================
 
-
 1. Introduction
 ---------------
 
@@ -9,40 +8,6 @@ The HFX modules in cp2k interface the C++ library Libint in order to calculate
 the four center electron repulsion integrals. I you want to use that part of
 the code, you have to compile and link in these libraries (libint.a and 
 libderiv.a). 
-
-Interfacing to the Libint library requires some additional attention due to the
-fact that Fortran code has to inter-operate with some more sophisticated  C/C++
-function prototypes such as arrays of pointers to functions.
-
-In principle, the ISO_C_BINDING module, as a Fortran-2003 extension to the 
-95 standard, provides an elegant way of handling interoperabilty with C or 
-C++ code.
-However, not all compilers come with full ISO_C_BINDING support and therefore 
-all calls from cp2k to the Libint-library have to be redirected through a
-c++ wrapper.
-
-
-2. ISO_C_BINDING prerequisites
-------------------------------
-
-In order to compile CP2K and link to the Libint library without the need of 
-additional wrappers, a Fortran Compiler needs to support the following
-intrinsic datatypes and procedures:
-
- - Interoperability types: C_INT, C_DOUBLE, C_PTR
- - Procedures: C_F_POINTER, C_LOC and C_F_PROCPOINTER
-
-If all these features are present your compiler should be able to compile 
-cp2k and link to Libint without any problems. (For a list of compilers
-with full support see section 5). If one or more of the above features are
-missing, you have to compile cp2k with the flag -D__HAS_NO_ISO_C_BINDING and 
-additionally have to provide the wrapper.
-
-Note: By default, cp2k assumes full ISO_C_BINDING capabilities for the 
-      compilers.
-
-Section 4 explains how to proceed in both cases.
-
 
 3. How to compile Libint
 ------------------------
@@ -63,73 +28,14 @@ Once you have unzipped the tarball you just execute the following commands
 
 In that case, the library is compiled with default settings for the angular
 momentum (i.e. g-functions for energies, f-functions for derivatives).
+
+
 If you want to use basis functions with higher angular momenta, you have to
 provide this information to the configure script. For example:
 
    ./configure --prefix='your_install_directory' --with-libint-max-am=5 --with-libderiv-max-am1=4
 
 for h- and g-functions respectively.
-
-NOTE: If you do not use the default settings, you have to specify some 
-      preprocessor flags in the cp2k arch file. (See section 4.3 for details.)
-
-
-4. How to link to Libint
-------------------------
-
-If you want to link against the Libint library, you have to add -D__LIBINT
-to the DFLAGS in the cp2k architecture file. If you try to run cp2k using
-the Hartree-Fock module without specifying this flag, you will get a 
-run-time error message and cp2k will abort.
-
-
-4.1 Compilers that fully support the ISO_C_BINDING standard
------------------------------------------------------------
-
-In that case you only have to link in the Libint libraries in the correct 
-order via the arch file:
-
-LIBS        = [...]\
-              'path_to_libint_libs'/lib/libderiv.a\
-              'path_to_libint_libs'/lib/libint.a\
-              -lstdc++
-
-lstdc++ is needed if you use the GNU C++ compiler.
-
-
-4.2 Compilers that do not fully support the ISO_C_BINDING standard
-------------------------------------------------------------------
-
-In that case, you have to compile the C++ wrapper:
-
-	1. Move into cp2k/tools/hfx_tools/libint_tools
-        2. The source file is called libint_cpp_wrapper.cpp
-        3. Compile this file with your favourite C++ compiler (here gcc)
-
-             g++ -O3 -c libint_cpp_wrapper.cpp -I/'path_to_libint_include'
-
-           in order to obtain libint_cpp_wrapper.o. (Note: Do not forget the
-           optimization flag!)
-           
-
-For the compilation of cp2k you have to add the following DFLAG to your 
-arch file:
-        
-        -D__HAS_NO_ISO_C_BINDING
-
-And in the LIB section, you add
-       
-LIBS        = [...]\
-              /cp2k/tools/hfx_tools/libint_tools/libint_cpp_wrapper.o\
-              'path_to_libint_libs'/lib/libderiv.a\
-              'path_to_libint_libs'/lib/libint.a\
-               -lstdc++
-
-Note: Take care of the correct order!
-
-
-4.3 Libint with non-default angular momentum settings
------------------------------------------------------
 
 In that case you have to specify two additional DFLAGS that tell cp2k 
 what is the maximum angular momentum that the libint libraries can deal
@@ -143,50 +49,21 @@ Note: This is max_am + 1 as specified in the configure script. These values can
       also be found in libint.h and lideriv.h respectively.
 
 
-5. Appendix
------------
-
-5.1 Compilers that support full ISO_C_BINDING
----------------------------------------------
-
-- gfortran 4.4.1
-- intel 11.1.056
-- crayftn 7.1.2
-- xlf 11.1 (compiles, but bug in execution) 
-
-
-5.2 Known issues
-----------------
-
-5.2.1 Underscore problem
+4. How to link to Libint
 ------------------------
 
-- xlf compilers require special care for the linking of the wrapper. Add
+If you want to link against the Libint library, you have to add -D__LIBINT
+to the DFLAGS in the cp2k architecture file. If you try to run cp2k using
+the Hartree-Fock module without specifying this flag, you will get a 
+run-time error message and cp2k will abort.
 
-  FCFLAGS = [...]\
-            -qextname=wrapper_build_deriv1_eri:wrapper_build_eri:wrapper_free_libderiv:wrapper_free_libint:wrapper_init_deriv:wrapper_init_lib
 
-- other compilers might need -fno-second-underscore or similar flags in order
-  to avoid problems
+You only have to link in the Libint libraries in the correct 
+order via the arch file:
 
-- g95 needs two trailing underscores instead of one as provided in the file
+LIBS        = [...]\
+              'path_to_libint_libs'/lib/libderiv.a\
+              'path_to_libint_libs'/lib/libint.a\
+              -lstdc++
 
-5.2.2 Cross compilation
------------------------
-
-Most HPC facilities offer different architectures for login and compute nodes.
-Take care to compile libint and the wrapper with the correct C/C++ compiler.
-For PGI on a CRAY-XT3 for example 
-
-   ./configure --prefix='your_install_directory' --with-cxx=CC --target=cray --host=x86_64-unknown-linux-gnu
-
-and 
-
-   CC -c -target=catamount libint_cpp_wrapper.cpp -I/'path_to_libint.h_and_libderiv.h'
-
-5.3 Upgrading from a previous cp2k version
-------------------------------------------
-
-If you already have and older cp2k arch file that worked with your 
-compiler/hardware, the only thing you have to do is either to add the
--D__HAS_NO_ISO_C_BINDING flag or not.
+lstdc++ is needed if you use the GNU C++ compiler.

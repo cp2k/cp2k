@@ -41,8 +41,7 @@ MODULE hfx_energy_potential
                                              hfx_reset_cache_and_container
   USE hfx_contract_block,              ONLY: contract_block
   USE hfx_libint_interface,            ONLY: evaluate_eri
-  USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&
-                                             lib_int
+  USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                              hfx_load_balance,&
                                              hfx_update_load_balance
@@ -537,11 +536,6 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF( .NOT. has_iso_c_binding) THEN
-      ALLOCATE(p_work(nco(max_am)**4), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
 
     nspins = qs_env%dft_control%nspins
 
@@ -2147,11 +2141,6 @@ MODULE hfx_energy_potential
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF( .NOT. has_iso_c_binding) THEN
-      DEALLOCATE(p_work, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
 
     DEALLOCATE(nimages, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

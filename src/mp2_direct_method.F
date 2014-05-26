@@ -19,8 +19,7 @@ MODULE mp2_direct_method
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
-  USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&
-                                             lib_int
+  USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_load_balance_methods,        ONLY: cost_model,&
                                              p1_energy,&
                                              p2_energy,&
@@ -46,8 +45,7 @@ MODULE mp2_direct_method
                                              mp2_biel_type,&
                                              mp2_type,&
                                              pair_list_type_mp2
-  USE orbital_pointers,                ONLY: nco,&
-                                             ncoset
+  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -383,11 +381,6 @@ MODULE mp2_direct_method
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF( .NOT. has_iso_c_binding) THEN
-      ALLOCATE(p_work(nco(max_am)**4), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
 
     nspins = qs_env%dft_control%nspins
 
@@ -1209,11 +1202,6 @@ MODULE mp2_direct_method
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF( .NOT. has_iso_c_binding) THEN
-      DEALLOCATE(p_work, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
 
     DEALLOCATE(nimages, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

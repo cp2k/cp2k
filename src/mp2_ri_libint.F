@@ -36,8 +36,7 @@ MODULE mp2_ri_libint
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
-  USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&
-                                             lib_int
+  USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
   USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                              calc_screening_functions
@@ -700,11 +699,6 @@ MODULE mp2_ri_libint
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF( .NOT. has_iso_c_binding) THEN
-      ALLOCATE(p_work(nco(max_am)**4), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
     nspins = qs_env%dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
@@ -1339,11 +1333,6 @@ MODULE mp2_ri_libint
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF( .NOT. has_iso_c_binding) THEN
-      DEALLOCATE(p_work, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
 
     DEALLOCATE(nimages, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
