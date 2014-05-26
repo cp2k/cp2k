@@ -18,9 +18,7 @@
 !> \author Benjamin G. Levine
 ! *****************************************************************************
 MODULE pw_cuda
-#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#endif
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
