@@ -20,7 +20,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_pool_types
-  USE ISO_C_BINDING,                   ONLY: C_LOC
   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
                                              cp_sll_3d_r_get_first_el,&
                                              cp_sll_3d_r_get_length,&
@@ -658,14 +657,12 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         IF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' created cr3d at 0x',z16.16)")&
-                pw_pool%id_nr, C_LOC(cr3d)
+                fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
      ELSEIF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' created cr3d reusing the one at 0x',z16.16)")&
-                pw_pool%id_nr, C_LOC(cr3d)
+                fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
      END IF
   END IF
@@ -710,8 +707,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
      IF (ASSOCIATED(cr3d)) THEN
         IF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' received back a cr3d at 0x',z16.16)")&
-                pw_pool%id_nr, C_LOC(cr3d)
+                fmt="(' *** pw_pool ',i4,' received back a cr3d')") pw_pool%id_nr
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
         compatible=ALL( MERGE( pw_pool%pw_grid%bounds_local(1,:)==LBOUND(cr3d).AND. &

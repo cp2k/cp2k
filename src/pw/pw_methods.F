@@ -21,7 +21,6 @@
 !> \author apsi
 ! *****************************************************************************
 MODULE pw_methods
-  USE ISO_C_BINDING,                   ONLY: C_LOC
   USE f77_blas
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
@@ -1726,34 +1725,34 @@ CONTAINS
     CASE (REALDATA1D)
        WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA1D"
        IF (ASSOCIATED(pw%cr)) THEN
-          WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')at 0x',z16.16,'>')")&
-               LBOUND(pw%cr,1),UBOUND(pw%cr,1),C_LOC(pw%cr(LBOUND(pw%cr)))
+          WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')>')")&
+               LBOUND(pw%cr,1),UBOUND(pw%cr,1)
        ELSE
           WRITE (unit=unit_nr, fmt="(' cr=*null*')")
        END IF
     CASE (REALDATA3D)
        WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA3D"
        IF (ASSOCIATED(pw%cr3d)) THEN
-          WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')at 0x',z16.16,'>')")&
+          WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')")&
                LBOUND(pw%cr3d,1),UBOUND(pw%cr3d,1),LBOUND(pw%cr3d,2),UBOUND(pw%cr3d,2),&
-               LBOUND(pw%cr3d,3),UBOUND(pw%cr3d,3),C_LOC(pw%cr3d)
+               LBOUND(pw%cr3d,3),UBOUND(pw%cr3d,3)
        ELSE
           WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
        END IF
     CASE (COMPLEXDATA1D)
        WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA1D"
        IF (ASSOCIATED(pw%cc)) THEN
-          WRITE (unit=unit_nr, fmt="(' cc=<real(',i8,':',i8,') at 0x',z16.16,'>')")&
-               LBOUND(pw%cc,1),UBOUND(pw%cc,1),C_LOC(pw%cc)
+          WRITE (unit=unit_nr, fmt="(' cc=<real(',i8,':',i8,')>')")&
+               LBOUND(pw%cc,1),UBOUND(pw%cc,1)
        ELSE
           WRITE (unit=unit_nr, fmt="(' cc=*null*')")
        END IF
     CASE (COMPLEXDATA3D)
        WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA3D"
        IF (ASSOCIATED(pw%cc3d)) THEN
-          WRITE (unit=unit_nr, fmt="(' cc3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,') at 0x',z16.16,'>')")&
+          WRITE (unit=unit_nr, fmt="(' cc3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')")&
                LBOUND(pw%cc3d,1),UBOUND(pw%cc3d,1),LBOUND(pw%cc3d,2),UBOUND(pw%cc3d,2),&
-               LBOUND(pw%cc3d,3),UBOUND(pw%cc3d,3),C_LOC(pw%cc3d)
+               LBOUND(pw%cc3d,3),UBOUND(pw%cc3d,3)
        ELSE
           WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
        END IF
