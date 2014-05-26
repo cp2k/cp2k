@@ -11,7 +11,7 @@
 MODULE fftw3_lib
 
   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
-                                             C_INT
+                                             C_INT, C_INTPTR_T
   USE cp_files,                        ONLY: get_unit_number
   USE fft_kinds,                       ONLY: dp,&
                                              integer8_kind
@@ -918,12 +918,6 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
 
 
   IMPLICIT NONE
-#if defined (__NAG)
-  INTEGER*8          :: dummy_64_bit
-  INTEGER, PARAMETER :: integer8_kind = KIND(dummy_64_bit)
-#else
-  INTEGER, PARAMETER :: integer8_kind = 8
-#endif
 
   TYPE (fft_plan_type), INTENT (IN)                  :: plan
   COMPLEX(KIND=dp), DIMENSION(*), TARGET, INTENT(IN)         :: zin
@@ -932,7 +926,7 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
   INTEGER, INTENT(OUT)                               :: stat
   INTEGER :: num_rows, my_id, in_offset, out_offset, scal_offset
   COMPLEX(KIND=dp), POINTER :: zin_ptr, zout_ptr, zscal_ptr
-  INTEGER (KIND=integer8_kind)        :: fftw_plan
+  INTEGER (KIND=C_INTPTR_T)                          :: fftw_plan
 
 !------------------------------------------------------------------------------
 

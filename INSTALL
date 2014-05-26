@@ -190,7 +190,6 @@ How to compile CP2K code
      -D__FFTW3: FFTW version 3 : recommended
      -D__PW_CUDA: CUDA FFT and associated gather/scatter on the GPU
      -D__MKL: link the MKL library for linear algebra and/or FFT
-     -D__NAG: if the NAG compiler is used
      various network interconnections:
      -D__GEMINI
      -D__SEASTAR
