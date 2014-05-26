@@ -11,7 +11,8 @@
 MODULE fftw3_lib
 
   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
-                                             C_INT, C_INTPTR_T
+                                             C_INT,&
+                                             C_INTPTR_T
   USE cp_files,                        ONLY: get_unit_number
   USE fft_kinds,                       ONLY: dp,&
                                              integer8_kind
@@ -73,7 +74,7 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 ! a C interface to a global variable in MKL that sets
 ! the number of threads which can concurrently execute
 ! an FFT
-#if defined (__MKL) && defined (__FFTW3)
+#if defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
 !$    include "mkl.fi"
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .EQ. 110100
@@ -108,7 +109,7 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 ! If we are not using the Intel compiler, there is no way to tell which
 ! MKL version is in use, so fail safe...
 !$     mkl_is_safe = .FALSE.
-#if defined (__MKL) && defined (__FFTW3)
+#if defined (__INTEL_COMPILER) &&defined (__MKL) && defined (__FFTW3)
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .EQ. 110100
 !$     mkl_dft_number_of_user_threads=omp_get_max_threads() 
@@ -915,18 +916,18 @@ SUBROUTINE fftw3_destroy_plan ( plan )
 END SUBROUTINE fftw3_destroy_plan
 
 SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
+    TYPE(fft_plan_type), INTENT(IN)          :: plan
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(IN), TARGET                     :: zin
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT), TARGET                  :: zout
+    REAL(KIND=dp), INTENT(IN)                :: scale
+    INTEGER, INTENT(OUT)                     :: stat
 
-
-  IMPLICIT NONE
-
-  TYPE (fft_plan_type), INTENT (IN)                  :: plan
-  COMPLEX(KIND=dp), DIMENSION(*), TARGET, INTENT(IN)         :: zin
-  COMPLEX(KIND=dp), DIMENSION(*), TARGET, INTENT(INOUT)      :: zout
-  REAL (KIND=dp), INTENT ( IN )                      :: scale
-  INTEGER, INTENT(OUT)                               :: stat
-  INTEGER :: num_rows, my_id, in_offset, out_offset, scal_offset
-  COMPLEX(KIND=dp), POINTER :: zin_ptr, zout_ptr, zscal_ptr
-  INTEGER (KIND=C_INTPTR_T)                          :: fftw_plan
+    COMPLEX(KIND=dp), POINTER                :: zin_ptr, zout_ptr, zscal_ptr
+    INTEGER                                  :: in_offset, my_id, num_rows, &
+                                                out_offset, scal_offset
+    INTEGER(KIND=C_INTPTR_T)                 :: fftw_plan
 
 !------------------------------------------------------------------------------
 
