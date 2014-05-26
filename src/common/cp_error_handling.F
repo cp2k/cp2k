@@ -46,15 +46,16 @@ MODULE cp_error_handling
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
-  ! types
+  !API types
   PUBLIC :: cp_error_type
-  ! parameters var
+  !API parameters var
   PUBLIC :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
        cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
-  ! public routines
+  !API public routines
   PUBLIC :: cp_assert, cp_a_l, cp_simple_assert, cp_unimplemented_error
 
+  !API
   PUBLIC :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
        cp_error_get, cp_error_reset, cp_error_get_level,&
        cp_error_get_print_level, cp_error_get_nr,&
